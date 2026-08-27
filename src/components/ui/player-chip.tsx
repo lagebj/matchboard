@@ -1,4 +1,4 @@
-import { ArrowRightLeft, GripVertical, XCircle, type LucideIcon } from "lucide-react";
+import { ArrowRightLeft, GripVertical, Wrench, XCircle, type LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
 
 /**
@@ -62,6 +62,12 @@ type PlayerChipProps = {
    * a destination picker rather than this component knowing about targets.
    */
   onMove?: () => void;
+  /**
+   * Optional onRepair handler — renders an explicit "Repair options" button
+   * (pre-kickoff emergency repair, DECISIONS.md "Emergency repair"). Generates
+   * alternatives for this specific player; never applies anything by itself.
+   */
+  onRepair?: () => void;
   /** Disable interactive controls (e.g., when round is finalized). */
   disabled?: boolean;
   /** Pending state (e.g., a server action is mid-flight). */
@@ -121,6 +127,7 @@ export function PlayerChip({
   draggable = false,
   onRemove,
   onMove,
+  onRepair,
   disabled = false,
   pending = false,
   isTouchDragging = false,
@@ -194,39 +201,51 @@ export function PlayerChip({
           {AVAILABILITY_LABEL[availability]}
         </span>
       )}
-      {onMove && !disabled && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMove();
-          }}
-          disabled={pending}
-          aria-label={`Move ${name} to...`}
-          className={[
-            "shrink-0 text-[var(--text-muted)] hover:text-[var(--accent-strong)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]/55 rounded-full",
-            onRemove ? "" : "ml-auto",
-          ].join(" ")}
-        >
-          <ArrowRightLeft className="h-3.5 w-3.5" />
-        </button>
-      )}
-      {onRemove && !disabled && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          disabled={pending}
-          aria-label={`Remove ${name}`}
-          className={[
-            "shrink-0 text-[var(--text-muted)] hover:text-[var(--danger)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]/55 rounded-full",
-            onMove ? "" : "ml-auto",
-          ].join(" ")}
-        >
-          <XCircle className="h-3.5 w-3.5" />
-        </button>
+      {!disabled && (onRepair || onMove || onRemove) && (
+        <span className="ml-auto flex items-center gap-1 shrink-0">
+          {onRepair && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRepair();
+              }}
+              disabled={pending}
+              aria-label={`Repair options for ${name}`}
+              className="shrink-0 text-[var(--text-muted)] hover:text-[var(--warning)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]/55 rounded-full"
+            >
+              <Wrench className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onMove && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove();
+              }}
+              disabled={pending}
+              aria-label={`Move ${name} to...`}
+              className="shrink-0 text-[var(--text-muted)] hover:text-[var(--accent-strong)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]/55 rounded-full"
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              disabled={pending}
+              aria-label={`Remove ${name}`}
+              className="shrink-0 text-[var(--text-muted)] hover:text-[var(--danger)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]/55 rounded-full"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </span>
       )}
     </div>
   );

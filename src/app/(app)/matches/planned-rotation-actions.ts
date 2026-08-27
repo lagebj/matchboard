@@ -11,11 +11,21 @@ import {
   updatePlannedRotation,
   deletePlannedRotation,
   validatePlannedChanges,
+  checkPlannedRotationCoverage,
   type PlannedRotationWithChanges,
   type PlannedRotationChangeData,
   type PlannedRotationValidationIssue,
+  type PlannedRotationCoverageIssue,
 } from "@/lib/planned-rotation/planned-rotation";
 import type { CreatePlannedRotationInput, UpdatePlannedRotationInput } from "@/lib/planned-rotation/planned-rotation";
+import { GAME_FORMAT_PLAYERS } from "@/lib/formations/types";
+import type { GameFormat } from "@/generated/prisma/client";
+import {
+  getSeasonCombinationEvidence,
+  aggregateSeasonCombinations,
+  selectRelevantPartnerships,
+  type SeasonCombinationSummary,
+} from "@/lib/evidence/combination-aggregation";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: { type: string; filter: Record<string, unknown> }): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -189,5 +199,78 @@ export async function validatePlannedChangesAction(
     return { success: true, issues };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to validate changes." };
+  }
+}
+
+/**
+ * Coverage check for a rotation plan (Phase 5, previously computed and tested but never wired to
+ * any UI). Starters are read from the team's current match line-up (Tactics tab), never
+ * fabricated from the full drafted squad — if no line-up has been set yet, `hasLineup: false` is
+ * returned so the UI can say so honestly instead of guessing who is actually starting.
+ */
+export async function checkPlannedRotationCoverageAction(
+  matchId: string,
+  teamId: string,
+  changes: PlannedRotationChangeData[],
+): Promise<
+  | { success: true; hasLineup: true; issues: PlannedRotationCoverageIssue[]; partnershipEvidence: SeasonCombinationSummary[] }
+  | { success: true; hasLineup: false; issues: []; partnershipEvidence: [] }
+  | { success: false; error: string }
+> {
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true, gameFormat: true, matchRound: { select: { leagueSeasonId: true } } },
+    });
+    if (!match) return { success: false, error: "Match not found or access denied." };
+
+    const lineup = await db.matchLineup.findFirst({
+      where: { matchId, teamId, ...ctx.orgFilter.filter },
+      include: {
+        formation: { include: { slots: { select: { id: true, roleType: true } } } },
+        assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
+      },
+    });
+    if (!lineup || lineup.assignments.length === 0) {
+      return { success: true, hasLineup: false, issues: [], partnershipEvidence: [] };
+    }
+
+    const selections = await db.selection.findMany({
+      where: { matchId, status: { in: ["DRAFT", "FINALIZED"] }, match: { teamId } },
+      select: { playerId: true },
+    });
+    const squadPlayerIds = new Set(selections.map((s) => s.playerId));
+
+    const slotsById = new Map((lineup.formation?.slots ?? []).map((s) => [s.id, s]));
+    const starters = lineup.assignments
+      .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
+      .map((a) => {
+        const roleType = slotsById.get(a.slotId)?.roleType;
+        return { playerId: a.playerId, position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE") };
+      });
+
+    const minimumOnPitch = GAME_FORMAT_PLAYERS[match.gameFormat as GameFormat] ?? starters.length;
+
+    const issues = checkPlannedRotationCoverage(starters, changes, squadPlayerIds, {
+      // Unused by the current coverage checks (no per-change duration model exists for League
+      // matches — see AGENTS.md/hasLeagueMatchPassed on why duration isn't fabricated); kept only
+      // to satisfy the function's options shape.
+      totalMatchSeconds: 0,
+      minimumOnPitch,
+      positions: [],
+    });
+
+    const seasonEvidence = await getSeasonCombinationEvidence(match.matchRound.leagueSeasonId);
+    const partnershipEvidence = selectRelevantPartnerships(
+      starters.map((s) => s.playerId),
+      aggregateSeasonCombinations(seasonEvidence),
+    );
+
+    return { success: true, hasLineup: true, issues, partnershipEvidence };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to check rotation coverage." };
   }
 }

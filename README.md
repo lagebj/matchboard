@@ -181,13 +181,15 @@ Matchboard derives combination evidence — what actually happened while a defin
 
 Confidence (Insufficient/Emerging/Established) reflects how much evidence exists, not how good the combination is. The selection engine uses it as a bounded, capped advisory signal that cannot override eligibility, availability, conflicts, coverage, or fairness rules — amplified under a challenging/stabilising coaching intent, suppressed under a confidence-rebuild/reset intent so unknown pairs are never disadvantaged, unmodified otherwise. The Player Combinations insight (I-005) shows the same evidence alongside its existing co-selection frequency data, the Round Board explains a selection's combination context via the player chip's tooltip, and the post-match page shows factual per-match combination evidence once the report is locked.
 
+Beyond selection, the same season partnership evidence is shown as read-only planning context: on the Tactics tab for the currently assigned line-up, on the Rotations tab for the team's current starters, and on an opponent's detail page for evidence recorded specifically in matches against that opponent. All three are purely informational — they never feed back into selection scoring or any plan integrity signal.
+
 ## Quick observations
 
 A capture-first, classify-later note (text, optional match/player context, timestamp, author) the coach can jot down without deciding up front which existing evidence owner it belongs to. No AI classification. Later, an explicit coach action converts it into a development thread observation, a team reflection, or an opponent observation — or keeps it as a plain note, or discards it.
 
 ## Emergency repair options
 
-Before kickoff, when a selected player becomes unavailable, the coach can request a small, ranked set of viable replacement options with their consequences (plan-integrity impact, combination evidence, recent load). Nothing is applied automatically — the coach reviews the options and applies their choice as a separate, explicit action.
+Before kickoff, when a selected player becomes unavailable, the coach can request a small, ranked set of viable replacement options with their consequences (plan-integrity impact, combination evidence, recent load) via a "Repair options" action on the player's chip in the Round Board. Nothing is applied automatically — the coach reviews the options and applies their choice as a separate, explicit action, using the same manual-edit mutation the board already uses for drag-and-drop and the non-drag Move picker.
 
 ## Coach-facing vs parent-facing exports
 

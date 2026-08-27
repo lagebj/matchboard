@@ -7519,6 +7519,23 @@ Feature: Matchboard football operations workspace
         And each entry must show minutes together and team outcomes while present
         And no confidence label must be shown for a single match
 
+      Scenario: The Tactics tab shows season partnership evidence for the current line-up
+        Given two players with recorded season partnership evidence are both assigned in the current line-up
+        When the coach views the Tactics tab
+        Then the partnership evidence must be shown as factual context
+        And it must not be shown as a chemistry score
+
+      Scenario: The Rotations tab shows season partnership evidence for the current starters
+        Given two players with recorded season partnership evidence are both starters in the team's current match line-up
+        When the coach views the Rotations tab
+        Then the partnership evidence must be shown as factual context
+
+      Scenario: Opponent detail shows combination evidence recorded against that opponent
+        Given combination evidence was recorded in matches against a specific opponent team
+        When the coach views that opponent's detail page
+        Then the combination evidence must be shown as factual context scoped to that opponent
+        And it must not change any selection-engine outcome
+
     Rule: Combination evidence is a bounded advisory signal in selection
 
       Scenario: Combination evidence cannot override hard eligibility
@@ -7593,6 +7610,40 @@ Feature: Matchboard football operations workspace
         When the options are generated
         Then the draft squad must be unchanged afterward
         And applying a chosen replacement must remain a separate, explicit action
+
+      Scenario: The Round Board offers a Repair options action on a selected player
+        Given the coach views a player chip in a draft (non-finalized) match column on the Round Board
+        Then a Repair options action must be available on that chip
+
+      Scenario: The Round Board does not offer repair options on a finalized match
+        Given a match in a round is finalized
+        When the coach views a player chip in that match's column
+        Then no Repair options action must be shown
+
+      Scenario: Applying a chosen repair option updates the draft using the normal manual-edit path
+        Given the coach has opened repair options for a selected player and reviewed the ranked alternatives
+        When the coach chooses one option
+        Then the originally selected player must be removed from the match
+        And the chosen alternative must be added to the match with the option's role
+        And no other draft mutation path is used for this application
+
+    Rule: Planned rotation coverage checking is surfaced on the Rotations tab
+
+      Scenario: A rotation plan without a set line-up shows no coverage claim
+        Given a team has not yet set a starting line-up for a match
+        When the coach views that match's Rotations tab
+        Then the app must say coverage checking needs a line-up first
+        And it must not guess who is starting
+
+      Scenario: A rotation plan missing a goalkeeper is flagged
+        Given a team's current match line-up has no goalkeeper assigned
+        When the coach views that match's Rotations tab
+        Then a coverage note must say no goalkeeper is covered
+
+      Scenario: An untimed planned change is flagged as unable to be checked
+        Given a planned rotation change has no approximate match time
+        When the coach views that match's Rotations tab
+        Then a coverage note must say that change cannot be checked
 
   # --- Lifecycle consolidation (Phase 6) ---
 

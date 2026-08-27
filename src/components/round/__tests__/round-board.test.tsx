@@ -20,8 +20,22 @@ vi.mock("@/app/(app)/rounds/[matchRoundId]/actions", () => ({
   unfinalizeSingleMatchFromBoardAction: vi.fn(),
 }));
 
+vi.mock("@/app/(app)/matches/emergency-repair-actions", () => ({
+  generateEmergencyRepairOptionsAction: vi.fn(async () => ({
+    success: true,
+    vacatedPlayerId: "p-alice",
+    vacatedPlayerName: "Alice",
+    vacatedRole: "CORE",
+    options: [],
+  })),
+}));
+
 const { addPlayerToMatchAction, removePlayerFromMatchAction } = vi.mocked(
   await import("@/app/(app)/rounds/[matchRoundId]/draft-selection-actions"),
+);
+
+const { generateEmergencyRepairOptionsAction } = vi.mocked(
+  await import("@/app/(app)/matches/emergency-repair-actions"),
 );
 
 function baseProps() {
@@ -190,6 +204,95 @@ describe("RoundBoard — non-drag Move alternative (UX-2.8-01)", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(addPlayerToMatchAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("RoundBoard — emergency repair options (Phase 9)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+    generateEmergencyRepairOptionsAction.mockClear();
+  });
+
+  it("shows a Repair options action on a player chip in a match column", () => {
+    render(<RoundBoard {...baseProps()} />);
+    expect(screen.getByRole("button", { name: /repair options for alice/i })).toBeTruthy();
+  });
+
+  it("does not show a Repair options action on a finalized match's player chip", () => {
+    const props = baseProps();
+    props.matches[0]!.isFinalized = true;
+    render(<RoundBoard {...props} />);
+    expect(screen.queryByRole("button", { name: /repair options for alice/i })).toBeNull();
+  });
+
+  it("generates and lists options, then applies the chosen option via remove + add", async () => {
+    generateEmergencyRepairOptionsAction.mockResolvedValueOnce({
+      success: true,
+      vacatedPlayerId: "p-alice",
+      vacatedPlayerName: "Alice",
+      vacatedRole: "CORE",
+      options: [
+        {
+          playerId: "p-bob",
+          playerName: "Bob",
+          coreTeamName: "White",
+          role: "SUPPORT",
+          isOwnTeam: false,
+          positionMatch: true,
+          combinationNotes: [],
+          newBlockedSignals: [],
+          newDecisionRequiredSignals: [],
+          resolvedSignals: [],
+        },
+      ],
+    });
+
+    const user = userEvent.setup();
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /repair options for alice/i }));
+
+    expect(await screen.findByText("Bob")).toBeTruthy();
+    await waitFor(() => {
+      expect(generateEmergencyRepairOptionsAction).toHaveBeenCalledWith("m-blue", "p-alice");
+    });
+
+    await user.click(screen.getByRole("button", { name: /use this player/i }));
+
+    await waitFor(() => {
+      expect(removePlayerFromMatchAction).toHaveBeenCalledOnce();
+    });
+    const rmFd = removePlayerFromMatchAction.mock.calls[0][0] as FormData;
+    expect(rmFd.get("matchId")).toBe("m-blue");
+    expect(rmFd.get("playerId")).toBe("p-alice");
+
+    await waitFor(() => {
+      expect(addPlayerToMatchAction).toHaveBeenCalledOnce();
+    });
+    const addFd = addPlayerToMatchAction.mock.calls[0][0] as FormData;
+    expect(addFd.get("matchId")).toBe("m-blue");
+    expect(addFd.get("playerId")).toBe("p-bob");
+    expect(addFd.get("role")).toBe("SUPPORT");
+    expect(addFd.get("overrideReasonCategory")).toBe("availability_changed");
+  });
+
+  it("shows an empty-options message without applying anything", async () => {
+    generateEmergencyRepairOptionsAction.mockResolvedValueOnce({
+      success: true,
+      vacatedPlayerId: "p-alice",
+      vacatedPlayerName: "Alice",
+      vacatedRole: "CORE",
+      options: [],
+    });
+
+    const user = userEvent.setup();
+    render(<RoundBoard {...baseProps()} />);
+    await user.click(screen.getByRole("button", { name: /repair options for alice/i }));
+
+    expect(await screen.findByText(/no viable alternative found/i)).toBeTruthy();
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
   });
 });
 

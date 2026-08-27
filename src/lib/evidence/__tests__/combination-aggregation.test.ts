@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { aggregateSeasonCombinations } from "../combination-aggregation";
+import { aggregateSeasonCombinations, selectRelevantPartnerships } from "../combination-aggregation";
 import type { CombinationEvidenceRow } from "../combination-topology";
+import type { SeasonCombinationSummary } from "../combination-aggregation";
 
 function makeRow(overrides: Partial<CombinationEvidenceRow> & { playerIds: string[]; positions: string[] }): CombinationEvidenceRow {
   return {
@@ -186,5 +187,45 @@ describe("aggregateSeasonCombinations", () => {
 
     const summaries = aggregateSeasonCombinations(rows);
     expect(summaries[0]!.opponentDiversity).toBe(1);
+  });
+});
+
+function makeSummary(overrides: Partial<SeasonCombinationSummary> & { playerIds: string[] }): SeasonCombinationSummary {
+  return {
+    positions: [],
+    family: "PARTNERSHIP",
+    subtype: "HORIZONTAL",
+    totalMinutesTogether: 90,
+    matchCount: 2,
+    goalsForTotal: 0,
+    goalsAgainstTotal: 0,
+    directGoalContributionsTotal: 0,
+    directAssistContributionsTotal: 0,
+    opponentDiversity: 1,
+    confidence: "EMERGING",
+    approximateTiming: false,
+    ...overrides,
+  };
+}
+
+describe("selectRelevantPartnerships", () => {
+  it("includes a partnership when both players are in the given set", () => {
+    const summaries = [makeSummary({ playerIds: ["p1", "p2"] })];
+    expect(selectRelevantPartnerships(["p1", "p2", "p3"], summaries)).toHaveLength(1);
+  });
+
+  it("excludes a partnership when only one player is in the given set", () => {
+    const summaries = [makeSummary({ playerIds: ["p1", "p2"] })];
+    expect(selectRelevantPartnerships(["p1", "p3"], summaries)).toEqual([]);
+  });
+
+  it("excludes non-PARTNERSHIP families", () => {
+    const summaries = [makeSummary({ playerIds: ["p1", "p2", "p3"], family: "TRIANGLE" })];
+    expect(selectRelevantPartnerships(["p1", "p2", "p3"], summaries)).toEqual([]);
+  });
+
+  it("excludes INSUFFICIENT confidence", () => {
+    const summaries = [makeSummary({ playerIds: ["p1", "p2"], confidence: "INSUFFICIENT" })];
+    expect(selectRelevantPartnerships(["p1", "p2"], summaries)).toEqual([]);
   });
 });

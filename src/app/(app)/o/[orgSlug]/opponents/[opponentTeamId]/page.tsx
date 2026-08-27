@@ -7,7 +7,9 @@ import { PLAYING_STYLE_TAG_LABELS } from "@/lib/opponents/playing-style-tags";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
+import { getOpponentCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
+import { OpponentCombinationEvidenceSection } from "@/components/opponents/opponent-combination-evidence-section";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
@@ -118,6 +120,18 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     }>;
   } = { aggregate: null, evidence: [] };
 
+  const combinationSummaries = await getOpponentCombinationEvidence(opponentTeamId);
+  const combinationPlayerIds = [...new Set(combinationSummaries.flatMap((s) => s.playerIds))];
+  const combinationPlayers = combinationPlayerIds.length > 0
+    ? await db.player.findMany({
+        where: { id: { in: combinationPlayerIds } },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : [];
+  const combinationPlayerNameById = new Map(
+    combinationPlayers.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
+  );
+
   const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
   const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
 
@@ -187,6 +201,11 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         opponentTeamId={opponentTeamId}
         initialAggregate={sportingLevelData.aggregate}
         initialEvidence={sportingLevelData.evidence}
+      />
+
+      <OpponentCombinationEvidenceSection
+        summaries={combinationSummaries}
+        playerNameById={Object.fromEntries(combinationPlayerNameById)}
       />
 
       {matches.length === 0 ? (

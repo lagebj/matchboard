@@ -10,8 +10,10 @@ import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
+import { PlannedPartnershipEvidenceList } from "@/components/matches/planned-partnership-evidence";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { GAME_FORMAT_PLAYERS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
+import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
 import { Copy } from "lucide-react";
 
 type LineupData = {
@@ -368,6 +370,32 @@ export function MatchTacticsPanel({
     lineup?.assignments?.filter((a) => a.playerId).map((a) => a.playerId!) ?? []
   );
 
+  const [partnershipEvidence, setPartnershipEvidence] = useState<SeasonCombinationSummary[]>([]);
+  const assignedPlayerIdsKey = [...assignedPlayerIds].sort().join(",");
+
+  useEffect(() => {
+    if (assignedPlayerIds.size < 2) {
+      setPartnershipEvidence([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { getPlannedPartnershipEvidenceAction } = await import(
+        "@/app/(app)/matches/lineup-combination-evidence-actions"
+      );
+      const result = await getPlannedPartnershipEvidenceAction(matchId, [...assignedPlayerIds]);
+      if (!cancelled && result.success) setPartnershipEvidence(result.summaries);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // assignedPlayerIdsKey is the stable dependency; assignedPlayerIds itself is a fresh Set each render.
+  }, [matchId, assignedPlayerIdsKey]);
+
+  const playerNameById = Object.fromEntries(
+    playerPool.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
+  );
+
   const pickerCompatiblePlayers = pickerState
     ? playerPool.map((p) => {
         const compat = getPlayerSlotCompatibility(
@@ -619,6 +647,14 @@ export function MatchTacticsPanel({
               <p className="mt-2 text-[10px] text-[var(--text-muted)]">
                 Tap any slot to assign or manage a player.
               </p>
+            )}
+            {partnershipEvidence.length > 0 && (
+              <div className="mt-3">
+                <SectionHeader title="Partnership evidence" description="Factual context for the current line-up, not a chemistry score." />
+                <div className="mt-2">
+                  <PlannedPartnershipEvidenceList summaries={partnershipEvidence} playerNameById={playerNameById} />
+                </div>
+              </div>
             )}
           </Surface>
 

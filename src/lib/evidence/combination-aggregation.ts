@@ -55,14 +55,10 @@ export async function persistMatchCombinationEvidence(
   });
 }
 
-export async function getMatchCombinationEvidence(
-  matchId: string,
-): Promise<CombinationEvidenceRow[]> {
-  const rows = await db.combinationEvidence.findMany({
-    where: { matchId },
-  });
+type CombinationEvidenceDbRow = Awaited<ReturnType<typeof db.combinationEvidence.findMany>>[number];
 
-  return rows.map((r) => ({
+function mapCombinationEvidenceRow(r: CombinationEvidenceDbRow): CombinationEvidenceRow {
+  return {
     id: r.id,
     organisationId: r.organisationId,
     matchId: r.matchId,
@@ -80,7 +76,17 @@ export async function getMatchCombinationEvidence(
     approximateTiming: r.approximateTiming,
     leagueSeasonId: r.leagueSeasonId,
     createdAt: r.createdAt,
-  }));
+  };
+}
+
+export async function getMatchCombinationEvidence(
+  matchId: string,
+): Promise<CombinationEvidenceRow[]> {
+  const rows = await db.combinationEvidence.findMany({
+    where: { matchId },
+  });
+
+  return rows.map(mapCombinationEvidenceRow);
 }
 
 export async function getSeasonCombinationEvidence(
@@ -90,25 +96,28 @@ export async function getSeasonCombinationEvidence(
     where: { leagueSeasonId },
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    organisationId: r.organisationId,
-    matchId: r.matchId,
-    family: r.family as CombinationEvidenceRow["family"],
-    subtype: r.subtype as CombinationEvidenceRow["subtype"],
-    playerIds: r.playerIds as string[],
-    positions: r.positions as string[],
-    minutesTogether: r.minutesTogether,
-    goalsForWhilePresent: r.goalsForWhilePresent,
-    goalsAgainstWhilePresent: r.goalsAgainstWhilePresent,
-    directGoalContributions: r.directGoalContributions,
-    directAssistContributions: r.directAssistContributions,
-    opponentDiversity: r.opponentDiversity,
-    confidence: r.confidence as ConfidenceLevel,
-    approximateTiming: r.approximateTiming,
-    leagueSeasonId: r.leagueSeasonId,
-    createdAt: r.createdAt,
-  }));
+  return rows.map(mapCombinationEvidenceRow);
+}
+
+/**
+ * Combination evidence recorded in matches against one specific opponent team — factual context
+ * for "Previous encounters" (AGENTS.md opponent terminology), never a selection-scoring input.
+ * Returns [] rather than throwing when the opponent has no recorded matches/evidence yet.
+ */
+export async function getOpponentCombinationEvidence(
+  opponentTeamId: string,
+): Promise<SeasonCombinationSummary[]> {
+  const matches = await db.match.findMany({
+    where: { opponentTeamId },
+    select: { id: true },
+  });
+  if (matches.length === 0) return [];
+
+  const rows = await db.combinationEvidence.findMany({
+    where: { matchId: { in: matches.map((m) => m.id) } },
+  });
+
+  return aggregateSeasonCombinations(rows.map(mapCombinationEvidenceRow));
 }
 
 function pairKey(playerIds: string[]): string {
@@ -122,25 +131,7 @@ export async function getSeasonCombinationEvidenceWithOpponents(
     where: { leagueSeasonId },
   });
 
-  const evidence: CombinationEvidenceRow[] = rows.map((r) => ({
-    id: r.id,
-    organisationId: r.organisationId,
-    matchId: r.matchId,
-    family: r.family as CombinationEvidenceRow["family"],
-    subtype: r.subtype as CombinationEvidenceRow["subtype"],
-    playerIds: r.playerIds as string[],
-    positions: r.positions as string[],
-    minutesTogether: r.minutesTogether,
-    goalsForWhilePresent: r.goalsForWhilePresent,
-    goalsAgainstWhilePresent: r.goalsAgainstWhilePresent,
-    directGoalContributions: r.directGoalContributions,
-    directAssistContributions: r.directAssistContributions,
-    opponentDiversity: r.opponentDiversity,
-    confidence: r.confidence as ConfidenceLevel,
-    approximateTiming: r.approximateTiming,
-    leagueSeasonId: r.leagueSeasonId,
-    createdAt: r.createdAt,
-  }));
+  const evidence: CombinationEvidenceRow[] = rows.map(mapCombinationEvidenceRow);
 
   const matchIds = [...new Set(evidence.map((r) => r.matchId))];
   const opponentByMatch = new Map<string, string>();
@@ -263,4 +254,25 @@ export async function rebuildMatchCombinationEvidence(
     intervalsCreated: 0,
     evidenceCreated: combinations.length,
   };
+}
+
+/**
+ * Season partnership evidence relevant to a specific planned pairing (line-up planning, rotation
+ * planning) — every player in the summary must be part of the given set. Pure/no I/O so it can be
+ * unit tested without a database; the caller is responsible for scoping `summaries` to the right
+ * league season. Never includes INSUFFICIENT confidence — that is "not enough evidence yet", not
+ * negative, but also not worth surfacing as a planning note (SELECTION_INTEGRATION.md
+ * "Explanations").
+ */
+export function selectRelevantPartnerships(
+  playerIds: string[],
+  summaries: SeasonCombinationSummary[],
+): SeasonCombinationSummary[] {
+  const idSet = new Set(playerIds);
+  return summaries.filter(
+    (s) =>
+      s.family === "PARTNERSHIP" &&
+      s.confidence !== "INSUFFICIENT" &&
+      s.playerIds.every((id) => idSet.has(id)),
+  );
 }

@@ -597,6 +597,7 @@ Combination evidence describes what actually happened while a defined football r
 - Intent-dependent: amplified under `CHALLENGE_EXPOSURE`/`STABILIZE_WEAKER_TEAM` coaching intent, suppressed under `CONFIDENCE_REBUILD`/`RESET_AFTER_ERROR` so unknown pairs are never structurally disadvantaged against known ones, unmodified otherwise.
 - Direct assist contribution is only available for live-recorded matches (the canonical `Assist` model carries no timestamp) — left at 0 for direct-entry reports rather than guessed.
 - Explanations are factual sentences (minutes together, match count, confidence) — never a synthesized score or percentage. See ADR-0094.
+- Beyond selection scoring, factual season partnership evidence (`selectRelevantPartnerships()`, `src/lib/evidence/combination-aggregation.ts`) is also surfaced as read-only planning context on the Tactics tab (current line-up), the Rotations tab (current starting line-up), and the opponent detail page (evidence recorded in matches against that specific opponent, via `getOpponentCombinationEvidence()`) — never a second selection-scoring input, purely descriptive.
 
 ### Quick observations
 
@@ -609,6 +610,8 @@ A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) 
 ### Emergency repair options
 
 Before kickoff, a late unavailability can produce a small, ranked set of viable replacement options (`src/lib/selection/emergency-repair-options.ts`) — never applied automatically. Reuses the existing manual-edit mutation as the sole eligibility gate (a candidate needing an override reason is not "viable" here) and existing scoring primitives (readiness, recent load, combination evidence) for ranking. See ADR-0099.
+
+The Round Board surfaces this via a "Repair options" action (Wrench icon) on any player chip in a match column (not the Available column, never on a finalized match). It calls `generateEmergencyRepairOptionsAction()`, shows the ranked options in a dialog, and applies the coach's chosen option through the same remove/add manual-edit actions the board already uses for drag/drop and the non-drag Move picker — nothing is applied until the coach picks an option.
 
 ## Rule precedence
 
@@ -1945,8 +1948,10 @@ Rules:
 
 | File | Purpose |
 |------|---------|
-| `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking |
-| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation |
+| `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking (`checkPlannedRotationCoverage`) |
+| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation; `checkPlannedRotationCoverageAction` (starters read from the team's current match line-up, never fabricated from the full squad) plus its planned partnership evidence |
+| `src/app/(app)/matches/lineup-combination-evidence-actions.ts` | Server action: season partnership evidence relevant to a specific set of planned-together players — shared by the Tactics and Rotations tabs |
+| `src/components/matches/planned-partnership-evidence.tsx` | Presentational: factual season partnership evidence list, shared by the Tactics and Rotations tabs |
 | `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply (writes real actual-timeline events server-side), skip, delay, modify planned change during live match |
 | `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` | Coach handover: compact match-operational view for mobile matchday use |
 | `src/components/matches/coach-handover-view.tsx` | Coach handover client component: squad, rotations, intent, warnings |
@@ -2278,7 +2283,8 @@ Avoid:
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
 | `src/lib/evidence/combination-topology.ts` | Derives all six canonical combination families (Partnership/Triangle/Line/Corridor/Functional Unit/Full Configuration) from the actual position timeline |
 | `src/lib/evidence/combination-goal-attribution.ts` | Places goals/assists on the timeline (live events when available, `Goal.minute` as approximate fallback) for combination evidence |
-| `src/lib/evidence/combination-aggregation.ts` | Cross-match combination evidence aggregation, persistence, season summaries, historical backfill |
+| `src/lib/evidence/combination-aggregation.ts` | Cross-match combination evidence aggregation, persistence, season summaries, historical backfill, opponent-scoped evidence (`getOpponentCombinationEvidence`), planned-pairing filtering (`selectRelevantPartnerships`) |
+| `src/components/opponents/opponent-combination-evidence-section.tsx` | Factual combination evidence recorded in matches against one opponent, shown on the opponent detail page |
 | `src/lib/policies/types.ts` | Policy input/result type definitions |
 | `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |

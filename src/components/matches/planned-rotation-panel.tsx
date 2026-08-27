@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown, Pencil, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Pencil, X, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
+import { PlannedPartnershipEvidenceList } from "@/components/matches/planned-partnership-evidence";
 import {
   createPlannedRotationAction,
   updatePlannedRotationAction,
   deletePlannedRotationAction,
   validatePlannedChangesAction,
+  checkPlannedRotationCoverageAction,
 } from "@/app/(app)/matches/planned-rotation-actions";
-import type { PlannedRotationWithChanges, PlannedRotationChangeData, PlannedRotationValidationIssue } from "@/lib/planned-rotation/planned-rotation";
+import type { PlannedRotationWithChanges, PlannedRotationChangeData, PlannedRotationValidationIssue, PlannedRotationCoverageIssue } from "@/lib/planned-rotation/planned-rotation";
+import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
 
 type PlannedRotationPanelProps = {
   matchId: string;
@@ -41,6 +44,13 @@ const CHANGE_STATUS_LABELS: Record<string, string> = {
 };
 
 const POSITION_OPTIONS = ["GK", "CB", "RB", "LB", "CDM", "CM", "CAM", "RW", "LW", "FW", "CF"];
+
+const COVERAGE_ISSUE_LABELS: Record<PlannedRotationCoverageIssue["type"], string> = {
+  no_goalkeeper: "No goalkeeper in the starting line-up or planned changes",
+  position_gap: "Position gap in the starting line-up",
+  below_minimum: "Starting line-up has fewer players than the game format requires",
+  untimed_change: "One or more changes have no approximate time and cannot be checked",
+};
 
 function formatSeconds(seconds: number | null): string {
   if (seconds === null) return "—";
@@ -256,6 +266,9 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<PlannedRotationValidationIssue[]>([]);
+  const [coverageIssues, setCoverageIssues] = useState<PlannedRotationCoverageIssue[]>([]);
+  const [hasLineup, setHasLineup] = useState<boolean | null>(null);
+  const [partnershipEvidence, setPartnershipEvidence] = useState<SeasonCombinationSummary[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingChangeId, setEditingChangeId] = useState<string | null>(null);
 
@@ -271,6 +284,39 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       // validation is advisory; don't block on failure
     }
   }
+
+  async function runCoverageCheck(changes: PlannedRotationChangeData[]) {
+    try {
+      const result = await checkPlannedRotationCoverageAction(matchId, teamId, changes);
+      if (result.success) {
+        setHasLineup(result.hasLineup);
+        setCoverageIssues(result.issues);
+        setPartnershipEvidence(result.partnershipEvidence);
+      }
+    } catch {
+      // coverage checking is advisory; don't block on failure
+    }
+  }
+
+  useEffect(() => {
+    if (rotation) {
+      const changes = rotation.changes
+        .slice()
+        .sort((a, b) => a.sequence - b.sequence)
+        .map((c) => ({
+          outPlayerId: c.outPlayerId,
+          inPlayerId: c.inPlayerId,
+          outPosition: c.outPosition,
+          inPosition: c.inPosition,
+          positionOnly: c.positionOnly,
+          approximateMatchSeconds: c.approximateMatchSeconds,
+          notes: c.notes,
+        }));
+      runCoverageCheck(changes);
+    }
+    // Only re-run when the rotation identity or its change count changes — individual field edits
+    // are covered by the explicit runCoverageCheck calls after each mutation below.
+  }, [rotation?.id, rotation?.changes.length]);
 
   function handleCreate() {
     setError(null);
@@ -326,6 +372,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
         setEditingChangeId(null);
         setValidationIssues([]);
         runValidation(changes);
+        runCoverageCheck(changes);
       }
     });
   }
@@ -352,6 +399,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       } else {
         setValidationIssues([]);
         runValidation(changes);
+        runCoverageCheck(changes);
       }
     });
   }
@@ -386,6 +434,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       } else {
         setValidationIssues([]);
         runValidation(updatedChanges);
+        runCoverageCheck(updatedChanges);
       }
     });
   }
@@ -582,6 +631,40 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
               {issue.message}
             </p>
           ))}
+        </div>
+      )}
+
+      {rotation.changes.length > 0 && hasLineup === false && (
+        <p className="mt-3 text-xs text-[var(--text-muted)]">
+          Set a starting line-up in the Tactics tab to see coverage checks (goalkeeper, minimum players on pitch) for this plan.
+        </p>
+      )}
+
+      {coverageIssues.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-soft)]">
+            <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+            Coverage check
+          </div>
+          {coverageIssues.map((issue, index) => (
+            <p key={index} className="text-sm text-[var(--warning)]">
+              {COVERAGE_ISSUE_LABELS[issue.type] ?? issue.description}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {partnershipEvidence.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-[var(--text-soft)]">Partnership evidence</p>
+          <div className="mt-1.5">
+            <PlannedPartnershipEvidenceList
+              summaries={partnershipEvidence}
+              playerNameById={Object.fromEntries(
+                squadPlayers.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
+              )}
+            />
+          </div>
         </div>
       )}
     </Surface>
