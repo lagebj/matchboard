@@ -2,9 +2,13 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
+
+2026-08-27
+
+## Resolved
 
 2026-08-27
 
@@ -38,7 +42,11 @@ Per AGENTS.md's Explanation model: "If the UI cannot explain a selection result,
 ## Containment
 
 - Do not build a second, competing explanation computation to work around this — the existing `explanations`/`Selection.explanation` pipeline is correct and should be the one surfaced.
-- Any Round Board UI work should thread `explanations`/`selectionReason` through `PlayerInColumn` and render them via `PlayerChip`'s existing `tooltip` prop or an expandable detail affordance, not invent a new data shape.
+- Any Round Board UI work should thread `explanations`/`selectionReason` through `PlayerInColumn` and render them via `PlayerChip`'s existing `title` tooltip prop (note: `player-chip.tsx`'s doc comment says "tooltip" generically; the actual prop is `title`, a native browser tooltip on the chip's outer element — there is no separate named `tooltip` prop) or an expandable detail affordance, not invent a new data shape.
+
+## Resolution
+
+`selectionReason`/`explanations` are now threaded from `page.tsx`'s existing parse (unchanged) through `PlayerInColumn` into `round-board.tsx`, and rendered via `PlayerChip`'s `title` attribute (`explanationTooltipFor()` in `round-board.tsx`): the player's core team, `selectionReason`, and any additional non-hard-rule explanation summaries not already covered by `selectionReason` (position-fit caveats, combination-evidence context) — hard-rule eligibility rationale is skipped since it's already folded into `selectionReason`. Kept intentionally to the existing native-tooltip affordance rather than a new expandable panel, consistent with `player-chip.tsx`'s own "low-chrome" design intent. Covered by two new tests in `round-board.test.tsx`.
 
 ## Related implementation
 
@@ -61,4 +69,8 @@ None.
 
 ### 2026-08-27
 
-Record created. Identified while verifying that new combination-evidence explanations (evidence-driven-coaching-loop programme, Phase 4/7) actually reach the coach. Migration/UI fix deferred to Phase 7 evidence-surfacing follow-up work.
+Record created. Identified while verifying that new combination-evidence explanations (evidence-driven-coaching-loop programme, Phase 4/7) actually reach the coach.
+
+### 2026-08-27
+
+Resolved same day. `selectionReason`/`explanations` threaded through `PlayerInColumn` in `round-board.tsx` and surfaced via `PlayerChip`'s `title` tooltip.

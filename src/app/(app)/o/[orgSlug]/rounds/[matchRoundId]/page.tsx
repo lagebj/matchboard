@@ -417,6 +417,8 @@ export default async function RoundBoardPage({
              manualOverride: p.manualOverride,
              controlledDoubleLoad: p.controlledDoubleLoad,
              matchdayResponsibility: p.matchdayResponsibility,
+             selectionReason: p.selectionReason,
+             explanations: p.explanations,
               warningCount: (() => {
               const playerWarnings = unresolvedSignals.filter(
                 (sig) => (sig.matchId === s.matchId || sig.teamId === (matchRecord?.teamId ?? "")) && sig.playerId === p.playerId,

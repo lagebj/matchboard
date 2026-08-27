@@ -67,6 +67,9 @@ type PlayerInColumn = {
   warningCount?: number;
   matchdayResponsibility?: string | null;
   negativeReadinessSignals?: string[];
+  /** Why this selection — see AGENTS.md "Explanation model" (ARR-0033). Surfaced via the chip's tooltip, not a badge. */
+  selectionReason?: string;
+  explanations?: Array<{ code: string; summary: string; hardRule?: boolean }>;
 };
 
 type MatchColumn = {
@@ -148,6 +151,24 @@ function availabilityFor(player: PlayerInColumn): PlayerChipAvailability {
   }
 }
 
+// "Why this selection" (AGENTS.md Explanation model, ARR-0033) — surfaced through the chip's
+// native tooltip, the design-sanctioned place for verbose per-player metadata (see
+// player-chip.tsx's own doc comment). Not every explanation record is shown: hard-rule
+// eligibility rationale is already summarized in selectionReason; only the additional soft
+// signals a coach could not otherwise see (position-fit caveats, combination evidence) are
+// appended, to keep the tooltip short.
+function explanationTooltipFor(player: PlayerInColumn): string {
+  const lines = [`${player.name} · ${player.coreTeamName}`];
+  if (player.selectionReason) {
+    lines.push(player.selectionReason);
+  }
+  const softNotes = (player.explanations ?? [])
+    .filter((e) => !e.hardRule && e.summary && e.summary !== player.selectionReason)
+    .map((e) => e.summary);
+  lines.push(...softNotes);
+  return lines.join("\n");
+}
+
 function markersFor(player: PlayerInColumn): {
   label: string;
   title: string;
@@ -219,7 +240,7 @@ function BoardPlayerChip({
       isTouchDragging={isTouchDragging}
       onRemove={onRemove}
       onMove={onMove}
-      title={`${player.name} · ${player.coreTeamName}`}
+      title={explanationTooltipFor(player)}
     />
   );
 }

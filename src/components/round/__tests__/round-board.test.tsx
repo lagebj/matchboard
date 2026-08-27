@@ -99,6 +99,43 @@ async function tabTo(
   throw new Error("Could not reach target element via Tab within maxTabs presses");
 }
 
+describe("RoundBoard — player chip explains its selection (ARR-0033)", () => {
+  it("surfaces selectionReason and soft (non-hard-rule) explanations via the chip tooltip", () => {
+    const props = baseProps();
+    props.matches[0]!.players[0] = {
+      ...props.matches[0]!.players[0]!,
+      selectionReason: "Selected as an eligible core player for Blue.",
+      explanations: [
+        { code: "eligible_core_player", summary: "Selected as an eligible core player for Blue.", hardRule: true },
+        { code: "combination_evidence", summary: "Established horizontal partnership: 104 min across 5 matches.", hardRule: false },
+      ],
+    } as never;
+
+    render(<RoundBoard {...props} />);
+
+    const tooltip = screen.getByTitle((content) => content.includes("Established horizontal partnership"));
+    expect(tooltip.getAttribute("title")).toContain("Selected as an eligible core player for Blue.");
+    expect(tooltip.getAttribute("title")).toContain("Established horizontal partnership: 104 min across 5 matches.");
+  });
+
+  it("does not duplicate the hard-rule explanation that already matches selectionReason", () => {
+    const props = baseProps();
+    props.matches[0]!.players[0] = {
+      ...props.matches[0]!.players[0]!,
+      selectionReason: "Selected as an eligible core player for Blue.",
+      explanations: [
+        { code: "eligible_core_player", summary: "Selected as an eligible core player for Blue.", hardRule: true },
+      ],
+    } as never;
+
+    render(<RoundBoard {...props} />);
+
+    const tooltip = screen.getByTitle((content) => content.includes("Alice · Blue"));
+    const occurrences = tooltip.getAttribute("title")!.split("Selected as an eligible core player for Blue.").length - 1;
+    expect(occurrences).toBe(1);
+  });
+});
+
 describe("RoundBoard — non-drag Move alternative (UX-2.8-01)", () => {
   beforeEach(() => {
     addPlayerToMatchAction.mockClear();
