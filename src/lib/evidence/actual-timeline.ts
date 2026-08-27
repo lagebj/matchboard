@@ -4,6 +4,7 @@ import {
   computePositionIntervals,
   type StarterAssignment,
 } from "@/lib/evidence/lineup-state";
+import { ROLE_TYPE_TO_LINE, laneFromGridX, type FormationSlotRoleType } from "@/lib/formations/types";
 
 type RotationInput = {
   outPlayerId: string;
@@ -24,6 +25,8 @@ type PositionChangeInput = {
 export type ActualIntervalRow = {
   playerId: string;
   position: string;
+  line: string | null;
+  lane: string | null;
   startedAtMs: number;
   endedAtMs: number | null;
   source: ActualIntervalSource;
@@ -64,6 +67,8 @@ export async function rebuildActualTimeline(matchId: string): Promise<{
   const intervalRows: ActualIntervalRow[] = computedIntervals.map((interval) => ({
     playerId: interval.playerId,
     position: interval.position,
+    line: interval.line ?? null,
+    lane: interval.lane ?? null,
     startedAtMs: interval.startedAtMs,
     endedAtMs: interval.endedAtMs,
     source: inferSource(interval, starters),
@@ -82,6 +87,8 @@ export async function rebuildActualTimeline(matchId: string): Promise<{
           organisationId: match.organisationId,
           playerId: row.playerId,
           position: row.position,
+          line: row.line,
+          lane: row.lane,
           startedAtMs: row.startedAtMs,
           endedAtMs: row.endedAtMs,
           source: row.source,
@@ -117,7 +124,7 @@ async function getStartingLineup(matchId: string): Promise<StarterAssignment[]> 
   const slotIds = assignments.map((a) => a.slotId);
   const slots = await db.formationSlot.findMany({
     where: { id: { in: slotIds } },
-    select: { id: true, roleType: true, label: true },
+    select: { id: true, roleType: true, label: true, gridX: true },
   });
 
   const slotMap = new Map(slots.map((s) => [s.id, s]));
@@ -126,9 +133,12 @@ async function getStartingLineup(matchId: string): Promise<StarterAssignment[]> 
     .filter((a) => a.playerId !== null)
     .map((a) => {
       const slot = slotMap.get(a.slotId);
+      const roleType = slot?.roleType as FormationSlotRoleType | undefined;
       return {
         playerId: a.playerId!,
         position: slot?.roleType || slot?.label || "unknown",
+        line: roleType ? (ROLE_TYPE_TO_LINE[roleType] ?? null) : null,
+        lane: slot ? laneFromGridX(slot.gridX) : null,
       };
     });
 }
@@ -240,6 +250,8 @@ export async function getActualPositionIntervals(
   return rows.map((r) => ({
     playerId: r.playerId,
     position: r.position,
+    line: r.line,
+    lane: r.lane,
     startedAtMs: r.startedAtMs,
     endedAtMs: r.endedAtMs,
     source: r.source as ActualIntervalSource,
@@ -259,6 +271,8 @@ export async function getPlayerPositionIntervals(
   return rows.map((r) => ({
     playerId: r.playerId,
     position: r.position,
+    line: r.line,
+    lane: r.lane,
     startedAtMs: r.startedAtMs,
     endedAtMs: r.endedAtMs,
     source: r.source as ActualIntervalSource,

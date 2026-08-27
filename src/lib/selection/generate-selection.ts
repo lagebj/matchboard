@@ -39,6 +39,9 @@ import {
   getPositionMatchLevel,
   getRankedRotationCandidates,
 } from "@/lib/selection/rotation-candidate-ranking";
+import { deriveCombinationIntentMode, type CombinationScoringInput } from "@/lib/selection/combination-scoring";
+import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
+import { getSeasonCombinationEvidence, aggregateSeasonCombinations } from "@/lib/evidence/combination-aggregation";
 import type {
   AutomaticSelectionCategory,
   ExcludedPlayer,
@@ -331,6 +334,24 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       });
     }
   }
+
+  // Bounded advisory signal (Phase 4, SELECTION_INTEGRATION.md) — season partnership evidence
+  // and the match's coaching intent, fetched once and passed into candidate scoring below.
+  let combinationScoringInputs: CombinationScoringInput[] = [];
+  if (matchRound?.leagueSeasonId) {
+    const seasonEvidence = await getSeasonCombinationEvidence(matchRound.leagueSeasonId);
+    combinationScoringInputs = aggregateSeasonCombinations(seasonEvidence).map((summary) => ({
+      playerIds: summary.playerIds,
+      family: summary.family,
+      subtype: summary.subtype,
+      confidence: summary.confidence,
+      totalMinutesTogether: summary.totalMinutesTogether,
+      matchCount: summary.matchCount,
+    }));
+  }
+  const orgFilterForIntent = { type: "org" as const, organisationId, filter: { organisationId }, filterNullable: { organisationId } };
+  const activeCoachingIntent = await getActiveCoachingIntentForMatch(matchId, orgFilterForIntent);
+  const combinationIntentMode = deriveCombinationIntentMode(activeCoachingIntent?.category ?? null);
 
   const lockedOutPlayerIds = new Set<string>();
   const lockedInPlayerIds = new Set<string>();
@@ -1178,6 +1199,8 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       selectedPlayers,
       leagueSeasonCounts,
       consecutiveSupportByPlayer,
+      combinationScoringInputs,
+      combinationIntentMode,
     )[0];
 
     if (!candidate) {

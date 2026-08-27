@@ -288,6 +288,75 @@ async function rebuildActivePlanIntegrityProjection(
   return { inspected, proposedChanges, appliedChanges, skipped };
 }
 
+async function reconcileCombinationEvidenceDerivedProjection(
+  db: Dbc,
+  dryRun: boolean,
+  scope: { leagueSeasonId?: string; matchId?: string },
+  findings: IntegrityFinding[],
+): Promise<{ inspected: number; proposedChanges: number; appliedChanges: number; skipped: number }> {
+  // Combination evidence is derived from the actual position timeline (Phase 2), never from
+  // planned data. A completed report with recorded actual positions but zero combination
+  // evidence rows means the match was reported/reconciled before this projection existed, or a
+  // prior rebuild failed silently (completeReport() treats it as best-effort — see
+  // report-mutations.ts). Backfill is read-only against the actual timeline and never touches
+  // the completed report itself.
+  const completedReportMatchIds = (
+    await db.postMatchReport.findMany({
+      where: { status: { in: ["REPORTED", "LOCKED"] } },
+      select: { matchId: true },
+    })
+  ).map((r) => r.matchId);
+
+  const completedMatches = await db.match.findMany({
+    where: {
+      id: { in: completedReportMatchIds },
+      actualPositionIntervals: { some: {} },
+      ...(scope.matchId ? { id: scope.matchId } : {}),
+      ...(scope.leagueSeasonId ? { matchRound: { leagueSeasonId: scope.leagueSeasonId } } : {}),
+    },
+    select: {
+      id: true,
+      matchRound: { select: { leagueSeasonId: true } },
+      _count: { select: { combinationEvidences: true } },
+    },
+  });
+
+  let inspected = 0;
+  let proposedChanges = 0;
+  let appliedChanges = 0;
+  let skipped = 0;
+
+  const { rebuildMatchCombinationEvidence } = await import("@/lib/evidence/combination-aggregation");
+
+  for (const match of completedMatches) {
+    inspected++;
+    if (match._count.combinationEvidences > 0) continue;
+
+    proposedChanges++;
+    findings.push({
+      code: "COMBINATION_EVIDENCE_BACKFILLED",
+      severity: "INFO" as const,
+      domain: "COMBINATION_EVIDENCE_PROJECTION" as const,
+      entityType: "Match",
+      entityId: match.id,
+      matchId: match.id,
+      leagueSeasonId: match.matchRound.leagueSeasonId,
+      message: "Match has a completed report and an actual position timeline but no combination evidence — backfilled from the actual timeline.",
+      repairability: "AUTO_SAFE",
+      recommendedAction: "Rebuild CombinationEvidence rows from ActualPositionInterval + Goal/LiveMatchEvent data",
+    });
+
+    if (!dryRun) {
+      await rebuildMatchCombinationEvidence(match.id, match.matchRound.leagueSeasonId);
+      appliedChanges++;
+    } else {
+      skipped++;
+    }
+  }
+
+  return { inspected, proposedChanges, appliedChanges, skipped };
+}
+
 export async function reconcileCanonicalDerivedData(input: ReconcileInput, dbClient?: PrismaClient): Promise<ReconcileResult> {
   const db = dbClient ?? defaultDb;
   const findings: IntegrityFinding[] = [];
@@ -325,6 +394,13 @@ export async function reconcileCanonicalDerivedData(input: ReconcileInput, dbCli
 
     if (domain === "ACTIVE_PLAN_INTEGRITY_PROJECTION") {
       const result = await rebuildActivePlanIntegrityProjection(db, input.dryRun, scope, findings);
+      totalInspected += result.inspected;
+      totalProposedChanges += result.proposedChanges;
+      totalAppliedChanges += result.appliedChanges;
+    }
+
+    if (domain === "COMBINATION_EVIDENCE_DERIVED_PROJECTION") {
+      const result = await reconcileCombinationEvidenceDerivedProjection(db, input.dryRun, scope, findings);
       totalInspected += result.inspected;
       totalProposedChanges += result.proposedChanges;
       totalAppliedChanges += result.appliedChanges;

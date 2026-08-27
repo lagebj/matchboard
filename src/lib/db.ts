@@ -134,6 +134,7 @@ export const RLS_TABLES = new Set([
   "eventLiveMatchEvent",
   "assessmentChange",
   "actualPositionInterval",
+  "combinationEvidence",
   "opponentAssessmentChange",
   "plannedRotation",
   "plannedRotationChange",

@@ -62,6 +62,10 @@ export interface PlayerPositionInterval {
   position: string;
   startedAtMs: number;
   endedAtMs: number | null;
+  /** Positional line (GK/DEF/MID/ATT), null when the occupied slot's line is not reliably known. */
+  line?: string | null;
+  /** Positional lane (LEFT/CENTRE/RIGHT), null when the occupied slot's lane is not reliably known. */
+  lane?: string | null;
 }
 
 export interface LiveMatchScore {

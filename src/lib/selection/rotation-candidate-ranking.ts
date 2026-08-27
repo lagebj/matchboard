@@ -2,6 +2,11 @@ import type { SelectedPlayer } from "@/lib/selection/types";
 import type { RotationCandidate } from "@/lib/selection/selection-types";
 import { type LeagueSeasonRoleCounts, getLeagueSeasonFairnessBonus } from "@/lib/selection/selection-fairness";
 import { getPositionNeedScore } from "@/lib/selection/selection-fairness";
+import {
+  getCombinationScoreModifier,
+  type CombinationIntentMode,
+  type CombinationScoringInput,
+} from "@/lib/selection/combination-scoring";
 
 const SUPPORTED_POSITIONS = ["GK", "CB", "CM", "W", "ST"] as const;
 
@@ -87,12 +92,24 @@ export function getRotationCandidatePriorityScore(
   selectedPlayers: SelectedPlayer[],
   leagueSeasonCounts: Map<string, LeagueSeasonRoleCounts> | null,
   consecutiveSupportRounds: number = 0,
+  combinationEvidence: CombinationScoringInput[] = [],
+  combinationIntentMode: CombinationIntentMode = "BALANCED",
 ) {
   const consecutiveSupportPenalty = candidate.candidateCategory === "SUPPORT" && consecutiveSupportRounds > 1
     ? (consecutiveSupportRounds - 1) * 6
     : 0;
 
   const movementCandidateBonus = candidate.isMovementCandidate ? 12 : 0;
+
+  // Bounded advisory signal (SELECTION_INTEGRATION.md) — added alongside, never in place of,
+  // eligibility/fairness/opportunity scoring above. It can only ever add or contribute nothing;
+  // see combination-scoring.ts for why unknown combinations never become a penalty.
+  const combinationBonus = getCombinationScoreModifier(
+    candidate.player.id,
+    selectedPlayers.map((p) => p.playerId),
+    combinationEvidence,
+    combinationIntentMode,
+  );
 
   return (
     50 +
@@ -102,7 +119,8 @@ export function getRotationCandidatePriorityScore(
     getPositionMatchScore(candidate.positionMatchLevel) +
     candidate.suitabilityScore +
     getLeagueSeasonFairnessBonus(candidate.player.id, leagueSeasonCounts, candidate.candidateCategory) +
-    movementCandidateBonus -
+    movementCandidateBonus +
+    combinationBonus -
     candidate.registeredAppearanceCount * 4 -
     candidate.floatingHistory.totalFloatingMatches * 3 -
     candidate.recentLoadScore * 2 -
@@ -116,6 +134,8 @@ export function getRankedRotationCandidates(
   selectedPlayers: SelectedPlayer[],
   leagueSeasonCounts: Map<string, LeagueSeasonRoleCounts> | null,
   consecutiveSupportByPlayer: Map<string, number> = new Map(),
+  combinationEvidence: CombinationScoringInput[] = [],
+  combinationIntentMode: CombinationIntentMode = "BALANCED",
 ) {
   return candidates
     .map((candidate) => ({
@@ -125,6 +145,8 @@ export function getRankedRotationCandidates(
         selectedPlayers,
         leagueSeasonCounts,
         consecutiveSupportByPlayer.get(candidate.player.id) ?? 0,
+        combinationEvidence,
+        combinationIntentMode,
       ),
     }))
     .sort((left, right) => {

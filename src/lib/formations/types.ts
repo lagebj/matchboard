@@ -164,3 +164,38 @@ export function getGridPositionPercent(gridX: number, gridY: number): { x: numbe
     y: GRID_Y_PERCENT[gridY] ?? 50,
   };
 }
+
+/**
+ * Football line classification (GK/DEF/MID/ATT), derived from a formation slot's role type.
+ * Canonical source for combination-topology line/lane derivation (see COMBINATION_TOPOLOGY.md) —
+ * do not re-derive line from a role-type or position-label string anywhere else.
+ */
+export type PositionLine = "GK" | "DEF" | "MID" | "ATT";
+
+/**
+ * FREE has no reliable line (used for flexible slots in custom formations) — mapping it to a
+ * fixed line would manufacture structure that does not exist. Callers must treat `null` as
+ * unknown, never as a missing case to guess at.
+ */
+export const ROLE_TYPE_TO_LINE: Record<FormationSlotRoleType, PositionLine | null> = {
+  GOALKEEPER: "GK",
+  DEFENDER: "DEF",
+  DEFENSIVE_MIDFIELDER: "MID",
+  MIDFIELDER: "MID",
+  ATTACKING_MIDFIELDER: "MID",
+  FORWARD: "ATT",
+  FREE: null,
+};
+
+export type PositionLane = "LEFT" | "CENTRE" | "RIGHT";
+
+/**
+ * Lane classification from a formation slot's gridX (0-4, left to right). Lane is only
+ * meaningful relative to a specific slot's horizontal grid position — never parse it from a
+ * label/shortLabel string, which is free-form author-chosen text.
+ */
+export function laneFromGridX(gridX: number): PositionLane {
+  if (gridX <= 1) return "LEFT";
+  if (gridX >= 3) return "RIGHT";
+  return "CENTRE";
+}

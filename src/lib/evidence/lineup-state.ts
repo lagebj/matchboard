@@ -20,6 +20,8 @@ export type ProjectedLineup = Map<string, LineupPosition | "BENCH">;
 export type StarterAssignment = {
   playerId: string;
   position: LineupPosition;
+  line?: string | null;
+  lane?: string | null;
 };
 
 export function projectLineupFromEvents(
@@ -115,6 +117,8 @@ export function computePositionIntervals(
       position: starter.position,
       startedAtMs: 0,
       endedAtMs: null,
+      line: starter.line ?? null,
+      lane: starter.lane ?? null,
     });
   }
 
@@ -140,32 +144,34 @@ export function computePositionIntervals(
   for (const event of sortedEvents) {
     if (event.type === "rotation") {
       if (event.positionOnly) {
+        // A position-only "rotation" swaps two on-pitch players' slots. Each player's new
+        // interval takes over the OTHER player's prior slot (position/line/lane) — an explicit
+        // outPosition/inPosition always wins when a slot-aware producer supplies one.
         const outInterval = intervals.find(
           (i) => i.playerId === event.outPlayerId && i.endedAtMs === null,
         );
-        if (outInterval) {
-          outInterval.endedAtMs = event.atMs;
-        }
-
-        intervals.push({
-          playerId: event.outPlayerId,
-          position: event.inPosition ?? outInterval?.position ?? "unknown",
-          startedAtMs: event.atMs,
-          endedAtMs: null,
-        });
-
         const inInterval = intervals.find(
           (i) => i.playerId === event.inPlayerId && i.endedAtMs === null,
         );
-        if (inInterval) {
-          inInterval.endedAtMs = event.atMs;
-        }
+        if (outInterval) outInterval.endedAtMs = event.atMs;
+        if (inInterval) inInterval.endedAtMs = event.atMs;
+
+        intervals.push({
+          playerId: event.outPlayerId,
+          position: event.inPosition ?? inInterval?.position ?? "unknown",
+          startedAtMs: event.atMs,
+          endedAtMs: null,
+          line: event.inPosition ? null : (inInterval?.line ?? null),
+          lane: event.inPosition ? null : (inInterval?.lane ?? null),
+        });
 
         intervals.push({
           playerId: event.inPlayerId,
-          position: event.outPosition ?? inInterval?.position ?? "unknown",
+          position: event.outPosition ?? outInterval?.position ?? "unknown",
           startedAtMs: event.atMs,
           endedAtMs: null,
+          line: event.outPosition ? null : (outInterval?.line ?? null),
+          lane: event.outPosition ? null : (outInterval?.lane ?? null),
         });
       } else {
         const outInterval = intervals.find(
@@ -180,9 +186,17 @@ export function computePositionIntervals(
           position: "BENCH",
           startedAtMs: event.atMs,
           endedAtMs: null,
+          line: null,
+          lane: null,
         });
 
         const inPosition = event.inPosition ?? outInterval?.position ?? "unknown";
+        // The incoming player takes over the outgoing player's physical slot when no explicit
+        // inPosition is supplied — inherit its line/lane along with the position string. An
+        // explicit inPosition names a slot we cannot resolve line/lane for here, so it stays
+        // unknown rather than guessed.
+        const inLine = event.inPosition ? null : (outInterval?.line ?? null);
+        const inLane = event.inPosition ? null : (outInterval?.lane ?? null);
 
         const inBenchInterval = intervals.find(
           (i) => i.playerId === event.inPlayerId && i.endedAtMs === null && i.position === "BENCH",
@@ -196,6 +210,8 @@ export function computePositionIntervals(
           position: inPosition,
           startedAtMs: event.atMs,
           endedAtMs: null,
+          line: inLine,
+          lane: inLane,
         });
       }
     } else if (event.type === "positionChange") {
@@ -206,11 +222,15 @@ export function computePositionIntervals(
         currentInterval.endedAtMs = event.atMs;
       }
 
+      // A position-change event names the new position as a free-form string, not a resolved
+      // slot — line/lane are unknown until a slot-aware producer supplies them.
       intervals.push({
         playerId: event.playerId,
         position: event.toPosition,
         startedAtMs: event.atMs,
         endedAtMs: null,
+        line: null,
+        lane: null,
       });
     }
   }

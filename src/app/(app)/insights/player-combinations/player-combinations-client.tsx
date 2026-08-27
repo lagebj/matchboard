@@ -12,6 +12,24 @@ type LeagueSeasonOption = {
   endDate: string;
 };
 
+function formatPartnership(subtype: string): string {
+  const labels: Record<string, string> = {
+    HORIZONTAL: "Horizontal",
+    VERTICAL: "Vertical",
+    GOALKEEPER_LINK: "GK link",
+  };
+  return labels[subtype] ?? subtype;
+}
+
+function formatConfidence(confidence: string): string {
+  const labels: Record<string, string> = {
+    INSUFFICIENT: "Insufficient",
+    EMERGING: "Emerging",
+    ESTABLISHED: "Established",
+  };
+  return labels[confidence] ?? confidence;
+}
+
 type PlayerCombinationsClientProps = {
   leagueSeasons: LeagueSeasonOption[];
   activeLeagueSeasonId: string | null;
@@ -86,8 +104,11 @@ export function PlayerCombinationsClient({
               <tr className="border-b border-zinc-800 bg-zinc-900/50 text-left text-xs text-zinc-500">
                 <th className="px-3 py-2">Pair</th>
                 <th className="px-3 py-2">Position pairing</th>
+                <th className="px-3 py-2">Partnership</th>
                 <th className="px-3 py-2 text-right">Co-selected</th>
                 <th className="px-3 py-2 text-right">Realised together</th>
+                <th className="px-3 py-2 text-right">Minutes together</th>
+                <th className="px-3 py-2 text-right">Confidence</th>
                 <th className="px-3 py-2 text-right">Recent ({4})</th>
                 <th className="px-3 py-2 text-right">Season total</th>
               </tr>
@@ -99,8 +120,11 @@ export function PlayerCombinationsClient({
                     {row.playerAName} &amp; {row.playerBName}
                   </td>
                   <td className="px-3 py-2 text-zinc-500">{row.positionPairing ?? "—"}</td>
+                  <td className="px-3 py-2 text-zinc-500">{row.partnershipSubtype ? formatPartnership(row.partnershipSubtype) : "—"}</td>
                   <td className="px-3 py-2 text-right">{row.coSelectionCount}</td>
                   <td className="px-3 py-2 text-right">{row.realisedCoAppearanceCount}</td>
+                  <td className="px-3 py-2 text-right text-zinc-500">{row.minutesTogether != null ? `${Math.round(row.minutesTogether)}m` : "—"}</td>
+                  <td className="px-3 py-2 text-right text-zinc-500">{row.confidence ? formatConfidence(row.confidence) : "—"}</td>
                   <td className="px-3 py-2 text-right text-zinc-500">{row.recentTotal}</td>
                   <td className="px-3 py-2 text-right text-zinc-500">{row.seasonTotal}</td>
                 </tr>

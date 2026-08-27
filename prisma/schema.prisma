@@ -181,6 +181,7 @@ model Match {
   helperAssignments           MatchHelperAssignment[]
   threadObservations          DevelopmentThreadObservation[]
   actualPositionIntervals     ActualPositionInterval[]
+  combinationEvidences        CombinationEvidence[]
 
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
@@ -701,6 +702,8 @@ model ActualPositionInterval {
   matchId         String
   playerId        String
   position        String
+  line            String?
+  lane            String?
   startedAtMs     Int
   endedAtMs       Int?
   source          ActualIntervalSource
@@ -1522,6 +1525,7 @@ model LeagueSeason {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   matchRounds     MatchRound[]
+  combinationEvidences CombinationEvidence[]
   season          Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   periodSnapshot  SeasonPeriodSnapshot?
   group           FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
@@ -2194,6 +2198,7 @@ model Organisation {
   threadObservations            DevelopmentThreadObservation[]
   teamFocuses                   TeamFocus[]
   actualPositionIntervals       ActualPositionInterval[]
+  combinationEvidences          CombinationEvidence[]
 
   @@index([slug])
   @@index([name])
@@ -2302,6 +2307,36 @@ model PolicyDecisionLog {
   @@index([relatedEventId])
   @@index([relatedLeagueMatchId])
   @@index([createdAt])
+  @@index([organisationId])
+}
+
+model CombinationEvidence {
+  id                        String               @id @default(cuid())
+  organisationId            String
+  matchId                   String
+  family                    String
+  subtype                   String?
+  playerIds                  Json
+  positions                  Json
+  minutesTogether           Float                @default(0)
+  goalsForWhilePresent      Int                  @default(0)
+  goalsAgainstWhilePresent  Int                  @default(0)
+  directGoalContributions   Int                  @default(0)
+  directAssistContributions Int                  @default(0)
+  opponentDiversity         Int                  @default(1)
+  confidence                String               @default("INSUFFICIENT")
+  approximateTiming         Boolean              @default(false)
+  leagueSeasonId            String
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  match          Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  leagueSeason   LeagueSeason   @relation(fields: [leagueSeasonId], references: [id])
+  organisation   Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, family])
+  @@index([matchId, playerIds])
+  @@index([leagueSeasonId])
   @@index([organisationId])
 }
 
