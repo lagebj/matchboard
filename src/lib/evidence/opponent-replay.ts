@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import { classifyDataQuality, computeWholeMatchEstimate, type HistoricalDryRunResult } from "./opponent-engine";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 import { recordOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
-import { orgFilterFromContext } from "@/lib/tenancy/resolve-org-filter";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 type MatchForReplay = {

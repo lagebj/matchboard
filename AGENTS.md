@@ -1247,6 +1247,8 @@ Detail routes (no top-level nav):
 - `/o/{orgSlug}/teams/[teamId]/configuration` — team configuration and rules
 - `/o/{orgSlug}/matches/[matchId]` — match detail
 - `/o/{orgSlug}/matches/[matchId]/live` — live match reporting
+- `/o/{orgSlug}/matches/[matchId]/live/follow` — follow live (read-only viewer)
+- `/o/{orgSlug}/matches/[matchId]/handover` — coach handover compact match-operational view
 
 Canonical redirects:
 - `/` → `/o/{orgSlug}/today` (resolves orgSlug from session)
@@ -1901,6 +1903,21 @@ Rules:
 | `src/lib/formatters/event-export-filename.ts` | Safe event export filename generation |
 | `src/app/(app)/events/[eventId]/export/route.ts` | GET route: Excel workbook export with Squads, Match call-out, and optional Conflicts sheets |
 
+### Planned rotation engine files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking |
+| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation |
+| `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply, skip, modify planned change during live match |
+| `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` | Coach handover: compact match-operational view for mobile matchday use |
+| `src/components/matches/coach-handover-view.tsx` | Coach handover client component: squad, rotations, intent, warnings |
+| `src/lib/planned-rotation/planned-rotation-live-bridge.ts` | Plan-to-live bridge: apply/skip/modify planned changes, next change lookup |
+| `src/lib/planned-rotation/rotation-vs-actual.ts` | Rotation vs actual comparison: per-change deviation, minute deviation, unplanned substitutions |
+| `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
+| `src/lib/coaching/development-thread-categories.ts` | Shared development focus categories and labels (client/server) |
+| `src/components/matches/planned-rotation-panel.tsx` | UI: rotation plan panel on match detail (Rotations tab) |
+
 ### Team composition engine files
 
 | File | Purpose |
@@ -2281,6 +2298,8 @@ Avoid:
 | `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
 | `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
+| `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
+| `src/app/(app)/matches/development-thread-actions.ts` | Development thread server actions |
 
 ### Transactional email files
 

@@ -6,6 +6,7 @@ import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent"
 import { requirePageActorContext, hasGroupAccess } from "@/lib/auth/actor-context";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,8 @@ export default async function MatchDetailPage({
       id: s.id,
       playerId: s.playerId,
       playerName: `${s.player.firstName} ${s.player.lastName ?? ""}`.trim(),
+      playerFirstName: s.player.firstName,
+      playerLastName: s.player.lastName,
       coreTeamName: s.player.coreTeam?.name ?? "Unassigned",
       role: s.role,
       primaryPosition: s.player.primaryPosition,
@@ -108,6 +111,8 @@ export default async function MatchDetailPage({
     id: `helper-${h.id}`,
     playerId: h.playerId,
     playerName: `${h.player.firstName} ${h.player.lastName ?? ""}`.trim(),
+    playerFirstName: h.player.firstName,
+    playerLastName: h.player.lastName,
     coreTeamName: h.player.coreTeam?.name ?? "Unassigned",
     role: "HELPER" as const,
     primaryPosition: h.player.primaryPosition,
@@ -138,6 +143,8 @@ export default async function MatchDetailPage({
     orderBy: { createdAt: "desc" },
     take: 1,
   });
+
+  const plannedRotation = await getPlannedRotation(match.id, match.teamId, ctx.orgFilter);
 
   let opponentHistory: Awaited<ReturnType<typeof getOpponentHistory>> = null;
   let opponentConcernCount = 0;
@@ -206,9 +213,11 @@ export default async function MatchDetailPage({
           opponentLatestConcernDate,
           phaseStartDate: match.matchRound.leagueSeason?.startDate,
           phaseEndDate: match.matchRound.leagueSeason?.endDate,
-          isLive,
-          canFollowLive,
-        }}
+           isLive,
+           canFollowLive,
+           plannedRotation,
+           isCancelled: match.status === "CANCELLED",
+         }}
       />
     </div>
   );

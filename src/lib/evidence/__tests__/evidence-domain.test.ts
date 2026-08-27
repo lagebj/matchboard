@@ -9,7 +9,6 @@ import {
   OBSERVATION_ATTRIBUTE_MAPPINGS,
   verifyFullAttributeCoverage,
   getEvidenceTargets,
-  getSupportingTargets,
   MAPPING_VERSION,
 } from "../observation-mapping";
 import {

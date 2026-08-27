@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   XCircle,
   RotateCcw,
+  RotateCw,
   Radio,
   Tv,
 } from "lucide-react";
@@ -26,6 +27,8 @@ import { CoachingIntentSelector } from "@/components/matches/coaching-intent-sel
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
 import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
+import { PlannedRotationPanel } from "@/components/matches/planned-rotation-panel";
+import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import { PreviousEncountersDisplay } from "@/components/opponents/previous-encounters-display";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
@@ -49,6 +52,8 @@ type SelectionRow = {
   id: string;
   playerId: string;
   playerName: string;
+  playerFirstName: string;
+  playerLastName: string | null;
   coreTeamName: string;
   role: string;
   status: string;
@@ -108,6 +113,8 @@ type MatchData = {
   opponentLatestConcernDate?: string | null;
   phaseStartDate?: Date;
   phaseEndDate?: Date;
+  plannedRotation?: PlannedRotationWithChanges | null;
+  isCancelled?: boolean;
 };
 
 const roleOrder = [
@@ -121,7 +128,7 @@ const roleOrder = [
   "UNAVAILABLE",
 ];
 
-type MatchTab = "squad" | "tactics" | "after-match" | "opponent" | "review";
+type MatchTab = "squad" | "tactics" | "rotations" | "after-match" | "opponent" | "review";
 
 function formatMatchType(type: string): string {
   const map: Record<string, string> = {
@@ -186,6 +193,11 @@ const tabs: TabItem<MatchTab>[] = [
     key: "tactics",
     label: "Tactics",
     icon: <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />,
+  },
+  {
+    key: "rotations",
+    label: "Rotations",
+    icon: <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />,
   },
   {
     key: "after-match",
@@ -691,6 +703,21 @@ export function MatchDetail({ match }: { match: MatchData }) {
             primaryPosition: s.primaryPosition,
             secondaryPosition: s.secondaryPosition,
           }))}
+        />
+      )}
+
+      {selectedTab === "rotations" && (
+        <PlannedRotationPanel
+          matchId={match.id}
+          teamId={match.teamId}
+          rotation={match.plannedRotation ?? null}
+          squadPlayers={match.selections.map((s) => ({
+            id: s.playerId,
+            firstName: s.playerFirstName,
+            lastName: s.playerLastName,
+            primaryPosition: s.primaryPosition,
+          }))}
+          readOnly={match.isCancelled ?? false}
         />
       )}
 

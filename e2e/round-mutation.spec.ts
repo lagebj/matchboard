@@ -32,16 +32,22 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
 
   await page.goto("/o/test-club-a/rounds");
 
+  // Wait for the rounds list to hydrate before filtering — the list loads
+  // asynchronously and the round cards may not be present on first render.
+  await page.waitForSelector("div.rounded-xl", { timeout: 30_000 });
+
   const roundCard = page
     .locator("div.rounded-xl")
     .filter({ has: page.getByText("A1 Blues · A1 Whites", { exact: true }) });
-  await expect(roundCard).toHaveCount(1);
+  await expect(roundCard).toHaveCount(1, { timeout: 30_000 });
 
   await roundCard.getByRole("link").click();
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
 
   const regenerateButton = page.getByRole("button", { name: "Regenerate" });
-  await expect(regenerateButton).toBeEnabled();
+  // The round board renders asynchronously and the Regenerate button may be
+  // briefly disabled during hydration — wait for it to become enabled.
+  await expect(regenerateButton).toBeEnabled({ timeout: 30_000 });
   await regenerateButton.click();
 
   // Real persisted draft selections: at least one player chip is now on the board.

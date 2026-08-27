@@ -6,7 +6,7 @@ import { applyOpponentEvidenceHistory, dryRunOpponentEvidence } from "@/lib/evid
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const orgSlug = searchParams.get("orgSlug");
-  const mode = searchParams.get("mode") ?? "dryrun";
+  const _mode = searchParams.get("mode") ?? "dryrun";
   const gameFormat = searchParams.get("gameFormat") ?? undefined;
   const fromStr = searchParams.get("from") ?? undefined;
   const toStr = searchParams.get("to") ?? undefined;

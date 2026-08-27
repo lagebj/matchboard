@@ -7,7 +7,6 @@ import {
   computeEncounterEvidenceFromLineupStates,
   computeWholeMatchEstimate,
   OPPONENT_ENGINE_VERSION,
-  type DataQualityTier,
   type LineupStateStrength,
 } from "../opponent-engine";
 import { FORMULA_VERSION } from "@/lib/opponents/sporting-level-calculation";

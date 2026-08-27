@@ -30,6 +30,9 @@ type SecurityEventAction =
   | "event_finalize"
   | "event_unfinalize"
   | "data_export"
+  | "planned_rotation_create"
+  | "planned_rotation_update"
+  | "planned_rotation_delete"
   | "policy_evaluation"
   | "session_revoked"
   | "organisation_create"
@@ -50,7 +53,14 @@ type SecurityEventAction =
   | "machine_token_issued"
   | "machine_token_auth_failure"
   | "notification_sent"
-  | "notification_failed";
+  | "notification_failed"
+  | "create_development_thread"
+  | "update_development_thread"
+  | "complete_development_thread"
+  | "close_development_thread"
+  | "reopen_development_thread"
+  | "add_development_observation"
+  | "remove_development_observation";
 
 interface SecurityEvent {
   category: SecurityEventCategory;

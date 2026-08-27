@@ -266,8 +266,8 @@ export function getLineupAtGoalTime(
 export function validateCompositeLineupChange(
   change: CompositeLineupChange,
   currentLineup: ProjectedLineup,
-  onPitchPlayerIds: Set<string>,
-  benchPlayerIds: Set<string>,
+  _onPitchPlayerIds: Set<string>,
+  _benchPlayerIds: Set<string>,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 

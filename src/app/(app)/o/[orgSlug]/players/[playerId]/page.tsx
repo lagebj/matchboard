@@ -15,6 +15,7 @@ import { PlayerAvailabilityPanel } from "@/components/players/player-availabilit
 import { AssessmentHistoryPanel } from "@/components/players/player-assessment-history-panel";
 import { CoachContextPanel as PlayerCoachContextPanel } from "@/components/players/player-coach-context-panel";
 import { PlayerReadinessPanel } from "@/components/players/player-readiness-panel";
+import { PlayerDevelopmentThreadsPanel } from "@/components/players/player-development-threads-panel";
 import { PlayerReportSummaryPanel } from "@/components/players/player-report-summary-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
@@ -82,7 +83,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   if (!player) notFound();
 
-  const [rotationPaths, movementCandidates, readinessSignals] = await Promise.all([
+  const [rotationPaths, movementCandidates, readinessSignals, developmentThreads] = await Promise.all([
     db.rotationPath.findMany({
       where: {
         OR: [
@@ -114,6 +115,11 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
     db.playerReadinessSignal.findMany({
       where: { playerId, ...orgWhere },
       orderBy: { signalType: "asc" },
+    }),
+    db.developmentThread.findMany({
+      where: { playerId, status: "ACTIVE", ...orgWhere },
+      include: { observations: { orderBy: { createdAt: "asc" } } },
+      orderBy: [{ startedAt: "desc" }],
     }),
   ]);
 
@@ -194,6 +200,30 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
             <PlayerReadinessPanel
               playerId={player.id}
               signals={readinessSignals.map((s) => ({ id: s.id, signalType: s.signalType, value: s.value, note: s.note }))}
+            />
+            <PlayerDevelopmentThreadsPanel
+              playerId={player.id}
+              threads={developmentThreads.map((t) => ({
+                id: t.id,
+                playerId: t.playerId,
+                focus: t.focus,
+                rationale: t.rationale,
+                status: t.status as "ACTIVE" | "COMPLETED" | "CLOSED",
+                category: t.category as string | null,
+                startedAt: t.startedAt,
+                completedAt: t.completedAt,
+                closedAt: t.closedAt,
+                recordedBy: t.recordedBy,
+                observations: t.observations.map((o) => ({
+                  id: o.id,
+                  threadId: o.threadId,
+                  matchId: o.matchId,
+                  evidence: o.evidence,
+                  context: o.context,
+                  recordedBy: o.recordedBy,
+                  createdAt: o.createdAt,
+                })),
+              }))}
             />
           </div>
         }

@@ -10,12 +10,11 @@ import {
   type ExtractedEvidence,
   type AssessmentProposal,
 } from "./evidence-accumulator";
-import { getEvidenceTargets, getDirectTargets, getSupportingTargets, MAPPING_VERSION } from "./observation-mapping";
+import { getDirectTargets, getSupportingTargets, MAPPING_VERSION } from "./observation-mapping";
 import type { FootballObservationCode, ObservationPolarity } from "./observation-vocabulary";
 import { ALL_OBSERVATION_CODES } from "./observation-vocabulary";
-import { getPlayerOverallRating, type RatingAttributeKey } from "@/lib/ratings/player-rating";
+import { type RatingAttributeKey } from "@/lib/ratings/player-rating";
 import { recordAssessmentChange } from "./assessment-change";
-import { RATING_ATTRIBUTE_KEYS } from "@/lib/player-development/constants";
 
 export type MatchObservationEvidence = {
   playerId: string;
@@ -405,7 +404,7 @@ export function computePlayerAssessmentProposals(
 
 export async function applyPlayerAssessmentProposals(
   proposals: AssessmentProposal[],
-  organisationId: string,
+  _organisationId: string,
 ): Promise<{ applied: number; skipped: number; errors: string[] }> {
   const ctx = await requireActorContext();
   setTenantOrganisationId(ctx.organisationId);
