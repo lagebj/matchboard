@@ -15,11 +15,17 @@ export type ReportTransitionResult =
   | { success: true; matchId: string }
   | { success: false; error: string };
 
-export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
+export async function seedReportFromFinalizedSquad(
+  matchId: string,
+  orgFilter?: OrgFilterMode,
+  options?: { selectionStatuses?: Array<"DRAFT" | "FINALIZED"> },
+): Promise<ReportTransitionResult> {
   const existing = await db.postMatchReport.findFirst({ where: { matchId, ...(orgFilter ? orgFilter.filter : {}) } });
   if (existing) {
     return { success: false, error: "A report already exists for this match." };
   }
+
+  const selectionStatuses = options?.selectionStatuses ?? ["FINALIZED"];
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...(orgFilter ? orgFilter.filter : {}) },
@@ -27,7 +33,7 @@ export async function seedReportFromFinalizedSquad(matchId: string, orgFilter?: 
       id: true,
       organisationId: true,
       selections: {
-        where: { status: "FINALIZED" },
+        where: { status: { in: selectionStatuses } },
         select: { playerId: true, role: true },
       },
       helperAssignments: {
@@ -156,6 +162,20 @@ export async function seedReportFromLiveSession(
     select: { playerId: true },
   });
 
+  // League Match helpers (ADR-0077): unioned in the same way seedReportFromFinalizedSquad
+  // does, so a helper added before or during the match is already present here instead of
+  // requiring the coach to add them again retroactively. The `plannedPlayerIds` guard is
+  // defensive only — a player can never be both a FINALIZED Selection and a helper for the
+  // same match (assertLeagueMatchHelperEligible already rejects that combination).
+  const helperAssignments = await db.matchHelperAssignment.findMany({
+    where: { matchId },
+    select: { playerId: true },
+  });
+  const plannedPlayerIds = new Set(selections.map((s) => s.playerId));
+  const helperPlayerIds = helperAssignments
+    .map((h) => h.playerId)
+    .filter((playerId) => !plannedPlayerIds.has(playerId));
+
   const liveEvents = await db.liveMatchEvent.findMany({
     where: {
       matchId,
@@ -233,13 +253,23 @@ export async function seedReportFromLiveSession(
       awayGoals,
       organisationId,
       playerActuals: {
-        create: selections.map((s) => ({
-          matchId,
-          playerId: s.playerId,
-          source: "PLANNED",
-          attendanceStatus: "PRESENT",
-          organisationId,
-        })),
+        create: [
+          ...selections.map((s) => ({
+            matchId,
+            playerId: s.playerId,
+            source: "PLANNED" as const,
+            attendanceStatus: "PRESENT" as const,
+            organisationId,
+          })),
+          ...helperPlayerIds.map((playerId) => ({
+            matchId,
+            playerId,
+            source: "EMERGENCY_BACKFILL" as const,
+            attendanceStatus: "PRESENT" as const,
+            unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
+            organisationId,
+          })),
+        ],
       },
       goals: {
         create: scorerEvents.map((e) => ({
@@ -446,6 +476,108 @@ export async function removePlannedAbsenceFromReport(absenceId: string, orgFilte
   await db.matchReportAbsence.delete({ where: { id: absenceId } });
 
   return { success: true, matchId: absence.report.matchId };
+}
+
+export type MatchAbsenceResult =
+  | { success: true; matchId: string; reportId: string }
+  | { success: false; error: string };
+
+/**
+ * Match-specific player absence (production consistency pass item #3): a coach marks an
+ * assigned player Away/Sick/No-show/Declined for one specific match, before or around
+ * kick-off, without touching their round/team assignment (the `Selection` row is untouched —
+ * this reuses the existing `MatchReportAbsence` structured-absence concept, keyed directly by
+ * `matchId`, rather than introducing a second competing model).
+ *
+ * `MatchReportAbsence` normally only exists once a post-match report exists, which is usually
+ * created after the match. Marking an absence before kick-off needs somewhere to attach it, so
+ * this seeds a report early via `seedReportFromFinalizedSquad` when none exists yet — including
+ * DRAFT selections (not just FINALIZED), since a round is very often still in draft before
+ * kick-off. This is the only caller that broadens the selection-status filter; the normal
+ * post-match "After match" entry point keeps its FINALIZED-only default.
+ *
+ * Also upserts the player's `PostMatchPlayerActual.attendanceStatus` to NO_SHOW so the eventual
+ * report is never blocked by a stale UNKNOWN attendance the coach already explained pre-match —
+ * "automatically appear in the post-match report with the recorded absence state."
+ */
+export async function markMatchAbsence(
+  matchId: string,
+  data: { playerId: string; reason: PlannedAbsenceReason; note?: string },
+  orgFilter: OrgFilterMode,
+): Promise<MatchAbsenceResult> {
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true, organisationId: true },
+  });
+  if (!match) return { success: false, error: "Match not found or access denied." };
+
+  let report = await db.postMatchReport.findFirst({ where: { matchId } });
+  if (!report) {
+    const seedResult = await seedReportFromFinalizedSquad(matchId, orgFilter, { selectionStatuses: ["DRAFT", "FINALIZED"] });
+    if (!seedResult.success) return { success: false, error: seedResult.error };
+    report = await db.postMatchReport.findFirst({ where: { matchId } });
+    if (!report) return { success: false, error: "Failed to prepare a report for this match." };
+  }
+
+  if (isReportLocked(report.status)) {
+    return { success: false, error: "Cannot mark absence: report is locked. Reopen it first." };
+  }
+
+  const markResult = await markPlannedAbsenceInReport(report.id, data, orgFilter);
+  if (!markResult.success) return markResult;
+
+  const existingActual = await db.postMatchPlayerActual.findFirst({
+    where: { reportId: report.id, playerId: data.playerId },
+  });
+  if (existingActual) {
+    await db.postMatchPlayerActual.update({
+      where: { id: existingActual.id },
+      data: { attendanceStatus: "NO_SHOW" },
+    });
+  } else {
+    await db.postMatchPlayerActual.create({
+      data: {
+        organisationId: match.organisationId,
+        reportId: report.id,
+        matchId,
+        playerId: data.playerId,
+        source: "PLANNED",
+        attendanceStatus: "NO_SHOW",
+      },
+    });
+  }
+
+  return { success: true, matchId, reportId: report.id };
+}
+
+/**
+ * Reverses markMatchAbsence — restores the player to participating. Only meaningful before the
+ * report is locked; the coach uses the existing post-match correction mechanism after that.
+ */
+export async function clearMatchAbsence(
+  matchId: string,
+  playerId: string,
+  orgFilter: OrgFilterMode,
+): Promise<MatchAbsenceResult> {
+  const report = await db.postMatchReport.findFirst({ where: { matchId, ...orgFilter.filter } });
+  if (!report) return { success: false, error: "No report exists for this match." };
+  if (isReportLocked(report.status)) {
+    return { success: false, error: "Cannot change absence: report is locked. Reopen it first." };
+  }
+
+  const absence = await db.matchReportAbsence.findFirst({
+    where: { matchReportId: report.id, playerId },
+  });
+  if (absence) {
+    await db.matchReportAbsence.delete({ where: { id: absence.id } });
+  }
+
+  await db.postMatchPlayerActual.updateMany({
+    where: { reportId: report.id, playerId, attendanceStatus: "NO_SHOW" },
+    data: { attendanceStatus: "UNKNOWN" },
+  });
+
+  return { success: true, matchId, reportId: report.id };
 }
 
 export async function updatePlayerStatsInReport(

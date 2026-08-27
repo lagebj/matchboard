@@ -1254,6 +1254,7 @@ model EventSquad {
   targetSize               Int
   minSize                  Int?
   maxSize                  Int?
+  gameFormatOverride       GameFormat?
   formationId              String?
   generationOrder          Int                           @default(0)
   generationSnapshot       Json?
@@ -1960,6 +1961,7 @@ enum PlannedAbsenceReason {
   DECLINED
   NO_RSVP
   OTHER
+  AWAY
 }
 
 enum UnplannedAppearanceReason {

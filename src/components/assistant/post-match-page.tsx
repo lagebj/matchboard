@@ -57,6 +57,7 @@ const ABSENCE_REASON_LABELS: Record<string, string> = {
   DECLINED: "Declined",
   NO_RSVP: "No RSVP",
   OTHER: "Other",
+  AWAY: "Away",
 };
 
 function sourceLabel(source: string): string {
@@ -635,10 +636,11 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
                     }}
                   >
                     <option value="">Mark absent...</option>
-                    <option value="NO_SHOW">No-show</option>
+                    <option value="AWAY">Away</option>
                     <option value="SICK">Sick</option>
-                    <option value="INJURED">Injured</option>
+                    <option value="NO_SHOW">No-show</option>
                     <option value="DECLINED">Declined</option>
+                    <option value="INJURED">Injured</option>
                     <option value="OTHER">Other</option>
                   </select>
                 </div>

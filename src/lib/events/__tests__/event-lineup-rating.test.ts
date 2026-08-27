@@ -32,7 +32,8 @@ describe("computeLineupRating", () => {
       7,
     );
     expect(result.averageRating).toBe(3.5);
-    expect(result.starRating).toBe(4);
+    // 3.5 on the 1-10 scale is 1.75 stars, rounded to the nearest half star -> 2.0.
+    expect(result.starRating).toBe(2);
     expect(result.ratedStarterCount).toBe(2);
     expect(result.totalStarterCount).toBe(3);
     expect(result.isProvisional).toBe(true);
@@ -48,7 +49,7 @@ describe("computeLineupRating", () => {
       3,
     );
     expect(result.averageRating).toBe(3.5);
-    expect(result.starRating).toBe(4);
+    expect(result.starRating).toBe(2);
     expect(result.ratedStarterCount).toBe(3);
     expect(result.totalStarterCount).toBe(3);
     expect(result.totalSlots).toBe(3);
@@ -102,7 +103,8 @@ describe("computeLineupRating", () => {
       5,
     );
     expect(result.averageRating).toBe(3.7);
-    expect(result.starRating).toBe(4);
+    // 3.7 on the 1-10 scale is 1.85 stars, rounded to the nearest half star -> 2.0.
+    expect(result.starRating).toBe(2);
   });
 });
 

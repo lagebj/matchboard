@@ -6,6 +6,7 @@ import { validateEventPool } from '@/lib/events/event-validation';
 import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
 import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
+import { getEffectiveEventTeamGameFormat } from '@/lib/events/event-types';
 import { db } from '@/lib/db';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -75,6 +76,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
       maxSize: s.maxSize,
       formationId: s.formationId,
       formationName: formation?.name ?? null,
+      gameFormatOverride: s.gameFormatOverride,
+      effectiveGameFormat: getEffectiveEventTeamGameFormat(event, s),
       formationSlots: (formation?.slots ?? []).map((slot) => ({
         id: slot.id,
         roleType: slot.roleType,

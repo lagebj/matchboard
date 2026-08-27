@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { PostMatchPage } from "@/components/assistant/post-match-page";
-import { MatchFeedbackSection } from "@/components/matches/match-feedback-section";
+import { LegacyMatchFeedbackSection } from "@/components/matches/legacy-match-feedback-section";
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
 import { getMatchCombinationEvidence } from "@/lib/evidence/combination-aggregation";
@@ -268,13 +268,13 @@ export default async function PostMatchRoute({ params }: PageProps) {
         isLocked={initialReport?.status === "LOCKED"}
         matchFit={match.matchFit}
       />
-      <MatchFeedbackSection matchId={matchId} feedback={feedbackData} players={playerOptions} />
       <FootballObservationSection
         matchId={matchId}
         players={playerOptions}
         existingObservations={footballObservationData}
         isLocked={initialReport?.status === "LOCKED"}
       />
+      <LegacyMatchFeedbackSection feedback={feedbackData} players={playerOptions} />
       <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
       <MatchCombinationEvidencePanel evidence={combinationEvidence} players={playerOptions} />
     </div>

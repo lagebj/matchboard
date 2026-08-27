@@ -63,14 +63,6 @@ export function getPlayerAttributeAverages(player: PlayerAttributeRecord) {
   };
 }
 
-export function getOverallStarRating(overallRating: number | null): number {
-  if (overallRating == null || !Number.isFinite(overallRating)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(5, Math.round(overallRating)));
-}
-
 export function formatAvailabilityStatus(status: AvailabilityStatusValue): string {
   switch (status) {
     case "AVAILABLE":

@@ -19,10 +19,8 @@ let fixture: TestFixtureIds;
 
 import { setCoachingIntentAction, removeCoachingIntentAction, getCoachingIntentsAction } from "../actions";
 import { setMatchdayResponsibilityAction, removeMatchdayResponsibilityAction } from "../responsibility-actions";
-import { createMatchFeedbackAction, updateMatchFeedbackAction, deleteMatchFeedbackAction } from "../../post-match/feedback-actions";
 
 async function cleanup() {
-  await testDb.matchExecutionFeedback.deleteMany();
   await testDb.coachingIntent.deleteMany();
   await testDb.selection.deleteMany();
 }
@@ -208,103 +206,6 @@ describe("Matchday Responsibility Actions", () => {
 
       const result = await removeMatchdayResponsibilityAction(selection.id);
       expect(result.success).toBe(true);
-    });
-  });
-});
-
-describe("Match Execution Feedback Actions", () => {
-  beforeAll(async () => {
-    testDb = await setupTestDb();
-    fixture = await seedTestFixture(testDb);
-    auth.updateOrganisationId(fixture.organisationId);
-  });
-
-  afterAll(async () => {
-    await testDb.matchExecutionFeedback.deleteMany();
-    await testDb.selection.deleteMany();
-    await teardownTestDb();
-  });
-
-  describe("createMatchFeedbackAction", () => {
-    it("creates feedback for a player in a match", async () => {
-      const matchId = Object.values(fixture.matches)[0]!;
-      const playerId = fixture.players[0].id;
-
-      const result = await createMatchFeedbackAction(matchId, playerId, "EFFORT", "POSITIVE", "Helped teammate after ball loss", "MONITOR", null);
-      expect(result.success).toBe(true);
-    });
-
-    it("rejects invalid category", async () => {
-      const matchId = Object.values(fixture.matches)[0]!;
-      const playerId = fixture.players[1]!.id;
-
-      const result = await createMatchFeedbackAction(matchId, playerId, "INVALID_CAT", "POSITIVE", null, null, null);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid feedback category");
-    });
-
-    it("rejects disallowed language", async () => {
-      const matchId = Object.values(fixture.matches)[0]!;
-      const playerId = fixture.players[2]!.id;
-
-      const result = await createMatchFeedbackAction(matchId, playerId, "EFFORT", "NEEDS_ATTENTION", "The player was lazy today", null, null);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("disallowed language");
-    });
-
-    it("rejects duplicate feedback for same player/category/match", async () => {
-      const matchId = Object.values(fixture.matches)[0]!;
-      const playerId = fixture.players[3]!.id;
-
-      await createMatchFeedbackAction(matchId, playerId, "TEAM_HELP", "POSITIVE", null, null, null);
-      const result = await createMatchFeedbackAction(matchId, playerId, "TEAM_HELP", "NEUTRAL", null, null, null);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("already exists");
-    });
-  });
-
-  describe("updateMatchFeedbackAction", () => {
-    it("updates existing feedback", async () => {
-      const matchId = Object.values(fixture.matches)[1]
-        ? Object.values(fixture.matches)[1]!
-        : Object.values(fixture.matches)[0]!;
-      const playerId = fixture.players[4]!.id;
-
-      const created = await createMatchFeedbackAction(matchId, playerId, "RESET_AFTER_MISTAKE", "NEUTRAL", "Recovered quickly", null, null);
-      expect(created.success).toBe(true);
-
-      const feedback = await testDb.matchExecutionFeedback.findFirst({
-        where: { matchId, playerId, category: "RESET_AFTER_MISTAKE" },
-      });
-      expect(feedback).not.toBeNull();
-
-      const result = await updateMatchFeedbackAction(feedback!.id, { value: "POSITIVE" });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe("deleteMatchFeedbackAction", () => {
-    it("deletes feedback", async () => {
-      const matchId = Object.values(fixture.matches)[0]!;
-      const playerId = fixture.players[5]?.id ?? fixture.players[0].id;
-
-      await createMatchFeedbackAction(matchId, playerId, "POSITIONAL_DISCIPLINE", "POSITIVE", null, null, null);
-      const feedback = await testDb.matchExecutionFeedback.findFirst({
-        where: { matchId, playerId, category: "POSITIONAL_DISCIPLINE" },
-      });
-      expect(feedback).not.toBeNull();
-
-      const result = await deleteMatchFeedbackAction(feedback!.id);
-      expect(result.success).toBe(true);
-
-      const deleted = await testDb.matchExecutionFeedback.findUnique({ where: { id: feedback!.id } });
-      expect(deleted).toBeNull();
-    });
-
-    it("returns error for nonexistent feedback", async () => {
-      const result = await deleteMatchFeedbackAction("nonexistent-id");
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("not found");
     });
   });
 });

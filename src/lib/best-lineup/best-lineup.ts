@@ -491,7 +491,7 @@ export async function assignPlayerToBestLineupSlot(
     where: { id: lineupId, team: orgFilter.filter },
     include: { assignments: true },
   });
-  if (!lineup) throw new Error('Best lineup not found');
+  if (!lineup) throw new Error('Recommended lineup not found');
 
   if (playerId) {
     const player = await db.player.findFirst({
@@ -582,7 +582,7 @@ export async function copyBestLineupToMatch(
   });
 
   if (!bestLineup || !bestLineup.formationId) {
-    throw new Error('No best lineup configured for this team.');
+    throw new Error('No recommended lineup configured for this team.');
   }
 
   const match = await db.match.findFirst({

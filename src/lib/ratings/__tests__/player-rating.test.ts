@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPlayerOverallRating, getAverageRating, overallToStarValue, RATING_MIN, RATING_MAX } from "../player-rating";
+import { getPlayerOverallRating, getAverageRating, overallToStarValue, roundToNearestHalfStar, formatStarDisplay, RATING_MIN, RATING_MAX } from "../player-rating";
 
 describe("getPlayerOverallRating", () => {
   it("returns Not rated when all attributes are null", () => {
@@ -150,6 +150,65 @@ describe("overallToStarValue", () => {
 
   it("converts 1 to 0.5 stars", () => {
     expect(overallToStarValue(1)).toBe(0.5);
+  });
+
+  it("clamps a rating above 10 to the maximum star value", () => {
+    expect(overallToStarValue(15)).toBe(5);
+  });
+
+  it("clamps a rating below 1 to the minimum star value", () => {
+    expect(overallToStarValue(0)).toBe(0.5);
+    expect(overallToStarValue(-5)).toBe(0.5);
+  });
+
+  it("returns 0 for non-finite input", () => {
+    expect(overallToStarValue(NaN)).toBe(0);
+    expect(overallToStarValue(Infinity)).toBe(0);
+  });
+});
+
+describe("roundToNearestHalfStar", () => {
+  // A 5.6 average must not render as five stars — the regression this fixes.
+  it("does not round a 5.6 average up to five stars", () => {
+    expect(roundToNearestHalfStar(5.6)).toBe(3.0);
+  });
+
+  it.each([
+    [5.0, 2.5],
+    [5.6, 3.0],
+    [6.0, 3.0],
+    [7.0, 3.5],
+    [8.0, 4.0],
+    [9.0, 4.5],
+    [10.0, 5.0],
+  ])("converts a %s rating to %s stars", (rating, expected) => {
+    expect(roundToNearestHalfStar(rating)).toBe(expected);
+  });
+
+  it("rounds down when closer to the lower half star", () => {
+    expect(roundToNearestHalfStar(5.4)).toBe(2.5); // 2.7 stars -> 2.5
+  });
+
+  it("rounds up when exactly at the midpoint between half stars", () => {
+    expect(roundToNearestHalfStar(5.5)).toBe(3.0); // 2.75 stars rounds up to 3.0
+  });
+
+  it("clamps invalid values into the supported range", () => {
+    expect(roundToNearestHalfStar(0)).toBe(0.5);
+    expect(roundToNearestHalfStar(20)).toBe(5.0);
+    expect(roundToNearestHalfStar(NaN)).toBe(0);
+  });
+});
+
+describe("formatStarDisplay", () => {
+  it("formats a whole-star value without a decimal", () => {
+    expect(formatStarDisplay(6)).toBe("3");
+    expect(formatStarDisplay(10)).toBe("5");
+  });
+
+  it("formats a half-star value with one decimal", () => {
+    expect(formatStarDisplay(7)).toBe("3.5");
+    expect(formatStarDisplay(5.6)).toBe("3");
   });
 });
 

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useTransition, useState, useRef, useEffect } from "react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
-import { formatAvailabilityStatus, formatPlayerName, getPlayerAttributeAverages, getOverallStarRating } from "@/lib/player-metrics";
+import { formatAvailabilityStatus, formatPlayerName, getPlayerAttributeAverages } from "@/lib/player-metrics";
 import { togglePlayerActiveAction, removePlayerAction, restorePlayerAction } from "@/app/(app)/players/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { StarRating } from "@/components/ratings/star-rating";
 
 type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
@@ -124,7 +125,6 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
   const isGK = player.goalkeeperAbility === "YES";
 
   const averages = getPlayerAttributeAverages(player);
-  const overallStars = getOverallStarRating(averages.overall);
   const hasRatings = averages.overall !== null;
 
   return (
@@ -198,9 +198,8 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
             </span>
           )}
           {hasRatings && (
-            <span className="inline-flex items-center gap-0.5 ml-0.5" aria-label={`${overallStars} star overall rating`}>
-              <span className="text-amber-400 text-xs leading-none">{"★".repeat(overallStars)}</span>
-              <span className="text-zinc-600 text-xs leading-none">{"★".repeat(5 - overallStars)}</span>
+            <span className="inline-flex items-center gap-0.5 ml-0.5">
+              <StarRating overallValue={averages.overall} className="text-xs" />
               <span className="text-[10px] text-zinc-400 tabular-nums ml-0.5">{averages.overall!.toFixed(1)}</span>
             </span>
           )}

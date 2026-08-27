@@ -149,4 +149,34 @@ describe("League Match helpers — eligibility (ADR-0077)", () => {
     expect(eligibility.eligible).toBe(false);
     expect(eligibility.reason).toMatch(/not found|access denied/i);
   });
+
+  it("marks a player with a match-specific absence as not an active participant, others unaffected (item #3)", async () => {
+    const teamAPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
+    const teamAPlayer2 = fixture.players.filter((p) => p.coreTeamName === "Bla")[1]!;
+    await selectPlayerForMatch(fixture.matches.Bla!, fixture.matchRoundId, teamAPlayer.id, fixture.organisationId, "DRAFT");
+    await selectPlayerForMatch(fixture.matches.Bla!, fixture.matchRoundId, teamAPlayer2.id, fixture.organisationId, "DRAFT");
+
+    const report = await testDb.postMatchReport.create({
+      data: { matchId: fixture.matches.Bla!, organisationId: fixture.organisationId, status: "DRAFT" },
+    });
+    await testDb.matchReportAbsence.create({
+      data: {
+        organisationId: fixture.organisationId,
+        matchReportId: report.id,
+        matchId: fixture.matches.Bla!,
+        playerId: teamAPlayer.id,
+        reason: "AWAY",
+      },
+    });
+
+    const roster = await getEffectiveLeagueMatchRoster(fixture.matches.Bla!, orgFilter(fixture.organisationId));
+
+    const absentEntry = roster.find((r) => r.playerId === teamAPlayer.id);
+    expect(absentEntry?.isActiveParticipant).toBe(false);
+    expect(absentEntry?.absenceReason).toBe("AWAY");
+
+    const otherEntry = roster.find((r) => r.playerId === teamAPlayer2.id);
+    expect(otherEntry?.isActiveParticipant).toBe(true);
+    expect(otherEntry?.absenceReason).toBeNull();
+  });
 });

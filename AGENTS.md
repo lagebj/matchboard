@@ -381,29 +381,87 @@ Rules:
 - Low readiness cannot automatically exclude an eligible player.
 - Strong readiness cannot automatically override hard eligibility rules.
 
-### Post-match reflection and feedback
+### Post-match reflection and feedback (consolidated into Football observations)
 
-Matchboard supports lightweight post-match feedback based on observable behavior.
+**Football observations is the canonical player-development observation concept.** The earlier
+"Post-match feedback" concept (`MatchExecutionFeedback`, 5 fixed categories below) was a
+narrower, largely-overlapping predecessor — both asked the coach to describe the same match in
+different vocabularies, on the same post-match page, back to back. There is now exactly one
+active write path: `FootballObservationSection` (`src/components/player-development/`,
+`PlayerDevelopmentObservation` model), which already feeds the evidence engine
+(`player-evidence-service.ts`) with its 14 football-skill-code vocabulary. "Post-match feedback"
+is no longer an active input:
+- `MatchExecutionFeedback` rows and the `MatchExecutionFeedback` table are preserved — historical
+  data is never deleted.
+- Existing rows display read-only via `LegacyMatchFeedbackSection`
+  (`src/components/matches/legacy-match-feedback-section.tsx`), shown only when a match already
+  has legacy rows, labeled "Post-match feedback (legacy)", positioned after the canonical Football
+  observations section.
+- There is no remaining create/update/delete action for `MatchExecutionFeedback` — the former
+  active write path (`match-feedback-section.tsx`, `post-match/feedback-actions.ts`) was removed.
+- `src/lib/coaching/match-execution-feedback.ts`'s CRUD functions were already unreachable before
+  this consolidation (the removed action file inlined its own `db.matchExecutionFeedback.*` calls
+  instead of calling them) and remain unused; flagged as residue for a future cleanup pass rather
+  than removed in the same change that touched the active UI surface.
 
-Feedback categories (initial set):
-- effort
-- team help
-- reset after mistake
-- positional discipline
-- teammate involvement
+Original feedback categories (historical data only, no longer an input path): effort, team help,
+reset after mistake, positional discipline, teammate involvement.
 
-Rules:
-- Feedback is coach-facing by default.
-- Feedback describes behavior, not character.
-- Feedback is optional and lightweight.
-- Feedback should be recorded only where useful.
-- Feedback must not shame players.
-- Feedback must not become automatic punishment.
-- Feedback can inform future plan integrity signals, readiness signals, and planning suggestions.
-- Feedback must not mutate finalized planned selections.
+Rules (apply to Football observations as the active concept; legacy feedback display keeps the
+same coach-facing/observable-behavior/no-shaming constraints for historical rows):
+- Feedback/observations are coach-facing by default.
+- Feedback/observations describe behavior, not character.
+- Feedback/observations are optional and lightweight.
+- Feedback/observations should be recorded only where useful.
+- Feedback/observations must not shame players.
+- Feedback/observations must not become automatic punishment.
+- Football observations can inform future plan integrity signals, readiness signals, and planning
+  suggestions (the historical `FEEDBACK_TO_READINESS` readiness-suggestion mapping in
+  `src/lib/coaching/types.ts` is now unreferenced outside its own test now that its only caller —
+  the removed feedback-creation form — is gone; left in place pending an equivalent wired into
+  Football observations, rather than deleted).
+- Feedback/observations must not mutate finalized planned selections.
 - Actual participation belongs to post-match reality/history and must stay separate from planned selection.
-- Feedback must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
-- Feedback must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
+- Feedback/observations must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
+- Feedback/observations must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
+
+### Match-specific player absence
+
+Round/team assignment, match roster membership, and match participation status are three
+distinct, related concepts. A player can remain assigned to a round/team while being marked
+Away/Sick/No-show/Declined for one specific match — the `Selection` row is never touched by this.
+
+This reuses the existing `MatchReportAbsence` structured-absence concept (previously only
+reachable from the post-match report screen) rather than introducing a second competing model.
+`MatchReportAbsence` already has a direct `matchId` field (not only reachable via the report), so
+it can be queried per-match without a report existing yet.
+
+- `markMatchAbsence()`/`clearMatchAbsence()` (`src/lib/reports/report-mutations.ts`) are the
+  domain orchestrators. If no `PostMatchReport` exists yet for the match (the normal pre-kickoff
+  state), `markMatchAbsence()` seeds one early via `seedReportFromFinalizedSquad()` with its
+  selection-status filter broadened to `["DRAFT", "FINALIZED"]` for this caller only — the normal
+  post-match "After match" entry point keeps its FINALIZED-only default unchanged.
+- `markMatchAbsence()` also upserts the player's `PostMatchPlayerActual.attendanceStatus` to
+  `NO_SHOW` so report completion is never blocked by a stale `UNKNOWN` attendance the coach
+  already explained pre-match (AGENTS.md "Canonical data truth": "UNKNOWN attendance blocks
+  report completion").
+- Server actions: `markMatchAbsenceAction()`/`clearMatchAbsenceAction()`
+  (`src/app/(app)/matches/absence-actions.ts`).
+- UI: `AbsenceControl` (`src/components/matches/absence-control.tsx`) on the match detail page's
+  Squad tab, per player chip. Only active before the report is locked; a locked report uses the
+  existing post-match correction mechanism instead.
+- `PlannedAbsenceReason` gained an `AWAY` value (additive enum) alongside the existing
+  `NO_SHOW`/`SICK`/`INJURED`/`DECLINED`/`NO_RSVP`/`OTHER`.
+- A non-participating player is excluded from active-participant contexts — the League live
+  reporting roster (`getLiveMatchPreMatchPackageAction`, `src/app/(app)/matches/[matchId]/live/live-actions.ts`)
+  and the canonical `getEffectiveLeagueMatchRoster()` (`src/lib/matches/match-helper-eligibility.ts`)
+  both carry an `absenceReason`/`isActiveParticipant` field per roster entry; `LiveMatchClient`'s
+  scorer/assist/rotation/fair-play pickers filter on `isActiveParticipant !== false` — but the
+  player remains visible in the match roster (Squad tab chip, dimmed with a strike-through name)
+  rather than disappearing.
+- Event matches are out of scope for this — `MatchReportAbsence` is a League `Match`/
+  `PostMatchReport` concept; `isActiveParticipant` on `SquadPlayer` is optional and Event-match
+  squad data simply never sets it (defaults to active).
 
 ### Canonical data truth
 
@@ -1100,6 +1158,15 @@ Rules must be testable without React.
 
 ## Best Lineup
 
+User-facing label: **Recommended lineup** (not "Best lineup" — "best" implies an objectively
+optimal team, which the algorithm does not determine; it applies Matchboard's selection rules and
+evidence to produce a recommendation the coach can accept or change, preserving coach authority).
+The internal feature name, file names (`best-lineup.ts`, `best-lineup-tab.tsx`,
+`best-lineup-actions/`), database model (`TeamBestLineup`), and function names
+(`autoSelectBestLineup`, `copyBestLineupToMatch`, `assignPlayerToBestLineupSlot`) are unchanged —
+this is a display-language rename only, matching the existing pattern of "Squad repair" (internal
+`BACKFILL`) and "Pin" (internal `PlayerLock`).
+
 Best Lineup answers a different question from `src/domain/team-composition/`'s cross-team
 composition scenarios. Team composition distributes players *across* multiple teams from a
 shared pool. Best Lineup fills formation slots *within one team's own core roster*, independent
@@ -1765,6 +1832,31 @@ Events use separate Prisma models:
 
 Event squads are NOT normal `Team` rows. They are temporary event artifacts with no league identity.
 
+### Mixed game formats inside one Event
+
+Normal case: every squad in an Event shares the Event's default game format. Rare case: one Event
+contains squads of different formats (e.g. two 7v7 teams and one 9v9 team on the same event day).
+
+- `EventSquad.gameFormatOverride` (`GameFormat?`, nullable) — `null` means the squad inherits
+  `Event.gameFormat`; a set value overrides it for that squad only.
+- `getEffectiveEventTeamGameFormat(event, squad)` (`src/lib/events/event-types.ts`) is the single
+  centralized resolver: `squad.gameFormatOverride ?? event.gameFormat`. Every downstream consumer
+  (squad generation, formation lookup, lineup formation selection, live reporting, post-match
+  reporting) must call this or use a value already derived from it — never re-derive the fallback
+  inline or read `event.gameFormat` directly when a squad is in scope.
+- `generateEventSquadsAction` groups squads by effective format and runs the generation engine
+  once per format group (players assigned in one group are removed from the pool before the next
+  group runs), so the normal single-format case still degenerates to exactly one call with
+  unchanged behavior.
+- UI: each squad on the Squads tab has a "Game format" selector ("Event default (7v7)" or an
+  explicit override) next to its name, using `updateEventSquadAction`'s `gameFormatOverride` field.
+  There is no separate squad-settings panel — this reuses the existing inline per-squad edit area.
+- Per-match lineup formation selection (`EventMatchLineupPanel` via `EventMatchCard`) and live
+  match reporting (`getEventLiveMatchPreMatchPackageAction`) both resolve the match's own squad's
+  effective format, not the Event default.
+- Removing an override (selecting "Event default") restores inheritance; changing the Event's own
+  default format changes every squad that has no override, without touching overridden squads.
+
 ### Event squad draft/commit lifecycle
 
 Event squads have a status field: DRAFT or LOCKED.
@@ -1921,7 +2013,7 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
-| `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
+| `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
 | `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
@@ -2323,7 +2415,7 @@ Avoid:
 | `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
 | `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
-| `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
+| `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
 | `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
@@ -2344,7 +2436,7 @@ Avoid:
 | `src/lib/coaching/types.ts` | Coaching domain constants and types: intent categories, readiness signals, matchday responsibilities, feedback categories, disallowed language |
 | `src/lib/coaching/coaching-intent.ts` | Coaching intent CRUD and scope resolution (match → round → league season cascade) |
 | `src/lib/coaching/readiness-signals.ts` | Readiness signal CRUD, validation, and warnings |
-| `src/lib/coaching/match-execution-feedback.ts` | Match execution feedback CRUD, validation, and disallowed-language guard |
+| `src/lib/coaching/match-execution-feedback.ts` | Legacy match execution feedback validation/disallowed-language helpers — CRUD functions are unreachable residue (see "Post-match reflection and feedback") |
 | `src/lib/coaching/team-reflection.ts` | Team reflection CRUD and upsert |
 | `src/lib/coaching/matchday-responsibility.ts` | Matchday responsibility assignment, validation, and description |
 | `src/lib/coaching/index.ts` | Barrel export for coaching domain |
@@ -2352,7 +2444,8 @@ Avoid:
 | `src/components/players/player-readiness-panel.tsx` | Readiness signals editor panel on player profile |
 | `src/components/matches/coaching-intent-selector.tsx` | Coaching intent dropdown selector |
 | `src/components/matches/matchday-responsibility-selector.tsx` | Matchday responsibility dropdown selector |
-| `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
+| `src/components/matches/legacy-match-feedback-section.tsx` | Read-only historical display of legacy Post-match feedback rows — no active write path; renders nothing when a match has no legacy rows |
+| `src/components/player-development/football-observation-section.tsx` | Football observations — the canonical player-development observation write path (post-match) |
 | `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
 | `src/components/matches/match-combination-evidence-panel.tsx` | Factual, match-scoped combination evidence (Partnership/Triangle) shown on the post-match page once the report is LOCKED — no confidence label (single-match confidence can never reach ESTABLISHED) |
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |

@@ -15,11 +15,13 @@ import {
   assignPlayerToEventSquadAction,
   unassignPlayerFromEventSquadAction,
   updateEventSquadNameAction,
+  updateEventSquadAction,
   updateEventMatchDurationAction,
 } from '../actions';
 import { finalizeEventAction, unfinalizeEventAction } from '../event-finalization-actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
+import { formatGameFormatShort } from '@/lib/formations/types';
 import { useOrgSlug } from '@/components/shell/org-slug-context';
 import type { FormationSlotRoleType } from '@/lib/formations/types';
 
@@ -49,6 +51,10 @@ type EventSquad = {
   formationName: string | null;
   formationSlots: FormationSlotDisplay[];
   generationOrder: number;
+  /** Effective game format (production consistency pass item #4): gameFormatOverride if set,
+   * otherwise the Event default. gameFormatOverride is the raw override, null = inherits. */
+  gameFormatOverride: string | null;
+  effectiveGameFormat: string;
   players: {
     id: string;
     playerId: string;
@@ -175,6 +181,9 @@ const INTENT_LABELS: Record<string, string> = {
   BALANCED: 'Balanced',
   MANUAL: 'Manual',
 };
+
+/** Production consistency pass item #4: per-squad game format override choices. */
+const GAME_FORMAT_OPTIONS = ['THREE_A_SIDE', 'FIVE_A_SIDE', 'SEVEN_A_SIDE', 'NINE_A_SIDE', 'ELEVEN_A_SIDE'] as const;
 
 const PATTERN_LABELS: Record<string, string> = {
   ALL_BALANCED: 'All squads balanced',
@@ -703,6 +712,21 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                           </button>
                         )}
                         <StatusPill variant="neutral">{INTENT_LABELS[squad.intent] ?? squad.intent}</StatusPill>
+                        <select
+                          className="text-[10px] bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1 py-0.5 text-[var(--text-muted)]"
+                          value={squad.gameFormatOverride ?? ''}
+                          title="Game format for this squad"
+                          onChange={async (e) => {
+                            const value = e.target.value || null;
+                            await updateEventSquadAction(squad.id, { gameFormatOverride: value });
+                            router.refresh();
+                          }}
+                        >
+                          <option value="">Event default ({formatGameFormatShort(data.gameFormat)})</option>
+                          {GAME_FORMAT_OPTIONS.map((gf) => (
+                            <option key={gf} value={gf}>{formatGameFormatShort(gf)}</option>
+                          ))}
+                        </select>
                       </div>
                       <span className="text-sm text-[var(--text-muted)]">
                         {squad.players.length}/{squad.targetSize}

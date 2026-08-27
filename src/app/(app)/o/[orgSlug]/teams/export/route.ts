@@ -206,7 +206,7 @@ function buildSummarySheet(
 
   addHeaderRow(
     ws,
-    ['Team', 'Group', 'Formation', 'Core players', 'Avg rating', 'Best lineup formation', 'Best lineup set'],
+    ['Team', 'Group', 'Formation', 'Core players', 'Avg rating', 'Recommended lineup formation', 'Recommended lineup set'],
     [22, 18, 18, 14, 12, 22, 14],
   );
 
@@ -315,7 +315,7 @@ function buildTeamSheet(
     const emptyRow2 = ws.addRow([]);
     emptyRow2.height = 8;
 
-    addSectionHeader(ws, `Best lineup — ${team.bestLineup.formation?.name ?? 'Unknown formation'}`, 5);
+    addSectionHeader(ws, `Recommended lineup — ${team.bestLineup.formation?.name ?? 'Unknown formation'}`, 5);
     addHeaderRow(
       ws,
       ['Position', 'Role', 'Player', 'Locked', 'Player position'],
@@ -342,8 +342,8 @@ function buildTeamSheet(
   } else {
     const emptyRow2 = ws.addRow([]);
     emptyRow2.height = 8;
-    addSectionHeader(ws, 'Best lineup', 5);
-    const noLineupRow = ws.addRow(['No best lineup configured']);
+    addSectionHeader(ws, 'Recommended lineup', 5);
+    const noLineupRow = ws.addRow(['No recommended lineup configured']);
     noLineupRow.getCell(1).font = { italic: true, color: { argb: 'FF64748B' } };
   }
 

@@ -88,7 +88,7 @@ A cancelled match is a scheduled fixture that did not happen. The coach can canc
 
 ## Post-match workflow
 
-"After match" opens the reporting workspace directly. When no report exists and a finalised squad exists, the first entry creates a DRAFT report seeded from the planned squad automatically — no separate "Open report" or "Seed from plan" step. Reports use a single "Complete report" action instead of separate Submit and Lock steps. Post-match feedback applies only to actual participants with confirmed PRESENT attendance, including manually added matchday participants.
+"After match" opens the reporting workspace directly. When no report exists and a finalised squad exists, the first entry creates a DRAFT report seeded from the planned squad automatically — no separate "Open report" or "Seed from plan" step. Reports use a single "Complete report" action instead of separate Submit and Lock steps. Football observations (the canonical player-development observation concept — the earlier, narrower "Post-match feedback" concept is now a read-only legacy display, not an active input) apply only to actual participants with confirmed PRESENT attendance, including manually added matchday participants.
 
 ## Players overview
 
