@@ -322,18 +322,23 @@ export function SeasonOverviewTable({
               const isExpanded = expandedPlayer === row.playerId;
               return (
                 <div className="rounded-xl border app-hairline bg-[rgba(12,15,20,0.45)] p-3">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-2 text-left"
-                    onClick={() => setExpandedPlayer(isExpanded ? null : row.playerId)}
-                    aria-expanded={isExpanded}
-                  >
+                  {/* A <button> cannot contain the player-name <a> — nested interactive
+                      controls fail WCAG 4.1.2 (axe: nested-interactive). The chevron is its
+                      own real toggle button; the link is a sibling, not a descendant. */}
+                  <div className="flex w-full items-center justify-between gap-2 text-left">
                     <span className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-zinc-600">{isExpanded ? "▾" : "▸"}</span>
+                      <button
+                        type="button"
+                        className="text-[10px] text-zinc-600"
+                        onClick={() => setExpandedPlayer(isExpanded ? null : row.playerId)}
+                        aria-expanded={isExpanded}
+                        aria-label={isExpanded ? "Collapse player details" : "Expand player details"}
+                      >
+                        {isExpanded ? "▾" : "▸"}
+                      </button>
                       <Link
                         href={`/players/${row.playerId}`}
                         className="font-medium text-zinc-200 hover:text-zinc-50"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         {row.displayName}
                       </Link>
@@ -341,7 +346,7 @@ export function SeasonOverviewTable({
                     <span className="text-xs text-zinc-500">
                       {row.coreTeam?.name ?? "Unassigned"}
                     </span>
-                  </button>
+                  </div>
                   <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-xs">
                     {[
                       ["Played", row.actualAppearances],
