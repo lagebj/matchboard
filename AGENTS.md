@@ -425,6 +425,44 @@ same coach-facing/observable-behavior/no-shaming constraints for historical rows
 - Feedback/observations must never use disallowed language: lazy, selfish, bad attitude, weak player, not good enough, useless, problem player.
 - Feedback/observations must use observable behavior descriptions: helped teammate after ball loss, recovered position quickly, stayed available for pass, etc.
 
+### Match-specific player absence
+
+Round/team assignment, match roster membership, and match participation status are three
+distinct, related concepts. A player can remain assigned to a round/team while being marked
+Away/Sick/No-show/Declined for one specific match — the `Selection` row is never touched by this.
+
+This reuses the existing `MatchReportAbsence` structured-absence concept (previously only
+reachable from the post-match report screen) rather than introducing a second competing model.
+`MatchReportAbsence` already has a direct `matchId` field (not only reachable via the report), so
+it can be queried per-match without a report existing yet.
+
+- `markMatchAbsence()`/`clearMatchAbsence()` (`src/lib/reports/report-mutations.ts`) are the
+  domain orchestrators. If no `PostMatchReport` exists yet for the match (the normal pre-kickoff
+  state), `markMatchAbsence()` seeds one early via `seedReportFromFinalizedSquad()` with its
+  selection-status filter broadened to `["DRAFT", "FINALIZED"]` for this caller only — the normal
+  post-match "After match" entry point keeps its FINALIZED-only default unchanged.
+- `markMatchAbsence()` also upserts the player's `PostMatchPlayerActual.attendanceStatus` to
+  `NO_SHOW` so report completion is never blocked by a stale `UNKNOWN` attendance the coach
+  already explained pre-match (AGENTS.md "Canonical data truth": "UNKNOWN attendance blocks
+  report completion").
+- Server actions: `markMatchAbsenceAction()`/`clearMatchAbsenceAction()`
+  (`src/app/(app)/matches/absence-actions.ts`).
+- UI: `AbsenceControl` (`src/components/matches/absence-control.tsx`) on the match detail page's
+  Squad tab, per player chip. Only active before the report is locked; a locked report uses the
+  existing post-match correction mechanism instead.
+- `PlannedAbsenceReason` gained an `AWAY` value (additive enum) alongside the existing
+  `NO_SHOW`/`SICK`/`INJURED`/`DECLINED`/`NO_RSVP`/`OTHER`.
+- A non-participating player is excluded from active-participant contexts — the League live
+  reporting roster (`getLiveMatchPreMatchPackageAction`, `src/app/(app)/matches/[matchId]/live/live-actions.ts`)
+  and the canonical `getEffectiveLeagueMatchRoster()` (`src/lib/matches/match-helper-eligibility.ts`)
+  both carry an `absenceReason`/`isActiveParticipant` field per roster entry; `LiveMatchClient`'s
+  scorer/assist/rotation/fair-play pickers filter on `isActiveParticipant !== false` — but the
+  player remains visible in the match roster (Squad tab chip, dimmed with a strike-through name)
+  rather than disappearing.
+- Event matches are out of scope for this — `MatchReportAbsence` is a League `Match`/
+  `PostMatchReport` concept; `isActiveParticipant` on `SquadPlayer` is optional and Event-match
+  squad data simply never sets it (defaults to active).
+
 ### Canonical data truth
 
 Every important fact must have one documented canonical source. Never add a second writable truth for an existing fact.

@@ -79,6 +79,14 @@ export default async function MatchDetailPage({
     ? hasGroupAccess(ctx, match.team.footballGroupId)
     : false;
 
+  // Match-specific player absence (production consistency pass item #3) — factual state for
+  // this one match, independent of the player's round/team assignment above.
+  const absences = await db.matchReportAbsence.findMany({
+    where: { matchId, organisationId: ctx.organisationId },
+    select: { playerId: true, reason: true },
+  });
+  const absenceReasonByPlayerId = new Map(absences.map((a) => [a.playerId, a.reason as string]));
+
   const selectionData = match.selections.map((s) => {
     const explanation = s.explanation as Record<string, unknown> | null;
     return {
@@ -98,6 +106,7 @@ export default async function MatchDetailPage({
       overrideReason: s.overrideReason,
       controlledDoubleLoad: s.controlledDoubleLoad ?? false,
       matchdayResponsibility: s.matchdayResponsibility ?? undefined,
+      absenceReason: absenceReasonByPlayerId.get(s.playerId) ?? null,
     };
   });
 
@@ -136,6 +145,7 @@ export default async function MatchDetailPage({
     overrideReason: null,
     controlledDoubleLoad: false,
     matchdayResponsibility: undefined,
+    absenceReason: absenceReasonByPlayerId.get(h.playerId) ?? null,
   }));
 
   const warnings = await db.warning.findMany({

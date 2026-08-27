@@ -1960,6 +1960,7 @@ enum PlannedAbsenceReason {
   DECLINED
   NO_RSVP
   OTHER
+  AWAY
 }
 
 enum UnplannedAppearanceReason {

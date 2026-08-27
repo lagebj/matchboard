@@ -260,6 +260,16 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
       }
     }
 
+    // Match-specific player absence (production consistency pass item #3) — a player marked
+    // Away/Sick/No-show/Declined for this match must not appear as an active participant for
+    // live-reporting actions (scorer/assist selection, on-pitch state), while still remaining
+    // visible in the match roster. Their Selection/round-team assignment is untouched.
+    const absences = await db.matchReportAbsence.findMany({
+      where: { matchId, organisationId: ctx.organisationId },
+      select: { playerId: true, reason: true },
+    });
+    const absenceByPlayerId = new Map(absences.map((a) => [a.playerId, a.reason]));
+
     const activeSession = await getActiveSession(matchId);
 
     return {
@@ -293,6 +303,8 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
             })(),
             isHelper: false as const,
             helperSourceTeamName: null as string | null,
+            absenceReason: absenceByPlayerId.get(s.player.id) ?? null,
+            isActiveParticipant: !absenceByPlayerId.has(s.player.id),
           })),
           ...helperAssignments.map((h) => ({
             playerId: h.player.id,
@@ -310,6 +322,8 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
             })(),
             isHelper: true,
             helperSourceTeamName: h.sourceTeam.name,
+            absenceReason: absenceByPlayerId.get(h.player.id) ?? null,
+            isActiveParticipant: !absenceByPlayerId.has(h.player.id),
           })),
         ],
         activeSession: activeSession

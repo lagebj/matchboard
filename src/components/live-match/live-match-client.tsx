@@ -40,6 +40,11 @@ export interface SquadPlayer {
   // a League match's own normal squad.
   isHelper?: boolean;
   helperSourceTeamName?: string | null;
+  // Match-specific player absence (League matches only, production consistency pass item #3).
+  // Undefined/true means the player is an active participant. `false` means the coach marked
+  // them Away/Sick/No-show/Declined for this specific match — they must be excluded from
+  // scorer/assist selection and on-pitch actions, but the round/team assignment is untouched.
+  isActiveParticipant?: boolean;
 }
 
 export interface LiveMatchActions {
@@ -289,8 +294,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }, []);
 
   // Derived
-  const onFieldPlayers = useMemo(() => squad.filter((p) => onFieldIds.has(p.playerId)), [squad, onFieldIds]);
-  const benchPlayers = useMemo(() => squad.filter((p) => !onFieldIds.has(p.playerId)), [squad, onFieldIds]);
+  // A player marked absent for this match (isActiveParticipant === false) is excluded from every
+  // action list (scorer, assist, rotation, fair play) — see AGENTS.md "Match-specific player
+  // absence state". They remain visible in roster/status contexts outside this live client.
+  const activeSquad = useMemo(() => squad.filter((p) => p.isActiveParticipant !== false), [squad]);
+  const onFieldPlayers = useMemo(() => activeSquad.filter((p) => onFieldIds.has(p.playerId)), [activeSquad, onFieldIds]);
+  const benchPlayers = useMemo(() => activeSquad.filter((p) => !onFieldIds.has(p.playerId)), [activeSquad, onFieldIds]);
   const playerMap = useMemo(() => {
     const map: Record<string, string> = {};
     for (const p of squad) {
@@ -971,7 +980,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         <div className="space-y-1.5">
           {onFieldPlayers.length > 0 ? onFieldPlayers.map((p) => (
             <PlayerButton key={p.playerId} player={p} onField={true} onClick={() => handleRotationOut(p.playerId)} variant="highlight" />
-          )) : squad.map((p) => (
+          )) : activeSquad.map((p) => (
             <PlayerButton key={p.playerId} player={p} onField={false} onClick={() => handleRotationOut(p.playerId)} />
           ))}
         </div>

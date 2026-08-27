@@ -25,6 +25,7 @@ import {
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
+import { AbsenceControl } from "@/components/matches/absence-control";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
 import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
 import { PlannedRotationPanel } from "@/components/matches/planned-rotation-panel";
@@ -67,6 +68,9 @@ type SelectionRow = {
   matchdayResponsibility?: string | null;
   primaryPosition: string;
   secondaryPosition: string | null;
+  /** Match-specific absence (production consistency pass item #3) — null means the player is an
+   * active participant for this match. Independent of round/team assignment (Selection stays). */
+  absenceReason?: string | null;
 };
 
 type WarningRow = {
@@ -466,14 +470,16 @@ export function MatchDetail({ match }: { match: MatchData }) {
                             key={p.id}
                             title={p.playerName}
                             className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs ${
-                              p.status === "FINALIZED"
-                                ? "border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
-                                : "border-[var(--border-soft)] bg-[var(--surface-muted)]/50 text-[var(--text-soft)]"
+                              p.absenceReason
+                                ? "border-[var(--danger)]/20 bg-[var(--danger-subtle)] text-[var(--text-muted)] opacity-70"
+                                : p.status === "FINALIZED"
+                                  ? "border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
+                                  : "border-[var(--border-soft)] bg-[var(--surface-muted)]/50 text-[var(--text-soft)]"
                             }`}
                           >
                             <Link
                               href={`/players/${p.playerId}`}
-                              className="hover:text-zinc-50 transition-colors"
+                              className={p.absenceReason ? "line-through hover:text-zinc-50 transition-colors" : "hover:text-zinc-50 transition-colors"}
                             >
                               {p.playerName}
                             </Link>
@@ -492,6 +498,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
                               selectionId={p.id}
                               currentResponsibility={p.matchdayResponsibility}
                               status={p.status}
+                            />
+                            <AbsenceControl
+                              matchId={match.id}
+                              playerId={p.playerId}
+                              currentReason={p.absenceReason}
+                              isLocked={isCancelled || match.postMatchStatus === "LOCKED"}
                             />
                           </span>
                         ))}
