@@ -2348,6 +2348,7 @@ Avoid:
 | `src/components/matches/matchday-responsibility-selector.tsx` | Matchday responsibility dropdown selector |
 | `src/components/matches/match-feedback-section.tsx` | Post-match feedback add/display with readiness suggestion |
 | `src/components/matches/team-reflection-section.tsx` | Team reflection rating form |
+| `src/components/matches/match-combination-evidence-panel.tsx` | Factual, match-scoped combination evidence (Partnership/Triangle) shown on the post-match page once the report is LOCKED — no confidence label (single-match confidence can never reach ESTABLISHED) |
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
 | `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
 | `src/app/(app)/matches/development-thread-actions.ts` | Development thread server actions |

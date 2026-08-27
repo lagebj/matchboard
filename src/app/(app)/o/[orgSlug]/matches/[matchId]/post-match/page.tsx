@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { PostMatchPage } from "@/components/assistant/post-match-page";
 import { MatchFeedbackSection } from "@/components/matches/match-feedback-section";
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
+import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
+import { getMatchCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
@@ -246,6 +248,8 @@ export default async function PostMatchRoute({ params }: PageProps) {
       }
     : null;
 
+  const combinationEvidence = initialReport?.status === "LOCKED" ? await getMatchCombinationEvidence(matchId) : [];
+
   const footballObservationData = footballObservations.map((o) => ({
     id: o.id,
     playerId: o.playerId,
@@ -272,6 +276,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
         isLocked={initialReport?.status === "LOCKED"}
       />
       <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
+      <MatchCombinationEvidencePanel evidence={combinationEvidence} players={playerOptions} />
     </div>
   );
 }

@@ -7448,6 +7448,21 @@ Feature: Matchboard football operations workspace
         Then it must be shown as minutes together, matches, and team goals for/against while present
         And it must not be shown as a single synthesized score or percentage
 
+    Rule: Combination evidence reaches the coach where decisions and reflection happen
+
+      Scenario: The Round Board explains a selection using combination evidence
+        Given a candidate has established combination evidence with an already-selected player
+        When the coach views that candidate's chip on the Round Board
+        Then the explanation must be visible without leaving the Round Board
+        And it must not show a synthesized score or percentage
+
+      Scenario: The post-match page shows factual per-match combination evidence
+        Given a match's post-match report has been completed
+        When the coach views the post-match page
+        Then partnerships and triangles with meaningful shared minutes must be listed
+        And each entry must show minutes together and team outcomes while present
+        And no confidence label must be shown for a single match
+
     Rule: Combination evidence is a bounded advisory signal in selection
 
       Scenario: Combination evidence cannot override hard eligibility
