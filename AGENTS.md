@@ -1440,7 +1440,7 @@ Breakpoint tokens (`globals.css`, `@theme`): `--breakpoint-medium: 600px`,
 collide with pre-existing `xl:` usage elsewhere in the app. Compact is the unprefixed base
 (<600px); there is no token for it.
 
-Status vocabulary: The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.
+Status vocabulary (superseded by ADR-0101 — evidence-driven-coaching-loop programme, explicit maintainer decision): **Not generated, Draft, Blocked, Ready, Finalized** remain the internal selection-planning-completeness vocabulary (round/match plan integrity, override requirements) and the `RoundStatus` enum/type is unchanged. They are no longer the primary label shown for a single match's status. The primary, football-action-oriented match lifecycle status is one of: **Planning open, Planning closed, Live, Played, Report incomplete, Done, Cancelled** (`deriveMatchLifecycleStatus()`, `src/lib/selection/planning-boundary.ts`; `MatchLifecycleBadge`, `src/components/ui/status-badge.tsx`). Report status wins over round-finalization status: a finalized-but-unplayed match shows "Planning closed", never "Done" — finalizing the plan and completing the report are different facts (see the pre-existing "Fixtures result display rules": "Finalized does not mean the match has been played or reported"). Round-level or aggregate contexts (Rounds list, Round Board) may still show Draft/Blocked/Ready/Finalized as a secondary/internal detail alongside the primary lifecycle status, never as the only label.
 
 Warning and signal hierarchy: Blocked conditions must be visually dominant and placed beside the affected round or match. Decision required conditions must be visible without opening hidden technical detail. Planning notes may be progressively disclosed. One primary action must be visually dominant per major workflow context. Draft state and finalised history must never appear visually interchangeable.
 
@@ -1654,9 +1654,9 @@ Note: BACKFILL remains the internal code role and rotation path role. Use "squad
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
-### Round progress (additive, not a replacement)
+### Round progress (aggregate, not a per-match replacement)
 
-`src/lib/rounds/round-progress.ts`'s `deriveRoundProgress()` computes a second, additive fact shown alongside — never instead of — the round status above: whether the round has actually been played and reported yet. Stages: Planning, Partially played, All matches played, Reporting, Complete (derived from each non-cancelled match's played-date and post-match report status). This describes a different axis (match-day execution progress) from the round status model (selection-planning completeness) and must never introduce an alternative label for the round status states themselves. See ADR-0100.
+`src/lib/rounds/round-progress.ts`'s `deriveRoundProgress()` computes a round-level aggregate fact — whether the round's matches have actually been played and reported yet. Stages: Planning, Partially played, All matches played, Reporting, Complete (derived from each non-cancelled match's played-date and post-match report status). A round aggregates multiple matches that can each be at a different lifecycle stage, so this remains a distinct, coarser summary alongside the round status above. For a single match, use the primary lifecycle status (`deriveMatchLifecycleStatus()`) described under "Status vocabulary" above instead — see ADR-0100 (round progress) and ADR-0101 (match lifecycle status supersession).
 
 ### Match status model (2 states)
 

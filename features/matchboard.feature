@@ -4506,7 +4506,7 @@ Feature: Matchboard football operations workspace
     Matchboard uses one consistent visible status vocabulary across all surfaces.
 
     Scenario: Status badges use documented vocabulary
-      Given the app displays a round or match status
+      Given the app displays a round status, or a match's selection-planning-completeness state
       Then the visible label must be one of:
         | status        | label           |
         | NOT_GENERATED | Not generated   |
@@ -4515,6 +4515,62 @@ Feature: Matchboard football operations workspace
         | READY         | Ready           |
         | FINALIZED     | Finalized       |
       And the app must not introduce alternative visible status terms for the same state
+
+
+  Rule: Match lifecycle status supersedes round status as the primary per-match label (ADR-0101)
+
+    The Not generated/Draft/Blocked/Ready/Finalized vocabulary remains the round-level and
+    internal selection-planning-completeness vocabulary. It is no longer the primary label shown
+    for a single match. The primary, football-action-oriented match lifecycle status is derived
+    from report status, kickoff/live state, and planning-boundary state, in that priority order.
+
+    Scenario: Match lifecycle status labels
+      Given the app displays a single match's primary status
+      Then the visible label must be one of:
+        | status            | label              |
+        | cancelled         | Cancelled          |
+        | done              | Done               |
+        | report_incomplete | Report incomplete  |
+        | live              | Live               |
+        | played            | Played             |
+        | planning_closed   | Planning closed    |
+        | planning_open     | Planning open      |
+
+    Scenario: A cancelled match always shows Cancelled regardless of report or round state
+      Given a match has matchStatus "CANCELLED"
+      Then its lifecycle status must be "cancelled" regardless of report status or round status
+
+    Scenario: A locked report always shows Done regardless of round finalization
+      Given a match has a LOCKED post-match report
+      Then its lifecycle status must be "done" even if its match round has never been finalized
+
+    Scenario: A finalized round does not make an unplayed match look Done
+      Given match round "R1" is FINALIZED
+      And a match in "R1" has no post-match report and has not been played yet
+      Then that match's lifecycle status must be "planning_closed", not "done"
+
+    Scenario: A draft or reported post-match report shows Report incomplete
+      Given a match has a post-match report with status DRAFT or REPORTED
+      Then its lifecycle status must be "report_incomplete"
+
+    Scenario: An active live session shows Live ahead of a played-but-unreported match
+      Given a match has an active live match session
+      And the match's kickoff time has passed
+      Then its lifecycle status must be "live", not "played"
+
+    Scenario: A match past kickoff with no report and no live session shows Played
+      Given a match's kickoff time has passed
+      And the match has no post-match report and no active live session
+      Then its lifecycle status must be "played"
+
+    Scenario: Round-level surfaces retain the existing status vocabulary
+      Given the coach views the Rounds list or the Round Board
+      Then the round-level status badge must still use Not generated, Draft, Blocked, Ready, or Finalized
+      And it must not be replaced by the match lifecycle status, which describes a single match
+
+    Scenario: Match lifecycle status is applied on Today, Fixtures, and match detail
+      Given the coach views the Today page, the Fixtures/League page, or a match detail page
+      Then the primary status shown for each individual match must be its lifecycle status
 
 
   Rule: Warning and action hierarchy

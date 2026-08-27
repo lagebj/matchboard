@@ -7,6 +7,8 @@ import { requirePageActorContext, hasGroupAccess } from "@/lib/auth/actor-contex
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
+import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +61,16 @@ export default async function MatchDetailPage({
     select: { status: true },
   });
   const isLive = liveSession?.status === "ACTIVE";
+
+  const lifecycleStatus = deriveMatchLifecycleStatus({
+    matchStatus: match.status,
+    reportStatus: postMatchReport?.status ?? "NONE",
+    hasPassed: hasLeagueMatchPassed({ startsAt: match.startsAt, status: match.status }),
+    isLive,
+    roundStatus: match.matchRound.status,
+    planningClosedAt: match.planningClosedAt,
+    startsAt: match.startsAt,
+  });
   // "Follow live" is a read-only viewer entry point (ADR-0086 amendment) — gated server-side
   // on the same GroupAccess (GROUP_COACH or GROUP_VIEWER) chain the realtime ticket route
   // itself enforces independently. Hiding the button when false is a UX convenience, not the
@@ -205,6 +217,7 @@ export default async function MatchDetailPage({
           cancelledAt: match.cancelledAt,
           cancelledReason: match.cancelledReason,
           postMatchStatus: postMatchReport?.status ?? undefined,
+          lifecycleStatus,
           selections: [...selectionData, ...helperSelectionData],
           warnings: warningData,
           coachingIntent: activeIntent?.category ?? undefined,

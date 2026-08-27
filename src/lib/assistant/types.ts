@@ -1,3 +1,5 @@
+import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+
 export type AssistantWorkCategory =
   | "setup_missing"
   | "availability_missing"
@@ -52,6 +54,10 @@ export type TodayMatch = {
   squadStatus: TodayMatchStatus;
   hasActiveLiveSession: boolean;
   reportStatus: "none" | "draft" | "reported" | "locked" | null;
+  /** The primary, football-action-oriented match status (ADR-0101). Supersedes squadStatus/
+   * reportStatus/hasActiveLiveSession as the label shown to the coach; those remain available
+   * above since hasActiveLiveSession also gates the separate "Follow live" action. */
+  lifecycleStatus: MatchLifecycleStatus;
 };
 
 export type AssistantCommandCentre = {

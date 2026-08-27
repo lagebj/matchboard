@@ -333,6 +333,46 @@ describe("getAssistantCommandCentre", () => {
     const result = await getAssistantCommandCentre();
     expect(result.computedAt).toBeInstanceOf(Date);
   });
+
+  it("computes a primary lifecycleStatus and a correctly-cased reportStatus for today's matches", async () => {
+    const now = new Date();
+    const teamId = Object.values(fixture.teams)[0]!;
+
+    const todayRound = await db.matchRound.create({
+      data: { name: "Today Test Round", leagueSeasonId: fixture.leagueSeasonId, status: "DRAFT", organisationId: fixture.organisationId },
+    });
+    const todayMatch = await db.match.create({
+      data: {
+        matchRoundId: todayRound.id,
+        teamId,
+        opponent: "Today Opponent",
+        startsAt: now,
+        homeAway: "HOME",
+        squadSize: 11,
+        matchType: "FRIENDLY",
+        gameFormat: "ELEVEN_A_SIDE",
+        organisationId: fixture.organisationId,
+      },
+    });
+    await db.postMatchReport.create({
+      data: { matchId: todayMatch.id, status: "LOCKED", organisationId: fixture.organisationId },
+    });
+
+    try {
+      const result = await getAssistantCommandCentre();
+      const todayMatchEntry = result.todayMatches.find((m) => m.matchId === todayMatch.id);
+
+      expect(todayMatchEntry).toBeDefined();
+      expect(todayMatchEntry!.lifecycleStatus).toBe("done");
+      // The raw Prisma enum is uppercase ("LOCKED") — this must be lower-cased to match
+      // TodayMatch.reportStatus's typed union, not passed through raw.
+      expect(todayMatchEntry!.reportStatus).toBe("locked");
+    } finally {
+      await db.postMatchReport.deleteMany({ where: { matchId: todayMatch.id } });
+      await db.match.delete({ where: { id: todayMatch.id } });
+      await db.matchRound.delete({ where: { id: todayRound.id } });
+    }
+  });
 });
 
 describe("getAssistantCommandCentre — setup missing cases", () => {

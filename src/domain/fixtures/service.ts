@@ -5,6 +5,8 @@ import { deriveRoundStatus } from "@/lib/round-status";
 import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
+import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 
 function mapReadiness(blockerCount: number, decisionRequiredCount: number): "READY" | "AT_RISK" | "NOT_PLAYABLE" {
   if (blockerCount > 0) return "NOT_PLAYABLE";
@@ -46,7 +48,7 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
     ),
   );
 
-  const [allSelections, postMatchReports] = await Promise.all([
+  const [allSelections, postMatchReports, activeLiveSessions] = await Promise.all([
     allMatchIds.length > 0
       ? db.selection.findMany({
           where: { matchId: { in: allMatchIds }, organisationId },
@@ -57,7 +59,15 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
       where: { matchId: { in: allMatchIds }, organisationId },
       select: { id: true, matchId: true, status: true, homeGoals: true, awayGoals: true },
     }),
+    allMatchIds.length > 0
+      ? db.liveMatchSession.findMany({
+          where: { matchId: { in: allMatchIds }, organisationId, status: "ACTIVE" },
+          select: { matchId: true },
+        })
+      : Promise.resolve([]),
   ]);
+
+  const liveMatchIds = new Set(activeLiveSessions.map((s) => s.matchId));
 
   const matchDraftCounts = new Map<string, number>();
   const matchFinalizedCounts = new Map<string, number>();
@@ -177,6 +187,18 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
             availableActions: getRoundActions(derivedRoundStatus, hasMatches),
             matchStatus: match.status ?? "SCHEDULED",
             cancelledReason: match.cancelledReason ?? null,
+            // Primary, football-action-oriented status (ADR-0101) — kept visually distinct from
+            // reportState's FT-score/W-D-L display, which remains a separate fact (AGENTS.md
+            // "Fixtures result display rules").
+            lifecycleStatus: deriveMatchLifecycleStatus({
+              matchStatus: match.status ?? "SCHEDULED",
+              reportStatus: (postMatchStatus as "DRAFT" | "REPORTED" | "LOCKED" | undefined) ?? "NONE",
+              hasPassed: hasLeagueMatchPassed({ startsAt: match.startsAt, status: match.status }),
+              isLive: liveMatchIds.has(match.id),
+              roundStatus: round.status,
+              planningClosedAt: match.planningClosedAt,
+              startsAt: match.startsAt,
+            }),
           };
         });
 

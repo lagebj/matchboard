@@ -231,6 +231,28 @@ Low readiness cannot automatically exclude a player. Feedback cannot be shown in
 
 BLOCKED and READY are derived status values — they are not stored in the database. BLOCKED = draft + Blocked condition. READY = draft + no Blocked or Decision required conditions.
 
+## Match lifecycle status (primary per-match status)
+
+The round status model above remains the round-level and internal selection-planning-completeness
+vocabulary — Round Board and the Rounds list still show it unchanged. For a single match, though,
+it is superseded as the primary displayed status by a football-action-oriented match lifecycle
+status (ADR-0101), shown on Today, the Fixtures/League page, and the match detail page header:
+
+| Status | Meaning |
+|--------|---------|
+| Planning open | Kickoff hasn't passed, planning isn't closed |
+| Planning closed | Round finalized, an explicit planning-closed timestamp is set, or kickoff has passed with no report yet |
+| Live | An active live match session exists |
+| Played | Kickoff has passed, no report and no live session |
+| Report incomplete | A post-match report exists in DRAFT or REPORTED status |
+| Done | The post-match report is LOCKED |
+| Cancelled | The match's `matchStatus` is CANCELLED |
+
+Precedence, highest first: Cancelled, Done, Report incomplete, Live, Played, Planning
+closed/open. A finalized round does not by itself make an unplayed match show "Done" — report
+status wins over round-finalization status for this per-match label. See `deriveMatchLifecycleStatus()`
+in `src/lib/selection/planning-boundary.ts` and ADR-0101 for the full rationale and rollout scope.
+
 ## How populate all works
 
 Populate all generates draft selections for all non-finalized rounds in the active league season in one action. It groups matches by round and generates per round using round-level orchestration. It processes rounds in chronological order. Draft selections from earlier rounds may be used as provisional planning context for later rounds in the same run. Populate all does not finalize any round. On partial failure, successful round generations are kept and failures are reported.
@@ -241,7 +263,7 @@ After populate all, each round has draft selections, plan integrity signals, and
 
 ## Round progress and Pin
 
-Alongside the required round status (Not generated/Draft/Blocked/Ready/Finalized), the Rounds list shows an additive round progress line — Planning, Partially played, All matches played, Reporting, or Complete — derived from whether the round's matches have actually been played and reported. It never replaces or relabels the required status.
+Alongside the required round status (Not generated/Draft/Blocked/Ready/Finalized), the Rounds list shows an additive round progress line — Planning, Partially played, All matches played, Reporting, or Complete — derived from whether the round's matches have actually been played and reported. It never replaces or relabels the required round-level status (per-match display uses the separate match lifecycle status described above instead).
 
 A coach can **Pin** a player to a round from the team workspace's Current Round tab: Pin in forces the player into the round's selection (unless a hard rule blocks them, which shows as a warning rather than being silently overridden); Pin out excludes them from the round entirely. Pins are round-scoped and cannot be set on a finalized round.
 
