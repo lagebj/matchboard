@@ -1,4 +1,4 @@
-import { getOverallStarRating } from "@/lib/player-metrics";
+import { roundToNearestHalfStar } from "@/lib/ratings/player-rating";
 
 export type LineupRatingResult = {
   averageRating: number | null;
@@ -36,7 +36,7 @@ export function computeLineupRating(
 
   return {
     averageRating,
-    starRating: getOverallStarRating(averageRating),
+    starRating: roundToNearestHalfStar(averageRating),
     ratedStarterCount,
     totalStarterCount,
     totalSlots,

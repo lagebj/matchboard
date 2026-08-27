@@ -101,15 +101,28 @@ export function getAverageRating(ratings: Array<number | null>): RatingSummary {
   };
 }
 
+// Player attributes use a 1-10 scale; the visual star representation uses a 0-5 scale with
+// half-star support. Invalid/out-of-range values are clamped to the supported 1-10 range rather
+// than producing an out-of-range or NaN star value (a rating of 0 must not become "0 stars" —
+// AGENTS.md "Player attribute ratings": missing/invalid data is uncertainty, not a real score,
+// but this function only ever receives an already-resolved numeric rating; null handling belongs
+// to the caller, same as getPlayerOverallRating's own null branch).
 export function overallToStarValue(overall: number): number {
-  return overall / 2;
+  if (!Number.isFinite(overall)) return 0;
+  const clamped = Math.max(RATING_MIN, Math.min(RATING_MAX, overall));
+  return clamped / 2;
+}
+
+// The single centralized rating-to-star conversion. Every star-rating UI in the app must go
+// through this (directly or via overallToStarValue) rather than re-deriving its own rounding —
+// a prior duplicate in player-metrics.ts rounded the raw 1-10 value as if it were already on a
+// 0-5 scale (Math.round(overall), clamped to 5), which is why a 5.6 average rendered as 5 stars
+// instead of 3. Rounds to the nearest half star (e.g. 2.8 -> 3.0, 2.4 -> 2.5).
+export function roundToNearestHalfStar(overall: number): number {
+  return Math.round(overallToStarValue(overall) * 2) / 2;
 }
 
 export function formatStarDisplay(overall: number): string {
-  const starValue = overallToStarValue(overall);
-  const whole = Math.floor(starValue);
-  const half = starValue - whole >= 0.25 && starValue - whole < 0.75;
-  const displayWhole = half ? whole : (starValue - whole >= 0.75 ? whole + 1 : whole);
-  if (half) return `${displayWhole}.5`;
-  return `${displayWhole}`;
+  const rounded = roundToNearestHalfStar(overall);
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
 }
