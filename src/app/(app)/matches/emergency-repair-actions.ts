@@ -11,6 +11,10 @@ import {
   previewManualRemoveImpact,
   type ManualEditPreview,
 } from "@/lib/selection/edit-impact-preview";
+import {
+  generateEmergencyRepairOptions,
+  type EmergencyRepairOptionsResult,
+} from "@/lib/selection/emergency-repair-options";
 
 export async function analyzeAvailabilityImpactAction(
   playerId: string,
@@ -55,5 +59,24 @@ export async function previewManualRemoveAction(
     return { success: true, preview };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to preview manual remove impact." };
+  }
+}
+
+/**
+ * Generates a small set of viable pre-kickoff repair alternatives for a player who is currently
+ * in the match's draft squad but has just become unavailable. Never applies anything — the coach
+ * reviews the options and applies their choice via the normal manual-add/remove actions.
+ */
+export async function generateEmergencyRepairOptionsAction(
+  matchId: string,
+  playerId: string,
+): Promise<EmergencyRepairOptionsResult> {
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+
+    return await generateEmergencyRepairOptions(matchId, playerId, ctx.orgFilter);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to generate repair options." };
   }
 }
