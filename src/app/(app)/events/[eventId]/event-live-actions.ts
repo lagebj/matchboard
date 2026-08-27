@@ -165,6 +165,7 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
           select: {
             id: true,
             name: true,
+            gameFormatOverride: true,
             players: {
               select: {
                 playerId: true,
@@ -247,7 +248,9 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
           status: match.status,
           squadName: match.eventSquad?.name ?? "",
           eventName: match.event.name,
-          gameFormat: match.event.gameFormat,
+          // Effective game format (production consistency pass item #4): the squad's own
+          // override if set, else the Event default — never the Event default alone.
+          gameFormat: match.eventSquad?.gameFormatOverride ?? match.event.gameFormat,
           matchDurationMinutes: match.event.matchDurationMinutes,
         },
         squad: match.eventSquad

@@ -8,7 +8,7 @@ import { enqueueAndSendNotification } from '@/lib/email/outbox';
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import { getOrCreateDefaultGroup } from '@/lib/groups/group-domain';
 import { type OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
-import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent } from '@/generated/prisma/client';
+import type { FormationSlotRoleType, EventPlayerStatus, EventSquadIntent, GameFormat } from '@/generated/prisma/client';
 import {
   VALID_EVENT_TYPES,
   VALID_GAME_FORMATS,
@@ -544,6 +544,9 @@ export async function updateEventSquadAction(
     minSize?: number;
     maxSize?: number;
     formationId?: string;
+    /** Production consistency pass item #4: null/undefined-string clears the override so the
+     * squad inherits the Event default again; a valid GameFormat value sets an explicit override. */
+    gameFormatOverride?: string | null;
   },
 ) {
   const ctx = await requirePageActorContext();
@@ -564,6 +567,12 @@ export async function updateEventSquadAction(
   if (data.minSize !== undefined) updateData.minSize = data.minSize;
   if (data.maxSize !== undefined) updateData.maxSize = data.maxSize;
   if (data.formationId !== undefined) updateData.formationId = data.formationId || null;
+  if (data.gameFormatOverride !== undefined) {
+    if (data.gameFormatOverride && !VALID_GAME_FORMATS.includes(data.gameFormatOverride as (typeof VALID_GAME_FORMATS)[number])) {
+      throw new Error(`Invalid game format: ${data.gameFormatOverride}`);
+    }
+    updateData.gameFormatOverride = (data.gameFormatOverride || null) as GameFormat | null;
+  }
 
   const squad = await db.eventSquad.update({
     where: { id: squadId },
@@ -856,7 +865,17 @@ export async function generateEventSquadsAction(eventId: string) {
 
   const { generateEventSquads } = await import('@/lib/events/event-squad-generation');
   const { validateEventPool } = await import('@/lib/events/event-validation');
+  const { getEffectiveEventTeamGameFormat } = await import('@/lib/events/event-types');
   const typeGameFormat = event.gameFormat as 'THREE_A_SIDE' | 'FIVE_A_SIDE' | 'SEVEN_A_SIDE' | 'NINE_A_SIDE' | 'ELEVEN_A_SIDE';
+
+  // Effective game format per squad (production consistency pass item #4): a squad's own
+  // gameFormatOverride if set, otherwise the event default. The normal case is every squad
+  // resolving to the same format; mixed-format events are handled by generating each
+  // format-group separately below, never by scattering fallback logic through the generator.
+  const effectiveFormatBySquadId = new Map(
+    event.squads.map((s) => [s.id, getEffectiveEventTeamGameFormat(event, s)]),
+  );
+  const distinctFormats = [...new Set(effectiveFormatBySquadId.values())];
 
   const squads = event.squads.map((s) => ({
     id: s.id,
@@ -869,10 +888,41 @@ export async function generateEventSquadsAction(eventId: string) {
     generationOrder: s.generationOrder,
   }));
 
+  // Formation lookup table for the generator: every squad's own formation, plus (for any squad
+  // relying on the event default) a formation matching that squad's effective format. Previously
+  // this only ever contained event.squads[0]'s formation, silently breaking per-squad formation
+  // overrides whenever a later squad had a different formationId — fixed here as part of making
+  // per-squad effective format actually work end to end.
+  const explicitFormationIds = event.squads.map((s) => s.formationId).filter((id): id is string => !!id);
+  const fallbackFormationsByFormat = await db.formation.findMany({
+    where: {
+      isArchived: false,
+      gameFormat: { in: distinctFormats },
+      ...(event.defaultFormationId ? { id: { not: { in: explicitFormationIds } } } : {}),
+      OR: [
+        { id: event.defaultFormationId ?? undefined },
+        { source: 'SYSTEM' },
+      ],
+      ...ctx.orgFilter.filterNullable,
+    },
+    include: { slots: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  const formationById = new Map<string, (typeof event.squads)[number]['formation']>();
+  for (const s of event.squads) {
+    if (s.formation) formationById.set(s.formation.id, s.formation);
+  }
+  for (const f of fallbackFormationsByFormat) {
+    if (!formationById.has(f.id)) formationById.set(f.id, f);
+  }
+  const formations = [...formationById.values()].filter((f): f is NonNullable<typeof f> => !!f);
+
+  const validationFormation = event.squads[0]?.formation
+    ?? fallbackFormationsByFormat.find((f) => f.gameFormat === typeGameFormat)
+    ?? fallbackFormationsByFormat[0];
   const formationSlots: { roleType: string; acceptedPositions: BroadPosition[]; label: string }[] = [];
-  const defaultFormation = event.squads[0]?.formation;
-  if (defaultFormation?.slots) {
-    for (const slot of defaultFormation.slots) {
+  if (validationFormation?.slots) {
+    for (const slot of validationFormation.slots) {
       const posIds = typeof slot.acceptedPositionIds === 'string'
         ? slot.acceptedPositionIds.split(',').map((s: string) => s.trim() as BroadPosition)
         : Array.isArray(slot.acceptedPositionIds)
@@ -952,18 +1002,55 @@ export async function generateEventSquadsAction(eventId: string) {
     // Use all players if policy evaluation fails.
   }
 
-  const result = generateEventSquads({
-    eventId: event.id,
-    players: filteredPlayers,
-    formations: defaultFormation ? [defaultFormation] : [],
-    defaultFormationId: event.defaultFormationId,
-    squads,
-    selectionPattern,
-    lockedAssignments,
-    includeReserves,
-    includeLateAdditions: includeLate,
-    gameFormat: typeGameFormat,
-  });
+  // Generate per effective-format group (production consistency pass item #4). The normal case
+  // — every squad shares one effective format — degenerates to exactly one iteration with the
+  // exact same squads/players/format as a single call, so existing single-format Events behave
+  // identically to before. A mixed-format Event runs the same generator once per format, in
+  // generationOrder, each time drawing only from players not already placed by an earlier
+  // group's run — never scattering per-format fallback logic through the generator itself.
+  const squadsByFormat = new Map<string, typeof squads>();
+  for (const s of squads) {
+    const fmt = effectiveFormatBySquadId.get(s.id)!;
+    const list = squadsByFormat.get(fmt) ?? [];
+    list.push(s);
+    squadsByFormat.set(fmt, list);
+  }
+
+  type GenerationResult = ReturnType<typeof generateEventSquads>;
+  let remainingPlayers = filteredPlayers;
+  const combinedAssignments: GenerationResult['assignments'] = [];
+  const combinedBalanceSummaries: GenerationResult['balanceSummaries'] = [];
+  const combinedValidationNotes: string[] = [];
+  const combinedWarnings: string[] = [];
+
+  for (const [format, groupSquads] of squadsByFormat) {
+    const groupResult = generateEventSquads({
+      eventId: event.id,
+      players: remainingPlayers,
+      formations,
+      defaultFormationId: event.defaultFormationId,
+      squads: groupSquads,
+      selectionPattern,
+      lockedAssignments,
+      includeReserves,
+      includeLateAdditions: includeLate,
+      gameFormat: format as typeof typeGameFormat,
+    });
+    combinedAssignments.push(...groupResult.assignments);
+    combinedBalanceSummaries.push(...groupResult.balanceSummaries);
+    combinedValidationNotes.push(...groupResult.validationNotes);
+    combinedWarnings.push(...groupResult.warnings);
+
+    const assignedIds = new Set(groupResult.assignments.map((a) => a.playerId));
+    remainingPlayers = remainingPlayers.filter((p) => !assignedIds.has(p.playerId));
+  }
+
+  const result = {
+    assignments: combinedAssignments,
+    balanceSummaries: combinedBalanceSummaries,
+    validationNotes: combinedValidationNotes,
+    warnings: combinedWarnings,
+  };
 
   // Append policy warnings to generation result warnings
   const mergedWarnings = [...result.warnings, ...policyWarnings];

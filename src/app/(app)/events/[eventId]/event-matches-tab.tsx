@@ -94,6 +94,8 @@ interface EventMatchesTabProps {
     id: string;
     name: string;
     intent: string;
+    /** Production consistency pass item #4: per-squad effective game format (override or Event default). */
+    effectiveGameFormat?: string;
     players: Array<{ playerId: string }>;
   }>;
   eventType: string;
@@ -533,7 +535,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                     refreshReport={refreshReport}
                     lineupMatchId={lineupMatchId}
                     onToggleLineup={(matchId) => setLineupMatchId(prev => prev === matchId ? null : matchId)}
-                    gameFormat={gameFormat}
+                    gameFormat={squad.effectiveGameFormat ?? gameFormat}
                     playerProfiles={playerProfiles}
                   />
               ))}

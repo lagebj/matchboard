@@ -330,5 +330,96 @@ describe("Event pool and squad actions", () => {
         generateEventSquadsAction(event.id),
       ).rejects.toThrow("No available players");
     });
+
+    it("generates squads with mixed effective game formats (production consistency pass item #4)", async () => {
+      const event = await testDb.event.create({
+        data: {
+          name: "Mixed Format Event",
+          eventType: "TOURNAMENT",
+          startsAt: new Date("2026-07-01"),
+          gameFormat: "SEVEN_A_SIDE",
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
+          squads: {
+            create: [
+              { name: "Team 1", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: "Team 2", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
+              { name: "Team 3", intent: "BALANCED", targetSize: 9, generationOrder: 2, gameFormatOverride: "NINE_A_SIDE", organisationId: fixture.organisationId },
+            ],
+          },
+        },
+        include: { squads: true },
+      });
+
+      await testDb.eventPlayerAvailability.createMany({
+        data: fixture.players.map((p) => ({
+          eventId: event.id,
+          playerId: p.id,
+          status: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        })),
+      });
+
+      await generateEventSquadsAction(event.id);
+
+      const team1 = event.squads.find((s) => s.name === "Team 1")!;
+      const team2 = event.squads.find((s) => s.name === "Team 2")!;
+      const team3 = event.squads.find((s) => s.name === "Team 3")!;
+
+      const [team1Count, team2Count, team3Count] = await Promise.all([
+        testDb.eventSquadPlayer.count({ where: { eventSquadId: team1.id } }),
+        testDb.eventSquadPlayer.count({ where: { eventSquadId: team2.id } }),
+        testDb.eventSquadPlayer.count({ where: { eventSquadId: team3.id } }),
+      ]);
+
+      // Every squad fills toward its own effective format's target size — the 9v9 override
+      // squad gets 9 players, not the event's 7v7 default, and no player is double-assigned.
+      expect(team1Count).toBe(7);
+      expect(team2Count).toBe(7);
+      expect(team3Count).toBe(9);
+
+      const allAssignedPlayerIds = await testDb.eventSquadPlayer.findMany({
+        where: { eventId: event.id },
+        select: { playerId: true },
+      });
+      const uniquePlayerIds = new Set(allAssignedPlayerIds.map((a) => a.playerId));
+      expect(uniquePlayerIds.size).toBe(allAssignedPlayerIds.length);
+    });
+
+    it("existing single-format Events still generate with one call, unaffected by mixed-format support", async () => {
+      const event = await testDb.event.create({
+        data: {
+          name: "Single Format Event",
+          eventType: "CUP",
+          startsAt: new Date("2026-07-01"),
+          gameFormat: "SEVEN_A_SIDE",
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
+          squads: {
+            create: [
+              { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: "Squad B", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
+            ],
+          },
+        },
+        include: { squads: true },
+      });
+
+      await testDb.eventPlayerAvailability.createMany({
+        data: fixture.players.map((p) => ({
+          eventId: event.id,
+          playerId: p.id,
+          status: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        })),
+      });
+
+      await generateEventSquadsAction(event.id);
+
+      const counts = await Promise.all(
+        event.squads.map((s) => testDb.eventSquadPlayer.count({ where: { eventSquadId: s.id } })),
+      );
+      expect(counts).toEqual([7, 7]);
+    });
   });
 });

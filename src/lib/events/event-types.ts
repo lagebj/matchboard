@@ -7,6 +7,20 @@ import { getPlayerBroadPositions as canonicalGetPlayerBroadPositions } from '@/l
 
 export type GameFormat = 'THREE_A_SIDE' | 'FIVE_A_SIDE' | 'SEVEN_A_SIDE' | 'NINE_A_SIDE' | 'ELEVEN_A_SIDE';
 
+/**
+ * The single centralized "effective game format" calculation (production consistency pass
+ * item #4): an EventSquad's own `gameFormatOverride` if set, otherwise the Event's default.
+ * Every downstream consumer (formation selection, lineup generation, live reporting, rotation,
+ * post-match reporting, pool validation) must call this rather than reading `event.gameFormat`
+ * directly or re-deriving the fallback inline.
+ */
+export function getEffectiveEventTeamGameFormat(
+  event: { gameFormat: GameFormat | string },
+  squad: { gameFormatOverride: GameFormat | string | null },
+): GameFormat {
+  return (squad.gameFormatOverride ?? event.gameFormat) as GameFormat;
+}
+
 export type EventStatusType = 'DRAFT' | 'FINALIZED';
 
 export type EventSelectionPattern = 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE' | 'PRESERVE_AND_FILL';

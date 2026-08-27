@@ -1832,6 +1832,31 @@ Events use separate Prisma models:
 
 Event squads are NOT normal `Team` rows. They are temporary event artifacts with no league identity.
 
+### Mixed game formats inside one Event
+
+Normal case: every squad in an Event shares the Event's default game format. Rare case: one Event
+contains squads of different formats (e.g. two 7v7 teams and one 9v9 team on the same event day).
+
+- `EventSquad.gameFormatOverride` (`GameFormat?`, nullable) — `null` means the squad inherits
+  `Event.gameFormat`; a set value overrides it for that squad only.
+- `getEffectiveEventTeamGameFormat(event, squad)` (`src/lib/events/event-types.ts`) is the single
+  centralized resolver: `squad.gameFormatOverride ?? event.gameFormat`. Every downstream consumer
+  (squad generation, formation lookup, lineup formation selection, live reporting, post-match
+  reporting) must call this or use a value already derived from it — never re-derive the fallback
+  inline or read `event.gameFormat` directly when a squad is in scope.
+- `generateEventSquadsAction` groups squads by effective format and runs the generation engine
+  once per format group (players assigned in one group are removed from the pool before the next
+  group runs), so the normal single-format case still degenerates to exactly one call with
+  unchanged behavior.
+- UI: each squad on the Squads tab has a "Game format" selector ("Event default (7v7)" or an
+  explicit override) next to its name, using `updateEventSquadAction`'s `gameFormatOverride` field.
+  There is no separate squad-settings panel — this reuses the existing inline per-squad edit area.
+- Per-match lineup formation selection (`EventMatchLineupPanel` via `EventMatchCard`) and live
+  match reporting (`getEventLiveMatchPreMatchPackageAction`) both resolve the match's own squad's
+  effective format, not the Event default.
+- Removing an override (selecting "Event default") restores inheritance; changing the Event's own
+  default format changes every squad that has no override, without touching overridden squads.
+
 ### Event squad draft/commit lifecycle
 
 Event squads have a status field: DRAFT or LOCKED.
@@ -1988,7 +2013,7 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
-| `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
+| `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
 | `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
@@ -2390,7 +2415,7 @@ Avoid:
 | `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
 | `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
-| `src/lib/events/event-types.ts` | TypeScript types for event squad generation |
+| `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
 | `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
