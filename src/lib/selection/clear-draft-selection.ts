@@ -1,5 +1,6 @@
 import { SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isMatchPlanningEditable, isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 import { requireOpenLeagueSeason, requireOpenLeagueSeasonForRound, requireOpenLeagueSeasonForMatch } from "@/lib/seasons/require-open-league-season";
 
 export type ClearDraftResult = {
@@ -59,6 +60,11 @@ export async function clearRoundDraftSelection(
 ): Promise<ClearDraftResult> {
   await requireOpenLeagueSeasonForRound(matchRoundId);
 
+  const planningBoundary = await isMatchRoundPlanningEditable(matchRoundId);
+  if (!planningBoundary.editable) {
+    throw new Error(planningBoundary.reason ?? "Planning is closed for this round.");
+  }
+
   const matchRound = await db.matchRound.findFirst({
     where: { id: matchRoundId },
     select: { status: true },
@@ -103,6 +109,11 @@ export async function clearMatchDraftSelection(
   matchId: string,
 ): Promise<ClearDraftResult> {
   await requireOpenLeagueSeasonForMatch(matchId);
+
+  const planningBoundary = await isMatchPlanningEditable(matchId);
+  if (!planningBoundary.editable) {
+    throw new Error(planningBoundary.reason ?? "Planning is closed for this match.");
+  }
 
   const match = await db.match.findFirst({
     where: { id: matchId },

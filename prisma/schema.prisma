@@ -155,9 +155,10 @@ model Match {
   createdAt                   DateTime                       @default(now())
   updatedAt                   DateTime                       @updatedAt
   opponentTeamId              String?
-  status                      MatchStatus                    @default(SCHEDULED)
-  cancelledAt                 DateTime?
-  cancelledReason             String?
+   status                      MatchStatus                    @default(SCHEDULED)
+   planningClosedAt            DateTime?
+   cancelledAt                 DateTime?
+   cancelledReason             String?
   category                    MatchCategory                  @default(LEAGUE)
   matchRound                  MatchRound                     @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
   opponentTeam                OpponentTeam?                  @relation(fields: [opponentTeamId], references: [id])

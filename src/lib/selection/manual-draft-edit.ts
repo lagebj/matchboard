@@ -2,6 +2,7 @@ import { SelectionRole, SelectionStatus } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { loadRotationPathEdgesWithGroupPaths } from "@/lib/selection/load-rotation-paths";
 import { isPlayerActiveCandidate } from "@/lib/selection/movement-candidate";
+import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
 import { canMoveForRole } from "@/lib/selection/rotation-path-policy";
 import { formatOverrideReason, toPrismaCategory } from "@/lib/selection/override-reason-utils";
 import type { AutomaticSelectionCategory, OverrideReasonCategory } from "@/lib/selection/types";
@@ -53,6 +54,12 @@ export async function addPlayerToDraftMatch(
   overrideReasonDetail?: string,
 ): Promise<ManualEditResult> {
   await requireOpenLeagueSeasonForMatch(matchId);
+
+  const planningBoundary = await isMatchPlanningEditable(matchId);
+  if (!planningBoundary.editable) {
+    return { success: false, errors: [planningBoundary.reason ?? "Planning is closed for this match."], warnings: [] };
+  }
+
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -240,6 +247,12 @@ export async function removePlayerFromDraftMatch(
   playerId: string,
 ): Promise<ManualEditResult> {
   await requireOpenLeagueSeasonForMatch(matchId);
+
+  const planningBoundary = await isMatchPlanningEditable(matchId);
+  if (!planningBoundary.editable) {
+    return { success: false, errors: [planningBoundary.reason ?? "Planning is closed for this match."], warnings: [] };
+  }
+
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -289,6 +302,12 @@ export async function changeDraftPlayerRole(
   overrideReasonDetail?: string,
 ): Promise<ManualEditResult> {
   await requireOpenLeagueSeasonForMatch(matchId);
+
+  const planningBoundary = await isMatchPlanningEditable(matchId);
+  if (!planningBoundary.editable) {
+    return { success: false, errors: [planningBoundary.reason ?? "Planning is closed for this match."], warnings: [] };
+  }
+
   const errors: string[] = [];
   const warnings: string[] = [];
 
