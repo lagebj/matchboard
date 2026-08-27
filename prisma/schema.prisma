@@ -130,6 +130,7 @@ model Player {
   fairPlayObservations     FairPlayObservation[]
   groupMemberships         FootballGroupPlayer[]
   assessmentChanges        AssessmentChange[]
+  actualPositionIntervals ActualPositionInterval[]
 
   @@unique([organisationId, playerCode])
   @@index([coreTeamId, active, removedAt])
@@ -179,6 +180,7 @@ model Match {
   teamReflection              TeamReflection?
   helperAssignments           MatchHelperAssignment[]
   threadObservations          DevelopmentThreadObservation[]
+  actualPositionIntervals     ActualPositionInterval[]
 
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
@@ -690,6 +692,28 @@ model PostMatchPlayerActual {
   @@index([matchId])
   @@index([playerId])
   @@index([attendanceStatus])
+  @@index([organisationId])
+}
+
+model ActualPositionInterval {
+  id              String   @id @default(cuid())
+  organisationId  String
+  matchId         String
+  playerId        String
+  position        String
+  startedAtMs     Int
+  endedAtMs       Int?
+  source          ActualIntervalSource
+  approximateTiming Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player        Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  organisation  Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, playerId])
+  @@index([matchId, startedAtMs])
   @@index([organisationId])
 }
 
@@ -1776,6 +1800,14 @@ enum ParticipationSource {
   PLANNED_FINALIZED
 }
 
+enum ActualIntervalSource {
+  STARTING_LINEUP
+  SUBSTITUTION
+  POSITION_SWAP
+  POST_MATCH_CORRECTION
+  LIVE_RECORDED
+}
+
 enum GoalType {
   NORMAL
   OWN_GOAL
@@ -2161,6 +2193,7 @@ model Organisation {
   developmentThreads           DevelopmentThread[]
   threadObservations            DevelopmentThreadObservation[]
   teamFocuses                   TeamFocus[]
+  actualPositionIntervals       ActualPositionInterval[]
 
   @@index([slug])
   @@index([name])
