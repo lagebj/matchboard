@@ -1100,6 +1100,15 @@ Rules must be testable without React.
 
 ## Best Lineup
 
+User-facing label: **Recommended lineup** (not "Best lineup" — "best" implies an objectively
+optimal team, which the algorithm does not determine; it applies Matchboard's selection rules and
+evidence to produce a recommendation the coach can accept or change, preserving coach authority).
+The internal feature name, file names (`best-lineup.ts`, `best-lineup-tab.tsx`,
+`best-lineup-actions/`), database model (`TeamBestLineup`), and function names
+(`autoSelectBestLineup`, `copyBestLineupToMatch`, `assignPlayerToBestLineupSlot`) are unchanged —
+this is a display-language rename only, matching the existing pattern of "Squad repair" (internal
+`BACKFILL`) and "Pin" (internal `PlayerLock`).
+
 Best Lineup answers a different question from `src/domain/team-composition/`'s cross-team
 composition scenarios. Team composition distributes players *across* multiple teams from a
 shared pool. Best Lineup fills formation slots *within one team's own core roster*, independent

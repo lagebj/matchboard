@@ -249,13 +249,13 @@ export function MatchTacticsPanel({
         const { copyBestLineupToMatchAction } = await import("@/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions");
         const result = await copyBestLineupToMatchAction(teamId, matchId);
         if (result.skipped > 0) {
-          setError(`Applied ${result.applied} player(s) from team best lineup. ${result.skipped} player(s) skipped: ${result.skippedReasons.map((r: { reason: string }) => r.reason).join(', ')}`);
+          setError(`Applied ${result.applied} player(s) from the team's recommended lineup. ${result.skipped} player(s) skipped: ${result.skippedReasons.map((r: { reason: string }) => r.reason).join(', ')}`);
         } else {
           setError(null);
         }
         await refreshLineup();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to apply best lineup");
+        setError(e instanceof Error ? e.message : "Failed to apply recommended lineup");
       }
     });
   }, [teamId, matchId, lineup, refreshLineup]);
@@ -531,7 +531,7 @@ export function MatchTacticsPanel({
               </Button>
               <Button variant="ghost" size="sm" disabled={isPending} onClick={handleUseBestLineup}>
                 <Copy className="mr-1 h-3.5 w-3.5" />
-                Use team best lineup
+                Use team's recommended lineup
               </Button>
               <Button variant="ghost" size="sm" disabled={isPending} onClick={handleFillEmpty}>
                 Fill empty slots

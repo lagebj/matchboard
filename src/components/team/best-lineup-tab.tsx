@@ -14,6 +14,7 @@ import {
   clearBestLineupAction,
 } from '@/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions';
 import type { BestLineupData, BestLineupSlot } from '@/lib/best-lineup/best-lineup';
+import { formatGameFormatLabel } from '@/lib/formations/types';
 import { RefreshCw, Trash2, X, Lock, Unlock } from 'lucide-react';
 
 type FormationOption = {
@@ -142,7 +143,7 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
   };
 
   const handleClear = () => {
-    if (!confirm('Clear the best lineup? Formation and assignments will be removed.')) return;
+    if (!confirm('Clear the recommended lineup? Formation and assignments will be removed.')) return;
     startTransition(async () => {
       await clearBestLineupAction(teamId);
       router.refresh();
@@ -176,7 +177,7 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
   if (!lineup || !lineup.formationId) {
     return (
       <div className="flex flex-col gap-4">
-        <SectionHeader title="Best lineup" description="Configure the team's default lineup for match planning." />
+        <SectionHeader title="Recommended lineup" description="Configure the team's default lineup for match planning." />
         <Surface variant="default" padding="md">
           <div className="flex flex-col gap-4">
             <div>
@@ -193,7 +194,7 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
                   <option value="">Select formation</option>
                   {formations.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} ({f.gameFormat.replace('_', ' ').toLowerCase()})
+                      {f.name} ({formatGameFormatLabel(f.gameFormat)})
                     </option>
                   ))}
                 </select>
@@ -221,14 +222,14 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
   return (
     <div className="flex flex-col gap-4">
       <SectionHeader
-        title="Best lineup"
+        title="Recommended lineup"
         description={`Formation: ${lineup.formationName ?? 'Unknown'}`}
       />
 
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="sm" onClick={handleAutoSelect} disabled={isPending}>
           <RefreshCw className="mr-1 h-4 w-4" />
-          Auto-select best lineup
+          Auto-select recommended lineup
         </Button>
         <select
           className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-3 py-1.5 text-zinc-300"

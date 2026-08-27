@@ -206,7 +206,7 @@ type TabKey = "squad" | "current-round" | "best-lineup" | "movement" | "candidat
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
   { key: "current-round", label: "Current Round" },
-  { key: "best-lineup", label: "Best lineup" },
+  { key: "best-lineup", label: "Recommended lineup" },
   { key: "movement", label: "Movement" },
   { key: "candidates", label: "Possible movement" },
   { key: "focus", label: "Focus" },
