@@ -7421,3 +7421,104 @@ Feature: Matchboard football operations workspace
         Then the app must apply parent-export restrictions
         And the app must apply child-safe language rules
         And these restrictions must not affect adult teams
+
+  # --- Evidence-driven coaching loop ---
+
+  Feature: Evidence-driven coaching loop
+
+    Matchboard closes the loop from plan to actual evidence to future decision: intent -> plan -> execution -> actual evidence -> development -> next decision. Combination evidence is descriptive, bounded, and never a chemistry score.
+
+    Rule: Combination evidence is derived only from actual on-pitch relationships
+
+      Scenario: Combination evidence uses actual positions, not planned assignment
+        Given a player's actual on-pitch position differs from their planned position
+        When combination evidence is derived for the match
+        Then the actual position must be used
+        And the planned position must not be used as a substitute for missing actual data
+
+      Scenario: Unknown combination is neutral
+        Given two players have no recorded shared actual playing time
+        When the coach views combination evidence for a candidate squad
+        Then the pairing must show as having insufficient evidence
+        And it must not be shown or scored as a negative signal
+
+      Scenario: Combination evidence has no composite score
+        Given established combination evidence exists for two players
+        When the coach views the evidence
+        Then it must be shown as minutes together, matches, and team goals for/against while present
+        And it must not be shown as a single synthesized score or percentage
+
+    Rule: Combination evidence is a bounded advisory signal in selection
+
+      Scenario: Combination evidence cannot override hard eligibility
+        Given a candidate has established positive combination evidence
+        And the candidate is not eligible under availability, rotation-path, or conflict rules
+        When the round is generated
+        Then the candidate must not be selected on the strength of combination evidence alone
+
+      Scenario: Development intent allows exploring unknown combinations
+        Given the match's coaching intent favours development
+        And a candidate has no recorded combination evidence with the current squad
+        When candidates are ranked
+        Then the unknown combination must not be treated as a disadvantage relative to a known pair
+
+      Scenario: Competitive intent can favour established evidence
+        Given the match's coaching intent favours challenge exposure or stabilising a weaker team
+        And two otherwise-viable candidates differ only in combination evidence
+        When candidates are ranked
+        Then the candidate with established positive evidence may be preferred
+
+    Rule: Planned rotation changes execute as real actual-timeline events
+
+      Scenario: Applying a planned change during live play records a real event
+        Given a planned rotation change is due during a live match
+        When the coach applies the change
+        Then a real actual substitution or position-change event must be recorded
+        And the change must be reflected in the match's actual position timeline
+
+      Scenario: Delaying a planned change keeps it actionable
+        Given a planned rotation change is due during a live match
+        When the coach delays the change
+        Then the change must remain visible as the next planned change
+        And the original planned time must not be altered
+
+      Scenario: Skipping a planned change creates no actual event
+        Given a planned rotation change is due during a live match
+        When the coach skips the change
+        Then no actual substitution or position-change event must be recorded
+
+    Rule: Quick observations are captured first and classified later
+
+      Scenario: A quick observation can be captured with minimal fields
+        Given the coach wants to record something noticed during or after a match
+        When the coach captures a quick observation
+        Then only a note, optional match/player context, timestamp, and author are required
+        And no classification decision is required at capture time
+
+      Scenario: A quick observation can be converted to an existing development thread
+        Given an open quick observation references a player
+        And that player has an active development thread
+        When the coach converts the observation to that thread
+        Then the note must become a development thread observation
+        And the quick observation must be marked converted
+
+      Scenario: A quick observation can be kept as a note or discarded
+        Given an open quick observation exists
+        When the coach chooses to keep it as a note or discard it
+        Then no existing evidence owner must be modified
+        And the quick observation must move to a resolved state
+
+    Rule: Pre-kickoff emergency repair offers viable alternatives, never an automatic change
+
+      Scenario: A late absence produces ranked repair options
+        Given a selected player becomes unavailable before kickoff
+        When the coach requests repair options for that match
+        Then a small set of viable replacement candidates must be shown
+        And each option must show its plan-integrity consequences
+        And no option must be applied automatically
+
+      Scenario: Generating repair options does not change the draft
+        Given the coach requests repair options for a match
+        When the options are generated
+        Then the draft squad must be unchanged afterward
+        And applying a chosen replacement must remain a separate, explicit action

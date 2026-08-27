@@ -175,6 +175,20 @@ Suggestion lifecycle: Accept (apply +1 or -1 to attribute), Adjust (set a specif
 
 Development observations and profile suggestions are coach-facing only. They must not appear in parent-facing exports or external AI payloads.
 
+## Combination evidence
+
+Matchboard derives combination evidence — what actually happened while a defined football relationship (partnership, triangle, line, corridor, functional unit, full configuration) existed on the pitch — from the actual position timeline only, never from planned assignment. It is descriptive: minutes together, matches, distinct opponents, team goals for/against while present, and direct contribution where attribution supports it. There is no composite chemistry score, and an unknown combination is neutral, never negative.
+
+Confidence (Insufficient/Emerging/Established) reflects how much evidence exists, not how good the combination is. The selection engine uses it as a bounded, capped advisory signal that cannot override eligibility, availability, conflicts, coverage, or fairness rules — amplified under a challenging/stabilising coaching intent, suppressed under a confidence-rebuild/reset intent so unknown pairs are never disadvantaged, unmodified otherwise. The Player Combinations insight (I-005) shows the same evidence alongside its existing co-selection frequency data.
+
+## Quick observations
+
+A capture-first, classify-later note (text, optional match/player context, timestamp, author) the coach can jot down without deciding up front which existing evidence owner it belongs to. No AI classification. Later, an explicit coach action converts it into a development thread observation, a team reflection, or an opponent observation — or keeps it as a plain note, or discards it.
+
+## Emergency repair options
+
+Before kickoff, when a selected player becomes unavailable, the coach can request a small, ranked set of viable replacement options with their consequences (plan-integrity impact, combination evidence, recent load). Nothing is applied automatically — the coach reviews the options and applies their choice as a separate, explicit action.
+
 ## Coach-facing vs parent-facing exports
 
 Internal planning reasons, readiness notes, support burden, confidence rebuild, effort concerns, and execution feedback must not leak into parent-facing exports.

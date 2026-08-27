@@ -39,7 +39,7 @@ import {
   getPositionMatchLevel,
   getRankedRotationCandidates,
 } from "@/lib/selection/rotation-candidate-ranking";
-import { deriveCombinationIntentMode, type CombinationScoringInput } from "@/lib/selection/combination-scoring";
+import { deriveCombinationIntentMode, explainCombinationEvidence, type CombinationScoringInput } from "@/lib/selection/combination-scoring";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 import { getSeasonCombinationEvidence, aggregateSeasonCombinations } from "@/lib/evidence/combination-aggregation";
 import type {
@@ -1170,6 +1170,14 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         message: `${candidate.playerName} has ${candidate.player.supportNoShowCount} recorded no-show(s) for support. Confirm availability before finalizing.`,
         playerId: candidate.player.id,
       });
+    }
+
+    for (const combinationNote of explainCombinationEvidence(
+      candidate.player.id,
+      selectedPlayers.map((p) => p.playerId),
+      combinationScoringInputs,
+    )) {
+      explanations.push(buildExplanation("combination_evidence", combinationNote, false));
     }
 
     selectedPlayers.push({

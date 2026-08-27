@@ -587,6 +587,29 @@ The selection engine penalizes players who have been sent as support for consecu
 - The penalty does not prevent selection when no better candidate exists — it is a ranking preference, not a hard block
 - Both the per-match generation engine and the round-level support resolver use this penalty to rotate support assignments across available players from the source team
 
+### Combination evidence (bounded advisory signal)
+
+Combination evidence describes what actually happened while a defined football relationship (partnership, triangle, line, corridor, functional unit, full configuration) existed on the pitch. It is descriptive/contextual, never a chemistry score.
+
+- Derived only from the actual position timeline (`ActualPositionInterval`, including its `line`/`lane` classification), never from planned assignment.
+- Confidence (`INSUFFICIENT`/`EMERGING`/`ESTABLISHED`) reflects how much evidence exists, not how good the combination is. Unknown is neutral, never negative.
+- Consumed by selection as a bounded, capped advisory signal (`src/lib/selection/combination-scoring.ts`) — cannot override eligibility, availability, hard conflicts, required coverage, or fairness rules.
+- Intent-dependent: amplified under `CHALLENGE_EXPOSURE`/`STABILIZE_WEAKER_TEAM` coaching intent, suppressed under `CONFIDENCE_REBUILD`/`RESET_AFTER_ERROR` so unknown pairs are never structurally disadvantaged against known ones, unmodified otherwise.
+- Direct assist contribution is only available for live-recorded matches (the canonical `Assist` model carries no timestamp) — left at 0 for direct-entry reports rather than guessed.
+- Explanations are factual sentences (minutes together, match count, confidence) — never a synthesized score or percentage. See ADR-0094.
+
+### Quick observations
+
+A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
+
+- Minimum fields: note text, optional match/player context, timestamp, author.
+- Later, explicit coach action converts it into an existing owner (development thread observation, team reflection, opponent observation), keeps it as a plain note, or discards it — never automatically.
+- Converting to an opponent observation reuses the same identifying-detail rejection as the normal opponent-observation form. See ADR-0098.
+
+### Emergency repair options
+
+Before kickoff, a late unavailability can produce a small, ranked set of viable replacement options (`src/lib/selection/emergency-repair-options.ts`) — never applied automatically. Reuses the existing manual-edit mutation as the sole eligibility gate (a candidate needing an override reason is not "viable" here) and existing scoring primitives (readiness, recent load, combination evidence) for ranking. See ADR-0099.
+
 ## Rule precedence
 
 Team support is priority 1.
@@ -1909,10 +1932,12 @@ Rules:
 |------|---------|
 | `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking |
 | `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation |
-| `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply, skip, modify planned change during live match |
+| `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply (writes real actual-timeline events server-side), skip, delay, modify planned change during live match |
 | `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` | Coach handover: compact match-operational view for mobile matchday use |
 | `src/components/matches/coach-handover-view.tsx` | Coach handover client component: squad, rotations, intent, warnings |
-| `src/lib/planned-rotation/planned-rotation-live-bridge.ts` | Plan-to-live bridge: apply/skip/modify planned changes, next change lookup |
+| `src/lib/planned-rotation/planned-rotation-live-bridge.ts` | Plan-to-live bridge: apply/skip/delay/modify planned changes (DELAYED is re-visitable, not terminal), next change lookup |
+| `src/lib/evidence/actual-timeline.ts` | Canonical actual position timeline: `rebuildActualTimeline()`, line/lane classification, interval queries |
+| `src/lib/evidence/lineup-state.ts` | Pure position-interval computation from starters/rotations/position-changes (used by actual-timeline.ts) |
 | `src/lib/planned-rotation/rotation-vs-actual.ts` | Rotation vs actual comparison: per-change deviation, minute deviation, unplanned substitutions |
 | `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
 | `src/lib/coaching/development-thread-categories.ts` | Shared development focus categories and labels (client/server) |
@@ -2210,7 +2235,8 @@ Avoid:
 | `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
 | `src/lib/selection/availability-impact.ts` | Availability change impact analysis (affected rounds, unfinalization needed) |
 | `src/lib/selection/edit-impact-preview.ts` | Manual edit consequence preview (dry-run add/remove, plan integrity diff) |
-| `src/app/(app)/matches/emergency-repair-actions.ts` | Server actions: availability impact, manual edit preview |
+| `src/app/(app)/matches/emergency-repair-actions.ts` | Server actions: availability impact, manual edit preview, emergency repair options |
+| `src/lib/selection/emergency-repair-options.ts` | Pre-kickoff emergency repair options generator (ranked, reuses manual-edit mutation as eligibility gate) |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
 | `src/lib/seasons/league-season.ts` | Date-derived SPRING/FALL assignment, labels, date ranges |
 | `src/lib/rounds/round-engagement.ts` | Round engagement enforcement and override validation |
@@ -2233,7 +2259,11 @@ Avoid:
 | `src/lib/selection/get-core-match-drop-history.ts` | Core match drop history data |
 | `src/lib/selection/selection-fairness.ts` | Fairness scoring logic |
 | `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
-| `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking |
+| `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
+| `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
+| `src/lib/evidence/combination-topology.ts` | Derives all six canonical combination families (Partnership/Triangle/Line/Corridor/Functional Unit/Full Configuration) from the actual position timeline |
+| `src/lib/evidence/combination-goal-attribution.ts` | Places goals/assists on the timeline (live events when available, `Goal.minute` as approximate fallback) for combination evidence |
+| `src/lib/evidence/combination-aggregation.ts` | Cross-match combination evidence aggregation, persistence, season summaries, historical backfill |
 | `src/lib/policies/types.ts` | Policy input/result type definitions |
 | `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
@@ -2303,6 +2333,11 @@ Avoid:
 | `src/app/(app)/players/[playerId]/coaching-actions/actions.ts` | Readiness signal server actions |
 | `src/lib/planned-rotation/development-thread.ts` | Development thread domain service (CRUD, lifecycle, observations) |
 | `src/app/(app)/matches/development-thread-actions.ts` | Development thread server actions |
+| `src/lib/coaching/team-focus.ts` | Team focus domain service (CRUD, lifecycle, max 3 active per team) |
+| `src/components/team/team-focus-panel.tsx` | Team focus editor panel on team workspace |
+| `src/lib/coaching/quick-observation.ts` | Quick observation domain service: capture-first/classify-later CRUD, convert to development thread/team reflection/opponent observation, keep-as-note, discard |
+| `src/app/(app)/matches/quick-observation-actions.ts` | Quick observation server actions |
+| `src/components/players/player-quick-observations-panel.tsx` | Quick observation capture/list panel on player profile |
 
 ### Transactional email files
 
@@ -2448,7 +2483,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/app/api/insights/position-exposure/route.ts` | GET `/api/insights/position-exposure` — position exposure API |
 | `src/app/(app)/insights/position-exposure/page.tsx` | Position & Formation Exposure page |
 | `src/app/(app)/insights/position-exposure/position-exposure-client.tsx` | Position & Formation Exposure interactive client component |
-| `src/lib/insights/player-combinations.ts` | I-005: `getPlayerCombinations()` — co-selection/co-appearance frequency per player pair; frequency is not effectiveness |
+| `src/lib/insights/player-combinations.ts` | I-005: `getPlayerCombinations()` — co-selection/co-appearance frequency per player pair; frequency is not effectiveness. Enriched with partnership subtype, minutes together, and confidence from `CombinationEvidence` when available |
 | `src/lib/insights/player-combinations-helpers.ts` | Pure helpers: order-independent pair keying |
 | `src/app/api/insights/player-combinations/route.ts` | GET `/api/insights/player-combinations` — player combinations API |
 | `src/app/(app)/insights/player-combinations/page.tsx` | Player Combinations page |
@@ -2482,7 +2517,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
 | `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
 | `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions |
-| `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events |
+| `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events, `estimateCurrentMatchSeconds()` (server-side match-time estimate, no clock anchor is persisted) |
 | `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
 | `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |
 | `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |
