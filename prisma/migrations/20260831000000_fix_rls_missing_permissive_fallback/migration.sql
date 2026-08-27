@@ -27,6 +27,33 @@
 -- only when the GUC is unset (which is the actual runtime state today) and still
 -- enforcing when it is set. This does not weaken isolation versus every other
 -- already-fixed table using the same pattern.
+--
+-- Also defensively re-applies the table-level GRANTs that 20260802150000's
+-- ALTER DEFAULT PRIVILEGES is supposed to extend to every future table: these 5 tables
+-- were created after that migration but (in at least one environment observed while
+-- diagnosing this issue) never received the matchboard_app_runtime grant, which would
+-- surface as "permission denied for table X" (42501) rather than the RLS error above.
+-- Re-granting here is a no-op where the grant already exists.
+
+DO $$
+DECLARE
+  tbl TEXT;
+  role_name TEXT;
+BEGIN
+  FOR tbl IN SELECT unnest(ARRAY[
+    'DevelopmentThread', 'DevelopmentThreadObservation', 'TeamFocus',
+    'PlannedRotation', 'PlannedRotationChange'
+  ]) LOOP
+    FOR role_name IN SELECT unnest(ARRAY['matchboard_app', 'matchboard_app_runtime']) LOOP
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE %I TO %I', tbl, role_name);
+      END IF;
+    END LOOP;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'matchboard_admin_migration') THEN
+      EXECUTE format('GRANT ALL PRIVILEGES ON TABLE %I TO matchboard_admin_migration', tbl);
+    END IF;
+  END LOOP;
+END $$;
 
 DO $$
 DECLARE

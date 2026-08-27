@@ -255,4 +255,39 @@ describe("RLS tenant isolation", () => {
       }
     });
   });
+
+  describe("DevelopmentThread application-level tenant filtering", () => {
+    it("scopes DevelopmentThread reads to the correct organisation", async () => {
+      const org1 = await db.organisation.create({ data: { name: "DevThread Org One", slug: "devthread-org-one" } });
+      const group1 = await createTestGroup(db, org1.id);
+      const team1 = await db.team.create({
+        data: { name: "DevThread Team One", organisationId: org1.id, footballGroupId: group1, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+      });
+      const player1 = await db.player.create({
+        data: { playerCode: 8001, firstName: "Ida", coreTeamId: team1.id, primaryPosition: "CB", preferredFoot: "RIGHT", secondaryFoot: "WEAK", bestSide: "CENTER", organisationId: org1.id },
+      });
+
+      const org2 = await db.organisation.create({ data: { name: "DevThread Org Two", slug: "devthread-org-two" } });
+      const group2 = await createTestGroup(db, org2.id);
+      const team2 = await db.team.create({
+        data: { name: "DevThread Team Two", organisationId: org2.id, footballGroupId: group2, targetSquadSize: 11, minCorePlayers: 8, targetSupportCount: 0, maxSupportCount: 5, minSupportPlayers: 0, supportPriority: 1, developmentSlots: 3, minAcceptedSquadSize: 9, maxSquadSize: 14 },
+      });
+      const player2 = await db.player.create({
+        data: { playerCode: 8002, firstName: "Nils", coreTeamId: team2.id, primaryPosition: "CM", preferredFoot: "RIGHT", secondaryFoot: "WEAK", bestSide: "CENTER", organisationId: org2.id },
+      });
+
+      const thread1 = await db.developmentThread.create({
+        data: { organisationId: org1.id, playerId: player1.id, focus: "Org1 focus", status: "ACTIVE" },
+      });
+      const thread2 = await db.developmentThread.create({
+        data: { organisationId: org2.id, playerId: player2.id, focus: "Org2 focus", status: "ACTIVE" },
+      });
+
+      const org1Threads = await db.developmentThread.findMany({ where: { organisationId: org1.id } });
+      const org2Threads = await db.developmentThread.findMany({ where: { organisationId: org2.id } });
+
+      expect(org1Threads.map((t) => t.id)).toEqual([thread1.id]);
+      expect(org2Threads.map((t) => t.id)).toEqual([thread2.id]);
+    });
+  });
 });
