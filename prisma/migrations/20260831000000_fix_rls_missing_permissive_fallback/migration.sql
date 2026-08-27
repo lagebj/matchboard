@@ -65,21 +65,28 @@ BEGIN
     'DevelopmentThread', 'DevelopmentThreadObservation', 'TeamFocus',
     'PlannedRotation', 'PlannedRotationChange'
   ]) LOOP
-    -- Drop every policy this table might currently have, under either naming scheme
-    -- used across the two broken migrations, for both runtime role variants.
-    FOR policy_name IN SELECT unnest(ARRAY[
-      '_tenant_isolation',
-      '_org_scoped_select', '_org_scoped_insert', '_org_scoped_update', '_org_scoped_delete',
-      '_tenant_read', '_tenant_insert', '_tenant_update', '_tenant_delete'
-    ]) LOOP
-      BEGIN
-        EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || policy_name, tbl);
-      EXCEPTION WHEN others THEN
-        NULL;
-      END;
-    END LOOP;
-
+    -- Matches 20260804160000's proven pattern: drop-then-create happens inside each
+    -- role_name iteration, not once before the role loop. A policy name is not
+    -- role-specific (CREATE POLICY name ... TO role ...), so creating the same name
+    -- twice in a row for a second role without dropping it first raises 42710
+    -- "policy already exists" whenever both matchboard_app and matchboard_app_runtime
+    -- exist in the target environment (true on Neon; not true in every local dev DB,
+    -- which is why this bug passed local verification but failed on the Neon PR branch).
     FOR role_name IN SELECT unnest(ARRAY['matchboard_app', 'matchboard_app_runtime']) LOOP
+      -- Drop every policy this table might currently have, under either naming scheme
+      -- used across the two broken migrations, for both runtime role variants.
+      FOR policy_name IN SELECT unnest(ARRAY[
+        '_tenant_isolation',
+        '_org_scoped_select', '_org_scoped_insert', '_org_scoped_update', '_org_scoped_delete',
+        '_tenant_read', '_tenant_insert', '_tenant_update', '_tenant_delete'
+      ]) LOOP
+        BEGIN
+          EXECUTE format('DROP POLICY IF EXISTS %I ON %I', tbl || policy_name, tbl);
+        EXCEPTION WHEN others THEN
+          NULL;
+        END;
+      END LOOP;
+
       IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
         EXECUTE format(
           'CREATE POLICY %I ON %I FOR SELECT TO %I USING (
