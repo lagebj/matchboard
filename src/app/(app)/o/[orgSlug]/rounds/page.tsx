@@ -6,6 +6,7 @@ import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { RoundListClient } from "@/app/(app)/rounds/round-list-client";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
+import { deriveRoundProgress, type RoundProgress } from "@/lib/rounds/round-progress";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 type RoundItem = {
@@ -15,6 +16,7 @@ type RoundItem = {
   matchCount: number;
   teamNames: string[];
   derivedStatus: RoundStatus;
+  progress: RoundProgress;
 };
 
 export default async function RoundsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -36,6 +38,7 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
           id: true,
           opponent: true,
           startsAt: true,
+          status: true,
           team: { select: { id: true, name: true } },
         },
         orderBy: [{ startsAt: "asc" }],
@@ -48,6 +51,16 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
     },
     orderBy: [{ createdAt: "desc" }],
   });
+
+  const allMatchIds = matchRounds.flatMap((round) => round.matches.map((m) => m.id));
+  const reportStatusByMatchId = new Map(
+    allMatchIds.length > 0
+      ? (await db.postMatchReport.findMany({
+          where: { matchId: { in: allMatchIds } },
+          select: { matchId: true, status: true },
+        })).map((r) => [r.matchId, r.status])
+      : [],
+  );
 
   const roundItems: RoundItem[] = await Promise.all(matchRounds.map(async (round) => {
     const integrity = await computeRoundPlanIntegrity(round.id);
@@ -63,6 +76,13 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
       matchCount: round.matches.length,
       teamNames: [...new Set(round.matches.map((m) => m.team.name))],
       derivedStatus: deriveRoundStatus({ dbStatus: round.status, hasDraftSelections, blockedSignalCount: blockedCount }),
+      progress: deriveRoundProgress(
+        round.matches.map((m) => ({
+          status: m.status,
+          startsAt: m.startsAt,
+          reportStatus: (reportStatusByMatchId.get(m.id) as "DRAFT" | "REPORTED" | "LOCKED" | undefined) ?? "NONE",
+        })),
+      ),
     };
   }));
 

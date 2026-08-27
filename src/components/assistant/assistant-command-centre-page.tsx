@@ -108,7 +108,7 @@ const groups: GroupConfig[] = [
     key: "reports",
     label: "Post-match reports",
     description: "Matches still missing a completed report.",
-    categories: ["post_match_report"],
+    categories: ["post_match_report", "planned_rotation_delayed"],
     icon: CalendarRange,
     variant: "info",
   },

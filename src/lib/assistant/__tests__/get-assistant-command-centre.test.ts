@@ -152,6 +152,41 @@ describe("getAssistantCommandCentre", () => {
     expect(reportItems[0]!.matchId).toBeDefined();
   });
 
+  it("shows planned_rotation_delayed for a finalized match with a delayed planned change", async () => {
+    await db.matchRound.update({
+      where: { id: fixture.matchRoundId },
+      data: { status: "FINALIZED" },
+    });
+    await db.selection.updateMany({
+      where: { matchRoundId: fixture.matchRoundId, status: "DRAFT" },
+      data: { status: "FINALIZED" },
+    });
+
+    const match = await db.match.findFirstOrThrow({ where: { matchRoundId: fixture.matchRoundId } });
+    const rotation = await db.plannedRotation.upsert({
+      where: { matchId_teamId: { matchId: match.id, teamId: match.teamId } },
+      update: {},
+      create: { matchId: match.id, teamId: match.teamId, organisationId: fixture.organisationId },
+    });
+    await db.plannedRotationChange.create({
+      data: {
+        plannedRotationId: rotation.id,
+        sequence: 1,
+        positionOnly: false,
+        status: "DELAYED",
+        organisationId: fixture.organisationId,
+      },
+    });
+
+    const result = await getAssistantCommandCentre();
+    const delayedItems = result.items.filter((i) => i.category === "planned_rotation_delayed");
+    expect(delayedItems.length).toBeGreaterThanOrEqual(1);
+    expect(delayedItems.some((i) => i.matchId === match.id)).toBe(true);
+
+    await db.plannedRotationChange.deleteMany({ where: { plannedRotationId: rotation.id } });
+    await db.plannedRotation.delete({ where: { id: rotation.id } });
+  });
+
   it("shows no post_match_report when report exists", async () => {
     const matches = await db.match.findMany({
       where: { matchRoundId: fixture.matchRoundId },

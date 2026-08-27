@@ -7,6 +7,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { formatIsoWeekLabel } from "@/lib/date-utils";
 import { formatPlayerName } from "@/lib/player-metrics";
 import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/lib/selection/movement-candidate";
+import { getPlayerLocksForRound } from "@/lib/selection/player-lock";
 import { getBestLineup, getFormationsForTeam } from "@/lib/best-lineup/best-lineup";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
@@ -193,6 +194,11 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     allMatchTeamMap.set(sel.matchId, sel.match.team.name);
   }
 
+  const playerLocksThisRound = activeRound
+    ? await getPlayerLocksForRound(activeRound.id, ctx.orgFilter)
+    : [];
+  const pinByPlayerId = new Map(playerLocksThisRound.map((lock) => [lock.playerId, lock.lockType]));
+
   const coreSelected = teamSelThisRound
     .filter((s) => s.role === "CORE" && s.player.coreTeamId === team.id)
     .map((s) => ({
@@ -200,6 +206,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       playerName: formatPlayerName(s.player),
       role: s.role,
       explanation: (s.explanation as Record<string, unknown> | null)?.summary as string | null ?? null,
+      pin: pinByPlayerId.get(s.player.id) ?? null,
     }));
 
   const coreCountThisRound = new Set(coreSelected.map((s) => s.playerId)).size;
@@ -212,6 +219,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       role: s.role,
       destinationTeamName: allMatchTeamMap.get(s.matchId) ?? "Unknown",
       explanation: (s.explanation as Record<string, unknown> | null)?.summary as string | null ?? null,
+      pin: pinByPlayerId.get(s.player.id) ?? null,
     }));
 
   const receivedPlayers = teamSelThisRound
@@ -232,6 +240,7 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       playerName: formatPlayerName(s.player),
       role: s.role,
       explanation: (s.explanation as Record<string, unknown> | null)?.summary as string | null ?? null,
+      pin: pinByPlayerId.get(s.player.id) ?? null,
     }));
 
   const roundWarnings = (activeRound?.warnings ?? []).map((w) => ({

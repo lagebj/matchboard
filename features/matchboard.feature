@@ -7522,3 +7522,60 @@ Feature: Matchboard football operations workspace
         When the options are generated
         Then the draft squad must be unchanged afterward
         And applying a chosen replacement must remain a separate, explicit action
+
+  # --- Lifecycle consolidation (Phase 6) ---
+
+  Feature: Lifecycle consolidation
+
+    Round progress is derived and additive; the required round status vocabulary is never replaced. Explicit coach planning constraints use concrete "Pin" language.
+
+    Rule: Round progress is additive to, never a replacement for, the required round status
+
+      Scenario: A round with no matches played yet shows Planning progress
+        Given a round has only upcoming, unplayed matches
+        When the coach views the Rounds list
+        Then the round progress must show "Planning"
+        And the required round status label must still be shown unchanged
+
+      Scenario: A round with all matches played and reported shows Complete progress
+        Given every non-cancelled match in a round has a completed post-match report
+        When the coach views the Rounds list
+        Then the round progress must show "Complete"
+
+      Scenario: Cancelled matches do not block round progress from completing
+        Given a round has one cancelled match and all other matches have completed reports
+        When the coach views the Rounds list
+        Then the round progress must show "Complete"
+
+    Rule: A coach can pin a player as an explicit round-scoped planning constraint
+
+      Scenario: Pinning a player in forces their inclusion in the round
+        Given a player is pinned in for a match round
+        And the player is otherwise eligible
+        When the round is generated
+        Then the player must be included in the round's selection
+
+      Scenario: Pinning a player out excludes them from the round
+        Given a player is pinned out for a match round
+        When the round is generated
+        Then the player must not be selected anywhere in that round
+
+      Scenario: A pin cannot override a hard eligibility rule
+        Given a player is pinned in for a match round
+        And the player is unavailable
+        When the round is generated
+        Then the player must not be force-selected
+        And a decision-required warning must explain why the pin could not be honored
+
+      Scenario: A player cannot be pinned in a finalized round
+        Given a match round is finalized
+        When the coach attempts to pin a player for that round
+        Then the pin must be rejected
+
+    Rule: Today surfaces a delayed planned rotation change as a real work item
+
+      Scenario: A delayed rotation change after a played match appears on Today
+        Given a match has been played
+        And a planned rotation change for that match is still in the delayed state
+        When the coach views Today
+        Then a work item must prompt the coach to resolve the delayed change

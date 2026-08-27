@@ -239,6 +239,12 @@ Populate all generates draft selections for all non-finalized rounds in the acti
 
 After populate all, each round has draft selections, plan integrity signals, and explanations. The coach reviews plan integrity signals by round, fixes issues per match, and may manually adjust draft squads before finalization. Rounds with Blocked conditions require conscious override to finalize. Rounds with Decision required conditions can be finalized with a recorded reason.
 
+## Round progress and Pin
+
+Alongside the required round status (Not generated/Draft/Blocked/Ready/Finalized), the Rounds list shows an additive round progress line — Planning, Partially played, All matches played, Reporting, or Complete — derived from whether the round's matches have actually been played and reported. It never replaces or relabels the required status.
+
+A coach can **Pin** a player to a round from the team workspace's Current Round tab: Pin in forces the player into the round's selection (unless a hard rule blocks them, which shows as a warning rather than being silently overridden); Pin out excludes them from the round entirely. Pins are round-scoped and cannot be set on a finalized round.
+
 ## How manual draft editing works
 
 Draft match squads can be manually edited before finalization. The coach can add players, remove players, change player roles, or replace players. Manual edits use the same domain validation as automatic generation — UI-only validation is not enough. Every non-core movement must have a valid RotationPath or an explicit manual override reason. Same-round conflicts, availability, squad size, and non-rotatable rules are all validated. Manual edits recalculate match status, round status, plan integrity signals, explanations, and fairness impact. Finalized selections cannot be edited by normal draft actions.

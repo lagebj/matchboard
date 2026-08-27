@@ -643,6 +643,17 @@ Rules:
 - No fallback can bypass path validation
 - Invalid path eligibility is a hard eligibility problem, not a ranking problem
 
+### Player locks ("Pin")
+
+`PlayerLock` is a round-scoped, explicit coach planning constraint, read directly by the selection engine (`generate-selection.ts`). It is coach-facing under the name **Pin** (DECISIONS.md: "Use `Pin` for an explicit coach planning constraint"); the underlying model/field names (`PlayerLock`, `lockType` values `LOCKED_IN`/`LOCKED_OUT`) are unchanged.
+
+- **Pin out** (`LOCKED_OUT`) excludes the player from the entire round automatically — a hard exclusion, always honored (no override needed to exclude further, since it's already the coach's explicit instruction).
+- **Pin in** (`LOCKED_IN`) forces the player into a selection for the round if they are not otherwise chosen. If a hard rule (e.g. unavailability) would block them, the pin does not override it — the round instead shows a `player_locked_in_blocked` warning explaining why.
+- One `PlayerLock` per `(matchRoundId, playerId)` — pinning a player again while already pinned replaces the existing pin (upsert), it does not create a duplicate.
+- Cannot pin a player in a `FINALIZED` round.
+- UI: `src/components/team/team-detail.tsx`'s Current Round tab (`PinControl`) — a coach can pin/unpin any player shown there (selected as core, sent as support, or dropped) for that team's current round.
+- Domain: `src/lib/selection/player-lock.ts`. Actions: `src/app/(app)/teams/player-lock-actions.ts`.
+
 ### Movement candidates
 
 MovementCandidate is a coach-facing domain concept for marking individual players as suitable for temporary movement through a specific rotation path. It is a soft preference that augments — but does not replace — RotationPath eligibility and existing player attributes.
@@ -1643,6 +1654,10 @@ Note: BACKFILL remains the internal code role and rotation path role. Use "squad
 | READY | Draft with no blockers |
 | FINALIZED | Locked history |
 
+### Round progress (additive, not a replacement)
+
+`src/lib/rounds/round-progress.ts`'s `deriveRoundProgress()` computes a second, additive fact shown alongside — never instead of — the round status above: whether the round has actually been played and reported yet. Stages: Planning, Partially played, All matches played, Reporting, Complete (derived from each non-cancelled match's played-date and post-match report status). This describes a different axis (match-day execution progress) from the round status model (selection-planning completeness) and must never introduce an alternative label for the round status states themselves. See ADR-0100.
+
 ### Match status model (2 states)
 
 | Status | Meaning |
@@ -2290,7 +2305,10 @@ Avoid:
 | `src/app/(app)/matches/match-helper-actions.ts` | Server actions: add/remove League Match helper, list helpers/candidates |
 | `src/components/matches/match-helpers-panel.tsx` | "Add helper" UI on the League match detail Squad tab |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
-| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items) |
+| `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items, delayed planned rotation changes) |
+| `src/lib/rounds/round-progress.ts` | Derives additive round progress (Planning/Partially played/All matches played/Reporting/Complete) from round matches — never a replacement for the mandatory round status labels |
+| `src/lib/selection/player-lock.ts` | Player lock ("Pin") domain service: create/list/delete, read by generate-selection.ts |
+| `src/app/(app)/teams/player-lock-actions.ts` | Player lock ("Pin") server actions |
 | `src/lib/assistant/get-event-work-items.ts` | Compute event-related assistant work items |
 | `src/lib/data-integrity/audit-data-integrity.ts` | Integrity audit: mandatory checks + candidate stubs |
 | `src/lib/data-integrity/reconcile-canonical-derived-data.ts` | Reconcile derived projections from canonical sources |

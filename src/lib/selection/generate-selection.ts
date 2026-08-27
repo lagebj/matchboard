@@ -530,7 +530,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     if (lockedOutPlayerIds.has(player.id)) {
       const lockRecord = playerLocks.find((lock) => lock.playerId === player.id && lock.lockType === "LOCKED_OUT");
       const lockReason = lockRecord?.reason ? ` ${lockRecord.reason}` : "";
-      const exclusionReason = `Excluded because the player is manually locked out of this match round.${lockReason}`;
+      const exclusionReason = `Excluded because the coach pinned this player out of this match round.${lockReason}`;
       excludedPlayers.push({
         autoSelected: false,
         coreTeamId: player.coreTeam?.id ?? player.coreTeamId ?? "",
@@ -1441,7 +1441,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         warnings.push({
           severity: "WARNING",
           code: "player_locked_in_blocked",
-          message: `${getPlayerName(playerRecord)} is locked in but was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
+          message: `${getPlayerName(playerRecord)} is pinned in but was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
           playerId,
         });
         continue;
@@ -1460,7 +1460,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       coreTeamName: playerRecord.coreTeam?.name ?? "Unknown",
       eligibility: eligibility.allowed,
       explanations: [
-        buildExplanation("player_locked_in", `${playerName} was included because the player is manually locked in for this match round.`, true),
+        buildExplanation("player_locked_in", `${playerName} was included because the coach pinned this player in for this match round.`, true),
       ],
       finalSelected: false,
       manualOverride: false,
@@ -1470,7 +1470,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       playerPosition: playerRecord.primaryPosition,
       priorityScore: 200,
       selectionCategory,
-      selectionReason: `Selected because ${playerName} is manually locked in for this match round.`,
+      selectionReason: `Selected because the coach pinned ${playerName} in for this match round.`,
     });
 
     const excludedIndex = excludedPlayers.findIndex((p) => p.playerId === playerId);

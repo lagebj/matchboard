@@ -121,6 +121,20 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
 
   const existingReports = new Set(reportStatuses.keys());
 
+  // A planned rotation change left DELAYED after the match has been played is a loose end the
+  // coach needs to resolve (apply or skip) — it is re-visitable, not a permanent record, so it
+  // must not be silently forgotten (see ADR-0097).
+  const delayedRotationMatchIds = finalizedMatchIds.length > 0
+    ? new Set(
+        (
+          await db.plannedRotationChange.findMany({
+            where: { status: "DELAYED", plannedRotation: { matchId: { in: finalizedMatchIds } } },
+            select: { plannedRotation: { select: { matchId: true } } },
+          })
+        ).map((c) => c.plannedRotation.matchId),
+      )
+    : new Set<string>();
+
   const items: AssistantWorkItem[] = [];
 
   if (leagueSeason.status === "FINALIZED") {
@@ -330,6 +344,22 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
               );
             }
           }
+        }
+
+        if (delayedRotationMatchIds.has(match.id)) {
+          items.push(
+            makeItem({
+              category: "planned_rotation_delayed",
+              matchRoundId: round.id,
+              matchId: match.id,
+              title: `${round.name} — Resolve delayed rotation change`,
+              summary: "A planned rotation change was delayed during the match and still needs to be applied or skipped.",
+              primaryActionLabel: "Review rotation plan",
+              primaryActionHref: `/matches/${match.id}`,
+              affectedTeamIds: match.teamId ? [match.teamId] : [],
+              affectedPlayerIds: [],
+            }),
+          );
         }
       }
       continue;
