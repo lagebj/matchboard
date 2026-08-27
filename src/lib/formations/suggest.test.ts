@@ -375,4 +375,57 @@ describe("preserveAssignmentsOnChange", () => {
 
     expect(result[0].preserved).toBe(false);
   });
+
+  it("falls back to a same-roleType slot at a different coordinate when no ID/coordinate match exists", () => {
+    const oldDef: FormationSlotData = makeSlot({
+      id: "old-def",
+      gridX: 0,
+      gridY: 3,
+      roleType: "DEFENDER",
+      acceptedPositionIds: ["defender"],
+    });
+    const newDef: FormationSlotData = makeSlot({
+      id: "new-def",
+      gridX: 3,
+      gridY: 3,
+      roleType: "DEFENDER",
+      acceptedPositionIds: ["defender"],
+    });
+
+    const result = preserveAssignmentsOnChange(
+      [oldDef],
+      [newDef],
+      [{ slotId: "old-def", playerId: "p1", locked: false }],
+    );
+
+    expect(result[0].preserved).toBe(true);
+    expect(result[0].newSlotId).toBe("new-def");
+  });
+
+  it("never maps two different old assignments onto the same new slot via the role-match fallback", () => {
+    const oldDef1: FormationSlotData = makeSlot({
+      id: "old-def-1", gridX: 0, gridY: 3, roleType: "DEFENDER", acceptedPositionIds: ["defender"],
+    });
+    const oldDef2: FormationSlotData = makeSlot({
+      id: "old-def-2", gridX: 4, gridY: 3, roleType: "DEFENDER", acceptedPositionIds: ["defender"],
+    });
+    // Only one DEFENDER slot exists in the new formation, at neither old coordinate.
+    const newDef: FormationSlotData = makeSlot({
+      id: "new-def", gridX: 2, gridY: 3, roleType: "DEFENDER", acceptedPositionIds: ["defender"],
+    });
+
+    const result = preserveAssignmentsOnChange(
+      [oldDef1, oldDef2],
+      [newDef],
+      [
+        { slotId: "old-def-1", playerId: "p1", locked: false },
+        { slotId: "old-def-2", playerId: "p2", locked: false },
+      ],
+    );
+
+    const preservedResults = result.filter((r) => r.preserved);
+    expect(preservedResults).toHaveLength(1);
+    expect(new Set(preservedResults.map((r) => r.newSlotId)).size).toBe(preservedResults.length);
+    expect(result.find((r) => !r.preserved)?.reason).toBe("No matching slot in new formation");
+  });
 });

@@ -340,22 +340,13 @@ export function MatchTacticsPanel({
         const hasAssignments = lineup.assignments.some((a) => a.playerId !== null);
         if (hasAssignments) {
           const confirmed = window.confirm(
-            "Changing formation will replace all current assignments. Players will be moved to the bench. Continue?"
+            "Changing formation will reassign players to matching positions where possible. Players who don't fit the new formation will move to the bench. Continue?"
           );
           if (!confirmed) return;
         }
 
-        const { archiveLineup } = await import("@/app/(app)/matches/lineup-actions");
-        const { createMatchLineup } = await import("@/app/(app)/matches/lineup-actions");
-
-        await archiveLineup(lineup.id);
-
-        const benchPlayerIds = lineup.assignments.filter((a) => a.playerId).map((a) => a.playerId!);
-        const newLineup = await createMatchLineup({ matchId, teamId, formationId });
-        if (benchPlayerIds.length > 0) {
-          const { updateBenchPlayers } = await import("@/app/(app)/matches/lineup-actions");
-          await updateBenchPlayers(newLineup.id, benchPlayerIds);
-        }
+        const { changeMatchLineupFormation } = await import("@/app/(app)/matches/lineup-actions");
+        const newLineup = await changeMatchLineupFormation(lineup.id, formationId);
 
         setSelectedFormationId(formationId);
         setLineup(newLineup as unknown as LineupData);
@@ -364,7 +355,7 @@ export function MatchTacticsPanel({
         setError(e instanceof Error ? e.message : "Failed to change formation");
       }
     });
-  }, [matchId, teamId, lineup]);
+  }, [lineup]);
 
   const assignedPlayerIds = new Set(
     lineup?.assignments?.filter((a) => a.playerId).map((a) => a.playerId!) ?? []

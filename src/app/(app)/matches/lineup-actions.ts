@@ -12,6 +12,7 @@ import {
   requireAllSlotsAssigned,
   requireLineupExists,
   createLineupFromFormation,
+  changeLineupFormation,
 } from "@/lib/lineups/lineup-domain";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
@@ -70,6 +71,25 @@ export async function createMatchLineup(data: {
   const lineup = await createLineupFromFormation({ ...data, orgFilter: ctx.orgFilter });
 
   revalidatePath(`/o/${ctx.organisationSlug}/matches/${data.matchId}`);
+  return lineup;
+}
+
+/**
+ * Switches an existing lineup to a different formation in place. Never creates a second
+ * MatchLineup row — see changeLineupFormation() for the reconciliation behavior.
+ */
+export async function changeMatchLineupFormation(lineupId: string, formationId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  const orgFilter = ctx.orgFilter;
+
+  const lineupInfo = await requireLineupOrgAccess(lineupId, orgFilter);
+  await requireMatchGroupAccess(ctx, lineupInfo.matchId);
+
+  const lineup = await changeLineupFormation({ lineupId, newFormationId: formationId, orgFilter });
+
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${lineupInfo.matchId}`);
   return lineup;
 }
 

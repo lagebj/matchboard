@@ -338,62 +338,78 @@ export function preserveAssignmentsOnChange(
 ): AssignmentMigration[] {
   const newSlotMap = new Map(newSlots.map((s) => [s.id ?? `${s.gridX},${s.gridY}`, s]));
   const newCoordMap = new Map(newSlots.map((s) => [`${s.gridX},${s.gridY}`, s]));
+  // Tracks new-slot targets already claimed by an earlier assignment in this same call, so two
+  // old assignments with the same roleType (and no ID/coordinate match) never both migrate onto
+  // the same new slot — each new slot can receive at most one preserved player.
+  const claimedNewSlotIds = new Set<string>();
 
-  return existingAssignments.map((assignment) => {
+  const results: AssignmentMigration[] = [];
+
+  for (const assignment of existingAssignments) {
     const oldSlot = oldSlots.find((s) => (s.id ?? `${s.gridX},${s.gridY}`) === assignment.slotId);
     if (!oldSlot) {
-      return {
+      results.push({
         slotId: assignment.slotId,
         playerId: assignment.playerId,
         preserved: false,
         reason: "Original slot not found in old formation",
-      };
+      });
+      continue;
     }
 
     const newSlotById = newSlotMap.get(assignment.slotId);
-    if (newSlotById) {
-      return {
+    if (newSlotById && !claimedNewSlotIds.has(assignment.slotId)) {
+      claimedNewSlotIds.add(assignment.slotId);
+      results.push({
         slotId: assignment.slotId,
         newSlotId: assignment.slotId,
         playerId: assignment.playerId,
         preserved: true,
         reason: "Same slot ID exists in new formation",
-      };
+      });
+      continue;
     }
 
     const newSlotByCoord = newCoordMap.get(`${oldSlot.gridX},${oldSlot.gridY}`);
-    if (newSlotByCoord && newSlotByCoord.roleType === oldSlot.roleType) {
-      const newId = newSlotByCoord.id ?? `${newSlotByCoord.gridX},${newSlotByCoord.gridY}`;
-      return {
+    const coordSlotId = newSlotByCoord ? newSlotByCoord.id ?? `${newSlotByCoord.gridX},${newSlotByCoord.gridY}` : null;
+    if (newSlotByCoord && newSlotByCoord.roleType === oldSlot.roleType && coordSlotId && !claimedNewSlotIds.has(coordSlotId)) {
+      claimedNewSlotIds.add(coordSlotId);
+      results.push({
         slotId: assignment.slotId,
-        newSlotId: newId,
+        newSlotId: coordSlotId,
         playerId: assignment.playerId,
         preserved: true,
         reason: "Mapped to same coordinate and role type",
-      };
+      });
+      continue;
     }
 
-    const roleMatchSlot = newSlots.find(
-      (s) => s.roleType === oldSlot.roleType && !newSlotMap.has(s.id ?? `${s.gridX},${s.gridY}`),
-    );
+    const roleMatchSlot = newSlots.find((s) => {
+      const id = s.id ?? `${s.gridX},${s.gridY}`;
+      return s.roleType === oldSlot.roleType && !claimedNewSlotIds.has(id);
+    });
     if (roleMatchSlot) {
       const newId = roleMatchSlot.id ?? `${roleMatchSlot.gridX},${roleMatchSlot.gridY}`;
-      return {
+      claimedNewSlotIds.add(newId);
+      results.push({
         slotId: assignment.slotId,
         newSlotId: newId,
         playerId: assignment.playerId,
         preserved: true,
         reason: `Mapped to ${roleMatchSlot.roleType} role type`,
-      };
+      });
+      continue;
     }
 
-    return {
+    results.push({
       slotId: assignment.slotId,
       playerId: assignment.playerId,
       preserved: false,
       reason: "No matching slot in new formation",
-    };
-  });
+    });
+  }
+
+  return results;
 }
 
 function formatGameFormatLabelSimple(gameFormat: GameFormat): string {
