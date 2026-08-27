@@ -149,11 +149,12 @@ export default async function MatchDetailPage({
   let opponentHistory: Awaited<ReturnType<typeof getOpponentHistory>> = null;
   let opponentConcernCount = 0;
   let opponentLatestConcernDate: string | null = null;
+  let currentMatchStyleTags: string[] = [];
 
   if (match.opponentTeamId && match.team.footballGroupId) {
     opponentHistory = await getOpponentHistory(match.opponentTeamId, match.team.footballGroupId, ctx.orgFilter);
     if (match.opponentTeamId) {
-      const [cc, lcd] = await Promise.all([
+      const [cc, lcd, currentObs] = await Promise.all([
         db.opponentEncounterObservation.count({
           where: { opponentTeamId: match.opponentTeamId, overallEnvironment: { in: ["CONCERN", "SERIOUS_CONCERN"] } },
         }),
@@ -162,9 +163,14 @@ export default async function MatchDetailPage({
           orderBy: { createdAt: "desc" },
           select: { createdAt: true },
         }),
+        db.opponentEncounterObservation.findFirst({
+          where: { matchId: match.id, ...ctx.orgFilter.filterNullable },
+          select: { playingStyleTags: true },
+        }),
       ]);
       opponentConcernCount = cc;
       opponentLatestConcernDate = lcd?.createdAt.toISOString() ?? null;
+      currentMatchStyleTags = currentObs?.playingStyleTags ?? [];
     }
   }
 
@@ -211,6 +217,7 @@ export default async function MatchDetailPage({
           opponentHistory,
           opponentConcernCount,
           opponentLatestConcernDate,
+          currentMatchStyleTags,
           phaseStartDate: match.matchRound.leagueSeason?.startDate,
           phaseEndDate: match.matchRound.leagueSeason?.endDate,
            isLive,

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
+import { PLAYING_STYLE_TAG_LABELS } from "@/lib/opponents/playing-style-tags";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
@@ -53,6 +54,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         select: {
           overallEnvironment: true,
           concernCategories: true,
+          playingStyleTags: true,
           factualSummary: true,
           followUp: true,
         },
@@ -67,6 +69,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
       id: true,
       overallEnvironment: true,
       concernCategories: true,
+      playingStyleTags: true,
       factualSummary: true,
       followUp: true,
       createdAt: true,
@@ -206,8 +209,9 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                       <th className="pb-2 pr-4">Result</th>
                       <th className="pb-2 pr-4">Sporting fit</th>
                       <th className="pb-2 pr-4">Environment</th>
-                      <th className="pb-2 pr-4">Concerns</th>
-                      <th className="pb-2 pr-4">Follow-up</th>
+                        <th className="pb-2 pr-4">Concerns</th>
+                        <th className="pb-2 pr-4">Style</th>
+                        <th className="pb-2 pr-4">Follow-up</th>
                       <th className="pb-2">Summary</th>
                     </tr>
                   </thead>
@@ -239,6 +243,11 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                           <td className="py-2 pr-4">
                             {obs && obs.concernCategories.length > 0
                               ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
+                              : "\u2014"}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {obs && obs.playingStyleTags.length > 0
+                              ? obs.playingStyleTags.map((t) => PLAYING_STYLE_TAG_LABELS[t as keyof typeof PLAYING_STYLE_TAG_LABELS] ?? t).join(", ")
                               : "\u2014"}
                           </td>
                           <td className="py-2 pr-4">
@@ -282,6 +291,13 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                       value:
                         obs && obs.concernCategories.length > 0
                           ? obs.concernCategories.map((c) => CONCERN_CATEGORY_LABELS[c as keyof typeof CONCERN_CATEGORY_LABELS] ?? c).join(", ")
+                          : "\u2014",
+                    },
+                    {
+                      label: "Style",
+                      value:
+                        obs && obs.playingStyleTags.length > 0
+                          ? obs.playingStyleTags.map((t) => PLAYING_STYLE_TAG_LABELS[t as keyof typeof PLAYING_STYLE_TAG_LABELS] ?? t).join(", ")
                           : "\u2014",
                     },
                     {

@@ -30,6 +30,7 @@ import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
 import { PlannedRotationPanel } from "@/components/matches/planned-rotation-panel";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import { PreviousEncountersDisplay } from "@/components/opponents/previous-encounters-display";
+import { PLAYING_STYLE_TAG_LABELS, type PlayingStyleTag } from "@/lib/opponents/playing-style-tags";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
 import { PageHeader } from "@/components/ui/page-header";
@@ -111,6 +112,7 @@ type MatchData = {
   opponentHistory?: OpponentHistoryData | null;
   opponentConcernCount?: number;
   opponentLatestConcernDate?: string | null;
+  currentMatchStyleTags?: string[];
   phaseStartDate?: Date;
   phaseEndDate?: Date;
   plannedRotation?: PlannedRotationWithChanges | null;
@@ -730,11 +732,34 @@ export function MatchDetail({ match }: { match: MatchData }) {
             </p>
           </Surface>
         ) : (
-          <Surface padding="md">
-            <p className="text-sm text-[var(--text-muted)]">
-              Opening post-match report…
-            </p>
-          </Surface>
+          <div className="flex flex-col gap-4">
+            <Surface padding="md">
+              <SectionHeader title="Post-match report" description="Record match results, player participation, and observations." />
+              <Button
+                as={Link}
+                href={`/matches/${match.id}/post-match`}
+                variant="primary"
+                size="md"
+                className="self-start mt-2"
+              >
+                Open post-match report
+              </Button>
+            </Surface>
+            {match.plannedRotation && (
+              <Surface padding="md">
+                <SectionHeader title="Planned vs actual rotations" description="Compare planned rotation changes with what happened during the match." />
+                <Button
+                  as={Link}
+                  href={`/matches/${match.id}/review`}
+                  variant="secondary"
+                  size="md"
+                  className="self-start mt-2"
+                >
+                  View rotation review
+                </Button>
+              </Surface>
+            )}
+          </div>
         )
       )}
 
@@ -742,6 +767,21 @@ export function MatchDetail({ match }: { match: MatchData }) {
         <div className="flex flex-col gap-4">
           {match.opponentTeamId ? (
             <>
+              {match.currentMatchStyleTags && match.currentMatchStyleTags.length > 0 && (
+                <Surface padding="md">
+                  <SectionHeader title="Opponent playing style" description="Observed style in this encounter. This describes this match, not a fixed trait." />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {match.currentMatchStyleTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-full bg-[var(--surface-raised)] border border-[var(--border-soft)] px-3 py-1 text-xs font-medium text-zinc-200"
+                      >
+                        {PLAYING_STYLE_TAG_LABELS[tag as PlayingStyleTag] ?? tag}
+                      </span>
+                    ))}
+                  </div>
+                </Surface>
+              )}
               {match.opponentHistory && (
                 <PreviousEncountersDisplay
                   history={match.opponentHistory}

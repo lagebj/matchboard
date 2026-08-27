@@ -71,9 +71,23 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     notFound();
   }
 
-  const [bestLineup, teamFormations] = await Promise.all([
+  const [bestLineup, teamFormations, teamFocuses] = await Promise.all([
     getBestLineup(teamId, ctx.orgFilter),
     getFormationsForTeam(teamId, ctx.orgFilter),
+    db.teamFocus.findMany({
+      where: { teamId: team.id, ...orgWhere },
+      orderBy: [{ startedAt: "desc" }],
+      select: {
+        id: true,
+        statement: true,
+        context: true,
+        status: true,
+        startedAt: true,
+        completedAt: true,
+        closedAt: true,
+        linkedIntentId: true,
+      },
+    }),
   ]);
 
   const teamIds = orderedTeamIds.map((t) => t.id);
@@ -404,6 +418,16 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
       secondaryPosition: p.secondaryPosition,
       tertiaryPosition: p.tertiaryPosition,
       goalkeeperAbility: p.goalkeeperAbility,
+    })),
+    teamFocuses: teamFocuses.map((f) => ({
+      id: f.id,
+      statement: f.statement,
+      context: f.context,
+      status: f.status as "ACTIVE" | "COMPLETED" | "CLOSED",
+      startedAt: f.startedAt.toISOString(),
+      completedAt: f.completedAt?.toISOString() ?? null,
+      closedAt: f.closedAt?.toISOString() ?? null,
+      linkedIntentId: f.linkedIntentId,
     })),
   };
 

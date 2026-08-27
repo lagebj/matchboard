@@ -138,6 +138,7 @@ export const RLS_TABLES = new Set([
   "plannedRotationChange",
   "developmentThread",
   "developmentThreadObservation",
+  "teamFocus",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;

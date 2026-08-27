@@ -60,7 +60,12 @@ type SecurityEventAction =
   | "close_development_thread"
   | "reopen_development_thread"
   | "add_development_observation"
-  | "remove_development_observation";
+  | "remove_development_observation"
+  | "create_team_focus"
+  | "update_team_focus"
+  | "complete_team_focus"
+  | "close_team_focus"
+  | "reopen_team_focus";
 
 interface SecurityEvent {
   category: SecurityEventCategory;

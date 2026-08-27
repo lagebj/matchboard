@@ -2208,6 +2208,9 @@ Avoid:
 | `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
 | `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
 | `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
+| `src/lib/selection/availability-impact.ts` | Availability change impact analysis (affected rounds, unfinalization needed) |
+| `src/lib/selection/edit-impact-preview.ts` | Manual edit consequence preview (dry-run add/remove, plan integrity diff) |
+| `src/app/(app)/matches/emergency-repair-actions.ts` | Server actions: availability impact, manual edit preview |
 | `src/lib/selection/get-planning-period-fairness.ts` | Fairness calculation (FINALIZED only) |
 | `src/lib/seasons/league-season.ts` | Date-derived SPRING/FALL assignment, labels, date ranges |
 | `src/lib/rounds/round-engagement.ts` | Round engagement enforcement and override validation |

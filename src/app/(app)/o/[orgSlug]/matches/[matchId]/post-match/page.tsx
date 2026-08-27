@@ -178,6 +178,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
         opponentStaffContext: true,
         spectatorSidelineContext: true,
         concernCategories: true,
+        playingStyleTags: true,
         factualSummary: true,
         followUp: true,
       },

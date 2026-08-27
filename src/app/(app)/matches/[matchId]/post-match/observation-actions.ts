@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
+import type { PlayingStyleTag } from "@/lib/opponents/playing-style-tags";
 import {
   validateObservation,
   deduplicateCategories,
@@ -67,6 +68,7 @@ export async function saveObservationAction(
     opponentStaffContext: (formData.get("opponentStaffContext") as MatchEnvironmentObservation) || "NOT_ASSESSED",
     spectatorSidelineContext: (formData.get("spectatorSidelineContext") as MatchEnvironmentObservation) || "NOT_ASSESSED",
     concernCategories: formData.getAll("concernCategories") as OpponentConcernCategory[],
+    playingStyleTags: formData.getAll("playingStyleTags") as PlayingStyleTag[],
     factualSummary: (formData.get("factualSummary") as string) || null,
     followUp: (formData.get("followUp") as OpponentObservationFollowUp) || "NONE",
   };
@@ -78,6 +80,7 @@ export async function saveObservationAction(
 
   const cleanedCategories = deduplicateCategories(data.concernCategories as OpponentConcernCategory[]);
   const cleanedSummary = cleanFactualSummary(data.factualSummary);
+  const cleanedStyleTags = [...new Set(data.playingStyleTags)] as PlayingStyleTag[];
 
   try {
     if (existingObservation) {
@@ -89,6 +92,7 @@ export async function saveObservationAction(
           opponentStaffContext: data.opponentStaffContext,
           spectatorSidelineContext: data.spectatorSidelineContext,
           concernCategories: cleanedCategories,
+          playingStyleTags: cleanedStyleTags,
           factualSummary: cleanedSummary,
           followUp: data.followUp,
           recordedBy: ctx.email,
@@ -98,12 +102,13 @@ export async function saveObservationAction(
       await db.opponentEncounterObservation.create({
         data: {
           matchId,
-          opponentTeamId: match.opponentTeamId,
+          opponentTeamId: match.opponentTeamId!,
           overallEnvironment: data.overallEnvironment,
           opponentPlayersContext: data.opponentPlayersContext,
           opponentStaffContext: data.opponentStaffContext,
           spectatorSidelineContext: data.spectatorSidelineContext,
           concernCategories: cleanedCategories,
+          playingStyleTags: cleanedStyleTags,
           factualSummary: cleanedSummary,
           followUp: data.followUp,
           recordedBy: ctx.email,

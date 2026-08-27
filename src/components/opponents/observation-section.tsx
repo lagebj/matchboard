@@ -10,6 +10,7 @@ import {
   SERIOUS_CONCERN_CALLOUT,
   FACTUAL_SUMMARY_HELPER,
 } from "@/lib/opponents/observation-labels";
+import { PLAYING_STYLE_TAG_LABELS, PLAYING_STYLE_TAG_GROUPS, type PlayingStyleTag } from "@/lib/opponents/playing-style-tags";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp, MatchFit } from "@/generated/prisma/client";
 
@@ -22,6 +23,7 @@ type Props = {
     opponentStaffContext: string;
     spectatorSidelineContext: string;
     concernCategories: string[];
+    playingStyleTags: string[];
     factualSummary: string | null;
     followUp: string;
   } | null;
@@ -67,6 +69,9 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     existingObservation?.concernCategories ?? [],
   );
+  const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(
+    existingObservation?.playingStyleTags ?? [],
+  );
   const [factualSummary, setFactualSummary] = useState(existingObservation?.factualSummary ?? "");
   const [followUp, setFollowUp] = useState<string>(existingObservation?.followUp ?? "NONE");
 
@@ -96,6 +101,14 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
     );
   }
 
+  function toggleStyleTag(value: string) {
+    setSelectedStyleTags((prev) => {
+      if (prev.includes(value)) return prev.filter((t) => t !== value);
+      if (prev.length >= 5) return prev;
+      return [...prev, value];
+    });
+  }
+
   if (isLocked) {
     return (
       <section className="space-y-4">
@@ -108,6 +121,12 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
           <p><span className="text-zinc-400">Overall environment:</span> {existingObservation ? (ENVIRONMENT_OBSERVATION_LABELS[existingObservation.overallEnvironment as MatchEnvironmentObservation] ?? existingObservation.overallEnvironment) : "Not assessed"}</p>
           {existingObservation?.factualSummary && <p><span className="text-zinc-400">Summary:</span> {existingObservation.factualSummary}</p>}
           {existingObservation && existingObservation.followUp !== "NONE" && <p><span className="text-zinc-400">Follow-up:</span> {FOLLOW_UP_LABELS[existingObservation.followUp as OpponentObservationFollowUp] ?? existingObservation.followUp}</p>}
+          {existingObservation && existingObservation.playingStyleTags.length > 0 && (
+            <div>
+              <span className="text-zinc-400">Playing style tags: </span>
+              {existingObservation.playingStyleTags.map((tag) => PLAYING_STYLE_TAG_LABELS[tag as PlayingStyleTag] ?? tag).join(", ")}
+            </div>
+          )}
         </div>
       </section>
     );
@@ -244,7 +263,44 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
           </div>
         )}
 
-        {/* E. Factual summary */}
+        {/* E. Playing style tags */}
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-semibold text-zinc-50">Opponent playing style</label>
+            <p className="text-xs text-zinc-400">
+              Describe the opponent's observed playing style in this encounter. This describes this match, not a fixed trait. Select up to 5.
+            </p>
+          </div>
+          {PLAYING_STYLE_TAG_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-1.5">
+              <p className="text-xs font-medium text-zinc-400">{group.label}</p>
+              <div className="flex flex-wrap gap-2">
+                {group.tags.map((tag) => {
+                  const isSelected = selectedStyleTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleStyleTag(tag)}
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        isSelected
+                          ? "bg-[var(--accent-strong)] text-zinc-900"
+                          : "bg-[var(--surface-base)] border border-[var(--border-soft)] text-zinc-300 hover:border-[var(--accent-strong)]"
+                      }`}
+                    >
+                      {PLAYING_STYLE_TAG_LABELS[tag]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {selectedStyleTags.map((tag) => (
+            <input key={tag} type="hidden" name="playingStyleTags" value={tag} />
+          ))}
+        </div>
+
+        {/* F. Factual summary */}
         <div className="space-y-2">
           <label htmlFor={`summary-${formId}`} className="text-sm font-semibold text-zinc-50">
             Brief factual summary
@@ -267,7 +323,7 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
           <p className="text-xs text-zinc-500">{summaryChars}/500 characters</p>
         </div>
 
-        {/* F. Follow-up */}
+        {/* G. Follow-up */}
         <div className="space-y-2">
           <label htmlFor={`followup-${formId}`} className="text-sm font-semibold text-zinc-50">Follow-up</label>
           <select
@@ -285,7 +341,7 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
           </select>
         </div>
 
-        {/* G. Serious concern callout */}
+        {/* H. Serious concern callout */}
         {overallIsSerious && (
           <div className="rounded-2xl border border-[rgba(185,128,119,0.5)] bg-[rgba(185,128,119,0.12)] px-4 py-3">
             <p className="text-sm text-zinc-200 font-medium">

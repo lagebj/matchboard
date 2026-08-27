@@ -34,6 +34,8 @@ import {
 import { updatePlayerCoreTeamAction } from "@/app/(app)/players/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import { BestLineupTab } from "@/components/team/best-lineup-tab";
+import { TeamFocusPanel } from "@/components/team/team-focus-panel";
+import type { TeamFocusStatus } from "@/lib/coaching/team-focus";
 
 type PlayerSummary = {
   id: string;
@@ -183,9 +185,19 @@ type TeamDetailData = {
   bestLineup: import('@/lib/best-lineup/best-lineup').BestLineupData | null;
   bestLineupFormations: Array<{ id: string; name: string; gameFormat: string; source: string; isArchived: boolean }>;
   bestLineupPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string; secondaryPosition: string | null; tertiaryPosition: string | null; goalkeeperAbility: string }>;
+  teamFocuses: Array<{
+    id: string;
+    statement: string;
+    context: string | null;
+    status: TeamFocusStatus;
+    startedAt: string;
+    completedAt: string | null;
+    closedAt: string | null;
+    linkedIntentId: string | null;
+  }>;
 };
 
-type TabKey = "squad" | "current-round" | "movement" | "candidates" | "history" | "rules" | "best-lineup";
+type TabKey = "squad" | "current-round" | "best-lineup" | "movement" | "candidates" | "focus" | "history" | "rules";
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
@@ -193,6 +205,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "best-lineup", label: "Best lineup" },
   { key: "movement", label: "Movement" },
   { key: "candidates", label: "Possible movement" },
+  { key: "focus", label: "Focus" },
   { key: "history", label: "History" },
   { key: "rules", label: "Rules & Links" },
 ];
@@ -1107,6 +1120,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
           />
         )}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}
+        {activeTab === "focus" && <TeamFocusPanel teamId={data.teamId} initialFocuses={data.teamFocuses} />}
         {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} teamOptions={data.teamOptions} />}
       </Surface>
     </div>

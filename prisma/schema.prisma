@@ -40,6 +40,7 @@ model Team {
   groupPlayers             FootballGroupPlayer[]   @relation("GroupPlayerCoreTeam")
   bestLineup               TeamBestLineup?
   plannedRotations         PlannedRotation[]
+  teamFocuses              TeamFocus[]
   group                    FootballGroup           @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation             Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -638,6 +639,7 @@ model CoachingIntent {
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
   organisation   Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  linkedTeamFocuses TeamFocus[]
 
   @@index([scopeType, scopeId])
   @@index([category])
@@ -849,6 +851,30 @@ model DevelopmentThreadObservation {
   @@index([organisationId])
 }
 
+model TeamFocus {
+  id                String                    @id @default(cuid())
+  organisationId    String
+  teamId            String
+  statement         String
+  context           String?
+  status            TeamFocusStatus            @default(ACTIVE)
+  startedAt         DateTime                  @default(now())
+  completedAt       DateTime?
+  closedAt          DateTime?
+  linkedIntentId    String?
+  recordedBy        String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  team              Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  linkedIntent      CoachingIntent?           @relation(fields: [linkedIntentId], references: [id], onDelete: SetNull)
+  organisation      Organisation?             @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([status])
+  @@index([organisationId])
+  @@index([teamId, status])
+}
+
 model LiveMatchSession {
   id              String            @id @default(cuid())
   organisationId  String
@@ -1032,6 +1058,7 @@ model OpponentEncounterObservation {
   sportingLevel            Decimal?                    @db.Decimal(3, 1)
   sportingLevelNote        String?
   factualSummary           String?
+  playingStyleTags         OpponentPlayingStyleTag[]
   followUp                 OpponentObservationFollowUp @default(NONE)
   recordedBy               String?
   createdAt                DateTime                    @default(now())
@@ -1644,6 +1671,26 @@ enum OpponentObservationFollowUp {
   NO_FURTHER_ACTION_REQUIRED
 }
 
+enum OpponentPlayingStyleTag {
+  HIGH_PRESSING
+  LOW_BLOCK
+  POSSESSION_BASED
+  DIRECT_PLAY
+  COUNTER_ATTACKING
+  PHYSICAL_AND_DIRECT
+  TECHNICAL_AND_PATIENT
+  FAST_PACED_TRANSITIONS
+  SLOW_BUILD_UP
+  DISCIPLINED_DEFENSIVE_SHAPE
+  MAN_TO_MAN_MARKING
+  ZONAL_PRESSING
+  MIXED_TRANSITIONS
+  SET_PIECE_ORIENTED
+  INDIVIDUAL_DRIBBLING
+  COMPACT_MIDFIELD
+  WIDE_PLAY_ORIENTED
+}
+
 enum GameFormat {
   SEVEN_A_SIDE
   NINE_A_SIDE
@@ -2112,6 +2159,7 @@ model Organisation {
   opponentAssessmentChanges    OpponentAssessmentChange[]
   developmentThreads           DevelopmentThread[]
   threadObservations            DevelopmentThreadObservation[]
+  teamFocuses                   TeamFocus[]
 
   @@index([slug])
   @@index([name])
@@ -2584,6 +2632,12 @@ enum DevelopmentFocusCategory {
   EFFORT_AND_INTENSITY
   POSITIONAL_LEARNING
   GOALKEEPING
+}
+
+enum TeamFocusStatus {
+  ACTIVE
+  COMPLETED
+  CLOSED
 }
 
 model WorkOwnership {

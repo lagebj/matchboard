@@ -1,4 +1,5 @@
 import { MatchEnvironmentObservation, OpponentConcernCategory, OpponentObservationFollowUp } from "@/generated/prisma/client";
+import { type PlayingStyleTag, validatePlayingStyleTags as validateStyleTags } from "./playing-style-tags";
 
 export type ObservationFormData = {
   overallEnvironment: MatchEnvironmentObservation;
@@ -6,6 +7,7 @@ export type ObservationFormData = {
   opponentStaffContext: MatchEnvironmentObservation;
   spectatorSidelineContext: MatchEnvironmentObservation;
   concernCategories: OpponentConcernCategory[];
+  playingStyleTags?: PlayingStyleTag[];
   factualSummary: string | null;
   followUp: OpponentObservationFollowUp;
 };
@@ -64,6 +66,12 @@ export function validateObservation(data: ObservationFormData): { valid: true } 
     errors.push("Select at least one observable concern category when a concern is recorded.");
   }
 
+  if (data.playingStyleTags && data.playingStyleTags.length > 0) {
+    const styleResult = validateStyleTags(data.playingStyleTags);
+    if (!styleResult.valid) {
+      errors.push(styleResult.error);
+    }
+  }
   if (data.overallEnvironment === "SERIOUS_CONCERN" && (!data.factualSummary || data.factualSummary.trim().length === 0)) {
     errors.push("Add a brief factual summary for a serious concern. Do not include names or identifying details.");
   }
