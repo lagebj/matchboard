@@ -32,6 +32,16 @@ The canonical primary navigation is: Today, League, Events, Players, More.
 - Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
 - More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Reviews.
 
+## User documentation
+
+Matchboard has a public documentation site at `/docs` (no login required) and a matching
+in-app contextual Help drawer, both rendered from the same canonical `content/docs/**/*.mdx`
+source (Fumadocs). Opening Help from the authenticated app shows the documentation relevant to
+the current page in a side drawer without navigating away; "Open full documentation" links to
+the same content at `/docs`. See AGENTS.md's "User documentation" section for the full
+architecture, the documentation dataset/screenshot pipeline, and the maintenance rule for
+keeping docs and screenshots current as behaviour changes.
+
 ## Players area
 
 The Players page is the coach-facing overview for participation statistics, current planning attention, and base-group administration.
@@ -453,6 +463,8 @@ Runs on `http://localhost:3333`.
 | `npm run db:migrate` | Apply schema migrations (production) |
 | `npm run db:migrate:dev` | Create and apply a new migration |
 | `npm run db:seed:demo` | Seed fake demo data |
+| `npm run db:seed:docs` | Seed the Fjordvik FK documentation dataset (requires `MATCHBOARD_ENV=test`) |
+| `npm run docs:screenshots` | Regenerate documentation screenshots (`-- --id <scenario-id>` for one scenario) |
 | `npm run security:tools` | Verify security tools and versions |
 | `npm run security:review` | Run non-destructive security review |
 | `npm run security:static` | Run static security scanners |

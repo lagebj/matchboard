@@ -152,6 +152,14 @@ model Match {
   gameFormat                  GameFormat                     @default(ELEVEN_A_SIDE)
   formation                   String?
   matchFit                    MatchFit                       @default(UNKNOWN)
+  // Bug fix (user-documentation-experience Phase 2): src/lib/evidence/actual-timeline.ts and
+  // combination-topology.ts have unconditionally queried this field since the
+  // evidence-driven-coaching-loop merge, to cap the final actual-position interval at match end
+  // -- it never existed on Match (only Event has it), so both functions have thrown "Unknown
+  // field" on every real invocation and had zero non-test callers until this programme's seed
+  // script first exercised them end-to-end. Nullable/optional: null preserves prior behaviour
+  // (final interval left open-ended); no UI sets this yet.
+  matchDurationMinutes        Int?
   notes                       String?
   createdAt                   DateTime                       @default(now())
   updatedAt                   DateTime                       @updatedAt

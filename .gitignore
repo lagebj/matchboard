@@ -39,6 +39,9 @@ next-env.d.ts
 /out/
 /build
 
+# Fumadocs generated content cache (content/docs/**/*.mdx is the committed source)
+/.source/
+
 # Coverage
 /coverage
 

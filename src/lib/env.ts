@@ -171,6 +171,11 @@ export const PUBLIC_ROUTES = [
   "/api/health",
   "/api/meta",
   "/api/locale",
+  // Public documentation (ADR-0103). Narrow, explicit exemption: these routes read
+  // only the canonical content/docs/** MDX tree, never tenant/player/match/user
+  // data. Do not widen this pair to cover unrelated routes.
+  "/docs",
+  "/api/search",
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];

@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 Matchboard has no public user-facing documentation and no in-app contextual help. The
-`user-documentation-experience` programme (`.matchboard-work/user-documentation-experience 2/`,
+`user-documentation-experience` programme (`.matchboard-work/user-documentation-experience/`,
 local/gitignored working bundle — see `PROGRAMME.md`, `DECISIONS.md`, `PHASES.md`,
 `ACCEPTANCE.md`, `DEMO_UNIVERSE.md`, `DOCUMENTATION_MESSAGE.md`) starts only once
 `evidence-driven-coaching-loop` is merged and green, since documentation must describe real,
@@ -102,11 +102,26 @@ Verified directly against repository state, not only local programme metadata:
    invariant) but is seeded, generated, and screenshotted independently so E2E test data and
    documentation narrative data do not couple.
 
-6. **Time determinism uses Playwright Clock for the browser and a new minimal, production-disabled
-   server-side time seam** (no existing seam to reuse — see repository facts above). The seam must
-   never be controllable by a public request parameter, cookie, or header, and must be proven
-   disabled in production by a test, matching the same posture as `BYPASS_AUTH`
-   (AGENTS.md: "BYPASS_AUTH is a test-only mechanism explicitly rejected in production").
+6. **Time determinism uses Playwright Clock for the browser and, if needed, a new minimal,
+   production-disabled server-side time seam** (no existing seam to reuse — see repository facts
+   above). Any such seam must never be controllable by a public request parameter, cookie, or
+   header, and must be proven disabled in production by a test, matching the same posture as
+   `BYPASS_AUTH` (AGENTS.md: "BYPASS_AUTH is a test-only mechanism explicitly rejected in
+   production").
+
+   **Implementation update (Phase 2, 2026-08-27):** no server-side time seam was added. The
+   documentation dataset (`scripts/seed-docs-dataset.ts`) anchors every date to real "now" via
+   relative offsets (e.g. a match `daysFromNow(-7)`) rather than a fixed calendar date, so the
+   League season it produces reads as genuinely current on any capture date without needing
+   server time to be frozen or overridden — PROGRAMME.md §10.2's "do not rewrite broad domain
+   time handling solely for screenshots" argues against introducing one for this narrower need.
+   Browser-side time for Playwright capture still uses a fixed locale/timezone
+   (`scripts/docs-screenshots.ts`), which is sufficient on its own. This narrows, rather than
+   reverses, decision 6: the seam remains available as a future option if a scenario is ever
+   added that genuinely requires a fixed server-side "now" (e.g. a screenshot whose content
+   depends on which day of the season it is), but none of the current scenarios do, so it was
+   not built. A new ADR is required before adding one later, per AGENTS.md's "User documentation"
+   section.
 
 7. **Contextual Help is additive to the existing shell and command palette** — a new typed
    `HelpContextId` registry mapping stable semantic contexts to docs targets, a new command in
@@ -119,8 +134,10 @@ Verified directly against repository state, not only local programme metadata:
   surface from one content source, with the narrowest possible auth-boundary change (one string
   added to an existing allowlist array).
 - A new content tree (`content/docs/**`), a new public route family (`/docs/**`), a new seed
-  profile, a new Playwright capture path, and a new server-only time seam are introduced —
-  each is scoped and gated by the phase plan in `PHASES.md`; none is built in this ADR.
+  profile, and a new Playwright capture path are introduced — each is scoped and gated by the
+  phase plan in `PHASES.md`; none is built in this ADR. A server-only time seam was anticipated
+  as a possible addition but, per the Phase 2 implementation update above, was not needed and was
+  not built.
 - `scripts/check-docs.mjs` gains documentation-integrity responsibilities in Phase 6 rather than
   a parallel validator being created.
 - No existing selection engine, evidence engine, or domain behaviour changes. This programme is
@@ -128,10 +145,10 @@ Verified directly against repository state, not only local programme metadata:
 
 ## Migration
 
-None. No schema changes. `PUBLIC_ROUTES` gains one entry; no other runtime behaviour changes as
-part of this ADR. Subsequent phases each carry their own scoped implementation and, where
-applicable, their own migration notes (the docs seed profile and time seam are additive, not
-migrations).
+None. No schema changes. `PUBLIC_ROUTES` gains two entries (`/docs`, `/api/search`); no other
+runtime behaviour changes as part of this ADR. Subsequent phases each carry their own scoped
+implementation and, where applicable, their own migration notes (the docs seed profile is
+additive, not a migration).
 
 ## Supersedes
 

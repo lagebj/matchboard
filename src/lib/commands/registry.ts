@@ -145,6 +145,21 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     href: (ctx) => `/o/${ctx.organisationSlug}/workbench`,
     availability: (ctx) => canAdmin(ctx),
   },
+  {
+    // The command palette only supports href-based navigation (CommandDefinition has no
+    // "action"/onSelect concept) -- opening the compact contextual Help drawer in place is a
+    // distinct interaction the palette's model doesn't fit, so this entry opens full public
+    // documentation instead. The always-visible Help button in the top bar (help-drawer.tsx)
+    // is the primary, in-place entry point; this is the secondary desktop-palette one
+    // (PROGRAMME.md §9.1: "when compatible with the current navigation model").
+    id: "help-open-docs",
+    label: "Help",
+    description: "Open Matchboard documentation",
+    category: "navigate",
+    keywords: ["help", "docs", "documentation", "support"],
+    href: () => "/docs",
+    availability: () => true,
+  },
 ];
 
 /** Resolve the registry against a real actor context: filter by availability, then bind href. */

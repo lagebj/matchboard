@@ -11,14 +11,21 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "on",
 };
 
-function withSecurityHeaders(response: NextResponse): NextResponse {
+function withSecurityHeaders(response: NextResponse, pathname?: string): NextResponse {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    // X-Frame-Options has no per-origin allowance like CSP's frame-ancestors 'self' -- only
+    // DENY or SAMEORIGIN. /docs/** is same-origin-embeddable (Help drawer, ADR-0103); every
+    // other route keeps DENY, its existing clickjacking protection.
+    if (key === "X-Frame-Options" && pathname && (pathname === "/docs" || pathname.startsWith("/docs/"))) {
+      response.headers.set(key, "SAMEORIGIN");
+      continue;
+    }
     response.headers.set(key, value);
   }
   if (isProduction()) {
     response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
-  const csp = getContentSecurityPolicy();
+  const csp = getContentSecurityPolicy(pathname);
   response.headers.set(csp.header, csp.value);
   return response;
 }
@@ -28,7 +35,7 @@ export default edgeAuth((req) => {
 
   if (isPublicRoute(path)) {
     const response = NextResponse.next();
-    return withSecurityHeaders(response);
+    return withSecurityHeaders(response, path);
   }
 
   // PREVIEW_ALLOWLIST_EMAILS restricts preview deployment API access.
