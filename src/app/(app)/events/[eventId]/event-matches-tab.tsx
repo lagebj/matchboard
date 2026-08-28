@@ -1075,6 +1075,8 @@ function EventMatchCard({
         <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
           <EventMatchReportPanel
             eventMatchId={match.id}
+            teamLabel={squads.find((sq) => sq.id === match.eventSquadId)?.name ?? 'Our squad'}
+            opponentLabel={match.opponentName}
             report={{
               id: reportData.id,
               status: reportData.status,

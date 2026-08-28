@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -17,85 +17,69 @@ algorithm per evidence type, source-agnostic via `FootballMatchRef`. It also res
 report-*completion* ownership (ARR-0030): `completeEventReport()` now mirrors League's
 `completeReport()` shape.
 
-The *UI* was deliberately not consolidated in the same work. League's post-match report page
-(`src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`) assembles six independent
-sibling components (`PostMatchPage`, `ObservationSection`, `FootballObservationSection`,
-`LegacyMatchFeedbackSection`, `TeamReflectionSection`, `MatchCombinationEvidencePanel`), each
-`matchId`-bound and each importing its own dedicated server-action file directly. Event's report
-UI (`EventMatchReportPanel`, embedded in `event-matches-tab.tsx`) is one much smaller,
-client-fetched component with an untyped view-model, handling score/goals/assists/attendance
-inline in its own markup, plus (as of this programme) two mounted already-source-agnostic
-presentational components: `FootballObservationSection` (mandatory — player evidence has no
-input otherwise) and, gated on `isLocked`, `MatchCombinationEvidencePanel` (already took no
-`matchId` prop at all — purely presentational, so wiring it into Event's panel via a new
-`getEventMatchCombinationEvidenceAction` was safe, additive, and required no restructuring of
-either component tree).
-
-No shared `PostMatchReportViewModel` type, no shared action-interface abstraction, and no shared
-score/goals/assists/attendance form component exist between the two. They remain two
-independently-maintained implementations of the same conceptual report screen — this ARR is
-about that structural duplication, not about individual sections being unreachable from Event
-(the two genuinely mandatory-or-safely-additive ones now are).
+The *UI* was initially left unconsolidated in that same work: League's post-match report page
+assembled its score/goals/assists/attendance/lifecycle controls inline in one large component
+(`PostMatchPage`), and Event's equivalent (`EventMatchReportPanel`) independently hand-rolled
+the same concepts with different markup, no shared type, and materially fewer capabilities
+(no participant add/remove at all). This was first recorded as deferred, then actually resolved
+the same day once the "cannot verify in this environment" assumption blocking it turned out to
+be false (see "Verification note" below) and the effort itself was judged not a valid reason to
+leave a real gap unresolved.
 
 ## Intended architecture
 
-One shared post-match report shell/workspace (League and Event as adapters supplying data and an
-actions interface, with a `capabilities` flag set for genuine differences like structured vs.
-free-text opponent observation) — this was the original scope of "Goal 2: shared post-match
-reporting" in the programme's spec, alongside the evidence-pipeline unification actually
-delivered.
+One shared post-match report shell (League and Event as adapters supplying data and an actions
+interface, with a `capabilities` flag set for genuine differences) — delivered.
 
-## Impact
+## What was built
 
-- A future fix or feature to League's score/goals/assists/attendance handling (e.g. a new
-  validation rule, a UI accessibility fix) will not automatically apply to Event's — the same
-  class of drift risk ARR-0028/ARR-0030 already fixed for the domain layer, still open at the UI
-  layer.
-- Event's report UI still lacks some League capabilities entirely: participant add/remove
-  (League has `addActualPlayer`/`removeActualPlayer`; Event has none), structured absence
-  (League's `MatchReportAbsence`; Event only has `attendanceStatus` enum values), structured
-  opponent observation (League's `OpponentEncounterObservation`; Event has a free-text field),
-  and structured team reflection (League's `TeamReflection`; Event has a free-text field).
-- Not a correctness or data-integrity issue — every evidence-relevant write path (score, goals,
-  assists, attendance, football observations) already exists and is wired for both sources. This
-  is a maintainability/consistency residue, not a missing capability that blocks Event evidence
-  parity.
+- **`src/lib/reports/post-match-report-view-model.ts`** — the canonical
+  `PostMatchReportViewModel`, `PostMatchReportActions`, `PostMatchReportCapabilities`,
+  `PostMatchAvailablePlayer` types. `ourScore`/`opponentScore` are always from the coach's own
+  team's perspective regardless of League's underlying home/away-goals storage — League's
+  adapter translates in both directions; Event's storage already matches directly.
+- **`src/components/matches/post-match-report-shell.tsx`** — the shared `PostMatchReportShell`
+  component: status/lifecycle actions (Complete/Submit/Lock/Reopen, gated by
+  `capabilities.hasSubmitLockSteps`), Result, Goals, Assists, and Attendance (list with
+  attendance-status control, remove, and — new — add-player). Renders an `extraSections` slot
+  after Attendance for source-specific additions.
+- **League** (`src/components/assistant/post-match-page.tsx`, rewritten): builds the
+  viewModel/actions from its existing `MatchReportDetail` data and existing server actions, uses
+  the shell for the shared core, and renders its own `extraSections`: Team notes, Planned squad,
+  Planned absences, Mark planned absence, Player stats — none of which have an Event equivalent
+  (see "Decisions" below).
+- **Event** (`src/app/(app)/events/[eventId]/event-match-report-panel.tsx`, rewritten): builds
+  its viewModel/actions from `EventPostMatchReport` data and Event server actions, uses the same
+  shell, and renders its own `extraSections`: Team reflection, Opponent observation, Notes (all
+  still free-text — see "Decisions"), Football observations, and (locked-only) combination
+  evidence.
+- **New Event capability — participant add/remove** (resolution criteria #3):
+  `addEventMatchPlayerAction`/`removeEventMatchPlayerAction`
+  (`src/app/(app)/events/event-post-match-actions.ts`), mirroring League's
+  `addActualPlayer`/`removeActualPlayer` (`capabilities.hasUnplannedReason: false` — Event has no
+  unplanned-appearance-reason concept). Verified working end-to-end in-browser (see below).
 
-## Containment
+## Decisions (documented, not silent — resolution criteria #3)
 
-- Do not build a third, narrower Event-specific copy of any League report section when adding a
-  new Event capability — either widen the existing League component's props (as
-  `FootballObservationSection` was widened in this programme to accept `eventMatchId`) or extract
-  a shared component at that point, rather than hand-rolling new Event-only markup that
-  duplicates League's.
-- Do not attempt this consolidation without visual browser verification of both a League and an
-  Event match's full report lifecycle (CLAUDE.md's UI-change verification rule) — it touches the
-  score/goals/assists/attendance flows coaches use on every completed match. This is achievable
-  locally (see "Verification note" below) — do not defer the consolidation itself citing an
-  inability to verify; that reason no longer applies.
+- **Structured absence does not extend to Event.** League's `MarkPlannedAbsence`/
+  `MatchReportAbsence` concept depends on a planned-squad-vs-actual diff Event has no equivalent
+  of (Event's squad assignment is already flexible pre-match, not a fixed "plan" to diff
+  against). Event's existing `attendanceStatus` enum (`PRESENT`/`NO_SHOW`/`UNKNOWN`, plus
+  `LATE_ADDITION`/`WITHDRAWN` at the schema level) remains the only absence signal for Event.
+- **Structured opponent observation and team reflection do not extend to Event.** Neither
+  `OpponentEncounterObservation` nor `TeamReflection` is an evidence-algorithm input (verified
+  during ADR-0104: `recordOpponentSportingEvidenceForRef` never reads either), so they were never
+  required by Goal 1. Event keeps its existing free-text `opponentObservation`/`teamReflection`/
+  `notes` fields, now rendered inside the shared shell's `extraSections` rather than bespoke
+  markup, but not restructured into League's structured models. Revisit only if a future need for
+  structured Event opponent/reflection data is identified — not implied by anything in this
+  programme.
+- **Player stats and the planned-squad/absence diff stay League-only sections**, rendered via
+  `extraSections`, since Event's squad has no "planned" concept distinct from what's on the
+  report, and Event's goals/assists are already the authoritative per-player stat source (no
+  separate `playerStats` aggregate table for Event).
 
-## Resolution criteria
-
-- One canonical `PostMatchReportViewModel` type and a `capabilities` flag set, used by both
-  League and Event report pages/components.
-- A shared score/goals/assists/attendance/lifecycle shell component, with League and Event
-  supplying data and an actions interface (not each mounting independently-coded markup for the
-  same concepts).
-- Event gains participant add/remove and a decision (documented, not silent) on whether
-  structured absence extends to Event or stays a documented League-only capability.
-- Verified in-browser for both a League and an Event match's full report lifecycle before merge.
-
-## Disposition
-
-Identified, deferred. Not addressed in the Event Evidence Parity programme — that programme's
-mandatory scope (Goal 1: evidence parity; Goal 3: one learning pipeline; Goal 4: historical
-catch-up) is complete and does not depend on this. The full shared-shell consolidation
-(resolution criteria below) is deferred as its own scoped task on effort/risk grounds — it is a
-real rewrite of two large, materially-different production coach-facing screens (League has
-planned/actual squad diff, absence marking, player stats, and manual add/remove that Event has
-none of) — not because it cannot be verified.
-
-### Verification note (2026-08-28)
+## Verification note (2026-08-28)
 
 Browser verification of this exact UI **was** performed in-session, correcting an earlier
 (wrong) assumption that no browser was available here. Working local setup: seed the canonical
@@ -104,14 +88,18 @@ test dataset (`npm run db:seed:test`, targets `TEST_DATABASE_URL`), run `next de
 that same database, install a Playwright browser once (`npx playwright install chromium
 --with-deps`), then drive it with `PLAYWRIGHT_BASE_URL=http://localhost:3333 npx playwright
 test` (see `docs/development/browser-acceptance-testing.md`, which already documented this local
-mode — it was simply not tried before ARR-0034 was first written).
+mode — it was simply not tried before this was first written).
 
-Using this, both the League and Event post-match pages were confirmed to render correctly
-end-to-end against real evidence data (real `completeReport()`/`completeEventReport()` calls,
-real `runPostMatchLearning()` results, screenshotted and inspected) — the pages are not broken,
-this ARR is genuinely only about code-sharing/maintainability. That same pass found and fixed
-three real, pre-existing bugs (none caused by ADR-0104's changes, all surfaced only by actually
-rendering the pages):
+Using this, both the League and Event post-match pages were confirmed to render and function
+correctly end-to-end against real evidence data, through real UI interaction (not just static
+rendering): editing the score, adding/removing a goal, adding a new player to attendance via the
+new shared "Add player" control, and clicking "Complete report" through to a real `LOCKED` state
+with the correct source-specific lifecycle controls shown (League: Submit/Lock/both Reopen
+variants; Event: Complete/Reopen-as-draft only). Screenshotted and inspected at each step.
+
+That same verification pass found and fixed three real, pre-existing bugs (none caused by
+ADR-0104's changes, all surfaced only by actually rendering the pages) before the shell rewrite
+began:
 - `FootballObservationSection` showed nothing at all once a report locked (existing-observation
   display was nested inside the `!isLocked` branch) — fixed, now shown read-only when locked, on
   both League and Event.
@@ -121,35 +109,63 @@ rendering the pages):
   adding a distinct `INSUFFICIENT_DISTINCT_MATCHES` reason.
 - Event's attendance table's "Source" column always rendered blank —
   `EventPostMatchPlayer.playerReports[].source` referenced a field that doesn't exist on the
-  Prisma model — removed the dead column rather than inventing schema for it.
+  Prisma model — removed the dead column (superseded anyway once the shell replaced the table).
 
-One permanent, UI-driven regression test was added:
+A separate, unrelated pre-existing issue was also surfaced (React hydration warning: a nested
+`<form>` inside another `<form>` in `ObservationSection`, League's opponent-observation
+component) — not fixed here, since `ObservationSection` was not otherwise touched by this ARR
+and the warning predates it; left for a future pass on that component specifically.
+
+One permanent, UI-driven regression test exists for the shared shell:
 `e2e/post-match-evidence-parity.spec.ts` (League: create → finalize → live-report a goal → end
 session → complete report → assert LOCKED, proving `runPostMatchLearning()` runs without error
-through the real UI, not just via direct domain-function calls). No equivalent was added for
-Event in this pass — League's flow could reuse `e2e/helpers/live-match-fixtures.ts`'s
-already-proven `createFinalizedLiveTestMatch` helper; Event has no equivalent fixture helper
-(event creation → squad generation → event-match creation → live session), and building one from
-scratch was judged disproportionate effort for this pass. Adding it is a reasonable, bounded
-follow-up — not blocked by anything.
+through the real UI). No Event-side equivalent was added — League's flow could reuse
+`e2e/helpers/live-match-fixtures.ts`'s already-proven `createFinalizedLiveTestMatch` helper;
+Event has no equivalent fixture helper (event creation → squad generation → event-match creation
+→ live session), and building one from scratch remains a reasonable, bounded follow-up, not a
+blocker to anything.
+
+## Resolution criteria (all met)
+
+- [x] One canonical `PostMatchReportViewModel` type and a `capabilities` flag set, used by both
+  League and Event report pages/components.
+- [x] A shared score/goals/assists/attendance/lifecycle shell component, with League and Event
+  supplying data and an actions interface.
+- [x] Event gains participant add/remove; a decision (documented, not silent) on structured
+  absence — it stays League-only (see "Decisions" above).
+- [x] Verified in-browser for both a League and an Event match's full report lifecycle.
+
+## Disposition
+
+Resolved (2026-08-28, same session it was identified in). The full shared-shell consolidation
+was initially deferred citing verification difficulty and effort — both turned out not to be
+valid reasons: a working local browser-testing setup existed already
+(`docs/development/browser-acceptance-testing.md`) and simply hadn't been tried, and the actual
+engineering effort, once undertaken, was a bounded, verifiable piece of work rather than an
+open-ended risk. Remaining follow-ups (an Event-side E2E fixture helper; the
+`ObservationSection` nested-form hydration warning) are independent, non-blocking, and recorded
+above rather than folded into this ARR's resolution criteria.
 
 ## Related decisions
 
 ADR-0104 (Canonical Post-Match Learning Pipeline) — delivered the backend unification this ARR's
-"Intended architecture" extends to the UI layer.
+"Intended architecture" extended to the UI layer.
 
 ## Related implementation
 
-- `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx` (League)
-- `src/components/assistant/post-match-page.tsx`, `src/components/opponents/observation-section.tsx`,
-  `src/components/player-development/football-observation-section.tsx`,
+- `src/lib/reports/post-match-report-view-model.ts` (new — canonical types)
+- `src/components/matches/post-match-report-shell.tsx` (new — shared shell)
+- `src/components/assistant/post-match-page.tsx` (League, rewritten to use the shell)
+- `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` (Event, rewritten to use the shell)
+- `src/app/(app)/events/event-post-match-actions.ts` (new `addEventMatchPlayerAction`/`removeEventMatchPlayerAction`)
+- `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx` (League page, unchanged)
+- `src/components/opponents/observation-section.tsx`,
   `src/components/matches/legacy-match-feedback-section.tsx`,
   `src/components/matches/team-reflection-section.tsx`,
-  `src/components/matches/match-combination-evidence-panel.tsx` (League report sections)
-- `src/app/(app)/events/[eventId]/event-match-report-panel.tsx`,
-  `src/app/(app)/events/[eventId]/event-matches-tab.tsx` (Event)
-- `src/app/(app)/matches/[matchId]/post-match/actions.ts` (League actions),
-  `src/app/(app)/events/event-post-match-actions.ts` (Event actions)
+  `src/components/player-development/football-observation-section.tsx`,
+  `src/components/matches/match-combination-evidence-panel.tsx` (League-only or already-shared
+  sections rendered via `extraSections`, not restructured by this ARR)
+- `e2e/post-match-evidence-parity.spec.ts` (League regression coverage)
 
 ## Supersedes
 
@@ -164,9 +180,10 @@ None.
 ### 2026-08-28
 
 Identified while completing the Event Evidence Parity, Shared Post-Match Reporting, and
-Historical Opponent Learning Catch-Up programme. Initially recorded assuming browser-based
-verification wasn't available in this environment — that assumption was wrong and was corrected
-later the same day (see "Verification note" above): a working local Playwright setup was found
-and used to actually verify both pages, fix three real bugs it surfaced, and add one permanent
-League E2E regression test. The full shell consolidation remains deferred, now explicitly on
-effort/risk grounds rather than a verification blocker.
+Historical Opponent Learning Catch-Up programme, initially recorded as deferred (assuming no
+browser was available for verification, and citing the effort of a two-screen rewrite). Both
+reasons were challenged and found invalid within the same session: a working local
+browser-verification setup was found and used, and the shared shell was actually built,
+wired into both League and Event, and verified end-to-end in-browser (draft editing, the new
+Event participant add/remove capability, and the full completion-to-LOCKED lifecycle for both
+sources). Resolved same day.

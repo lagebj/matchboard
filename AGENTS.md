@@ -2079,7 +2079,9 @@ Rules:
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
 | `src/app/(app)/events/[eventId]/event-detail.tsx` | Event detail client component (tabs: overview, squads, player pool) |
 | `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with per-match helper controls, support load summary, lineup, and post-match reporting |
-| `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches |
+| `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches — uses the shared `PostMatchReportShell` (ARR-0034) for status/lifecycle/result/goals/assists/attendance; renders team reflection, opponent observation, notes, football observations, and combination evidence as its own `extraSections` |
+| `src/lib/reports/post-match-report-view-model.ts` | Canonical `PostMatchReportViewModel`/`PostMatchReportActions`/`PostMatchReportCapabilities` types shared by League and Event post-match report UIs (ARR-0034) |
+| `src/components/matches/post-match-report-shell.tsx` | Shared post-match report shell component: status/lifecycle actions, result, goals, assists, attendance (with add/remove) — used by both `src/components/assistant/post-match-page.tsx` (League) and `event-match-report-panel.tsx` (Event) |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 | `src/lib/formatters/event-labels.ts` | Human-readable event type, squad intent, player status, match status, goalkeeper ability labels |

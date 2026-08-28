@@ -135,6 +135,11 @@ contract; they do not each own a copy of the learning algorithms.**
   signal (League's CHAOTIC/SUPPORT_OVERPOWERED/SUPPORT_TOO_LOW check) and never excludes on that
   basis. Revisit only if Event acquires its own sporting-fit field — the existing `MatchFit` enum
   must be reused, not duplicated, if that happens (AGENTS.md).
+- The League and Event post-match report UIs share one `PostMatchReportShell` component for
+  status/lifecycle, result, goals, assists, and attendance (ARR-0034) — a real, verified-in-browser
+  rewrite, not deferred. Event gained participant add/remove for the first time as part of this.
+  Structured absence, opponent observation, and team reflection remain League-only (see ARR-0034's
+  "Decisions" section for why each is not required by Goal 1).
 - Historical opponent-learning catch-up (ARR-0031) can now honestly claim organisation-wide
   coverage instead of League-only coverage.
 
@@ -155,10 +160,10 @@ contract; they do not each own a copy of the learning algorithms.**
   a precondition for step 6 above. See its Disposition.
 - ARR-0031 (transient opponent-level population UI) — updated to cover Event history through the
   same generalized pipeline. See its Disposition.
-- ARR-0034 (League/Event post-match report UI not consolidated) — recorded as deferred: this ADR
-  unifies the backend learning pipeline and report-completion ownership only, not the UI layer
-  (Goal 2's UI-shell consolidation). Needs browser-based visual verification this ADR's
-  implementation pass did not have available.
+- ARR-0034 (League/Event post-match report UI not consolidated) — resolved the same day it was
+  identified: a shared `PostMatchReportShell` (Goal 2's UI-shell consolidation) now covers
+  status/lifecycle, result, goals, assists, and attendance (with a new Event participant
+  add/remove capability) for both League and Event, verified in-browser. See its Disposition.
 - ARR-0032 (legacy `opponent-estimate.ts` parallel calculation path) is a related but separate
   residue, explicitly out of scope here — this ADR does not touch that path.
 - A future decision may generalize `OpponentEncounterObservation`/`TeamReflection` for Event
