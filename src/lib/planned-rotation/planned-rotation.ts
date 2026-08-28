@@ -539,7 +539,7 @@ export function checkPlannedRotationCoverage(
   if (onPitchStarters.length < options.minimumOnPitch) {
     issues.push({
       type: 'below_minimum',
-      description: `Starting lineup has ${onPitchStarters.length} players, minimum is ${options.minimumOnPitch}`,
+      description: `Starting line-up has ${onPitchStarters.length} players, minimum is ${options.minimumOnPitch}`,
     });
   }
 
@@ -552,7 +552,7 @@ export function checkPlannedRotationCoverage(
   if (!hasGoalkeeper && !projectedGK) {
     issues.push({
       type: 'no_goalkeeper',
-      description: 'No goalkeeper in starting lineup or planned changes',
+      description: 'No goalkeeper in starting line-up or planned changes',
     });
   }
 
@@ -562,7 +562,7 @@ export function checkPlannedRotationCoverage(
       (c) => c.inPlayerId === playerId || c.outPlayerId === playerId
     );
     if (!inStarters && !inChanges) {
-      // Player is in squad but not in starting lineup or rotation plan — this is fine, they're on the bench
+      // Player is in squad but not in starting line-up or rotation plan — this is fine, they're on the bench
     }
   }
 

@@ -94,7 +94,7 @@ export function PlanningStatusBadge({ status }: { status: MatchPlanningStatus })
 /**
  * The primary, football-action-oriented per-match status (ADR-0101, DECISIONS.md "User-facing
  * lifecycle vocabulary") — computed by `deriveMatchLifecycleStatus()`
- * (`src/lib/selection/planning-boundary.ts`). Supersedes Draft/Blocked/Ready/Finalized as the
+ * (`src/lib/selection/planning-boundary.ts`). Supersedes DRAFT/BLOCKED/READY/FINALIZED as the
  * PRIMARY label wherever a single match's status is shown; that vocabulary remains the correct
  * internal signal for selection-planning completeness and is never shown as if it meant the
  * match had been played.
