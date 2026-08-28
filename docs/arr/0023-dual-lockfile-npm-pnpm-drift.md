@@ -145,3 +145,15 @@ wasn't verified and guessing again after just being proven wrong once was not wa
 Updated Containment/Resolution criteria/Disposition above to reflect that local-dev-uses-npm and
 Vercel-builds-with-pnpm currently coexist, and that this is exactly the kind of live provider
 configuration this session cannot safely guess at — confirmed by getting it wrong once already.
+
+### 2026-08-28
+
+Recurred exactly as predicted: PR #365 (`user-documentation-experience`) added
+`fumadocs-core`/`fumadocs-mdx`/`fumadocs-ui` via `npm install`, updating `package-lock.json`
+only. Both Vercel preview checks (`matchboard`, `matchboard-test`) failed with
+`ERR_PNPM_OUTDATED_LOCKFILE` under `--frozen-lockfile`. Contained the same way as before —
+`pnpm install --lockfile-only` to resync `pnpm-lock.yaml` against the current `package.json`,
+committed separately from the dependency-adding commit for a clear, revertible diff. No new
+containment technique was needed; this simply confirms the ARR's own prediction that nothing in
+the documented `npm run ...` workflow prompts for this step, so it will keep recurring on every
+PR that changes dependencies until the underlying resolution criteria are actually decided.

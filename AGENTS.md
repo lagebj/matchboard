@@ -2749,6 +2749,96 @@ Key rules:
 - Use the `git-branch-commit-pr` workflow.
 - Do not commit internal work logs, scratch notes, or handover documents.
 
+## User documentation
+
+Matchboard has a public documentation site and a matching in-app contextual Help drawer,
+introduced by the `user-documentation-experience` programme (ADR-0103).
+
+### Architecture
+
+- **Canonical content**: `content/docs/**/*.mdx`, one file per page, using
+  [Fumadocs](https://fumadocs.dev) (`fumadocs-core`, `fumadocs-mdx`, `fumadocs-ui`). Every MDX
+  file requires `title` and `description` frontmatter.
+- **Public route**: `/docs/**`, rendered by `src/app/docs/[[...slug]]/page.tsx` via
+  `src/lib/docs/source.ts`'s loader. Public and requires no authentication or organisation
+  context — `"/docs"` and `"/api/search"` are the narrow, explicit `PUBLIC_ROUTES` entries
+  (`src/lib/env.ts`) that make this work; do not widen that exemption to cover other routes.
+  `/docs` and every route under it must never query tenant/player/match/user data — only the
+  canonical MDX content tree.
+- **Search**: `src/app/api/search/route.ts`, a self-hosted `fumadocs-core/search/server`
+  index over the same canonical content — no third-party search service, no data leaves the
+  server.
+- **In-app Help**: `src/components/shell/help-drawer.tsx` renders a same-origin `<iframe>` to
+  the contextually-relevant `/docs/**` page — one canonical content source, never a duplicated
+  prose copy inside a component. `src/lib/help/help-context.ts`'s `resolveHelpContextId()` maps
+  the current route to a `HelpContextId`/docs target; add new contexts there, not via ad hoc
+  string matching in components. The Help button lives in `top-context-bar.tsx`; the command
+  palette's "Help" entry (`src/lib/commands/registry.ts`) opens full docs instead, since the
+  palette's `CommandDefinition` only supports href-based navigation.
+- **CSP for the embed**: `src/lib/security/csp.ts`'s `getContentSecurityPolicy(pathname)` sets
+  `frame-ancestors 'self'` (and `X-Frame-Options: SAMEORIGIN`) only for `/docs/**` responses, so
+  the Help drawer's iframe can render them — every other route keeps `frame-ancestors 'none'`
+  (`X-Frame-Options: DENY`), its existing clickjacking protection. Do not widen this beyond
+  `/docs/**` or change `'self'` to a wildcard.
+- **Documentation dataset**: `scripts/seed-docs-dataset.ts` (+ `seed-docs-scenarios.ts`) seeds a
+  dedicated, distinct-from-E2E-fixtures Fjordvik FK universe (`npm run db:seed:docs`, requires
+  `MATCHBOARD_ENV=test`). Derived state (draft selections, finalized history, evidence) is
+  produced by calling the real domain operations (`generateMatchRound`, `finalizeMatchRound`,
+  `completeReport`, `rebuildActualTimeline`, `generateEventSquads`), not by hand-inserting rows
+  that merely resemble their output. Its dates are anchored to real "now" (not a fixed calendar
+  date) so the League season reads as genuinely current — there is no server-side "frozen time"
+  seam, and one must not be added without a new ADR (PROGRAMME.md §10.2 deliberately rejected
+  rewriting broad domain time handling for screenshots).
+- **Screenshots**: `scripts/docs-screenshots.ts` (`npm run docs:screenshots`, optionally
+  `-- --id <scenario-id>`) is a standalone Playwright capture runner — deliberately separate
+  from `e2e/*.spec.ts`, never run through the `@playwright/test` runner, so it can never affect
+  Browser Acceptance Tests. It authenticates via the same Auth.js test-agent flow as
+  `e2e/auth.setup.ts`, refuses any non-local base URL, and writes to
+  `public/docs/screenshots/**`. These are documentation content assets
+  (`page.screenshot()`), never `expect(page).toHaveScreenshot()` visual-regression baselines —
+  do not add exact pixel/byte comparison to `npm run validate` for them.
+
+### User documentation files
+
+| File | Purpose |
+|------|---------|
+| `content/docs/**/*.mdx` | Canonical documentation content (public site and in-app Help share this one source) |
+| `src/lib/docs/source.ts` | Fumadocs content source/loader (`defineDocs` + `loader`) |
+| `src/app/docs/layout.tsx` | Public docs shell: `RootProvider` + `DocsLayout`, forced dark theme |
+| `src/app/docs/docs.css` | Docs-only Tailwind/Fumadocs theme, scoped to the `/docs` route segment |
+| `src/app/docs/[[...slug]]/page.tsx` | Renders one docs page from the loader |
+| `src/app/api/search/route.ts` | Public docs search (`fumadocs-core/search/server`, self-hosted) |
+| `src/lib/help/help-context.ts` | `HelpContextId` registry: route → docs target mapping |
+| `src/components/shell/help-drawer.tsx` | In-app Help drawer (`HelpDrawer`) and its trigger button (`HelpButton`) |
+| `scripts/seed-docs-dataset.ts`, `scripts/seed-docs-scenarios.ts` | Fjordvik FK documentation dataset seed |
+| `scripts/docs-screenshots.ts` | Standalone Playwright documentation screenshot generator |
+| `public/docs/screenshots/**` | Committed documentation screenshot assets |
+| `scripts/check-docs.mjs` | Documentation integrity validation (part of `npm run validate`) |
+
+### Maintenance rule (mandatory)
+
+**A user-facing behaviour change must update the affected `content/docs/**/*.mdx` page(s) and
+regenerate any documentation screenshot the change makes inaccurate, in the same change.** This
+follows the same "documentation alignment is mandatory" principle as `AGENTS.md`/
+`features/matchboard.feature`/ADRs elsewhere in this file — public docs and in-app Help are
+supporting documentation, not optional.
+
+- Changed selection/workflow/domain behaviour → update the relevant page(s) under
+  `content/docs/`.
+- Changed UI that appears in a committed screenshot → regenerate it with
+  `npm run db:seed:docs && npm run docs:screenshots -- --id <affected-scenario-id>` (or with no
+  `--id` to regenerate everything) and review the new image as content before committing it
+  (DECISIONS.md D23 — generation is automatic, acceptance is not).
+- New primary user-facing capability → add or extend a page under `content/docs/`; do not leave
+  a shipped capability undocumented.
+- Removed/renamed capability → update or remove the affected page(s); `node scripts/check-docs.mjs`
+  (part of `npm run validate`) fails on a broken internal `/docs/**` link, a missing referenced
+  screenshot, or an orphaned screenshot asset, but it cannot detect stale *prose* — that is a
+  human/agent review responsibility every time behaviour changes.
+- New authenticated route or feature shell that deserves a contextual Help entry → add a
+  `HelpContextId` and route-prefix mapping in `src/lib/help/help-context.ts`, not inline string
+  matching elsewhere.
+
 ## Standing engineering policy
 
 Every change request in this repository must satisfy these requirements, even when not explicitly requested.
@@ -2849,3 +2939,13 @@ Check for: meaningful files not tracked, generated junk accidentally tracked, lo
 ### README maintenance
 
 The root README is part of the definition of done. Before completing any implementation task, compare the resulting application, architecture, development workflow, deployment model and supported operations against `README.md`. Update it whenever the implementation changes what is currently true. Never leave README describing superseded behavior as current behavior.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

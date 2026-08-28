@@ -1,0 +1,41 @@
+/*
+ * Documentation-only stylesheet (ADR-0103). Scoped to the /docs route segment via
+ * its own layout import -- Next.js compiles this as an isolated CSS chunk, so it
+ * never affects the authenticated application shell's globals.css/design tokens.
+ *
+ * Only Tailwind v4 is supported by Fumadocs UI's preset (it also registers @source
+ * scanning for fumadocs-ui's own components). Imported after the theme file so the
+ * Matchboard palette overrides below win.
+ */
+@import "tailwindcss";
+@import "fumadocs-ui/css/black.css";
+@import "fumadocs-ui/css/preset.css";
+
+/* Matchboard is a fixed dark "tactical cockpit" product -- docs reuse its actual
+ * design tokens (src/app/globals.css) rather than a generic Fumadocs preset, so the
+ * public site and in-app Help drawer read as Matchboard, not an unrelated template.
+ * Docs are forced to dark mode (see layout.tsx's `theme={{ forcedTheme: "dark" }}`),
+ * so only the `.dark` block needs Matchboard values -- the light `:root` block from
+ * black.css is unreachable but left as a safe fallback. */
+.dark {
+  --color-fd-background: #0c1019;
+  --color-fd-foreground: #e8e2d4;
+  --color-fd-muted: rgba(32, 42, 58, 0.5);
+  --color-fd-muted-foreground: #8a93a4;
+  --color-fd-popover: rgba(26, 34, 50, 0.94);
+  --color-fd-popover-foreground: #e8e2d4;
+  --color-fd-card: rgba(26, 34, 50, 0.94);
+  --color-fd-card-foreground: #e8e2d4;
+  --color-fd-border: rgba(188, 180, 168, 0.15);
+  --color-fd-primary: #c7dbc6;
+  --color-fd-primary-foreground: #0c1019;
+  --color-fd-secondary: rgba(32, 42, 58, 0.5);
+  --color-fd-secondary-foreground: #e8e2d4;
+  --color-fd-accent: rgba(42, 54, 74, 0.5);
+  --color-fd-accent-foreground: #e8e2d4;
+  --color-fd-ring: #8ca792;
+}
+
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}

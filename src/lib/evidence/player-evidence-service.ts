@@ -479,17 +479,17 @@ export async function computeAndApplyPlayerEvidenceForMatch(
 
   const playerIds = [...new Set(observations.map((o) => o.playerId))];
 
+  // Bug fix (user-documentation-experience Phase 2): this select previously included
+  // homeGoals/awayGoals/homeTeamId/awayTeamId/date, none of which exist on Match (Match has no
+  // home/away-team split or embedded score -- see PostMatchReport for those) and none of which
+  // were ever read from the result below. Always threw "Unknown field" on every real
+  // invocation; undiscovered until this programme's seed script first exercised
+  // computeAndApplyPlayerEvidenceForMatch() end-to-end (completeReport() wraps this call in a
+  // try/catch that silently swallowed the failure). Only `id` (the existence check just below)
+  // is actually used.
   const match = await db.match.findUnique({
     where: { id: matchId },
-    select: {
-      id: true,
-      homeGoals: true,
-      awayGoals: true,
-      homeTeamId: true,
-      awayTeamId: true,
-      date: true,
-      matchRound: { select: { id: true } },
-    },
+    select: { id: true },
   });
 
   if (!match) {

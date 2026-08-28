@@ -56,7 +56,7 @@ export function OpponentPopulationContent({ orgSlug }: { orgSlug: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <SectionHeader title="Populate opponent levels" description="Backfill opponent sporting level evidence from historical match data. This is a one-time migration tool." />
+      <SectionHeader title="Populate opponent levels" description="Populate opponent sporting level evidence from historical match data. This is a one-time migration tool." />
 
       <Surface>
         <div className="flex flex-col gap-4 p-4">

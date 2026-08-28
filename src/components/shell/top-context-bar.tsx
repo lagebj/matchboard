@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/shell/command-palette";
+import { HelpDrawer, HelpButton } from "@/components/shell/help-drawer";
 import { useOrgSlug } from "@/components/shell/org-slug-context";
 
 type ContextData = {
@@ -50,6 +51,7 @@ export function TopContextBar() {
   const title = t(getPageTitleKey(pathname));
   const [ctx, setCtx] = useState<ContextData | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/context")
@@ -61,6 +63,7 @@ export function TopContextBar() {
   return (
     <>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
       <div className="flex h-[var(--topbar-height)] items-center gap-4 px-4">
         <div className="flex items-baseline gap-3 min-w-0 flex-1">
           <span className="text-sm font-semibold text-zinc-50 shrink-0">{title}</span>
@@ -86,6 +89,7 @@ export function TopContextBar() {
           )}
         </div>
 
+        <HelpButton onClick={() => setHelpOpen(true)} />
         <CommandPaletteTrigger onClick={() => setPaletteOpen(true)} />
       </div>
     </>
