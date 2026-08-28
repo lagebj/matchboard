@@ -36,6 +36,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
   const [squadCount, setSquadCount] = useState(2);
   const [targetSize, setTargetSize] = useState(7);
   const [matchDurationMinutes, setMatchDurationMinutes] = useState("20");
+  const [numberOfHalves, setNumberOfHalves] = useState("1");
   const [notes, setNotes] = useState("");
 
   const filteredFormations = formations.filter(
@@ -166,8 +167,27 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
           </div>
 
           <div>
+            <label htmlFor="numberOfHalves" className="block text-sm font-medium mb-1">
+              Halves
+            </label>
+            <select
+              id="numberOfHalves"
+              name="numberOfHalves"
+              value={numberOfHalves}
+              onChange={(e) => setNumberOfHalves(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+            >
+              <option value="1">1 (single period)</option>
+              <option value="2">2 (first/second half)</option>
+            </select>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              Most events use a single continuous period. Choose 2 for cups or fixtures played as a first and second half.
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="matchDurationMinutes" className="block text-sm font-medium mb-1">
-              Match duration (minutes)
+              {numberOfHalves === "2" ? "Half duration (minutes)" : "Match duration (minutes)"}
             </label>
             <input
               type="number"
@@ -181,7 +201,9 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               placeholder="20"
             />
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Duration in minutes for all matches in this event. Used to calculate match time windows for support planning.
+              {numberOfHalves === "2"
+                ? "Duration of EACH half in minutes. Used to calculate match time windows for support planning."
+                : "Duration in minutes for all matches in this event. Used to calculate match time windows for support planning."}
             </p>
           </div>
 

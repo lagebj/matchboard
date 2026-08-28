@@ -81,9 +81,9 @@ export async function addEventMatchSupportAssignmentAction(input: {
     select: { id: true, eventSquadId: true, startsAt: true, status: true },
   });
 
-  const targetWindow = getEventMatchWindow(eventMatch, matchDurationMinutes);
+  const targetWindow = getEventMatchWindow(eventMatch, matchDurationMinutes, event.numberOfHalves);
   const allWindows: EventMatchWindow[] = allEventMatches.map((m) =>
-    getEventMatchWindow(m, matchDurationMinutes),
+    getEventMatchWindow(m, matchDurationMinutes, event.numberOfHalves),
   );
 
   const eventSquads = await db.eventSquad.findMany({
@@ -241,7 +241,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 
   const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },
-    select: { matchDurationMinutes: true },
+    select: { matchDurationMinutes: true, numberOfHalves: true },
   });
   if (!event) throw new Error('Event not found.');
 
@@ -298,6 +298,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
     })),
     allEventMatches,
     matchDurationMinutes,
+    numberOfHalves: event.numberOfHalves,
     eventSquads,
     playerEventAvailability: playerAvailability,
     playerNames,
@@ -406,6 +407,7 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
   return getSupportCandidatesForEventMatch({
     targetMatch,
     matchDurationMinutes,
+    numberOfHalves: event.numberOfHalves,
     allEventMatches,
     eventSquads,
     playerProfiles,

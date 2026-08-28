@@ -32,6 +32,28 @@ describe('getEventMatchWindow', () => {
     );
     expect(result.endsAt).toEqual(new Date('2026-07-01T11:20:00'));
   });
+
+  it('defaults to numberOfHalves=1 (duration is the whole match)', () => {
+    const withDefault = getEventMatchWindow(
+      { id: 'm1', eventSquadId: 's1', startsAt: new Date('2026-07-01T11:00:00'), status: 'SCHEDULED' },
+      20,
+    );
+    const withExplicit1 = getEventMatchWindow(
+      { id: 'm1', eventSquadId: 's1', startsAt: new Date('2026-07-01T11:00:00'), status: 'SCHEDULED' },
+      20,
+      1,
+    );
+    expect(withDefault).toEqual(withExplicit1);
+  });
+
+  it('numberOfHalves=2 doubles the window (matchDurationMinutes is per half)', () => {
+    const result = getEventMatchWindow(
+      { id: 'm1', eventSquadId: 's1', startsAt: new Date('2026-07-01T11:00:00'), status: 'SCHEDULED' },
+      20,
+      2,
+    );
+    expect(result.endsAt).toEqual(new Date('2026-07-01T11:40:00'));
+  });
 });
 
 describe('eventMatchWindowsOverlap', () => {

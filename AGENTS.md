@@ -1907,6 +1907,32 @@ contains squads of different formats (e.g. two 7v7 teams and one 9v9 team on the
 - Removing an override (selecting "Event default") restores inheritance; changing the Event's own
   default format changes every squad that has no override, without touching overridden squads.
 
+### Event match halves
+
+`Event.numberOfHalves` (`Int`, default `1`) — 1 (single continuous "Match" period, the original
+behavior) or 2 (First half/Half time/Second half, mirroring League's regulation-time period
+model). Event-level, not per-`EventMatch` — a cup's halves format is a property of the
+competition, not an individual fixture, matching `Event.matchDurationMinutes`'s existing
+event-level scope.
+
+- `Event.matchDurationMinutes` means **the duration of ONE half**. For the default
+  `numberOfHalves=1` that is trivially the whole match, so existing 1-half events see no
+  behaviour change from this field's original meaning.
+- `getEventPeriodConfig(matchDurationMinutes, numberOfHalves)`
+  (`src/lib/live-match/period-config.ts`) is the single place branching on halves count for live
+  reporting — `numberOfHalves=2` applies `matchDurationMinutes` to *each* half individually, not
+  split across the match. Reuses the same `MatchPeriod` enum keys League's regulation-time config
+  uses (`FIRST_HALF`/`HALF_TIME`/`SECOND_HALF`/`FULL_TIME`), so `LiveMatchClient` needs no changes
+  to consume either shape.
+- `getEventMatchWindow(match, matchDurationMinutes, numberOfHalves)`
+  (`src/lib/events/event-match-time.ts`) computes the full match window as
+  `numberOfHalves × matchDurationMinutes` for helper-overlap detection (half-time break length
+  isn't tracked separately, so this is a conservative, slightly-short estimate of real match
+  length — the same tradeoff the original single-period model already made).
+- UI: "Halves" (a 1/2 select, next to "Match duration"/"Half duration" — the label switches
+  dynamically) on the create-event form (`create-event-form.tsx`) and the event detail overview's
+  inline edit (`event-detail.tsx`, `updateEventNumberOfHalvesAction`).
+
 ### Event squad draft/commit lifecycle
 
 Event squads have a status field: DRAFT or LOCKED.

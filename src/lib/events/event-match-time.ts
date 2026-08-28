@@ -9,9 +9,13 @@ export type EventMatchWindow = {
 export function getEventMatchWindow(
   match: { id: string; eventSquadId: string; startsAt: Date; status: string },
   matchDurationMinutes: number,
+  numberOfHalves: number = 1,
 ): EventMatchWindow {
   const startsAt = match.startsAt instanceof Date ? match.startsAt : new Date(match.startsAt);
-  const endsAt = new Date(startsAt.getTime() + matchDurationMinutes * 60 * 1000);
+  // matchDurationMinutes is the length of ONE half -- total playing time is numberOfHalves ×
+  // that. Half-time break length isn't tracked separately, so this is a conservative (slightly
+  // short) estimate of real match length, same tradeoff the single-period model already made.
+  const endsAt = new Date(startsAt.getTime() + numberOfHalves * matchDurationMinutes * 60 * 1000);
   return {
     eventMatchId: match.id,
     eventSquadId: match.eventSquadId,

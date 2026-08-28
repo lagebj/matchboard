@@ -22,8 +22,9 @@ import {
   removeEventMatchSupportAssignmentAction,
   updateEventMatchSupportAssignmentAction,
   getEventMatchSupportAssignmentsAction,
+  getSupportCandidatesForMatchAction,
 } from "../event-support-actions";
-import { updateEventMatchDurationAction } from "../actions";
+import { updateEventMatchDurationAction, updateEventNumberOfHalvesAction } from "../actions";
 
 async function createEventWithMatches(testDb: PrismaClient, options?: { matchDurationMinutes?: number; matchDates?: Date[] }) {
   const matchDurationMinutes = options?.matchDurationMinutes ?? 25;
@@ -583,6 +584,95 @@ describe("Event support actions", () => {
       const updated = await updateEventMatchDurationAction(event.id, 0);
 
       expect(updated.matchDurationMinutes).toBeNull();
+    });
+  });
+
+  describe("updateEventNumberOfHalvesAction", () => {
+    it("defaults to 1 (single continuous period) for a newly created event", async () => {
+      const { event } = await createEventWithMatches(testDb, { matchDurationMinutes: 25 });
+      expect(event.numberOfHalves).toBe(1);
+    });
+
+    it("sets numberOfHalves to 2", async () => {
+      const { event } = await createEventWithMatches(testDb, { matchDurationMinutes: 25 });
+
+      const updated = await updateEventNumberOfHalvesAction(event.id, 2);
+
+      expect(updated.numberOfHalves).toBe(2);
+    });
+
+    it("sets numberOfHalves back to 1", async () => {
+      const { event } = await createEventWithMatches(testDb, { matchDurationMinutes: 25 });
+      await updateEventNumberOfHalvesAction(event.id, 2);
+
+      const updated = await updateEventNumberOfHalvesAction(event.id, 1);
+
+      expect(updated.numberOfHalves).toBe(1);
+    });
+
+    it("rejects an out-of-range value by falling back to 1, not persisting garbage", async () => {
+      const { event } = await createEventWithMatches(testDb, { matchDurationMinutes: 25 });
+      await updateEventNumberOfHalvesAction(event.id, 2);
+
+      const updated = await updateEventNumberOfHalvesAction(event.id, 5);
+
+      expect(updated.numberOfHalves).toBe(1);
+    });
+  });
+
+  describe("support-planning overlap detection with numberOfHalves=2", () => {
+    it("a 2-half event's match window covers 2 × half duration, not just one half", async () => {
+      // Two 25-minute halves starting 40 minutes apart: match A's real window (10:00-10:50)
+      // overlaps match B's start (10:40) only when the full 2-half length is used -- a
+      // single-half (25 min) window would wrongly report no overlap.
+      const event = await testDb.event.create({
+        data: {
+          name: "Two Halves Overlap Event",
+          eventType: "CUP",
+          startsAt: new Date("2026-07-01T10:00:00Z"),
+          gameFormat: "SEVEN_A_SIDE",
+          matchDurationMinutes: 25,
+          numberOfHalves: 2,
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
+          squads: {
+            create: [
+              { name: "Squad A", intent: "BALANCED", targetSize: 7, generationOrder: 0, organisationId: fixture.organisationId },
+              { name: "Squad B", intent: "BALANCED", targetSize: 7, generationOrder: 1, organisationId: fixture.organisationId },
+            ],
+          },
+        },
+        include: { squads: true },
+      });
+      const [squadA, squadB] = event.squads;
+
+      await testDb.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squadA.id,
+          opponentName: "Opponent A",
+          startsAt: new Date("2026-07-01T10:00:00Z"),
+          organisationId: fixture.organisationId,
+        },
+      });
+      const matchB = await testDb.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squadB.id,
+          opponentName: "Opponent B",
+          startsAt: new Date("2026-07-01T10:40:00Z"),
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      const playerAId = fixture.players[0]!.id;
+      await addPlayerToEventAndSquad(testDb, event.id, squadA.id, playerAId);
+
+      const candidates = await getSupportCandidatesForMatchAction(matchB.id);
+      const candidate = candidates.find((c) => c.playerId === playerAId);
+
+      expect(candidate?.available).toBe(false);
+      expect(candidate?.unavailableReason).toBe("Own squad has overlapping match");
     });
   });
 });

@@ -40,6 +40,7 @@ export function getSupportCandidatesForEventMatch(input: {
     status: string;
   };
   matchDurationMinutes: number;
+  numberOfHalves?: number;
   allEventMatches: {
     id: string;
     eventSquadId: string;
@@ -86,6 +87,7 @@ export function getSupportCandidatesForEventMatch(input: {
   const {
     targetMatch,
     matchDurationMinutes,
+    numberOfHalves = 1,
     allEventMatches,
     eventSquads,
     playerProfiles,
@@ -111,9 +113,9 @@ export function getSupportCandidatesForEventMatch(input: {
     }));
   }
 
-  const targetWindow = getEventMatchWindow(targetMatch, matchDurationMinutes);
+  const targetWindow = getEventMatchWindow(targetMatch, matchDurationMinutes, numberOfHalves);
   const allWindows = allEventMatches.map((m) =>
-    getEventMatchWindow(m, matchDurationMinutes),
+    getEventMatchWindow(m, matchDurationMinutes, numberOfHalves),
   );
 
   const candidates: EventSupportCandidate[] = [];
@@ -185,6 +187,7 @@ export function checkSupportConflicts(input: {
     status: string;
   }[];
   matchDurationMinutes: number;
+  numberOfHalves?: number;
   eventSquads: { id: string; name: string; players: { playerId: string }[] }[];
   playerEventAvailability: { playerId: string; status: string }[];
   playerNames: Map<string, { firstName: string; lastName: string | null }>;
@@ -194,6 +197,7 @@ export function checkSupportConflicts(input: {
     assignments,
     allEventMatches,
     matchDurationMinutes,
+    numberOfHalves = 1,
     eventSquads,
     playerEventAvailability,
     playerNames,
@@ -212,7 +216,7 @@ export function checkSupportConflicts(input: {
   }
 
   const allWindows = allEventMatches.map((m) =>
-    getEventMatchWindow(m, matchDurationMinutes),
+    getEventMatchWindow(m, matchDurationMinutes, numberOfHalves),
   );
 
   return assignments.map((assignment) => {

@@ -16,6 +16,15 @@ export function isValidEventStatus(status: string): status is EventPlayerStatus 
   return VALID_EVENT_PLAYER_STATUSES.includes(status as EventPlayerStatus);
 }
 
+// 1 (default, single continuous "Match" period) or 2 (First half/Half time/Second half). See
+// getEventPeriodConfig (src/lib/live-match/period-config.ts) and Event.numberOfHalves.
+export const VALID_NUMBER_OF_HALVES = [1, 2] as const;
+
+export function parseNumberOfHalves(value: string | number | null | undefined): number {
+  const parsed = typeof value === "number" ? value : value ? parseInt(value, 10) : NaN;
+  return VALID_NUMBER_OF_HALVES.includes(parsed as 1 | 2) ? parsed : 1;
+}
+
 export function requireValidEventStatus(status: string): EventPlayerStatus {
   if (!isValidEventStatus(status)) {
     throw new Error(`Invalid event player status: ${status}`);
