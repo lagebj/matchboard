@@ -90,7 +90,7 @@ export function SeasonOverviewClient({
   >([]);
   const [exportFormat, setExportFormat] = useState<"csv" | "json" | "txt" | "md">("csv");
 
-  const exportUrl = `/api/season/export?leagueSeasonId=${selectedPeriodId}&format=${exportFormat}&visibility=coach`;
+  const exportUrl = `/api/season/export?leagueSeasonId=${encodeURIComponent(selectedPeriodId)}&format=${encodeURIComponent(exportFormat)}&visibility=coach`;
 
   useEffect(() => {
     if (!selectedPeriodId) return;
