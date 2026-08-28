@@ -24,12 +24,18 @@ sibling components (`PostMatchPage`, `ObservationSection`, `FootballObservationS
 `matchId`-bound and each importing its own dedicated server-action file directly. Event's report
 UI (`EventMatchReportPanel`, embedded in `event-matches-tab.tsx`) is one much smaller,
 client-fetched component with an untyped view-model, handling score/goals/assists/attendance
-inline in its own markup, plus (as of this programme) a mounted `FootballObservationSection` for
-the one section that was mandatory for evidence parity (player evidence has no input otherwise).
+inline in its own markup, plus (as of this programme) two mounted already-source-agnostic
+presentational components: `FootballObservationSection` (mandatory — player evidence has no
+input otherwise) and, gated on `isLocked`, `MatchCombinationEvidencePanel` (already took no
+`matchId` prop at all — purely presentational, so wiring it into Event's panel via a new
+`getEventMatchCombinationEvidenceAction` was safe, additive, and required no restructuring of
+either component tree).
 
 No shared `PostMatchReportViewModel` type, no shared action-interface abstraction, and no shared
 score/goals/assists/attendance form component exist between the two. They remain two
-independently-maintained implementations of the same conceptual report screen.
+independently-maintained implementations of the same conceptual report screen — this ARR is
+about that structural duplication, not about individual sections being unreachable from Event
+(the two genuinely mandatory-or-safely-additive ones now are).
 
 ## Intended architecture
 

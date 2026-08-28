@@ -8,12 +8,15 @@ import {
   removeEventGoalAction,
   addEventAssistAction,
   removeEventAssistAction,
+  getEventMatchCombinationEvidenceAction,
 } from '../event-post-match-actions';
 import { getEventFootballObservationsAction } from '../event-football-observation-actions';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
 import { FootballObservationSection } from '@/components/player-development/football-observation-section';
+import { MatchCombinationEvidencePanel } from '@/components/matches/match-combination-evidence-panel';
+import type { CombinationEvidenceRow } from '@/lib/evidence/combination-topology';
 import type { EventPostMatchAttendanceStatus, GoalType } from '@/generated/prisma/client';
 
 interface PlayerReport {
@@ -83,6 +86,7 @@ const ATTENDANCE_OPTIONS: { value: EventPostMatchAttendanceStatus; label: string
 export function EventMatchReportPanel({ eventMatchId, report, isLocked, onRefresh }: EventMatchReportPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [observations, setObservations] = useState<ObservationEntry[]>([]);
+  const [combinationEvidence, setCombinationEvidence] = useState<CombinationEvidenceRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +99,20 @@ export function EventMatchReportPanel({ eventMatchId, report, isLocked, onRefres
       cancelled = true;
     };
   }, [eventMatchId, report.id]);
+
+  useEffect(() => {
+    if (!isLocked) {
+      setCombinationEvidence([]);
+      return;
+    }
+    let cancelled = false;
+    getEventMatchCombinationEvidenceAction(eventMatchId).then((rows) => {
+      if (!cancelled) setCombinationEvidence(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventMatchId, isLocked]);
   const [ourScore, setOurScore] = useState(report.ourScore?.toString() ?? '');
   const [opponentScore, setOpponentScore] = useState(report.opponentScore?.toString() ?? '');
   const [teamReflection, setTeamReflection] = useState(report.teamReflection ?? '');
@@ -450,6 +468,13 @@ export function EventMatchReportPanel({ eventMatchId, report, isLocked, onRefres
         existingObservations={observations}
         isLocked={isLocked}
       />
+
+      {isLocked && combinationEvidence.length > 0 && (
+        <MatchCombinationEvidencePanel
+          evidence={combinationEvidence}
+          players={report.playerReports.map((pr) => ({ id: pr.playerId, name: pr.playerName }))}
+        />
+      )}
 
       {report.teamReflection && (
         <Surface variant="default" padding="md">

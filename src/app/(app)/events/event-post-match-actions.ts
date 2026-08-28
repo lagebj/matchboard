@@ -368,3 +368,28 @@ export async function reopenEventMatchReportAction(reportId: string, targetStatu
   }
   return updated;
 }
+
+/**
+ * Factual, per-match combination evidence for a locked Event report (mirrors League's
+ * `MatchCombinationEvidencePanel` data source on the post-match page). The presentational
+ * component is already source-agnostic; this just supplies the Event-side data fetch.
+ */
+export async function getEventMatchCombinationEvidenceAction(eventMatchId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: ctx.orgFilter.filter },
+    select: { eventId: true },
+  });
+  if (!eventMatch) throw new Error('Event match not found or access denied.');
+  await requireEventOrgAccess(eventMatch.eventId, ctx.orgFilter);
+
+  const { getMatchCombinationEvidenceForRef } = await import('@/lib/evidence/combination-aggregation');
+  return getMatchCombinationEvidenceForRef({
+    kind: 'EVENT_MATCH',
+    eventMatchId,
+    eventId: eventMatch.eventId,
+    evidenceLeagueSeasonId: null,
+  });
+}
