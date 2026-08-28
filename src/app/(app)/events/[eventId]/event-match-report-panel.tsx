@@ -24,7 +24,6 @@ interface PlayerReport {
   playerId: string;
   playerName: string;
   attendanceStatus: string;
-  source: string;
   role: string | null;
 }
 
@@ -376,7 +375,6 @@ export function EventMatchReportPanel({ eventMatchId, report, isLocked, onRefres
             <thead>
               <tr className="border-b border-[var(--border-soft)]">
                 <th className="py-2 pr-3 text-left text-xs font-medium text-[var(--text-muted)]">Player</th>
-                <th className="py-2 pr-3 text-left text-xs font-medium text-[var(--text-muted)]">Source</th>
                 <th className="py-2 text-left text-xs font-medium text-[var(--text-muted)]">Attendance</th>
               </tr>
             </thead>
@@ -389,7 +387,6 @@ export function EventMatchReportPanel({ eventMatchId, report, isLocked, onRefres
                       <span className="ml-1 text-[10px] text-[var(--text-muted)]">({pr.role})</span>
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-[var(--text-muted)]">{pr.source}</td>
                   <td className="py-2">
                     {isLocked ? (
                       <StatusPill variant={pr.attendanceStatus === 'PRESENT' ? 'success' : pr.attendanceStatus === 'NO_SHOW' ? 'danger' : 'neutral'}>

@@ -1083,12 +1083,11 @@ function EventMatchCard({
               teamReflection: reportData.teamReflection,
               opponentObservation: reportData.opponentObservation,
               notes: reportData.notes,
-              playerReports: (reportData.playerReports ?? []).map((pr: { id: string; playerId: string; attendanceStatus: string; source: string; role: string | null; player: { firstName: string; lastName: string | null } | null }) => ({
+              playerReports: (reportData.playerReports ?? []).map((pr: { id: string; playerId: string; attendanceStatus: string; role: string | null; player: { firstName: string; lastName: string | null } | null }) => ({
                 id: pr.id,
                 playerId: pr.playerId,
                 playerName: pr.player ? `${pr.player.firstName}${pr.player.lastName ? ' ' + pr.player.lastName : ''}` : 'Unknown',
                 attendanceStatus: pr.attendanceStatus,
-                source: pr.source,
                 role: pr.role,
               })),
               goalEvents: (reportData.goalEvents ?? []).map((g: { id: string; playerId: string | null; minute: number | null; type: string; note: string | null; scorer: { firstName: string; lastName: string | null } | null }) => ({

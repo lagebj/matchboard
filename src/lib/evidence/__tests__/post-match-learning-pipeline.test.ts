@@ -293,4 +293,34 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     expect(result.players.status).not.toBe("FAILED");
     expect(result.combinations.status).not.toBe("FAILED");
   });
+
+  it("runPostMatchLearning distinguishes NO_FOOTBALL_OBSERVATIONS from INSUFFICIENT_DISTINCT_MATCHES (found via manual browser verification, Event Evidence Parity programme)", async () => {
+    // Case 1: genuinely zero observations recorded for this match.
+    const matchNoObs = fixtureIds.matches["Hvit"];
+    const refNoObs = await buildLeagueMatchRef(matchNoObs);
+    const resultNoObs = await runPostMatchLearning(refNoObs, orgFilter);
+    expect(resultNoObs.players).toEqual({ status: "SKIPPED", reason: "NO_FOOTBALL_OBSERVATIONS" });
+
+    // Case 2: one observation exists for this match, but evidence-accumulator.ts's
+    // MINIMUM_DISTINCT_MATCHES (2) means it can't produce a proposal yet -- a legitimate,
+    // expected "not enough evidence yet" outcome, not "no input at all".
+    const matchWithObs = fixtureIds.matches["Rod"];
+    const player = fixtureIds.players.find((p) => p.coreTeamId === fixtureIds.teams["Rod"])!;
+    await testDb.playerDevelopmentObservation.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        playerId: player.id,
+        sourceType: "LEAGUE_MATCH",
+        matchId: matchWithObs,
+        kind: "ATTRIBUTE",
+        attributeKey: "PASSING_EFFECTIVE",
+        direction: "POSITIVE",
+        observedAt: new Date(),
+        recordedBy: "test@test-agent.matchboard.football",
+      },
+    });
+    const refWithObs = await buildLeagueMatchRef(matchWithObs);
+    const resultWithObs = await runPostMatchLearning(refWithObs, orgFilter);
+    expect(resultWithObs.players).toEqual({ status: "SKIPPED", reason: "INSUFFICIENT_DISTINCT_MATCHES" });
+  });
 });

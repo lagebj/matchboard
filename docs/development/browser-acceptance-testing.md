@@ -39,6 +39,13 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
   opened via `browser.newContext({ storageState: "e2e/.auth/coach-a1.json" })`) opens "Follow
   live" for the same match and asserts the connection actually reaches the Cloudflare Durable
   Object over a real WebSocket, and that an event the reporter records actually arrives.
+- `e2e/post-match-evidence-parity.spec.ts` (Event Evidence Parity programme, ADR-0104) — reuses
+  `live-match-fixtures.ts`'s create/finalize/live-report/end-session flow, then goes one step
+  further than `live-reporting.spec.ts` stops (accepting the native `window.confirm()` and
+  clicking "Complete report") to assert the report reaches `LOCKED` — proving
+  `runPostMatchLearning()` runs to completion through the real UI, not just via direct
+  domain-function calls in a unit/integration test. League only; no Event-side equivalent yet
+  (Event has no fixture helper analogous to `createFinalizedLiveTestMatch` — see ARR-0034).
 
 Unlike `round-mutation.spec.ts`, the live-reporting/follow-live specs cannot be made
 self-cleaning — finalizing creates real selections and (once a session ends) a permanent

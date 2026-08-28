@@ -457,7 +457,7 @@ export async function applyPlayerAssessmentProposals(
 export async function computeAndApplyPlayerEvidenceForMatch(
   ref: FootballMatchRef,
   orgFilter?: { filter: Record<string, unknown> },
-): Promise<{ proposalsComputed: number; applied: number; skipped: number; errors: string[] }> {
+): Promise<{ proposalsComputed: number; applied: number; skipped: number; errors: string[]; observationsFound: number }> {
   const sourceId = footballMatchRefSourceId(ref);
   const matchWhere = ref.kind === "LEAGUE_MATCH" ? { matchId: ref.matchId } : { eventMatchId: ref.eventMatchId };
 
@@ -478,7 +478,7 @@ export async function computeAndApplyPlayerEvidenceForMatch(
   });
 
   if (observations.length === 0) {
-    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: [] };
+    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: [], observationsFound: 0 };
   }
 
   const playerIds = [...new Set(observations.map((o) => o.playerId))];
@@ -489,7 +489,7 @@ export async function computeAndApplyPlayerEvidenceForMatch(
       : await db.eventMatch.findUnique({ where: { id: ref.eventMatchId }, select: { id: true } });
 
   if (!matchExists) {
-    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: ["Match not found"] };
+    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: ["Match not found"], observationsFound: observations.length };
   }
 
   const players = await db.player.findMany({
@@ -605,5 +605,6 @@ export async function computeAndApplyPlayerEvidenceForMatch(
     applied: totalApplied,
     skipped: totalSkipped,
     errors: allErrors,
+    observationsFound: observations.length,
   };
 }

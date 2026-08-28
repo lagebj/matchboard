@@ -66,7 +66,15 @@ export async function runPostMatchLearning(
     result.players =
       outcome.proposalsComputed > 0
         ? { status: "APPLIED" }
-        : { status: "SKIPPED", reason: "NO_FOOTBALL_OBSERVATIONS" };
+        : {
+            status: "SKIPPED",
+            // Distinguishes "no observations recorded for this match" from "observations
+            // exist but haven't crossed evidence-accumulator.ts's MINIMUM_DISTINCT_MATCHES
+            // threshold yet" -- verified against a real single-match fixture during manual
+            // browser verification (Event Evidence Parity programme): the latter is a
+            // legitimate, expected outcome, not a missing-input problem.
+            reason: outcome.observationsFound === 0 ? "NO_FOOTBALL_OBSERVATIONS" : "INSUFFICIENT_DISTINCT_MATCHES",
+          };
   } catch (error) {
     result.players = { status: "FAILED", reason: failureReason(error) };
   }
