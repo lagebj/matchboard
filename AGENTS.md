@@ -657,6 +657,52 @@ Combination evidence describes what actually happened while a defined football r
 - Explanations are factual sentences (minutes together, match count, confidence) — never a synthesized score or percentage. See ADR-0094.
 - Beyond selection scoring, factual season partnership evidence (`selectRelevantPartnerships()`, `src/lib/evidence/combination-aggregation.ts`) is also surfaced as read-only planning context on the Tactics tab (current line-up), the Rotations tab (current starting line-up), and the opponent detail page (evidence recorded in matches against that specific opponent, via `getOpponentCombinationEvidence()`) — never a second selection-scoring input, purely descriptive.
 
+### Canonical post-match learning pipeline (League/Event evidence parity)
+
+There is one learning pipeline for "what did Matchboard learn from a completed match" — used by
+new League matches, new Event matches, and the historical catch-up tool described below. League
+and Event are adapters into this pipeline; neither owns a separate copy of the evidence
+algorithms. See ADR-0104.
+
+- `FootballMatchRef` (`src/lib/evidence/football-match-ref.ts`) — discriminated union identifying
+  a match's source (`LEAGUE_MATCH { matchId, leagueSeasonId }` /
+  `EVENT_MATCH { eventMatchId, eventId, evidenceLeagueSeasonId? }`) without exposing persistence
+  details to evidence algorithms.
+- `CanonicalMatchEvidence` (`src/lib/evidence/canonical-match-evidence.ts`) — the
+  persistence-agnostic input every evidence algorithm consumes. `src/lib/evidence/adapters/`
+  holds one adapter per source (`league-evidence-adapter.ts`, `event-evidence-adapter.ts`) that
+  builds it from that source's own models. Evidence algorithms do not read `db.match`/
+  `db.eventMatch` directly and do not branch on source type except at the narrow
+  persistence-write boundary (which unique column to upsert on).
+- `runPostMatchLearning(ref)` (`src/lib/evidence/post-match-learning.ts`) — the one shared
+  orchestrator, called from both League's `completeReport()`
+  (`src/lib/reports/report-mutations.ts`) and Event's `completeEventReport()`
+  (`src/lib/reports/event-report-mutations.ts`). Sequence: rebuild actual timeline → record
+  opponent sporting evidence → compute player evidence → rebuild combination evidence (skipped
+  with a reason code, e.g. `NO_EVIDENCE_SEASON`, when no evidence season resolves). Returns a
+  structured `APPLIED`/`SKIPPED`/`FAILED` result per evidence type — no step's failure blocks
+  report completion or another step, and re-running is always safe (idempotent upserts/rebuilds).
+- Generalized models use nullable dual-FK + discriminator, matching the pattern already
+  established by `PlayerDevelopmentObservation.sourceType`: `matchId String?` /
+  `eventMatchId String?` with a `CHECK` constraint enforcing exactly one is set. Applied to
+  `PlayerDevelopmentObservation`, `OpponentSportingEvidence`, `CombinationEvidence`,
+  `ActualPositionInterval`.
+- Event actual-timeline reconstruction (`rebuildEventActualTimeline`, in
+  `src/lib/evidence/actual-timeline.ts` alongside League's `rebuildActualTimeline`) derives
+  intervals from `EventMatchLineupAssignment` (starting state) plus `EventLiveMatchEvent` rows
+  (`ROTATION_OUT`/`ROTATION_IN`/`POSITIONS_CHANGED` — the same shared `LiveMatchEventType` enum
+  League uses) — no separate Event substitution table.
+- Not generalized, and not evidence-algorithm input: `OpponentEncounterObservation` (coach's
+  manual qualitative assessment) and `TeamReflection` (structured rating model). Event keeps its
+  existing free-text `opponentObservation`/`teamReflection` fields on `EventPostMatchReport`.
+- `EventMatch` has no `matchFit` field, so the Event opponent-evidence adapter never
+  auto-excludes on that basis (League's CHAOTIC/SUPPORT_OVERPOWERED/SUPPORT_TOO_LOW check has no
+  Event equivalent yet). If Event ever needs this, it must reuse the existing `MatchFit` enum,
+  never a duplicate.
+- The "Populate opponent levels" transient catch-up tool (see "Provider configuration workflow"
+  boundary rules and ARR-0031) processes both historical League and Event matches through this
+  same pipeline — not a second historical-only algorithm.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2373,6 +2419,11 @@ Avoid:
 | `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
 | `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
+| `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
+| `src/lib/evidence/canonical-match-evidence.ts` | Persistence-agnostic `CanonicalMatchEvidence` input contract consumed by evidence algorithms |
+| `src/lib/evidence/post-match-learning.ts` | `runPostMatchLearning(ref)` — the one shared post-match learning orchestrator used by League and Event report completion |
+| `src/lib/evidence/adapters/league-evidence-adapter.ts` | Builds `FootballMatchRef`/`CanonicalMatchEvidence` from League `Match`/`PostMatchReport` data |
+| `src/lib/evidence/adapters/event-evidence-adapter.ts` | Builds `FootballMatchRef`/`CanonicalMatchEvidence` from Event `EventMatch`/`EventPostMatchReport` data, including evidence-league-season resolution |
 | `src/lib/evidence/combination-topology.ts` | Derives all six canonical combination families (Partnership/Triangle/Line/Corridor/Functional Unit/Full Configuration) from the actual position timeline |
 | `src/lib/evidence/combination-goal-attribution.ts` | Places goals/assists on the timeline (live events when available, `Goal.minute` as approximate fallback) for combination evidence |
 | `src/lib/evidence/combination-aggregation.ts` | Cross-match combination evidence aggregation, persistence, season summaries, historical backfill, opponent-scoped evidence (`getOpponentCombinationEvidence`), planned-pairing filtering (`selectRelevantPartnerships`) |

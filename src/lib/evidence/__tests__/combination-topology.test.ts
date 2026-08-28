@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { deriveCombinationsFromSegments, deriveConfidence, buildSegmentsFromIntervals } from "../combination-topology";
 import type { ActualIntervalRow } from "../actual-timeline";
 import type { GoalAttributionEvent } from "../combination-goal-attribution";
+import type { FootballMatchRef } from "../football-match-ref";
 
 type Slot = { position: string; line: string | null; lane: string | null };
 
@@ -20,6 +21,7 @@ const UNKNOWN = (): Slot => ({ position: "unknown", line: null, lane: null });
 describe("Combination topology — deriveCombinationsFromSegments", () => {
   const orgId = "org-1";
   const matchId = "match-1";
+  const ref: FootballMatchRef = { kind: "LEAGUE_MATCH", matchId, leagueSeasonId: null };
   const leagueSeasonId = "ls-1";
 
   function makeSegment(startMs: number, endMs: number, playersOnPitch: Map<string, Slot>) {
@@ -36,7 +38,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       ])),
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const cbPartnership = rows.find(
       (r) => r.family === "PARTNERSHIP" && r.playerIds.includes("p2") && r.playerIds.includes("p3"),
@@ -49,7 +51,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives goalkeeper link between GK and CB", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const gkLink = rows.find((r) => r.family === "PARTNERSHIP" && r.subtype === "GOALKEEPER_LINK");
     expect(gkLink).toBeDefined();
@@ -59,7 +61,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives vertical partnership between defender and midfielder", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", CM()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const verticalPartnership = rows.find(
       (r) => r.family === "PARTNERSHIP" && r.playerIds.includes("p2") && r.playerIds.includes("p3") && r.subtype === "VERTICAL",
@@ -70,7 +72,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("does not guess a partnership subtype when a player's line is unknown", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", LCB()], ["p2", UNKNOWN()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const partnership = rows.find((r) => r.family === "PARTNERSHIP");
     expect(partnership).toBeDefined();
@@ -83,7 +85,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       makeSegment(2700000, 5400000, new Map([["p1", LCB()], ["p2", RCB()], ["p3", CM()]])),
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const cbPartnership = rows.find(
       (r) => r.family === "PARTNERSHIP" && r.playerIds.includes("p1") && r.playerIds.includes("p2"),
@@ -95,7 +97,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives a defensive line from two or more occupied defensive positions", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", RCB()], ["p4", CM()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const line = rows.find((r) => r.family === "LINE" && r.subtype === "DEFENSIVE");
     expect(line).toBeDefined();
@@ -105,7 +107,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("does not derive a line for the goalkeeper (single occupant, not a football line)", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", RCB()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     expect(rows.find((r) => r.family === "LINE" && r.subtype === ("GOALKEEPER" as never))).toBeUndefined();
   });
@@ -120,7 +122,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       ])),
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const corridor = rows.find((r) => r.family === "CORRIDOR" && r.subtype === "LEFT");
     expect(corridor).toBeDefined();
@@ -130,7 +132,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("does not derive a corridor from a single-line lane group", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", LCB()], ["p2", { position: "DEFENDER", line: "DEF", lane: "LEFT" }]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     expect(rows.find((r) => r.family === "CORRIDOR")).toBeUndefined();
   });
@@ -138,7 +140,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives central-spine triangle for goalkeeper + two centre-backs", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", RCB()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const triangle = rows.find((r) => r.family === "TRIANGLE" && r.subtype === "CENTRAL_SPINE");
     expect(triangle).toBeDefined();
@@ -148,7 +150,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives defensive triangle for two centre-backs + a defensive midfielder", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", LCB()], ["p2", RCB()], ["p3", CDM()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const triangle = rows.find((r) => r.family === "TRIANGLE" && r.subtype === "DEFENSIVE");
     expect(triangle).toBeDefined();
@@ -157,7 +159,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives midfield triangle for three central midfield roles", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", CDM()], ["p2", CM()], ["p3", AM()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const triangle = rows.find((r) => r.family === "TRIANGLE" && r.subtype === "MIDFIELD");
     expect(triangle).toBeDefined();
@@ -166,7 +168,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives attacking triangle for a front three", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", LW()], ["p2", ST()], ["p3", RW()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const triangle = rows.find((r) => r.family === "TRIANGLE" && r.subtype === "ATTACKING");
     expect(triangle).toBeDefined();
@@ -181,7 +183,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       ])),
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const triangle = rows.find((r) => r.family === "TRIANGLE" && r.subtype === "WIDE");
     expect(triangle).toBeDefined();
@@ -190,7 +192,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("does not classify an arbitrary unrelated trio as a triangle", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", CM()], ["p3", ST()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     expect(rows.find((r) => r.family === "TRIANGLE")).toBeUndefined();
   });
@@ -198,7 +200,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives a build-up functional unit from goalkeeper + defensive line, excluding the rest of the team", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", RCB()], ["p4", CM()], ["p5", ST()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const unit = rows.find((r) => r.family === "FUNCTIONAL_UNIT" && r.subtype === "BUILD_UP");
     expect(unit).toBeDefined();
@@ -208,7 +210,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives an attacking functional unit from forwards + attacking midfielder, excluding the rest of the team", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", AM()], ["p2", ST()], ["p3", LW()], ["p4", LCB()], ["p5", RCB()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const unit = rows.find((r) => r.family === "FUNCTIONAL_UNIT" && r.subtype === "ATTACKING_UNIT");
     expect(unit).toBeDefined();
@@ -217,7 +219,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("does not derive a build-up unit that equals the entire on-pitch team", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", RCB()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     expect(rows.find((r) => r.family === "FUNCTIONAL_UNIT" && r.subtype === "BUILD_UP")).toBeUndefined();
   });
@@ -225,7 +227,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("derives full configuration containing every on-pitch player in the segment", () => {
     const segments = [makeSegment(0, 5400000, new Map([["p1", GK()], ["p2", LCB()], ["p3", CM()], ["p4", ST()]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const full = rows.find((r) => r.family === "FULL_CONFIGURATION");
     expect(full).toBeDefined();
@@ -235,7 +237,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
   it("only produces partnership, a meaningful triangle, and full configuration for a 3-a-side segment", () => {
     const segments = [makeSegment(0, 1800000, new Map([["p1", ST()], ["p2", CM()], ["p3", { position: "DEFENDER", line: "DEF", lane: "CENTRE" }]]))];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId);
 
     const families = new Set(rows.map((r) => r.family));
     expect(families.has("PARTNERSHIP")).toBe(true);
@@ -251,7 +253,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       { matchMs: 1_000_000, team: "FOR", scorerPlayerId: "p3", assistPlayerId: "p1", approximateTiming: false },
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId, goalEvents);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId, goalEvents);
 
     const cbPartnership = rows.find((r) => r.family === "PARTNERSHIP" && r.playerIds.includes("p1") && r.playerIds.includes("p2"));
     expect(cbPartnership!.goalsForWhilePresent).toBe(1);
@@ -269,7 +271,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       { matchMs: 1_000_000, team: "AGAINST", scorerPlayerId: null, assistPlayerId: null, approximateTiming: false },
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId, goalEvents);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId, goalEvents);
 
     const partnership = rows.find((r) => r.family === "PARTNERSHIP");
     expect(partnership!.goalsAgainstWhilePresent).toBe(1);
@@ -282,7 +284,7 @@ describe("Combination topology — deriveCombinationsFromSegments", () => {
       { matchMs: 5000, team: "FOR", scorerPlayerId: "p1", assistPlayerId: null, approximateTiming: false },
     ];
 
-    const rows = deriveCombinationsFromSegments(segments, matchId, orgId, leagueSeasonId, goalEvents);
+    const rows = deriveCombinationsFromSegments(segments, ref, orgId, leagueSeasonId, goalEvents);
 
     expect(rows.find((r) => r.family === "PARTNERSHIP")!.goalsForWhilePresent).toBe(0);
   });

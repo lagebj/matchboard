@@ -32,7 +32,7 @@ export function evaluateAttributeEvidence(
     id: string;
     direction: string;
     observedAt: Date;
-    matchId: string;
+    matchId: string | null;
     attributeKey: string | null;
   }>,
   baselineAt: Date | null,

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { getActualPositionIntervals, type ActualIntervalRow } from "@/lib/evidence/actual-timeline";
-import { getGoalAttributionEvents } from "@/lib/evidence/combination-goal-attribution";
+import { getActualPositionIntervalsForRef, type ActualIntervalRow } from "@/lib/evidence/actual-timeline";
+import { getGoalAttributionEventsForRef } from "@/lib/evidence/combination-goal-attribution";
+import { footballMatchRefSourceId, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
 
 export type CombinationFamily =
   | "PARTNERSHIP"
@@ -29,7 +30,8 @@ export type ConfidenceLevel = "INSUFFICIENT" | "EMERGING" | "ESTABLISHED";
 export type CombinationEvidenceRow = {
   id: string;
   organisationId: string;
-  matchId: string;
+  matchId: string | null;
+  eventMatchId: string | null;
   family: CombinationFamily;
   subtype: CombinationSubtype;
   playerIds: string[];
@@ -325,11 +327,12 @@ export function deriveConfidence(minutesTogether: number, matchCount: number, op
 
 export function deriveCombinationsFromSegments(
   segments: MatchSegment[],
-  matchId: string,
+  ref: FootballMatchRef,
   orgId: string,
   leagueSeasonId: string,
-  goalEvents: Awaited<ReturnType<typeof getGoalAttributionEvents>> = [],
+  goalEvents: Awaited<ReturnType<typeof getGoalAttributionEventsForRef>> = [],
 ): CombinationEvidenceRow[] {
+  const sourceId = footballMatchRefSourceId(ref);
   const accumulated = new Map<
     string,
     {
@@ -382,9 +385,10 @@ export function deriveCombinationsFromSegments(
     const confidence = deriveConfidence(data.minutes, 1, 1);
 
     rows.push({
-      id: `${matchId}-${key}`,
+      id: `${sourceId}-${key}`,
       organisationId: orgId,
-      matchId,
+      matchId: ref.kind === "LEAGUE_MATCH" ? ref.matchId : null,
+      eventMatchId: ref.kind === "EVENT_MATCH" ? ref.eventMatchId : null,
       family: combo.family,
       subtype: combo.subtype,
       playerIds: [...combo.playerIds].sort(),
@@ -413,27 +417,33 @@ export function deriveCombinationsFromSegments(
  * reconciliation).
  */
 export async function computeMatchCombinationEvidence(
-  matchId: string,
+  ref: FootballMatchRef,
   leagueSeasonId: string,
 ): Promise<CombinationEvidenceRow[]> {
-  const match = await db.match.findFirst({
-    where: { id: matchId },
-    select: { id: true, organisationId: true, matchDurationMinutes: true, opponentTeamId: true },
-  });
+  const context =
+    ref.kind === "LEAGUE_MATCH"
+      ? await db.match.findFirst({
+          where: { id: ref.matchId },
+          select: { organisationId: true, matchDurationMinutes: true },
+        })
+      : await db.eventMatch.findFirst({
+          where: { id: ref.eventMatchId },
+          select: { organisationId: true, event: { select: { matchDurationMinutes: true } } },
+        }).then((m) => m && { organisationId: m.organisationId, matchDurationMinutes: m.event.matchDurationMinutes });
 
-  if (!match) return [];
+  if (!context) return [];
 
-  const intervals = await getActualPositionIntervals(matchId);
+  const intervals = await getActualPositionIntervalsForRef(ref);
   if (intervals.length === 0) return [];
 
-  const matchEndMs = match.matchDurationMinutes ? match.matchDurationMinutes * 60 * 1000 : null;
+  const matchEndMs = context.matchDurationMinutes ? context.matchDurationMinutes * 60 * 1000 : null;
 
   const segments = buildSegmentsFromIntervals(intervals, matchEndMs);
   if (segments.length === 0) return [];
 
-  const goalEvents = await getGoalAttributionEvents(matchId);
+  const goalEvents = await getGoalAttributionEventsForRef(ref);
 
   // Each combination in a single match faces one opponent — opponentDiversity is always 1
   // for per-match evidence; cross-match aggregation counts distinct opponents.
-  return deriveCombinationsFromSegments(segments, matchId, match.organisationId, leagueSeasonId, goalEvents);
+  return deriveCombinationsFromSegments(segments, ref, context.organisationId, leagueSeasonId, goalEvents);
 }

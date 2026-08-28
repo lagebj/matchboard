@@ -347,7 +347,10 @@ async function reconcileCombinationEvidenceDerivedProjection(
     });
 
     if (!dryRun) {
-      await rebuildMatchCombinationEvidence(match.id, match.matchRound.leagueSeasonId);
+      await rebuildMatchCombinationEvidence(
+        { kind: "LEAGUE_MATCH", matchId: match.id, leagueSeasonId: match.matchRound.leagueSeasonId },
+        match.matchRound.leagueSeasonId,
+      );
       appliedChanges++;
     } else {
       skipped++;

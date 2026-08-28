@@ -91,7 +91,10 @@ The `OpponentSportingEvidence.estimate` field already uses `Decimal(4,2)`. The `
 
 - Phase 2: Live lineup state (composite transitions, position intervals)
 - Phase 3: Human after-match feedback (remove Development observations UI)
-- Phase 4: Opponent engine and historical replay
+- Phase 4: Opponent engine and historical replay — expanded and completed by ADR-0104
+  (Canonical Post-Match Learning Pipeline), which also extends the opponent engine, player
+  evidence, and combination evidence to Event matches (not only historical replay of League
+  matches, as originally scoped here)
 - Phase 5: Forward-only player evidence
 - Phase 6: Assessment history UI
 - Phase 7: Hardening and cleanup (remove dead code, parallel calculations)

@@ -118,7 +118,8 @@ export async function getFootballObservationsForPlayer(
   id: string;
   observationCode: string;
   polarity: string;
-  matchId: string;
+  matchId: string | null;
+  eventMatchId: string | null;
   note: string | null;
   observedAt: Date;
 }>> {
@@ -138,6 +139,7 @@ export async function getFootballObservationsForPlayer(
       attributeKey: true,
       direction: true,
       matchId: true,
+      eventMatchId: true,
       observableNote: true,
       observedAt: true,
     },
@@ -148,6 +150,7 @@ export async function getFootballObservationsForPlayer(
     observationCode: o.attributeKey ?? "",
     polarity: o.direction,
     matchId: o.matchId,
+    eventMatchId: o.eventMatchId,
     note: o.observableNote,
     observedAt: o.observedAt,
   }));

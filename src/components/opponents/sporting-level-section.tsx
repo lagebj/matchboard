@@ -5,7 +5,8 @@ import { formatGameFormatShort } from "@/lib/formations/types";
 
 type EvidenceRow = {
   id: string;
-  matchId: string;
+  matchId: string | null;
+  eventMatchId?: string | null;
   occurredAt: string;
   gameFormat: string | null;
   goalsFor: number;

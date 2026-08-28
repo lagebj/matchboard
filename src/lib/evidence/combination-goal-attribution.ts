@@ -1,20 +1,22 @@
 import { db } from "@/lib/db";
+import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
 
 /**
  * A single team goal, placed on the match timeline where precision allows.
  *
  * Team goals (for/against) and player attribution come from different canonical sources with
  * different guarantees:
- * - `Goal`/`Assist` (from `PostMatchReport`) are the canonical scorer/assist truth (see
- *   AGENTS.md "Canonical data truth"), but `Assist` carries no timestamp or goal linkage at all,
- *   and `Goal.minute` is coach-entered and only minute-precision.
- * - `LiveMatchEvent` rows (GOAL_FOR/GOAL_AGAINST/SCORER_SET/ASSIST_SET) carry exact
- *   `matchSeconds` when the match was live-recorded, but are a live-session projection, not the
- *   report's own canonical scorer/assist fields.
+ * - `Goal`/`Assist` (League, from `PostMatchReport`) and `EventGoalEvent`/`EventAssistEvent`
+ *   (Event, from `EventPostMatchReport`) are the canonical scorer/assist truth (see AGENTS.md
+ *   "Canonical data truth"), but assists carry no timestamp or goal linkage at all, and goal
+ *   `minute` is coach-entered and only minute-precision.
+ * - `LiveMatchEvent`/`EventLiveMatchEvent` rows (GOAL_FOR/GOAL_AGAINST/SCORER_SET/ASSIST_SET)
+ *   carry exact `matchSeconds` when the match was live-recorded, but are a live-session
+ *   projection, not the report's own canonical scorer/assist fields.
  *
  * This module only ever READS these sources to place goals on the timeline for combination
- * evidence — it never writes Goal/Assist/LiveMatchEvent, and it never invents timing precision
- * that neither source actually has.
+ * evidence — it never writes any of them, and it never invents timing precision that neither
+ * source actually has.
  */
 export type GoalAttributionEvent = {
   matchMs: number;
@@ -26,26 +28,57 @@ export type GoalAttributionEvent = {
 
 const GOAL_ASSIST_PAIRING_WINDOW_MS = 60_000;
 
-export async function getGoalAttributionEvents(matchId: string): Promise<GoalAttributionEvent[]> {
-  const liveGoalEvents = await db.liveMatchEvent.findMany({
+export async function getGoalAttributionEventsForRef(ref: FootballMatchRef): Promise<GoalAttributionEvent[]> {
+  if (ref.kind === "LEAGUE_MATCH") {
+    const liveGoalEvents = await db.liveMatchEvent.findMany({
+      where: {
+        matchId: ref.matchId,
+        eventType: { in: ["GOAL_FOR", "GOAL_AGAINST", "SCORER_SET", "ASSIST_SET"] },
+        OR: [{ correctionType: null }, { correctionType: "CORRECTION" }],
+      },
+      select: { eventType: true, playerId: true, matchSeconds: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (hasTimedGoalEvents(liveGoalEvents)) {
+      return deriveFromLiveEvents(liveGoalEvents);
+    }
+
+    const report = await db.postMatchReport.findFirst({
+      where: { matchId: ref.matchId },
+      select: { goals: { where: { minute: { not: null } }, select: { playerId: true, minute: true } } },
+    });
+    return deriveFromReportGoals(report?.goals ?? []);
+  }
+
+  const liveGoalEvents = await db.eventLiveMatchEvent.findMany({
     where: {
-      matchId,
+      eventMatchId: ref.eventMatchId,
       eventType: { in: ["GOAL_FOR", "GOAL_AGAINST", "SCORER_SET", "ASSIST_SET"] },
-      OR: [{ correctionType: null }, { correctionType: "CORRECTION" }],
+      correctionType: null,
     },
     select: { eventType: true, playerId: true, matchSeconds: true },
     orderBy: { createdAt: "asc" },
   });
 
-  const hasLiveGoalEvents = liveGoalEvents.some(
-    (e) => (e.eventType === "GOAL_FOR" || e.eventType === "GOAL_AGAINST") && e.matchSeconds !== null,
-  );
-
-  if (hasLiveGoalEvents) {
+  if (hasTimedGoalEvents(liveGoalEvents)) {
     return deriveFromLiveEvents(liveGoalEvents);
   }
 
-  return deriveFromReportGoals(matchId);
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId: ref.eventMatchId },
+    select: { goalEvents: { where: { minute: { not: null } }, select: { playerId: true, minute: true } } },
+  });
+  // Event assists have no goal linkage or timestamp either — same honest "unknown" as League.
+  return deriveFromReportGoals(report?.goalEvents ?? []);
+}
+
+function hasTimedGoalEvents(
+  events: { eventType: string; playerId: string | null; matchSeconds: number | null }[],
+): boolean {
+  return events.some(
+    (e) => (e.eventType === "GOAL_FOR" || e.eventType === "GOAL_AGAINST") && e.matchSeconds !== null,
+  );
 }
 
 function deriveFromLiveEvents(
@@ -97,18 +130,10 @@ function deriveFromLiveEvents(
   return results;
 }
 
-async function deriveFromReportGoals(matchId: string): Promise<GoalAttributionEvent[]> {
-  const report = await db.postMatchReport.findFirst({
-    where: { matchId },
-    select: { id: true, goals: { where: { minute: { not: null } }, select: { playerId: true, minute: true } } },
-  });
-
-  if (!report) return [];
-
-  // Assist has no timestamp or goal linkage in the canonical schema (see AGENTS.md "Canonical
-  // data truth") — direct assist contribution cannot be time-correlated to a segment from this
-  // source. Leaving assistPlayerId null here is the honest "unknown", not a guess.
-  return report.goals.map((g) => ({
+function deriveFromReportGoals(
+  goals: Array<{ playerId: string | null; minute: number | null }>,
+): GoalAttributionEvent[] {
+  return goals.map((g) => ({
     matchMs: g.minute! * 60_000,
     team: "FOR" as const,
     scorerPlayerId: g.playerId,

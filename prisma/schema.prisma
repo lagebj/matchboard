@@ -708,7 +708,8 @@ model PostMatchPlayerActual {
 model ActualPositionInterval {
   id              String   @id @default(cuid())
   organisationId  String
-  matchId         String
+  matchId         String?
+  eventMatchId    String?
   playerId        String
   position        String
   line            String?
@@ -720,12 +721,17 @@ model ActualPositionInterval {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match         Match?        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch    EventMatch?   @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   player        Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
   organisation  Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint
+  // added by hand to the generated migration SQL (Prisma cannot express this).
   @@index([matchId, playerId])
   @@index([matchId, startedAtMs])
+  @@index([eventMatchId, playerId])
+  @@index([eventMatchId, startedAtMs])
   @@index([organisationId])
 }
 
@@ -1337,6 +1343,11 @@ model EventMatch {
 
   liveSession EventLiveMatchSession?
   liveEvents  EventLiveMatchEvent[]
+
+  actualPositionIntervals ActualPositionInterval[]
+  opponentSportingEvidence OpponentSportingEvidence?
+  combinationEvidence      CombinationEvidence[]
+  developmentObservations  PlayerDevelopmentObservation[]
 
   @@index([eventId])
   @@index([eventSquadId])
@@ -2368,7 +2379,8 @@ model PolicyDecisionLog {
 model CombinationEvidence {
   id                        String               @id @default(cuid())
   organisationId            String
-  matchId                   String
+  matchId                   String?
+  eventMatchId              String?
   family                    String
   subtype                   String?
   playerIds                  Json
@@ -2385,12 +2397,19 @@ model CombinationEvidence {
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
 
-  match          Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match          Match?         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch     EventMatch?    @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   leagueSeason   LeagueSeason   @relation(fields: [leagueSeasonId], references: [id])
   organisation   Organisation?  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint
+  // added by hand to the generated migration SQL (Prisma cannot express this).
+  // leagueSeasonId is "evidence season" context for both sources (resolved for Event
+  // matches via footballGroupId + date-range match), not League competition membership.
   @@index([matchId, family])
   @@index([matchId, playerIds])
+  @@index([eventMatchId, family])
+  @@index([eventMatchId, playerIds])
   @@index([leagueSeasonId])
   @@index([organisationId])
 }
@@ -2398,7 +2417,8 @@ model CombinationEvidence {
 model OpponentSportingEvidence {
   id                    String                  @id @default(cuid())
   organisationId        String
-  matchId               String                  @unique
+  matchId               String?                 @unique
+  eventMatchId          String?                 @unique
   opponentTeamId        String
   occurredAt            DateTime
   gameFormat            GameFormat?
@@ -2420,10 +2440,15 @@ model OpponentSportingEvidence {
   fieldedRatingDetails  Json?
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
-  match                 Match                   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match                 Match?                  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch            EventMatch?             @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   opponentTeam          OpponentTeam            @relation(fields: [opponentTeamId], references: [id])
   organisation          Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
+  // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint
+  // added by hand to the generated migration SQL (Prisma cannot express this). Each
+  // column keeps its own @unique (Postgres allows multiple NULLs per unique index), so
+  // idempotent upsert-by-source-match still works for both sources independently.
   @@index([opponentTeamId, occurredAt])
   @@index([opponentTeamId, gameFormat, occurredAt])
   @@index([organisationId])
@@ -2457,7 +2482,8 @@ model PlayerDevelopmentObservation {
   organisationId     String
   playerId           String
   sourceType         DevelopmentObservationSource      @default(LEAGUE_MATCH)
-  matchId            String
+  matchId            String?
+  eventMatchId       String?
   kind               DevelopmentObservationKind
   attributeKey       String?
   positionId         String?
@@ -2468,13 +2494,19 @@ model PlayerDevelopmentObservation {
   createdAt          DateTime                          @default(now())
   updatedAt          DateTime                          @updatedAt
   player             Player                            @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  match              Match                             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match              Match?                            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch         EventMatch?                       @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   organisation       Organisation?                     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   suggestionEvidence PlayerProfileSuggestionEvidence[]
 
+  // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint
+  // added by hand to the generated migration SQL (Prisma cannot express this).
+  // sourceType mirrors whichever FK is set (kept as an explicit, queryable column
+  // rather than derived, since it predates this generalization).
   @@index([playerId, attributeKey, observedAt])
   @@index([playerId, positionId, observedAt])
   @@index([matchId])
+  @@index([eventMatchId])
   @@index([organisationId])
   @@index([recordedBy])
 }

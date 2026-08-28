@@ -4,6 +4,7 @@ import {
   type ConfidenceLevel,
   deriveConfidence,
 } from "./combination-topology";
+import type { FootballMatchRef } from "./football-match-ref";
 
 export type SeasonCombinationSummary = {
   playerIds: string[];
@@ -22,12 +23,14 @@ export type SeasonCombinationSummary = {
 };
 
 export async function persistMatchCombinationEvidence(
-  matchId: string,
+  ref: FootballMatchRef,
   evidence: CombinationEvidenceRow[],
 ): Promise<void> {
+  const deleteWhere = ref.kind === "LEAGUE_MATCH" ? { matchId: ref.matchId } : { eventMatchId: ref.eventMatchId };
+
   await db.$transaction(async (tx) => {
     await tx.combinationEvidence.deleteMany({
-      where: { matchId },
+      where: deleteWhere,
     });
 
     if (evidence.length > 0) {
@@ -36,6 +39,7 @@ export async function persistMatchCombinationEvidence(
           id: row.id,
           organisationId: row.organisationId,
           matchId: row.matchId,
+          eventMatchId: row.eventMatchId,
           family: row.family,
           subtype: row.subtype,
           playerIds: row.playerIds,
@@ -62,6 +66,7 @@ function mapCombinationEvidenceRow(r: CombinationEvidenceDbRow): CombinationEvid
     id: r.id,
     organisationId: r.organisationId,
     matchId: r.matchId,
+    eventMatchId: r.eventMatchId,
     family: r.family as CombinationEvidenceRow["family"],
     subtype: r.subtype as CombinationEvidenceRow["subtype"],
     playerIds: r.playerIds as string[],
@@ -84,6 +89,14 @@ export async function getMatchCombinationEvidence(
 ): Promise<CombinationEvidenceRow[]> {
   const rows = await db.combinationEvidence.findMany({
     where: { matchId },
+  });
+
+  return rows.map(mapCombinationEvidenceRow);
+}
+
+export async function getMatchCombinationEvidenceForRef(ref: FootballMatchRef): Promise<CombinationEvidenceRow[]> {
+  const rows = await db.combinationEvidence.findMany({
+    where: ref.kind === "LEAGUE_MATCH" ? { matchId: ref.matchId } : { eventMatchId: ref.eventMatchId },
   });
 
   return rows.map(mapCombinationEvidenceRow);
@@ -133,7 +146,9 @@ export async function getSeasonCombinationEvidenceWithOpponents(
 
   const evidence: CombinationEvidenceRow[] = rows.map(mapCombinationEvidenceRow);
 
-  const matchIds = [...new Set(evidence.map((r) => r.matchId))];
+  // Event rows have matchId === null (they key on eventMatchId instead) -- excluded here
+  // pending a later PR that also resolves Event opponent history for this read path.
+  const matchIds = [...new Set(evidence.map((r) => r.matchId).filter((id): id is string => id !== null))];
   const opponentByMatch = new Map<string, string>();
 
   if (matchIds.length > 0) {
@@ -186,7 +201,7 @@ export function aggregateSeasonCombinations(
       }
       existing.anyApproximateTiming = existing.anyApproximateTiming || row.approximateTiming;
       if (opponentByMatch) {
-        const opp = opponentByMatch.get(row.matchId);
+        const opp = row.matchId ? opponentByMatch.get(row.matchId) : undefined;
         if (opp) existing.opponentSet.add(opp);
       }
     } else {
@@ -205,7 +220,7 @@ export function aggregateSeasonCombinations(
         anyApproximateTiming: row.approximateTiming,
       };
       if (opponentByMatch) {
-        const opp = opponentByMatch.get(row.matchId);
+        const opp = row.matchId ? opponentByMatch.get(row.matchId) : undefined;
         if (opp) agg.opponentSet.add(opp);
       }
       aggregates.set(key, agg);
@@ -241,14 +256,14 @@ export function aggregateSeasonCombinations(
 }
 
 export async function rebuildMatchCombinationEvidence(
-  matchId: string,
+  ref: FootballMatchRef,
   leagueSeasonId: string,
 ): Promise<{ intervalsCreated: number; evidenceCreated: number }> {
   const { computeMatchCombinationEvidence } = await import("./combination-topology");
 
-  const combinations = await computeMatchCombinationEvidence(matchId, leagueSeasonId);
+  const combinations = await computeMatchCombinationEvidence(ref, leagueSeasonId);
 
-  await persistMatchCombinationEvidence(matchId, combinations);
+  await persistMatchCombinationEvidence(ref, combinations);
 
   return {
     intervalsCreated: 0,

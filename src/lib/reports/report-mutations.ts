@@ -709,36 +709,14 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
     const { requireActorContext } = await import("@/lib/auth/actor-context");
     const ctx = await requireActorContext();
     setTenantOrganisationId(ctx.organisationId);
-    const { recordOpponentSportingEvidence } = await import("@/lib/opponents/sporting-level-recording");
-    await recordOpponentSportingEvidence(report.matchId, ctx.orgFilter);
+    const { buildLeagueMatchRef } = await import("@/lib/evidence/adapters/league-evidence-adapter");
+    const { runPostMatchLearning } = await import("@/lib/evidence/post-match-learning");
+    const ref = await buildLeagueMatchRef(report.matchId);
+    await runPostMatchLearning(ref, ctx.orgFilter);
   } catch {
-    // Sporting evidence recording must not block report completion
-  }
-
-  try {
-    const { computeAndApplyPlayerEvidenceForMatch } = await import("@/lib/evidence/player-evidence-service");
-    await computeAndApplyPlayerEvidenceForMatch(report.matchId);
-  } catch {
-    // Player evidence assessment must not block report completion
-  }
-
-  try {
-    const { rebuildMatchCombinationEvidence } = await import("@/lib/evidence/combination-aggregation");
-    const match = await db.match.findUnique({
-      where: { id: report.matchId },
-      select: { matchRoundId: true },
-    });
-    if (match?.matchRoundId) {
-      const round = await db.matchRound.findUnique({
-        where: { id: match.matchRoundId },
-        select: { leagueSeasonId: true },
-      });
-      if (round?.leagueSeasonId) {
-        await rebuildMatchCombinationEvidence(report.matchId, round.leagueSeasonId);
-      }
-    }
-  } catch {
-    // Combination evidence rebuild must not block report completion
+    // Post-match learning (opponent/player/combination evidence) must not block report
+    // completion — see ADR-0104. Failures are surfaced via runPostMatchLearning's own
+    // structured result to callers that want it, not by throwing here.
   }
 
   return { success: true, matchId: report.matchId };
