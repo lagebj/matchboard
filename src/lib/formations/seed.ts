@@ -1,10 +1,21 @@
 import { db } from "@/lib/db";
+import { getTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { SYSTEM_FORMATIONS } from "./system-formations";
 
 export async function seedSystemFormations() {
+  // The tenantRLS extension (db.ts) only injects organisationId into a create's top-level
+  // `data`, never into nested relation writes (`slots: { create: [...] }`) -- FormationSlot
+  // also requires organisationId, so it must be passed explicitly here or every nested slot
+  // create fails its NOT NULL constraint. See ADR-0057's "Prisma where-clause injection".
+  const organisationId = getTenantOrganisationId();
+  if (!organisationId) {
+    throw new Error("seedSystemFormations() requires tenant context (setTenantOrganisationId) to be set.");
+  }
+
   for (const formation of SYSTEM_FORMATIONS) {
     const existing = await db.formation.findFirst({
       where: {
+        organisationId,
         name: formation.name,
         gameFormat: formation.gameFormat,
         source: "SYSTEM",
@@ -18,6 +29,7 @@ export async function seedSystemFormations() {
 
     const created = await db.formation.create({
       data: {
+        organisationId,
         name: formation.name,
         gameFormat: formation.gameFormat,
         source: "SYSTEM",
@@ -25,6 +37,7 @@ export async function seedSystemFormations() {
         isArchived: false,
         slots: {
           create: formation.slots.map((slot) => ({
+            organisationId,
             gridX: slot.gridX,
             gridY: slot.gridY,
             label: slot.label,

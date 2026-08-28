@@ -4,9 +4,18 @@ export function isCspReportOnly(): boolean {
   return !isCspEnforceEnabled();
 }
 
-export function getContentSecurityPolicy(): { header: string; value: string } {
+export function getContentSecurityPolicy(pathname?: string): { header: string; value: string } {
   const isDev = isDevelopment();
   const reportOnly = isCspReportOnly();
+
+  // The public docs route is embedded same-origin inside the authenticated Help drawer
+  // (help-drawer.tsx, ADR-0103) via an <iframe>. `frame-ancestors 'none'` (below) is the
+  // right default everywhere else -- it is Matchboard's clickjacking protection for every
+  // authenticated application route, which must never be embeddable. /docs/** is the one
+  // narrow, deliberate exception: it carries no tenant/session data of its own (PUBLIC_ROUTES,
+  // src/lib/env.ts), so allowing it to be framed by this same origin only ('self', not '*')
+  // does not weaken protection for any other route.
+  const isDocsRoute = pathname === "/docs" || pathname?.startsWith("/docs/");
 
   const directives = [
     "default-src 'self'",
@@ -28,8 +37,8 @@ export function getContentSecurityPolicy(): { header: string; value: string } {
     // realtime-first path (Stage 5) was attempted. Both hostnames are allowed unconditionally
     // (harmless in either environment) rather than branching on isDev/isCspEnforceEnabled.
     "connect-src 'self' https://vercel.live wss://vercel.live wss://realtime.matchboard.football wss://realtime-test.matchboard.football",
-    "frame-src https://vercel.live",
-    "frame-ancestors 'none'",
+    "frame-src 'self' https://vercel.live",
+    isDocsRoute ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",

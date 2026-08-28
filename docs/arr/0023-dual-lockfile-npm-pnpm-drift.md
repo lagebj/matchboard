@@ -163,6 +163,18 @@ configuration this session cannot safely guess at — confirmed by getting it wr
 
 ### 2026-08-28
 
+Recurred exactly as predicted: PR #365 (`user-documentation-experience`) added
+`fumadocs-core`/`fumadocs-mdx`/`fumadocs-ui` via `npm install`, updating `package-lock.json`
+only. Both Vercel preview checks (`matchboard`, `matchboard-test`) failed with
+`ERR_PNPM_OUTDATED_LOCKFILE` under `--frozen-lockfile`. Contained the same way as before —
+`pnpm install --lockfile-only` to resync `pnpm-lock.yaml` against the current `package.json`,
+committed separately from the dependency-adding commit for a clear, revertible diff. No new
+containment technique was needed; this simply confirms the ARR's own prediction that nothing in
+the documented `npm run ...` workflow prompts for this step, so it will keep recurring on every
+PR that changes dependencies until the underlying resolution criteria are actually decided.
+
+### 2026-08-28 (later the same day): resolved
+
 Resolved. This session had direct Vercel API access (not available in the 2026-08-22/23 passes),
 so instead of guessing, checked `GET /v9/projects/{id}` for both `matchboard` and
 `matchboard-test`: `installCommand: null` on both — settling the open question definitively.

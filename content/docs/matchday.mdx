@@ -1,0 +1,44 @@
+---
+title: Matchday
+description: Live reporting on match day — score, clock, and events as they happen.
+---
+
+## What
+
+Live reporting is a real-time matchday screen for recording the score, match clock, goals,
+assists, and substitutions as the match happens, plus a read-only "Follow live" view a second
+coach can open without any recording controls.
+
+## Why
+
+Recording events as they happen is more accurate than reconstructing them afterwards, and it is
+what makes the actual account of the match — not just the plan — available to
+[post-match reporting](/docs/post-match) and later history. See
+[Working with Matchboard](/docs/core-concepts/working-with-matchboard) for why this matters
+beyond the day itself.
+
+## How
+
+Before kickoff, the pre-match package shows the finalized squad, starting lineup, and any
+League helpers added for the match. During the match, the reporting coach records goals,
+assists, substitutions, and position changes against a running clock. A second coach with
+access to the same team can open **Follow live** to watch the same events update in real time —
+it never exposes any recording control, only the score, clock, and event stream.
+
+## Example
+
+During Fjordvik Rød's match against Bergstad IF, the coach records a goal for Elias Storm in
+the 34th minute, then a planned rotation change at half-time. A parent-side assistant coach
+opens Follow live on their own device to watch the score update without being able to record
+anything themselves.
+
+## What Matchboard does next
+
+Ending the live session seeds the [post-match report](/docs/post-match) directly from what was
+recorded — attendance, goals, assists, and position history do not need to be re-entered by
+hand.
+
+## Related
+
+- [Rotations](/docs/rotations)
+- [Post-match](/docs/post-match)

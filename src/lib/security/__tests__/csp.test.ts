@@ -37,7 +37,19 @@ describe("CSP configuration", () => {
     const csp = getContentSecurityPolicy();
     expect(csp.value).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live");
     expect(csp.value).toContain("connect-src 'self' https://vercel.live wss://vercel.live");
-    expect(csp.value).toContain("frame-src https://vercel.live");
+    expect(csp.value).toContain("frame-src 'self' https://vercel.live");
+  });
+
+  it("allows /docs/** to be framed same-origin for the in-app Help drawer (ADR-0103), but keeps every other route un-framable", () => {
+    const appCsp = getContentSecurityPolicy("/o/fjordvik-fk/today");
+    expect(appCsp.value).toContain("frame-ancestors 'none'");
+
+    const docsCsp = getContentSecurityPolicy("/docs/today");
+    expect(docsCsp.value).toContain("frame-ancestors 'self'");
+    expect(docsCsp.value).not.toContain("frame-ancestors 'none'");
+
+    const docsRootCsp = getContentSecurityPolicy("/docs");
+    expect(docsRootCsp.value).toContain("frame-ancestors 'self'");
   });
 
   it("allows the live-match-realtime Cloudflare Worker WebSocket origins (2026-08-24 regression — CSP silently blocked every realtime connection, both prod and test)", () => {

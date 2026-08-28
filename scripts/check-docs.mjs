@@ -11,6 +11,9 @@
  *   - Obvious references to removed canonical terms (basic)
  *   - ADR supersession-link consistency where practical
  *   - Empty documentation directories
+ *   - Public docs (content/docs/**\/*.mdx, ADR-0103): required frontmatter, internal /docs
+ *     links resolve to a real page, referenced screenshots exist, no orphaned screenshot
+ *     assets, and every contextual-Help target resolves to a real page
  *
  * Usage:
  *   node scripts/check-docs.mjs
@@ -199,6 +202,149 @@ function checkPrimaryNavConsistency() {
   return issues;
 }
 
+const DOCS_CONTENT_DIR = join(REPO_ROOT, "content/docs");
+const DOCS_SCREENSHOTS_DIR = join(REPO_ROOT, "public/docs/screenshots");
+
+/** Resolve a "/docs/a/b" URL path to its content/docs/**\/*.mdx source file, if any. */
+function resolveDocsPathToFile(docsPath) {
+  const slug = docsPath.replace(/^\/docs\/?/, "");
+  if (slug === "") return join(DOCS_CONTENT_DIR, "index.mdx");
+  return join(DOCS_CONTENT_DIR, `${slug}.mdx`);
+}
+
+function listMdxFiles(dir) {
+  const results = [];
+  if (!existsSync(dir)) return results;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...listMdxFiles(fullPath));
+    } else if (entry.name.endsWith(".mdx")) {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
+function checkPublicDocsFrontmatter(mdxFiles) {
+  const issues = [];
+  for (const file of mdxFiles) {
+    const content = readFileSync(file, "utf-8");
+    const relPath = relative(REPO_ROOT, file);
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!frontmatterMatch) {
+      issues.push({ file: relPath, line: 1, message: "Missing frontmatter (requires title and description)." });
+      continue;
+    }
+    const frontmatter = frontmatterMatch[1];
+    if (!/^title:\s*\S/m.test(frontmatter)) {
+      issues.push({ file: relPath, line: 1, message: "Frontmatter is missing a non-empty title." });
+    }
+    if (!/^description:\s*\S/m.test(frontmatter)) {
+      issues.push({ file: relPath, line: 1, message: "Frontmatter is missing a non-empty description." });
+    }
+  }
+  return issues;
+}
+
+function checkPublicDocsInternalLinks(mdxFiles) {
+  const issues = [];
+  for (const file of mdxFiles) {
+    const content = readFileSync(file, "utf-8");
+    const relPath = relative(REPO_ROOT, file);
+    // Excludes image syntax (![alt](/docs/screenshots/...)) -- those are content assets,
+    // validated separately by checkDocsScreenshots, not internal navigation links.
+    const linkPattern = /[^!]\]\((\/docs[^)#?]*)/g;
+    let match;
+    while ((match = linkPattern.exec(content)) !== null) {
+      const target = match[1];
+      if (target.startsWith("/docs/screenshots/")) continue;
+      const targetFile = resolveDocsPathToFile(target);
+      if (!existsSync(targetFile)) {
+        issues.push({
+          file: relPath,
+          line: content.substring(0, match.index).split("\n").length,
+          message: `Internal docs link ${target} does not resolve to a content/docs page (expected ${relative(REPO_ROOT, targetFile)}).`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+/** Missing referenced screenshots fail; unreferenced screenshot files are reported as orphans. */
+function checkDocsScreenshots(mdxFiles) {
+  const issues = [];
+  const referenced = new Set();
+
+  for (const file of mdxFiles) {
+    const content = readFileSync(file, "utf-8");
+    const relPath = relative(REPO_ROOT, file);
+    const imagePattern = /!\[[^\]]*\]\((\/docs\/screenshots\/[^)]+)\)/g;
+    let match;
+    while ((match = imagePattern.exec(content)) !== null) {
+      const target = match[1];
+      referenced.add(target);
+      const targetFile = join(REPO_ROOT, "public", target);
+      if (!existsSync(targetFile)) {
+        issues.push({
+          file: relPath,
+          line: content.substring(0, match.index).split("\n").length,
+          message: `Referenced screenshot ${target} does not exist. Run \`npm run docs:screenshots\`.`,
+        });
+      }
+    }
+  }
+
+  if (existsSync(DOCS_SCREENSHOTS_DIR)) {
+    const walk = (dir) => {
+      const out = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) out.push(...walk(fullPath));
+        else out.push(fullPath);
+      }
+      return out;
+    };
+    for (const filePath of walk(DOCS_SCREENSHOTS_DIR)) {
+      const publicRelative = "/" + relative(join(REPO_ROOT, "public"), filePath);
+      if (!referenced.has(publicRelative)) {
+        issues.push({
+          file: relative(REPO_ROOT, filePath),
+          line: 0,
+          message: `Screenshot asset is not referenced by any content/docs page (orphan). Reference it, or delete it if it is no longer needed.`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/** Every HelpContextId in src/lib/help/help-context.ts must point at a real docs page. */
+function checkHelpContextTargets() {
+  const issues = [];
+  const helpContextPath = join(REPO_ROOT, "src/lib/help/help-context.ts");
+  if (!existsSync(helpContextPath)) return issues;
+
+  const content = readFileSync(helpContextPath, "utf-8");
+  const relPath = relative(REPO_ROOT, helpContextPath);
+  const docsPathPattern = /docsPath:\s*"(\/docs[^"]*)"/g;
+  let match;
+  while ((match = docsPathPattern.exec(content)) !== null) {
+    const target = match[1];
+    const targetFile = resolveDocsPathToFile(target);
+    if (!existsSync(targetFile)) {
+      issues.push({
+        file: relPath,
+        line: content.substring(0, match.index).split("\n").length,
+        message: `Help target ${target} does not resolve to a content/docs page (expected ${relative(REPO_ROOT, targetFile)}).`,
+      });
+    }
+  }
+  return issues;
+}
+
 function main() {
   const allIssues = [];
 
@@ -223,6 +369,13 @@ function main() {
 
   // Empty directories
   allIssues.push(...docsResult.issues);
+
+  // Public documentation (content/docs/**/*.mdx, ADR-0103)
+  const publicDocsFiles = listMdxFiles(DOCS_CONTENT_DIR);
+  allIssues.push(...checkPublicDocsFrontmatter(publicDocsFiles));
+  allIssues.push(...checkPublicDocsInternalLinks(publicDocsFiles));
+  allIssues.push(...checkDocsScreenshots(publicDocsFiles));
+  allIssues.push(...checkHelpContextTargets());
 
   if (allIssues.length === 0) {
     console.log("✓ No documentation issues found.");
