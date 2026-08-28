@@ -2,14 +2,14 @@
 
 ## State
 
-Resolved 2026-08-28 (pending final real-deployment confirmation via this fix's own PR — see
-History). Confirmed directly via the Vercel Projects API that `installCommand` was `null` on
-both `matchboard` and `matchboard-test` — pnpm was never a deliberate choice, only Vercel's
-lockfile-presence auto-detection (the open question the 2026-08-22/23 passes below could not
-settle from this environment). Fixed at the actual root cause: both projects' Install Command is
-now explicitly `npm ci`, and `pnpm-lock.yaml`/`pnpm-workspace.yaml` are removed from the
-repository and gitignored again, so there is exactly one lockfile and one dependency-resolution
-source of truth.
+Resolved and confirmed 2026-08-28. Confirmed directly via the Vercel Projects API that
+`installCommand` was `null` on both `matchboard` and `matchboard-test` — pnpm was never a
+deliberate choice, only Vercel's lockfile-presence auto-detection (the open question the
+2026-08-22/23 passes below could not settle from this environment). Fixed at the actual root
+cause: both projects' Install Command is now explicitly `npm ci`, and
+`pnpm-lock.yaml`/`pnpm-workspace.yaml` are removed from the repository and gitignored again, so
+there is exactly one lockfile and one dependency-resolution source of truth. Confirmed live via
+PR #366's Vercel preview build logs — see History.
 
 ## Identified
 
@@ -113,9 +113,8 @@ projects. Setting `installCommand: "npm ci"` explicitly (Vercel Projects API) re
 the build regardless of which lockfiles are present in the repo, then `pnpm-lock.yaml`/
 `pnpm-workspace.yaml` were deleted and gitignored so the underlying ambiguity (two lockfiles, two
 resolution algorithms, silent drift) cannot recur. Verification: full `npm run validate` passes
-locally with `pnpm-lock.yaml` absent; a real Vercel deployment from this fix's own PR is the
-final proof this session can observe — see History for the outcome once that deployment
-completes.
+locally with `pnpm-lock.yaml` absent; PR #366's Vercel preview build logs confirm `npm ci` runs
+in production/preview builds with no pnpm step anywhere — see History.
 
 ## Related decisions
 
@@ -192,3 +191,13 @@ landed in the same pass while re-verifying the dependency tree).
 Final confirmation is this fix's own PR: a real Vercel preview deployment either shows the build
 log running `npm ci` and succeeding, or it doesn't — that observation is the last open item
 before this ARR can be considered fully closed rather than resolved-pending-verification.
+
+**Confirmed.** PR #366's preview deployments for both `matchboard` and `matchboard-test`
+succeeded. `matchboard`'s build log (`dpl` for commit `045c79b`) shows explicitly:
+
+```
+Skipping build cache since Package Manager changed from "pnpm" to "npm"
+Running "install" command: `npm ci`...
+```
+
+No pnpm step anywhere in the build. This ARR is fully closed — not just contained, resolved.
