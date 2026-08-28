@@ -88,11 +88,16 @@ export function EventMatchLineupPanel({
   squadPlayers,
   gameFormat,
   helperPlayers,
+  effectiveFormationId,
 }: {
   eventMatchId: string;
   squadPlayers: PoolPlayer[];
   gameFormat: string;
   helperPlayers?: PoolPlayer[];
+  /** The squad's own formation, or the Event default -- see getEffectiveEventSquadFormationId
+   * (event-types.ts). Preferred over `formations[0]` when creating a lineup with no explicit
+   * coach choice. */
+  effectiveFormationId?: string | null;
 }) {
   const [lineup, setLineup] = useState<LineupData | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -357,9 +362,14 @@ export function EventMatchLineupPanel({
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
           <button
-            onClick={() => handleCreate(formations[0]?.id)}
+            onClick={() => handleCreate(
+              (effectiveFormationId && formations.some((f) => f.id === effectiveFormationId))
+                ? effectiveFormationId
+                : formations[0]?.id,
+            )}
             disabled={isPending || formations.length === 0}
             className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+            title="Uses the squad's own formation, or the Event default, when set"
           >
             Create lineup
           </button>

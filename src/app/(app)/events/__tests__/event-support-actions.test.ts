@@ -675,4 +675,154 @@ describe("Event support actions", () => {
       expect(candidate?.unavailableReason).toBe("Own squad has overlapping match");
     });
   });
+
+  describe("per-squad match timing overrides (7v7 2x17+1min break vs 9v9 2x20+1min break)", () => {
+    it("resolves each squad's helper-overlap window from its OWN override, not the event default or the other squad's", async () => {
+      const event = await testDb.event.create({
+        data: {
+          name: "Mixed Format Cup",
+          eventType: "CUP",
+          startsAt: new Date("2026-07-01T10:00:00Z"),
+          gameFormat: "SEVEN_A_SIDE",
+          matchDurationMinutes: 25,
+          numberOfHalves: 1,
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
+          squads: {
+            create: [
+              {
+                name: "7v7 Squad",
+                intent: "BALANCED",
+                targetSize: 7,
+                generationOrder: 0,
+                organisationId: fixture.organisationId,
+                gameFormatOverride: "SEVEN_A_SIDE",
+                numberOfHalvesOverride: 2,
+                matchDurationMinutesOverride: 17,
+                breakDurationMinutesOverride: 1,
+              },
+              {
+                name: "9v9 Squad",
+                intent: "BALANCED",
+                targetSize: 9,
+                generationOrder: 1,
+                organisationId: fixture.organisationId,
+                gameFormatOverride: "NINE_A_SIDE",
+                numberOfHalvesOverride: 2,
+                matchDurationMinutesOverride: 20,
+                breakDurationMinutesOverride: 1,
+              },
+            ],
+          },
+        },
+        include: { squads: true },
+      });
+      const squad7v7 = event.squads.find((s) => s.name === "7v7 Squad")!;
+      const squad9v9 = event.squads.find((s) => s.name === "9v9 Squad")!;
+
+      // 7v7 squad's real window: 2x17+1 break = 35 min -> 10:00-10:35.
+      await testDb.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad7v7.id,
+          opponentName: "Opponent A",
+          startsAt: new Date("2026-07-01T10:00:00Z"),
+          organisationId: fixture.organisationId,
+        },
+      });
+      // 9v9 squad's match starts at 10:36 -- one minute AFTER the 7v7 squad's real 35-minute
+      // window ends. If the resolver incorrectly applied the 9v9 squad's own 41-minute window
+      // (2x20+1) to the 7v7 match instead, or applied the event-level default duration (25 min,
+      // giving 10:00-10:25) to either match, the overlap outcome would differ from reality.
+      const match9v9 = await testDb.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad9v9.id,
+          opponentName: "Opponent B",
+          startsAt: new Date("2026-07-01T10:36:00Z"),
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      const playerId = fixture.players[0]!.id;
+      await addPlayerToEventAndSquad(testDb, event.id, squad7v7.id, playerId);
+
+      const candidates = await getSupportCandidatesForMatchAction(match9v9.id);
+      const candidate = candidates.find((c) => c.playerId === playerId);
+
+      expect(candidate?.available).toBe(true);
+    });
+
+    it("blocks the helper once the source squad's own override window actually overlaps", async () => {
+      const event = await testDb.event.create({
+        data: {
+          name: "Mixed Format Cup Overlap",
+          eventType: "CUP",
+          startsAt: new Date("2026-07-01T10:00:00Z"),
+          gameFormat: "SEVEN_A_SIDE",
+          matchDurationMinutes: 25,
+          numberOfHalves: 1,
+          organisationId: fixture.organisationId,
+          footballGroupId: fixture.footballGroupId,
+          squads: {
+            create: [
+              {
+                name: "7v7 Squad",
+                intent: "BALANCED",
+                targetSize: 7,
+                generationOrder: 0,
+                organisationId: fixture.organisationId,
+                numberOfHalvesOverride: 2,
+                matchDurationMinutesOverride: 17,
+                breakDurationMinutesOverride: 1,
+              },
+              {
+                name: "9v9 Squad",
+                intent: "BALANCED",
+                targetSize: 9,
+                generationOrder: 1,
+                organisationId: fixture.organisationId,
+                numberOfHalvesOverride: 2,
+                matchDurationMinutesOverride: 20,
+                breakDurationMinutesOverride: 1,
+              },
+            ],
+          },
+        },
+        include: { squads: true },
+      });
+      const squad7v7 = event.squads.find((s) => s.name === "7v7 Squad")!;
+      const squad9v9 = event.squads.find((s) => s.name === "9v9 Squad")!;
+
+      // 7v7 squad's real window: 10:00-10:35 (2x17+1 break).
+      await testDb.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad7v7.id,
+          opponentName: "Opponent A",
+          startsAt: new Date("2026-07-01T10:00:00Z"),
+          organisationId: fixture.organisationId,
+        },
+      });
+      // 9v9 match starts at 10:30 -- inside the 7v7 squad's real 10:00-10:35 window.
+      const match9v9 = await testDb.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad9v9.id,
+          opponentName: "Opponent B",
+          startsAt: new Date("2026-07-01T10:30:00Z"),
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      const playerId = fixture.players[0]!.id;
+      await addPlayerToEventAndSquad(testDb, event.id, squad7v7.id, playerId);
+
+      const candidates = await getSupportCandidatesForMatchAction(match9v9.id);
+      const candidate = candidates.find((c) => c.playerId === playerId);
+
+      expect(candidate?.available).toBe(false);
+      expect(candidate?.unavailableReason).toBe("Own squad has overlapping match");
+    });
+  });
 });

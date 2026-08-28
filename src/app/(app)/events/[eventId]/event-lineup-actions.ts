@@ -6,6 +6,7 @@ import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
 import { assertEligibleEventMatchPlayer } from '@/lib/events/event-match-eligibility';
+import { getEffectiveEventSquadFormationId } from '@/lib/events/event-types';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
@@ -82,7 +83,19 @@ export async function createEventMatchLineup(input: {
     return existing;
   }
 
-  const formationId = input.formationId ?? null;
+  let formationId = input.formationId ?? null;
+  if (!formationId) {
+    const matchContext = await db.eventMatch.findUnique({
+      where: { id: input.eventMatchId },
+      select: {
+        event: { select: { defaultFormationId: true } },
+        eventSquad: { select: { formationId: true } },
+      },
+    });
+    if (matchContext) {
+      formationId = getEffectiveEventSquadFormationId(matchContext.event, matchContext.eventSquad ?? { formationId: null });
+    }
+  }
 
   let formationSlots: { id: string; gridX: number; gridY: number; roleType: FormationSlotRoleType; acceptedPositionIds: string[]; sortOrder: number }[] = [];
 

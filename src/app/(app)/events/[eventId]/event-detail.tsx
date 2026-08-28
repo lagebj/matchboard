@@ -18,6 +18,7 @@ import {
   updateEventSquadAction,
   updateEventMatchDurationAction,
   updateEventNumberOfHalvesAction,
+  updateEventBreakDurationAction,
 } from '../actions';
 import { finalizeEventAction, unfinalizeEventAction } from '../event-finalization-actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
@@ -50,12 +51,22 @@ type EventSquad = {
   maxSize: number | null;
   formationId: string | null;
   formationName: string | null;
+  /** Resolved formationId ?? Event default -- see getEffectiveEventSquadFormationId (event-types.ts). */
+  effectiveFormationId: string | null;
   formationSlots: FormationSlotDisplay[];
   generationOrder: number;
   /** Effective game format (production consistency pass item #4): gameFormatOverride if set,
    * otherwise the Event default. gameFormatOverride is the raw override, null = inherits. */
   gameFormatOverride: string | null;
   effectiveGameFormat: string;
+  /** Per-squad match timing overrides: null = inherits the Event default, a set value overrides
+   * it for this squad only. Effective* fields are already fully resolved. */
+  numberOfHalvesOverride: number | null;
+  matchDurationMinutesOverride: number | null;
+  breakDurationMinutesOverride: number | null;
+  effectiveNumberOfHalves: number;
+  effectiveMatchDurationMinutes: number | null;
+  effectiveBreakDurationMinutes: number | null;
   players: {
     id: string;
     playerId: string;
@@ -151,6 +162,7 @@ type EventDetailData = {
   gameFormat: string;
   matchDurationMinutes: number | null;
   numberOfHalves: number;
+  breakDurationMinutes: number | null;
   selectionPattern: string | null;
   notes: string | null;
   defaultFormationId: string | null;
@@ -228,6 +240,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [durationValue, setDurationValue] = useState('');
   const [localDuration, setLocalDuration] = useState<number | null | undefined>(undefined);
   const [localNumberOfHalves, setLocalNumberOfHalves] = useState<number | undefined>(undefined);
+  const [editingBreak, setEditingBreak] = useState(false);
+  const [breakValue, setBreakValue] = useState('');
+  const [localBreak, setLocalBreak] = useState<number | null | undefined>(undefined);
+  const [editingSquadTargetSize, setEditingSquadTargetSize] = useState<string | null>(null);
+  const [editingSquadTargetSizeValue, setEditingSquadTargetSizeValue] = useState('');
 
   const isFinalized = data.status === 'FINALIZED';
 
@@ -559,6 +576,59 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                   </button>
                 )}
               </div>
+              {(localNumberOfHalves !== undefined ? localNumberOfHalves : data.numberOfHalves) === 2 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Break between halves</p>
+                  {editingBreak ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={60}
+                        value={breakValue}
+                        onChange={(e) => setBreakValue(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            const mins = breakValue ? parseInt(breakValue) : null;
+                            const validated = mins !== null && mins >= 0 ? mins : null;
+                            await updateEventBreakDurationAction(data.id, validated);
+                            setLocalBreak(validated);
+                            setEditingBreak(false);
+                            router.refresh();
+                          } else if (e.key === 'Escape') {
+                            setEditingBreak(false);
+                          }
+                        }}
+                        onBlur={async () => {
+                          const mins = breakValue ? parseInt(breakValue) : null;
+                          const validated = mins !== null && mins >= 0 ? mins : null;
+                          await updateEventBreakDurationAction(data.id, validated);
+                          setLocalBreak(validated);
+                          setEditingBreak(false);
+                          router.refresh();
+                        }}
+                        autoFocus
+                        className="w-20 rounded border border-[var(--accent)] bg-transparent px-1.5 py-0.5 text-sm text-zinc-100 outline-none"
+                        placeholder="min"
+                      />
+                      <span className="text-xs text-[var(--text-muted)]">min</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-sm text-zinc-100 hover:text-[var(--accent)] transition-colors cursor-text"
+                      onClick={() => {
+                        const current = localBreak !== undefined ? localBreak : data.breakDurationMinutes;
+                        setBreakValue(current?.toString() ?? '');
+                        setEditingBreak(true);
+                      }}
+                      title="Click to edit break duration between halves"
+                    >
+                      {(localBreak !== undefined ? localBreak : data.breakDurationMinutes) != null ? `${(localBreak !== undefined ? localBreak : data.breakDurationMinutes)} min` : 'Not set'}
+                    </button>
+                  )}
+                </div>
+              )}
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Starts</p>
                 <p className="text-sm text-zinc-100">{new Date(data.startsAt).toLocaleDateString()}</p>
@@ -755,7 +825,50 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         </select>
                       </div>
                       <span className="text-sm text-[var(--text-muted)]">
-                        {squad.players.length}/{squad.targetSize}
+                        {squad.players.length}/
+                        {editingSquadTargetSize === squad.id ? (
+                          <input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={editingSquadTargetSizeValue}
+                            onChange={(e) => setEditingSquadTargetSizeValue(e.target.value)}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                const size = parseInt(editingSquadTargetSizeValue);
+                                if (Number.isFinite(size) && size > 0) {
+                                  await updateEventSquadAction(squad.id, { targetSize: size });
+                                  router.refresh();
+                                }
+                                setEditingSquadTargetSize(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingSquadTargetSize(null);
+                              }
+                            }}
+                            onBlur={async () => {
+                              const size = parseInt(editingSquadTargetSizeValue);
+                              if (Number.isFinite(size) && size > 0 && size !== squad.targetSize) {
+                                await updateEventSquadAction(squad.id, { targetSize: size });
+                                router.refresh();
+                              }
+                              setEditingSquadTargetSize(null);
+                            }}
+                            autoFocus
+                            className="w-12 rounded border border-[var(--accent)] bg-transparent px-1 py-0 text-sm text-zinc-100 outline-none"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="hover:text-[var(--accent)] transition-colors cursor-text underline decoration-dotted"
+                            onClick={() => {
+                              setEditingSquadTargetSize(squad.id);
+                              setEditingSquadTargetSizeValue(squad.targetSize.toString());
+                            }}
+                            title="Click to edit target squad size for this team"
+                          >
+                            {squad.targetSize}
+                          </button>
+                        )}
                       </span>
                     </div>
                     {(() => {
@@ -786,11 +899,83 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         </div>
                       );
                     })()}
-                    {squad.formationName && (
-                      <div className="mb-2 text-[10px] text-[var(--text-muted)]">
-                        Formation: {squad.formationName}
-                      </div>
-                    )}
+                    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--text-muted)]">
+                      <label className="flex items-center gap-1">
+                        Formation:
+                        <select
+                          className="bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1 py-0.5 text-[var(--text-muted)]"
+                          value={squad.formationId ?? ''}
+                          title="Formation for this squad"
+                          onChange={async (e) => {
+                            await updateEventSquadAction(squad.id, { formationId: e.target.value });
+                            router.refresh();
+                          }}
+                        >
+                          <option value="">
+                            Event default{data.defaultFormationId ? ` (${data.compatibleFormations.find((f) => f.id === data.defaultFormationId)?.name ?? ''})` : ' (none)'}
+                          </option>
+                          {data.compatibleFormations
+                            .filter((f) => f.gameFormat === squad.effectiveGameFormat)
+                            .map((f) => (
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
+                        </select>
+                      </label>
+                      <label className="flex items-center gap-1">
+                        Halves:
+                        <select
+                          className="bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1 py-0.5 text-[var(--text-muted)]"
+                          value={squad.numberOfHalvesOverride?.toString() ?? ''}
+                          title="Number of halves for this squad"
+                          onChange={async (e) => {
+                            await updateEventSquadAction(squad.id, { numberOfHalvesOverride: e.target.value || null });
+                            router.refresh();
+                          }}
+                        >
+                          <option value="">Event default ({data.numberOfHalves})</option>
+                          <option value="1">1 (single period)</option>
+                          <option value="2">2 (first/second half)</option>
+                        </select>
+                      </label>
+                      <label className="flex items-center gap-1">
+                        {squad.effectiveNumberOfHalves === 2 ? 'Half duration:' : 'Match duration:'}
+                        <input
+                          type="number"
+                          min={1}
+                          max={200}
+                          placeholder={data.matchDurationMinutes != null ? `${data.matchDurationMinutes} (default)` : 'min'}
+                          defaultValue={squad.matchDurationMinutesOverride ?? ''}
+                          className="w-20 bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1 py-0.5 text-[var(--text-muted)]"
+                          title="Match/half duration override for this squad (blank inherits the Event default)"
+                          onBlur={async (e) => {
+                            const value = e.target.value.trim();
+                            await updateEventSquadAction(squad.id, { matchDurationMinutesOverride: value || null });
+                            router.refresh();
+                          }}
+                        />
+                        min
+                      </label>
+                      {squad.effectiveNumberOfHalves === 2 && (
+                        <label className="flex items-center gap-1">
+                          Break:
+                          <input
+                            type="number"
+                            min={0}
+                            max={60}
+                            placeholder={data.breakDurationMinutes != null ? `${data.breakDurationMinutes} (default)` : 'min'}
+                            defaultValue={squad.breakDurationMinutesOverride ?? ''}
+                            className="w-20 bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-1 py-0.5 text-[var(--text-muted)]"
+                            title="Break duration override between halves for this squad (blank inherits the Event default)"
+                            onBlur={async (e) => {
+                              const value = e.target.value.trim();
+                              await updateEventSquadAction(squad.id, { breakDurationMinutesOverride: value || null });
+                              router.refresh();
+                            }}
+                          />
+                          min
+                        </label>
+                      )}
+                    </div>
                     {squad.players.length === 0 ? (
                       <p className="text-xs text-[var(--text-muted)]">No players assigned yet</p>
                     ) : (
@@ -1075,6 +1260,8 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           eventType={data.eventType}
           gameFormat={data.gameFormat}
           matchDurationMinutes={data.matchDurationMinutes}
+          numberOfHalves={data.numberOfHalves}
+          breakDurationMinutes={data.breakDurationMinutes}
           playerProfiles={data.players.map((p) => ({
             id: p.playerId,
             firstName: p.firstName,

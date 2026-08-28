@@ -31,6 +31,7 @@ import { EventMatchLineupPanel } from './event-match-lineup-panel';
 import { OpponentTeamSelect } from '@/components/opponents/opponent-team-select';
 import { formatEventMatchSupportRole } from '@/lib/formatters/event-labels';
 import type { EventMatchSupportRole } from '@/generated/prisma/client';
+import { getEventMatchWindow } from '@/lib/events/event-match-time';
 
 const PLANNED_ROLE_OPTIONS: { value: EventMatchSupportRole | ''; label: string }[] = [
   { value: '', label: 'No specific role' },
@@ -96,11 +97,19 @@ interface EventMatchesTabProps {
     intent: string;
     /** Production consistency pass item #4: per-squad effective game format (override or Event default). */
     effectiveGameFormat?: string;
+    /** Per-squad effective match timing (override or Event default) -- see
+     * getEffectiveEventSquadMatchTiming (event-types.ts). */
+    effectiveNumberOfHalves?: number;
+    effectiveMatchDurationMinutes?: number | null;
+    effectiveBreakDurationMinutes?: number | null;
+    effectiveFormationId?: string | null;
     players: Array<{ playerId: string }>;
   }>;
   eventType: string;
   gameFormat: string;
   matchDurationMinutes: number | null;
+  numberOfHalves: number;
+  breakDurationMinutes: number | null;
   playerProfiles: Array<{
     id: string;
     firstName: string;
@@ -115,7 +124,7 @@ interface EventMatchesTabProps {
   opponentTeams: Array<{ id: string; displayName: string }>;
 }
 
-export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, playerProfiles, opponentTeams }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, numberOfHalves, breakDurationMinutes, playerProfiles, opponentTeams }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -492,7 +501,9 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                   key={m.id}
                   eventId={eventId}
                   match={m}
-                  matchDurationMinutes={matchDurationMinutes}
+                  matchDurationMinutes={squad.effectiveMatchDurationMinutes ?? matchDurationMinutes}
+                  numberOfHalves={squad.effectiveNumberOfHalves ?? numberOfHalves}
+                  breakDurationMinutes={squad.effectiveBreakDurationMinutes ?? breakDurationMinutes}
                   isPending={isPending}
                   assignmentsForMatch={assignmentsByMatch.get(m.id) ?? []}
                   conflictCount={conflictCount}
@@ -598,6 +609,8 @@ function EventMatchCard({
   eventId,
   match,
   matchDurationMinutes,
+  numberOfHalves,
+  breakDurationMinutes,
   isPending,
   assignmentsForMatch,
   expandedMatchId,
@@ -639,6 +652,8 @@ function EventMatchCard({
   eventId: string;
   match: EventMatchWithReport;
   matchDurationMinutes: number | null;
+  numberOfHalves: number;
+  breakDurationMinutes: number | null;
   isPending: boolean;
   assignmentsForMatch: SupportAssignment[];
   conflictCount: number;
@@ -672,7 +687,7 @@ function EventMatchCard({
   setEditNotes: (v: string) => void;
   onSaveEdit: (matchId: string) => void;
   cancelEdit: () => void;
-  squads: Array<{ id: string; name: string; intent: string; players: Array<{ playerId: string }> }>;
+  squads: Array<{ id: string; name: string; intent: string; effectiveFormationId?: string | null; players: Array<{ playerId: string }> }>;
   opponentTeams: Array<{ id: string; displayName: string }>;
   refreshReport: () => void;
   lineupMatchId: string | null;
@@ -768,7 +783,12 @@ function EventMatchCard({
           <span className="text-xs text-[var(--text-muted)]">
             {new Date(match.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
             {matchDurationMinutes && (
-              <>-{new Date(new Date(match.startsAt).getTime() + matchDurationMinutes * 60 * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</>
+              <>-{getEventMatchWindow(
+                { id: match.id, eventSquadId: match.eventSquadId, startsAt: new Date(match.startsAt), status: match.status },
+                matchDurationMinutes,
+                numberOfHalves,
+                breakDurationMinutes,
+              ).endsAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</>
             )}
           </span>
         </div>
@@ -1119,6 +1139,7 @@ function EventMatchCard({
         <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
           <EventMatchLineupPanel
             eventMatchId={match.id}
+            effectiveFormationId={squads.find((s) => s.id === match.eventSquadId)?.effectiveFormationId ?? null}
             squadPlayers={squads
               .filter((s) => s.id === match.eventSquadId)
               .flatMap((s) =>

@@ -23,10 +23,16 @@ several squads, or squads seeded manually and balanced automatically around your
 stay editable until you lock them; locking runs a validation pass first.
 
 Matches within an event can share helpers across squads when their matches do not overlap in
-time, similar to League helpers in normal rounds. Set the number of halves and the duration of
-each half on the event — most events use a single continuous period, but a cup or fixture played
-as a first and second half can be configured with 2 halves. Overlap checks for helpers use the
-full match length (halves × half duration).
+time, similar to League helpers in normal rounds. Set the number of halves, the duration of each
+half, and the break between halves on the event — most events use a single continuous period, but
+a cup or fixture played as a first and second half can be configured with 2 halves. Overlap checks
+for helpers use the full match length (halves × half duration, plus any break between halves).
+
+A squad can also override the event's game format, formation, halves, half duration, and break
+duration individually — useful when one event mixes formats, for example a 7v7 squad playing
+2×17 minutes with a 1 minute break alongside a 9v9 squad playing 2×20 minutes with a 1 minute
+break on the same event day. Target squad size is always set per squad, not shared across the
+event.
 
 ![Fjord Cup event overview showing a competitive squad and a development squad with balance summaries](/docs/screenshots/events/event-squads.png)
 

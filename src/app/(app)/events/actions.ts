@@ -17,6 +17,9 @@ import {
   VALID_SELECTION_PATTERNS,
   parseEnum,
   parseNumberOfHalves,
+  parseNullableNumberOfHalvesOverride,
+  parseNullablePositiveMinutesOverride,
+  parseNullableNonNegativeMinutesOverride,
 } from '@/lib/events/event-validation-constants';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { BroadPosition } from '@/lib/events/event-types';
@@ -134,6 +137,8 @@ export async function createEventAction(formData: FormData) {
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
   const numberOfHalves = parseNumberOfHalves(formData.get('numberOfHalves') as string | null);
+  const breakDurationMinutesRaw = formData.get('breakDurationMinutes') ? parseInt(formData.get('breakDurationMinutes') as string) : null;
+  const breakDurationMinutes = breakDurationMinutesRaw !== null && breakDurationMinutesRaw >= 0 ? breakDurationMinutesRaw : null;
 
   if (defaultFormationId) {
     const formation = await db.formation.findFirst({
@@ -165,6 +170,7 @@ export async function createEventAction(formData: FormData) {
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
       numberOfHalves,
+      breakDurationMinutes,
       notes,
       organisationId: ctx.orgFilter.organisationId,
       footballGroupId,
@@ -210,6 +216,8 @@ export async function updateEventAction(id: string, formData: FormData) {
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
   const numberOfHalves = parseNumberOfHalves(formData.get('numberOfHalves') as string | null);
+  const breakDurationMinutesRaw = formData.get('breakDurationMinutes') ? parseInt(formData.get('breakDurationMinutes') as string) : null;
+  const breakDurationMinutes = breakDurationMinutesRaw !== null && breakDurationMinutesRaw >= 0 ? breakDurationMinutesRaw : null;
 
   if (defaultFormationId) {
     const formation = await db.formation.findFirst({
@@ -241,6 +249,7 @@ export async function updateEventAction(id: string, formData: FormData) {
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
       numberOfHalves,
+      breakDurationMinutes,
       notes,
     },
   });
@@ -552,6 +561,12 @@ export async function updateEventSquadAction(
     /** Production consistency pass item #4: null/undefined-string clears the override so the
      * squad inherits the Event default again; a valid GameFormat value sets an explicit override. */
     gameFormatOverride?: string | null;
+    /** Per-squad match timing overrides: null/undefined-string clears the override so the squad
+     * inherits the Event default; a set value overrides it for this squad only. See
+     * getEffectiveEventSquadMatchTiming (event-types.ts). */
+    numberOfHalvesOverride?: number | string | null;
+    matchDurationMinutesOverride?: number | string | null;
+    breakDurationMinutesOverride?: number | string | null;
   },
 ) {
   const ctx = await requirePageActorContext();
@@ -577,6 +592,15 @@ export async function updateEventSquadAction(
       throw new Error(`Invalid game format: ${data.gameFormatOverride}`);
     }
     updateData.gameFormatOverride = (data.gameFormatOverride || null) as GameFormat | null;
+  }
+  if (data.numberOfHalvesOverride !== undefined) {
+    updateData.numberOfHalvesOverride = parseNullableNumberOfHalvesOverride(data.numberOfHalvesOverride);
+  }
+  if (data.matchDurationMinutesOverride !== undefined) {
+    updateData.matchDurationMinutesOverride = parseNullablePositiveMinutesOverride(data.matchDurationMinutesOverride, 'match duration override');
+  }
+  if (data.breakDurationMinutesOverride !== undefined) {
+    updateData.breakDurationMinutesOverride = parseNullableNonNegativeMinutesOverride(data.breakDurationMinutesOverride, 'break duration override');
   }
 
   const squad = await db.eventSquad.update({
@@ -618,6 +642,24 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
   const event = await db.event.update({
     where: { id: eventId },
     data: { matchDurationMinutes: validated },
+  });
+
+  revalidatePath('/events');
+  revalidatePath(`/events/${eventId}`);
+  return event;
+}
+
+export async function updateEventBreakDurationAction(eventId: string, breakDurationMinutes: number | null) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
+
+  const validated = breakDurationMinutes !== null && breakDurationMinutes >= 0 ? breakDurationMinutes : null;
+
+  const event = await db.event.update({
+    where: { id: eventId },
+    data: { breakDurationMinutes: validated },
   });
 
   revalidatePath('/events');

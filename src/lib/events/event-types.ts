@@ -21,6 +21,70 @@ export function getEffectiveEventTeamGameFormat(
   return (squad.gameFormatOverride ?? event.gameFormat) as GameFormat;
 }
 
+/**
+ * The centralized "effective formation" resolver, following the same shape as
+ * getEffectiveEventTeamGameFormat: an EventSquad's own `formationId` if set, otherwise the
+ * Event's `defaultFormationId`. Every downstream consumer (squad generation, per-match lineup
+ * creation/defaulting, pool validation) must call this rather than re-deriving the
+ * `squad.formationId ?? event.defaultFormationId` fallback inline -- this exact duplication
+ * previously existed in at least three places with inconsistent results (generation's own
+ * private helper, the lineup panel's `formations[0]` default, and pool validation's
+ * squad-0-only lookup).
+ */
+export function getEffectiveEventSquadFormationId(
+  event: { defaultFormationId: string | null },
+  squad: { formationId: string | null },
+): string | null {
+  return squad.formationId ?? event.defaultFormationId;
+}
+
+/**
+ * Per-squad match-timing overrides, following the same nullable-override pattern as
+ * gameFormatOverride/formationId: null inherits the Event default, a set value overrides it for
+ * this squad only. Needed because one Event can host squads of genuinely different game formats
+ * (see getEffectiveEventTeamGameFormat) that each need their own halves/duration/break -- e.g. a
+ * 7v7 squad playing 2x17 with a 1 minute break and a 9v9 squad in the same event playing 2x20
+ * with a 1 minute break.
+ */
+export function getEffectiveEventSquadNumberOfHalves(
+  event: { numberOfHalves: number },
+  squad: { numberOfHalvesOverride: number | null },
+): number {
+  return squad.numberOfHalvesOverride ?? event.numberOfHalves;
+}
+
+export function getEffectiveEventSquadMatchDurationMinutes(
+  event: { matchDurationMinutes: number | null },
+  squad: { matchDurationMinutesOverride: number | null },
+): number | null {
+  return squad.matchDurationMinutesOverride ?? event.matchDurationMinutes;
+}
+
+export function getEffectiveEventSquadBreakDurationMinutes(
+  event: { breakDurationMinutes: number | null },
+  squad: { breakDurationMinutesOverride: number | null },
+): number | null {
+  return squad.breakDurationMinutesOverride ?? event.breakDurationMinutes;
+}
+
+export interface EventSquadMatchTiming {
+  numberOfHalves: number;
+  matchDurationMinutes: number | null;
+  breakDurationMinutes: number | null;
+}
+
+/** Convenience wrapper bundling all three effective timing values for one squad. */
+export function getEffectiveEventSquadMatchTiming(
+  event: { numberOfHalves: number; matchDurationMinutes: number | null; breakDurationMinutes: number | null },
+  squad: { numberOfHalvesOverride: number | null; matchDurationMinutesOverride: number | null; breakDurationMinutesOverride: number | null },
+): EventSquadMatchTiming {
+  return {
+    numberOfHalves: getEffectiveEventSquadNumberOfHalves(event, squad),
+    matchDurationMinutes: getEffectiveEventSquadMatchDurationMinutes(event, squad),
+    breakDurationMinutes: getEffectiveEventSquadBreakDurationMinutes(event, squad),
+  };
+}
+
 export type EventStatusType = 'DRAFT' | 'FINALIZED';
 
 export type EventSelectionPattern = 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE' | 'PRESERVE_AND_FILL';
