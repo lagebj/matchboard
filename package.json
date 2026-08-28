@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.39.0",
+  "version": "0.39.1",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -101,6 +101,11 @@
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2",
+    "nanoid": "^3.3.18",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

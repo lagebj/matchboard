@@ -87,6 +87,15 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+    ignore:
+      # Local Docker Compose Postgres must stay on the same major version Neon actually runs in
+      # production/test (verified via the Neon API: pg_version 17 everywhere as of 2026-08-28).
+      # A local-only major bump would silently diverge dev from production and risk
+      # migration/behaviour differences never caught until deploy. Bump this deliberately,
+      # together with a real Neon major-version upgrade -- see PR #346 (closed, not merged).
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
+
     groups:
       container-images:
         patterns:

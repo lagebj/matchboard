@@ -1,37 +1,36 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
 const WORKFLOWS_DIR = join(process.cwd(), ".github", "workflows");
 
+// Every GitHub Action pin actually used across .github/workflows/**. Updating an action's
+// version here is a deliberate security-review step (AGENTS.md: "New dependencies and GitHub
+// Actions require security review"), not something a dependency bot should silently redirect
+// unreviewed -- see ARR-0023's 2026-08-28 history entry for why this table must stay accurate
+// and cover every real workflow file, not a stale subset.
 const ALLOWED_ACTIONS: Record<string, string> = {
-  "actions/checkout": "11d5960a326750d5838078e36cf38b85af677262",
-  "actions/setup-node": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+  "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1", // v7.0.1
+  "actions/setup-node": "820762786026740c76f36085b0efc47a31fe5020", // v7.0.0
+  "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", // v7.0.1
+  "actions/github-script": "3a2844b7e9c422d3c10d287c895573f7108da1b3", // v9.0.0
 };
 
-const KNOWN_VERSIONS: Record<string, string> = {
-  "actions/checkout": "v4.2.2",
-  "actions/setup-node": "v4.1.5",
-};
-
-const files = [
-  "ci.yml",
-  "production-db-migrate.yml",
-  "production-db-audit.yml",
-];
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 let violations = 0;
 
+const files = readdirSync(WORKFLOWS_DIR).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
+
+if (files.length === 0) {
+  console.error(`No workflow files found in ${WORKFLOWS_DIR}.`);
+  process.exit(1);
+}
+
 for (const file of files) {
   const filePath = join(WORKFLOWS_DIR, file);
-  let content: string;
-  try {
-    content = readFileSync(filePath, "utf8");
-  } catch {
-    console.log(`SKIP ${file}: file not found`);
-    continue;
-  }
+  const content = readFileSync(filePath, "utf8");
 
   const usesPattern = /uses:\s+([^\s]+)@([^\s]+)/g;
   let match: RegExpExecArray | null;
@@ -40,8 +39,14 @@ for (const file of files) {
     const action = match[1];
     const ref = match[2];
 
-    if (action.startsWith("./") || action.startsWith("actions/") === false) {
-      if (!action.startsWith("actions/")) continue;
+    // Local/composite actions (./path) and non-actions/* third-party actions are out of scope
+    // for this table today -- extend ALLOWED_ACTIONS if a new third-party action is adopted.
+    if (!action.startsWith("actions/")) continue;
+
+    if (!SHA_PATTERN.test(ref)) {
+      console.log(`UNPINNED ${file}: ${action}@${ref} — must be pinned to a full commit SHA, not a tag/branch`);
+      violations++;
+      continue;
     }
 
     const expectedSha = ALLOWED_ACTIONS[action];
@@ -52,7 +57,7 @@ for (const file of files) {
     }
 
     if (ref !== expectedSha) {
-      console.log(`MISMATCH ${file}: ${action}@${ref} — expected ${expectedSha} (${KNOWN_VERSIONS[action]})`);
+      console.log(`MISMATCH ${file}: ${action}@${ref} — expected ${expectedSha}`);
       violations++;
     }
   }
@@ -63,6 +68,6 @@ if (violations > 0) {
   console.error("GitHub Actions must be pinned by SHA, not by tag.");
   process.exit(1);
 } else {
-  console.log("All GitHub Actions are pinned by SHA. Supply chain integrity OK.");
+  console.log(`All GitHub Actions across ${files.length} workflow file(s) are pinned by SHA. Supply chain integrity OK.`);
   process.exit(0);
 }

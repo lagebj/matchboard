@@ -92,8 +92,13 @@ npm-debug.log*
 .vercel/
 .brevo/
 
-pnpm-workspace.yaml
 .matchboard-work/
+
+# pnpm is not the project's package manager (ARR-0023: Vercel's Install Command now explicitly
+# forces `npm ci`, independent of lockfile presence). Do not commit these even if a local `pnpm
+# install` regenerates them -- npm/package-lock.json is the single dependency source of truth.
+pnpm-lock.yaml
+pnpm-workspace.yaml
 
 # Local package store
 .pnpm-store/
