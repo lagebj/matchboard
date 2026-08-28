@@ -91,6 +91,10 @@ export async function createCustomFormation(data: {
       roleType: s.roleType as FormationSlotRoleType,
       acceptedPositionIds: s.acceptedPositionIds as BroadPosition[],
       sortOrder: s.sortOrder,
+      // The tenantRLS extension only injects organisationId into the top-level create data, not
+      // into nested relation writes -- must be set explicitly here or FormationSlot.organisationId
+      // (required, non-nullable) violates its NOT NULL constraint.
+      organisationId: orgFilter.organisationId,
     };
   });
 
@@ -158,6 +162,9 @@ export async function duplicateFormation(formationId: string, newName?: string) 
           roleType: s.roleType,
           acceptedPositionIds: s.acceptedPositionIds as BroadPosition[],
           sortOrder: s.sortOrder,
+          // See createCustomFormation: nested relation writes are not covered by tenantRLS's
+          // create-data injection, so organisationId must be set explicitly on each slot.
+          organisationId: orgFilter.organisationId,
         })),
       },
     },
