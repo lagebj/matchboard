@@ -168,10 +168,10 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     return { error: getErrorMessage(error) };
   }
 
-  revalidatePath("/fixtures");
-  revalidatePath("/rounds");
-  revalidatePath("/");
-  redirect("/fixtures?saved=created");
+  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+  revalidatePath(`/o/${ctx.organisationSlug}/today`);
+  redirect(`/o/${ctx.organisationSlug}/fixtures?saved=created`);
 }
 
 async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: Date, organisationId: string): Promise<string> {
@@ -230,13 +230,13 @@ export async function deleteMatchAction(matchId: string) {
   } catch (error) {
     logMatchDelete(ctx.email || "unknown", matchId, "failure");
     const message = error instanceof Error ? error.message : "Could not delete the match.";
-    redirect(`/fixtures?error=${encodeURIComponent(message)}`);
+    redirect(`/o/${ctx.organisationSlug}/fixtures?error=${encodeURIComponent(message)}`);
   }
 
-  revalidatePath("/fixtures");
-  revalidatePath("/rounds");
-  revalidatePath("/");
-  redirect("/fixtures?saved=deleted");
+  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+  revalidatePath(`/o/${ctx.organisationSlug}/today`);
+  redirect(`/o/${ctx.organisationSlug}/fixtures?saved=deleted`);
 }
 
 export async function updateMatchAction(
@@ -307,10 +307,10 @@ export async function updateMatchAction(
         data: { startsAt: parsedDate },
       });
 
-      revalidatePath("/fixtures");
-      revalidatePath(`/matches/${matchId}`);
-      revalidatePath(`/rounds/${currentRoundId}`);
-      revalidatePath("/today");
+      revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+      revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
+      revalidatePath(`/o/${ctx.organisationSlug}/rounds/${currentRoundId}`);
+      revalidatePath(`/o/${ctx.organisationSlug}/today`);
 
       return {
         success: true,
@@ -394,11 +394,11 @@ export async function updateMatchAction(
       await reconcileRoundAfterDraftMutation(targetRoundId).catch(() => {});
     }
 
-    revalidatePath("/fixtures");
-    revalidatePath(`/matches/${matchId}`);
-    revalidatePath(`/rounds/${currentRoundId}`);
-    revalidatePath(`/rounds/${targetRoundId}`);
-    revalidatePath("/today");
+    revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+    revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/rounds/${currentRoundId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/rounds/${targetRoundId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/today`);
 
     return {
       success: true,
@@ -453,19 +453,19 @@ export async function finalizeMatchAction(formData: FormData) {
     } else {
       queryParams.error = "Finalisation failed.";
     }
-    redirect(buildPathWithSearch(`/matches/${matchId}`, queryParams));
+    redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/matches/${matchId}`, queryParams));
   }
 
-  revalidatePath("/");
-  revalidatePath("/fixtures");
-  revalidatePath("/rounds");
-  revalidatePath(`/matches/${matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/today`);
+  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
 
   const queryParams: Record<string, string> = { finalized: "1" };
   if (result.roundAutoFinalized) {
     queryParams.roundFinalized = "1";
   }
-  redirect(buildPathWithSearch(`/matches/${matchId}`, queryParams));
+  redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/matches/${matchId}`, queryParams));
 }
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {
@@ -486,10 +486,10 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
 
   await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
-  revalidatePath("/fixtures");
-  revalidatePath(`/matches/${matchId}`);
-  revalidatePath("/today");
-  revalidatePath("/rounds");
+  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/today`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
 }
 
 export async function reopenMatchAction(matchId: string) {
@@ -510,8 +510,8 @@ export async function reopenMatchAction(matchId: string) {
 
   await reconcileRoundAfterDraftMutation(result.matchRoundId);
 
-  revalidatePath("/fixtures");
-  revalidatePath(`/matches/${matchId}`);
-  revalidatePath("/today");
-  revalidatePath("/rounds");
+  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/today`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
 }
