@@ -5,6 +5,9 @@ import {
   VALID_NUMBER_OF_HALVES,
   parseEnum,
   parseNumberOfHalves,
+  parseNullableNumberOfHalvesOverride,
+  parseNullablePositiveMinutesOverride,
+  parseNullableNonNegativeMinutesOverride,
   isValidEventStatus,
   requireValidEventStatus,
 } from "../event-validation-constants";
@@ -98,6 +101,63 @@ describe("event-validation-constants", () => {
       expect(parseNumberOfHalves(3)).toBe(1);
       expect(parseNumberOfHalves(-1)).toBe(1);
       expect(parseNumberOfHalves("not-a-number")).toBe(1);
+    });
+  });
+
+  describe("parseNullableNumberOfHalvesOverride", () => {
+    it("returns null for null/undefined/empty (clears the override)", () => {
+      expect(parseNullableNumberOfHalvesOverride(null)).toBeNull();
+      expect(parseNullableNumberOfHalvesOverride(undefined)).toBeNull();
+      expect(parseNullableNumberOfHalvesOverride("")).toBeNull();
+    });
+
+    it("accepts 1 and 2", () => {
+      expect(parseNullableNumberOfHalvesOverride(1)).toBe(1);
+      expect(parseNullableNumberOfHalvesOverride("2")).toBe(2);
+    });
+
+    it("throws for an out-of-range value instead of silently coercing it", () => {
+      expect(() => parseNullableNumberOfHalvesOverride(3)).toThrow("Invalid number of halves: 3");
+      expect(() => parseNullableNumberOfHalvesOverride(0)).toThrow();
+    });
+  });
+
+  describe("parseNullablePositiveMinutesOverride", () => {
+    it("returns null for null/undefined/empty (clears the override)", () => {
+      expect(parseNullablePositiveMinutesOverride(null, "match duration")).toBeNull();
+      expect(parseNullablePositiveMinutesOverride(undefined, "match duration")).toBeNull();
+      expect(parseNullablePositiveMinutesOverride("", "match duration")).toBeNull();
+    });
+
+    it("accepts a positive number", () => {
+      expect(parseNullablePositiveMinutesOverride(17, "match duration")).toBe(17);
+      expect(parseNullablePositiveMinutesOverride("20", "match duration")).toBe(20);
+    });
+
+    it("throws for zero or negative values", () => {
+      expect(() => parseNullablePositiveMinutesOverride(0, "match duration")).toThrow(
+        "Invalid match duration: must be a positive number of minutes",
+      );
+      expect(() => parseNullablePositiveMinutesOverride(-5, "match duration")).toThrow();
+    });
+  });
+
+  describe("parseNullableNonNegativeMinutesOverride", () => {
+    it("returns null for null/undefined/empty (clears the override)", () => {
+      expect(parseNullableNonNegativeMinutesOverride(null, "break duration")).toBeNull();
+      expect(parseNullableNonNegativeMinutesOverride(undefined, "break duration")).toBeNull();
+      expect(parseNullableNonNegativeMinutesOverride("", "break duration")).toBeNull();
+    });
+
+    it("accepts zero and positive values", () => {
+      expect(parseNullableNonNegativeMinutesOverride(0, "break duration")).toBe(0);
+      expect(parseNullableNonNegativeMinutesOverride("1", "break duration")).toBe(1);
+    });
+
+    it("throws for negative values", () => {
+      expect(() => parseNullableNonNegativeMinutesOverride(-1, "break duration")).toThrow(
+        "Invalid break duration: must be zero or a positive number of minutes",
+      );
     });
   });
 });

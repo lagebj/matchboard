@@ -1,5 +1,23 @@
 import { getEventMatchWindow, isPlayerAvailableForSupport, eventMatchWindowsOverlap } from './event-match-time';
+import type { EventMatchWindow } from './event-match-time';
 import { getPlayerOverallRating, NEUTRAL_UNRATED_RATING } from '@/lib/ratings/player-rating';
+import type { EventSquadMatchTiming } from './event-types';
+
+/**
+ * Resolves one match's window using its OWN squad's effective timing -- required because
+ * different squads in the same Event can have different effective game formats and therefore
+ * different halves/duration/break (see getEffectiveEventSquadMatchTiming, event-types.ts). A
+ * match whose squad has no resolvable duration set is left out of overlap consideration entirely
+ * (returns null) rather than treated as an infinite/zero-length window.
+ */
+export function resolveMatchWindow(
+  match: { id: string; eventSquadId: string; startsAt: Date; status: string },
+  timingBySquadId: Map<string, EventSquadMatchTiming>,
+): EventMatchWindow | null {
+  const timing = timingBySquadId.get(match.eventSquadId);
+  if (!timing || !timing.matchDurationMinutes || timing.matchDurationMinutes <= 0) return null;
+  return getEventMatchWindow(match, timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
+}
 
 export type EventSupportCandidate = {
   playerId: string;
@@ -39,8 +57,10 @@ export function getSupportCandidatesForEventMatch(input: {
     startsAt: Date;
     status: string;
   };
-  matchDurationMinutes: number;
-  numberOfHalves?: number;
+  /** Effective match timing (halves/duration/break) keyed by eventSquadId -- see
+   * getEffectiveEventSquadMatchTiming (event-types.ts). Every squad in the event must have an
+   * entry, since different squads can have different effective timing. */
+  timingBySquadId: Map<string, EventSquadMatchTiming>;
   allEventMatches: {
     id: string;
     eventSquadId: string;
@@ -86,8 +106,7 @@ export function getSupportCandidatesForEventMatch(input: {
 }): EventSupportCandidate[] {
   const {
     targetMatch,
-    matchDurationMinutes,
-    numberOfHalves = 1,
+    timingBySquadId,
     allEventMatches,
     eventSquads,
     playerProfiles,
@@ -95,7 +114,8 @@ export function getSupportCandidatesForEventMatch(input: {
     playerEventAvailability,
   } = input;
 
-  if (!matchDurationMinutes || matchDurationMinutes <= 0) {
+  const targetWindow = resolveMatchWindow(targetMatch, timingBySquadId);
+  if (!targetWindow) {
     return playerProfiles.map((p) => ({
       playerId: p.id,
       firstName: p.firstName,
@@ -113,10 +133,9 @@ export function getSupportCandidatesForEventMatch(input: {
     }));
   }
 
-  const targetWindow = getEventMatchWindow(targetMatch, matchDurationMinutes, numberOfHalves);
-  const allWindows = allEventMatches.map((m) =>
-    getEventMatchWindow(m, matchDurationMinutes, numberOfHalves),
-  );
+  const allWindows = allEventMatches
+    .map((m) => resolveMatchWindow(m, timingBySquadId))
+    .filter((w): w is EventMatchWindow => w !== null);
 
   const candidates: EventSupportCandidate[] = [];
 
@@ -186,8 +205,9 @@ export function checkSupportConflicts(input: {
     startsAt: Date;
     status: string;
   }[];
-  matchDurationMinutes: number;
-  numberOfHalves?: number;
+  /** Effective match timing (halves/duration/break) keyed by eventSquadId -- see
+   * getEffectiveEventSquadMatchTiming (event-types.ts). */
+  timingBySquadId: Map<string, EventSquadMatchTiming>;
   eventSquads: { id: string; name: string; players: { playerId: string }[] }[];
   playerEventAvailability: { playerId: string; status: string }[];
   playerNames: Map<string, { firstName: string; lastName: string | null }>;
@@ -196,30 +216,22 @@ export function checkSupportConflicts(input: {
   const {
     assignments,
     allEventMatches,
-    matchDurationMinutes,
-    numberOfHalves = 1,
+    timingBySquadId,
     eventSquads,
     playerEventAvailability,
     playerNames,
     squadNames,
   } = input;
 
-  if (!matchDurationMinutes || matchDurationMinutes <= 0) {
-    return assignments.map((a) => ({
-      ...a,
-      firstName: playerNames.get(a.playerId)?.firstName ?? '',
-      lastName: playerNames.get(a.playerId)?.lastName ?? null,
-      sourceEventSquadName: squadNames.get(a.sourceEventSquadId) ?? '',
-      isConflict: true,
-      conflictReason: 'Event match duration not set',
-    }));
-  }
-
-  const allWindows = allEventMatches.map((m) =>
-    getEventMatchWindow(m, matchDurationMinutes, numberOfHalves),
+  const rawTargetMatchByAssignment = new Map(
+    allEventMatches.map((m) => [m.id, m] as const),
   );
+  const allWindows = allEventMatches
+    .map((m) => resolveMatchWindow(m, timingBySquadId))
+    .filter((w): w is EventMatchWindow => w !== null);
 
   return assignments.map((assignment) => {
+    const rawTargetMatch = rawTargetMatchByAssignment.get(assignment.eventMatchId);
     const targetMatch = allWindows.find(
       (w) => w.eventMatchId === assignment.eventMatchId,
     );
@@ -229,13 +241,19 @@ export function checkSupportConflicts(input: {
     const sourceSquadName = squadNames.get(assignment.sourceEventSquadId) ?? '';
 
     if (!targetMatch || targetMatch.status === 'CANCELLED') {
+      let conflictReason = 'Target match not found';
+      if (targetMatch) {
+        conflictReason = 'Target match is cancelled';
+      } else if (rawTargetMatch) {
+        conflictReason = 'Event match duration not set';
+      }
       return {
         ...assignment,
         firstName,
         lastName,
         sourceEventSquadName: sourceSquadName,
         isConflict: true,
-        conflictReason: targetMatch ? 'Target match is cancelled' : 'Target match not found',
+        conflictReason,
       };
     }
 

@@ -5,11 +5,30 @@ import { db } from '@/lib/db';
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { logMutationEvent } from '@/lib/security/audit-log';
-import { getEventMatchWindow, isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
-import { checkSupportConflicts, getSupportCandidatesForEventMatch } from '@/lib/events/event-match-support';
+import { isPlayerAvailableForSupport } from '@/lib/events/event-match-time';
+import { checkSupportConflicts, getSupportCandidatesForEventMatch, resolveMatchWindow } from '@/lib/events/event-match-support';
 import type { EventMatchWindow } from '@/lib/events/event-match-time';
+import { getEffectiveEventSquadMatchTiming } from '@/lib/events/event-types';
+import type { EventSquadMatchTiming } from '@/lib/events/event-types';
 import { EventMatchSupportRole } from '@/generated/prisma/client';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+
+const EVENT_SQUAD_TIMING_OVERRIDE_SELECT = {
+  numberOfHalvesOverride: true,
+  matchDurationMinutesOverride: true,
+  breakDurationMinutesOverride: true,
+} as const;
+
+/** Builds the per-squad effective match timing map required by getEventMatchWindow-based
+ * overlap detection -- see getEffectiveEventSquadMatchTiming (event-types.ts) for why a single
+ * event-wide duration/halves value is not sufficient once squads can have different effective
+ * game formats (and therefore different halves/duration/break). */
+function buildTimingBySquadId(
+  event: { numberOfHalves: number; matchDurationMinutes: number | null; breakDurationMinutes: number | null },
+  squads: { id: string; numberOfHalvesOverride: number | null; matchDurationMinutesOverride: number | null; breakDurationMinutesOverride: number | null }[],
+): Map<string, EventSquadMatchTiming> {
+  return new Map(squads.map((s) => [s.id, getEffectiveEventSquadMatchTiming(event, s)]));
+}
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== 'org') return;
@@ -71,20 +90,6 @@ export async function addEventMatchSupportAssignmentAction(input: {
   }
 
   const event = eventMatch.event;
-  const matchDurationMinutes = event.matchDurationMinutes;
-  if (!matchDurationMinutes || matchDurationMinutes <= 0) {
-    throw new Error('Event match duration not set. Set match duration before planning support.');
-  }
-
-  const allEventMatches = await db.eventMatch.findMany({
-    where: { eventId: event.id },
-    select: { id: true, eventSquadId: true, startsAt: true, status: true },
-  });
-
-  const targetWindow = getEventMatchWindow(eventMatch, matchDurationMinutes, event.numberOfHalves);
-  const allWindows: EventMatchWindow[] = allEventMatches.map((m) =>
-    getEventMatchWindow(m, matchDurationMinutes, event.numberOfHalves),
-  );
 
   const eventSquads = await db.eventSquad.findMany({
     where: { eventId: event.id },
@@ -92,8 +97,23 @@ export async function addEventMatchSupportAssignmentAction(input: {
       id: true,
       name: true,
       players: { select: { playerId: true } },
+      ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT,
     },
   });
+  const timingBySquadId = buildTimingBySquadId(event, eventSquads);
+
+  const allEventMatches = await db.eventMatch.findMany({
+    where: { eventId: event.id },
+    select: { id: true, eventSquadId: true, startsAt: true, status: true },
+  });
+
+  const targetWindow = resolveMatchWindow(eventMatch, timingBySquadId);
+  if (!targetWindow) {
+    throw new Error('Event match duration not set. Set match duration before planning support.');
+  }
+  const allWindows: EventMatchWindow[] = allEventMatches
+    .map((m) => resolveMatchWindow(m, timingBySquadId))
+    .filter((w): w is EventMatchWindow => w !== null);
 
   const playerSquad = await db.eventSquadPlayer.findFirst({
     where: { playerId, eventSquad: { eventId: event.id } },
@@ -241,7 +261,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 
   const event = await db.event.findFirst({
     where: { id: eventId, ...ctx.orgFilter.filter },
-    select: { matchDurationMinutes: true, numberOfHalves: true },
+    select: { matchDurationMinutes: true, numberOfHalves: true, breakDurationMinutes: true },
   });
   if (!event) throw new Error('Event not found.');
 
@@ -267,8 +287,9 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 
   const eventSquads = await db.eventSquad.findMany({
     where: { eventId },
-    select: { id: true, name: true, players: { select: { playerId: true } } },
+    select: { id: true, name: true, players: { select: { playerId: true } }, ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT },
   });
+  const timingBySquadId = buildTimingBySquadId(event, eventSquads);
 
   const playerAvailability = await db.eventPlayerAvailability.findMany({
     where: { eventId },
@@ -284,8 +305,6 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
     squadNames.set(s.id, s.name);
   }
 
-  const matchDurationMinutes = event.matchDurationMinutes ?? 0;
-
   const conflicted = checkSupportConflicts({
     assignments: assignments.map((a) => ({
       id: a.id,
@@ -297,8 +316,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
       note: a.note,
     })),
     allEventMatches,
-    matchDurationMinutes,
-    numberOfHalves: event.numberOfHalves,
+    timingBySquadId,
     eventSquads,
     playerEventAvailability: playerAvailability,
     playerNames,
@@ -321,7 +339,6 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
   await requireEventOrgAccess(eventMatch.eventId, ctx.orgFilter);
 
   const event = eventMatch.event;
-  const matchDurationMinutes = event.matchDurationMinutes;
 
   const allEventMatches = await db.eventMatch.findMany({
     where: { eventId: event.id },
@@ -334,8 +351,10 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
       id: true,
       name: true,
       players: { select: { playerId: true } },
+      ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT,
     },
   });
+  const timingBySquadId = buildTimingBySquadId(event, eventSquads);
 
   const playerIds = eventSquads.flatMap((s) => s.players.map((p) => p.playerId));
   const uniquePlayerIds = [...new Set(playerIds)];
@@ -379,24 +398,6 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
     select: { playerId: true, status: true },
   });
 
-  if (!matchDurationMinutes || matchDurationMinutes <= 0) {
-    return playerProfiles.map((p) => ({
-      playerId: p.id,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      sourceEventSquadId: '',
-      sourceEventSquadName: '',
-      primaryPosition: p.primaryPosition,
-      secondaryPosition: p.secondaryPosition,
-      tertiaryPosition: p.tertiaryPosition,
-      goalkeeperAbility: p.goalkeeperAbility,
-      overallLevel: null,
-      isGK: p.goalkeeperAbility === 'YES' || p.goalkeeperAbility === 'EMERGENCY',
-      available: false,
-      unavailableReason: 'Event match duration not set',
-    }));
-  }
-
   const targetMatch = {
     id: eventMatch.id,
     eventSquadId: eventMatch.eventSquadId,
@@ -406,8 +407,7 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
 
   return getSupportCandidatesForEventMatch({
     targetMatch,
-    matchDurationMinutes,
-    numberOfHalves: event.numberOfHalves,
+    timingBySquadId,
     allEventMatches,
     eventSquads,
     playerProfiles,

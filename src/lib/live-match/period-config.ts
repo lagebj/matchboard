@@ -40,14 +40,19 @@ export function getLeaguePeriodConfig(matchType: MatchType): PeriodConfig[] {
 // support existed). numberOfHalves=2 mirrors League's regulation-time period model exactly
 // (First half/Half time/Second half) -- same MatchPeriod keys, so LiveMatchClient needs no
 // changes to consume either shape.
-export function getEventPeriodConfig(matchDurationMinutes: number | null, numberOfHalves: number = 1): PeriodConfig[] {
+export function getEventPeriodConfig(
+  matchDurationMinutes: number | null,
+  numberOfHalves: number = 1,
+  breakDurationMinutes: number | null = null,
+): PeriodConfig[] {
   const durationMs = matchDurationMinutes != null ? matchDurationMinutes * 60 * 1000 : null;
 
   if (numberOfHalves === 2) {
+    const breakMs = breakDurationMinutes != null ? breakDurationMinutes * 60 * 1000 : null;
     return [
       { key: "BEFORE", label: "Before match", type: "break", durationMs: null },
       { key: "FIRST_HALF", label: "First half", type: "playing", durationMs },
-      { key: "HALF_TIME", label: "Half time", type: "break", durationMs: null },
+      { key: "HALF_TIME", label: "Half time", type: "break", durationMs: breakMs },
       { key: "SECOND_HALF", label: "Second half", type: "playing", durationMs },
       { key: "FULL_TIME", label: "Full time", type: "break", durationMs: null },
     ];

@@ -25,6 +25,38 @@ export function parseNumberOfHalves(value: string | number | null | undefined): 
   return VALID_NUMBER_OF_HALVES.includes(parsed as 1 | 2) ? parsed : 1;
 }
 
+// Per-squad override variants: unlike the Event-level fields above (which silently fall back to
+// a safe default on bad input), an override is an explicit coach edit -- empty/blank means
+// "clear the override and inherit the Event default" (null), while a genuinely invalid non-empty
+// value is rejected outright rather than silently coerced, matching updateEventSquadAction's
+// existing gameFormatOverride validation style.
+export function parseNullableNumberOfHalvesOverride(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : parseInt(value, 10);
+  if (!VALID_NUMBER_OF_HALVES.includes(parsed as 1 | 2)) {
+    throw new Error(`Invalid number of halves: ${value}`);
+  }
+  return parsed;
+}
+
+export function parseNullablePositiveMinutesOverride(value: string | number | null | undefined, fieldLabel: string): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${fieldLabel}: must be a positive number of minutes`);
+  }
+  return parsed;
+}
+
+export function parseNullableNonNegativeMinutesOverride(value: string | number | null | undefined, fieldLabel: string): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid ${fieldLabel}: must be zero or a positive number of minutes`);
+  }
+  return parsed;
+}
+
 export function requireValidEventStatus(status: string): EventPlayerStatus {
   if (!isValidEventStatus(status)) {
     throw new Error(`Invalid event player status: ${status}`);

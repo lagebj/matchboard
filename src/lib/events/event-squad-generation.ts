@@ -10,7 +10,7 @@ import type {
   CompositeRatings,
 } from './event-types';
 import type { Formation, FormationSlot } from '@/generated/prisma/client';
-import { computeCompositeRatings, isGoalkeeperCapable, getPlayerBroadPositions } from './event-types';
+import { computeCompositeRatings, isGoalkeeperCapable, getPlayerBroadPositions, getEffectiveEventSquadFormationId } from './event-types';
 import { getPositionFitTier, computePositionScarcity } from '@/lib/players/player-position-resolver';
 import type { PositionFitTier } from '@/lib/players/player-position-resolver';
 import { computeSquadBalance } from './event-balance';
@@ -299,31 +299,17 @@ function getFormationForSquad(
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
 ): { slots: FormationSlotRequirement[] } | null {
-  if (squad.formationId) {
-    const formation = formations.find((f) => f.id === squad.formationId);
-    if (formation) {
-      return {
-        slots: formation.slots.map((s) => ({
-          roleType: s.roleType,
-          acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
-          label: s.label,
-        })),
-      };
-    }
-  }
-  if (defaultFormationId) {
-    const formation = formations.find((f) => f.id === defaultFormationId);
-    if (formation) {
-      return {
-        slots: formation.slots.map((s) => ({
-          roleType: s.roleType,
-          acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
-          label: s.label,
-        })),
-      };
-    }
-  }
-  return null;
+  const effectiveFormationId = getEffectiveEventSquadFormationId({ defaultFormationId }, squad);
+  if (!effectiveFormationId) return null;
+  const formation = formations.find((f) => f.id === effectiveFormationId);
+  if (!formation) return null;
+  return {
+    slots: formation.slots.map((s) => ({
+      roleType: s.roleType,
+      acceptedPositions: (s.acceptedPositionIds as string[]) as BroadPosition[],
+      label: s.label,
+    })),
+  };
 }
 
 function distributeGoalkeepers(

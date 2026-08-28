@@ -10,7 +10,8 @@ import {
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 import { safeEventExportFilename } from '@/lib/formatters/event-export-filename';
-import { checkSupportConflicts, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
+import { checkSupportConflicts, resolveMatchWindow, type SupportAssignmentWithConflict } from '@/lib/events/event-match-support';
+import { getEffectiveEventSquadMatchTiming, type EventSquadMatchTiming } from '@/lib/events/event-types';
 import { computeLineupRating, formatStarRating } from '@/lib/events/event-lineup-rating';
 
 type SquadPlayer = {
@@ -177,7 +178,9 @@ export async function GET(
     orderBy: [{ startsAt: 'asc' }, { eventSquadId: 'asc' }],
   });
 
-  const matchDurationMinutes = event.matchDurationMinutes ?? 0;
+  const timingBySquadId = new Map(
+    event.squads.map((s) => [s.id, getEffectiveEventSquadMatchTiming(event, s)] as const),
+  );
 
   const allEventMatches = eventMatches.map((m) => ({
     id: m.id,
@@ -222,7 +225,7 @@ export async function GET(
       })),
     ),
     allEventMatches,
-    matchDurationMinutes,
+    timingBySquadId,
     eventSquads,
     playerEventAvailability: playerAvailability,
     playerNames,
@@ -287,8 +290,8 @@ export async function GET(
   workbook.created = new Date();
 
   buildSquadsSheet(workbook, event.squads);
-  buildMatchCallOutSheet(workbook, eventMatches, matchDurationMinutes, squadPlayerMap, supportConflictData);
-  buildConflictsSheet(workbook, supportConflictData, eventMatches, matchDurationMinutes);
+  buildMatchCallOutSheet(workbook, eventMatches, timingBySquadId, squadPlayerMap, supportConflictData);
+  buildConflictsSheet(workbook, supportConflictData, eventMatches, timingBySquadId);
   buildLineupsSheet(workbook, lineupData, eventMatches, event.squads);
 
   if (isFinalized) {
@@ -416,7 +419,7 @@ function buildSquadsSheet(
 function buildMatchCallOutSheet(
   workbook: ExcelJS.Workbook,
   eventMatches: EventMatchData[],
-  matchDurationMinutes: number,
+  timingBySquadId: Map<string, EventSquadMatchTiming>,
   squadPlayerMap: Map<string, SquadPlayer[]>,
   conflictData: SupportAssignmentWithConflict[],
 ) {
@@ -434,9 +437,8 @@ function buildMatchCallOutSheet(
   addHeaderRow(ws, headers, widths);
 
   for (const m of eventMatches) {
-    const endTime = matchDurationMinutes > 0
-      ? new Date(m.startsAt.getTime() + matchDurationMinutes * 60 * 1000)
-      : null;
+    const window = resolveMatchWindow(m, timingBySquadId);
+    const endTime = window ? window.endsAt : null;
 
     const squadPlayers = squadPlayerMap.get(m.eventSquadId) ?? [];
     const playerList = squadPlayers.map((p) =>
@@ -498,7 +500,7 @@ function buildConflictsSheet(
   workbook: ExcelJS.Workbook,
   supportConflictData: SupportAssignmentWithConflict[],
   eventMatches: EventMatchData[],
-  matchDurationMinutes: number,
+  timingBySquadId: Map<string, EventSquadMatchTiming>,
 ) {
   const conflicts = supportConflictData.filter((c) => c.isConflict);
   if (conflicts.length === 0) return;
@@ -511,9 +513,8 @@ function buildConflictsSheet(
   for (const c of conflicts) {
     const match = eventMatches.find((m) => m.id === c.eventMatchId);
     const matchTime = match ? formatTime(match.startsAt) : '—';
-    const endTime = match && matchDurationMinutes > 0
-      ? formatTime(new Date(match.startsAt.getTime() + matchDurationMinutes * 60 * 1000))
-      : null;
+    const window = match ? resolveMatchWindow(match, timingBySquadId) : null;
+    const endTime = window ? formatTime(window.endsAt) : null;
     const matchTimeDisplay = endTime ? `${matchTime}–${endTime}` : matchTime;
 
     ws.addRow([
