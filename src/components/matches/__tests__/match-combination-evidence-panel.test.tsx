@@ -14,6 +14,7 @@ function makeRow(overrides: Partial<CombinationEvidenceRow> & { playerIds: strin
     id: `row-${Math.random().toString(36).slice(2, 8)}`,
     organisationId: "org-1",
     matchId: "match-1",
+    eventMatchId: null,
     family: "PARTNERSHIP",
     subtype: "HORIZONTAL",
     positions: [],

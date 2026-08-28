@@ -25,8 +25,12 @@ export async function getOpponentSportingEstimate(
 
   if (!aggregate) return null;
 
+  // opponent-estimate.ts (ARR-0032, legacy parallel path) is not generalized by ADR-0104 --
+  // Event-sourced evidence (matchId === null) is excluded from this specific legacy path,
+  // not from the canonical aggregate above (`aggregateSportingLevel`), which already
+  // includes it.
   const assessments: OpponentEncounterAssessment[] = evidence
-    .filter((e) => !e.excludedAt)
+    .filter((e): e is typeof e & { matchId: string } => !e.excludedAt && e.matchId !== null)
     .map((e) => ({
       sportingLevel: Number(e.estimate),
       gameFormat: e.gameFormat,

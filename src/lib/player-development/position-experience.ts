@@ -11,7 +11,7 @@ export type PositionExperienceRow = {
     id: string;
     direction: string;
     observedAt: Date;
-    matchId: string;
+    matchId: string | null;
   }>;
 };
 
@@ -41,7 +41,7 @@ export async function getPositionExperienceForPlayer(
     id: string;
     direction: string;
     observedAt: Date;
-    matchId: string;
+    matchId: string | null;
   }>>();
 
   for (const obs of observations) {
@@ -82,7 +82,7 @@ export function evaluatePositionEvidence(
     id: string;
     direction: string;
     observedAt: Date;
-    matchId: string;
+    matchId: string | null;
   }>,
   baselineAt: Date | null,
 ): { confidence: "LOW" | "MEDIUM" | "HIGH"; direction: "POSITIVE" | "NEGATIVE" | null; alignedCount: number; distinctMatchCount: number } | null {

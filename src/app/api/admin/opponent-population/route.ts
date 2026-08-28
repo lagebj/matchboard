@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const orgSlug = searchParams.get("orgSlug");
+  const gameFormat = searchParams.get("gameFormat") ?? undefined;
+  const fromStr = searchParams.get("from") ?? undefined;
+  const toStr = searchParams.get("to") ?? undefined;
 
   if (!orgSlug) {
     return NextResponse.json({ error: "orgSlug required" }, { status: 400 });
@@ -66,8 +69,14 @@ export async function POST(request: NextRequest) {
 
   setTenantOrganisationId(ctx.organisationId);
 
+  const options = {
+    gameFormat,
+    from: fromStr ? new Date(fromStr) : undefined,
+    to: toStr ? new Date(toStr) : undefined,
+  };
+
   try {
-    const result = await applyOpponentEvidenceHistory(ctx.organisationId);
+    const result = await applyOpponentEvidenceHistory(ctx.organisationId, options);
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(

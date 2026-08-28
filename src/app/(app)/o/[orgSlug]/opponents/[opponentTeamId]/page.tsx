@@ -106,7 +106,8 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     } | null;
     evidence: Array<{
       id: string;
-      matchId: string;
+      matchId: string | null;
+      eventMatchId: string | null;
       occurredAt: string;
       gameFormat: string | null;
       goalsFor: number;
@@ -148,6 +149,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     evidence: evidenceRecords.map((e) => ({
       id: e.id,
       matchId: e.matchId,
+      eventMatchId: e.eventMatchId,
       occurredAt: e.occurredAt.toISOString(),
       gameFormat: e.gameFormat,
       goalsFor: e.goalsFor,

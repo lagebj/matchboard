@@ -150,3 +150,9 @@ export {
   applyPlayerAssessmentProposals,
   computeAndApplyPlayerEvidenceForMatch,
 } from "./player-evidence-service";
+
+export type { FootballMatchRef } from "./football-match-ref";
+export { footballMatchRefSourceId, footballMatchRefEvidenceLeagueSeasonId } from "./football-match-ref";
+
+export type { PostMatchLearningResult, LearningStepResult, LearningStepStatus } from "./post-match-learning";
+export { runPostMatchLearning } from "./post-match-learning";

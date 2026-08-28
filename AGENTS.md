@@ -657,6 +657,56 @@ Combination evidence describes what actually happened while a defined football r
 - Explanations are factual sentences (minutes together, match count, confidence) — never a synthesized score or percentage. See ADR-0094.
 - Beyond selection scoring, factual season partnership evidence (`selectRelevantPartnerships()`, `src/lib/evidence/combination-aggregation.ts`) is also surfaced as read-only planning context on the Tactics tab (current line-up), the Rotations tab (current starting line-up), and the opponent detail page (evidence recorded in matches against that specific opponent, via `getOpponentCombinationEvidence()`) — never a second selection-scoring input, purely descriptive.
 
+### Canonical post-match learning pipeline (League/Event evidence parity)
+
+There is one learning pipeline for "what did Matchboard learn from a completed match" — used by
+new League matches, new Event matches, and the historical catch-up tool described below. League
+and Event are adapters into this pipeline; neither owns a separate copy of the evidence
+algorithms. See ADR-0104.
+
+- `FootballMatchRef` (`src/lib/evidence/football-match-ref.ts`) — discriminated union identifying
+  a match's source (`LEAGUE_MATCH { matchId, leagueSeasonId }` /
+  `EVENT_MATCH { eventMatchId, eventId, evidenceLeagueSeasonId? }`) without exposing persistence
+  details to evidence algorithms.
+- `src/lib/evidence/adapters/` holds one adapter per source (`league-evidence-adapter.ts`,
+  `event-evidence-adapter.ts`) that builds a `FootballMatchRef`, resolving each source's own
+  evidence-season context. Generalized evidence algorithms
+  (`recordOpponentSportingEvidenceForRef`, `computeAndApplyPlayerEvidenceForMatch`,
+  `rebuildMatchCombinationEvidence`, `rebuildActualTimelineForRef`) take a `FootballMatchRef` and
+  resolve their own source-specific query internally, branching only at the narrow
+  persistence-write boundary (which unique column to upsert on) — there is no single shared
+  "canonical evidence" struct threaded through every function, since each algorithm needs a
+  different slice of match data (observations for player evidence, score/participants for
+  opponent evidence, position intervals for combination evidence).
+- `runPostMatchLearning(ref)` (`src/lib/evidence/post-match-learning.ts`) — the one shared
+  orchestrator, called from both League's `completeReport()`
+  (`src/lib/reports/report-mutations.ts`) and Event's `completeEventReport()`
+  (`src/lib/reports/event-report-mutations.ts`). Sequence: rebuild actual timeline → record
+  opponent sporting evidence → compute player evidence → rebuild combination evidence (skipped
+  with a reason code, e.g. `NO_EVIDENCE_SEASON`, when no evidence season resolves). Returns a
+  structured `APPLIED`/`SKIPPED`/`FAILED` result per evidence type — no step's failure blocks
+  report completion or another step, and re-running is always safe (idempotent upserts/rebuilds).
+- Generalized models use nullable dual-FK + discriminator, matching the pattern already
+  established by `PlayerDevelopmentObservation.sourceType`: `matchId String?` /
+  `eventMatchId String?` with a `CHECK` constraint enforcing exactly one is set. Applied to
+  `PlayerDevelopmentObservation`, `OpponentSportingEvidence`, `CombinationEvidence`,
+  `ActualPositionInterval`.
+- Event actual-timeline reconstruction (`rebuildEventActualTimeline`, in
+  `src/lib/evidence/actual-timeline.ts` alongside League's `rebuildActualTimeline`) derives
+  intervals from `EventMatchLineupAssignment` (starting state) plus `EventLiveMatchEvent` rows
+  (`ROTATION_OUT`/`ROTATION_IN`/`POSITIONS_CHANGED` — the same shared `LiveMatchEventType` enum
+  League uses) — no separate Event substitution table.
+- Not generalized, and not evidence-algorithm input: `OpponentEncounterObservation` (coach's
+  manual qualitative assessment) and `TeamReflection` (structured rating model). Event keeps its
+  existing free-text `opponentObservation`/`teamReflection` fields on `EventPostMatchReport`.
+- `EventMatch` has no `matchFit` field, so the Event opponent-evidence adapter never
+  auto-excludes on that basis (League's CHAOTIC/SUPPORT_OVERPOWERED/SUPPORT_TOO_LOW check has no
+  Event equivalent yet). If Event ever needs this, it must reuse the existing `MatchFit` enum,
+  never a duplicate.
+- The "Populate opponent levels" transient catch-up tool (see "Provider configuration workflow"
+  boundary rules and ARR-0031) processes both historical League and Event matches through this
+  same pipeline — not a second historical-only algorithm.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2029,7 +2079,9 @@ Rules:
 | `src/app/(app)/events/[eventId]/page.tsx` | Event detail/planning |
 | `src/app/(app)/events/[eventId]/event-detail.tsx` | Event detail client component (tabs: overview, squads, player pool) |
 | `src/app/(app)/events/[eventId]/event-matches-tab.tsx` | Matches tab with per-match helper controls, support load summary, lineup, and post-match reporting |
-| `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches |
+| `src/app/(app)/events/[eventId]/event-match-report-panel.tsx` | Post-match report panel for event matches — uses the shared `PostMatchReportShell` (ARR-0034) for status/lifecycle/result/goals/assists/attendance; renders team reflection, opponent observation, notes, football observations, and combination evidence as its own `extraSections` |
+| `src/lib/reports/post-match-report-view-model.ts` | Canonical `PostMatchReportViewModel`/`PostMatchReportActions`/`PostMatchReportCapabilities` types shared by League and Event post-match report UIs (ARR-0034) |
+| `src/components/matches/post-match-report-shell.tsx` | Shared post-match report shell component: status/lifecycle actions, result, goals, assists, attendance (with add/remove) — used by both `src/components/assistant/post-match-page.tsx` (League) and `event-match-report-panel.tsx` (Event) |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
 | `src/lib/formatters/event-labels.ts` | Human-readable event type, squad intent, player status, match status, goalkeeper ability labels |
@@ -2373,6 +2425,10 @@ Avoid:
 | `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
 | `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
+| `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
+| `src/lib/evidence/post-match-learning.ts` | `runPostMatchLearning(ref)` — the one shared post-match learning orchestrator used by League and Event report completion |
+| `src/lib/evidence/adapters/league-evidence-adapter.ts` | Builds a League `FootballMatchRef` (`buildLeagueMatchRef`), resolving `leagueSeasonId` via the match's round |
+| `src/lib/evidence/adapters/event-evidence-adapter.ts` | Builds an Event `FootballMatchRef` (`buildEventMatchRef`), resolving `evidenceLeagueSeasonId` via football-group + date-range overlap (learning context only, never League competition membership) |
 | `src/lib/evidence/combination-topology.ts` | Derives all six canonical combination families (Partnership/Triangle/Line/Corridor/Functional Unit/Full Configuration) from the actual position timeline |
 | `src/lib/evidence/combination-goal-attribution.ts` | Places goals/assists on the timeline (live events when available, `Goal.minute` as approximate fallback) for combination evidence |
 | `src/lib/evidence/combination-aggregation.ts` | Cross-match combination evidence aggregation, persistence, season summaries, historical backfill, opponent-scoped evidence (`getOpponentCombinationEvidence`), planned-pairing filtering (`selectRelevantPartnerships`) |
@@ -2647,10 +2703,11 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
 | `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endLiveSession()` and `seedReportFromLiveSession()` — does not reimplement either write |
 | `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
-| `src/lib/reports/report-domain.ts` | League report transition validation: `canTransitionTo`, `isReportLocked`, `hasUnknownAttendance` |
+| `src/lib/reports/report-domain.ts` | Report transition validation shared by League and Event (ARR-0030 resolution): `canTransitionTo`, `isReportLocked`, `hasUnknownAttendance` operate purely on the shared `MatchReportStatus` enum and a generic attendance shape, with no League-specific coupling |
 | `src/app/(app)/events/[eventId]/event-live-actions.ts` | Server actions: event live session lifecycle, event recording, pre-match package |
 | `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endEventLiveSession()` and `seedEventReportFromLiveSession()` |
-| `src/lib/reports/event-report-mutations.ts` | Event Run->Learn handoff domain mutation: `seedEventReportFromLiveSession` (ADR-0088). Report *completion* (DRAFT->LOCKED) is not yet domain-owned — see ARR-0030 |
+| `src/lib/reports/event-report-mutations.ts` | Event report domain mutations: `seedEventReportFromLiveSession` (ADR-0088, Run->Learn handoff) and `completeEventReport` (ADR-0104/ARR-0030 resolution: DRAFT/REPORTED->LOCKED transition, opponent resolution, shared `runPostMatchLearning()`) |
+| `src/app/(app)/events/event-football-observation-actions.ts` | Server actions: save/get football observations for an Event match (mirrors the League post-match action file; mandatory for Event player-evidence parity, ADR-0104) |
 | `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
 | `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 

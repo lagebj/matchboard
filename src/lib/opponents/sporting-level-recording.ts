@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type GameFormat, type MatchFit } from "@/generated/prisma/client";
 import {
   calculateEncounterEstimate,
   computeFieldedRating,
@@ -11,6 +11,8 @@ import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 import { RATING_ATTRIBUTE_KEYS } from "@/lib/player-development/constants";
 import { OPPONENT_ENGINE_VERSION, classifyDataQuality, computeWholeMatchEstimate } from "@/lib/evidence/opponent-engine";
 import { recordOpponentAssessmentChange } from "@/lib/evidence/opponent-assessment-change";
+import { getEffectiveEventTeamGameFormat } from "@/lib/events/event-types";
+import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
 
 export type FieldedPlayer = {
   playerId: string;
@@ -18,14 +20,36 @@ export type FieldedPlayer = {
   minutes?: number | null;
 };
 
-export async function recordOpponentSportingEvidence(
+export type RecordOpponentSportingEvidenceResult = {
+  recorded: boolean;
+  evidenceId?: string;
+  reason?: string;
+};
+
+/**
+ * Persistence-agnostic encounter facts the opponent-evidence algorithm needs.
+ * `matchFit` is null for sources with no sporting-fit signal (Event matches today —
+ * `EventMatch` has no `matchFit` field, see ADR-0104's Consequences).
+ */
+type MatchEncounterContext = {
+  organisationId: string;
+  opponentTeamId: string | null;
+  matchFit: MatchFit | null;
+  gameFormat: GameFormat | null;
+  occurredAt: Date;
+  goalsFor: number;
+  goalsAgainst: number;
+  reportStatus: string;
+  presentActuals: Array<{ playerId: string; actualPositions: unknown }>;
+};
+
+async function getLeagueEncounterContext(
   matchId: string,
   orgFilter: OrgFilterMode,
-): Promise<{ recorded: boolean; evidenceId?: string; reason?: string }> {
+): Promise<MatchEncounterContext | { reason: string }> {
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
     select: {
-      id: true,
       opponentTeamId: true,
       matchFit: true,
       gameFormat: true,
@@ -35,59 +59,126 @@ export async function recordOpponentSportingEvidence(
     },
   });
 
-  if (!match) {
-    return { recorded: false, reason: "Match not found" };
-  }
-
-  if (!match.opponentTeamId) {
-    return { recorded: false, reason: "No opponent team linked to match" };
-  }
+  if (!match) return { reason: "Match not found" };
+  if (!match.opponentTeamId) return { reason: "No opponent team linked to match" };
 
   const report = await db.postMatchReport.findFirst({
     where: { matchId, ...orgFilter.filterNullable },
     select: {
-      id: true,
       status: true,
       homeGoals: true,
       awayGoals: true,
       playerActuals: {
-        select: {
-          playerId: true,
-          attendanceStatus: true,
-          actualPositions: true,
-        },
+        select: { playerId: true, attendanceStatus: true, actualPositions: true },
       },
     },
   });
 
-  if (!report) {
-    return { recorded: false, reason: "No post-match report" };
-  }
-
-  if (report.status !== "LOCKED" && report.status !== "REPORTED") {
-    return { recorded: false, reason: "Report not completed" };
-  }
+  if (!report) return { reason: "No post-match report" };
+  if (report.status !== "LOCKED" && report.status !== "REPORTED") return { reason: "Report not completed" };
 
   const homeGoals = report.homeGoals ?? 0;
   const awayGoals = report.awayGoals ?? 0;
 
   // homeGoals/awayGoals are venue-relative (home team's score, away team's score).
-  // goalsFor/goalsAgainst in sporting evidence are from our team's perspective.
-  // When we're the away team, our goals = awayGoals, opponent's = homeGoals.
+  // goalsFor/goalsAgainst are from our team's perspective.
   const isHome = match.homeAway === "HOME";
   const goalsFor = isHome ? homeGoals : awayGoals;
   const goalsAgainst = isHome ? awayGoals : homeGoals;
 
-  const presentActuals = report.playerActuals.filter(
-    (a: { playerId: string; attendanceStatus: string; actualPositions: unknown }) =>
-      a.attendanceStatus === "PRESENT",
-  );
+  const presentActuals = report.playerActuals
+    .filter((a) => a.attendanceStatus === "PRESENT")
+    .map((a) => ({ playerId: a.playerId, actualPositions: a.actualPositions }));
 
-  if (presentActuals.length === 0) {
+  return {
+    organisationId: match.organisationId,
+    opponentTeamId: match.opponentTeamId,
+    matchFit: match.matchFit,
+    gameFormat: match.gameFormat,
+    occurredAt: match.startsAt,
+    goalsFor,
+    goalsAgainst,
+    reportStatus: report.status,
+    presentActuals,
+  };
+}
+
+async function getEventEncounterContext(
+  eventMatchId: string,
+  orgFilter: OrgFilterMode,
+): Promise<MatchEncounterContext | { reason: string }> {
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, ...orgFilter.filter },
+    select: {
+      opponentTeamId: true,
+      startsAt: true,
+      organisationId: true,
+      event: { select: { gameFormat: true } },
+      eventSquad: { select: { gameFormatOverride: true } },
+    },
+  });
+
+  if (!eventMatch) return { reason: "Event match not found" };
+  if (!eventMatch.opponentTeamId) return { reason: "No opponent team linked to match" };
+
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, ...orgFilter.filterNullable },
+    select: {
+      status: true,
+      ourScore: true,
+      opponentScore: true,
+      playerReports: {
+        select: { playerId: true, attendanceStatus: true },
+      },
+    },
+  });
+
+  if (!report) return { reason: "No post-match report" };
+  if (report.status !== "LOCKED" && report.status !== "REPORTED") return { reason: "Report not completed" };
+
+  const presentActuals = report.playerReports
+    .filter((a) => a.attendanceStatus === "PRESENT")
+    .map((a) => ({ playerId: a.playerId, actualPositions: null as unknown }));
+
+  const gameFormat = getEffectiveEventTeamGameFormat(eventMatch.event, eventMatch.eventSquad) as GameFormat;
+
+  return {
+    organisationId: eventMatch.organisationId,
+    opponentTeamId: eventMatch.opponentTeamId,
+    // EventMatch has no matchFit field — no auto-exclusion signal available for Event
+    // matches yet (ADR-0104). Never guess/duplicate the League MatchFit enum here.
+    matchFit: null,
+    gameFormat,
+    occurredAt: eventMatch.startsAt,
+    goalsFor: report.ourScore ?? 0,
+    goalsAgainst: report.opponentScore ?? 0,
+    reportStatus: report.status,
+    presentActuals,
+  };
+}
+
+export async function recordOpponentSportingEvidenceForRef(
+  ref: FootballMatchRef,
+  orgFilter: OrgFilterMode,
+): Promise<RecordOpponentSportingEvidenceResult> {
+  const context =
+    ref.kind === "LEAGUE_MATCH"
+      ? await getLeagueEncounterContext(ref.matchId, orgFilter)
+      : await getEventEncounterContext(ref.eventMatchId, orgFilter);
+
+  if ("reason" in context) {
+    return { recorded: false, reason: context.reason };
+  }
+
+  if (!context.opponentTeamId) {
+    return { recorded: false, reason: "No opponent team linked to match" };
+  }
+
+  if (context.presentActuals.length === 0) {
     return { recorded: false, reason: "No present participants" };
   }
 
-  const playerIds = presentActuals.map((a: { playerId: string }) => a.playerId);
+  const playerIds = context.presentActuals.map((a) => a.playerId);
 
   const players = await db.player.findMany({
     where: {
@@ -113,7 +204,7 @@ export async function recordOpponentSportingEvidence(
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
 
-  const fieldedPlayers: FieldedPlayer[] = presentActuals.map((actual: { playerId: string; attendanceStatus: string; actualPositions: unknown }) => {
+  const fieldedPlayers: FieldedPlayer[] = context.presentActuals.map((actual) => {
     const player = playerMap.get(actual.playerId);
     const rating = player ? getPlayerOverallRating(player).value : null;
     return { playerId: actual.playerId, rating };
@@ -121,9 +212,11 @@ export async function recordOpponentSportingEvidence(
 
   const { rating: fieldedRating, method, participantCount, ratedParticipantCount } = computeFieldedRating(fieldedPlayers);
 
+  const uniqueWhere = ref.kind === "LEAGUE_MATCH" ? { matchId: ref.matchId } : { eventMatchId: ref.eventMatchId };
+
   if (fieldedRating === null) {
     const existing = await db.opponentSportingEvidence.findFirst({
-      where: { matchId, ...orgFilter.filter },
+      where: { ...uniqueWhere, ...orgFilter.filter },
     });
     if (existing) {
       await db.opponentSportingEvidence.delete({ where: { id: existing.id } });
@@ -131,9 +224,8 @@ export async function recordOpponentSportingEvidence(
     return { recorded: false, reason: "No valid fielded rating could be derived" };
   }
 
-  const estimate = calculateEncounterEstimate(fieldedRating, homeGoals, awayGoals);
-
-  const autoExclude = shouldAutoExcludeEncounter(match.matchFit);
+  const estimate = calculateEncounterEstimate(fieldedRating, context.goalsFor, context.goalsAgainst);
+  const autoExclude = context.matchFit !== null && shouldAutoExcludeEncounter(context.matchFit);
 
   const dataQuality = classifyDataQuality({
     hasExactTimeline: false,
@@ -145,17 +237,17 @@ export async function recordOpponentSportingEvidence(
 
   const wholeMatchResult = computeWholeMatchEstimate(
     fieldedRating,
-    goalsFor,
-    goalsAgainst,
+    context.goalsFor,
+    context.goalsAgainst,
     participantCount,
     ratedParticipantCount,
-    match.matchFit,
+    context.matchFit ?? "UNKNOWN",
     dataQuality,
     null,
   );
 
   const fieldedRatingDetails = {
-    players: presentActuals.map((a: { playerId: string; attendanceStatus: string; actualPositions: unknown }) => {
+    players: context.presentActuals.map((a) => {
       const p = playerMap.get(a.playerId);
       const attrs: Record<string, number | null> = {};
       if (p) {
@@ -174,56 +266,37 @@ export async function recordOpponentSportingEvidence(
     ratedParticipantCount,
   };
 
-  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : match.organisationId;
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : context.organisationId;
 
-  const _gameFormat = match.gameFormat as string | null;
+  const sharedFields = {
+    opponentTeamId: context.opponentTeamId,
+    occurredAt: context.occurredAt,
+    gameFormat: context.gameFormat,
+    goalsFor: context.goalsFor,
+    goalsAgainst: context.goalsAgainst,
+    fieldedRatingSnapshot: new Prisma.Decimal(fieldedRating.toFixed(2)),
+    participantCount,
+    ratedParticipantCount,
+    weightingMethod: method === "MINUTE_WEIGHTED" ? ("MINUTE_WEIGHTED" as const) : ("PARTICIPANT_AVERAGE" as const),
+    estimate: new Prisma.Decimal(estimate.toFixed(2)),
+    formulaVersion: FORMULA_VERSION,
+    engineVersion: OPPONENT_ENGINE_VERSION,
+    dataQuality,
+    lineupStateCount: 0,
+    dominantLineupStrength: new Prisma.Decimal(fieldedRating.toFixed(2)),
+    contextSignals: wholeMatchResult.contextSignals as Prisma.InputJsonValue,
+    excludedAt: autoExclude ? new Date() : null,
+    exclusionReason: autoExclude ? `Auto-excluded: match fit ${context.matchFit}` : null,
+    fieldedRatingDetails: fieldedRatingDetails as Prisma.InputJsonValue,
+    organisationId,
+  };
 
   const evidence = await db.opponentSportingEvidence.upsert({
-    where: { matchId },
-    update: {
-      opponentTeamId: match.opponentTeamId,
-      occurredAt: match.startsAt,
-      gameFormat: match.gameFormat,
-      goalsFor,
-      goalsAgainst,
-      fieldedRatingSnapshot: new Prisma.Decimal(fieldedRating.toFixed(2)),
-      participantCount,
-      ratedParticipantCount,
-      weightingMethod: method === "MINUTE_WEIGHTED" ? "MINUTE_WEIGHTED" : "PARTICIPANT_AVERAGE",
-      estimate: new Prisma.Decimal(estimate.toFixed(2)),
-      formulaVersion: FORMULA_VERSION,
-      engineVersion: OPPONENT_ENGINE_VERSION,
-      dataQuality,
-      lineupStateCount: 0,
-      dominantLineupStrength: new Prisma.Decimal(fieldedRating.toFixed(2)),
-      contextSignals: wholeMatchResult.contextSignals as Prisma.InputJsonValue,
-      excludedAt: autoExclude ? new Date() : null,
-      exclusionReason: autoExclude ? `Auto-excluded: match fit ${match.matchFit}` : null,
-      fieldedRatingDetails: fieldedRatingDetails as Prisma.InputJsonValue,
-      organisationId,
-    },
+    where: uniqueWhere,
+    update: sharedFields,
     create: {
-      matchId,
-      opponentTeamId: match.opponentTeamId,
-      occurredAt: match.startsAt,
-      gameFormat: match.gameFormat,
-      goalsFor,
-      goalsAgainst,
-      fieldedRatingSnapshot: new Prisma.Decimal(fieldedRating.toFixed(2)),
-      participantCount,
-      ratedParticipantCount,
-      weightingMethod: method === "MINUTE_WEIGHTED" ? "MINUTE_WEIGHTED" : "PARTICIPANT_AVERAGE",
-      estimate: new Prisma.Decimal(estimate.toFixed(2)),
-      formulaVersion: FORMULA_VERSION,
-      engineVersion: OPPONENT_ENGINE_VERSION,
-      dataQuality,
-      lineupStateCount: 0,
-      dominantLineupStrength: new Prisma.Decimal(fieldedRating.toFixed(2)),
-      contextSignals: wholeMatchResult.contextSignals as Prisma.InputJsonValue,
-      excludedAt: autoExclude ? new Date() : null,
-      exclusionReason: autoExclude ? `Auto-excluded: match fit ${match.matchFit}` : null,
-      fieldedRatingDetails: fieldedRatingDetails as Prisma.InputJsonValue,
-      organisationId,
+      ...(ref.kind === "LEAGUE_MATCH" ? { matchId: ref.matchId } : { eventMatchId: ref.eventMatchId }),
+      ...sharedFields,
     },
   });
 
@@ -231,7 +304,7 @@ export async function recordOpponentSportingEvidence(
     try {
       const previousEstimate = await db.opponentSportingEvidence.findFirst({
         where: {
-          opponentTeamId: match.opponentTeamId,
+          opponentTeamId: context.opponentTeamId,
           ...orgFilter.filter,
           excludedAt: null,
           id: { not: evidence.id },
@@ -241,12 +314,12 @@ export async function recordOpponentSportingEvidence(
       });
 
       await recordOpponentAssessmentChange({
-        opponentTeamId: match.opponentTeamId,
+        opponentTeamId: context.opponentTeamId,
         beforeLevel: previousEstimate ? Number(previousEstimate.estimate) : null,
         afterLevel: Number(estimate.toFixed(2)),
         source: "AUTOMATIC",
         reason: `Match evidence recorded (${dataQuality} data)`,
-        evidenceMatchId: matchId,
+        evidenceMatchId: ref.kind === "LEAGUE_MATCH" ? ref.matchId : ref.eventMatchId,
         confidence: wholeMatchResult.confidence,
         dataQuality,
       });
@@ -256,6 +329,18 @@ export async function recordOpponentSportingEvidence(
   }
 
   return { recorded: true, evidenceId: evidence.id };
+}
+
+/**
+ * League-only convenience wrapper, kept for existing call sites (e.g. the historical
+ * "Populate opponent levels" replay tool). New code should call
+ * `recordOpponentSportingEvidenceForRef` directly with a `FootballMatchRef`.
+ */
+export async function recordOpponentSportingEvidence(
+  matchId: string,
+  orgFilter: OrgFilterMode,
+): Promise<RecordOpponentSportingEvidenceResult> {
+  return recordOpponentSportingEvidenceForRef({ kind: "LEAGUE_MATCH", matchId, leagueSeasonId: null }, orgFilter);
 }
 
 export async function excludeOpponentSportingEvidence(

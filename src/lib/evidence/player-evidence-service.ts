@@ -15,6 +15,7 @@ import type { FootballObservationCode, ObservationPolarity } from "./observation
 import { ALL_OBSERVATION_CODES } from "./observation-vocabulary";
 import { type RatingAttributeKey } from "@/lib/ratings/player-rating";
 import { recordAssessmentChange } from "./assessment-change";
+import { footballMatchRefSourceId, type FootballMatchRef } from "./football-match-ref";
 
 export type MatchObservationEvidence = {
   playerId: string;
@@ -454,12 +455,15 @@ export async function applyPlayerAssessmentProposals(
 }
 
 export async function computeAndApplyPlayerEvidenceForMatch(
-  matchId: string,
+  ref: FootballMatchRef,
   orgFilter?: { filter: Record<string, unknown> },
-): Promise<{ proposalsComputed: number; applied: number; skipped: number; errors: string[] }> {
+): Promise<{ proposalsComputed: number; applied: number; skipped: number; errors: string[]; observationsFound: number }> {
+  const sourceId = footballMatchRefSourceId(ref);
+  const matchWhere = ref.kind === "LEAGUE_MATCH" ? { matchId: ref.matchId } : { eventMatchId: ref.eventMatchId };
+
   const observations = await db.playerDevelopmentObservation.findMany({
     where: {
-      matchId,
+      ...matchWhere,
       kind: "ATTRIBUTE",
       attributeKey: { in: [...ALL_OBSERVATION_CODES] },
       ...(orgFilter?.filter ?? {}),
@@ -474,26 +478,18 @@ export async function computeAndApplyPlayerEvidenceForMatch(
   });
 
   if (observations.length === 0) {
-    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: [] };
+    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: [], observationsFound: 0 };
   }
 
   const playerIds = [...new Set(observations.map((o) => o.playerId))];
 
-  // Bug fix (user-documentation-experience Phase 2): this select previously included
-  // homeGoals/awayGoals/homeTeamId/awayTeamId/date, none of which exist on Match (Match has no
-  // home/away-team split or embedded score -- see PostMatchReport for those) and none of which
-  // were ever read from the result below. Always threw "Unknown field" on every real
-  // invocation; undiscovered until this programme's seed script first exercised
-  // computeAndApplyPlayerEvidenceForMatch() end-to-end (completeReport() wraps this call in a
-  // try/catch that silently swallowed the failure). Only `id` (the existence check just below)
-  // is actually used.
-  const match = await db.match.findUnique({
-    where: { id: matchId },
-    select: { id: true },
-  });
+  const matchExists =
+    ref.kind === "LEAGUE_MATCH"
+      ? await db.match.findUnique({ where: { id: ref.matchId }, select: { id: true } })
+      : await db.eventMatch.findUnique({ where: { id: ref.eventMatchId }, select: { id: true } });
 
-  if (!match) {
-    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: ["Match not found"] };
+  if (!matchExists) {
+    return { proposalsComputed: 0, applied: 0, skipped: 0, errors: ["Match not found"], observationsFound: observations.length };
   }
 
   const players = await db.player.findMany({
@@ -538,7 +534,7 @@ export async function computeAndApplyPlayerEvidenceForMatch(
         playerId: o.playerId,
         observationCode: o.attributeKey as FootballObservationCode,
         polarity: o.direction as ObservationPolarity,
-        matchId,
+        matchId: sourceId,
         occurredAt: o.observedAt,
       }));
 
@@ -609,5 +605,6 @@ export async function computeAndApplyPlayerEvidenceForMatch(
     applied: totalApplied,
     skipped: totalSkipped,
     errors: allErrors,
+    observationsFound: observations.length,
   };
 }

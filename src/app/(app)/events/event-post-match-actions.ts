@@ -6,6 +6,8 @@ import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-c
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { MatchReportStatus, EventPostMatchAttendanceStatus, GoalType, AssistType } from '@/generated/prisma/client';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { isReportLocked } from '@/lib/reports/report-domain';
+import { completeEventReport } from '@/lib/reports/event-report-mutations';
 
 async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode): Promise<void> {
   const event = await db.event.findFirst({
@@ -141,7 +143,7 @@ export async function updateEventMatchResultAction(
   const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
 
-  if (report.status === 'LOCKED') {
+  if (isReportLocked(report.status)) {
     throw new Error('Cannot update a locked report.');
   }
 
@@ -180,7 +182,7 @@ export async function updateEventPlayerAttendanceAction(
 
   await requireReportOrgAccess(playerReport.reportId, ctx.orgFilter);
 
-  if (playerReport.report.status === 'LOCKED') {
+  if (isReportLocked(playerReport.report.status)) {
     throw new Error('Cannot update attendance on a locked report.');
   }
 
@@ -198,6 +200,76 @@ export async function updateEventPlayerAttendanceAction(
   return updated;
 }
 
+/**
+ * Event gains participant add/remove (ARR-0034 resolution criteria #3) -- League has had
+ * addActualPlayer/removeActualPlayer since before this programme; Event had no equivalent.
+ * Unlike League, there is no "unplanned appearance reason" concept for Event (capabilities.hasUnplannedReason: false).
+ */
+export async function addEventMatchPlayerAction(
+  reportId: string,
+  data: { playerId: string },
+) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+
+  await requireReportOrgAccess(reportId, ctx.orgFilter);
+
+  const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
+  if (!report) throw new Error('Report not found.');
+  if (isReportLocked(report.status)) {
+    throw new Error('Cannot add a player to a locked report.');
+  }
+
+  const existing = await db.eventPostMatchPlayer.findFirst({ where: { reportId, playerId: data.playerId } });
+  if (existing) {
+    throw new Error('This player is already recorded on this report.');
+  }
+
+  const created = await db.eventPostMatchPlayer.create({
+    data: {
+      reportId,
+      playerId: data.playerId,
+      attendanceStatus: 'PRESENT',
+      organisationId: ctx.organisationId,
+    },
+  });
+
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
+  if (eventMatch) {
+    revalidatePath(`/events/${eventMatch.eventId}`);
+  }
+  return created;
+}
+
+export async function removeEventMatchPlayerAction(playerReportId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+
+  const playerReport = await db.eventPostMatchPlayer.findFirst({
+    where: { id: playerReportId, ...ctx.orgFilter.filter },
+    include: { report: true },
+  });
+  if (!playerReport) throw new Error('Player report not found.');
+
+  await requireReportOrgAccess(playerReport.reportId, ctx.orgFilter);
+
+  if (isReportLocked(playerReport.report.status)) {
+    throw new Error('Cannot remove a player from a locked report.');
+  }
+
+  await db.eventPostMatchPlayer.delete({ where: { id: playerReportId } });
+
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: playerReport.report.eventMatchId, event: ctx.orgFilter.filter },
+  });
+  if (eventMatch) {
+    revalidatePath(`/events/${eventMatch.eventId}`);
+  }
+  return { success: true };
+}
+
 export async function addEventGoalAction(
   reportId: string,
   data: { playerId?: string; minute?: number; type?: GoalType; note?: string },
@@ -210,7 +282,7 @@ export async function addEventGoalAction(
 
   const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
-  if (report.status === 'LOCKED') {
+  if (isReportLocked(report.status)) {
     throw new Error('Cannot add goals to a locked report.');
   }
 
@@ -243,7 +315,7 @@ export async function removeEventGoalAction(goalId: string) {
   await requireReportOrgAccess(goal.reportId, ctx.orgFilter);
 
   const report = await db.eventPostMatchReport.findFirst({ where: { id: goal.reportId, ...ctx.orgFilter.filter } });
-  if (report?.status === 'LOCKED') {
+  if (report && isReportLocked(report.status)) {
     throw new Error('Cannot remove goals from a locked report.');
   }
 
@@ -270,7 +342,7 @@ export async function addEventAssistAction(
 
   const report = await db.eventPostMatchReport.findFirst({ where: { id: reportId, ...ctx.orgFilter.filter } });
   if (!report) throw new Error('Report not found.');
-  if (report.status === 'LOCKED') {
+  if (isReportLocked(report.status)) {
     throw new Error('Cannot add assists to a locked report.');
   }
 
@@ -301,7 +373,7 @@ export async function removeEventAssistAction(assistId: string) {
   await requireReportOrgAccess(assist.reportId, ctx.orgFilter);
 
   const report = await db.eventPostMatchReport.findFirst({ where: { id: assist.reportId, ...ctx.orgFilter.filter } });
-  if (report?.status === 'LOCKED') {
+  if (report && isReportLocked(report.status)) {
     throw new Error('Cannot remove assists from a locked report.');
   }
 
@@ -323,41 +395,17 @@ export async function completeEventMatchReportAction(reportId: string) {
 
   await requireReportOrgAccess(reportId, ctx.orgFilter);
 
-  const report = await db.eventPostMatchReport.findFirst({
-    where: { id: reportId, ...ctx.orgFilter.filter },
-    include: { playerReports: true },
-  });
-
-  if (!report) throw new Error('Report not found.');
-
-  if (report.status === 'LOCKED') {
-    throw new Error('Report is already completed.');
+  const result = await completeEventReport(reportId, ctx.orgFilter);
+  if (!result.success) {
+    throw new Error(result.error);
   }
 
-  const unknownAttendance = report.playerReports.some(
-    (pr) => pr.attendanceStatus === 'UNKNOWN',
-  );
-
-  if (unknownAttendance) {
-    throw new Error('Cannot complete report: some players have unknown attendance. Mark all players as Present, No show, or absent.');
-  }
-
-  const updated = await db.eventPostMatchReport.update({
-    where: { id: reportId },
-    data: {
-      status: 'LOCKED',
-      completedAt: new Date(),
-    },
-  });
-
-  const { resolveEventOpponentOnReportCompletion } = await import('@/lib/opponents/resolve-opponent');
-  await resolveEventOpponentOnReportCompletion(report.eventMatchId);
-
-  const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
+  const eventMatch = await db.eventMatch.findFirst({ where: { id: result.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
-  return updated;
+
+  return db.eventPostMatchReport.findFirstOrThrow({ where: { id: reportId, ...ctx.orgFilter.filter } });
 }
 
 export async function reopenEventMatchReportAction(reportId: string, targetStatus?: 'DRAFT' | 'REPORTED') {
@@ -389,4 +437,29 @@ export async function reopenEventMatchReportAction(reportId: string, targetStatu
     revalidatePath(`/events/${eventMatch.eventId}`);
   }
   return updated;
+}
+
+/**
+ * Factual, per-match combination evidence for a locked Event report (mirrors League's
+ * `MatchCombinationEvidencePanel` data source on the post-match page). The presentational
+ * component is already source-agnostic; this just supplies the Event-side data fetch.
+ */
+export async function getEventMatchCombinationEvidenceAction(eventMatchId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: ctx.orgFilter.filter },
+    select: { eventId: true },
+  });
+  if (!eventMatch) throw new Error('Event match not found or access denied.');
+  await requireEventOrgAccess(eventMatch.eventId, ctx.orgFilter);
+
+  const { getMatchCombinationEvidenceForRef } = await import('@/lib/evidence/combination-aggregation');
+  return getMatchCombinationEvidenceForRef({
+    kind: 'EVENT_MATCH',
+    eventMatchId,
+    eventId: eventMatch.eventId,
+    evidenceLeagueSeasonId: null,
+  });
 }

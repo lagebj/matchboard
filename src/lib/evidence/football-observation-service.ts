@@ -6,7 +6,9 @@ import { isValidObservationCode, ALL_OBSERVATION_CODES } from "./observation-voc
 
 export type FootballObservationInput = {
   playerId: string;
-  matchId: string;
+  /** Exactly one of matchId/eventMatchId must be set (mirrors the schema's dual-FK pattern). */
+  matchId?: string;
+  eventMatchId?: string;
   observationCode: FootballObservationCode;
   polarity: ObservationPolarity;
   note?: string;
@@ -72,24 +74,35 @@ export async function createFootballObservations(
         throw new Error("Player not found, not active, or access denied");
       }
 
-      const match = await db.match.findFirst({
-        where: {
-          id: input.matchId,
-          organisationId: ctx.organisationId,
-        },
-        select: { id: true },
-      });
+      if (!input.matchId === !input.eventMatchId) {
+        throw new Error("Exactly one of matchId/eventMatchId must be provided");
+      }
 
-      if (!match) {
-        throw new Error("Match not found or access denied");
+      if (input.matchId) {
+        const match = await db.match.findFirst({
+          where: { id: input.matchId, organisationId: ctx.organisationId },
+          select: { id: true },
+        });
+        if (!match) {
+          throw new Error("Match not found or access denied");
+        }
+      } else {
+        const eventMatch = await db.eventMatch.findFirst({
+          where: { id: input.eventMatchId, organisationId: ctx.organisationId },
+          select: { id: true },
+        });
+        if (!eventMatch) {
+          throw new Error("Event match not found or access denied");
+        }
       }
 
       const observation = await db.playerDevelopmentObservation.create({
         data: {
           organisationId: ctx.organisationId,
           playerId: input.playerId,
-          sourceType: "LEAGUE_MATCH",
-          matchId: input.matchId,
+          sourceType: input.matchId ? "LEAGUE_MATCH" : "EVENT_MATCH",
+          matchId: input.matchId ?? null,
+          eventMatchId: input.eventMatchId ?? null,
           kind: "ATTRIBUTE",
           attributeKey: input.observationCode,
           direction: input.polarity,
@@ -118,7 +131,8 @@ export async function getFootballObservationsForPlayer(
   id: string;
   observationCode: string;
   polarity: string;
-  matchId: string;
+  matchId: string | null;
+  eventMatchId: string | null;
   note: string | null;
   observedAt: Date;
 }>> {
@@ -138,6 +152,7 @@ export async function getFootballObservationsForPlayer(
       attributeKey: true,
       direction: true,
       matchId: true,
+      eventMatchId: true,
       observableNote: true,
       observedAt: true,
     },
@@ -148,6 +163,7 @@ export async function getFootballObservationsForPlayer(
     observationCode: o.attributeKey ?? "",
     polarity: o.direction,
     matchId: o.matchId,
+    eventMatchId: o.eventMatchId,
     note: o.observableNote,
     observedAt: o.observedAt,
   }));
@@ -169,6 +185,47 @@ export async function getFootballObservationsForMatch(
   const observations = await db.playerDevelopmentObservation.findMany({
     where: {
       matchId,
+      organisationId: ctx.organisationId,
+      kind: "ATTRIBUTE",
+      attributeKey: { in: [...ALL_OBSERVATION_CODES] },
+    },
+    orderBy: { observedAt: "desc" },
+    select: {
+      id: true,
+      playerId: true,
+      attributeKey: true,
+      direction: true,
+      observableNote: true,
+      observedAt: true,
+    },
+  });
+
+  return observations.map((o) => ({
+    id: o.id,
+    playerId: o.playerId,
+    observationCode: o.attributeKey ?? "",
+    polarity: o.direction,
+    note: o.observableNote,
+    observedAt: o.observedAt,
+  }));
+}
+
+export async function getFootballObservationsForEventMatch(
+  eventMatchId: string,
+): Promise<Array<{
+  id: string;
+  playerId: string;
+  observationCode: string;
+  polarity: string;
+  note: string | null;
+  observedAt: Date;
+}>> {
+  const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+
+  const observations = await db.playerDevelopmentObservation.findMany({
+    where: {
+      eventMatchId,
       organisationId: ctx.organisationId,
       kind: "ATTRIBUTE",
       attributeKey: { in: [...ALL_OBSERVATION_CODES] },

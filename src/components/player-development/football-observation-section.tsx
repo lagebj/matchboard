@@ -23,7 +23,9 @@ type PlayerOption = {
 };
 
 type Props = {
-  matchId: string;
+  /** Exactly one of matchId/eventMatchId identifies the report this section is for. */
+  matchId?: string;
+  eventMatchId?: string;
   players: PlayerOption[];
   existingObservations: ObservationEntry[];
   isLocked: boolean;
@@ -31,6 +33,7 @@ type Props = {
 
 export function FootballObservationSection({
   matchId,
+  eventMatchId,
   players,
   existingObservations,
   isLocked,
@@ -76,7 +79,6 @@ export function FootballObservationSection({
         (code) =>
           ({
             playerId: selectedPlayer,
-            matchId,
             observationCode: code,
             polarity: "POSITIVE" as ObservationPolarity,
             note: note.trim() || undefined,
@@ -86,7 +88,6 @@ export function FootballObservationSection({
         (code) =>
           ({
             playerId: selectedPlayer,
-            matchId,
             observationCode: code,
             polarity: "NEGATIVE" as ObservationPolarity,
             note: note.trim() || undefined,
@@ -95,10 +96,13 @@ export function FootballObservationSection({
     ];
 
     try {
-      const { saveFootballObservationsAction } = await import(
-        "@/app/(app)/matches/[matchId]/post-match/football-observation-actions"
-      );
-      const result = await saveFootballObservationsAction(matchId, inputs);
+      const result = eventMatchId
+        ? await (
+            await import("@/app/(app)/events/event-football-observation-actions")
+          ).saveEventFootballObservationsAction(eventMatchId, inputs)
+        : await (
+            await import("@/app/(app)/matches/[matchId]/post-match/football-observation-actions")
+          ).saveFootballObservationsAction(matchId!, inputs);
 
       if (!result.success) {
         setError(result.error ?? "Failed to save observations");
@@ -126,9 +130,47 @@ export function FootballObservationSection({
       </p>
 
       {isLocked ? (
-        <p className="text-sm text-gray-500 italic">
-          This report is locked. Observations cannot be added.
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500 italic">
+            This report is locked. Observations cannot be added.
+          </p>
+          {existingObservations.length > 0 && (
+            <div className="space-y-2">
+              {players
+                .filter((p) => existingObservations.some((o) => o.playerId === p.id))
+                .map((p) => (
+                  <div key={p.id} className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-500">{p.name}</p>
+                    {existingObservations
+                      .filter((o) => o.playerId === p.id)
+                      .map((o) => {
+                        const code = o.observationCode as FootballObservationCode;
+                        const isValidCode = ALL_OBSERVATION_CODES.includes(code);
+                        return (
+                          <div key={o.id} className="flex items-center gap-2 text-xs">
+                            <span
+                              className={`inline-block rounded px-1.5 py-0.5 font-medium ${
+                                o.polarity === "POSITIVE"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {o.polarity === "POSITIVE" ? "✓" : "!"}
+                            </span>
+                            <span>
+                              {isValidCode
+                                ? getObservationLabel(code, o.polarity as ObservationPolarity)
+                                : o.observationCode}
+                            </span>
+                            {o.note && <span className="text-gray-500">— {o.note}</span>}
+                          </div>
+                        );
+                      })}
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
       ) : (
         <>
           <div>

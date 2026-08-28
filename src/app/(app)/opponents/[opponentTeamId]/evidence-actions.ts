@@ -38,7 +38,8 @@ export async function getOpponentSportingLevelAction(
   } | null;
   evidence: Array<{
     id: string;
-    matchId: string;
+    matchId: string | null;
+    eventMatchId: string | null;
     occurredAt: string;
     gameFormat: string | null;
     goalsFor: number;
@@ -61,6 +62,7 @@ export async function getOpponentSportingLevelAction(
   const evidence = evidenceRecords.map((e) => ({
     id: e.id,
     matchId: e.matchId,
+    eventMatchId: e.eventMatchId,
     occurredAt: e.occurredAt.toISOString(),
     gameFormat: e.gameFormat,
     goalsFor: e.goalsFor,

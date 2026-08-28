@@ -109,6 +109,20 @@ no real event at all — client-fabricated placeholder ids were stored with noth
 4. Populate `PostMatchPlayerActual.actualPositions` from computed intervals
 5. Existing `actualPositions = null` rows are backfilled by running `rebuildActualTimeline()` for completed reports
 
+### Amendment (Event Evidence Parity programme): production wiring completed, Event source added
+
+Migration step 3 ("Call `rebuildActualTimeline()` after report completion (`LOCKED`)") was never
+actually implemented — `completeReport()` only called `resolveOpponentOnReportCompletion`,
+`recordOpponentSportingEvidence`, and `computeAndApplyPlayerEvidenceForMatch`. In production,
+`ActualPositionInterval` rows were never created for a real match; only a docs-seed script
+(`scripts/seed-docs-scenarios.ts`) ever exercised `rebuildActualTimeline()`, so combination
+evidence (which reads `ActualPositionInterval`) had no real input outside of seeded demo data.
+ADR-0104 (Canonical Post-Match Learning Pipeline) fixes this by wiring the call in via its shared
+`runPostMatchLearning()` orchestrator, and extends the model to accept an Event-match source
+(`matchId`/`eventMatchId` nullable dual-FK, exactly-one enforced by a `CHECK` constraint) with a
+parallel `rebuildEventActualTimeline()` implementation reusing this ADR's `computePositionIntervals()`
+engine. See ADR-0104 for the full architecture.
+
 ## Supersedes
 
 None (new capability)
