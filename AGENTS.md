@@ -2852,12 +2852,23 @@ introduced by the `user-documentation-experience` programme (ADR-0103).
   index over the same canonical content — no third-party search service, no data leaves the
   server.
 - **In-app Help**: `src/components/shell/help-drawer.tsx` renders a same-origin `<iframe>` to
-  the contextually-relevant `/docs/**` page — one canonical content source, never a duplicated
-  prose copy inside a component. `src/lib/help/help-context.ts`'s `resolveHelpContextId()` maps
-  the current route to a `HelpContextId`/docs target; add new contexts there, not via ad hoc
-  string matching in components. The Help button lives in `top-context-bar.tsx`; the command
-  palette's "Help" entry (`src/lib/commands/registry.ts`) opens full docs instead, since the
-  palette's `CommandDefinition` only supports href-based navigation.
+  a compact `/docs/embed/**` rendering of the contextually-relevant docs page — one canonical
+  content source, never a duplicated prose copy inside a component. `/docs/embed/**` is a second
+  rendering mode of the same `content/docs/**` MDX (`docs/[[...slug]]/layout.tsx` branches on
+  `params.slug[0] === "embed"`), skipping `DocsLayout`'s sidebar/top-nav chrome, which has
+  nowhere useful to navigate inside the drawer's ~440px panel; "Open full documentation" still
+  links to the real `/docs/**` page. `embed-link.tsx` rewrites internal `/docs/**` cross-links in
+  MDX prose to `/docs/embed/**` so browsing stays inside the compact embed. The drawer itself is
+  portalled to `document.body` (`react-dom`'s `createPortal`) — it is mounted from
+  `top-context-bar.tsx`, a descendant of the app shell's `backdrop-blur-2xl` `<header>`, and
+  `backdrop-filter` establishes a new containing block for `position: fixed` descendants, so
+  without the portal the drawer's "fixed inset-0" overlay collapsed to the header's own ~52px box
+  instead of the viewport (ADR-0103's 2026-08-28 amendment). `src/lib/help/help-context.ts`'s
+  `resolveHelpContextId()` maps the current route to a `HelpContextId`/docs target; add new
+  contexts there, not via ad hoc string matching in components. The Help button lives in
+  `top-context-bar.tsx`; the command palette's "Help" entry (`src/lib/commands/registry.ts`)
+  opens full docs instead, since the palette's `CommandDefinition` only supports href-based
+  navigation.
 - **CSP for the embed**: `src/lib/security/csp.ts`'s `getContentSecurityPolicy(pathname)` sets
   `frame-ancestors 'self'` (and `X-Frame-Options: SAMEORIGIN`) only for `/docs/**` responses, so
   the Help drawer's iframe can render them — every other route keeps `frame-ancestors 'none'`
@@ -2887,9 +2898,10 @@ introduced by the `user-documentation-experience` programme (ADR-0103).
 |------|---------|
 | `content/docs/**/*.mdx` | Canonical documentation content (public site and in-app Help share this one source) |
 | `src/lib/docs/source.ts` | Fumadocs content source/loader (`defineDocs` + `loader`) |
-| `src/app/docs/layout.tsx` | Public docs shell: `RootProvider` + `DocsLayout`, forced dark theme |
+| `src/app/docs/[[...slug]]/layout.tsx` | Public docs shell: `RootProvider` + `DocsLayout` (full site) or a bare `RootProvider` (`/docs/embed/**`, no DocsLayout chrome), forced dark theme. Lives at the `[[...slug]]` segment (not `docs/layout.tsx`) so it can read `params.slug` |
 | `src/app/docs/docs.css` | Docs-only Tailwind/Fumadocs theme, scoped to the `/docs` route segment |
-| `src/app/docs/[[...slug]]/page.tsx` | Renders one docs page from the loader |
+| `src/app/docs/[[...slug]]/page.tsx` | Renders one docs page from the loader; strips a leading `embed` slug segment and trims TOC/breadcrumb/footer chrome for `/docs/embed/**` |
+| `src/app/docs/[[...slug]]/embed-link.tsx` | Rewrites `/docs/**` cross-links in MDX prose to `/docs/embed/**` when rendered in embed mode |
 | `src/app/api/search/route.ts` | Public docs search (`fumadocs-core/search/server`, self-hosted) |
 | `src/lib/help/help-context.ts` | `HelpContextId` registry: route → docs target mapping |
 | `src/components/shell/help-drawer.tsx` | In-app Help drawer (`HelpDrawer`) and its trigger button (`HelpButton`) |

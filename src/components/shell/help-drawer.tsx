@@ -2,6 +2,7 @@
 
 import { HelpCircle, X, ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { resolveHelpContextId, getHelpTarget } from "@/lib/help/help-context";
 
@@ -25,6 +26,10 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
   const contextId = resolveHelpContextId(pathname ?? "");
   const target = getHelpTarget(contextId);
+  // The compact iframe embed (see docs/[[...slug]]/layout.tsx) skips DocsLayout's sidebar/
+  // top-nav chrome, which has nowhere useful to go in this ~440px panel. "Open full
+  // documentation" below still links to target.docsPath, the real full-site page.
+  const embedSrc = target.docsPath === "/docs" ? "/docs/embed" : `/docs/embed${target.docsPath.slice("/docs".length)}`;
 
   useEffect(() => {
     if (!isOpen) {
@@ -55,7 +60,12 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
   if (!isOpen) return null;
 
-  return (
+  // Portalled to document.body: TopContextBar (which mounts this) lives inside the app shell's
+  // `<header>`, which has `backdrop-blur-2xl` (backdrop-filter). Per the CSS spec, an ancestor
+  // with backdrop-filter/filter/transform/will-change/contain establishes a new containing block
+  // for `position: fixed` descendants -- without the portal, this drawer's "fixed inset-0" was
+  // sizing itself to the ~52px header box instead of the viewport, collapsing the whole panel.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
@@ -99,13 +109,14 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         </div>
 
         <iframe
-          key={target.docsPath}
-          src={target.docsPath}
+          key={embedSrc}
+          src={embedSrc}
           title={`Matchboard documentation — ${target.label}`}
           className="flex-1 border-0 bg-[var(--background)]"
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

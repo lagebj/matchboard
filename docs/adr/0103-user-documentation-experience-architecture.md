@@ -90,6 +90,32 @@ Verified directly against repository state, not only local programme metadata:
    embedded directly in the app shell, to avoid a brittle client/server boundary; this is an
    adapter decision and does not permit a second content tree.
 
+   **Implementation update (2026-08-28): drawer rendering fix.** Two real defects were found and
+   fixed in the initial Help drawer implementation, not a change to decision 3 itself:
+   - The drawer's `fixed inset-0` overlay was a DOM descendant of the app shell's `<header>`
+     (`backdrop-blur-2xl`, i.e. `backdrop-filter`), which per the CSS spec establishes a new
+     containing block for `position: fixed` descendants. The overlay was collapsing to the
+     header's own ~52px box instead of the viewport on every screen size, on both the desktop
+     (`sm:w-[440px]`) and full-width mobile layouts — the drawer never rendered correctly at all.
+     Fixed by portalling the drawer to `document.body` (`react-dom`'s `createPortal`), the
+     standard fix for this class of bug and the same reason Dialog/Sheet-style components
+     elsewhere are normally portalled.
+   - The drawer's iframe pointed at the same `/docs/**` path used by "Open full documentation",
+     which renders the full `DocsLayout` (sidebar tree, top nav bar, search trigger). That chrome
+     has nowhere useful to navigate inside a ~440px panel and was pure wasted vertical space
+     stacked on top of the drawer's own header. Added a second, still same-origin, still
+     `/docs/**`-scoped rendering mode, `/docs/embed/**` (`docs/[[...slug]]/layout.tsx` branches
+     on `params.slug[0] === "embed"`, `page.tsx` strips that segment before resolving content) —
+     same canonical MDX, same `source` loader, no second content tree, only a lighter chrome
+     (`DocsPage`'s notebook-mode fallback via Fumadocs' own `useIsDocsLayout()` check, with
+     breadcrumb/footer/TOC explicitly disabled). Internal cross-links inside MDX prose are
+     authored against plain `/docs/**` paths; `embed-link.tsx` rewrites them to `/docs/embed/**`
+     when rendered in embed mode so browsing cross-references stays inside the compact embed
+     rather than reintroducing the full chrome mid-navigation. No changes were needed to
+     `PUBLIC_ROUTES`, CSP's `frame-ancestors`, or the X-Frame-Options middleware check — all three
+     already match on the `/docs/` prefix, which `/docs/embed/**` still satisfies, so the "do not
+     widen this beyond /docs/**" boundary in AGENTS.md is preserved exactly, not relaxed.
+
 4. **Screenshots are content assets, not visual-regression baselines.** Generated via Playwright
    `page.screenshot()`/element capture into `public/docs/screenshots/**`, referenced from MDX.
    Normal CI validates referential integrity (every referenced screenshot exists, manifest IDs/
