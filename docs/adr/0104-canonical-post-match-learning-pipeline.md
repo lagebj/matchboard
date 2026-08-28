@@ -151,9 +151,14 @@ contract; they do not each own a copy of the learning algorithms.**
 
 ## Follow-up
 
-- Resolve ARR-0030 (Event report completion domain ownership) as part of this same programme —
-  it is a precondition for step 6 above, not independent work.
-- Update ARR-0031 once the transient tool covers Event history (own PR within this programme).
+- ARR-0030 (Event report completion domain ownership) — resolved as part of this programme,
+  a precondition for step 6 above. See its Disposition.
+- ARR-0031 (transient opponent-level population UI) — updated to cover Event history through the
+  same generalized pipeline. See its Disposition.
+- ARR-0034 (League/Event post-match report UI not consolidated) — recorded as deferred: this ADR
+  unifies the backend learning pipeline and report-completion ownership only, not the UI layer
+  (Goal 2's UI-shell consolidation). Needs browser-based visual verification this ADR's
+  implementation pass did not have available.
 - ARR-0032 (legacy `opponent-estimate.ts` parallel calculation path) is a related but separate
   residue, explicitly out of scope here — this ADR does not touch that path.
 - A future decision may generalize `OpponentEncounterObservation`/`TeamReflection` for Event

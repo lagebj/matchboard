@@ -1,6 +1,7 @@
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import type { FootballMatchRef } from "./football-match-ref";
-import { footballMatchRefEvidenceLeagueSeasonId } from "./football-match-ref";
+import { footballMatchRefEvidenceLeagueSeasonId, footballMatchRefSourceId } from "./football-match-ref";
+import { logger } from "@/lib/logger";
 
 export type LearningStepStatus = "APPLIED" | "SKIPPED" | "FAILED";
 
@@ -85,6 +86,17 @@ export async function runPostMatchLearning(
       result.combinations = { status: "FAILED", reason: failureReason(error) };
     }
   }
+
+  const failedSteps = Object.entries(result).filter(([, r]) => r.status === "FAILED");
+  logger[failedSteps.length > 0 ? "warn" : "info"](
+    {
+      matchRefKind: ref.kind,
+      sourceId: footballMatchRefSourceId(ref),
+      organisationId: orgFilter.type === "org" ? orgFilter.organisationId : undefined,
+      result,
+    },
+    "[PostMatchLearning] runPostMatchLearning completed",
+  );
 
   return result;
 }
