@@ -1894,6 +1894,24 @@ contains squads of different formats (e.g. two 7v7 teams and one 9v9 team on the
   (squad generation, formation lookup, lineup formation selection, live reporting, post-match
   reporting) must call this or use a value already derived from it — never re-derive the fallback
   inline or read `event.gameFormat` directly when a squad is in scope.
+- `EventSquad.formationId` (`String?`, nullable) is the equivalent per-squad override for
+  formation, resolved through the equally centralized `getEffectiveEventSquadFormationId(event,
+  squad)`: `squad.formationId ?? event.defaultFormationId`. This matters most when a squad's
+  effective game format differs from the Event default (a 9v9 squad needs its own formation, not
+  the 7v7 default) — every downstream consumer (squad generation's `getFormationForSquad`,
+  per-match lineup creation/defaulting in `event-lineup-actions.ts`/`event-match-lineup-panel.tsx`,
+  the event detail page's formation display) must call this resolver rather than re-deriving the
+  fallback inline; this consolidation replaced three previously-inconsistent copies of the same
+  logic. UI: a per-squad "Formation" selector next to "Game format" on the Squads tab, filtered to
+  formations matching that squad's *effective* game format (`data.compatibleFormations`, which
+  itself now covers every distinct effective format used across the event's squads, not only the
+  Event default).
+- `EventSquad.targetSize`/`minSize`/`maxSize` are, and always were, genuine per-squad columns —
+  target squad size may already differ from team to team within one event. The create-event form
+  only ever applied one shared `targetSize` to every squad created at event creation time; the gap
+  was the missing UI to adjust it per squad afterward. The Squads tab's player-count display
+  (`{count}/{targetSize}`) is now click-to-edit, calling `updateEventSquadAction({ targetSize })`,
+  matching the existing squad-name click-to-edit pattern.
 - `generateEventSquadsAction` groups squads by effective format and runs the generation engine
   once per format group (players assigned in one group are removed from the pool before the next
   group runs), so the normal single-format case still degenerates to exactly one call with
@@ -1907,31 +1925,62 @@ contains squads of different formats (e.g. two 7v7 teams and one 9v9 team on the
 - Removing an override (selecting "Event default") restores inheritance; changing the Event's own
   default format changes every squad that has no override, without touching overridden squads.
 
-### Event match halves
+### Event match halves and per-squad match timing
 
 `Event.numberOfHalves` (`Int`, default `1`) — 1 (single continuous "Match" period, the original
 behavior) or 2 (First half/Half time/Second half, mirroring League's regulation-time period
-model). Event-level, not per-`EventMatch` — a cup's halves format is a property of the
-competition, not an individual fixture, matching `Event.matchDurationMinutes`'s existing
-event-level scope.
+model). Event-level default, with an optional per-squad override (see below) — a cup's halves
+format is normally a property of the competition, but different squads inside one event can play
+genuinely different formats with different halves/duration/break (e.g. a 7v7 squad playing 2×17
+with a 1 minute break alongside a 9v9 squad playing 2×20 with a 1 minute break, on the same event
+day).
 
 - `Event.matchDurationMinutes` means **the duration of ONE half**. For the default
   `numberOfHalves=1` that is trivially the whole match, so existing 1-half events see no
   behaviour change from this field's original meaning.
-- `getEventPeriodConfig(matchDurationMinutes, numberOfHalves)`
+- `Event.breakDurationMinutes` (`Int?`, nullable) — minutes of break between halves, only
+  meaningful when the effective `numberOfHalves` is 2 (ignored otherwise). `null`/unset is treated
+  the same as 0 for match-length purposes (break length not tracked), matching the pre-existing
+  "half-time break length isn't tracked separately" estimate exactly when unset.
+- `EventSquad.numberOfHalvesOverride`/`matchDurationMinutesOverride`/`breakDurationMinutesOverride`
+  (all `Int?`, nullable) are per-squad overrides following the exact same pattern as
+  `gameFormatOverride`: `null` inherits the Event default, a set value overrides it for that squad
+  only. Resolved through `getEffectiveEventSquadNumberOfHalves()`/
+  `getEffectiveEventSquadMatchDurationMinutes()`/`getEffectiveEventSquadBreakDurationMinutes()`, or
+  all three at once via `getEffectiveEventSquadMatchTiming()` (`src/lib/events/event-types.ts`) —
+  never re-derive the `?? event.X` fallback inline.
+- `getEventPeriodConfig(matchDurationMinutes, numberOfHalves, breakDurationMinutes?)`
   (`src/lib/live-match/period-config.ts`) is the single place branching on halves count for live
   reporting — `numberOfHalves=2` applies `matchDurationMinutes` to *each* half individually, not
-  split across the match. Reuses the same `MatchPeriod` enum keys League's regulation-time config
-  uses (`FIRST_HALF`/`HALF_TIME`/`SECOND_HALF`/`FULL_TIME`), so `LiveMatchClient` needs no changes
-  to consume either shape.
-- `getEventMatchWindow(match, matchDurationMinutes, numberOfHalves)`
+  split across the match, and gives the `HALF_TIME` period a real `durationMs` when
+  `breakDurationMinutes` is set (previously always `null`/undurated). Reuses the same `MatchPeriod`
+  enum keys League's regulation-time config uses (`FIRST_HALF`/`HALF_TIME`/`SECOND_HALF`/
+  `FULL_TIME`), so `LiveMatchClient` needs no changes to consume either shape.
+- `getEventMatchWindow(match, matchDurationMinutes, numberOfHalves, breakDurationMinutes?)`
   (`src/lib/events/event-match-time.ts`) computes the full match window as
-  `numberOfHalves × matchDurationMinutes` for helper-overlap detection (half-time break length
-  isn't tracked separately, so this is a conservative, slightly-short estimate of real match
-  length — the same tradeoff the original single-period model already made).
+  `numberOfHalves × matchDurationMinutes + (numberOfHalves - 1) × breakDurationMinutes` (break
+  term is 0 when `numberOfHalves=1` or `breakDurationMinutes` is null/unset) for helper-overlap
+  detection.
+- Helper-overlap detection is resolved **per match's own squad**, not from one event-wide value:
+  `getSupportCandidatesForEventMatch()`/`checkSupportConflicts()`
+  (`src/lib/events/event-match-support.ts`) take a `timingBySquadId: Map<string,
+  EventSquadMatchTiming>` (one entry per squad, built via `getEffectiveEventSquadMatchTiming()`)
+  instead of a single flat `matchDurationMinutes`/`numberOfHalves` pair, and the shared
+  `resolveMatchWindow(match, timingBySquadId)` helper resolves each match's window using its own
+  `eventSquadId`'s effective timing. A match whose squad has no resolvable duration is excluded
+  from overlap consideration entirely rather than treated as zero-length. All three call sites in
+  `event-support-actions.ts`, plus the Excel export's Match call-out/Conflicts sheets
+  (`[eventId]/export/route.ts`), build this same per-squad map — never a single event-level
+  duration applied uniformly across squads with different effective formats.
 - UI: "Halves" (a 1/2 select, next to "Match duration"/"Half duration" — the label switches
-  dynamically) on the create-event form (`create-event-form.tsx`) and the event detail overview's
-  inline edit (`event-detail.tsx`, `updateEventNumberOfHalvesAction`).
+  dynamically) and "Break between halves" (shown only when halves=2) on the create-event form
+  (`create-event-form.tsx`) and the event detail overview's inline edit (`event-detail.tsx`,
+  `updateEventNumberOfHalvesAction`/`updateEventMatchDurationAction`/
+  `updateEventBreakDurationAction`) set the Event-level defaults. Per-squad overrides for halves,
+  match/half duration, and break duration live on the Squads tab next to the Game format/Formation
+  selectors, via `updateEventSquadAction`'s `numberOfHalvesOverride`/
+  `matchDurationMinutesOverride`/`breakDurationMinutesOverride` fields (blank input clears the
+  override back to inheriting the Event default).
 
 ### Event squad draft/commit lifecycle
 

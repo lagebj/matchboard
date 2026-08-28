@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { getSupportCandidatesForEventMatch, checkSupportConflicts } from '../event-match-support';
+import type { EventSquadMatchTiming } from '../event-types';
+
+function timingMap(
+  squadIds: string[],
+  overrides: Partial<EventSquadMatchTiming> = {},
+): Map<string, EventSquadMatchTiming> {
+  const timing: EventSquadMatchTiming = {
+    numberOfHalves: 1,
+    matchDurationMinutes: 20,
+    breakDurationMinutes: null,
+    ...overrides,
+  };
+  return new Map(squadIds.map((id) => [id, timing]));
+}
 
 describe('getSupportCandidatesForEventMatch', () => {
   const baseTargetMatch = {
@@ -28,6 +42,8 @@ describe('getSupportCandidatesForEventMatch', () => {
     { id: 'squadA', name: 'Squad A', players: [{ playerId: 'p1' }] },
     { id: 'squadB', name: 'Squad B', players: [{ playerId: 'p2' }] },
   ];
+
+  const baseTiming = timingMap(['squadA', 'squadB']);
 
   const baseProfiles = [
     {
@@ -90,7 +106,7 @@ describe('getSupportCandidatesForEventMatch', () => {
   it('returns all candidates from other squads when no overlap', () => {
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: baseTiming,
       allEventMatches: baseAllMatches,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -107,7 +123,7 @@ describe('getSupportCandidatesForEventMatch', () => {
   it('marks player from target squad as unavailable', () => {
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: baseTiming,
       allEventMatches: baseAllMatches,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -127,7 +143,7 @@ describe('getSupportCandidatesForEventMatch', () => {
 
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: baseTiming,
       allEventMatches: overlappingMatches,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -148,7 +164,7 @@ describe('getSupportCandidatesForEventMatch', () => {
 
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: baseTiming,
       allEventMatches: matchesWithCancelled,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -163,7 +179,7 @@ describe('getSupportCandidatesForEventMatch', () => {
   it('marks unavailable player as unavailable', () => {
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: baseTiming,
       allEventMatches: baseAllMatches,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -182,7 +198,7 @@ describe('getSupportCandidatesForEventMatch', () => {
   it('marks withdrawn player as unavailable', () => {
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: baseTiming,
       allEventMatches: baseAllMatches,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -201,7 +217,7 @@ describe('getSupportCandidatesForEventMatch', () => {
   it('marks all candidates unavailable when duration is not set', () => {
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 0,
+      timingBySquadId: timingMap(['squadA', 'squadB'], { matchDurationMinutes: null }),
       allEventMatches: baseAllMatches,
       eventSquads: baseSquads,
       playerProfiles: baseProfiles,
@@ -228,7 +244,7 @@ describe('getSupportCandidatesForEventMatch', () => {
 
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: timingMap(['squadA', 'squadB', 'squadC']),
       allEventMatches: [...baseAllMatches, anotherMatch],
       eventSquads: threeSquads,
       playerProfiles: baseProfiles,
@@ -318,7 +334,7 @@ describe('getSupportCandidatesForEventMatch', () => {
 
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch,
-      matchDurationMinutes: 20,
+      timingBySquadId: timingMap(['squadA', 'squadB', 'squadC']),
       allEventMatches: overlappingMatches,
       eventSquads: threeSquads,
       playerProfiles: threeProfiles,
@@ -371,7 +387,7 @@ describe('getSupportCandidatesForEventMatch', () => {
 
     const candidates = getSupportCandidatesForEventMatch({
       targetMatch: baseTargetMatch, // targets squadB (p2), leaving p1 and p3 both eligible
-      matchDurationMinutes: 20,
+      timingBySquadId: timingMap(['squadA', 'squadB', 'squadC']),
       allEventMatches: baseAllMatches,
       eventSquads: squads,
       playerProfiles: profiles,
@@ -385,6 +401,55 @@ describe('getSupportCandidatesForEventMatch', () => {
     expect(unratedIndex).toBeGreaterThanOrEqual(0);
     expect(lowRatedIndex).toBeGreaterThanOrEqual(0);
     expect(unratedIndex).toBeLessThan(lowRatedIndex);
+  });
+
+  it('resolves each squad using its own effective timing (mixed formats, e.g. 7v7 2x17 + 9v9 2x20)', () => {
+    // squadA plays 2x17 (34 total), squadB plays 2x20 (40 total). Target match (squadB) starts
+    // at 11:30, so its window is 11:30-12:10. squadA's match starts at 11:00 -- with a 17-minute
+    // half duration its window is 11:00-11:34, which does NOT overlap the target -- but if the
+    // resolver incorrectly used squadB's 20-minute duration for squadA's match, the window would
+    // extend to 11:00-11:40, which also would not overlap either. Use a tighter start time to
+    // actually distinguish the two: squadA's match at 11:05 with real 17-min halves (2x17=34,
+    // ends 11:39) does not overlap target's 11:30 start... use overlapping timing instead.
+    const mixedAllMatches = [
+      { id: 'match1', eventSquadId: 'squadA', startsAt: new Date('2026-07-01T10:50:00'), status: 'SCHEDULED' as const },
+      { id: 'match2', eventSquadId: 'squadB', startsAt: new Date('2026-07-01T11:30:00'), status: 'SCHEDULED' as const },
+    ];
+    const mixedTiming = new Map<string, EventSquadMatchTiming>([
+      ['squadA', { numberOfHalves: 2, matchDurationMinutes: 17, breakDurationMinutes: 1 }],
+      ['squadB', { numberOfHalves: 2, matchDurationMinutes: 20, breakDurationMinutes: 1 }],
+    ]);
+    // squadA's window: 10:50 + (2*17+1)=35min -> ends 11:25. Does not overlap target's 11:30 start.
+    const candidatesNoOverlap = getSupportCandidatesForEventMatch({
+      targetMatch: baseTargetMatch,
+      timingBySquadId: mixedTiming,
+      allEventMatches: mixedAllMatches,
+      eventSquads: baseSquads,
+      playerProfiles: baseProfiles,
+      existingSupportAssignments: [],
+      playerEventAvailability: baseAvailability,
+    });
+    const p1NoOverlap = candidatesNoOverlap.find((c) => c.playerId === 'p1');
+    expect(p1NoOverlap!.available).toBe(true);
+
+    // If squadA's match instead started at 10:56, its 35-minute window ends 11:31, which DOES
+    // overlap the target's 11:30 start -- proving squadA's own (not squadB's) duration was used.
+    const overlappingAllMatches = [
+      { id: 'match1', eventSquadId: 'squadA', startsAt: new Date('2026-07-01T10:56:00'), status: 'SCHEDULED' as const },
+      { id: 'match2', eventSquadId: 'squadB', startsAt: new Date('2026-07-01T11:30:00'), status: 'SCHEDULED' as const },
+    ];
+    const candidatesOverlap = getSupportCandidatesForEventMatch({
+      targetMatch: baseTargetMatch,
+      timingBySquadId: mixedTiming,
+      allEventMatches: overlappingAllMatches,
+      eventSquads: baseSquads,
+      playerProfiles: baseProfiles,
+      existingSupportAssignments: [],
+      playerEventAvailability: baseAvailability,
+    });
+    const p1Overlap = candidatesOverlap.find((c) => c.playerId === 'p1');
+    expect(p1Overlap!.available).toBe(false);
+    expect(p1Overlap!.unavailableReason).toBe('Own squad has overlapping match');
   });
 });
 
@@ -404,7 +469,7 @@ describe('checkSupportConflicts', () => {
         { id: 'match1', eventSquadId: 'squadA', startsAt: new Date('2026-07-01T11:30:00'), status: 'SCHEDULED' },
         { id: 'match2', eventSquadId: 'squadB', startsAt: new Date('2026-07-01T11:30:00'), status: 'SCHEDULED' },
       ],
-      matchDurationMinutes: 20,
+      timingBySquadId: timingMap(['squadA', 'squadB']),
       eventSquads: [
         { id: 'squadA', name: 'Squad A', players: [{ playerId: 'p1' }] },
         { id: 'squadB', name: 'Squad B', players: [] },
@@ -433,7 +498,7 @@ describe('checkSupportConflicts', () => {
         { id: 'match1', eventSquadId: 'squadA', startsAt: new Date('2026-07-01T11:00:00'), status: 'SCHEDULED' },
         { id: 'match2', eventSquadId: 'squadB', startsAt: new Date('2026-07-01T12:00:00'), status: 'SCHEDULED' },
       ],
-      matchDurationMinutes: 20,
+      timingBySquadId: timingMap(['squadA', 'squadB']),
       eventSquads: [
         { id: 'squadA', name: 'Squad A', players: [{ playerId: 'p1' }] },
         { id: 'squadB', name: 'Squad B', players: [] },
@@ -458,8 +523,10 @@ describe('checkSupportConflicts', () => {
         plannedRole: null,
         note: null,
       }],
-      allEventMatches: [],
-      matchDurationMinutes: 0,
+      allEventMatches: [
+        { id: 'match2', eventSquadId: 'squadB', startsAt: new Date('2026-07-01T12:00:00'), status: 'SCHEDULED' },
+      ],
+      timingBySquadId: timingMap(['squadB'], { matchDurationMinutes: null }),
       eventSquads: [],
       playerEventAvailability: [],
       playerNames: new Map([['p1', { firstName: 'Alice', lastName: 'Smith' }]]),

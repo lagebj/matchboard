@@ -6,7 +6,11 @@ import { validateEventPool } from '@/lib/events/event-validation';
 import { toPlayerAttributeProfile } from '@/lib/events/player-event-profile';
 import { getPlayerOverallRating } from '@/lib/ratings/player-rating';
 import type { GameFormat } from '@/lib/events/event-types';
-import { getEffectiveEventTeamGameFormat } from '@/lib/events/event-types';
+import {
+  getEffectiveEventTeamGameFormat,
+  getEffectiveEventSquadFormationId,
+  getEffectiveEventSquadMatchTiming,
+} from '@/lib/events/event-types';
 import { db } from '@/lib/db';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -66,7 +70,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     });
 
   const squads = event.squads.map((s) => {
-    const formation = s.formationId ? formationMap.get(s.formationId) : (event.defaultFormationId ? formationMap.get(event.defaultFormationId) : undefined);
+    const effectiveFormationId = getEffectiveEventSquadFormationId(event, s);
+    // Prefer the squad's own already-fetched `formation` relation (correct even when the squad's
+    // effective game format differs from the Event default) over a re-lookup through
+    // formationMap, which is only guaranteed to contain the Event's own default formation.
+    const formation = s.formation ?? (effectiveFormationId ? formationMap.get(effectiveFormationId) : undefined);
+    const timing = getEffectiveEventSquadMatchTiming(event, s);
     return {
       id: s.id,
       name: s.name,
@@ -76,8 +85,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
       maxSize: s.maxSize,
       formationId: s.formationId,
       formationName: formation?.name ?? null,
+      effectiveFormationId,
       gameFormatOverride: s.gameFormatOverride,
       effectiveGameFormat: getEffectiveEventTeamGameFormat(event, s),
+      numberOfHalvesOverride: s.numberOfHalvesOverride,
+      matchDurationMinutesOverride: s.matchDurationMinutesOverride,
+      breakDurationMinutesOverride: s.breakDurationMinutesOverride,
+      effectiveNumberOfHalves: timing.numberOfHalves,
+      effectiveMatchDurationMinutes: timing.matchDurationMinutes,
+      effectiveBreakDurationMinutes: timing.breakDurationMinutes,
       formationSlots: (formation?.slots ?? []).map((slot) => ({
         id: slot.id,
         roleType: slot.roleType,
@@ -232,6 +248,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     gameFormat: event.gameFormat as string,
     matchDurationMinutes: event.matchDurationMinutes,
     numberOfHalves: event.numberOfHalves,
+    breakDurationMinutes: event.breakDurationMinutes,
     selectionPattern: event.selectionPattern as string | null,
     notes: event.notes,
     defaultFormationId: event.defaultFormationId,
@@ -255,8 +272,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
 
 async function getCompatibleFormationsForEvent(eventId: string) {
   const { getEventById, getFormations } = await import('@/app/(app)/events/actions');
+  const { getEffectiveEventTeamGameFormat } = await import('@/lib/events/event-types');
   const event = await getEventById(eventId);
   if (!event) return [];
   const formations = await getFormations();
-  return formations.filter((f) => f.gameFormat === event.gameFormat);
+  // Include formations for every distinct effective game format across the event's squads, not
+  // only the Event default -- a squad with a gameFormatOverride needs its own compatible
+  // formation options (e.g. a 9v9 squad in an otherwise-7v7 event).
+  const distinctFormats = new Set(
+    event.squads.map((s) => getEffectiveEventTeamGameFormat(event, s)),
+  );
+  distinctFormats.add(event.gameFormat);
+  return formations.filter((f) => distinctFormats.has(f.gameFormat));
 }

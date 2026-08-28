@@ -1226,6 +1226,10 @@ model Event {
   // per-EventMatch -- a cup's halves format is a property of the competition, not an individual
   // fixture, matching matchDurationMinutes's existing event-level scope.
   numberOfHalves       Int                    @default(1)
+  // Minutes of break between halves, only meaningful when numberOfHalves=2 (ignored otherwise).
+  // Null means "not tracked" -- getEventMatchWindow()/getEventPeriodConfig() treat null the same
+  // as 0 for match-length/window purposes. See event-types.ts's effective-value resolvers.
+  breakDurationMinutes Int?
   selectionPattern     EventSelectionPattern?
   notes                String?
   status               EventStatus               @default(DRAFT)
@@ -1278,6 +1282,14 @@ model EventSquad {
   maxSize                  Int?
   gameFormatOverride       GameFormat?
   formationId              String?
+  // Per-squad overrides for match timing, following the same nullable-override pattern as
+  // gameFormatOverride: null inherits the Event default, a set value overrides it for this squad
+  // only. Resolved through getEffectiveEventSquadNumberOfHalves()/
+  // getEffectiveEventSquadMatchDurationMinutes()/getEffectiveEventSquadBreakDurationMinutes()
+  // (event-types.ts) -- never re-derive the `?? event.X` fallback inline.
+  numberOfHalvesOverride       Int?
+  matchDurationMinutesOverride Int?
+  breakDurationMinutesOverride Int?
   generationOrder          Int                           @default(0)
   generationSnapshot       Json?
   balanceSummary           Json?
