@@ -61,9 +61,9 @@ export function OpponentPopulationContent({ orgSlug }: { orgSlug: string }) {
       <Surface>
         <div className="flex flex-col gap-4 p-4">
           <p className="text-sm text-muted-foreground">
-            This tool processes completed post-match reports and creates opponent sporting level evidence
-            for matches that were played before the opponent engine was active. Use dry-run first to
-            preview the results, then apply to persist them.
+            This tool processes completed post-match reports — League and Event matches alike — and
+            creates opponent sporting level evidence for matches that were played before the opponent
+            engine was active. Use dry-run first to preview the results, then apply to persist them.
           </p>
 
           <div className="flex gap-3">
@@ -96,6 +96,10 @@ export function OpponentPopulationContent({ orgSlug }: { orgSlug: string }) {
                 <dt className="text-muted-foreground">Exclusions</dt>
                 <dd>{dryRunResult.exclusions.length}</dd>
               </dl>
+              <p className="mt-2 text-xs text-muted-foreground">
+                League matches inspected: {dryRunResult.bySource.league.inspected} ({dryRunResult.bySource.league.eligible} eligible) ·
+                {" "}Event matches inspected: {dryRunResult.bySource.event.inspected} ({dryRunResult.bySource.event.eligible} eligible)
+              </p>
               {dryRunResult.exclusions.length > 0 && (
                 <div className="mt-3">
                   <h4 className="text-sm font-medium mb-1">Exclusions</h4>
@@ -127,6 +131,10 @@ export function OpponentPopulationContent({ orgSlug }: { orgSlug: string }) {
                 <dt className="text-muted-foreground">Failed</dt>
                 <dd>{applyResult.failed}</dd>
               </dl>
+              <p className="mt-2 text-xs text-muted-foreground">
+                League: {applyResult.bySource.league.recorded} recorded, {applyResult.bySource.league.skipped} skipped, {applyResult.bySource.league.failed} failed ·
+                {" "}Event: {applyResult.bySource.event.recorded} recorded, {applyResult.bySource.event.skipped} skipped, {applyResult.bySource.event.failed} failed
+              </p>
             </div>
           )}
         </div>

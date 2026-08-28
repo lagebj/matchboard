@@ -1,17 +1,24 @@
 import { db } from "@/lib/db";
 import { classifyDataQuality, computeWholeMatchEstimate, type HistoricalDryRunResult } from "./opponent-engine";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
-import { recordOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
+import { recordOpponentSportingEvidenceForRef } from "@/lib/opponents/sporting-level-recording";
+import { footballMatchRefSourceId, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
+import { getEffectiveEventTeamGameFormat } from "@/lib/events/event-types";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
+/**
+ * Historical match eligible for the "Populate opponent levels" transient catch-up tool
+ * (ARR-0031). Covers both League and Event history through one shared shape -- `ref`
+ * identifies the source, everything downstream (dry-run estimate preview, apply via
+ * `recordOpponentSportingEvidenceForRef`) is source-agnostic (ADR-0104).
+ */
 type MatchForReplay = {
-  matchId: string;
+  ref: FootballMatchRef;
   opponentTeamId: string;
   occurredAt: Date;
   gameFormat: string | null;
-  homeGoals: number;
-  awayGoals: number;
-  isHome: boolean;
+  goalsFor: number;
+  goalsAgainst: number;
   matchFit: string | null;
   reportStatus: string;
 };
@@ -32,6 +39,10 @@ export async function dryRunOpponentEvidence(
 
   let matchesInspected = 0;
   let matchesEligible = 0;
+  let matchesInspectedLeague = 0;
+  let matchesInspectedEvent = 0;
+  let matchesEligibleLeague = 0;
+  let matchesEligibleEvent = 0;
   const exclusions: Array<{ matchId: string; reason: string }> = [];
   let evidenceCreated = 0;
   let evidenceSkipped = 0;
@@ -49,48 +60,54 @@ export async function dryRunOpponentEvidence(
     },
     select: {
       matchId: true,
+      eventMatchId: true,
       estimate: true,
       opponentTeamId: true,
     },
   });
 
-  const existingByMatchId = new Map(existingEvidence.map((e) => [e.matchId, e]));
+  const existingBySourceId = new Map(
+    existingEvidence.map((e) => [e.matchId ?? e.eventMatchId!, e]),
+  );
 
   const playerBaselines = await getPlayerBaselines(organisationId);
 
   for (const match of matches) {
     matchesInspected++;
+    if (match.ref.kind === "LEAGUE_MATCH") matchesInspectedLeague++;
+    else matchesInspectedEvent++;
+
+    const sourceId = footballMatchRefSourceId(match.ref);
 
     if (!match.opponentTeamId) {
-      exclusions.push({ matchId: match.matchId, reason: "No opponent team linked" });
+      exclusions.push({ matchId: sourceId, reason: "No opponent team linked" });
       continue;
     }
 
     if (match.reportStatus !== "LOCKED" && match.reportStatus !== "REPORTED") {
-      exclusions.push({ matchId: match.matchId, reason: `Report status ${match.reportStatus} not completed` });
+      exclusions.push({ matchId: sourceId, reason: `Report status ${match.reportStatus} not completed` });
       continue;
     }
 
     const matchFit = match.matchFit;
     if (matchFit === "CHAOTIC" || matchFit === "SUPPORT_OVERPOWERED" || matchFit === "SUPPORT_TOO_LOW") {
       exclusions.push({
-        matchId: match.matchId,
+        matchId: sourceId,
         reason: `Match fit ${matchFit} auto-excluded`,
       });
       continue;
     }
 
     matchesEligible++;
+    if (match.ref.kind === "LEAGUE_MATCH") matchesEligibleLeague++;
+    else matchesEligibleEvent++;
     opponentsAffected.add(match.opponentTeamId);
 
-    const goalsFor = match.isHome ? match.homeGoals : match.awayGoals;
-    const goalsAgainst = match.isHome ? match.awayGoals : match.homeGoals;
-
-    const existing = existingByMatchId.get(match.matchId);
+    const existing = existingBySourceId.get(sourceId);
     const previousEstimate = existing ? Number(existing.estimate) : null;
 
     try {
-      const playerRatings = await getPlayerRatingsForMatch(match.matchId, organisationId, playerBaselines);
+      const playerRatings = await getPlayerRatingsForMatch(match.ref, organisationId, playerBaselines);
 
       const dataQuality = classifyDataQuality({
         hasExactTimeline: false,
@@ -106,8 +123,8 @@ export async function dryRunOpponentEvidence(
 
       const result = computeWholeMatchEstimate(
         avgRating,
-        goalsFor,
-        goalsAgainst,
+        match.goalsFor,
+        match.goalsAgainst,
         playerRatings.length,
         playerRatings.filter((p) => p.overallRating !== null).length,
         matchFit,
@@ -118,7 +135,7 @@ export async function dryRunOpponentEvidence(
       evidenceCreated++;
 
       details.push({
-        matchId: match.matchId,
+        matchId: sourceId,
         opponentTeamId: match.opponentTeamId,
         previousEstimate,
         proposedEstimate: result.estimate,
@@ -129,7 +146,7 @@ export async function dryRunOpponentEvidence(
           : result.estimate,
       });
     } catch {
-      exclusions.push({ matchId: match.matchId, reason: "Processing error" });
+      exclusions.push({ matchId: sourceId, reason: "Processing error" });
       evidenceSkipped++;
     }
   }
@@ -145,10 +162,23 @@ export async function dryRunOpponentEvidence(
     playerPositionMutations,
     historicalFactChanges,
     details,
+    bySource: {
+      league: { inspected: matchesInspectedLeague, eligible: matchesEligibleLeague },
+      event: { inspected: matchesInspectedEvent, eligible: matchesEligibleEvent },
+    },
   };
 }
 
 async function getEligibleMatches(
+  organisationId: string,
+  options?: { gameFormat?: string; from?: Date; to?: Date },
+): Promise<MatchForReplay[]> {
+  const leagueMatches = await getEligibleLeagueMatches(organisationId, options);
+  const eventMatches = await getEligibleEventMatches(organisationId, options);
+  return [...leagueMatches, ...eventMatches].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+}
+
+async function getEligibleLeagueMatches(
   organisationId: string,
   options?: { gameFormat?: string; from?: Date; to?: Date },
 ): Promise<MatchForReplay[]> {
@@ -161,6 +191,7 @@ async function getEligibleMatches(
     },
     select: {
       id: true,
+      matchRoundId: true,
       opponentTeamId: true,
       startsAt: true,
       gameFormat: true,
@@ -188,21 +219,83 @@ async function getEligibleMatches(
   const reportByMatchId = new Map(reports.map((r) => [r.matchId, r]));
 
   return matches
-    .map((m) => {
+    .map((m): MatchForReplay => {
       const report = reportByMatchId.get(m.id);
       const homeGoals = report?.homeGoals ?? 0;
       const awayGoals = report?.awayGoals ?? 0;
       const isHome = m.homeAway === "HOME";
+      const goalsFor = isHome ? homeGoals : awayGoals;
+      const goalsAgainst = isHome ? awayGoals : homeGoals;
 
       return {
-        matchId: m.id,
+        ref: { kind: "LEAGUE_MATCH", matchId: m.id, leagueSeasonId: null },
         opponentTeamId: m.opponentTeamId!,
         occurredAt: m.startsAt,
         gameFormat: m.gameFormat,
-        homeGoals,
-        awayGoals,
-        isHome,
+        goalsFor,
+        goalsAgainst,
         matchFit: m.matchFit,
+        reportStatus: report?.status ?? "UNKNOWN",
+      };
+    })
+    .filter((m) => m.reportStatus === "REPORTED" || m.reportStatus === "LOCKED");
+}
+
+async function getEligibleEventMatches(
+  organisationId: string,
+  options?: { gameFormat?: string; from?: Date; to?: Date },
+): Promise<MatchForReplay[]> {
+  const eventMatches = await db.eventMatch.findMany({
+    where: {
+      organisationId,
+      opponentTeamId: { not: null },
+      ...(options?.from ? { startsAt: { gte: options.from } } : {}),
+      ...(options?.to ? { startsAt: { lte: options.to } } : {}),
+    },
+    select: {
+      id: true,
+      eventId: true,
+      opponentTeamId: true,
+      startsAt: true,
+      event: { select: { gameFormat: true } },
+      eventSquad: { select: { gameFormatOverride: true } },
+    },
+    orderBy: { startsAt: "asc" },
+  });
+
+  const eventMatchIds = eventMatches.map((m) => m.id);
+
+  const reports = await db.eventPostMatchReport.findMany({
+    where: {
+      eventMatchId: { in: eventMatchIds },
+      status: { in: ["REPORTED", "LOCKED"] },
+    },
+    select: {
+      eventMatchId: true,
+      status: true,
+      ourScore: true,
+      opponentScore: true,
+    },
+  });
+
+  const reportByEventMatchId = new Map(reports.map((r) => [r.eventMatchId, r]));
+
+  return eventMatches
+    .map((m): MatchForReplay => {
+      const report = reportByEventMatchId.get(m.id);
+
+      return {
+        // evidenceLeagueSeasonId is not needed for opponent evidence (only combination
+        // evidence uses it); leaving it null here is correct, not a shortcut.
+        ref: { kind: "EVENT_MATCH", eventMatchId: m.id, eventId: m.eventId, evidenceLeagueSeasonId: null },
+        opponentTeamId: m.opponentTeamId!,
+        occurredAt: m.startsAt,
+        gameFormat: getEffectiveEventTeamGameFormat(m.event, m.eventSquad),
+        goalsFor: report?.ourScore ?? 0,
+        goalsAgainst: report?.opponentScore ?? 0,
+        // EventMatch has no matchFit field -- no auto-exclusion signal for Event history
+        // either (ADR-0104), consistent with the automatic recording path.
+        matchFit: null,
         reportStatus: report?.status ?? "UNKNOWN",
       };
     })
@@ -243,29 +336,44 @@ async function getPlayerBaselines(
 }
 
 async function getPlayerRatingsForMatch(
-  matchId: string,
+  ref: FootballMatchRef,
   organisationId: string,
   baselines: Map<string, number | null>,
 ): Promise<PlayerRatingSnapshot[]> {
-  const actuals = await db.postMatchPlayerActual.findMany({
-    where: {
-      matchId,
-      attendanceStatus: "PRESENT",
-    },
+  if (ref.kind === "LEAGUE_MATCH") {
+    const actuals = await db.postMatchPlayerActual.findMany({
+      where: { matchId: ref.matchId, attendanceStatus: "PRESENT" },
+      select: {
+        playerId: true,
+        player: { select: { id: true, primaryPosition: true, secondaryPosition: true, tertiaryPosition: true } },
+      },
+    });
+
+    return actuals.map((a) => ({
+      playerId: a.playerId,
+      overallRating: baselines.get(a.playerId) ?? null,
+      primaryPosition: a.player.primaryPosition,
+      secondaryPosition: a.player.secondaryPosition,
+      tertiaryPosition: a.player.tertiaryPosition,
+    }));
+  }
+
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId: ref.eventMatchId },
     select: {
-      playerId: true,
-      player: {
+      playerReports: {
+        where: { attendanceStatus: "PRESENT" },
         select: {
-          id: true,
-          primaryPosition: true,
-          secondaryPosition: true,
-          tertiaryPosition: true,
+          playerId: true,
+          player: { select: { id: true, primaryPosition: true, secondaryPosition: true, tertiaryPosition: true } },
         },
       },
     },
   });
 
-  return actuals.map((a) => ({
+  if (!report) return [];
+
+  return report.playerReports.map((a) => ({
     playerId: a.playerId,
     overallRating: baselines.get(a.playerId) ?? null,
     primaryPosition: a.player.primaryPosition,
@@ -281,8 +389,17 @@ export type ApplyResult = {
   recorded: number;
   failed: number;
   details: Array<{ matchId: string; opponentTeamId: string | null; status: string }>;
+  bySource: {
+    league: { total: number; recorded: number; skipped: number; failed: number };
+    event: { total: number; recorded: number; skipped: number; failed: number };
+  };
 };
 
+/**
+ * Applies the same generalized `recordOpponentSportingEvidenceForRef()` League's
+ * `completeReport()` and Event's `completeEventReport()` call automatically (ADR-0104) --
+ * not a second historical-only opponent-rating algorithm (ARR-0031).
+ */
 export async function applyOpponentEvidenceHistory(
   organisationId: string,
   options?: { gameFormat?: string; from?: Date; to?: Date },
@@ -296,38 +413,50 @@ export async function applyOpponentEvidenceHistory(
       ...(options?.from ? { occurredAt: { gte: options.from } } : {}),
       ...(options?.to ? { occurredAt: { lte: options.to } } : {}),
     },
-    select: { matchId: true },
+    select: { matchId: true, eventMatchId: true },
   });
-  const alreadyRecorded = new Set(existingEvidence.map((e) => e.matchId));
+  const alreadyRecorded = new Set(existingEvidence.map((e) => e.matchId ?? e.eventMatchId!));
 
   let processed = 0;
   let skipped = 0;
   let recorded = 0;
   let failed = 0;
   const details: ApplyResult["details"] = [];
+  const bySource: ApplyResult["bySource"] = {
+    league: { total: 0, recorded: 0, skipped: 0, failed: 0 },
+    event: { total: 0, recorded: 0, skipped: 0, failed: 0 },
+  };
 
   for (const match of matches) {
-    if (alreadyRecorded.has(match.matchId)) {
+    const sourceId = footballMatchRefSourceId(match.ref);
+    const bucket = match.ref.kind === "LEAGUE_MATCH" ? bySource.league : bySource.event;
+    bucket.total++;
+
+    if (alreadyRecorded.has(sourceId)) {
       skipped++;
-      details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: "already_recorded" });
+      bucket.skipped++;
+      details.push({ matchId: sourceId, opponentTeamId: match.opponentTeamId, status: "already_recorded" });
       continue;
     }
 
     processed++;
 
     try {
-      const result = await recordOpponentSportingEvidence(match.matchId, orgFilter);
+      const result = await recordOpponentSportingEvidenceForRef(match.ref, orgFilter);
 
       if (result.recorded) {
         recorded++;
-        details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: "recorded" });
+        bucket.recorded++;
+        details.push({ matchId: sourceId, opponentTeamId: match.opponentTeamId, status: "recorded" });
       } else {
         skipped++;
-        details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: result.reason ?? "skipped" });
+        bucket.skipped++;
+        details.push({ matchId: sourceId, opponentTeamId: match.opponentTeamId, status: result.reason ?? "skipped" });
       }
     } catch (error) {
       failed++;
-      details.push({ matchId: match.matchId, opponentTeamId: match.opponentTeamId, status: `error: ${error instanceof Error ? error.message : "unknown"}` });
+      bucket.failed++;
+      details.push({ matchId: sourceId, opponentTeamId: match.opponentTeamId, status: `error: ${error instanceof Error ? error.message : "unknown"}` });
     }
   }
 
@@ -338,5 +467,6 @@ export async function applyOpponentEvidenceHistory(
     recorded,
     failed,
     details,
+    bySource,
   };
 }

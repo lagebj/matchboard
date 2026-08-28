@@ -86,6 +86,11 @@ export type HistoricalDryRunResult = {
     confidence: string;
     difference: number;
   }>;
+  /** League/Event breakdown (ADR-0104 -- Populate opponent levels now covers both). */
+  bySource: {
+    league: { inspected: number; eligible: number };
+    event: { inspected: number; eligible: number };
+  };
 };
 
 const POSITION_SUITABILITY_MODERATE = 0.85;
