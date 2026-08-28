@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import type { MatchReportStatus } from "@/generated/prisma/client";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { canTransitionTo, hasUnknownAttendance } from "./report-domain";
 
 export type SeedEventReportFromLiveSessionResult =
   | { success: true; eventMatchId: string; reportId: string; status: MatchReportStatus; alreadyExisted: boolean }
@@ -139,4 +141,65 @@ export async function seedEventReportFromLiveSession(
     status: report.status,
     alreadyExisted: false,
   };
+}
+
+export type CompleteEventReportResult =
+  | { success: true; eventMatchId: string }
+  | { success: false; error: string };
+
+/**
+ * Event-side completion transition (DRAFT/REPORTED -> LOCKED), owning what
+ * `completeEventMatchReportAction` previously reimplemented inline (ARR-0030). Reuses
+ * League's `canTransitionTo`/`hasUnknownAttendance` from `report-domain.ts` directly --
+ * verified reusable as-is (ARR-0030's own containment note said not to assume this
+ * without checking): both operate purely on the shared `MatchReportStatus` enum and a
+ * generic `{ attendanceStatus: string }[]` shape, and Event's actual completion pattern
+ * (DRAFT or REPORTED -> LOCKED directly, no separate submit step) is already exactly
+ * what `canTransitionTo`'s existing transition table allows.
+ *
+ * After the status write, resolves opponent identity and runs the shared post-match
+ * learning pipeline (ADR-0104) -- the same `runPostMatchLearning()` League's
+ * `completeReport()` calls, not a second implementation.
+ */
+export async function completeEventReport(
+  reportId: string,
+  orgFilter: OrgFilterMode,
+): Promise<CompleteEventReportResult> {
+  const report = await db.eventPostMatchReport.findFirst({
+    where: { id: reportId, ...orgFilter.filter },
+    include: { playerReports: true },
+  });
+
+  if (!report) return { success: false, error: "Report not found." };
+
+  if (!canTransitionTo(report.status, "LOCKED").allowed) {
+    return { success: false, error: "Only DRAFT or REPORTED reports can be completed." };
+  }
+
+  if (hasUnknownAttendance(report.playerReports)) {
+    return {
+      success: false,
+      error: "Cannot complete report: some players have unknown attendance. Mark all players as Present, No show, or absent.",
+    };
+  }
+
+  await db.eventPostMatchReport.update({
+    where: { id: reportId },
+    data: { status: "LOCKED" as MatchReportStatus, completedAt: new Date() },
+  });
+
+  const { resolveEventOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
+  await resolveEventOpponentOnReportCompletion(report.eventMatchId);
+
+  try {
+    const { buildEventMatchRef } = await import("@/lib/evidence/adapters/event-evidence-adapter");
+    const { runPostMatchLearning } = await import("@/lib/evidence/post-match-learning");
+    const ref = await buildEventMatchRef(report.eventMatchId);
+    await runPostMatchLearning(ref, orgFilter);
+  } catch {
+    // Post-match learning (opponent/player/combination evidence) must not block report
+    // completion -- see ADR-0104, mirrors League's completeReport().
+  }
+
+  return { success: true, eventMatchId: report.eventMatchId };
 }

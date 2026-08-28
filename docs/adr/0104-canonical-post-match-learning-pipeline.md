@@ -55,16 +55,19 @@ contract; they do not each own a copy of the learning algorithms.**
    `{ kind: "LEAGUE_MATCH", matchId, leagueSeasonId }` |
    `{ kind: "EVENT_MATCH", eventMatchId, eventId, evidenceLeagueSeasonId? }`.
 
-2. **`CanonicalMatchEvidence`** (`src/lib/evidence/canonical-match-evidence.ts`) is the
-   persistence-agnostic input every evidence algorithm consumes (score, participants, actual
-   minutes/positions, substitutions, goals, assists, observations, opponent identity, format,
-   duration). League and Event each get one adapter
-   (`src/lib/evidence/adapters/league-evidence-adapter.ts`,
-   `.../event-evidence-adapter.ts`) that builds this from their respective persistence models.
-   Evidence algorithms (`recordOpponentSportingEvidence`, `computeAndApplyPlayerEvidenceForMatch`,
-   `rebuildMatchCombinationEvidence`) stop reading `db.match`/`db.postMatchReport` directly and
-   instead take a `FootballMatchRef`/`CanonicalMatchEvidence`, branching only at the narrow
-   persistence-write boundary (which unique column to upsert on, which relation to set).
+2. **Evidence algorithms take a `FootballMatchRef`, not a persistence-specific `matchId`.**
+   League and Event each get one adapter (`src/lib/evidence/adapters/league-evidence-adapter.ts`,
+   `.../event-evidence-adapter.ts`) that builds the ref, resolving each source's own
+   evidence-season context. The generalized algorithms
+   (`recordOpponentSportingEvidenceForRef`, `computeAndApplyPlayerEvidenceForMatch`,
+   `rebuildMatchCombinationEvidence`, `rebuildActualTimelineForRef`) each resolve their own
+   source-specific query internally (League vs. Event branch), branching only at the narrow
+   persistence-write boundary (which unique column to upsert on, which relation to set) — not a
+   single shared "canonical evidence" struct threaded through every function, since each
+   algorithm needs a different slice of match data (observations for player evidence,
+   score/participants for opponent evidence, position intervals for combination evidence). A
+   speculative all-fields struct covering every algorithm's needs would mostly go unused by any
+   one caller.
 
 3. **One shared orchestrator, `runPostMatchLearning(ref)`**
    (`src/lib/evidence/post-match-learning.ts`), owns the sequence: rebuild actual timeline →

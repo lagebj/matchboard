@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
   updateEventMatchResultAction,
   updateEventPlayerAttendanceAction,
@@ -9,9 +9,11 @@ import {
   addEventAssistAction,
   removeEventAssistAction,
 } from '../event-post-match-actions';
+import { getEventFootballObservationsAction } from '../event-football-observation-actions';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
+import { FootballObservationSection } from '@/components/player-development/football-observation-section';
 import type { EventPostMatchAttendanceStatus, GoalType } from '@/generated/prisma/client';
 
 interface PlayerReport {
@@ -53,10 +55,20 @@ interface ReportData {
 }
 
 interface EventMatchReportPanelProps {
+  eventMatchId: string;
   report: ReportData;
   isLocked: boolean;
   onRefresh: () => void;
 }
+
+type ObservationEntry = {
+  id: string;
+  playerId: string;
+  observationCode: string;
+  polarity: string;
+  note: string | null;
+  observedAt: string;
+};
 
 // "ABSENT" was removed (platform-integrity-programme Phase 4): it was never a valid stored
 // value (not in EventPostMatchAttendanceStatus, not in the pre-existing CHECK constraint) —
@@ -68,8 +80,21 @@ const ATTENDANCE_OPTIONS: { value: EventPostMatchAttendanceStatus; label: string
   { value: 'UNKNOWN', label: 'Unknown' },
 ];
 
-export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatchReportPanelProps) {
+export function EventMatchReportPanel({ eventMatchId, report, isLocked, onRefresh }: EventMatchReportPanelProps) {
   const [isPending, startTransition] = useTransition();
+  const [observations, setObservations] = useState<ObservationEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEventFootballObservationsAction(eventMatchId).then((result) => {
+      if (!cancelled && result.success && result.observations) {
+        setObservations(result.observations);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventMatchId, report.id]);
   const [ourScore, setOurScore] = useState(report.ourScore?.toString() ?? '');
   const [opponentScore, setOpponentScore] = useState(report.opponentScore?.toString() ?? '');
   const [teamReflection, setTeamReflection] = useState(report.teamReflection ?? '');
@@ -418,6 +443,13 @@ export function EventMatchReportPanel({ report, isLocked, onRefresh }: EventMatc
           </ul>
         )}
       </Surface>
+
+      <FootballObservationSection
+        eventMatchId={eventMatchId}
+        players={presentPlayers.map((pr) => ({ id: pr.playerId, name: pr.playerName }))}
+        existingObservations={observations}
+        isLocked={isLocked}
+      />
 
       {report.teamReflection && (
         <Surface variant="default" padding="md">

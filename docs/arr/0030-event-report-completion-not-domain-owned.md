@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed, deferred
+Resolved
 
 ## Identified
 
@@ -93,10 +93,31 @@ transition rules turn out to be identical enough to justify one (unverified — 
 
 ## Disposition
 
-Confirmed, deferred. Not resolved in AIP-3 (Architecture Integrity Programme) — recorded so it
-is not silently lost after being found during ARR-0028's investigation. No target phase assigned;
-revisit as its own scoped task, since it needs its own state-machine investigation rather than
-reusing ADR-0088's Run->Learn seeding work.
+Resolved (Event Evidence Parity programme, ADR-0104).
+
+The state-machine investigation this ARR's containment note asked for was done first: Event's
+actual transition pattern (DRAFT/REPORTED -> LOCKED directly, no separate submit step) turned
+out to already be exactly what League's existing `canTransitionTo()` transition table in
+`report-domain.ts` allows — that function and `hasUnknownAttendance()` operate purely on the
+shared `MatchReportStatus` enum and a generic `{ attendanceStatus: string }[]` shape, with no
+League-specific coupling. So resolution reused `report-domain.ts` directly rather than building
+a parallel `event-report-domain.ts`.
+
+- `completeEventReport()` (`src/lib/reports/event-report-mutations.ts`) now owns the
+  DRAFT/REPORTED -> LOCKED completion transition: lock/transition check via `canTransitionTo`,
+  unknown-attendance check via `hasUnknownAttendance`, the status write, opponent-identity
+  resolution, and (new, per ADR-0104) the shared `runPostMatchLearning()` post-match learning
+  pipeline.
+- `completeEventMatchReportAction` (`src/app/(app)/events/event-post-match-actions.ts`) is now a
+  thin action-layer wrapper calling `completeEventReport()`.
+- All six sibling actions that previously reimplemented their own `report.status === 'LOCKED'`
+  guard (`updateEventMatchResultAction`, `updateEventPlayerAttendanceAction`,
+  `addEventGoalAction`, `removeEventGoalAction`, `addEventAssistAction`,
+  `removeEventAssistAction`) now call the shared `isReportLocked()` from `report-domain.ts`.
+- Tests: `src/lib/reports/__tests__/event-report-mutations.test.ts` asserts the completion
+  transition's invariants (unknown attendance blocks completion, an already-LOCKED report
+  cannot be completed again, a non-existent report errors) against `completeEventReport()`
+  directly — not per-action duplicated assertions.
 
 ## Related decisions
 
@@ -124,3 +145,9 @@ None.
 
 Identified while resolving ARR-0028 (Architecture Integrity Programme AIP-3). Deferred — recorded
 rather than fixed, since it requires its own Event-report state-machine investigation.
+
+### 2026-08-28
+
+Resolved as part of the Event Evidence Parity programme (ADR-0104), which needed Event report
+completion to own a single call-out point for the new shared post-match learning pipeline. See
+Disposition above.

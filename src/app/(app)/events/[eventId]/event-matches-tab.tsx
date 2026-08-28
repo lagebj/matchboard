@@ -1074,6 +1074,7 @@ function EventMatchCard({
       {expandedMatchId === match.id && reportData && (
         <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
           <EventMatchReportPanel
+            eventMatchId={match.id}
             report={{
               id: reportData.id,
               status: reportData.status,

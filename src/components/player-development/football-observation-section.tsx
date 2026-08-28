@@ -23,7 +23,9 @@ type PlayerOption = {
 };
 
 type Props = {
-  matchId: string;
+  /** Exactly one of matchId/eventMatchId identifies the report this section is for. */
+  matchId?: string;
+  eventMatchId?: string;
   players: PlayerOption[];
   existingObservations: ObservationEntry[];
   isLocked: boolean;
@@ -31,6 +33,7 @@ type Props = {
 
 export function FootballObservationSection({
   matchId,
+  eventMatchId,
   players,
   existingObservations,
   isLocked,
@@ -76,7 +79,6 @@ export function FootballObservationSection({
         (code) =>
           ({
             playerId: selectedPlayer,
-            matchId,
             observationCode: code,
             polarity: "POSITIVE" as ObservationPolarity,
             note: note.trim() || undefined,
@@ -86,7 +88,6 @@ export function FootballObservationSection({
         (code) =>
           ({
             playerId: selectedPlayer,
-            matchId,
             observationCode: code,
             polarity: "NEGATIVE" as ObservationPolarity,
             note: note.trim() || undefined,
@@ -95,10 +96,13 @@ export function FootballObservationSection({
     ];
 
     try {
-      const { saveFootballObservationsAction } = await import(
-        "@/app/(app)/matches/[matchId]/post-match/football-observation-actions"
-      );
-      const result = await saveFootballObservationsAction(matchId, inputs);
+      const result = eventMatchId
+        ? await (
+            await import("@/app/(app)/events/event-football-observation-actions")
+          ).saveEventFootballObservationsAction(eventMatchId, inputs)
+        : await (
+            await import("@/app/(app)/matches/[matchId]/post-match/football-observation-actions")
+          ).saveFootballObservationsAction(matchId!, inputs);
 
       if (!result.success) {
         setError(result.error ?? "Failed to save observations");
