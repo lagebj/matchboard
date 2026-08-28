@@ -187,20 +187,36 @@ finding-normalization/baseline layer to avoid false-positive noise blocking unre
 `architectural-residue-records`/`adr-governance` skills' own "don't build machinery you don't
 need yet" guidance applies) — see "Scanner execution vs. findings" below for what *is* enforced.
 
-### Current OSV triage (2026-08-22)
+### Current OSV triage (2026-08-28)
 
-All transitive; none are direct dependencies.
+All transitive; none are direct dependencies. Superseded 2026-08-22's triage below — that pass's
+"accepted risk, no fix exists" conclusions for `deepmerge-ts` and `uuid` turned out to be
+incomplete (a fix existed, just not as a version bump of the dependent package — see
+Disposition), and `nanoid` had silently regressed back to vulnerable since then (a plain `npm
+audit fix` nudges resolution once but creates no durable constraint; a later `npm install` can
+drift back down within the same unpinned semver range). All three are fixed as of this triage.
+
+| Package | Advisory | Severity | Disposition |
+|---------|----------|----------|--------------|
+| `nanoid` (via `postcss`, transitively via `next`/`vite`) | GHSA-2v37-7h3g-55p8 | High | **Fixed, durably.** Regressed back to the vulnerable `3.3.16` since the 2026-08-22 `npm audit fix` (unpinned transitive resolution drifted within `^3` on a later `npm install`). Fixed with an explicit `overrides: { "nanoid": "^3.3.18" }` in `package.json`, which durably constrains resolution instead of a one-time nudge. |
+| `deepmerge-ts` (via `@prisma/config`, transitively via `prisma`) | GHSA-ggr8-5vv4-36mx | High | **Fixed.** 2026-08-22's "no fix without downgrading prisma" was incomplete — the fixed range is `>=8.0.0`, and `overrides: { "deepmerge-ts": "^8.0.2" }` forces that version without touching `prisma`'s own pinned version at all. Verified via full `npm test`/`npm run build` (prisma client generation and every prisma-dependent code path still passes). |
+| `uuid` (via `exceljs`, used at runtime for season export) | GHSA-w5hq-g745-h8pq | Moderate | **Fixed.** 2026-08-22's "no fix without downgrading exceljs" was incomplete — `overrides: { "uuid": "^14.0.2" }` forces a patched major without touching `exceljs`'s own pinned version. `exceljs`'s only use of `uuid` (`node_modules/exceljs/lib/xlsx/xform/sheet/cf-ext/cf-rule-ext-xform.js`) is `require('uuid')`'s `v4()` export with no arguments — confirmed still resolvable and working post-override via the excel export test suite (`src/app/(app)/events/__tests__/event-export.test.ts`, 20/20 passing) and `src/lib/best-lineup/__tests__/best-lineup.test.ts`. |
+
+Fixing a transitive vulnerability this way means the override target's own compatibility with its
+declaring package (e.g. `exceljs`'s stated `uuid: ^8.3.0` dependency range) is no longer enforced
+by npm/pnpm — verify with the real test suite after adding or changing an override, not just a
+clean install.
+
+ARR-0023 (stale, drifting second lockfile) is resolved as of 2026-08-28 — see the ARR for detail.
+
+### Historical: OSV triage (2026-08-22)
 
 | Package | Advisory | Severity | Disposition |
 |---------|----------|----------|--------------|
 | `@babel/core` (dev, via `eslint-config-next`) | GHSA-4x5r-pxfx-6jf8 | Low | **Fixed** — `npm audit fix` bumped it to a patched version; dev-only, never runs in production. |
-| `nanoid` (via `postcss`) | GHSA-2v37-7h3g-55p8 | High | **Fixed** — `npm audit fix` bumped it to a patched version; build-tool-only, never processes runtime/user input. |
-| `deepmerge-ts` (via `@prisma/config`, transitively via `prisma`) | GHSA-ggr8-5vv4-36mx | High | **Accepted risk.** No fix exists without downgrading `prisma` to 6.12.0 (a major downgrade from the current 7.9.1, itself the latest stable release). The advisory is a stack-exhaustion DoS when merging recursive/circular object graphs — `@prisma/config` only merges the project's own version-controlled `prisma.config.ts`, never externally-supplied or user input, so the realistic exploitability in this app's threat model is effectively nil. Revisit when prisma ships a release with an updated `deepmerge-ts`. |
-| `uuid` (via `exceljs`, used at runtime for season export) | GHSA-w5hq-g745-h8pq | Moderate | **Accepted risk, verified not reachable.** No fix exists without downgrading `exceljs` to 3.4.0 (a major downgrade from the current 4.4.0, itself the latest stable release, which still depends on the same vulnerable `uuid` range upstream). The advisory requires calling `uuid.v3()`/`v5()`/`v6()` with an attacker-influenced `buf` parameter; `exceljs`'s only use of `uuid` (`node_modules/exceljs/lib/xlsx/xform/sheet/cf-ext/cf-rule-ext-xform.js`) calls `uuid.v4()` with no arguments at all, so the vulnerable code path is never exercised through this app's actual usage. |
-
-See ARR-0023 for a related, separate finding surfaced during this triage: a stale, drifting
-second lockfile (`pnpm-lock.yaml`) that under- or over-reports findings relative to the actually-
-used `package-lock.json`.
+| `nanoid` (via `postcss`) | GHSA-2v37-7h3g-55p8 | High | Fixed at the time via `npm audit fix`; regressed and was re-fixed durably — see 2026-08-28 above. |
+| `deepmerge-ts` (via `@prisma/config`, transitively via `prisma`) | GHSA-ggr8-5vv4-36mx | High | Marked accepted risk at the time; a fix was later found — see 2026-08-28 above. |
+| `uuid` (via `exceljs`, used at runtime for season export) | GHSA-w5hq-g745-h8pq | Moderate | Marked accepted risk (verified not reachable) at the time; a fix was later found — see 2026-08-28 above. |
 
 ## Secret policy
 
