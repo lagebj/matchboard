@@ -273,7 +273,7 @@ export function InsightsOverviewClient({
         {SURFACE_CARDS.map((card) => (
           <Link
             key={card.href}
-            href={`${card.href}?leagueSeasonId=${selectedPeriodId}`}
+            href={`${card.href}?leagueSeasonId=${encodeURIComponent(selectedPeriodId)}`}
             className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 transition-colors hover:border-zinc-600 hover:bg-zinc-800/50"
           >
             <div className="flex items-center gap-3 mb-2">

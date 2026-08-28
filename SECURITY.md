@@ -141,6 +141,18 @@ Therefore:
 - If the repository's visibility ever changes to private, this decision must be revisited (see
   ADR-0070)
 
+### CodeQL findings triage (2026-08-28)
+
+| Alert | Rule | Severity | Disposition |
+|-------|------|----------|--------------|
+| #1 (`src/app/(app)/insights/insights-client.tsx`) | `js/xss-through-dom` | High | **Fixed defensively.** `selectedPeriodId` (a native `<select>`'s `e.target.value`) was interpolated unencoded into a `<Link href>` query string. Not practically exploitable — React/Next.js's `<Link>` never uses `innerHTML` (JSX always property/attribute-assigns, auto-escaping), and a native `<select>` only ever yields one of its own rendered `<option>` values, which are themselves server-supplied league season IDs, not free-form user input. Wrapped in `encodeURIComponent()` anyway: correct URL-construction hygiene regardless of exploitability, and clears CodeQL's dataflow warning (it recognizes `encodeURIComponent` as a sanitizer for this sink). |
+| #2 (`src/app/(app)/season/season-client.tsx`) | `js/xss-through-dom` | High | **Fixed defensively**, same pattern and reasoning as #1 — `selectedPeriodId` and `exportFormat` (both native `<select>` values, the latter additionally type-narrowed to a 4-value string union) interpolated into a plain `<a href>` export-link query string. Both wrapped in `encodeURIComponent()`. |
+
+Both alerts stemmed from the same shape of pattern (DOM `<select>` value -> template-literal URL
+-> `href`), not a real injection path given React's rendering model and the constrained,
+server-supplied `<option>` value sets — but fixing forward with proper URL encoding is correct
+regardless, and removes the false-positive noise for future scans.
+
 ## Matchboard-specific Semgrep rules
 
 Custom rules are in `security/semgrep/matchboard-rules.yml`:
