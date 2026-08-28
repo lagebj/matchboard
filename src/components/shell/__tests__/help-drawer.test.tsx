@@ -18,11 +18,14 @@ describe("HelpDrawer", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders a same-origin iframe pointed at the docs page matching the current route", () => {
+  it("renders a same-origin iframe pointed at the compact embed of the docs page matching the current route", () => {
     render(<HelpDrawer isOpen={true} onClose={() => {}} />);
     const iframe = screen.getByTitle(/Matchboard documentation/i) as HTMLIFrameElement;
     expect(iframe).toBeInTheDocument();
-    expect(iframe.getAttribute("src")).toBe("/docs/squad-planning");
+    // /docs/embed/** (not /docs/**) -- the compact embed skips DocsLayout's sidebar/top-nav
+    // chrome, which has nowhere useful to go inside the drawer's ~440px panel. See
+    // docs/[[...slug]]/layout.tsx.
+    expect(iframe.getAttribute("src")).toBe("/docs/embed/squad-planning");
   });
 
   it("shows the resolved context label in the header", () => {
@@ -53,8 +56,10 @@ describe("HelpDrawer", () => {
 
   it("calls onClose when clicking the backdrop", () => {
     const onClose = vi.fn();
-    const { container } = render(<HelpDrawer isOpen={true} onClose={onClose} />);
-    const backdrop = container.querySelector("[aria-hidden='true']");
+    render(<HelpDrawer isOpen={true} onClose={onClose} />);
+    // Portalled to document.body (see help-drawer.tsx) -- not a descendant of render()'s own
+    // container, so query document.body directly rather than `container`.
+    const backdrop = document.body.querySelector("[aria-hidden='true']");
     expect(backdrop).not.toBeNull();
     fireEvent.click(backdrop!);
     expect(onClose).toHaveBeenCalledTimes(1);

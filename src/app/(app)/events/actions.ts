@@ -16,6 +16,7 @@ import {
   VALID_SQUAD_INTENTS,
   VALID_SELECTION_PATTERNS,
   parseEnum,
+  parseNumberOfHalves,
 } from '@/lib/events/event-validation-constants';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { BroadPosition } from '@/lib/events/event-types';
@@ -132,6 +133,7 @@ export async function createEventAction(formData: FormData) {
   const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_SELECTION_PATTERNS, 'ALL_BALANCED') : null;
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
+  const numberOfHalves = parseNumberOfHalves(formData.get('numberOfHalves') as string | null);
 
   if (defaultFormationId) {
     const formation = await db.formation.findFirst({
@@ -162,6 +164,7 @@ export async function createEventAction(formData: FormData) {
       defaultFormationId: defaultFormationId || undefined,
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
+      numberOfHalves,
       notes,
       organisationId: ctx.orgFilter.organisationId,
       footballGroupId,
@@ -206,6 +209,7 @@ export async function updateEventAction(id: string, formData: FormData) {
   const selectionPattern = selectionPatternRaw ? parseEnum(selectionPatternRaw, VALID_SELECTION_PATTERNS, 'ALL_BALANCED') : null;
   const matchDurationMinutes = formData.get('matchDurationMinutes') ? parseInt(formData.get('matchDurationMinutes') as string) : null;
   const validatedMatchDuration = matchDurationMinutes !== null && matchDurationMinutes > 0 ? matchDurationMinutes : null;
+  const numberOfHalves = parseNumberOfHalves(formData.get('numberOfHalves') as string | null);
 
   if (defaultFormationId) {
     const formation = await db.formation.findFirst({
@@ -236,6 +240,7 @@ export async function updateEventAction(id: string, formData: FormData) {
       defaultFormationId: defaultFormationId || null,
       selectionPattern,
       matchDurationMinutes: validatedMatchDuration,
+      numberOfHalves,
       notes,
     },
   });
@@ -613,6 +618,24 @@ export async function updateEventMatchDurationAction(eventId: string, matchDurat
   const event = await db.event.update({
     where: { id: eventId },
     data: { matchDurationMinutes: validated },
+  });
+
+  revalidatePath('/events');
+  revalidatePath(`/events/${eventId}`);
+  return event;
+}
+
+export async function updateEventNumberOfHalvesAction(eventId: string, numberOfHalves: number) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
+
+  const validated = parseNumberOfHalves(numberOfHalves);
+
+  const event = await db.event.update({
+    where: { id: eventId },
+    data: { numberOfHalves: validated },
   });
 
   revalidatePath('/events');

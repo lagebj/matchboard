@@ -17,6 +17,7 @@ import {
   updateEventSquadNameAction,
   updateEventSquadAction,
   updateEventMatchDurationAction,
+  updateEventNumberOfHalvesAction,
 } from '../actions';
 import { finalizeEventAction, unfinalizeEventAction } from '../event-finalization-actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
@@ -149,6 +150,7 @@ type EventDetailData = {
   endsAt: string | null;
   gameFormat: string;
   matchDurationMinutes: number | null;
+  numberOfHalves: number;
   selectionPattern: string | null;
   notes: string | null;
   defaultFormationId: string | null;
@@ -225,6 +227,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [editingDuration, setEditingDuration] = useState(false);
   const [durationValue, setDurationValue] = useState('');
   const [localDuration, setLocalDuration] = useState<number | null | undefined>(undefined);
+  const [localNumberOfHalves, setLocalNumberOfHalves] = useState<number | undefined>(undefined);
 
   const isFinalized = data.status === 'FINALIZED';
 
@@ -483,7 +486,26 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                 <p className="text-sm text-zinc-100">{formatGameFormat(data.gameFormat)}</p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Match duration</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Halves</p>
+                <select
+                  value={(localNumberOfHalves !== undefined ? localNumberOfHalves : data.numberOfHalves).toString()}
+                  onChange={async (e) => {
+                    const halves = parseInt(e.target.value);
+                    setLocalNumberOfHalves(halves);
+                    await updateEventNumberOfHalvesAction(data.id, halves);
+                    router.refresh();
+                  }}
+                  className="rounded border border-[var(--border-soft)] bg-transparent px-1.5 py-0.5 text-sm text-zinc-100 outline-none focus-visible:border-[var(--accent)]"
+                  title="Number of halves for matches in this event"
+                >
+                  <option value="1">1 (single period)</option>
+                  <option value="2">2 (first/second half)</option>
+                </select>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                  {(localNumberOfHalves !== undefined ? localNumberOfHalves : data.numberOfHalves) === 2 ? 'Half duration' : 'Match duration'}
+                </p>
                 {editingDuration ? (
                   <div className="flex items-center gap-1.5">
                     <input
@@ -527,7 +549,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                       setDurationValue(current?.toString() ?? '');
                       setEditingDuration(true);
                     }}
-                    title="Click to edit match duration"
+                    title={
+                      (localNumberOfHalves !== undefined ? localNumberOfHalves : data.numberOfHalves) === 2
+                        ? 'Click to edit half duration'
+                        : 'Click to edit match duration'
+                    }
                   >
                     {(localDuration !== undefined ? localDuration : data.matchDurationMinutes) ? `${(localDuration !== undefined ? localDuration : data.matchDurationMinutes)} min` : 'Not set'}
                   </button>

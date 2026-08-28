@@ -231,6 +231,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     endsAt: event.endsAt?.toISOString() ?? null,
     gameFormat: event.gameFormat as string,
     matchDurationMinutes: event.matchDurationMinutes,
+    numberOfHalves: event.numberOfHalves,
     selectionPattern: event.selectionPattern as string | null,
     notes: event.notes,
     defaultFormationId: event.defaultFormationId,

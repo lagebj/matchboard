@@ -19,6 +19,7 @@ interface EventLiveMatchClientProps {
   opponentName: string;
   eventName: string;
   matchDurationMinutes: number | null;
+  numberOfHalves: number;
   eventId: string;
 }
 
@@ -75,7 +76,7 @@ function createEventActions(eventMatchId: string, eventId: string): LiveMatchAct
   };
 }
 
-export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eventName, matchDurationMinutes, eventId }: EventLiveMatchClientProps) {
+export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eventName, matchDurationMinutes, numberOfHalves, eventId }: EventLiveMatchClientProps) {
   const eventActions = createEventActions(eventMatchId, eventId);
 
   return (
@@ -84,7 +85,7 @@ export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eve
       teamName={teamName}
       opponentName={opponentName}
       contextLabel={eventName}
-      periodConfig={getEventPeriodConfig(matchDurationMinutes)}
+      periodConfig={getEventPeriodConfig(matchDurationMinutes, numberOfHalves)}
       actions={eventActions}
     />
   );

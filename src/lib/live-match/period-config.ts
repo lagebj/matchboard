@@ -35,8 +35,23 @@ export function getLeaguePeriodConfig(matchType: MatchType): PeriodConfig[] {
   return matchType === "CUP" ? LEAGUE_PERIOD_CONFIG : REGULATION_ONLY_PERIOD_CONFIG;
 }
 
-export function getEventPeriodConfig(matchDurationMinutes: number | null): PeriodConfig[] {
+// matchDurationMinutes is always the length of ONE half. For the default numberOfHalves=1 that
+// is trivially the whole match (single continuous "Match" period, unchanged from before halves
+// support existed). numberOfHalves=2 mirrors League's regulation-time period model exactly
+// (First half/Half time/Second half) -- same MatchPeriod keys, so LiveMatchClient needs no
+// changes to consume either shape.
+export function getEventPeriodConfig(matchDurationMinutes: number | null, numberOfHalves: number = 1): PeriodConfig[] {
   const durationMs = matchDurationMinutes != null ? matchDurationMinutes * 60 * 1000 : null;
+
+  if (numberOfHalves === 2) {
+    return [
+      { key: "BEFORE", label: "Before match", type: "break", durationMs: null },
+      { key: "FIRST_HALF", label: "First half", type: "playing", durationMs },
+      { key: "HALF_TIME", label: "Half time", type: "break", durationMs: null },
+      { key: "SECOND_HALF", label: "Second half", type: "playing", durationMs },
+      { key: "FULL_TIME", label: "Full time", type: "break", durationMs: null },
+    ];
+  }
 
   return [
     { key: "BEFORE", label: "Before match", type: "break", durationMs: null },

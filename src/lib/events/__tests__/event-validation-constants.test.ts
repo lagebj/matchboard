@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   VALID_EVENT_TYPES,
   VALID_GAME_FORMATS,
+  VALID_NUMBER_OF_HALVES,
   parseEnum,
+  parseNumberOfHalves,
   isValidEventStatus,
   requireValidEventStatus,
 } from "../event-validation-constants";
@@ -65,6 +67,37 @@ describe("event-validation-constants", () => {
 
     it("throws for invalid input", () => {
       expect(() => requireValidEventStatus("INVALID")).toThrow("Invalid event player status: INVALID");
+    });
+  });
+
+  describe("VALID_NUMBER_OF_HALVES", () => {
+    it("is exactly 1 and 2", () => {
+      expect(VALID_NUMBER_OF_HALVES).toEqual([1, 2]);
+    });
+  });
+
+  describe("parseNumberOfHalves", () => {
+    it("accepts 1 and 2 as numbers", () => {
+      expect(parseNumberOfHalves(1)).toBe(1);
+      expect(parseNumberOfHalves(2)).toBe(2);
+    });
+
+    it("accepts 1 and 2 as strings (form data)", () => {
+      expect(parseNumberOfHalves("1")).toBe(1);
+      expect(parseNumberOfHalves("2")).toBe(2);
+    });
+
+    it("falls back to 1 for null/undefined/empty", () => {
+      expect(parseNumberOfHalves(null)).toBe(1);
+      expect(parseNumberOfHalves(undefined)).toBe(1);
+      expect(parseNumberOfHalves("")).toBe(1);
+    });
+
+    it("falls back to 1 for out-of-range or garbage values, never persisting them", () => {
+      expect(parseNumberOfHalves(0)).toBe(1);
+      expect(parseNumberOfHalves(3)).toBe(1);
+      expect(parseNumberOfHalves(-1)).toBe(1);
+      expect(parseNumberOfHalves("not-a-number")).toBe(1);
     });
   });
 });

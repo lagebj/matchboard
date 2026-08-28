@@ -1217,7 +1217,15 @@ model Event {
   endsAt               DateTime?
   gameFormat           GameFormat
   defaultFormationId   String?
+  // Duration of ONE half in minutes -- for the default numberOfHalves=1, this is the whole
+  // match's duration, matching the field's original pre-halves-support meaning exactly, so no
+  // existing event's behavior changes. See getEventPeriodConfig() (period-config.ts).
   matchDurationMinutes Int?
+  // 1 (default, the pre-existing single continuous "Match" period) or 2 (First half/Half
+  // time/Second half, mirroring League's regulation-time period model). Event-level, not
+  // per-EventMatch -- a cup's halves format is a property of the competition, not an individual
+  // fixture, matching matchDurationMinutes's existing event-level scope.
+  numberOfHalves       Int                    @default(1)
   selectionPattern     EventSelectionPattern?
   notes                String?
   status               EventStatus               @default(DRAFT)

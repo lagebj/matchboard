@@ -30,6 +30,7 @@ export default async function EventLiveMatchPage({ params }: EventLiveMatchPageP
           name: true,
           gameFormat: true,
           matchDurationMinutes: true,
+          numberOfHalves: true,
         },
       },
       eventSquad: {
@@ -56,6 +57,7 @@ export default async function EventLiveMatchPage({ params }: EventLiveMatchPageP
       opponentName={match.opponentName}
       eventName={match.event.name}
       matchDurationMinutes={match.event.matchDurationMinutes}
+      numberOfHalves={match.event.numberOfHalves}
       eventId={eventId}
     />
   );
