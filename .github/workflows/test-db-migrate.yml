@@ -1,7 +1,7 @@
 name: Test DB Migration
 
 run-name: >-
-  Test DB migration (${{ github.event_name == 'workflow_run' && 'auto after CI' || 'manual' }})
+  Test DB migration (${{ github.event_name == 'push' && 'auto after push to main' || 'manual' }})
 
 # Keeps the persistent Neon "test" branch up to date with the migration history on main.
 #
@@ -16,6 +16,20 @@ run-name: >-
 # old pre-fix seed run (see docs/adr/0075's History) — both were masquerading as "Test-slot
 # flake" across four consecutive PRs before being root-caused and fixed by hand.
 #
+# Trigger is `push` to main, not `workflow_run` after CI. It was originally `workflow_run` gated
+# on the triggering CI run's conclusion being 'success' -- but `ci-checks.yml`'s own "Browser
+# Acceptance Tests" job runs against this exact persistent branch, so a migration that changes
+# the schema created a self-perpetuating deadlock: CI fails (because Browser Acceptance Tests
+# fails against the not-yet-migrated branch) -> this workflow never fires (it required CI to have
+# succeeded) -> the branch never gets migrated -> CI keeps failing on every subsequent run too,
+# not just the one that introduced the migration. Recurred exactly this way on 2026-08-28 (PR
+# #365's matchDurationMinutes migration) and could only be broken by a manual workflow_dispatch.
+# Triggering on `push` instead removes the dependency on any other job's outcome entirely: the
+# migration applies the moment a commit lands on main, before Browser Acceptance Tests needs it,
+# regardless of whether unrelated jobs (lint, typecheck, ...) in that same push's CI run pass or
+# fail. This fires somewhat more eagerly than before (every push, not just ones where full CI
+# passed), which is an accepted tradeoff given the no-approval-gate posture explained below.
+#
 # No approval gate, unlike production-db-migrate.yml: this targets disposable, canonical test
 # data (scripts/seed-test-dataset.ts, invoked via the `restore-test-baseline` swamp procedure,
 # fully re-seeds it from scratch on demand) — a bad migration here has none of the blast radius a
@@ -26,10 +40,8 @@ run-name: >-
 # every push to main.
 
 on:
-  workflow_run:
-    workflows: ["CI"]
+  push:
     branches: [main]
-    types: [completed]
   workflow_dispatch: {}
 
 permissions:
@@ -42,11 +54,6 @@ concurrency:
 jobs:
   migrate:
     name: Migrate persistent test branch
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-24.04
     env:
       NODE_ENV: test
@@ -55,8 +62,8 @@ jobs:
       - name: Resolve ref to migrate
         id: resolve-ref
         run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           else
             echo "ref=main" >> "$GITHUB_OUTPUT"
           fi
