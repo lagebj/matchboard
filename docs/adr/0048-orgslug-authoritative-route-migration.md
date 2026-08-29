@@ -220,3 +220,26 @@ None.
 ### 2026-08-03
 
 Record created. Supersedes ADR-0036's partial implementation where only 4 of many routes used orgSlug.
+
+### 2026-08-28
+
+Found and fixed two pockets of leftover unscoped-path residue from this migration while
+investigating a recurring E2E flake (`e2e/live-reporting.spec.ts`'s round-card lookup): the
+round-detail `<Link>` in `round-list-client.tsx` still pointed at the legacy `/rounds/[id]` route
+instead of `/o/{orgSlug}/rounds/[id]`, and every `revalidatePath()`/`redirect()` call in
+`src/app/(app)/matches/actions.ts` and `src/app/(app)/rounds/[matchRoundId]/actions.ts`
+(`createMatchAction`, `deleteMatchAction`, `updateMatchAction`, `finalizeMatchAction`,
+`cancelMatchAction`, `reopenMatchAction`, and the round-board actions file's finalize/unfinalize/
+regenerate/clear actions) still targeted unscoped legacy paths (`/fixtures`, `/rounds`,
+`/matches/[id]`, `/today`, `/`, and one now-nonexistent `/selection/[id]`). All fixed to the
+`/o/{orgSlug}/...` equivalents. These were functionally silent (the target pages are all
+`force-dynamic`, so a stale `revalidatePath()` target is a no-op, not a rendering bug) except for
+the `<Link>` and the two `redirect()` calls in `createMatchAction`/`deleteMatchAction`, which
+caused a real extra redirect hop through the global-route-redirect middleware on every match
+creation/deletion — measurable added latency on the exact path that a documented, pre-existing
+E2E timeout comment (`e2e/helpers/live-match-fixtures.ts`) already flagged as needing a longer
+timeout for slow/cold Vercel deployments. This is evidence the ADR-0048 migration was executed in
+substance (the pages themselves are canonically org-scoped, matching AGENTS.md's "Canonical
+routes" table) but not fully swept for stale references in server-action cache-invalidation/
+redirect code — Status is left as `Proposed` rather than updated here, since this fix covered only
+the two files touched by this investigation, not a full repository audit for remaining instances.

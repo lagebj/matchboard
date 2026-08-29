@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type CurrentRoundAttentionTableProps = {
   rows: PlayerCurrentRoundAttentionRow[];
@@ -46,6 +47,7 @@ export function CurrentRoundAttentionTable({
   roundId,
   teams,
 }: CurrentRoundAttentionTableProps) {
+  const orgUrl = useOrgUrl();
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [search, setSearch] = useState("");
@@ -153,13 +155,13 @@ export function CurrentRoundAttentionTable({
                     return (
                       <tr key={row.playerId} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors">
                         <td className="px-4 py-2">
-                          <Link href={`/players/${row.playerId}`} className="font-medium text-zinc-200 hover:text-zinc-50">
+                          <Link href={orgUrl(`/players/${row.playerId}`)} className="font-medium text-zinc-200 hover:text-zinc-50">
                             {row.displayName}
                           </Link>
                         </td>
                         <td className="px-3 py-2 text-zinc-400">
                           {row.coreTeam ? (
-                            <Link href={`/teams/${row.coreTeam.id}`} className="hover:text-zinc-200">
+                            <Link href={orgUrl(`/teams/${row.coreTeam.id}`)} className="hover:text-zinc-200">
                               {row.coreTeam.name}
                             </Link>
                           ) : (
@@ -187,7 +189,7 @@ export function CurrentRoundAttentionTable({
                         <td className="px-3 py-2 text-right">
                           {(row.integrityState.startsWith("BLOCKED") || row.integrityState === "DECISION_REQUIRED_NO_PLANNED_MATCH") ? (
                             <Link
-                              href={`/rounds/${roundId}`}
+                              href={orgUrl(`/rounds/${roundId}`)}
                               className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
                             >
                               Open Round Board
@@ -210,7 +212,7 @@ export function CurrentRoundAttentionTable({
             return (
               <ResponsiveTableCard
                 title={row.displayName}
-                titleHref={`/players/${row.playerId}`}
+                titleHref={orgUrl(`/players/${row.playerId}`)}
                 fields={[
                   { label: "Core team", value: row.coreTeam?.name ?? "Unassigned" },
                   { label: "Availability", value: <AvailabilityBadge availability={row.availability} /> },
@@ -233,7 +235,7 @@ export function CurrentRoundAttentionTable({
                 actions={
                   needsAction ? (
                     <Link
-                      href={`/rounds/${roundId}`}
+                      href={orgUrl(`/rounds/${roundId}`)}
                       className="text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
                     >
                       Open Round Board

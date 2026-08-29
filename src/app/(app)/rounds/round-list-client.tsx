@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, RotateCcw } from "lucide-react";
+import { ShieldCheck, RotateCcw, TriangleAlert } from "lucide-react";
 import { clearAllDraftsAction, populateAllAction, generateRoundAction, regroupRoundsAction, regenerateAllDraftsAction, finalizeRoundFromListAction, unfinalizeRoundFromListAction } from "./actions";
 import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { CalendarRange } from "lucide-react";
+import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type RoundListItem = {
   id: string;
@@ -25,6 +26,9 @@ type RoundListItem = {
    * played/All matches played/Reporting/Complete lifecycle axis).
    */
   progress?: { label: string };
+  /** Set when this round's own plan-integrity computation failed server-side. Coach-facing,
+   * non-blocking -- the round is still shown and clickable. */
+  loadError?: string;
 };
 
 type FilterState = "all" | "needs_action" | "draft" | "ready" | "finalized";
@@ -62,6 +66,7 @@ function filterRounds(rounds: RoundListItem[], filter: FilterState): RoundListIt
 
 export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, hasNotGeneratedRounds, roundCount }: RoundListClientProps) {
   const router = useRouter();
+  const orgUrl = useOrgUrl();
   const [filter, setFilter] = useState<FilterState>("all");
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [finalizingRoundId, setFinalizingRoundId] = useState<string | null>(null);
@@ -184,7 +189,8 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
             return (
               <TacticalSurface key={round.id} variant="default" padding="none">
                 <Link
-                  href={`/rounds/${round.id}`}
+                  href={orgUrl(`/rounds/${round.id}`)}
+                  prefetch={false}
                   className="block hover:bg-[rgba(255,255,255,0.03)] p-4 rounded-[1.5rem]"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -203,6 +209,12 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                       {round.progress && (
                         <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
                           {round.progress.label}
+                        </p>
+                      )}
+                      {round.loadError && (
+                        <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--warning)]">
+                          <TriangleAlert className="h-3 w-3" />
+                          {round.loadError}
                         </p>
                       )}
                     </div>

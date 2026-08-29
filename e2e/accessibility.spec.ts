@@ -46,13 +46,21 @@ test.describe("accessibility", () => {
   });
 
   test("Round Board has no automatically detectable violations", async ({ page }) => {
+    // 60s, not the 30s default: confirmed live in CI that this test can hit the *test-level*
+    // timeout (not just a locator's own wait) on /rounds under the same cold-Vercel-function /
+    // Neon-connection-pressure / accumulated-historical-rounds conditions that
+    // follow-live.spec.ts and live-reporting.spec.ts already bump their own timeouts for — this
+    // test just hadn't been given the same headroom despite doing a comparable round-trip
+    // (rounds list -> round board navigation -> axe scan).
+    test.setTimeout(60_000);
+
     // Round Board needs a real round ID — navigate via the rounds list like
     // round-mutation.spec.ts does, rather than hardcoding an ID from the seed dataset.
     // Scoped to <main> (not page.getByRole("link").first()) — the sidebar/top-bar render
     // their own links before the page content in the DOM, so an unscoped "first link" query
     // clicks a nav link (e.g. Today) instead of a round card, as a live CI run confirmed.
     await page.goto("/o/test-club-a/rounds");
-    await page.locator("main").getByRole("link").first().click();
+    await page.locator("main").getByRole("link").first().click({ timeout: 30_000 });
     await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
 
     const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();

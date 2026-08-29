@@ -15,17 +15,16 @@ import { logFinalization, logManualOverride } from "@/lib/security/audit-log";
 import { db } from "@/lib/db";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
-async function reconcileAndRevalidatePaths(matchRoundId: string, extraPaths: string[] = []) {
+async function reconcileAndRevalidatePaths(organisationSlug: string, matchRoundId: string, extraPaths: string[] = []) {
   try {
     await reconcileRoundAfterDraftMutation(matchRoundId);
   } catch {
     // reconciliation failure must not block the mutation
   }
-  revalidatePath("/");
-  revalidatePath("/fixtures");
-  revalidatePath("/rounds");
-  revalidatePath(`/rounds/${matchRoundId}`);
-  revalidatePath("/today");
+  revalidatePath(`/o/${organisationSlug}/today`);
+  revalidatePath(`/o/${organisationSlug}/fixtures`);
+  revalidatePath(`/o/${organisationSlug}/rounds`);
+  revalidatePath(`/o/${organisationSlug}/rounds/${matchRoundId}`);
   for (const path of extraPaths) {
     revalidatePath(path);
   }
@@ -48,7 +47,7 @@ export async function finalizeRoundAction(formData: FormData) {
   requireMutationRole(ctx);
   const matchRoundId = formData.get("matchRoundId");
   if (typeof matchRoundId !== "string" || !matchRoundId) {
-    redirect(buildPathWithSearch(`/rounds/${matchRoundId ?? ""}`, { error: "Match round ID is required." }));
+    redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/rounds/${matchRoundId ?? ""}`, { error: "Match round ID is required." }));
   }
 
   await verifyRoundAccess(matchRoundId, ctx.orgFilter);
@@ -75,21 +74,21 @@ export async function finalizeRoundAction(formData: FormData) {
     } else {
       queryParams.error = "Finalisation failed.";
     }
-    redirect(buildPathWithSearch(`/rounds/${matchRoundId}`, queryParams));
+    redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/rounds/${matchRoundId}`, queryParams));
   }
 
   logFinalization(ctx.email || "unknown", "round", matchRoundId, "success", category ? `override: ${category}` : undefined);
 
-  revalidatePath("/");
-  revalidatePath("/fixtures");
-  revalidatePath("/rounds");
-  revalidatePath(`/rounds/${matchRoundId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/today`);
+  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+  revalidatePath(`/o/${ctx.organisationSlug}/rounds/${matchRoundId}`);
 
   for (const matchId of result.finalizedMatchIds) {
-    revalidatePath(`/selection/${matchId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
   }
 
-  redirect(buildPathWithSearch(`/rounds/${matchRoundId}`, { finalized: "1" }));
+  redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/rounds/${matchRoundId}`, { finalized: "1" }));
 }
 
 export async function clearRoundDraftAction(formData: FormData) {
@@ -104,7 +103,7 @@ export async function clearRoundDraftAction(formData: FormData) {
   await verifyRoundAccess(matchRoundId, ctx.orgFilter);
 
   await clearRoundDraftSelection(matchRoundId);
-  await reconcileAndRevalidatePaths(matchRoundId);
+  await reconcileAndRevalidatePaths(ctx.organisationSlug, matchRoundId);
 }
 
 export async function clearMatchDraftAction(formData: FormData) {
@@ -127,12 +126,12 @@ export async function clearMatchDraftAction(formData: FormData) {
 
 
   await clearMatchDraftSelection(matchId);
-  
+
   if (typeof matchRoundId === "string" && matchRoundId) {
-    await reconcileAndRevalidatePaths(matchRoundId);
+    await reconcileAndRevalidatePaths(ctx.organisationSlug, matchRoundId);
   } else {
-    revalidatePath("/");
-    revalidatePath("/rounds");
+    revalidatePath(`/o/${ctx.organisationSlug}/today`);
+    revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
   }
 }
 
@@ -154,7 +153,7 @@ export async function regenerateRoundAction(prevState: { error: string }, formDa
       return { error: "Round has manual edits that were preserved. Clear manual edits first to fully regenerate." };
     }
 
-    await reconcileAndRevalidatePaths(matchRoundId);
+    await reconcileAndRevalidatePaths(ctx.organisationSlug, matchRoundId);
 
     return { error: "" };
   } catch (error) {
@@ -198,11 +197,11 @@ export async function finalizeSingleMatchFromBoardAction(prevState: { error: str
       logManualOverride(ctx.email || "unknown", "match", matchId, category);
     }
 
-    revalidatePath("/");
-    revalidatePath("/rounds");
-    revalidatePath(`/rounds/${formData.get("matchRoundId") ?? ""}`);
-    revalidatePath("/fixtures");
-    revalidatePath(`/matches/${matchId}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/today`);
+    revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+    revalidatePath(`/o/${ctx.organisationSlug}/rounds/${formData.get("matchRoundId") ?? ""}`);
+    revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+    revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
 
     if (!result.success) {
       return { error: result.needsOverride ? "Override reason required" : "Finalisation failed" };
@@ -229,7 +228,7 @@ export async function unfinalizeRoundAction(prevState: { error: string }, formDa
     const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
     const result = await unfinalizeMatchRound(matchRoundId);
 
-    await reconcileAndRevalidatePaths(matchRoundId);
+    await reconcileAndRevalidatePaths(ctx.organisationSlug, matchRoundId);
 
     if (!result.success) {
       return { error: result.message };
@@ -264,12 +263,12 @@ export async function unfinalizeSingleMatchFromBoardAction(prevState: { error: s
 
     const roundId = typeof formData.get("matchRoundId") === "string" ? formData.get("matchRoundId") as string : "";
     if (roundId) {
-      await reconcileAndRevalidatePaths(roundId, [`/matches/${matchId}`]);
+      await reconcileAndRevalidatePaths(ctx.organisationSlug, roundId, [`/o/${ctx.organisationSlug}/matches/${matchId}`]);
     } else {
-      revalidatePath("/");
-      revalidatePath("/rounds");
-      revalidatePath("/fixtures");
-      revalidatePath(`/matches/${matchId}`);
+      revalidatePath(`/o/${ctx.organisationSlug}/today`);
+      revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+      revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
+      revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
     }
 
     if (!result.success) {
@@ -307,8 +306,8 @@ export async function regenerateMatchAction(prevState: { error: string }, formDa
       return { error: "Match has manual edits that were preserved. Clear manual edits first to fully regenerate." };
     }
 
-    revalidatePath("/");
-    revalidatePath("/rounds");
+    revalidatePath(`/o/${ctx.organisationSlug}/today`);
+    revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
 
     return { error: "" };
   } catch (error) {

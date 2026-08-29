@@ -491,6 +491,7 @@ function CurrentRoundTab({
   roundLabel: string | null;
   roundId: string | null;
 }) {
+  const orgUrl = useOrgUrl();
   if (!roundLabel || !roundId) {
     return (
       <Surface variant="default" padding="md">
@@ -509,7 +510,7 @@ function CurrentRoundTab({
               <Link
                 key={p.playerId}
                 className="group/item flex items-start justify-between gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
-                href={`/players/${p.playerId}`}
+                href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div>
                   <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
@@ -534,7 +535,7 @@ function CurrentRoundTab({
               <Link
                 key={p.playerId}
                 className="group/item rounded-xl border border-[var(--info)]/20 bg-[var(--info-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
-                href={`/players/${p.playerId}`}
+                href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
@@ -562,7 +563,7 @@ function CurrentRoundTab({
               <Link
                 key={p.playerId}
                 className="group/item flex items-start justify-between gap-2 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
-                href={`/players/${p.playerId}`}
+                href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div>
                   <span className="font-medium text-[var(--danger)] group-hover/item:text-[var(--accent-strong)]">
@@ -590,7 +591,7 @@ function CurrentRoundTab({
               <Link
                 key={p.playerId}
                 className="group/item rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-subtle)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
-                href={`/players/${p.playerId}`}
+                href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
@@ -623,7 +624,7 @@ function CurrentRoundTab({
                   action={
                     <Link
                       className="text-[10px] text-[var(--text-muted)] hover:text-zinc-50"
-                      href={`/rounds/${w.matchRoundId}`}
+                      href={orgUrl(`/rounds/${w.matchRoundId}`)}
                     >
                       {w.roundLabel}
                     </Link>
@@ -639,6 +640,7 @@ function CurrentRoundTab({
 }
 
 function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) {
+  const orgUrl = useOrgUrl();
   if (movementHistory.length === 0) {
     return (
       <Surface variant="default" padding="md">
@@ -657,7 +659,7 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
-              href={`/players/${entry.playerId}`}
+              href={orgUrl(`/players/${entry.playerId}`)}
             >
               {entry.playerName}
             </Link>
@@ -689,7 +691,7 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
           <p className="mt-1 text-[10px] text-[var(--text-muted)]">
             <Link
               className="hover:text-zinc-50"
-              href={`/rounds/${entry.matchRoundId}`}
+              href={orgUrl(`/rounds/${entry.matchRoundId}`)}
             >
               {entry.roundLabel}
             </Link>
@@ -701,6 +703,7 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
 }
 
 function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
+  const orgUrl = useOrgUrl();
   if (finalizedRounds.length === 0) {
     return (
       <Surface variant="default" padding="md">
@@ -715,7 +718,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
         <Link
           key={round.matchRoundId}
           className="group rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3 hover:bg-[var(--surface-hover)]"
-          href={`/rounds/${round.matchRoundId}`}
+          href={orgUrl(`/rounds/${round.matchRoundId}`)}
         >
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-medium text-zinc-100 group-hover:text-[var(--accent-strong)]">
@@ -840,6 +843,7 @@ function MovementCandidatesTab({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedPathId, setSelectedPathId] = useState("");
   const [isPending, startTransition] = useTransition();
+  const orgUrl = useOrgUrl();
 
   const activeOutgoingPaths = rotationPaths.filter((p) => p.direction === "outgoing" && p.active);
   const activeIncomingPaths = rotationPaths.filter((p) => p.direction === "incoming" && p.active);
@@ -874,7 +878,7 @@ function MovementCandidatesTab({
         <div className="flex items-center justify-between gap-2">
           <Link
             className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)] truncate"
-            href={`/players/${candidate.playerId}`}
+            href={orgUrl(`/players/${candidate.playerId}`)}
           >
             {candidate.playerLastName
               ? `${candidate.playerFirstName} ${candidate.playerLastName}`
@@ -1106,12 +1110,12 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
               Squad settings
             </Button>
             {data.previousTeamId && (
-              <Button variant="ghost" size="sm" as="a" href={`/teams/${data.previousTeamId}`}>
+              <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${data.previousTeamId}`)}>
                 Previous team
               </Button>
             )}
             {data.nextTeamId && (
-              <Button variant="ghost" size="sm" as="a" href={`/teams/${data.nextTeamId}`}>
+              <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${data.nextTeamId}`)}>
                 Next team
               </Button>
             )}

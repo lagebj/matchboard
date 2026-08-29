@@ -9,11 +9,13 @@ import { createFinalizedLiveTestMatch, waitForEventsToSync } from "./helpers/liv
 // duplicating it) and adds the one further step that flow deliberately stops short of:
 // clicking "Complete report" to reach LOCKED, which is what triggers the learning pipeline.
 //
-// 180s timeout for the same reason live-reporting.spec.ts uses one: create + generate +
-// finalize alone can consume most of a shorter budget on a freshly forked per-PR Neon branch.
+// 90s timeout: createFinalizedLiveTestMatch's fixture setup now goes through the test-only
+// /api/test-agent/seed-finalized-match endpoint (a couple of seconds) instead of driving
+// create+generate+finalize through real UI clicks (previously 1-3+ minutes, which is why this
+// budget used to be raised as high as 180s).
 
 test("completing a League post-match report via the real UI runs post-match learning without error", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(90_000);
   const { opponentName } = await createFinalizedLiveTestMatch(page, "EvidenceParity");
 
   await page.getByRole("link", { name: "Live reporting" }).click();

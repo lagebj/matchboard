@@ -359,12 +359,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
               </>
             )}
             {matchFinalized && !isCancelled && (
-              <Button as={Link} href={`/matches/${match.id}/live`} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
+              <Button as={Link} href={orgUrl(`/matches/${match.id}/live`)} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
                 Live reporting
               </Button>
             )}
             {match.isLive && match.canFollowLive && (
-              <Button as={Link} href={`/matches/${match.id}/live/follow`} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
+              <Button as={Link} href={orgUrl(`/matches/${match.id}/live/follow`)} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
                 Follow live
               </Button>
             )}
@@ -374,7 +374,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
           <span>
             Round:{" "}
             <Link
-              href={`/rounds/${match.matchRoundId}`}
+              href={orgUrl(`/rounds/${match.matchRoundId}`)}
               className="text-[var(--accent-strong)] hover:underline"
             >
               {match.matchRoundName}
@@ -478,7 +478,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                             }`}
                           >
                             <Link
-                              href={`/players/${p.playerId}`}
+                              href={orgUrl(`/players/${p.playerId}`)}
                               className={p.absenceReason ? "line-through hover:text-zinc-50 transition-colors" : "hover:text-zinc-50 transition-colors"}
                             >
                               {p.playerName}
@@ -520,7 +520,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 action={
                   <Button
                     as={Link}
-                    href={`/rounds/${match.matchRoundId}`}
+                    href={orgUrl(`/rounds/${match.matchRoundId}`)}
                     variant="primary"
                     size="sm"
                   >
@@ -558,7 +558,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 variant="finalized"
                  title="This round is finalised."
                 action={
-                  <Button as={Link} href={`/rounds/${match.matchRoundId}`} variant="ghost" size="sm">
+                  <Button as={Link} href={orgUrl(`/rounds/${match.matchRoundId}`)} variant="ghost" size="sm">
                     View round
                   </Button>
                 }
@@ -618,7 +618,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                     {isPending ? "Finalising…" : "Finalise this match"}
                   </Button>
                   <Link
-                    href={`/rounds/${match.matchRoundId}`}
+                    href={orgUrl(`/rounds/${match.matchRoundId}`)}
                     className="text-center text-xs text-[var(--accent-strong)] hover:underline"
                   >
                     Finalise entire round instead
@@ -760,7 +760,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
               <SectionHeader title="Post-match report" description="Record match results, player participation, and observations." />
               <Button
                 as={Link}
-                href={`/matches/${match.id}/post-match`}
+                href={orgUrl(`/matches/${match.id}/post-match`)}
                 variant="primary"
                 size="md"
                 className="self-start mt-2"
@@ -773,7 +773,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 <SectionHeader title="Planned vs actual rotations" description="Compare planned rotation changes with what happened during the match." />
                 <Button
                   as={Link}
-                  href={`/matches/${match.id}/review`}
+                  href={orgUrl(`/matches/${match.id}/review`)}
                   variant="secondary"
                   size="md"
                   className="self-start mt-2"
@@ -820,7 +820,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 />
                 <Button
                   as={Link}
-                  href={`/opponents/${match.opponentTeamId}`}
+                  href={orgUrl(`/opponents/${match.opponentTeamId}`)}
                   variant="primary"
                   size="md"
                   leadingIcon={<Eye className="h-4 w-4" aria-hidden="true" />}
