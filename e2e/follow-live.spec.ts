@@ -50,6 +50,10 @@ test("a second coach can follow a live match in real time via the Cloudflare rea
       // now renders events using getEventTypeLabel(), so "GOAL_FOR" becomes "Goal — us" (possibly
       // followed by " — Player Name" if the player ID resolves in the player map).
       await page.getByRole("button", { name: "Goal for us" }).click();
+      // Goal recording opens a "Who scored?" bottom sheet on the reporter's own page (same as
+      // live-reporting.spec.ts) — dismiss it explicitly so it doesn't block the finally block's
+      // "Finish live reporting" click below (confirmed live: it does, "not stable" click timeout).
+      await page.getByRole("button", { name: "Skip" }).click();
       await expect(followerPage.getByText("Goal — us", { exact: false })).toBeVisible({ timeout: 15_000 });
     } finally {
       await followerContext.close();
