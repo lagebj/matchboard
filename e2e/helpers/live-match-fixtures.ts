@@ -84,7 +84,23 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   const weekLabel = isoWeekLabel(matchDate);
   await page.goto("/o/test-club-a/rounds");
   const roundCard = page.locator("div.rounded-xl").filter({ hasText: weekLabel });
-  await expect(roundCard).toHaveCount(1, { timeout: 20_000 });
+  // Retry with a fresh page load rather than one long wait: confirmed live (Vercel runtime logs,
+  // 2026-08-28) that this is a real, load-sensitive timing gap, not a correctness bug -- the
+  // server consistently returns 200 with no errors, the round genuinely exists, it just isn't
+  // reliably visible on the very first /rounds load on a run under load (many accumulated
+  // historical rounds on this shared org, concurrent live-match realtime traffic from other
+  // tests in the same run). A second/third full navigation reliably picks it up. The last
+  // attempt's failure is allowed to propagate as the real test failure.
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (attempt > 1) await page.goto("/o/test-club-a/rounds");
+    try {
+      await expect(roundCard).toHaveCount(1, { timeout: 20_000 });
+      break;
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+    }
+  }
   await roundCard.getByRole("link").click();
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//, { timeout: 15_000 });
 
