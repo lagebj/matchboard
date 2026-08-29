@@ -100,6 +100,11 @@ Run the project's real commands from package.json.
 If schema changed, also run:
 - `npx prisma migrate dev` — Create and apply migration (development only)
 - `npx prisma migrate deploy` — Apply migrations to production (with DIRECT_URL targeting Neon)
+- Before writing the migration and its accompanying code, read AGENTS.md's "Production
+  migrations" section and ADR-0105: a schema change that isn't purely additive/optional, paired
+  with code that assumes the new shape already exists, can go live in production via Vercel's
+  ungated auto-deploy well before the migration's separate human-approval step runs. Split into
+  expand/contract PRs when required.
 
 If a command fails, the PR must state:
 - exact command

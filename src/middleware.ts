@@ -11,6 +11,13 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "on",
 };
 
+/** Exported for regression testing (src/test/security-audit.test.ts) without needing to invoke
+ * the full edgeAuth/NextAuth-wrapped handler. See the call site's comment for why
+ * /api/internal/** must never be subject to the preview-allowlist gate. */
+export function requiresPreviewAllowlistCheck(path: string): boolean {
+  return path.startsWith("/api/") && !path.startsWith("/api/internal/");
+}
+
 function withSecurityHeaders(response: NextResponse, pathname?: string): NextResponse {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     // X-Frame-Options has no per-origin allowance like CSP's frame-ancestors 'self' -- only
@@ -43,7 +50,19 @@ export default edgeAuth((req) => {
   // When set, only listed email addresses can access preview API routes.
   // This is separate from application authorization (organisation membership)
   // and is intended only for preview deployment protection, not as an auth mechanism.
-  if (isVercelPreview() && path.startsWith("/api/")) {
+  //
+  // /api/internal/** is deliberately excluded: it has no session/cookie identity to check in
+  // the first place (HMAC signature verification — verifyInternalRequest() — is its only gate,
+  // by design; see src/app/api/internal/live-match/events/route.ts's own doc comment). Every
+  // call from the Cloudflare Worker to a PR's Test-slot Preview deployment was being rejected
+  // here with 403 before ever reaching that HMAC check (req.auth?.user?.email is always
+  // undefined for a machine-to-machine request with no cookie), and since
+  // classifyPersistenceFailure() (workers/live-match/src/state.ts) had no way to distinguish
+  // this from a transient failure, the Durable Object retried indefinitely with backoff for the
+  // life of every live-match session run against any PR's Test slot — confirmed live via Vercel
+  // runtime logs (1000+ rejected /api/internal/live-match/events calls in one ~12-minute E2E
+  // run) as the actual mechanism behind the previously-observed Cloudflare DO exhaustion.
+  if (isVercelPreview() && requiresPreviewAllowlistCheck(path)) {
     const previewAllowlist = getPreviewAllowlistEmails()
       .split(",")
       .map((e) => e.trim().toLowerCase())
