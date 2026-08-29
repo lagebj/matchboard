@@ -89,3 +89,40 @@ export async function buildRoundItems(
 ): Promise<RoundItem[]> {
   return Promise.all(rounds.map((round) => buildRoundItem(round, reportStatusByMatchId)));
 }
+
+export type LeagueSeasonCandidate = { id: string; startDate: Date; endDate: Date };
+
+/** No real league season is ever planned this far ahead -- anything starting beyond this window
+ * is test-fixture noise (see below), not a legitimate candidate for "most recent". */
+const IMPLAUSIBLY_FAR_FUTURE_MS = 730 * 24 * 60 * 60 * 1000; // ~2 years
+
+/**
+ * Picks the league season that should scope the Rounds list's default view.
+ *
+ * Prefers the season actually containing `now`. Otherwise falls back to the most recently
+ * started season that starts no more than ~2 years from `now` -- deliberately not "most recent
+ * by startDate" unfiltered: e2e specs create throwaway matches dated up to ~100 years out (see
+ * e2e/helpers/live-match-fixtures.ts), each auto-creating its own far-future LeagueSeason. An
+ * unfiltered "most recent startDate" fallback would keep selecting one of those over a real,
+ * merely-already-ended season (confirmed against this repo's own seed dataset,
+ * scripts/seed-test-dataset.ts: "Test A1 Spring 2026" has a fixed 2026-04-01..2026-06-30 range
+ * that predates whenever "now" actually is by the time this runs) -- the plausibility window
+ * exists specifically so that already-ended-but-real season keeps winning over test noise.
+ * Only when literally every season (real or not) is implausibly far out does this fall back to
+ * the plain most-recent-by-startDate, so a season is still returned rather than `null` when data
+ * exists. `null` only when there are no seasons at all.
+ */
+export function resolveActiveLeagueSeason<T extends LeagueSeasonCandidate>(seasons: T[], now: Date): T | null {
+  if (seasons.length === 0) return null;
+
+  const byMostRecentStart = (a: T, b: T) => b.startDate.getTime() - a.startDate.getTime();
+
+  const containingNow = [...seasons]
+    .filter((s) => s.startDate.getTime() <= now.getTime() && s.endDate.getTime() >= now.getTime())
+    .sort(byMostRecentStart)[0];
+  if (containingNow) return containingNow;
+
+  const plausible = seasons.filter((s) => s.startDate.getTime() - now.getTime() <= IMPLAUSIBLY_FAR_FUTURE_MS);
+  const candidates = plausible.length > 0 ? plausible : seasons;
+  return [...candidates].sort(byMostRecentStart)[0]!;
+}

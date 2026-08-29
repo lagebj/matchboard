@@ -1764,6 +1764,20 @@ Use neutral coaching language for all movement and selection descriptions:
 
 Note: BACKFILL remains the internal code role and rotation path role. Use "squad repair" in all user-facing UI and documentation.
 
+### Rounds list page scope
+
+`/o/{orgSlug}/rounds` defaults to the active league season's rounds only, not every round the
+organisation has ever had — matching the same per-league-season default already used by `/players`
+and `/fixtures`. This page is the coach's active planning workflow (generate/review/finalize per
+round), not a historical archive; `/history` already serves that. `resolveActiveLeagueSeason()`
+(`src/app/(app)/o/[orgSlug]/rounds/build-round-item.ts`) picks the season containing "now", falling
+back to the most recently started season within a ~2-year plausibility window (excluding
+implausibly-far-future seasons, which only ever arise from generated/test data) when none spans
+"now", and only the absolute most-recent-by-start-date when every season is implausibly far out.
+An earlier unbounded, unscoped version of this query rendered every round the organisation had
+ever accumulated on one page with no pagination — confirmed live in CI causing real page-load
+slowness and intermittent E2E failures once round-count reached the low hundreds.
+
 ### Round status model (5 states)
 
 | Status | Meaning |
