@@ -957,16 +957,23 @@ New participation models introduced alongside GuestPlayer:
   `MatchHelperAssignment`, per ADR-0077's own precedent of keeping League/Event helper-style
   tables separate while sharing only the domain pattern.
 
-**Current implementation status**: as of this schema-foundation phase, these models, constraints,
-and the `participant-ref.ts` module exist and are exercised only by their own colocated tests —
-no CRUD UI, no Event/League write-path integration, and no Event-Match-availability enforcement
+GuestPlayer CRUD and its Group-level "Guest players" management UX exist (`src/lib/guest-players/`,
+`src/app/(app)/groups/guest-player-actions.ts`, `src/components/groups/guest-players-panel.tsx`,
+a "Guest players" tab on the Group detail workspace). Creation requires only a name; Source and
+Note are optional. A guest player has no delete action — only `active`/`deactivatedAt` toggling
+(`setGuestPlayerActive()`) — matching "never hard-deleted" above. Every guest-player action
+verifies org + Group access via `resolveGroupContext()`/`requireGroupMutationRole()`, the same
+pattern `groups/actions.ts` uses.
+
+**Current implementation status**: GuestPlayer identity, lifecycle, and Group-scoped management
+UX exist. No Event/League write-path integration and no Event-Match-availability enforcement
 exist yet. Every existing read path that touches a newly-nullable `playerId`/`player` field has
 been updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each
 such site) — this is deliberate, temporary scaffolding pending the follow-up phases that add
-GuestPlayer write paths, UI, and cross-cutting statistics/evidence-isolation hardening. See
-ADR-0106 for the full design and phased delivery plan, and ARR-0036 for unrelated pre-existing
-schema/migration-history drift found (and deliberately left unbundled) while preparing this
-migration.
+GuestPlayer write paths into Event/League planning surfaces and cross-cutting
+statistics/evidence-isolation hardening. See ADR-0106 for the full design and phased delivery
+plan, and ARR-0036 for unrelated pre-existing schema/migration-history drift found (and
+deliberately left unbundled) while preparing the foundational migration.
 
 ### Future Group collaboration discovery (not implemented)
 
@@ -2628,6 +2635,10 @@ Avoid:
 | `src/app/(app)/matches/match-helper-actions.ts` | Server actions: add/remove League Match helper, list helpers/candidates |
 | `src/components/matches/match-helpers-panel.tsx` | "Add helper" UI on the League match detail Squad tab |
 | `src/lib/participants/participant-ref.ts` | GuestPlayer/Player shared participant resolution (`ParticipantRef`, `resolveParticipantRef()`, exactly-one/at-most-one assertions, display-name formatting) — ADR-0106 |
+| `src/lib/guest-players/guest-player.ts` | GuestPlayer domain CRUD: validation, create/update, `setGuestPlayerActive()` (lifecycle toggle, no delete), `getGroupGuestPlayers()` — ADR-0106 |
+| `src/lib/guest-players/guest-player-constants.ts` | GuestPlayer field-length bounds, dependency-free so client components can import without pulling in `@/lib/db` |
+| `src/app/(app)/groups/guest-player-actions.ts` | GuestPlayer server actions: create/update/toggle-active/list, scoped via `resolveGroupContext()`/`requireGroupMutationRole()` |
+| `src/components/groups/guest-players-panel.tsx` | "Guest players" tab UI on the Group detail workspace: list, add, edit, deactivate/reactivate |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
 | `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items, delayed planned rotation changes) |
 | `src/lib/rounds/round-progress.ts` | Derives additive round progress (Planning/Partially played/All matches played/Reporting/Complete) from round matches — never a replacement for the mandatory round status labels |

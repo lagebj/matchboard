@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch } from "lucide-react";
 import { TeamCompositionPanel } from "@/components/team/team-composition-panel";
+import { GuestPlayersPanel } from "@/components/groups/guest-players-panel";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
   AGE_GROUP: "Age group",
@@ -68,6 +69,18 @@ type TeamItem = {
   name: string;
 };
 
+type GuestPlayerItem = {
+  id: string;
+  footballGroupId: string;
+  name: string;
+  sourceLabel: string | null;
+  note: string | null;
+  active: boolean;
+  deactivatedAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
 type GroupDetail = {
   id: string;
   name: string;
@@ -87,12 +100,13 @@ type GroupDetail = {
   incomingPaths: { id: string; fromGroupId: string; fromGroupName: string; role: string; isActive: boolean }[];
 };
 
-type TabId = "overview" | "teams" | "players" | "paths" | "composition";
+type TabId = "overview" | "teams" | "players" | "guestPlayers" | "paths" | "composition";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "teams", label: "Teams" },
   { id: "players", label: "Players" },
+  { id: "guestPlayers", label: "Guest players" },
   { id: "paths", label: "Movement paths" },
   { id: "composition", label: "Auto-select teams" },
 ];
@@ -100,9 +114,11 @@ const TABS: { id: TabId; label: string }[] = [
 export function GroupDetailClient({
   group,
   orgSlug,
+  guestPlayers,
 }: {
   group: GroupDetail;
   orgSlug: string;
+  guestPlayers: GuestPlayerItem[];
 }) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "composition" ? "composition" : "overview";
@@ -376,6 +392,10 @@ export function GroupDetailClient({
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === "guestPlayers" && (
+        <GuestPlayersPanel groupSlugOrId={group.slug} initialGuestPlayers={guestPlayers} />
       )}
 
       {activeTab === "composition" && (
