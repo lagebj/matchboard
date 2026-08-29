@@ -190,6 +190,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
               <TacticalSurface key={round.id} variant="default" padding="none">
                 <Link
                   href={orgUrl(`/rounds/${round.id}`)}
+                  prefetch={false}
                   className="block hover:bg-[rgba(255,255,255,0.03)] p-4 rounded-[1.5rem]"
                 >
                   <div className="flex items-start justify-between gap-3">
