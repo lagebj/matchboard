@@ -32,7 +32,7 @@ point prior migrations were presumably run, but `schema.prisma` was later hand-e
 migration file's SQL doesn't match its own schema diff) without a corresponding migration being
 generated and committed for every change.
 
-The GuestPlayer migration (`20260829121910_guestplayer_and_shared_participant_model`) was
+The GuestPlayer migration (`20260831070000_guestplayer_and_shared_participant_model`) was
 deliberately hand-curated to include **only** GuestPlayer-related SQL, explicitly excluding this
 pre-existing drift, so as not to bundle an unrelated, unreviewed schema-history correction into an
 otherwise purely-additive feature migration. The drift remains present in the live dev and test
@@ -137,7 +137,7 @@ safeguard for *future* migrations.
 ## Related implementation
 
 - `prisma/schema.prisma`
-- `prisma/migrations/20260829121910_guestplayer_and_shared_participant_model/migration.sql` (its
+- `prisma/migrations/20260831070000_guestplayer_and_shared_participant_model/migration.sql` (its
   header comment references this ARR as the reason its own SQL was hand-curated to exclude this
   drift)
 - `src/lib/db.ts` (`RLS_TABLES`, the tenant-isolation index convention the missing indexes fall
