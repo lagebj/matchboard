@@ -220,6 +220,28 @@ describe('Event export route', () => {
     expect(headers).not.toContain('ID');
   });
 
+  it('Squads sheet includes a GuestPlayer squad member, labeled as a guest (ADR-0106)', async () => {
+    const { event, squad1 } = await createTestEvent();
+    const guestPlayer = await testDb.guestPlayer.create({
+      data: { name: 'Oliver Hansen', sourceLabel: 'G2016', organisationId: fixtureIds.organisationId, footballGroupId: fixtureIds.footballGroupId },
+    });
+    await testDb.eventSquadPlayer.create({
+      data: { eventSquadId: squad1.id, eventId: event.id, guestPlayerId: guestPlayer.id, source: 'MANUAL', locked: false, organisationId: fixtureIds.organisationId },
+    });
+
+    const { workbook } = await exportWorkbook(event.id);
+    const ws = workbook.getWorksheet('Squads')!;
+
+    const playerColIndex = getHeaderIndex(ws, 'Player');
+    const guestRow = findRowByCellContaining(ws, playerColIndex, 'Oliver Hansen');
+    expect(guestRow).not.toBeNull();
+    expect(getCellText(guestRow!.getCell(playerColIndex))).toContain('Guest');
+    expect(getCellText(guestRow!.getCell(playerColIndex))).toContain('G2016');
+
+    await testDb.eventSquadPlayer.deleteMany({ where: { guestPlayerId: guestPlayer.id } });
+    await testDb.guestPlayer.delete({ where: { id: guestPlayer.id } });
+  });
+
   it('Match call-out sheet contains one row per match with required columns', async () => {
     const { event } = await createTestEvent();
     const { workbook } = await exportWorkbook(event.id);

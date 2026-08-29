@@ -1050,13 +1050,40 @@ correctly assigned to their squad for the Event overall, so match-specific avail
 nothing to filter there. Planned rotations and a per-match substitute-choice list are League-only
 concepts in this codebase (`src/lib/planned-rotation/`) with no Event equivalent to wire.
 
+### Statistics/evidence isolation (locked in with regression tests)
+
+GuestPlayer exclusion from longitudinal Player statistics and development evidence was already
+structurally guaranteed by the schema (see "Statistics and evidence isolation" under ADR-0106's
+design above) — this pass locks each guarantee in with a regression test against a mixed
+Player+GuestPlayer fixture, so a future refactor that accidentally weakens one is caught
+immediately rather than discovered later:
+- `getPlayersSeasonOverview()` — a GuestPlayer's actual participation/goal in the same match as a
+  real Player never produces a season-overview row, and the real Player's own stats are computed
+  correctly and undiminished by the GuestPlayer's presence
+  (`src/lib/players/get-players-overview.test.ts`).
+- `createFootballObservations()` — rejects a GuestPlayer id as an observation subject (it isn't
+  found in the `Player` table the app-level check queries); a second, defense-in-depth test
+  confirms the database itself would reject the insert even bypassing the service layer, since
+  `PlayerDevelopmentObservation.playerId` is a required foreign key to `Player`, not `GuestPlayer`
+  (`src/lib/evidence/__tests__/football-observation-service.test.ts`).
+- Season export (`/api/season/export`) — a GuestPlayer's League Match participation
+  (`LeagueMatchGuestAssignment`) never appears in exported rows, proven end-to-end through the
+  real route handler against a mixed fixture, not just at the data-layer
+  (`src/app/api/season/__tests__/export-guestplayer-isolation.test.ts`). The route's sole data
+  source is `db.selection.findMany()` — a table a GuestPlayer can never populate.
+- Event Excel export (`/events/[eventId]/export`) — extended to *display* a GuestPlayer squad
+  member (labeled "Guest" with its Source, per the required export format), while its
+  Planned-vs-Actual sheet correctly shows blank actual/goals/assists for that row, since the
+  evidence/stats pipelines it joins against remain Player-only by construction
+  (`src/app/(app)/events/__tests__/event-export.test.ts`).
+
 **Current implementation status**: GuestPlayer identity, lifecycle, Group-scoped management UX,
-manual Event and League participation, and Event Match availability (model, UX, and enforcement)
-all exist. Every remaining read path that touches a newly-nullable `playerId`/`player` field has
-been updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each
-such site) — this is deliberate, temporary scaffolding pending the follow-up phases that add
-Event Match support/helper assignment for GuestPlayers, generation-engine candidate inclusion,
-and cross-cutting statistics/evidence-isolation hardening. See ADR-0106 for the full design and
+manual Event and League participation, Event Match availability (model, UX, and enforcement), and
+statistics/evidence isolation (locked in with regression tests) all exist. Every remaining read
+path that touches a newly-nullable `playerId`/`player` field has been updated only enough to keep
+it Player-scoped (an explicit `// ADR-0106:` comment marks each such site) — this is deliberate,
+temporary scaffolding pending the follow-up phases that add Event Match support/helper assignment
+for GuestPlayers and generation-engine candidate inclusion. See ADR-0106 for the full design and
 phased delivery plan, and ARR-0036 for unrelated pre-existing schema/migration-history drift
 found (and deliberately left unbundled) while preparing the foundational migration.
 

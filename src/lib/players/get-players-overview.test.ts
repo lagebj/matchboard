@@ -205,6 +205,45 @@ describe("getPlayersSeasonOverview", () => {
     expect(playerRow).toBeDefined();
     expect(playerRow!.matchdayAdditions).toBeGreaterThanOrEqual(1);
   });
+
+  it("excludes a GuestPlayer's participation entirely, while the real Player's stats in the same match are computed correctly and undiminished (ADR-0106)", async () => {
+    const matchId = Object.values(fixture.matches)[0];
+    const player = fixture.players[2];
+
+    let report = await db.postMatchReport.findFirst({ where: { matchId } });
+    if (!report) {
+      report = await db.postMatchReport.create({
+        data: { matchId, status: "REPORTED", homeGoals: 2, awayGoals: 0, organisationId: fixture.organisationId },
+      });
+    }
+
+    const guestPlayer = await db.guestPlayer.create({
+      data: { name: "Oliver Hansen", organisationId: fixture.organisationId, footballGroupId: fixture.footballGroupId },
+    });
+
+    // Real Player: present in the match, scored a goal.
+    await db.postMatchPlayerActual.create({
+      data: { reportId: report.id, matchId, playerId: player.id, source: "PLANNED", attendanceStatus: "PRESENT", organisationId: fixture.organisationId },
+    });
+    await db.goal.create({ data: { reportId: report.id, playerId: player.id, type: "NORMAL", organisationId: fixture.organisationId } });
+
+    // GuestPlayer: also present in the same match, also scored a goal.
+    await db.postMatchPlayerActual.create({
+      data: { reportId: report.id, matchId, guestPlayerId: guestPlayer.id, source: "PLANNED", attendanceStatus: "PRESENT", organisationId: fixture.organisationId },
+    });
+    await db.goal.create({ data: { reportId: report.id, guestPlayerId: guestPlayer.id, type: "NORMAL", organisationId: fixture.organisationId } });
+
+    const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
+
+    const playerRow = result.seasonRows.find((r) => r.playerId === player.id);
+    expect(playerRow).toBeDefined();
+    expect(playerRow!.actualAppearances).toBeGreaterThanOrEqual(1);
+    expect(playerRow!.goals).toBeGreaterThanOrEqual(1);
+
+    expect(result.seasonRows.some((r) => r.playerId === guestPlayer.id)).toBe(false);
+    expect(result.seasonRows.some((r) => r.displayName.includes("Oliver Hansen"))).toBe(false);
+    expect(result.seasonRows.length).toBe(fixture.players.length);
+  });
 });
 
 describe("getPlayersCurrentRoundAttention", () => {

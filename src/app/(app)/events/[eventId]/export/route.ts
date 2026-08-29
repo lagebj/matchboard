@@ -15,7 +15,8 @@ import { getEffectiveEventSquadMatchTiming, type EventSquadMatchTiming } from '@
 import { computeLineupRating, formatStarRating } from '@/lib/events/event-lineup-rating';
 
 type SquadPlayer = {
-  playerId: string;
+  playerId: string | null;
+  guestPlayerId: string | null;
   assignedRoleType: string | null;
   player: {
     id: string;
@@ -25,8 +26,17 @@ type SquadPlayer = {
     secondaryPosition: string | null;
     tertiaryPosition: string | null;
     goalkeeperAbility: string | null;
-  };
+  } | null;
+  guestPlayer: { id: string; name: string; sourceLabel: string | null } | null;
 };
+
+// ADR-0106: displayable name for a squad row that may be a real Player or a GuestPlayer, per
+// AGENTS.md's "GuestPlayers MUST appear in contextual Match/Event/Round reports and exports".
+function squadPlayerDisplayName(sp: SquadPlayer): string {
+  if (sp.player) return formatPlayerName(sp.player.firstName, sp.player.lastName);
+  if (sp.guestPlayer) return sp.guestPlayer.sourceLabel ? `${sp.guestPlayer.name} (Guest — ${sp.guestPlayer.sourceLabel})` : `${sp.guestPlayer.name} (Guest)`;
+  return '—';
+}
 
 type EventSquadData = {
   id: string;
@@ -136,6 +146,9 @@ export async function GET(
                   goalkeeperAbility: true,
                 },
               },
+              guestPlayer: {
+                select: { id: true, name: true, sourceLabel: true },
+              },
             },
             orderBy: { lineupOrder: 'asc' },
           },
@@ -201,19 +214,25 @@ export async function GET(
     status: m.status,
   }));
 
-  // ADR-0106: EventSquadPlayer.playerId/player and EventPlayerAvailability.playerId/player are
-  // now nullable (a GuestPlayer assignment/entry uses guestPlayerId instead). GuestPlayer-aware
-  // Excel export is a later, separate change; filtered to Player-backed rows as a no-op today
-  // (no write path produces a guest row yet).
+  // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment uses
+  // guestPlayerId instead). The Excel export includes both -- squadPlayerDisplayName() resolves
+  // either shape for display. Support-helper conflict checking (checkSupportConflicts below)
+  // remains Player-only by design (Event Match helper assignment for GuestPlayers is a
+  // documented, separate scope boundary -- see AGENTS.md), so its own inputs (eventSquads,
+  // playerNames) stay filtered to Player-backed rows.
   const squadsWithPlayers: EventSquadData[] = event.squads.map((s) => ({
     id: s.id,
     name: s.name,
     generationOrder: s.generationOrder,
-    players: s.players.filter(
+    players: s.players.filter((p) => p.player !== null || p.guestPlayer !== null),
+  }));
+
+  const playerBackedSquadRows = squadsWithPlayers.flatMap((s) =>
+    s.players.filter(
       (p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
         p.playerId !== null && p.player !== null,
     ),
-  }));
+  );
 
   const playersWithPlayer = event.players.filter(
     (ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } =>
@@ -223,7 +242,9 @@ export async function GET(
   const eventSquads = squadsWithPlayers.map((s) => ({
     id: s.id,
     name: s.name,
-    players: s.players.map((p) => ({ playerId: p.playerId })),
+    players: s.players
+      .filter((p): p is typeof p & { playerId: string } => p.playerId !== null)
+      .map((p) => ({ playerId: p.playerId })),
   }));
 
   const playerAvailability = playersWithPlayer.map((ep) => ({
@@ -235,9 +256,9 @@ export async function GET(
   const squadNames = new Map<string, string>();
   for (const s of squadsWithPlayers) {
     squadNames.set(s.id, s.name);
-    for (const p of s.players) {
-      playerNames.set(p.playerId, { firstName: p.player.firstName, lastName: p.player.lastName });
-    }
+  }
+  for (const p of playerBackedSquadRows) {
+    playerNames.set(p.playerId, { firstName: p.player.firstName, lastName: p.player.lastName });
   }
   for (const ep of playersWithPlayer) {
     playerNames.set(ep.playerId, { firstName: ep.player.firstName, lastName: ep.player.lastName });
@@ -427,11 +448,11 @@ function buildSquadsSheet(
       const p = squad.players[i];
       ws.addRow([
         i === 0 ? squad.name : '',
-        formatPlayerName(p.player.firstName, p.player.lastName),
-        p.player.primaryPosition ?? '—',
-        p.player.secondaryPosition ?? '—',
-        p.player.tertiaryPosition ?? '—',
-        formatGoalkeeperAbility(p.player.goalkeeperAbility),
+        squadPlayerDisplayName(p),
+        p.player?.primaryPosition ?? '—',
+        p.player?.secondaryPosition ?? '—',
+        p.player?.tertiaryPosition ?? '—',
+        p.player ? formatGoalkeeperAbility(p.player.goalkeeperAbility) : '—',
       ]);
     }
     if (squad !== squads[squads.length - 1]) {
@@ -472,9 +493,7 @@ function buildMatchCallOutSheet(
     const endTime = window ? window.endsAt : null;
 
     const squadPlayers = squadPlayerMap.get(m.eventSquadId) ?? [];
-    const playerList = squadPlayers.map((p) =>
-      formatPlayerName(p.player.firstName, p.player.lastName),
-    ).join(', ');
+    const playerList = squadPlayers.map(squadPlayerDisplayName).join(', ');
 
     const helperNames = m.supportAssignments.length > 0
       ? m.supportAssignments.map((a) => {
@@ -750,9 +769,11 @@ function buildLineupsSheet(
     const processedSubIds = new Set<string>();
 
     for (const sp of (squad?.players ?? [])) {
-      if (!starterIds.has(sp.playerId) && !processedSubIds.has(sp.playerId)) {
-        subPlayers.push(formatPlayerName(sp.player.firstName, sp.player.lastName));
-        processedSubIds.add(sp.playerId);
+      const participantId = sp.playerId ?? sp.guestPlayerId;
+      if (!participantId) continue;
+      if (!starterIds.has(participantId) && !processedSubIds.has(participantId)) {
+        subPlayers.push(squadPlayerDisplayName(sp));
+        processedSubIds.add(participantId);
       }
     }
     for (const h of matchHelpers) {
@@ -796,7 +817,11 @@ function buildPlannedVsActualSheet(
 
   for (const squad of squads) {
     for (const sp of squad.players) {
-      const playerName = formatPlayerName(sp.player.firstName, sp.player.lastName);
+      // ADR-0106: a GuestPlayer squad row is displayed here for completeness, but never matches
+      // any postMatchReports row below (evidence/stats pipelines are Player-only by construction
+      // -- see AGENTS.md's statistics/evidence isolation guarantee) -- it correctly falls through
+      // to the "no matching report" branch with blank actual/goals/assists.
+      const playerName = squadPlayerDisplayName(sp);
 
       const plannedRole = sp.assignedRoleType
         ? roleGroup(sp.assignedRoleType)
