@@ -105,7 +105,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
         sortOrder: slot.sortOrder,
       })),
       generationOrder: s.generationOrder,
-      players: s.players.map((p) => {
+      // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment
+      // uses guestPlayerId instead). GuestPlayer-aware rendering on this page is a later,
+      // separate change; filtered to Player-backed rows as a no-op today (no write path
+      // produces a guest row yet, and the source query already filters `playerId: { not: null }`).
+      players: s.players
+        .filter(
+          (p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
+            p.playerId !== null && p.player !== null,
+        )
+        .map((p) => {
         const rating = getPlayerOverallRating(p.player);
         return {
           id: p.id,
@@ -134,7 +143,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     };
   });
 
-  const players = event.players.map((ep) => {
+  // ADR-0106: EventPlayerAvailability.playerId/player are now nullable (a GuestPlayer entry uses
+  // guestPlayerId instead). GuestPlayer-aware rendering on this page is a later, separate change;
+  // filtered to Player-backed rows as a no-op today (source query already filters
+  // `playerId: { not: null }`).
+  const players = event.players
+    .filter(
+      (ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } =>
+        ep.playerId !== null && ep.player !== null,
+    )
+    .map((ep) => {
     const rating = getPlayerOverallRating(ep.player);
     return {
       playerId: ep.playerId,

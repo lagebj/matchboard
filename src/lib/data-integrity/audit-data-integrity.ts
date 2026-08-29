@@ -104,7 +104,11 @@ async function checkAssistAggregateDiffersFromAssistEvents(
 
     const eventAssistCounts = new Map<string, number>();
     for (const assist of report.assists) {
-      eventAssistCounts.set(assist.playerId, (eventAssistCounts.get(assist.playerId) ?? 0) + 1);
+      // ADR-0106: Assist.playerId is now nullable (a GuestPlayer assist uses guestPlayerId
+      // instead) -- excluded from this Player-stat-aggregate integrity check by construction.
+      if (assist.playerId) {
+        eventAssistCounts.set(assist.playerId, (eventAssistCounts.get(assist.playerId) ?? 0) + 1);
+      }
     }
 
     const allPlayerIds = new Set([...statAssistCounts.keys(), ...eventAssistCounts.keys()]);
@@ -164,7 +168,9 @@ async function checkReportedUnknownAttendance(
       entityType: "PostMatchPlayerActual",
       entityId: actual.id,
       matchId: actual.matchId,
-      playerId: actual.playerId,
+      // ADR-0106: playerId is now nullable (a GuestPlayer appearance uses guestPlayerId
+      // instead); IntegrityFinding.playerId has no guest-aware counterpart yet.
+      playerId: actual.playerId ?? undefined,
       message: `Reported/locked report has UNKNOWN attendance for player`,
       repairability: "REQUIRES_FACTUAL_REVIEW",
       recommendedAction: "Resolve attendance before trusting appearance counts. Do not automatically convert UNKNOWN.",

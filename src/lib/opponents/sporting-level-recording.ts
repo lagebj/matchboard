@@ -86,9 +86,13 @@ async function getLeagueEncounterContext(
   const goalsFor = isHome ? homeGoals : awayGoals;
   const goalsAgainst = isHome ? awayGoals : homeGoals;
 
+  // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+  // guestPlayerId instead). Whether GuestPlayer presence should count toward opponent/team-level
+  // sporting evidence is a deliberate product decision for later, guest-aware evidence work, not
+  // something to fold in silently here -- excluded for now, preserving current behaviour.
   const presentActuals = report.playerActuals
-    .filter((a) => a.attendanceStatus === "PRESENT")
-    .map((a) => ({ playerId: a.playerId, actualPositions: a.actualPositions }));
+    .filter((a) => a.attendanceStatus === "PRESENT" && a.playerId !== null)
+    .map((a) => ({ playerId: a.playerId as string, actualPositions: a.actualPositions }));
 
   return {
     organisationId: match.organisationId,
@@ -136,9 +140,11 @@ async function getEventEncounterContext(
   if (!report) return { reason: "No post-match report" };
   if (report.status !== "LOCKED" && report.status !== "REPORTED") return { reason: "Report not completed" };
 
+  // ADR-0106: EventPostMatchPlayer.playerId is now nullable (a GuestPlayer appearance uses
+  // guestPlayerId instead) -- same exclusion rationale as the League branch above.
   const presentActuals = report.playerReports
-    .filter((a) => a.attendanceStatus === "PRESENT")
-    .map((a) => ({ playerId: a.playerId, actualPositions: null as unknown }));
+    .filter((a) => a.attendanceStatus === "PRESENT" && a.playerId !== null)
+    .map((a) => ({ playerId: a.playerId as string, actualPositions: null as unknown }));
 
   const gameFormat = getEffectiveEventTeamGameFormat(eventMatch.event, eventMatch.eventSquad) as GameFormat;
 

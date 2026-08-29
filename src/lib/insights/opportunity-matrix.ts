@@ -138,6 +138,10 @@ export async function getOpportunityMatrix(
   const actualByPlayerMatch = new Map<string, Set<string>>();
   const actualByPlayerRound = new Map<string, Map<string, { sources: string[]; roles: Set<string> }>>();
   for (const act of actualParticipations) {
+    // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+    // guestPlayerId instead). This is a per-Player longitudinal insight -- a GuestPlayer must
+    // never contribute to it, by construction.
+    if (!act.playerId) continue;
     const matchId = act.report.matchId;
     const matchRoundId = matchIds.find((m) => m.id === matchId)?.matchRoundId;
     if (!matchRoundId) continue;

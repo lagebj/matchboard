@@ -213,6 +213,9 @@ describe("Run -> Learn report seeding invariants (ARR-0028)", () => {
     // No duplicate row, and the planned players are still present alongside the helper.
     const playerIdCounts = new Map<string, number>();
     for (const pa of report!.playerActuals) {
+      // ADR-0106: playerId is nullable at the type level (GuestPlayer facts use guestPlayerId
+      // instead); this fixture seeds only real Players.
+      if (!pa.playerId) continue;
       playerIdCounts.set(pa.playerId, (playerIdCounts.get(pa.playerId) ?? 0) + 1);
     }
     expect([...playerIdCounts.values()].every((count) => count === 1)).toBe(true);

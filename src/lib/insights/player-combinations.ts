@@ -54,6 +54,12 @@ export async function getPlayerCombinations(filters: InsightFilters): Promise<Pl
   });
   const presentByMatch = new Map<string, Set<string>>();
   for (const a of actuals) {
+    // ADR-0106: PostMatchPlayerActual.playerId is now nullable at the type level (a GuestPlayer
+    // appearance uses guestPlayerId instead), but this query's own
+    // `playerId: { in: [...validPlayerIds] } }` already excludes both nulls and guest-only rows
+    // at the database level -- guarded here for type-safety, matching this file's own
+    // player-combination scope (co-selection/co-appearance among tracked Players only).
+    if (!a.playerId) continue;
     const set = presentByMatch.get(a.matchId) ?? new Set<string>();
     set.add(a.playerId);
     presentByMatch.set(a.matchId, set);

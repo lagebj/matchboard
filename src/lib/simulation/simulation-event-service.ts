@@ -37,17 +37,24 @@ export async function simulateEvent(
     throw new Error(`Event not found: ${eventId}`);
   }
 
+  // ADR-0106: EventPlayerAvailability.playerId is now nullable (a GuestPlayer attendee uses
+  // guestPlayerId instead). Event GuestPlayer participation is not yet wired into simulation --
+  // excluding guest-only rows here is a no-op today (no write path produces one yet) and keeps
+  // this query's `player` include guaranteed non-null, matching current behaviour unchanged.
   const poolPlayers = await db.eventPlayerAvailability.findMany({
     where: {
       eventId,
       status: { in: ["AVAILABLE"] },
+      playerId: { not: null },
     },
     include: {
       player: true,
     },
   });
 
-  const playersWithAttrs: PlayerAttributeProfile[] = poolPlayers.map((ep) => ({
+  const playersWithAttrs: PlayerAttributeProfile[] = poolPlayers
+    .filter((ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } => ep.playerId !== null && ep.player !== null)
+    .map((ep) => ({
     playerId: ep.playerId,
     firstName: ep.player.firstName,
     lastName: ep.player.lastName,
@@ -76,7 +83,10 @@ export async function simulateEvent(
   const lockedAssignments = new Map<string, string>();
   for (const squad of event.squads) {
     for (const sp of squad.players) {
-      if (sp.locked) {
+      // ADR-0106: EventSquadPlayer.playerId is now nullable (a GuestPlayer assignment uses
+      // guestPlayerId instead). Event GuestPlayer participation is not yet wired into
+      // simulation -- excluded here as a no-op today.
+      if (sp.locked && sp.playerId) {
         lockedAssignments.set(sp.playerId, squad.id);
       }
     }
@@ -147,8 +157,13 @@ export async function simulateEvent(
     };
   });
 
+  // ADR-0106: EventMatchSupportAssignment.playerId is now nullable (a GuestPlayer helper uses
+  // guestPlayerId instead). Event GuestPlayer participation is not yet wired into simulation --
+  // excluded here as a no-op today.
   const conflictInputs = event.eventMatches.flatMap((match) =>
-    match.supportAssignments.map((sa) => ({
+    match.supportAssignments
+      .filter((sa): sa is typeof sa & { playerId: string } => sa.playerId !== null)
+      .map((sa) => ({
       playerId: sa.playerId,
       leagueAssignments: [],
       eventAssignments: [

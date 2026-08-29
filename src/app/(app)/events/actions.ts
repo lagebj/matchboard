@@ -98,7 +98,12 @@ export async function getEventById(id: string) {
     include: {
       squads: {
         include: {
+          // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer
+          // assignment uses guestPlayerId instead). This is the main Event detail page's data
+          // source -- GuestPlayer-aware rendering here is a later, separate change; filtered to
+          // Player-backed rows as a no-op today (no write path produces a guest row yet).
           players: {
+            where: { playerId: { not: null } },
             include: { player: true },
           },
           formation: {
@@ -108,6 +113,7 @@ export async function getEventById(id: string) {
         orderBy: { generationOrder: 'asc' },
       },
       players: {
+        where: { playerId: { not: null } },
         include: { player: { include: { coreTeam: true } } },
       },
     },
@@ -875,7 +881,11 @@ export async function generateEventSquadsAction(eventId: string) {
   const includeReserves = false;
   const includeLate = false;
 
-  const eligiblePlayers = event.players.filter((ep) => {
+  // ADR-0106: EventPlayerAvailability.playerId/player are now nullable (a GuestPlayer attendee
+  // uses guestPlayerId instead). Event GuestPlayer participation in generation is a later,
+  // separate change -- filtered here as a no-op today (no write path produces a guest row yet).
+  const eligiblePlayers = event.players.filter((ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } => {
+    if (ep.playerId === null || ep.player === null) return false;
     if (availableStatuses.includes(ep.status as typeof availableStatuses[number])) return true;
     if (includeReserves && ep.status === 'RESERVE') return true;
     if (includeLate && ep.status === 'LATE_ADDITION') return true;
@@ -920,6 +930,9 @@ export async function generateEventSquadsAction(eventId: string) {
   const lockedAssignments = new Map<string, string>();
   for (const squad of event.squads) {
     for (const sp of squad.players) {
+      // ADR-0106: EventSquadPlayer.playerId is now nullable (a GuestPlayer assignment uses
+      // guestPlayerId instead) -- same PR1 no-op exclusion as above.
+      if (!sp.playerId) continue;
       if (selectionPattern === 'PRESERVE_AND_FILL') {
         lockedAssignments.set(sp.playerId, squad.id);
       } else if (sp.locked) {

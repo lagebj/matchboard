@@ -397,7 +397,10 @@ export async function removeActualPlayerFromReport(appearanceId: string, orgFilt
     return { success: false, error: "Cannot edit a locked report. Reopen it first." };
   }
 
-  if (appearance.report.status === "DRAFT") {
+  // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+  // guestPlayerId instead) -- MatchExecutionFeedback.playerId is a real Player-only field with
+  // no GuestPlayer equivalent, so there is nothing to clean up for a null (guest) appearance.
+  if (appearance.report.status === "DRAFT" && appearance.playerId) {
     await db.matchExecutionFeedback.deleteMany({
       where: { matchId: appearance.report.matchId, playerId: appearance.playerId },
     });
@@ -422,7 +425,8 @@ export async function updateAttendanceInReport(
     return { success: false, error: "Cannot edit a locked report. Reopen it first." };
   }
 
-  if (attendanceStatus === "NO_SHOW" && appearance.report.status === "DRAFT") {
+  // ADR-0106: see removeActualPlayerFromReport's identical guard above.
+  if (attendanceStatus === "NO_SHOW" && appearance.report.status === "DRAFT" && appearance.playerId) {
     await db.matchExecutionFeedback.deleteMany({
       where: { matchId: appearance.report.matchId, playerId: appearance.playerId },
     });

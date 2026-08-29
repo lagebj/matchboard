@@ -419,8 +419,14 @@ export async function autoFillEventMatchLineup(lineupId: string) {
 
   if (!eventMatch) throw new Error('Event match not found');
 
+  // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment uses
+  // guestPlayerId instead). GuestPlayer-aware auto-fill is a later, separate change; filtered to
+  // Player-backed rows as a no-op today (no write path produces a guest row yet).
   const squadPlayers = eventMatch.eventSquad.players
-    .filter((sp) => !sp.locked || sp.source === 'LOCKED' || sp.source === 'MANUAL' || sp.source === 'AUTO')
+    .filter(
+      (sp): sp is typeof sp & { player: NonNullable<typeof sp.player> } =>
+        sp.player !== null && (!sp.locked || sp.source === 'LOCKED' || sp.source === 'MANUAL' || sp.source === 'AUTO'),
+    )
     .map((sp) => ({
       id: sp.player.id,
       firstName: sp.player.firstName,

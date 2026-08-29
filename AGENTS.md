@@ -916,6 +916,69 @@ Rules:
 - Server-side validation enforces every invariant above; UI controls being disabled is not a
   substitute. See ADR-0077 for the full design.
 
+### GuestPlayer and the shared match participant model (schema foundation — ADR-0106)
+
+A **GuestPlayer** is a reusable, Group-owned identity for an external player (e.g. a friend's
+kid, someone from a younger/older cohort, someone from another club) who takes part in a single
+Event or League Round without becoming a permanent tracked `Player`. It is a **separate domain
+identity**, not a flag on `Player` — a GuestPlayer never receives longitudinal statistics, season
+totals, development evidence, or attribute mutation, and never appears in tracked-Player exports
+or comparisons. It is strictly bound to the Group that created it (`GuestPlayer.footballGroupId`)
+and is never Season-scoped. Lifecycle is active/inactive only — a GuestPlayer with any historical
+participation is never hard-deleted.
+
+Every Match fact model that can be produced by either a permanent `Player` or a `GuestPlayer`
+(lineup/rotation assignment, goal, assist, actual participation, live match event, position
+interval, Event/League Round-and-Match participation) carries **both** a nullable `playerId` and
+a nullable `guestPlayerId`, enforced by a hand-added Postgres `CHECK` constraint — either
+exactly-one (the fact must belong to someone) or at-most-one (an empty slot/unattributed event is
+legal), following the same pattern the repository already used for
+`ActualPositionInterval.matchId?`/`eventMatchId?`. There is no persisted `participantType`
+column anywhere — it is always derived (`playerId != null ? "PLAYER" : "GUEST_PLAYER"`) by the
+shared resolver, never stored redundantly. `src/lib/participants/participant-ref.ts`
+(`ParticipantRef`, `resolveParticipantRef()`, `assertExactlyOneParticipant()`/
+`assertAtMostOneParticipant()`, `formatParticipantDisplayName()`) is the one shared module for
+resolving either source into a display-ready reference — UI and services must call it rather
+than scattering `participant.player?.name ?? participant.guestPlayer?.name` resolution inline.
+`ParticipantType` is a plain, non-closed union (`"PLAYER" | "GUEST_PLAYER"`) deliberately, so a
+future third source (see "Future Group collaboration discovery" below) is a type edit, not
+another schema migration.
+
+New participation models introduced alongside GuestPlayer:
+- `EventMatchAvailability` — a per-Event-Match unavailability exception for a participant who
+  otherwise attends the Event (sparse storage: a row's existence means "unavailable for this
+  specific match"; `effectiveMatchAvailability = match exception ?? Event attendance`, and an
+  Event-level UNAVAILABLE is never overridden by a per-match exception's absence).
+- `LeagueRoundParticipant` — registers a GuestPlayer (only; permanent Players keep their existing
+  `Selection`/`Availability`-based Round presence unchanged) as participating in a specific League
+  Round, a prerequisite for assigning that guest to any Match within the Round.
+- `LeagueMatchGuestAssignment` — mirrors `MatchHelperAssignment`'s shape for a GuestPlayer used in
+  one specific League Match, kept as a separate table rather than merged into
+  `MatchHelperAssignment`, per ADR-0077's own precedent of keeping League/Event helper-style
+  tables separate while sharing only the domain pattern.
+
+**Current implementation status**: as of this schema-foundation phase, these models, constraints,
+and the `participant-ref.ts` module exist and are exercised only by their own colocated tests —
+no CRUD UI, no Event/League write-path integration, and no Event-Match-availability enforcement
+exist yet. Every existing read path that touches a newly-nullable `playerId`/`player` field has
+been updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each
+such site) — this is deliberate, temporary scaffolding pending the follow-up phases that add
+GuestPlayer write paths, UI, and cross-cutting statistics/evidence-isolation hardening. See
+ADR-0106 for the full design and phased delivery plan, and ARR-0036 for unrelated pre-existing
+schema/migration-history drift found (and deliberately left unbundled) while preparing this
+migration.
+
+### Future Group collaboration discovery (not implemented)
+
+`docs/domain/future-group-collaboration.md` records a structured discovery — never an
+implementation — for a possible future capability where two Matchboard Groups bilaterally lend
+real, tracked `Player`s to each other (as distinct from a GuestPlayer, which is a lightweight,
+non-tracked external identity owned by one Group). No `GroupCollaboration` model, invitation/
+request/approval workflow, cross-Group roster browsing, cross-Group evidence/statistics
+attribution, or notification exists. Do not build any part of this without a new, explicit
+maintainer decision — this document exists purely so a future implementation starts from a
+considered design rather than an unplanned one.
+
 ## Target / min / max squad size
 
 - Target squad size is a planning target, not a hard cap. A team may be selected above target up to maximum squad size.
@@ -2564,6 +2627,7 @@ Avoid:
 | `src/lib/matches/match-helper-eligibility.ts` | League Match helper effective roster (`Selection ∪ MatchHelperAssignment`), candidate list, eligibility check (ADR-0077) |
 | `src/app/(app)/matches/match-helper-actions.ts` | Server actions: add/remove League Match helper, list helpers/candidates |
 | `src/components/matches/match-helpers-panel.tsx` | "Add helper" UI on the League match detail Squad tab |
+| `src/lib/participants/participant-ref.ts` | GuestPlayer/Player shared participant resolution (`ParticipantRef`, `resolveParticipantRef()`, exactly-one/at-most-one assertions, display-name formatting) — ADR-0106 |
 | `src/lib/assistant/types.ts` | Assistant work item types and priority ordering (includes review_assigned, review_changes_requested, incomplete_report, unknown_attendance) |
 | `src/lib/assistant/get-assistant-command-centre.ts` | Compute assistant work items from league, event, and review state (includes audit work items, delayed planned rotation changes) |
 | `src/lib/rounds/round-progress.ts` | Derives additive round progress (Planning/Partially played/All matches played/Reporting/Complete) from round matches — never a replacement for the mandatory round status labels |

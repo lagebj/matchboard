@@ -91,12 +91,17 @@ export async function addEventMatchSupportAssignmentAction(input: {
 
   const event = eventMatch.event;
 
+  // ADR-0106: EventSquadPlayer.playerId is now nullable (a GuestPlayer assignment uses
+  // guestPlayerId instead). Support-conflict checking (isPlayerAvailableForSupport,
+  // checkSupportConflicts) is Player-only pending a later, separate GuestPlayer-aware change --
+  // the nested `players` relation is filtered to non-null playerId rows at every query in this
+  // file (same rationale wherever this exact filter appears below).
   const eventSquads = await db.eventSquad.findMany({
     where: { eventId: event.id },
     select: {
       id: true,
       name: true,
-      players: { select: { playerId: true } },
+      players: { where: { playerId: { not: null } }, select: { playerId: true } },
       ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT,
     },
   });
@@ -123,13 +128,17 @@ export async function addEventMatchSupportAssignmentAction(input: {
     throw new Error('Player is not assigned to any event squad in this event.');
   }
 
+  // ADR-0106: EventMatchSupportAssignment.playerId/EventPlayerAvailability.playerId are now
+  // nullable (a GuestPlayer helper/attendee uses guestPlayerId instead). Same Player-only
+  // rationale as the eventSquads query above -- filtered at the query level; the `!` casts below
+  // are guaranteed safe by that same filter, not an assumption.
   const existingAssignments = await db.eventMatchSupportAssignment.findMany({
-    where: { eventMatch: { event: { id: event.id } } },
+    where: { eventMatch: { event: { id: event.id } }, playerId: { not: null } },
     select: { eventMatchId: true, playerId: true, targetEventSquadId: true },
   });
 
   const playerAvailability = await db.eventPlayerAvailability.findMany({
-    where: { eventId: event.id },
+    where: { eventId: event.id, playerId: { not: null } },
     select: { playerId: true, status: true },
   });
 
@@ -139,9 +148,9 @@ export async function addEventMatchSupportAssignmentAction(input: {
     targetEventSquadId: eventMatch.eventSquadId,
     targetMatch: targetWindow,
     allEventMatches: allWindows,
-    eventSquads: eventSquads.map((s) => ({ id: s.id, players: s.players })),
-    existingSupportAssignments: existingAssignments,
-    playerEventAvailability: playerAvailability,
+    eventSquads: eventSquads.map((s) => ({ id: s.id, players: s.players.map((p) => ({ playerId: p.playerId! })) })),
+    existingSupportAssignments: existingAssignments.map((a) => ({ ...a, playerId: a.playerId! })),
+    playerEventAvailability: playerAvailability.map((a) => ({ ...a, playerId: a.playerId! })),
   });
 
   if (!eligibility.available) {
@@ -265,7 +274,11 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
   });
   if (!event) throw new Error('Event not found.');
 
-  const assignments = await db.eventMatchSupportAssignment.findMany({
+  // ADR-0106: EventMatchSupportAssignment.playerId/player are now nullable (a GuestPlayer
+  // helper uses guestPlayerId instead). Displaying GuestPlayer support assignments here is a
+  // later, separate change (needs participant-ref-based name resolution) -- filtered to
+  // Player-backed assignments as a no-op today (no write path produces a guest one yet).
+  const rawAssignments = await db.eventMatchSupportAssignment.findMany({
     where: { eventMatch: { eventId } },
     include: {
       player: {
@@ -277,6 +290,9 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
     },
     orderBy: { createdAt: 'asc' },
   });
+  const assignments = rawAssignments.filter(
+    (a): a is typeof a & { playerId: string; player: NonNullable<typeof a.player> } => a.playerId !== null && a.player !== null,
+  );
 
   if (assignments.length === 0) return [];
 
@@ -287,14 +303,14 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
 
   const eventSquads = await db.eventSquad.findMany({
     where: { eventId },
-    select: { id: true, name: true, players: { select: { playerId: true } }, ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT },
+    select: { id: true, name: true, players: { where: { playerId: { not: null } }, select: { playerId: true } }, ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT },
   });
   const timingBySquadId = buildTimingBySquadId(event, eventSquads);
 
   const playerAvailability = await db.eventPlayerAvailability.findMany({
-    where: { eventId },
+    where: { eventId, playerId: { not: null } },
     select: { playerId: true, status: true },
-  });
+  }).then((rows) => rows.map((r) => ({ ...r, playerId: r.playerId! })));
 
   const playerNames = new Map<string, { firstName: string; lastName: string | null }>();
   const squadNames = new Map<string, string>();
@@ -317,7 +333,7 @@ export async function getEventMatchSupportAssignmentsAction(eventId: string) {
     })),
     allEventMatches,
     timingBySquadId,
-    eventSquads,
+    eventSquads: eventSquads.map((s) => ({ ...s, players: s.players.map((p) => ({ playerId: p.playerId! })) })),
     playerEventAvailability: playerAvailability,
     playerNames,
     squadNames,
@@ -345,18 +361,23 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
     select: { id: true, eventSquadId: true, startsAt: true, status: true },
   });
 
+  // ADR-0106: EventSquadPlayer.playerId is now nullable (a GuestPlayer assignment uses
+  // guestPlayerId instead). Support-conflict checking (isPlayerAvailableForSupport,
+  // checkSupportConflicts) is Player-only pending a later, separate GuestPlayer-aware change --
+  // the nested `players` relation is filtered to non-null playerId rows at every query in this
+  // file (same rationale wherever this exact filter appears below).
   const eventSquads = await db.eventSquad.findMany({
     where: { eventId: event.id },
     select: {
       id: true,
       name: true,
-      players: { select: { playerId: true } },
+      players: { where: { playerId: { not: null } }, select: { playerId: true } },
       ...EVENT_SQUAD_TIMING_OVERRIDE_SELECT,
     },
   });
   const timingBySquadId = buildTimingBySquadId(event, eventSquads);
 
-  const playerIds = eventSquads.flatMap((s) => s.players.map((p) => p.playerId));
+  const playerIds = eventSquads.flatMap((s) => s.players.map((p) => p.playerId!));
   const uniquePlayerIds = [...new Set(playerIds)];
 
   const playerProfiles = await db.player.findMany({
@@ -388,15 +409,16 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
     },
   });
 
+  // ADR-0106: same Player-only rationale as the queries above -- filtered at the query level.
   const existingSupportAssignments = await db.eventMatchSupportAssignment.findMany({
-    where: { eventMatch: { event: { id: event.id } } },
+    where: { eventMatch: { event: { id: event.id } }, playerId: { not: null } },
     select: { eventMatchId: true, playerId: true, targetEventSquadId: true },
-  });
+  }).then((rows) => rows.map((r) => ({ ...r, playerId: r.playerId! })));
 
   const playerEventAvailability = await db.eventPlayerAvailability.findMany({
-    where: { eventId: event.id },
+    where: { eventId: event.id, playerId: { not: null } },
     select: { playerId: true, status: true },
-  });
+  }).then((rows) => rows.map((r) => ({ ...r, playerId: r.playerId! })));
 
   const targetMatch = {
     id: eventMatch.id,
@@ -409,7 +431,7 @@ export async function getSupportCandidatesForMatchAction(eventMatchId: string) {
     targetMatch,
     timingBySquadId,
     allEventMatches,
-    eventSquads,
+    eventSquads: eventSquads.map((s) => ({ ...s, players: s.players.map((p) => ({ playerId: p.playerId! })) })),
     playerProfiles,
     existingSupportAssignments,
     playerEventAvailability,

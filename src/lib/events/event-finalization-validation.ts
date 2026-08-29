@@ -83,7 +83,18 @@ export async function validateEventForFinalization(
   for (const squad of squads) {
     const playerCount = squad.players.length;
 
-    for (const sp of squad.players) {
+    // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment uses
+    // guestPlayerId instead). Event GuestPlayer participation is not yet wired into finalization
+    // validation -- filtered here as a no-op today (no write path produces a guest row yet).
+    // playerCount above intentionally still counts every assignment (guest or not) for squad
+    // size checks; only the Player-specific checks below (duplicate, unavailable, GK coverage)
+    // are scoped to Player rows for now.
+    const playerBackedRows = squad.players.filter(
+      (sp): sp is typeof sp & { playerId: string; player: NonNullable<typeof sp.player> } =>
+        sp.playerId !== null && sp.player !== null,
+    );
+
+    for (const sp of playerBackedRows) {
       if (allAssignedPlayerIds.has(sp.playerId)) {
         issues.push({
           code: "duplicate_player_across_squads",
@@ -131,10 +142,10 @@ export async function validateEventForFinalization(
       });
     }
 
-    const gkYes = squad.players.filter(
+    const gkYes = playerBackedRows.filter(
       (sp) => sp.player.goalkeeperAbility === "YES" || sp.player.primaryPosition === "GK",
     ).length;
-    const anyGK = squad.players.filter(
+    const anyGK = playerBackedRows.filter(
       (sp) => ["YES", "EMERGENCY"].includes(sp.player.goalkeeperAbility) || sp.player.primaryPosition === "GK",
     ).length;
 
