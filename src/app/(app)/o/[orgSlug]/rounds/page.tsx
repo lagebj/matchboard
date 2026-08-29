@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { RoundListClient } from "@/app/(app)/rounds/round-list-client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
-import { buildRoundItems } from "./build-round-item";
+import { buildRoundItems, resolveActiveLeagueSeason } from "./build-round-item";
 
 export default async function RoundsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -12,13 +12,30 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
   setTenantOrganisationId(ctx.organisationId);
   const orgWhere = ctx.orgFilter.filter;
 
-  const activeLeagueSeason = await db.leagueSeason.findFirst({
+  // League seasons are few and cheap to fetch in full -- resolveActiveLeagueSeason() picks the
+  // one that should scope the Rounds list in plain JS (testable without a database), rather than
+  // this page hand-rolling the "contains now, else most recent" selection inline.
+  const leagueSeasons = await db.leagueSeason.findMany({
     where: orgWhere,
-    orderBy: { startDate: "desc" },
+    select: { id: true, startDate: true, endDate: true },
   });
+  const activeLeagueSeason = resolveActiveLeagueSeason(leagueSeasons, new Date());
+
+  // Scoped to the active league season, not every round the organisation has ever had. This
+  // page is the coach's active planning workflow (AGENTS.md: generate/review/finalize per
+  // round), not a historical archive -- /history already serves that. Matches the same
+  // per-league-season default already used by /players and /fixtures. Unbounded, this query and
+  // the render/plan-integrity computation it feeds (buildRoundItems) grow without limit as
+  // rounds accumulate over a season's real lifetime, and confirmed live in CI: with ~180
+  // accumulated test rounds on one long-lived branch, this caused the page to intermittently
+  // load slowly enough to fail E2E assertions that click into a round shortly after navigating
+  // here (round-mutation.spec.ts, accessibility.spec.ts's "Round Board" check). Falls back to
+  // unscoped when there's no resolvable season at all, so an org with zero seasons still shows
+  // its empty state correctly rather than an empty round list for a wrong reason.
+  const roundWhere = activeLeagueSeason ? { ...orgWhere, leagueSeasonId: activeLeagueSeason.id } : orgWhere;
 
   const matchRounds = await db.matchRound.findMany({
-    where: orgWhere,
+    where: roundWhere,
     include: {
       matches: {
         select: {

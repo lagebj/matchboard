@@ -89,3 +89,48 @@ export async function buildRoundItems(
 ): Promise<RoundItem[]> {
   return Promise.all(rounds.map((round) => buildRoundItem(round, reportStatusByMatchId)));
 }
+
+export type LeagueSeasonCandidate = { id: string; startDate: Date; endDate: Date };
+
+/** No real league season is ever set up this far ahead of when it starts -- anything starting
+ * beyond this window is test-fixture noise (see below), not a legitimate candidate for "most
+ * recent". Deliberately well under 420 days (60 weeks): e2e/helpers/live-match-fixtures.ts's
+ * randomFutureMatchDate() spreads test matches 60-5060 weeks out specifically so repeated runs
+ * never collide on the same round -- its own *minimum* offset is 60 weeks (~420 days). A wider
+ * window here (originally ~2 years, i.e. ~730 days) let some fraction of that random spread
+ * land inside the "plausible" bucket and outrank this repo's own real seed-dataset season
+ * ("Test A1 Spring 2026") purely by having a more recent startDate -- confirmed live in CI:
+ * round-mutation.spec.ts's target round disappeared from this page entirely once that happened.
+ * 90 days is safely below 420 while still generous for genuine pre-season setup. */
+const IMPLAUSIBLY_FAR_FUTURE_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * Picks the league season that should scope the Rounds list's default view.
+ *
+ * Prefers the season actually containing `now`. Otherwise falls back to the most recently
+ * started season that starts no more than ~90 days from `now` -- deliberately not "most recent
+ * by startDate" unfiltered: e2e specs create throwaway matches dated up to ~100 years out (see
+ * e2e/helpers/live-match-fixtures.ts), each auto-creating its own far-future LeagueSeason. An
+ * unfiltered "most recent startDate" fallback would keep selecting one of those over a real,
+ * merely-already-ended season (confirmed against this repo's own seed dataset,
+ * scripts/seed-test-dataset.ts: "Test A1 Spring 2026" has a fixed 2026-04-01..2026-06-30 range
+ * that predates whenever "now" actually is by the time this runs) -- the plausibility window
+ * exists specifically so that already-ended-but-real season keeps winning over test noise.
+ * Only when literally every season (real or not) is implausibly far out does this fall back to
+ * the plain most-recent-by-startDate, so a season is still returned rather than `null` when data
+ * exists. `null` only when there are no seasons at all.
+ */
+export function resolveActiveLeagueSeason<T extends LeagueSeasonCandidate>(seasons: T[], now: Date): T | null {
+  if (seasons.length === 0) return null;
+
+  const byMostRecentStart = (a: T, b: T) => b.startDate.getTime() - a.startDate.getTime();
+
+  const containingNow = [...seasons]
+    .filter((s) => s.startDate.getTime() <= now.getTime() && s.endDate.getTime() >= now.getTime())
+    .sort(byMostRecentStart)[0];
+  if (containingNow) return containingNow;
+
+  const plausible = seasons.filter((s) => s.startDate.getTime() - now.getTime() <= IMPLAUSIBLY_FAR_FUTURE_MS);
+  const candidates = plausible.length > 0 ? plausible : seasons;
+  return [...candidates].sort(byMostRecentStart)[0]!;
+}
