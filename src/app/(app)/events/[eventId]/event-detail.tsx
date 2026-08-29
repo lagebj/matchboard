@@ -39,6 +39,7 @@ import { DecisionBanner } from '@/components/ui/decision-banner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BrandIllustration } from '@/components/ui/brand-illustration';
 import { RatingBadge } from '@/components/ratings/rating-badge';
+import { EventGuestPlayerPoolPanel } from '@/components/events/event-guest-player-pool-panel';
 
 type FormationSlotDisplay = { id: string; roleType: FormationSlotRoleType; label: string; shortLabel: string; acceptedPositionIds: string[]; gridX: number; gridY: number; sortOrder: number };
 
@@ -179,6 +180,16 @@ type EventDetailData = {
   compatibleFormations: { id: string; name: string; gameFormat: string }[];
   formationMap: Map<string, { id: string; name: string; gameFormat: string }>;
   opponentTeams: Array<{ id: string; displayName: string }>;
+  guestPlayerPool: Array<{
+    guestPlayerId: string;
+    name: string;
+    sourceLabel: string | null;
+    status: string;
+    eventSquadPlayerId: string | null;
+    assignedSquadId: string | null;
+    assignedSquadName: string | null;
+  }>;
+  availableGuestPlayers: Array<{ id: string; name: string; sourceLabel: string | null }>;
 };
 
 type TabKey = 'overview' | 'squads' | 'pool' | 'matches';
@@ -1250,6 +1261,14 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               </div>
             )}
           </Surface>
+
+          <EventGuestPlayerPoolPanel
+            eventId={data.id}
+            squads={data.squads.map((s) => ({ id: s.id, name: s.name }))}
+            initialPool={data.guestPlayerPool}
+            initialAvailable={data.availableGuestPlayers}
+            isFinalized={isFinalized}
+          />
         </div>
       )}
 

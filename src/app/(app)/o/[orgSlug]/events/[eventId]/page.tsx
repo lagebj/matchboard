@@ -14,6 +14,7 @@ import {
 import { db } from '@/lib/db';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getEventGuestPlayerPool, getAvailableGuestPlayersForEvent } from '@/lib/events/event-guest-player-participation';
 
 export const dynamic = 'force-dynamic';
 
@@ -257,6 +258,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     [],
   );
 
+  const [guestPlayerPool, availableGuestPlayers] = await Promise.all([
+    getEventGuestPlayerPool(eventId, ctx.orgFilter),
+    getAvailableGuestPlayersForEvent(eventId, ctx.orgFilter),
+  ]);
+
   const data = {
     id: event.id,
     name: event.name,
@@ -283,6 +289,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     compatibleFormations,
     formationMap,
     opponentTeams,
+    guestPlayerPool,
+    availableGuestPlayers,
   };
 
   return <EventDetail data={data} />;
