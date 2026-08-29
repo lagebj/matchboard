@@ -28,6 +28,7 @@ import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-re
 import { AbsenceControl } from "@/components/matches/absence-control";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
 import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
+import { LeagueMatchGuestsPanel } from "@/components/matches/league-match-guests-panel";
 import { PlannedRotationPanel } from "@/components/matches/planned-rotation-panel";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import { PreviousEncountersDisplay } from "@/components/opponents/previous-encounters-display";
@@ -537,6 +538,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
             )}
 
             {!isCancelled && <MatchHelpersPanel matchId={match.id} />}
+            {!isCancelled && <LeagueMatchGuestsPanel matchId={match.id} />}
 
             {finalized && (
               <DecisionBanner

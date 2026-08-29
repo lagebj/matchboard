@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { RoundBoard } from "@/components/round/round-board";
+import { RoundGuestPlayersPanel } from "@/components/round/round-guest-players-panel";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
@@ -485,6 +486,7 @@ export default async function RoundBoardPage({
         }}
         fairnessMetrics={fairnessMetrics}
       />
+      <RoundGuestPlayersPanel matchRoundId={matchRoundId} />
       {matchRound.status !== "FINALIZED" && (
         <div className="flex flex-col gap-3">
           <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">

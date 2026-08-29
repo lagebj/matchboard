@@ -1,26 +1,32 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import type { SelectionRole, PlannedAbsenceReason } from "@/generated/prisma/client";
+import { resolveParticipantRef, type ParticipantType } from "@/lib/participants/participant-ref";
 
 // Effective League Match roster and helper eligibility (ADR-0077). Mirrors the pattern in
-// src/lib/events/event-match-eligibility.ts: effective roster = planned squad ∪ helpers, with a
-// deliberately narrower eligibility check than the Event version — no round-finalisation block,
-// no time/round-conflict block. See the ADR for why both omissions are intentional, not gaps.
+// src/lib/events/event-match-eligibility.ts: effective roster = planned squad ∪ helpers ∪ guests
+// (ADR-0106 adds the third source), with a deliberately narrower eligibility check than the Event
+// version — no round-finalisation block, no time/round-conflict block. See the ADR for why both
+// omissions are intentional, not gaps.
 
 export type EffectiveLeagueMatchRosterEntry = {
-  playerId: string;
-  firstName: string;
-  lastName: string | null;
+  participantId: string;
+  participantType: ParticipantType;
+  playerId: string | null;
+  guestPlayerId: string | null;
+  displayName: string;
   primaryPosition: string | null;
   shirtNumber: number | null;
-  source: "planned" | "helper";
+  source: "planned" | "helper" | "guest";
   role: SelectionRole | null;
   teamId: string;
   teamName: string;
   /** Match-specific absence (production consistency pass item #3) — null means the player is an
    * active participant for this match. Non-null must exclude them from any action requiring an
    * active participant (scorer/assist selection, on-pitch state) while still leaving them
-   * visible in the match roster. Does not affect their Selection/round-team assignment. */
+   * visible in the match roster. Does not affect their Selection/round-team assignment. Absence
+   * tracking (MatchReportAbsence) is Player-only; a GuestPlayer is always an active participant
+   * once assigned. */
   absenceReason: PlannedAbsenceReason | null;
   isActiveParticipant: boolean;
 };
@@ -35,7 +41,7 @@ export async function getEffectiveLeagueMatchRoster(
   });
   if (!match) return [];
 
-  const [selections, helpers, absences] = await Promise.all([
+  const [selections, helpers, absences, guests] = await Promise.all([
     db.selection.findMany({
       where: { matchId },
       select: {
@@ -57,29 +63,54 @@ export async function getEffectiveLeagueMatchRoster(
       where: { matchId },
       select: { playerId: true, reason: true },
     }),
+    db.leagueMatchGuestAssignment.findMany({
+      where: { matchId },
+      select: {
+        guestPlayerId: true,
+        guestPlayer: { select: { id: true, name: true, sourceLabel: true } },
+      },
+    }),
   ]);
 
   const absenceByPlayerId = new Map(absences.map((a) => [a.playerId, a.reason]));
 
-  const entries: EffectiveLeagueMatchRosterEntry[] = selections.map((s) => ({
-    playerId: s.player.id,
-    firstName: s.player.firstName,
-    lastName: s.player.lastName,
-    primaryPosition: s.player.primaryPosition,
-    shirtNumber: s.player.shirtNumber,
-    source: "planned",
-    role: s.role,
-    teamId: match.teamId,
-    teamName: match.team.name,
-    absenceReason: absenceByPlayerId.get(s.player.id) ?? null,
-    isActiveParticipant: !absenceByPlayerId.has(s.player.id),
-  }));
+  const entries: EffectiveLeagueMatchRosterEntry[] = selections.map((s) => {
+    const ref = resolveParticipantRef({
+      playerId: s.player.id,
+      guestPlayerId: null,
+      playerLookup: new Map([[s.player.id, s.player]]),
+      guestPlayerLookup: new Map(),
+    });
+    return {
+      participantId: ref.participantId,
+      participantType: ref.participantType,
+      playerId: ref.playerId,
+      guestPlayerId: ref.guestPlayerId,
+      displayName: ref.displayName,
+      primaryPosition: s.player.primaryPosition,
+      shirtNumber: s.player.shirtNumber,
+      source: "planned",
+      role: s.role,
+      teamId: match.teamId,
+      teamName: match.team.name,
+      absenceReason: absenceByPlayerId.get(s.player.id) ?? null,
+      isActiveParticipant: !absenceByPlayerId.has(s.player.id),
+    };
+  });
 
   for (const h of helpers) {
-    entries.push({
+    const ref = resolveParticipantRef({
       playerId: h.player.id,
-      firstName: h.player.firstName,
-      lastName: h.player.lastName,
+      guestPlayerId: null,
+      playerLookup: new Map([[h.player.id, h.player]]),
+      guestPlayerLookup: new Map(),
+    });
+    entries.push({
+      participantId: ref.participantId,
+      participantType: ref.participantType,
+      playerId: ref.playerId,
+      guestPlayerId: ref.guestPlayerId,
+      displayName: ref.displayName,
       primaryPosition: h.player.primaryPosition,
       shirtNumber: h.player.shirtNumber,
       source: "helper",
@@ -88,6 +119,30 @@ export async function getEffectiveLeagueMatchRoster(
       teamName: match.team.name,
       absenceReason: absenceByPlayerId.get(h.player.id) ?? null,
       isActiveParticipant: !absenceByPlayerId.has(h.player.id),
+    });
+  }
+
+  for (const g of guests) {
+    const ref = resolveParticipantRef({
+      playerId: null,
+      guestPlayerId: g.guestPlayerId,
+      playerLookup: new Map(),
+      guestPlayerLookup: new Map([[g.guestPlayerId, g.guestPlayer]]),
+    });
+    entries.push({
+      participantId: ref.participantId,
+      participantType: ref.participantType,
+      playerId: ref.playerId,
+      guestPlayerId: ref.guestPlayerId,
+      displayName: ref.displayName,
+      primaryPosition: null,
+      shirtNumber: null,
+      source: "guest",
+      role: null,
+      teamId: match.teamId,
+      teamName: match.team.name,
+      absenceReason: null,
+      isActiveParticipant: true,
     });
   }
 
