@@ -29,10 +29,20 @@ import { type Page, expect } from "@playwright/test";
  * resolves core/support jointly across every match in a round, so repeated runs on the same
  * day progressively starved each other's player pool (first run: 3 core + 3 support; second
  * run minutes later, same round: 0/11) — not a flaky test, a real shared-fixture collision.
- * Spreading ~1-10 years out makes same-round collisions between runs astronomically unlikely.
+ *
+ * Confirmed live a second time after the /api/test-agent/seed-finalized-match fast-setup
+ * endpoint replaced the old multi-minute UI-driven flow (see createFinalizedLiveTestMatch):
+ * one spec's request timed out client-side (ETIMEDOUT) but had already succeeded server-side
+ * (match created, round generated and finalized); the test's Playwright-level retry then drew a
+ * second random date that landed in the same ~500-week window and collided with that
+ * already-finalized round ("Finalised matches cannot be recalculated"). A 500-week spread was
+ * "astronomically unlikely" to collide across the old, slow, few-and-far-between UI-driven
+ * calls, but the fast endpoint made setup cheap enough that retries now draw many more dates
+ * per run, meaningfully raising the birthday-paradox collision odds. Widening the spread to
+ * ~5000 weeks (~100 years) restores the original safety margin.
  */
 function randomFutureMatchDate(): Date {
-  const weeksOut = 60 + Math.floor(Math.random() * 500);
+  const weeksOut = 60 + Math.floor(Math.random() * 5000);
   return new Date(Date.now() + weeksOut * 7 * 24 * 60 * 60 * 1000);
 }
 
@@ -40,12 +50,18 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
   const opponentName = `E2E Live ${label} ${Date.now()}`;
   const matchDate = randomFutureMatchDate();
 
+  // Explicit generous timeout: confirmed live that the default (30s) request timeout can be
+  // exceeded by this endpoint's three sequential DB-heavy operations (create match, regenerate
+  // round, finalize match) against a cold Vercel function on a freshly forked per-PR Neon branch
+  // — a client-side timeout here does not stop the server-side work, so a timed-out-but-actually-
+  // successful request previously drove the date-collision failure documented above.
   const response = await page.request.post("/api/test-agent/seed-finalized-match", {
     data: {
       teamName: "A1 Blues",
       opponentName,
       startsAt: matchDate.toISOString(),
     },
+    timeout: 45_000,
   });
   if (!response.ok()) {
     throw new Error(`seed-finalized-match failed (${response.status()}): ${await response.text()}`);
