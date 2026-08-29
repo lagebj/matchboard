@@ -271,3 +271,25 @@ no separate teardown against the shared Test dataset. Any future mutation-covera
 can't be made self-cleaning this way must account for shared-state cleanup — or use
 `restore-test-baseline` (`docs/development/swamp-workflows.md`) to reset the dataset, deliberately
 and out-of-band from routine CI runs.
+
+### Fast fixture setup for live-match specs
+
+`follow-live.spec.ts`, `live-reporting.spec.ts`, and `post-match-evidence-parity.spec.ts` all need
+a finalized League match to exist before they can test what they're actually about (live
+reporting, following). They get one via `createFinalizedLiveTestMatch()`
+(`e2e/helpers/live-match-fixtures.ts`), which calls the test-only
+`POST /api/test-agent/seed-finalized-match` endpoint rather than driving the create → generate →
+finalize UI flow through real clicks — that UI flow is already covered by
+`round-mutation.spec.ts`/`smoke.spec.ts`, and driving it again per live-match spec was measured to
+cost 1-3+ minutes of setup per test (and, under load, could exceed even a generous timeout
+budget) for coverage these specs don't actually need.
+
+The endpoint calls the exact same domain functions the real UI actions call
+(`createMatchCore`/`refreshDraftRound`/`finalizeSingleMatch` — never a reimplementation) and is
+gated by `isTestAgentAuthEnabled()`, the same environment check `/api/auth/test-agent` (the login
+endpoint) already uses — `MATCHBOARD_ENV=test` plus the `TEST_AGENT_AUTH_SECRET`/
+`TEST_AGENT_AUTH_ENABLED` pair described above, already required for `auth.setup.ts` to work, so
+no additional environment configuration is needed. It still requires a real, already-authenticated
+session (`requirePageActorContext()`/`requireMutationRole()`/`requireTeamGroupAccess()`) — this is
+not an auth bypass, only a fast-path around UI navigation for a caller who is already a genuine
+coach.

@@ -88,11 +88,99 @@ export type MatchFormState = { error: string };
 
 const _INITIAL_STATE: MatchFormState = { error: "" };
 
+export type CreateMatchCoreInput = {
+  teamId: string;
+  opponentText?: string;
+  opponentTeamIdInput?: string;
+  startsAt: Date;
+  homeAway: (typeof VALID_VENUES)[number];
+  matchType: (typeof VALID_TYPES)[number];
+  gameFormat: (typeof VALID_FORMATS)[number];
+};
+
+/**
+ * The one owning implementation of "create a League match" (AGENTS.md's routes/actions
+ * invariant) -- team/opponent/round resolution and the actual db.match.create(). Takes plain
+ * parameters and returns the created match id rather than parsing FormData or redirecting, so
+ * every caller (the UI action below, and any other adapter -- e.g. a test-only fast-fixture
+ * endpoint) shares this exact logic instead of re-implementing it.
+ */
+export async function createMatchCore(
+  ctx: { organisationId: string },
+  input: CreateMatchCoreInput,
+): Promise<{ matchId: string; opponent: string; matchRoundId: string }> {
+  const orgId = ctx.organisationId;
+  const { teamId, opponentText, opponentTeamIdInput, startsAt, homeAway, matchType, gameFormat } = input;
+
+  const team = await db.team.findFirst({
+    where: { id: teamId, archivedAt: null, organisationId: orgId },
+    select: { id: true },
+  });
+  if (!team) throw new Error("Team not found.");
+
+  let opponentTeamId: string | null;
+  let opponent: string;
+
+  if (opponentTeamIdInput) {
+    const existing = await db.opponentTeam.findFirst({
+      where: { id: opponentTeamIdInput, organisationId: orgId },
+      select: { id: true, displayName: true },
+    });
+    if (!existing) throw new Error("Opponent team not found.");
+    opponentTeamId = existing.id;
+    opponent = existing.displayName;
+  } else if (opponentText) {
+    opponentTeamId = null;
+    opponent = cleanOpponentDisplayName(opponentText);
+  } else {
+    throw new Error("Opponent team is required.");
+  }
+
+  const { startsAt: weekStart, endsAt: weekEnd } = getWeekRange(startsAt);
+
+  let matchRoundId: string;
+
+  const activeLeagueSeason = await db.leagueSeason.findFirst({
+    where: {
+      organisationId: orgId,
+      startDate: { lte: weekEnd },
+      endDate: { gte: weekStart },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (activeLeagueSeason) {
+    const resolved = await resolveOrCreateMatchRoundForDate({
+      leagueSeasonId: activeLeagueSeason.id,
+      startsAt,
+      organisationId: orgId,
+    });
+    matchRoundId = resolved.roundId;
+  } else {
+    matchRoundId = await createFullHierarchy(startsAt, weekStart, weekEnd, orgId);
+  }
+
+  const match = await db.match.create({
+    data: {
+      teamId,
+      opponent,
+      opponentTeamId,
+      startsAt,
+      homeAway,
+      matchType,
+      gameFormat,
+      matchRoundId,
+      organisationId: orgId,
+    },
+  });
+
+  return { matchId: match.id, opponent, matchRoundId };
+}
+
 export async function createMatchAction(_prevState: MatchFormState, formData: FormData): Promise<MatchFormState> {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
-  const orgId = ctx.organisationId;
   try {
     const teamId = readNonEmptyString(formData, "teamId", "Team");
     await requireTeamGroupAccess(ctx, teamId);
@@ -103,67 +191,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     const matchType = readRequiredEnum(formData, "matchType", VALID_TYPES, "Match type");
     const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");
 
-    const team = await db.team.findFirst({
-      where: { id: teamId, archivedAt: null, organisationId: orgId },
-      select: { id: true },
-    });
-    if (!team) throw new Error("Team not found.");
-
-    let opponentTeamId: string | null;
-    let opponent: string;
-
-    if (opponentTeamIdInput) {
-      const existing = await db.opponentTeam.findFirst({
-        where: { id: opponentTeamIdInput, organisationId: orgId },
-        select: { id: true, displayName: true },
-      });
-      if (!existing) throw new Error("Opponent team not found.");
-      opponentTeamId = existing.id;
-      opponent = existing.displayName;
-    } else if (opponentText) {
-      opponentTeamId = null;
-      opponent = cleanOpponentDisplayName(opponentText);
-    } else {
-      throw new Error("Opponent team is required.");
-    }
-
-    const { startsAt: weekStart, endsAt: weekEnd } = getWeekRange(startsAt);
-
-    let matchRoundId: string;
-
-    const activeLeagueSeason = await db.leagueSeason.findFirst({
-      where: {
-        organisationId: orgId,
-        startDate: { lte: weekEnd },
-        endDate: { gte: weekStart },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (activeLeagueSeason) {
-      const resolved = await resolveOrCreateMatchRoundForDate({
-        leagueSeasonId: activeLeagueSeason.id,
-        startsAt,
-        organisationId: orgId,
-      });
-      matchRoundId = resolved.roundId;
-    } else {
-      matchRoundId = await createFullHierarchy(startsAt, weekStart, weekEnd, orgId);
-    }
-
-    await db.match.create({
-      data: {
-        teamId,
-        opponent,
-        opponentTeamId,
-        startsAt,
-        homeAway,
-        matchType,
-        gameFormat,
-        matchRoundId,
-        organisationId: ctx.organisationId,
-      },
-    });
+    await createMatchCore(ctx, { teamId, opponentText, opponentTeamIdInput, startsAt, homeAway, matchType, gameFormat });
   } catch (error) {
     return { error: getErrorMessage(error) };
   }

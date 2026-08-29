@@ -13,15 +13,13 @@ import { createFinalizedLiveTestMatch, waitForEventsToSync } from "./helpers/liv
 // code, which is exactly what code review alone could not confirm or deny for the "Connection
 // problem" issue this spec is written to reproduce/verify.
 //
-// 240s test timeout (was 180s, itself already raised from the usual 90s): confirmed live in CI
-// that create + generate + finalize alone can consume most of a 90s budget on a freshly forked
-// per-PR Neon branch (cold compute), leaving no headroom for the connection test itself — the
-// failure wasn't any single step being slow, it was the cumulative pipeline exceeding the total
-// budget. Raised again to 240s once the reporter's own session-ending cleanup (below) was added
-// to every exit path: confirmed live that 180s was no longer enough once that additional real
-// work (waitForEventsToSync + the finish-reporting confirm dialog) is included in the budget.
+// 90s test timeout: createFinalizedLiveTestMatch's fixture setup now goes through the
+// test-only /api/test-agent/seed-finalized-match endpoint (a couple of seconds) instead of
+// driving create+generate+finalize through real UI clicks (previously 1-3+ minutes, which is
+// why this budget used to be raised as high as 240s) — the remaining time is genuinely just the
+// live-session/WebSocket-connection work this test is actually about.
 test("a second coach can follow a live match in real time via the Cloudflare realtime path", async ({ page, browser }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(90_000);
   const { matchId } = await createFinalizedLiveTestMatch(page, "FollowLive");
 
   await page.getByRole("link", { name: "Live reporting" }).click();

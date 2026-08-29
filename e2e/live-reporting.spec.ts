@@ -6,13 +6,14 @@ import { createFinalizedLiveTestMatch, waitForEventsToSync } from "./helpers/liv
 // e2e/helpers/live-match-fixtures.ts for why each test creates its own throwaway match rather
 // than reusing/mutating the shared canonical seed dataset.
 //
-// 180s test timeout (not the usual 90s): confirmed live in CI that create + generate + finalize
-// alone can consume most of a 90s budget on a freshly forked per-PR Neon branch (cold compute),
-// leaving no headroom for the live-reporting flow itself — the failure wasn't any single step
-// being slow, it was the cumulative pipeline exceeding the total budget.
+// 90s test timeout: createFinalizedLiveTestMatch's fixture setup now goes through the
+// test-only /api/test-agent/seed-finalized-match endpoint (a couple of seconds) instead of
+// driving create+generate+finalize through real UI clicks (previously 1-3+ minutes, which is
+// why this budget used to be raised as high as 180s) — the remaining time is genuinely just the
+// live-reporting flow this test is actually about.
 
 test("start live reporting, record a goal, verify the score updates, then finish cleanly", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(90_000);
   const { opponentName } = await createFinalizedLiveTestMatch(page, "Core");
 
   await page.getByRole("link", { name: "Live reporting" }).click();
@@ -51,7 +52,7 @@ test("start live reporting, record a goal, verify the score updates, then finish
 });
 
 test("blocks finishing the session while events are still unsynced, then completes once back online", async ({ page, context }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(90_000);
   await createFinalizedLiveTestMatch(page, "OfflineSync");
 
   await page.getByRole("link", { name: "Live reporting" }).click();
