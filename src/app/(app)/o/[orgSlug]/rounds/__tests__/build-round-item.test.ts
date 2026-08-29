@@ -168,4 +168,19 @@ describe("resolveActiveLeagueSeason", () => {
 
     expect(resolveActiveLeagueSeason([wider, narrower], now)?.id).toBe("narrower");
   });
+
+  // Regression test for a real bug this exact function had, found live in CI: an earlier ~2-year
+  // plausibility window was wider than live-match-fixtures.ts's randomFutureMatchDate() minimum
+  // offset (60 weeks / ~420 days), so a test-generated season landing e.g. ~1.2 years out still
+  // counted as "plausible" and outranked the real seed season purely by having a more recent
+  // startDate -- round-mutation.spec.ts's target round disappeared from the page entirely. The
+  // window must stay well under 420 days for this to never recur.
+  it("does not let a near-term (but still test-generated) far-future season outrank the real one", () => {
+    const realSeason = { id: "real-spring-2026", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") };
+    // ~1.2 years out from `now` -- inside live-match-fixtures.ts's minimum random offset, and
+    // would have wrongly qualified as "plausible" under the old ~2-year window.
+    const nearTermTestNoise = { id: "near-term-test-noise", startDate: new Date("2027-10-01"), endDate: new Date("2027-12-31") };
+
+    expect(resolveActiveLeagueSeason([realSeason, nearTermTestNoise], now)?.id).toBe("real-spring-2026");
+  });
 });

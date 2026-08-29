@@ -1771,9 +1771,14 @@ organisation has ever had — matching the same per-league-season default alread
 and `/fixtures`. This page is the coach's active planning workflow (generate/review/finalize per
 round), not a historical archive; `/history` already serves that. `resolveActiveLeagueSeason()`
 (`src/app/(app)/o/[orgSlug]/rounds/build-round-item.ts`) picks the season containing "now", falling
-back to the most recently started season within a ~2-year plausibility window (excluding
+back to the most recently started season within a ~90-day plausibility window (excluding
 implausibly-far-future seasons, which only ever arise from generated/test data) when none spans
 "now", and only the absolute most-recent-by-start-date when every season is implausibly far out.
+The window must stay well under 420 days — `e2e/helpers/live-match-fixtures.ts`'s
+`randomFutureMatchDate()` spreads test matches 60-5060 weeks (~420 days minimum) out, and an
+earlier, wider ~2-year window let some of that random spread land inside the "plausible" bucket
+and wrongly outrank this repo's own real seed-dataset season, confirmed live in CI:
+`round-mutation.spec.ts`'s target round disappeared from this page entirely.
 An earlier unbounded, unscoped version of this query rendered every round the organisation had
 ever accumulated on one page with no pagination — confirmed live in CI causing real page-load
 slowness and intermittent E2E failures once round-count reached the low hundreds.

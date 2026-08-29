@@ -92,15 +92,23 @@ export async function buildRoundItems(
 
 export type LeagueSeasonCandidate = { id: string; startDate: Date; endDate: Date };
 
-/** No real league season is ever planned this far ahead -- anything starting beyond this window
- * is test-fixture noise (see below), not a legitimate candidate for "most recent". */
-const IMPLAUSIBLY_FAR_FUTURE_MS = 730 * 24 * 60 * 60 * 1000; // ~2 years
+/** No real league season is ever set up this far ahead of when it starts -- anything starting
+ * beyond this window is test-fixture noise (see below), not a legitimate candidate for "most
+ * recent". Deliberately well under 420 days (60 weeks): e2e/helpers/live-match-fixtures.ts's
+ * randomFutureMatchDate() spreads test matches 60-5060 weeks out specifically so repeated runs
+ * never collide on the same round -- its own *minimum* offset is 60 weeks (~420 days). A wider
+ * window here (originally ~2 years, i.e. ~730 days) let some fraction of that random spread
+ * land inside the "plausible" bucket and outrank this repo's own real seed-dataset season
+ * ("Test A1 Spring 2026") purely by having a more recent startDate -- confirmed live in CI:
+ * round-mutation.spec.ts's target round disappeared from this page entirely once that happened.
+ * 90 days is safely below 420 while still generous for genuine pre-season setup. */
+const IMPLAUSIBLY_FAR_FUTURE_MS = 90 * 24 * 60 * 60 * 1000;
 
 /**
  * Picks the league season that should scope the Rounds list's default view.
  *
  * Prefers the season actually containing `now`. Otherwise falls back to the most recently
- * started season that starts no more than ~2 years from `now` -- deliberately not "most recent
+ * started season that starts no more than ~90 days from `now` -- deliberately not "most recent
  * by startDate" unfiltered: e2e specs create throwaway matches dated up to ~100 years out (see
  * e2e/helpers/live-match-fixtures.ts), each auto-creating its own far-future LeagueSeason. An
  * unfiltered "most recent startDate" fallback would keep selecting one of those over a real,
