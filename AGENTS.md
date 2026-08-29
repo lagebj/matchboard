@@ -1077,15 +1077,39 @@ immediately rather than discovered later:
   evidence/stats pipelines it joins against remain Player-only by construction
   (`src/app/(app)/events/__tests__/event-export.test.ts`).
 
+### Demo data
+
+`prisma/seed-demo.cjs` seeds three GuestPlayers demonstrating the concept: **Oliver Hansen**
+(Source: G2016, active) — registered as a `LeagueRoundParticipant` in both a "Round 7" (Spring
+season) and a round in a second, "Fall 2026" `LeagueSeason`, demonstrating that one identity is
+reused across rounds and seasons rather than duplicated per-season; also attends a seeded "Demo
+Cup" Event with a per-match unavailability exception on its second match ("Family commitment")
+while remaining available for the Event overall. **Noah Berg** (Source: G2016, active) — Event
+participation only. **Emil Larsen** (Source: G2014) — has historical League Match participation
+(`LeagueMatchGuestAssignment`) recorded, then deactivated (`active: false`), demonstrating that
+historical participation is preserved after deactivation rather than deleted. Run via
+`npm run db:seed:demo` / `npm run seed:demo`.
+
+Fixing this script's own seed data to actually run (it referenced several column/field names and
+enum values that had since changed — `Season.year`, `FootballGroup.slug`/`isActive` vs.
+`isSynthetic`, `Team.footballGroupId` vs. a nonexistent `groupId`, `GroupAccess.role`/
+`organisationId` vs. a nonexistent `accessRole`, `RuleConfig.footballGroupId` vs. nonexistent
+`key`/`value`, `AvailabilityStatus.AVAILABLE` vs. a nonexistent `CONFIRMED`) was a prerequisite
+for verifying the new GuestPlayer additions actually seed correctly, not a deliberate scope
+expansion — evidence the script had been stale for some time. Its invocation was also switched
+from plain `node` to `npx tsx` (matching every other seed script's convention) since the
+generated Prisma client is TypeScript source, not requirable via plain Node.
+
 **Current implementation status**: GuestPlayer identity, lifecycle, Group-scoped management UX,
-manual Event and League participation, Event Match availability (model, UX, and enforcement), and
-statistics/evidence isolation (locked in with regression tests) all exist. Every remaining read
-path that touches a newly-nullable `playerId`/`player` field has been updated only enough to keep
-it Player-scoped (an explicit `// ADR-0106:` comment marks each such site) — this is deliberate,
-temporary scaffolding pending the follow-up phases that add Event Match support/helper assignment
-for GuestPlayers and generation-engine candidate inclusion. See ADR-0106 for the full design and
-phased delivery plan, and ARR-0036 for unrelated pre-existing schema/migration-history drift
-found (and deliberately left unbundled) while preparing the foundational migration.
+manual Event and League participation, Event Match availability (model, UX, and enforcement),
+statistics/evidence isolation (locked in with regression tests), and demo seed data all exist.
+Every remaining read path that touches a newly-nullable `playerId`/`player` field has been
+updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each such
+site) — this is deliberate, temporary scaffolding pending the follow-up phases that add Event
+Match support/helper assignment for GuestPlayers and generation-engine candidate inclusion. See
+ADR-0106 for the full design and phased delivery plan, and ARR-0036 for unrelated pre-existing
+schema/migration-history drift found (and deliberately left unbundled) while preparing the
+foundational migration.
 
 ### Future Group collaboration discovery (not implemented)
 

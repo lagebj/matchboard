@@ -1,4 +1,4 @@
-import "dotenv/config";
+require("dotenv/config");
 
 function createAdapter(url) {
   if (url.includes(".neon.tech")) {
@@ -62,7 +62,17 @@ async function main() {
 
   // Season and league season
   const season = await db.season.create({
-    data: { name: "Demo Season", organisationId: org.id },
+    data: { name: "Demo Season", year: new Date().getFullYear(), organisationId: org.id },
+  });
+
+  // Football group
+  const group = await db.footballGroup.create({
+    data: {
+      name: "Demo Group",
+      slug: "demo-group",
+      organisationId: org.id,
+      isActive: true,
+    },
   });
 
   const period = await db.leagueSeason.create({
@@ -71,6 +81,7 @@ async function main() {
       part: "SPRING",
       seasonId: season.id,
       organisationId: org.id,
+      footballGroupId: group.id,
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
@@ -84,15 +95,6 @@ async function main() {
     },
   });
 
-  // Football group
-  const group = await db.footballGroup.create({
-    data: {
-      name: "Demo Group",
-      organisationId: org.id,
-      isSynthetic: false,
-    },
-  });
-
   // Teams
   const teamA = await db.team.create({
     data: {
@@ -101,7 +103,7 @@ async function main() {
       minAcceptedSquadSize: 9,
       supportPriority: 100,
       organisationId: org.id,
-      groupId: group.id,
+      footballGroupId: group.id,
     },
   });
   const teamB = await db.team.create({
@@ -110,7 +112,7 @@ async function main() {
       targetSquadSize: 11,
       supportPriority: 50,
       organisationId: org.id,
-      groupId: group.id,
+      footballGroupId: group.id,
     },
   });
   const teamC = await db.team.create({
@@ -119,14 +121,14 @@ async function main() {
       targetSquadSize: 11,
       supportPriority: 30,
       organisationId: org.id,
-      groupId: group.id,
+      footballGroupId: group.id,
     },
   });
 
   // Group access for coach
   await db.groupAccess.createMany({
     data: [
-      { membershipId: (await db.organisationMembership.findFirst({ where: { userId: coachUser.id, organisationId: org.id } })).id, footballGroupId: group.id, accessRole: "COACH" },
+      { membershipId: (await db.organisationMembership.findFirst({ where: { userId: coachUser.id, organisationId: org.id } })).id, footballGroupId: group.id, organisationId: org.id, role: "GROUP_COACH" },
     ],
   });
 
@@ -142,7 +144,7 @@ async function main() {
   });
 
   // Matches
-  await db.match.create({
+  const matchA = await db.match.create({
     data: {
       matchRoundId: round.id,
       teamId: teamA.id,
@@ -190,7 +192,7 @@ async function main() {
         preferredFoot: "RIGHT",
         secondaryFoot: "WEAK",
         bestSide: "CENTER",
-        currentAvailability: "CONFIRMED",
+        currentAvailability: "AVAILABLE",
         organisationId: org.id,
       },
     });
@@ -216,14 +218,125 @@ async function main() {
   await db.ruleConfig.create({
     data: {
       organisationId: org.id,
-      key: "default",
-      value: {},
+      footballGroupId: group.id,
     },
+  });
+
+  // --- GuestPlayer demonstration (ADR-0106) ---
+  // A second League season and an extra round, so Oliver Hansen can demonstrate reuse of one
+  // identity across both a specific round number ("Round 7") and across two seasons -- a
+  // GuestPlayer is a reusable, Group-owned identity, not a per-season or per-round record.
+  const fallSeason = await db.leagueSeason.create({
+    data: {
+      name: "Fall 2026",
+      part: "FALL",
+      seasonId: season.id,
+      organisationId: org.id,
+      footballGroupId: group.id,
+      startDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
+      endDate: new Date(Date.now() + 210 * 24 * 60 * 60 * 1000),
+    },
+  });
+  const fallRound = await db.matchRound.create({
+    data: { name: "R1", leagueSeasonId: fallSeason.id, organisationId: org.id },
+  });
+  const springRound7 = await db.matchRound.create({
+    data: { name: "R7", leagueSeasonId: period.id, organisationId: org.id },
+  });
+
+  const guestOliver = await db.guestPlayer.create({
+    data: { name: "Oliver Hansen", sourceLabel: "G2016", organisationId: org.id, footballGroupId: group.id },
+  });
+  const guestNoah = await db.guestPlayer.create({
+    data: { name: "Noah Berg", sourceLabel: "G2016", organisationId: org.id, footballGroupId: group.id },
+  });
+  const guestEmil = await db.guestPlayer.create({
+    data: { name: "Emil Larsen", sourceLabel: "G2014", organisationId: org.id, footballGroupId: group.id },
+  });
+
+  // Oliver: League Round 7 participation, reused (same identity, no duplication) in Fall R1.
+  await db.leagueRoundParticipant.create({
+    data: { matchRoundId: springRound7.id, guestPlayerId: guestOliver.id, organisationId: org.id },
+  });
+  await db.leagueRoundParticipant.create({
+    data: { matchRoundId: fallRound.id, guestPlayerId: guestOliver.id, organisationId: org.id },
+  });
+
+  // Emil: historical League Match participation, preserved after the identity is deactivated
+  // below (never hard-deleted).
+  await db.leagueRoundParticipant.create({
+    data: { matchRoundId: round.id, guestPlayerId: guestEmil.id, organisationId: org.id },
+  });
+  await db.leagueMatchGuestAssignment.create({
+    data: { matchId: matchA.id, matchRoundId: round.id, guestPlayerId: guestEmil.id, organisationId: org.id },
+  });
+  await db.guestPlayer.update({
+    where: { id: guestEmil.id },
+    data: { active: false, deactivatedAt: new Date() },
+  });
+
+  // Demo Cup: Oliver and Noah both attend the Event; Oliver has a partial-availability
+  // exception for the second match while remaining available for the Event overall.
+  const demoEvent = await db.event.create({
+    data: {
+      name: "Demo Cup",
+      eventType: "CUP",
+      gameFormat: "SEVEN_A_SIDE",
+      matchDurationMinutes: 20,
+      startsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      organisationId: org.id,
+      footballGroupId: group.id,
+    },
+  });
+  const demoSquad = await db.eventSquad.create({
+    data: {
+      eventId: demoEvent.id,
+      name: "Demo Cup Squad",
+      intent: "BALANCED",
+      targetSize: 9,
+      generationOrder: 0,
+      organisationId: org.id,
+    },
+  });
+  await db.eventMatch.create({
+    data: {
+      eventId: demoEvent.id,
+      eventSquadId: demoSquad.id,
+      category: "CUP",
+      opponentName: "Opponent A",
+      startsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+      organisationId: org.id,
+    },
+  });
+  const demoMatch2 = await db.eventMatch.create({
+    data: {
+      eventId: demoEvent.id,
+      eventSquadId: demoSquad.id,
+      category: "CUP",
+      opponentName: "Opponent B",
+      startsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
+      organisationId: org.id,
+    },
+  });
+
+  for (const guest of [guestOliver, guestNoah]) {
+    await db.eventPlayerAvailability.create({
+      data: { eventId: demoEvent.id, guestPlayerId: guest.id, status: "AVAILABLE", organisationId: org.id },
+    });
+    await db.eventSquadPlayer.create({
+      data: { eventId: demoEvent.id, eventSquadId: demoSquad.id, guestPlayerId: guest.id, source: "MANUAL", selectionReason: "Manually assigned by coach", organisationId: org.id },
+    });
+  }
+
+  // Oliver attends the Event overall, but is unavailable for the second match specifically.
+  await db.eventMatchAvailability.create({
+    data: { eventMatchId: demoMatch2.id, guestPlayerId: guestOliver.id, note: "Family commitment", organisationId: org.id },
   });
 
   console.log("Demo data seeded for organisation:", org.slug);
   console.log("Owner email:", ownerUser.email);
   console.log("Coach email:", coachUser.email);
+  console.log("Guest players: Oliver Hansen (G2016, active), Noah Berg (G2016, active), Emil Larsen (G2014, inactive)");
 }
 
 main()
