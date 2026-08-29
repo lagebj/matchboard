@@ -195,7 +195,15 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
     opponent: match.opponent,
     homeAway: match.homeAway,
     plannedSelections,
-    playerActuals: report.playerActuals.map((p) => ({
+    // ADR-0106: PostMatchPlayerActual.playerId/player and Assist.playerId/player are now
+    // nullable (a GuestPlayer appearance/assist uses guestPlayerId instead). GuestPlayer-aware
+    // post-match reporting is a later, separate change; filtered to Player-backed rows as a
+    // no-op today (no write path produces a guest row yet).
+    playerActuals: report.playerActuals
+      .filter((p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
+        p.playerId !== null && p.player !== null,
+      )
+      .map((p) => ({
       id: p.id,
       playerId: p.playerId,
       playerName: `${p.player.firstName} ${p.player.lastName ?? ""}`.trim(),
@@ -226,7 +234,11 @@ export async function getMatchReport(matchId: string): Promise<MatchReportDetail
       minute: g.minute,
       type: g.type,
     })),
-    assists: report.assists.map((a) => ({
+    assists: report.assists
+      .filter((a): a is typeof a & { playerId: string; player: NonNullable<typeof a.player> } =>
+        a.playerId !== null && a.player !== null,
+      )
+      .map((a) => ({
       id: a.id,
       playerId: a.playerId,
       playerName: `${a.player.firstName} ${a.player.lastName ?? ""}`.trim(),

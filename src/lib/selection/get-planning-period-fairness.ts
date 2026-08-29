@@ -166,6 +166,11 @@ export async function getLeagueSeasonFairness(
   }
 
   for (const actual of reportedActuals) {
+    // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+    // guestPlayerId instead). This is a Player fairness/load calculation -- a GuestPlayer must
+    // never contribute to it, by construction.
+    if (!actual.playerId) continue;
+
     const selForMatch = finalizedSelections.find(
       (s) => s.playerId === actual.playerId && s.matchId === actual.matchId,
     );

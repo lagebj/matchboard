@@ -253,8 +253,17 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
           gameFormat: match.eventSquad?.gameFormatOverride ?? match.event.gameFormat,
           matchDurationMinutes: match.event.matchDurationMinutes,
         },
+        // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment
+        // uses guestPlayerId instead). GuestPlayer-aware live reporting is a later, separate
+        // change; filtered to Player-backed rows as a no-op today (no write path produces a
+        // guest row yet).
         squad: match.eventSquad
-          ? match.eventSquad.players.map((sp) => ({
+          ? match.eventSquad.players
+              .filter(
+                (sp): sp is typeof sp & { player: NonNullable<typeof sp.player> } =>
+                  sp.player !== null,
+              )
+              .map((sp) => ({
               playerId: sp.player.id,
               playerName: [sp.player.firstName, sp.player.lastName].filter(Boolean).join(" "),
               position: sp.player.primaryPosition,

@@ -68,12 +68,18 @@ export async function getEffectiveAppearancesForMatch(
   });
 
   return {
-    appearances: actuals.map((a) => ({
-      playerId: a.playerId,
-      matchId: a.matchId,
-      source: "ACTUAL" as const,
-      attendanceStatus: a.attendanceStatus,
-    })),
+    // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+    // guestPlayerId instead). This module's sole remaining consumer is a Player's own profile
+    // page, so a GuestPlayer appearance (which has no Player id to key this type by) is filtered
+    // out here rather than widening EffectiveAppearance.playerId to accept null.
+    appearances: actuals
+      .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
+      .map((a) => ({
+        playerId: a.playerId,
+        matchId: a.matchId,
+        source: "ACTUAL" as const,
+        attendanceStatus: a.attendanceStatus,
+      })),
     source: "ACTUAL",
     reportStatus: report.status,
   };

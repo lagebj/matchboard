@@ -142,6 +142,11 @@ export const RLS_TABLES = new Set([
   "developmentThread",
   "developmentThreadObservation",
   "teamFocus",
+  // ADR-0106: GuestPlayer and shared match participant model.
+  "guestPlayer",
+  "eventMatchAvailability",
+  "leagueRoundParticipant",
+  "leagueMatchGuestAssignment",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;

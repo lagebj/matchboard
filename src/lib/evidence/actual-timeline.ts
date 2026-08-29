@@ -317,6 +317,10 @@ async function populateEventPlayerActualPositions(
   });
 
   for (const actual of actuals) {
+    // ADR-0106: EventPostMatchPlayer.playerId is now nullable (a GuestPlayer appearance uses
+    // guestPlayerId instead). Syncing computed minutes onto a GuestPlayer's own row is a later,
+    // separate change (needs guestPlayerId-keyed lookup too) -- skipped here as a no-op today.
+    if (!actual.playerId) continue;
     const minutes = minutesByPlayer.get(actual.playerId);
     if (minutes !== undefined && actual.minutesPlayed === null) {
       await tx.eventPostMatchPlayer.update({
@@ -369,7 +373,7 @@ async function getStartingLineup(matchId: string): Promise<StarterAssignment[]> 
 
 async function getMatchRotations(matchId: string): Promise<RotationInput[]> {
   const rotations = await db.matchRotation.findMany({
-    where: { matchId },
+    where: { matchId, outPlayerId: { not: null }, inPlayerId: { not: null } },
     select: {
       outPlayerId: true,
       inPlayerId: true,
@@ -381,9 +385,15 @@ async function getMatchRotations(matchId: string): Promise<RotationInput[]> {
     orderBy: { matchSeconds: "asc" },
   });
 
+  // ADR-0106: MatchRotation.outPlayerId/inPlayerId are now nullable (a GuestPlayer rotation side
+  // uses outGuestPlayerId/inGuestPlayerId instead). This position/interval computation layer is
+  // already participant-agnostic (lineup-state.ts operates on opaque string ids with no Player
+  // lookup) -- carrying a guest's rotation through here is a later, separate change (needs a
+  // resolved outPlayerId ?? outGuestPlayerId per side); filtered to Player-only rotations here
+  // as a no-op today (no write path produces a guest rotation yet).
   return rotations.map((r) => ({
-    outPlayerId: r.outPlayerId,
-    inPlayerId: r.inPlayerId,
+    outPlayerId: r.outPlayerId!,
+    inPlayerId: r.inPlayerId!,
     outPosition: r.outPosition,
     inPosition: r.inPosition,
     positionOnly: r.positionOnly,
@@ -453,6 +463,10 @@ async function populatePlayerActualPositions(
   });
 
   for (const actual of actuals) {
+    // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+    // guestPlayerId instead). Syncing computed positions onto a GuestPlayer's own row is a
+    // later, separate change (needs guestPlayerId-keyed lookup too) -- skipped as a no-op today.
+    if (!actual.playerId) continue;
     const positions = playerPositionMap.get(actual.playerId);
     if (positions && positions.size > 0) {
       await tx.postMatchPlayerActual.update({
@@ -471,8 +485,15 @@ export async function getActualPositionIntervals(
     orderBy: [{ startedAtMs: "asc" }],
   });
 
+  // ADR-0106: ActualPositionInterval.playerId is now nullable, with guestPlayerId as the
+  // alternative identity (exactly one of the two is always set -- enforced by a CHECK
+  // constraint). This position/interval computation layer is already participant-agnostic
+  // (lineup-state.ts operates on opaque string ids with no Player lookup), so resolving
+  // whichever id is set is a correct, forward-compatible read -- not a placeholder -- rather
+  // than a Player-only filter: a future GuestPlayer interval flows through this exact code
+  // unchanged once a write path populates guestPlayerId.
   return rows.map((r) => ({
-    playerId: r.playerId,
+    playerId: (r.playerId ?? r.guestPlayerId)!,
     position: r.position,
     line: r.line,
     lane: r.lane,
@@ -489,8 +510,15 @@ export async function getActualPositionIntervalsForRef(ref: FootballMatchRef): P
     orderBy: [{ startedAtMs: "asc" }],
   });
 
+  // ADR-0106: ActualPositionInterval.playerId is now nullable, with guestPlayerId as the
+  // alternative identity (exactly one of the two is always set -- enforced by a CHECK
+  // constraint). This position/interval computation layer is already participant-agnostic
+  // (lineup-state.ts operates on opaque string ids with no Player lookup), so resolving
+  // whichever id is set is a correct, forward-compatible read -- not a placeholder -- rather
+  // than a Player-only filter: a future GuestPlayer interval flows through this exact code
+  // unchanged once a write path populates guestPlayerId.
   return rows.map((r) => ({
-    playerId: r.playerId,
+    playerId: (r.playerId ?? r.guestPlayerId)!,
     position: r.position,
     line: r.line,
     lane: r.lane,
@@ -510,8 +538,15 @@ export async function getPlayerPositionIntervals(
     orderBy: [{ startedAtMs: "asc" }],
   });
 
+  // ADR-0106: ActualPositionInterval.playerId is now nullable, with guestPlayerId as the
+  // alternative identity (exactly one of the two is always set -- enforced by a CHECK
+  // constraint). This position/interval computation layer is already participant-agnostic
+  // (lineup-state.ts operates on opaque string ids with no Player lookup), so resolving
+  // whichever id is set is a correct, forward-compatible read -- not a placeholder -- rather
+  // than a Player-only filter: a future GuestPlayer interval flows through this exact code
+  // unchanged once a write path populates guestPlayerId.
   return rows.map((r) => ({
-    playerId: r.playerId,
+    playerId: (r.playerId ?? r.guestPlayerId)!,
     position: r.position,
     line: r.line,
     lane: r.lane,

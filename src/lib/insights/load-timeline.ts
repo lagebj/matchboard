@@ -115,6 +115,10 @@ export async function getLoadTimeline(
 
   const actualByPlayerRound = new Map<string, Map<string, { matchCount: number; sources: string[] }>>();
   for (const act of actualParticipations) {
+    // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+    // guestPlayerId instead). This is a per-Player longitudinal load insight -- a GuestPlayer
+    // must never contribute to it, by construction.
+    if (!act.playerId) continue;
     const matchRoundId = matchRoundIdByMatchId.get(act.report.matchId);
     if (!matchRoundId) continue;
     if (!actualByPlayerRound.has(act.playerId)) {

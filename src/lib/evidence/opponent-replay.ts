@@ -349,7 +349,12 @@ async function getPlayerRatingsForMatch(
       },
     });
 
-    return actuals.map((a) => ({
+    // ADR-0106: PostMatchPlayerActual.playerId/player are now nullable (a GuestPlayer appearance
+    // uses guestPlayerId instead). A GuestPlayer has no ratings/positions to snapshot here by
+    // design (ADR-0106 §4) -- excluded, not just a PR1 placeholder.
+    return actuals
+      .filter((a): a is typeof a & { playerId: string; player: NonNullable<typeof a.player> } => a.playerId !== null && a.player !== null)
+      .map((a) => ({
       playerId: a.playerId,
       overallRating: baselines.get(a.playerId) ?? null,
       primaryPosition: a.player.primaryPosition,
@@ -373,7 +378,11 @@ async function getPlayerRatingsForMatch(
 
   if (!report) return [];
 
-  return report.playerReports.map((a) => ({
+  // ADR-0106: EventPostMatchPlayer.playerId/player are now nullable (a GuestPlayer appearance
+  // uses guestPlayerId instead) -- same exclusion rationale as the League branch above.
+  return report.playerReports
+    .filter((a): a is typeof a & { playerId: string; player: NonNullable<typeof a.player> } => a.playerId !== null && a.player !== null)
+    .map((a) => ({
     playerId: a.playerId,
     overallRating: baselines.get(a.playerId) ?? null,
     primaryPosition: a.player.primaryPosition,

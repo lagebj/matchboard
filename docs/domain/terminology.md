@@ -38,6 +38,12 @@ All user-facing UI, validation messages, empty states, exports, README, AGENTS.m
 | Fair Play concern | Fair Play concern, observed concern | Not "bad behaviour" or "red flag" |
 | Post-match observation | Post-match observation | Not "opponent evaluation" |
 | Previous encounters | Encounter history | Not "risk history" |
+| Guest player | Temporary player, borrowed player, external player | A reusable, Group-owned external-player identity — never a permanent tracked Player |
+| Guest player pool | — | The set of Guest players belonging to a Group |
+| Source | Cohort, birth year (as a field label) | Free-text label identifying where a Guest player is drawn from, e.g. "G2016" |
+| Owning Group | — | The Group that created and owns a Guest player identity (also reserved for future Group collaboration — see `docs/domain/future-group-collaboration.md`) |
+| Borrowing Group | — | Reserved for a future Group-to-Group player-collaboration capability — not implemented (see `docs/domain/future-group-collaboration.md`) |
+| Collaboration | — | Reserved for a future bilateral Group-to-Group player-sharing capability — not implemented (see `docs/domain/future-group-collaboration.md`) |
 
 ## Domain boundaries
 

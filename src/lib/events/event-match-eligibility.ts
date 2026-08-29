@@ -54,7 +54,16 @@ export async function getEligibleEventMatchPlayers(
   const squad = match.eventSquad;
   const players: EligibleEventMatchPlayer[] = [];
 
-  for (const sp of squad.players) {
+  // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment uses
+  // guestPlayerId instead). Event GuestPlayer eligibility is a later, separate change (this
+  // function is the highest-priority target for that work) -- filtered here as a no-op today
+  // (no write path produces a guest row yet), preserving current Player-only behaviour.
+  const playerBackedSquadRows = squad.players.filter(
+    (sp): sp is typeof sp & { playerId: string; player: NonNullable<typeof sp.player> } =>
+      sp.playerId !== null && sp.player !== null,
+  );
+
+  for (const sp of playerBackedSquadRows) {
     const attrs = await db.player.findFirst({
       where: { id: sp.playerId, ...orgFilter.filter },
       select: {
@@ -99,10 +108,12 @@ export async function getEligibleEventMatchPlayers(
     },
   });
 
-  const playerIdsInSquad = new Set(squad.players.map((sp) => sp.playerId));
+  const playerIdsInSquad = new Set(playerBackedSquadRows.map((sp) => sp.playerId));
 
+  // ADR-0106: EventMatchSupportAssignment.playerId is now nullable (a GuestPlayer helper uses
+  // guestPlayerId instead) -- same PR1 no-op exclusion as above.
   for (const sa of supportAssignments) {
-    if (playerIdsInSquad.has(sa.playerId)) continue;
+    if (!sa.playerId || playerIdsInSquad.has(sa.playerId)) continue;
 
     const player = await db.player.findFirst({
       where: { id: sa.playerId, ...orgFilter.filter },

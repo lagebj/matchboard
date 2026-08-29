@@ -162,7 +162,7 @@ export async function GET(
 
   const isFinalized = event.status === 'FINALIZED';
 
-  const eventMatches: EventMatchData[] = await db.eventMatch.findMany({
+  const rawEventMatches = await db.eventMatch.findMany({
     where: { eventId },
     include: {
       eventSquad: { select: { id: true, name: true } },
@@ -178,6 +178,18 @@ export async function GET(
     orderBy: [{ startsAt: 'asc' }, { eventSquadId: 'asc' }],
   });
 
+  // ADR-0106: EventMatchSupportAssignment.playerId/player are now nullable (a GuestPlayer helper
+  // assignment uses guestPlayerId instead). GuestPlayer-aware Event Match helpers in the Excel
+  // export are a later, separate change; filtered to Player-backed rows as a no-op today (no
+  // write path produces a guest row yet).
+  const eventMatches: EventMatchData[] = rawEventMatches.map((m) => ({
+    ...m,
+    supportAssignments: m.supportAssignments.filter(
+      (a): a is typeof a & { playerId: string; player: NonNullable<typeof a.player> } =>
+        a.playerId !== null && a.player !== null,
+    ),
+  }));
+
   const timingBySquadId = new Map(
     event.squads.map((s) => [s.id, getEffectiveEventSquadMatchTiming(event, s)] as const),
   );
@@ -189,26 +201,45 @@ export async function GET(
     status: m.status,
   }));
 
-  const eventSquads = event.squads.map((s) => ({
+  // ADR-0106: EventSquadPlayer.playerId/player and EventPlayerAvailability.playerId/player are
+  // now nullable (a GuestPlayer assignment/entry uses guestPlayerId instead). GuestPlayer-aware
+  // Excel export is a later, separate change; filtered to Player-backed rows as a no-op today
+  // (no write path produces a guest row yet).
+  const squadsWithPlayers: EventSquadData[] = event.squads.map((s) => ({
+    id: s.id,
+    name: s.name,
+    generationOrder: s.generationOrder,
+    players: s.players.filter(
+      (p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
+        p.playerId !== null && p.player !== null,
+    ),
+  }));
+
+  const playersWithPlayer = event.players.filter(
+    (ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } =>
+      ep.playerId !== null && ep.player !== null,
+  );
+
+  const eventSquads = squadsWithPlayers.map((s) => ({
     id: s.id,
     name: s.name,
     players: s.players.map((p) => ({ playerId: p.playerId })),
   }));
 
-  const playerAvailability = event.players.map((ep) => ({
+  const playerAvailability = playersWithPlayer.map((ep) => ({
     playerId: ep.playerId,
     status: ep.status,
   }));
 
   const playerNames = new Map<string, { firstName: string; lastName: string | null }>();
   const squadNames = new Map<string, string>();
-  for (const s of event.squads) {
+  for (const s of squadsWithPlayers) {
     squadNames.set(s.id, s.name);
     for (const p of s.players) {
       playerNames.set(p.playerId, { firstName: p.player.firstName, lastName: p.player.lastName });
     }
   }
-  for (const ep of event.players) {
+  for (const ep of playersWithPlayer) {
     playerNames.set(ep.playerId, { firstName: ep.player.firstName, lastName: ep.player.lastName });
   }
 
@@ -233,7 +264,7 @@ export async function GET(
   });
 
   const squadPlayerMap = new Map<string, SquadPlayer[]>();
-  for (const squad of event.squads) {
+  for (const squad of squadsWithPlayers) {
     squadPlayerMap.set(squad.id, squad.players);
   }
 
@@ -289,10 +320,10 @@ export async function GET(
   workbook.creator = 'Matchboard';
   workbook.created = new Date();
 
-  buildSquadsSheet(workbook, event.squads);
+  buildSquadsSheet(workbook, squadsWithPlayers);
   buildMatchCallOutSheet(workbook, eventMatches, timingBySquadId, squadPlayerMap, supportConflictData);
   buildConflictsSheet(workbook, supportConflictData, eventMatches, timingBySquadId);
-  buildLineupsSheet(workbook, lineupData, eventMatches, event.squads);
+  buildLineupsSheet(workbook, lineupData, eventMatches, squadsWithPlayers);
 
   if (isFinalized) {
     const postMatchReports = await db.eventPostMatchReport.findMany({
@@ -324,7 +355,7 @@ export async function GET(
       },
     });
 
-    buildPlannedVsActualSheet(workbook, event.squads, eventMatches, postMatchReports as unknown as PostMatchReportData[]);
+    buildPlannedVsActualSheet(workbook, squadsWithPlayers, eventMatches, postMatchReports as unknown as PostMatchReportData[]);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

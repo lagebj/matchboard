@@ -66,15 +66,22 @@ export async function seedEventReportFromLiveSession(
     select: { playerId: true, plannedRole: true },
   });
 
-  const squadPlayerIds = new Set(eventMatch.eventSquad.players.map((sp) => sp.playerId));
+  // ADR-0106: EventSquadPlayer.playerId/EventMatchSupportAssignment.playerId are now nullable
+  // (a GuestPlayer participant uses guestPlayerId instead). GuestPlayer participation is not yet
+  // wired into this seeding path (Event GuestPlayer integration is a later, separate change) --
+  // filtering nulls here is a no-op today (no write path produces one yet) and keeps this
+  // function's existing Player-only behaviour unchanged in the meantime.
+  const squadPlayerIds = new Set(
+    eventMatch.eventSquad.players.map((sp) => sp.playerId).filter((id): id is string => id !== null),
+  );
   const allPlayerIds = new Set<string>([
     ...squadPlayerIds,
-    ...supportAssignments.map((sa) => sa.playerId),
+    ...supportAssignments.map((sa) => sa.playerId).filter((id): id is string => id !== null),
   ]);
 
   const supportPlayerRoles = new Map<string, string>();
   for (const sa of supportAssignments) {
-    if (sa.plannedRole) {
+    if (sa.plannedRole && sa.playerId) {
       supportPlayerRoles.set(sa.playerId, sa.plannedRole);
     }
   }

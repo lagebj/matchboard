@@ -112,6 +112,13 @@ export async function getPlannedVsActualDeltas(
     }
 
     for (const act of actualParticipations) {
+      // ADR-0106: PostMatchPlayerActual.playerId/player are now nullable (a GuestPlayer
+      // appearance uses guestPlayerId instead). A GuestPlayer is never "planned" by definition
+      // (guests never create Selection rows), so including one here would misleadingly flag
+      // every guest appearance as an unplanned-participation delta -- excluded pending a
+      // deliberate product decision on how guest participation should be represented in this
+      // specific insight, not folded in silently.
+      if (!act.playerId || !act.player) continue;
       const wasPlanned = plannedPlayerIds.has(act.playerId);
       if (!wasPlanned) {
         entries.push({

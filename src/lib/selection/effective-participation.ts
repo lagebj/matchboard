@@ -166,7 +166,12 @@ export async function getEffectiveMatchParticipation(
     }
     const assistCountMap = new Map<string, number>();
     for (const assist of report.assists) {
-      assistCountMap.set(assist.playerId, (assistCountMap.get(assist.playerId) ?? 0) + 1);
+      // ADR-0106: Assist.playerId is now nullable (a GuestPlayer assist uses guestPlayerId
+      // instead). This is the canonical Player statistics/fairness layer -- a GuestPlayer must
+      // never contribute to it, by construction.
+      if (assist.playerId) {
+        assistCountMap.set(assist.playerId, (assistCountMap.get(assist.playerId) ?? 0) + 1);
+      }
     }
     const actualsSet = new Set(
       report.playerActuals.map((a) => a.playerId),
@@ -175,6 +180,10 @@ export async function getEffectiveMatchParticipation(
     // Reported/LOCKED: actuals are source of truth
     for (const actual of report.playerActuals) {
       if (actual.attendanceStatus === "NO_SHOW") continue;
+      // ADR-0106: PostMatchPlayerActual.playerId is now nullable (a GuestPlayer appearance uses
+      // guestPlayerId instead). EffectiveParticipationRow is the canonical Player statistics/
+      // fairness layer -- a GuestPlayer must never contribute to it, by construction.
+      if (!actual.playerId) continue;
 
       const plannedSel = selections.find((s) => s.playerId === actual.playerId);
 
@@ -227,6 +236,8 @@ export async function getEffectiveMatchParticipation(
     // NO_SHOW players: shown for context
     for (const actual of report.playerActuals) {
       if (actual.attendanceStatus !== "NO_SHOW") continue;
+      // ADR-0106: see the "actuals are source of truth" guard above.
+      if (!actual.playerId) continue;
 
       const plannedSel = selections.find((s) => s.playerId === actual.playerId);
 

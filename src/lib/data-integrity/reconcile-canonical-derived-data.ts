@@ -115,7 +115,11 @@ async function reconcilePlayerAssistsDerivedProjection(
   for (const report of filteredReports) {
     const eventAssistCounts = new Map<string, number>();
     for (const assist of report.assists) {
-      eventAssistCounts.set(assist.playerId, (eventAssistCounts.get(assist.playerId) ?? 0) + 1);
+      // ADR-0106: Assist.playerId is now nullable (a GuestPlayer assist uses guestPlayerId
+      // instead) -- excluded from this Player-stat reconciliation by construction.
+      if (assist.playerId) {
+        eventAssistCounts.set(assist.playerId, (eventAssistCounts.get(assist.playerId) ?? 0) + 1);
+      }
     }
 
     for (const stat of report.playerStats) {

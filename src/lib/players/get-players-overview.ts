@@ -234,6 +234,12 @@ export async function getPlayersSeasonOverview(
         continue;
       }
 
+      // ADR-0106: playerId is nullable at the type level (GuestPlayer facts use guestPlayerId
+      // instead), but this query's own `where: { playerId: { in: playerIds } }` already excludes
+      // both nulls and guest-only rows at the database level -- playerIds is the tracked-Player
+      // id set, and SQL `IN` never matches NULL. Guarded anyway for defence-in-depth and to match
+      // this file's existing convention (see the goal/assist checks below).
+      if (!actual.playerId) continue;
       const mi = matchById.get(report.matchId);
       const entry = {
         matchId: report.matchId,
@@ -259,7 +265,9 @@ export async function getPlayersSeasonOverview(
     }
 
     for (const assist of report.assists) {
-      if (playerIds.includes(assist.playerId)) {
+      // ADR-0106: Assist.playerId is now nullable (a GuestPlayer assist uses guestPlayerId
+      // instead) -- excluded here by construction, matching the goal check above.
+      if (assist.playerId && playerIds.includes(assist.playerId)) {
         const existing = statsByPlayer.get(assist.playerId) ?? { goals: 0, assists: 0 };
         existing.assists += 1;
         statsByPlayer.set(assist.playerId, existing);
@@ -303,12 +311,19 @@ export async function getPlayersSeasonOverview(
     }
 
     for (const assist of report.assistEvents) {
+      // ADR-0106: EventAssistEvent.playerId is now nullable (a GuestPlayer assist uses
+      // guestPlayerId instead) -- excluded here by construction, matching the goal check above.
+      if (!assist.playerId) continue;
       const existing = statsByPlayer.get(assist.playerId) ?? { goals: 0, assists: 0 };
       existing.assists += 1;
       statsByPlayer.set(assist.playerId, existing);
     }
 
     for (const pr of report.playerReports) {
+      // ADR-0106: EventPostMatchPlayer.playerId is now nullable (a GuestPlayer appearance uses
+      // guestPlayerId instead) -- excluded here by construction, since this map feeds Player
+      // season "played" totals.
+      if (!pr.playerId) continue;
       eventAppearancesByPlayer.set(pr.playerId, (eventAppearancesByPlayer.get(pr.playerId) ?? 0) + 1);
     }
   }

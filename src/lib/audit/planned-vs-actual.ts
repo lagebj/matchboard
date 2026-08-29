@@ -107,10 +107,19 @@ export async function getPlannedVsActualForMatch(
       }
     }
     for (const assist of matchAssists) {
-      assistCounts.set(assist.playerId, (assistCounts.get(assist.playerId) ?? 0) + 1);
+      // ADR-0106: Assist.playerId is now nullable (a GuestPlayer assist uses guestPlayerId
+      // instead).
+      if (assist.playerId) {
+        assistCounts.set(assist.playerId, (assistCounts.get(assist.playerId) ?? 0) + 1);
+      }
     }
 
     for (const actual of report.playerActuals) {
+      // ADR-0106: PostMatchPlayerActual.playerId/player are now nullable (a GuestPlayer
+      // appearance uses guestPlayerId instead). This audit view is Player-only pending later
+      // GuestPlayer-aware audit display work -- excluded here as a no-op today (no write path
+      // produces a guest actual yet).
+      if (!actual.playerId || !actual.player) continue;
       const playerName = actual.player.firstName + (actual.player.lastName ? ` ${actual.player.lastName}` : "");
       const isPlanned = plannedPlayerIds.has(actual.playerId);
 
@@ -425,6 +434,10 @@ export async function getSeasonReview(
   }
 
   for (const actual of actualParticipations) {
+    // ADR-0106: PostMatchPlayerActual.playerId/player are now nullable (a GuestPlayer appearance
+    // uses guestPlayerId instead). This is a per-Player season summary -- a GuestPlayer must
+    // never contribute to it, by construction.
+    if (!actual.playerId || !actual.player) continue;
     const name = actual.player.firstName + (actual.player.lastName ? ` ${actual.player.lastName}` : "");
     let entry = playerMap.get(actual.playerId);
     if (!entry) {
@@ -461,6 +474,9 @@ export async function getSeasonReview(
   }
 
   for (const assist of assists) {
+    // ADR-0106: Assist.playerId is now nullable (a GuestPlayer assist uses guestPlayerId
+    // instead).
+    if (!assist.playerId) continue;
     const entry = playerMap.get(assist.playerId);
     if (entry) entry.assists++;
   }

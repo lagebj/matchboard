@@ -110,7 +110,15 @@ export default async function PostMatchRoute({ params }: PageProps) {
     teamNote: report.teamNote,
     completedBy: report.completedBy,
     completedAt: report.completedAt?.toISOString() ?? null,
-    playerActuals: report.playerActuals.map((p) => ({
+    // ADR-0106: PostMatchPlayerActual.playerId/player and Assist.playerId/player are now
+    // nullable (a GuestPlayer appearance/assist uses guestPlayerId instead). GuestPlayer-aware
+    // post-match reporting UI is a later, separate change; filtered to Player-backed rows as a
+    // no-op today (no write path produces a guest row yet).
+    playerActuals: report.playerActuals
+      .filter((p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
+        p.playerId !== null && p.player !== null,
+      )
+      .map((p) => ({
       id: p.id,
       playerId: p.playerId,
       playerName: `${p.player.firstName} ${p.player.lastName ?? ""}`.trim(),
@@ -126,7 +134,11 @@ export default async function PostMatchRoute({ params }: PageProps) {
       minute: g.minute,
       type: g.type,
     })),
-    assists: report.assists.map((a) => ({
+    assists: report.assists
+      .filter((a): a is typeof a & { playerId: string; player: NonNullable<typeof a.player> } =>
+        a.playerId !== null && a.player !== null,
+      )
+      .map((a) => ({
       id: a.id,
       playerId: a.playerId,
       playerName: `${a.player.firstName} ${a.player.lastName ?? ""}`.trim(),
@@ -214,9 +226,16 @@ export default async function PostMatchRoute({ params }: PageProps) {
     note: f.note,
   }));
 
+  // ADR-0106: PostMatchPlayerActual.playerId/player are now nullable (a GuestPlayer appearance
+  // uses guestPlayerId instead). GuestPlayer-aware feedback/observation player pickers are a
+  // later, separate change; filtered to Player-backed rows as a no-op today (no write path
+  // produces a guest row yet).
   const playerOptions = report
     ? report.playerActuals
-        .filter((p) => p.attendanceStatus === "PRESENT")
+        .filter(
+          (p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
+            p.attendanceStatus === "PRESENT" && p.playerId !== null && p.player !== null,
+        )
         .map((p) => ({
           id: p.playerId,
           name: `${p.player.firstName} ${p.player.lastName ?? ""}`.trim(),
