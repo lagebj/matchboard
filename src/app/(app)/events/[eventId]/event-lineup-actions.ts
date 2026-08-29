@@ -6,6 +6,7 @@ import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
 import { assertEligibleEventMatchPlayer } from '@/lib/events/event-match-eligibility';
+import { getUnavailableParticipantIdsForMatch } from '@/lib/events/event-match-availability';
 import { getEffectiveEventSquadFormationId } from '@/lib/events/event-types';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
@@ -419,13 +420,19 @@ export async function autoFillEventMatchLineup(lineupId: string) {
 
   if (!eventMatch) throw new Error('Event match not found');
 
+  // ADR-0106 PR 5b: exclude participants marked unavailable for this specific match (Event-level
+  // UNAVAILABLE/WITHDRAWN or a per-match exception) from the auto-fill candidate pool.
+  const unavailableParticipantIds = await getUnavailableParticipantIdsForMatch(lineup.eventMatchId, ctx.orgFilter);
+
   // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment uses
   // guestPlayerId instead). GuestPlayer-aware auto-fill is a later, separate change; filtered to
   // Player-backed rows as a no-op today (no write path produces a guest row yet).
   const squadPlayers = eventMatch.eventSquad.players
     .filter(
       (sp): sp is typeof sp & { player: NonNullable<typeof sp.player> } =>
-        sp.player !== null && (!sp.locked || sp.source === 'LOCKED' || sp.source === 'MANUAL' || sp.source === 'AUTO'),
+        sp.player !== null &&
+        !unavailableParticipantIds.has(sp.player.id) &&
+        (!sp.locked || sp.source === 'LOCKED' || sp.source === 'MANUAL' || sp.source === 'AUTO'),
     )
     .map((sp) => ({
       id: sp.player.id,

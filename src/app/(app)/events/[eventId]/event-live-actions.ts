@@ -8,8 +8,10 @@ import type { EventLiveEventInput } from "@/lib/live-match/event-live-match-even
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { getUnavailableParticipantIdsForMatch } from "@/lib/events/event-match-availability";
 
-async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
+async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string; orgFilter: OrgFilterMode }> {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   const match = await db.eventMatch.findFirst({
@@ -17,7 +19,7 @@ async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ event
     select: { eventId: true },
   });
   if (!match) throw new Error("Event match not found or access denied.");
-  return { eventId: match.eventId };
+  return { eventId: match.eventId, orgFilter: ctx.orgFilter };
 }
 
 export async function startEventLiveSessionAction(eventMatchId: string) {
@@ -141,7 +143,7 @@ export async function getRecentEventEventsAction(eventMatchId: string, limit?: n
 
 export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: string) {
   try {
-    const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
+    const { eventId, orgFilter } = await requireEventMatchOrgAccess(eventMatchId);
 
     const match = await db.eventMatch.findUnique({
       where: { id: eventMatchId },
@@ -237,6 +239,10 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
 
     const activeSession = await getEventActiveSession(eventMatchId);
 
+    // ADR-0106 PR 5b: exclude participants marked unavailable for this specific match from the
+    // live-reporting roster (scorer/assist/rotation/position pickers).
+    const unavailableParticipantIds = await getUnavailableParticipantIdsForMatch(eventMatchId, orgFilter);
+
     return {
       success: true as const,
       data: {
@@ -261,7 +267,7 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
           ? match.eventSquad.players
               .filter(
                 (sp): sp is typeof sp & { player: NonNullable<typeof sp.player> } =>
-                  sp.player !== null,
+                  sp.player !== null && !unavailableParticipantIds.has(sp.player.id),
               )
               .map((sp) => ({
               playerId: sp.player.id,

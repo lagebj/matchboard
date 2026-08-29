@@ -10,9 +10,9 @@ import { assertExactlyOneParticipant } from "@/lib/participants/participant-ref"
 // carries the same "out of the whole Event" semantics -- both are treated as a hard event-level
 // exclusion that no per-match exception can undo).
 //
-// This module is purely additive in this PR: no existing planning/selection/live-reporting code
-// path reads getEffectiveEventMatchAvailability() yet (that wiring is PR 5b, a separate,
-// deliberately follow-up change) -- nothing here can regress current behaviour by construction.
+// getUnavailableParticipantIdsForMatch() is the batch-query entry point every planning/
+// live-reporting surface should filter its candidate pool through (ADR-0106 PR 5b) -- one query
+// pair per match, not one getEffectiveEventMatchAvailability() call per candidate.
 
 export type ParticipantIdentity = {
   playerId: string | null;
@@ -90,6 +90,42 @@ export async function getEffectiveEventMatchAvailability(
   const isAvailableForMatch = !HARD_EVENT_LEVEL_EXCLUSIONS.includes(eventLevelStatus) && !hasMatchException;
 
   return { eventLevelStatus, hasMatchException, isAvailableForMatch };
+}
+
+/**
+ * Batch equivalent of getEffectiveEventMatchAvailability()'s isAvailableForMatch=false case, for
+ * filtering a candidate pool (auto-fill, manual assignment eligibility, live-reporting roster)
+ * without one query per candidate. Returns the set of participantIds (playerId or guestPlayerId)
+ * that are NOT available for this specific match -- callers filter their own pool by excluding
+ * these ids. Two queries total regardless of pool size.
+ */
+export async function getUnavailableParticipantIdsForMatch(
+  eventMatchId: string,
+  orgFilter: OrgFilterMode,
+): Promise<Set<string>> {
+  const match = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, event: orgFilter.filter },
+    select: { eventId: true },
+  });
+  if (!match) return new Set();
+
+  const [hardExcluded, exceptions] = await Promise.all([
+    db.eventPlayerAvailability.findMany({
+      where: { eventId: match.eventId, status: { in: HARD_EVENT_LEVEL_EXCLUSIONS }, ...orgWhere(orgFilter) },
+      select: { playerId: true, guestPlayerId: true },
+    }),
+    db.eventMatchAvailability.findMany({
+      where: { eventMatchId, ...orgWhere(orgFilter) },
+      select: { playerId: true, guestPlayerId: true },
+    }),
+  ]);
+
+  const unavailable = new Set<string>();
+  for (const row of [...hardExcluded, ...exceptions]) {
+    const id = row.playerId ?? row.guestPlayerId;
+    if (id) unavailable.add(id);
+  }
+  return unavailable;
 }
 
 export async function setEventMatchUnavailable(

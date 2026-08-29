@@ -23,6 +23,8 @@ let testGroupId: string;
 let playerCodeCounter = 30000;
 
 async function cleanTables(db: PrismaClient) {
+  await db.eventMatchAvailability.deleteMany();
+  await db.eventPlayerAvailability.deleteMany();
   await db.eventMatchSupportAssignment.deleteMany();
   await db.eventMatch.deleteMany();
   await db.eventSquadPlayer.deleteMany();
@@ -253,6 +255,114 @@ describe("event-match-eligibility (ADR-0106 GuestPlayer-aware)", () => {
       try {
         const result = await assertEligibleEventMatchPlayer(match.id, guestPlayer.id, auth.orgFilter);
         expect(result.eligible).toBe(false);
+      } finally {
+        await cleanTables(db);
+      }
+    });
+
+    it("rejects a participant in the squad but marked unavailable for this specific match (ADR-0106 PR 5b)", async () => {
+      const { assertEligibleEventMatchPlayer } = await import("@/lib/events/event-match-eligibility");
+      const event = await createEvent(db);
+      const squad = await db.eventSquad.create({
+        data: { name: "Squad 1", intent: "BALANCED", targetSize: 5, eventId: event.id, generationOrder: 0, organisationId: testOrgId },
+      });
+      const guestPlayer = await db.guestPlayer.create({
+        data: { name: "Match-unavailable Guest", organisationId: testOrgId, footballGroupId: testGroupId },
+      });
+      await db.eventSquadPlayer.create({
+        data: { eventId: event.id, eventSquadId: squad.id, guestPlayerId: guestPlayer.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+      });
+      const match = await db.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad.id,
+          category: "CUP",
+          organisationId: testOrgId,
+          opponentName: "Opponent",
+          startsAt: new Date("2028-01-01T10:00:00Z"),
+          status: "SCHEDULED",
+        },
+      });
+      await db.eventMatchAvailability.create({
+        data: { eventMatchId: match.id, guestPlayerId: guestPlayer.id, organisationId: testOrgId },
+      });
+
+      try {
+        const result = await assertEligibleEventMatchPlayer(match.id, guestPlayer.id, auth.orgFilter);
+        expect(result.eligible).toBe(false);
+        expect(result.reason).toMatch(/unavailable/i);
+      } finally {
+        await cleanTables(db);
+      }
+    });
+
+    it("rejects a participant whose Event-level status is UNAVAILABLE, even without a per-match exception", async () => {
+      const { assertEligibleEventMatchPlayer } = await import("@/lib/events/event-match-eligibility");
+      const event = await createEvent(db);
+      const squad = await db.eventSquad.create({
+        data: { name: "Squad 1", intent: "BALANCED", targetSize: 5, eventId: event.id, generationOrder: 0, organisationId: testOrgId },
+      });
+      const guestPlayer = await db.guestPlayer.create({
+        data: { name: "Event-unavailable Guest", organisationId: testOrgId, footballGroupId: testGroupId },
+      });
+      await db.eventSquadPlayer.create({
+        data: { eventId: event.id, eventSquadId: squad.id, guestPlayerId: guestPlayer.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+      });
+      await db.eventPlayerAvailability.create({
+        data: { eventId: event.id, guestPlayerId: guestPlayer.id, status: "UNAVAILABLE", organisationId: testOrgId },
+      });
+      const match = await db.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad.id,
+          category: "CUP",
+          organisationId: testOrgId,
+          opponentName: "Opponent",
+          startsAt: new Date("2028-01-01T10:00:00Z"),
+          status: "SCHEDULED",
+        },
+      });
+
+      try {
+        const result = await assertEligibleEventMatchPlayer(match.id, guestPlayer.id, auth.orgFilter);
+        expect(result.eligible).toBe(false);
+      } finally {
+        await cleanTables(db);
+      }
+    });
+  });
+
+  describe("getEligibleEventMatchPlayers excludes match-unavailable participants (ADR-0106 PR 5b)", () => {
+    it("excludes a squad participant with a per-match unavailability exception", async () => {
+      const { getEligibleEventMatchPlayers } = await import("@/lib/events/event-match-eligibility");
+      const event = await createEvent(db);
+      const squad = await db.eventSquad.create({
+        data: { name: "Squad 1", intent: "BALANCED", targetSize: 5, eventId: event.id, generationOrder: 0, organisationId: testOrgId },
+      });
+      const guestPlayer = await db.guestPlayer.create({
+        data: { name: "Match-unavailable Guest", organisationId: testOrgId, footballGroupId: testGroupId },
+      });
+      await db.eventSquadPlayer.create({
+        data: { eventId: event.id, eventSquadId: squad.id, guestPlayerId: guestPlayer.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+      });
+      const match = await db.eventMatch.create({
+        data: {
+          eventId: event.id,
+          eventSquadId: squad.id,
+          category: "CUP",
+          organisationId: testOrgId,
+          opponentName: "Opponent",
+          startsAt: new Date("2028-01-01T10:00:00Z"),
+          status: "SCHEDULED",
+        },
+      });
+      await db.eventMatchAvailability.create({
+        data: { eventMatchId: match.id, guestPlayerId: guestPlayer.id, organisationId: testOrgId },
+      });
+
+      try {
+        const eligible = await getEligibleEventMatchPlayers(match.id, auth.orgFilter);
+        expect(eligible.some((p) => p.guestPlayerId === guestPlayer.id)).toBe(false);
       } finally {
         await cleanTables(db);
       }
