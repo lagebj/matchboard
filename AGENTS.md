@@ -965,15 +965,42 @@ Note are optional. A guest player has no delete action — only `active`/`deacti
 verifies org + Group access via `resolveGroupContext()`/`requireGroupMutationRole()`, the same
 pattern `groups/actions.ts` uses.
 
-**Current implementation status**: GuestPlayer identity, lifecycle, and Group-scoped management
-UX exist. No Event/League write-path integration and no Event-Match-availability enforcement
-exist yet. Every existing read path that touches a newly-nullable `playerId`/`player` field has
-been updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each
-such site) — this is deliberate, temporary scaffolding pending the follow-up phases that add
-GuestPlayer write paths into Event/League planning surfaces and cross-cutting
-statistics/evidence-isolation hardening. See ADR-0106 for the full design and phased delivery
-plan, and ARR-0036 for unrelated pre-existing schema/migration-history drift found (and
-deliberately left unbundled) while preparing the foundational migration.
+**Event participation** (manual only): a GuestPlayer can be added to an Event's participant pool,
+have its availability set, and be manually assigned to (or unassigned from) one Event Squad —
+`src/lib/events/event-guest-player-participation.ts` (domain),
+`src/app/(app)/events/event-guest-player-actions.ts` (server actions, kept as a separate,
+parallel action file rather than retrofitting every Player-keyed Event action — mirrors
+ADR-0077's precedent of keeping guest-specific write paths distinct), and a "Guest players"
+section on the Event detail page's Player pool tab
+(`src/components/events/event-guest-player-pool-panel.tsx`). Every write path verifies the
+GuestPlayer's `footballGroupId` matches the Event's `footballGroupId`
+(`assertGuestPlayerBelongsToEventGroup()`) — a GuestPlayer can never participate in an Event
+outside its own Group. `getEligibleEventMatchPlayers()`/`assertEligibleEventMatchPlayer()`
+(`src/lib/events/event-match-eligibility.ts`) are GuestPlayer-aware, returning
+`ParticipantRef`-shaped entries (`participantId`/`participantType`/`playerId`/`guestPlayerId`/
+`displayName`) via `resolveParticipantRef()` — a GuestPlayer assigned to a match's squad is
+eligible for lineup assignment on the same terms as a Player, and (per "Player attribute
+ratings") is never given a fabricated rating or inferred goalkeeper capability.
+
+**Explicitly not yet integrated** (real, documented scope boundaries, not oversights):
+- Event Match support/helper assignment (`EventMatchSupportAssignment`) for GuestPlayers —
+  `event-match-support.ts`'s eligibility engine (time-overlap conflict detection across a
+  player's own squad and every other match) is Player-specific and substantial; a GuestPlayer
+  cannot yet be used as a match-day helper, only as a normal squad member.
+- Automatic event-squad-generation.ts candidate-pool/scoring inclusion — a GuestPlayer must be
+  manually assigned to a squad; the generation algorithm does not yet consider GuestPlayers as
+  candidates.
+
+**Current implementation status**: GuestPlayer identity, lifecycle, Group-scoped management UX,
+and manual Event participation exist. No League write-path integration and no
+Event-Match-availability enforcement exist yet. Every remaining read path that touches a
+newly-nullable `playerId`/`player` field has been updated only enough to keep it Player-scoped
+(an explicit `// ADR-0106:` comment marks each such site) — this is deliberate, temporary
+scaffolding pending the follow-up phases that add GuestPlayer write paths into League planning
+surfaces, Event Match support/helper assignment, generation-engine candidate inclusion, and
+cross-cutting statistics/evidence-isolation hardening. See ADR-0106 for the full design and
+phased delivery plan, and ARR-0036 for unrelated pre-existing schema/migration-history drift
+found (and deliberately left unbundled) while preparing the foundational migration.
 
 ### Future Group collaboration discovery (not implemented)
 
@@ -2230,9 +2257,11 @@ Rules:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
-| `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
+| `src/lib/events/event-match-eligibility.ts` | Canonical, GuestPlayer-aware eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` (ADR-0106) |
+| `src/lib/events/event-guest-player-participation.ts` | GuestPlayer Event participation: Group-boundary assertion, pool/available-guest queries (ADR-0106) |
+| `src/app/(app)/events/event-guest-player-actions.ts` | Server actions: GuestPlayer Event pool add/remove, availability, squad assign (ADR-0106) |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
-| `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
+| `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection (Player-only; GuestPlayer helper support not yet integrated, see ADR-0106) |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
@@ -2655,9 +2684,11 @@ Avoid:
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
-| `src/lib/events/event-match-eligibility.ts` | Canonical eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` |
+| `src/lib/events/event-match-eligibility.ts` | Canonical, GuestPlayer-aware eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` (ADR-0106) |
+| `src/lib/events/event-guest-player-participation.ts` | GuestPlayer Event participation: Group-boundary assertion, pool/available-guest queries (ADR-0106) |
+| `src/app/(app)/events/event-guest-player-actions.ts` | Server actions: GuestPlayer Event pool add/remove, availability, squad assign (ADR-0106) |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
-| `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection |
+| `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection (Player-only; GuestPlayer helper support not yet integrated, see ADR-0106) |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
 | `src/app/(app)/events/actions.ts` | Server actions: pool management, squad assignment, generation |
 | `src/app/(app)/events/event-match-actions.ts` | Server actions: event match CRUD, edit, cancel, reopen |
