@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createFinalizedLiveTestMatch } from "./helpers/live-match-fixtures";
+import { createFinalizedLiveTestMatch, waitForEventsToSync } from "./helpers/live-match-fixtures";
 
 // Two-actor "Follow live" coverage (ADR-0086 amendment, live-match-realtime-programme).
 // Runs under the default "chromium" project as the reporting coach (coach-all-a). The
@@ -29,24 +29,35 @@ test("a second coach can follow a live match in real time via the Cloudflare rea
   await page.getByRole("button", { name: "Start live reporting" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
-  const followerContext = await browser.newContext({ storageState: "e2e/.auth/coach-a1.json" });
-  const followerPage = await followerContext.newPage();
-
+  // Explicitly end the reporter's own live session on every exit path (pass, fail, or a later
+  // assertion throwing) — confirmed live that leaving this session ACTIVE (relying solely on
+  // Playwright's browser-context teardown) leaks the underlying Cloudflare Durable Object
+  // connection instead of cleanly closing it, and compounds across a CI run's retries.
   try {
-    await followerPage.goto(`/o/test-club-a/matches/${matchId}/live/follow`);
+    const followerContext = await browser.newContext({ storageState: "e2e/.auth/coach-a1.json" });
+    const followerPage = await followerContext.newPage();
 
-    // "Live" is the connected-state label (CONNECTION_LABEL.connected in follow-live-client.tsx).
-    // A generous timeout: this is a real WebSocket round trip through the Worker, not a mock.
-    await expect(followerPage.getByText("Live", { exact: true })).toBeVisible({ timeout: 20_000 });
-    await expect(followerPage.getByText("Live following isn't available right now.")).toHaveCount(0);
+    try {
+      await followerPage.goto(`/o/test-club-a/matches/${matchId}/live/follow`);
 
-    // Confirm the connection is genuinely live, not just the initial label — an event the
-    // reporter records should actually arrive over the realtime broadcast. follow-live-client.tsx
-    // now renders events using getEventTypeLabel(), so "GOAL_FOR" becomes "Goal — us" (possibly
-    // followed by " — Player Name" if the player ID resolves in the player map).
-    await page.getByRole("button", { name: "Goal for us" }).click();
-    await expect(followerPage.getByText("Goal — us", { exact: false })).toBeVisible({ timeout: 15_000 });
+      // "Live" is the connected-state label (CONNECTION_LABEL.connected in follow-live-client.tsx).
+      // A generous timeout: this is a real WebSocket round trip through the Worker, not a mock.
+      await expect(followerPage.getByText("Live", { exact: true })).toBeVisible({ timeout: 20_000 });
+      await expect(followerPage.getByText("Live following isn't available right now.")).toHaveCount(0);
+
+      // Confirm the connection is genuinely live, not just the initial label — an event the
+      // reporter records should actually arrive over the realtime broadcast. follow-live-client.tsx
+      // now renders events using getEventTypeLabel(), so "GOAL_FOR" becomes "Goal — us" (possibly
+      // followed by " — Player Name" if the player ID resolves in the player map).
+      await page.getByRole("button", { name: "Goal for us" }).click();
+      await expect(followerPage.getByText("Goal — us", { exact: false })).toBeVisible({ timeout: 15_000 });
+    } finally {
+      await followerContext.close();
+    }
   } finally {
-    await followerContext.close();
+    await waitForEventsToSync(page);
+    await page.getByRole("button", { name: "Finish live reporting" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click();
+    await expect(page).toHaveURL(/post-match/, { timeout: 15_000 });
   }
 });
