@@ -179,4 +179,34 @@ describe("League Match helpers — eligibility (ADR-0077)", () => {
     expect(otherEntry?.isActiveParticipant).toBe(true);
     expect(otherEntry?.absenceReason).toBeNull();
   });
+
+  it("includes a GuestPlayer assigned to the match via LeagueMatchGuestAssignment (ADR-0106)", async () => {
+    const guestPlayer = await testDb.guestPlayer.create({
+      data: { name: "Oliver Hansen", sourceLabel: "G2016", organisationId: fixture.organisationId, footballGroupId: fixture.footballGroupId },
+    });
+    await testDb.leagueRoundParticipant.create({
+      data: { matchRoundId: fixture.matchRoundId, guestPlayerId: guestPlayer.id, organisationId: fixture.organisationId },
+    });
+    await testDb.leagueMatchGuestAssignment.create({
+      data: {
+        matchId: fixture.matches.Bla!,
+        matchRoundId: fixture.matchRoundId,
+        guestPlayerId: guestPlayer.id,
+        organisationId: fixture.organisationId,
+      },
+    });
+
+    const roster = await getEffectiveLeagueMatchRoster(fixture.matches.Bla!, orgFilter(fixture.organisationId));
+    const entry = roster.find((r) => r.guestPlayerId === guestPlayer.id);
+    expect(entry).toBeDefined();
+    expect(entry?.participantType).toBe("GUEST_PLAYER");
+    expect(entry?.playerId).toBeNull();
+    expect(entry?.displayName).toBe("Oliver Hansen");
+    expect(entry?.source).toBe("guest");
+    expect(entry?.isActiveParticipant).toBe(true);
+
+    await testDb.leagueMatchGuestAssignment.deleteMany({});
+    await testDb.leagueRoundParticipant.deleteMany({});
+    await testDb.guestPlayer.deleteMany({});
+  });
 });

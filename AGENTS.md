@@ -991,13 +991,33 @@ ratings") is never given a fabricated rating or inferred goalkeeper capability.
   manually assigned to a squad; the generation algorithm does not yet consider GuestPlayers as
   candidates.
 
+**League participation**: a GuestPlayer must first be registered as a `LeagueRoundParticipant` of
+a Round before it can be assigned to any Match within that Round —
+`src/lib/matches/league-round-guest-participant.ts` (domain: Group-boundary assertion, register/
+unregister, round-participant queries, `assertGuestPlayerRegisteredForMatchRound()`),
+`src/app/(app)/rounds/league-round-guest-actions.ts` (round-level registration server actions,
+following the org-scoping-only auth convention already used by `rounds/actions.ts` — no
+additional per-Group mutation check), and `src/app/(app)/matches/league-match-guest-actions.ts`
+(match-level `LeagueMatchGuestAssignment` write path, kept as a separate action file mirroring
+`match-helper-actions.ts`'s shape, per ADR-0077's precedent — `LeagueMatchGuestAssignment` is
+guest-only by construction, exactly like `MatchHelperAssignment` is player-only by construction).
+Only GuestPlayers populate `LeagueRoundParticipant` (permanent Players keep their existing
+`Selection`/`Availability`-based Round presence unchanged, per ADR-0106 §1.3's scope decision).
+UI: `RoundGuestPlayersPanel` (register/unregister a guest for the Round, rendered beside — not
+inside — the Player/Selection-specific `RoundBoard` drag-and-drop column model) and
+`LeagueMatchGuestsPanel` (add/remove a guest for one specific Match, rendered on the match detail
+page's Squad tab beside `MatchHelpersPanel`). `getEffectiveLeagueMatchRoster()`
+(`src/lib/matches/match-helper-eligibility.ts`) is GuestPlayer-aware: `planned ∪ helper ∪ guest`,
+`ParticipantRef`-shaped, matching the Event equivalent's shape from the previous phase. A
+GuestPlayer is always `isActiveParticipant: true` once assigned — match-specific absence tracking
+(`MatchReportAbsence`) remains Player-only.
+
 **Current implementation status**: GuestPlayer identity, lifecycle, Group-scoped management UX,
-and manual Event participation exist. No League write-path integration and no
-Event-Match-availability enforcement exist yet. Every remaining read path that touches a
-newly-nullable `playerId`/`player` field has been updated only enough to keep it Player-scoped
-(an explicit `// ADR-0106:` comment marks each such site) — this is deliberate, temporary
-scaffolding pending the follow-up phases that add GuestPlayer write paths into League planning
-surfaces, Event Match support/helper assignment, generation-engine candidate inclusion, and
+and manual Event and League participation exist. No Event-Match-availability enforcement exists
+yet. Every remaining read path that touches a newly-nullable `playerId`/`player` field has been
+updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each such
+site) — this is deliberate, temporary scaffolding pending the follow-up phases that add Event
+Match support/helper assignment for GuestPlayers, generation-engine candidate inclusion, and
 cross-cutting statistics/evidence-isolation hardening. See ADR-0106 for the full design and
 phased delivery plan, and ARR-0036 for unrelated pre-existing schema/migration-history drift
 found (and deliberately left unbundled) while preparing the foundational migration.
@@ -2660,9 +2680,14 @@ Avoid:
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/match-date-utils.ts` | hasMatchPassed/hasLeagueMatchPassed — server-side date comparison for report availability |
-| `src/lib/matches/match-helper-eligibility.ts` | League Match helper effective roster (`Selection ∪ MatchHelperAssignment`), candidate list, eligibility check (ADR-0077) |
+| `src/lib/matches/match-helper-eligibility.ts` | League Match effective roster, GuestPlayer-aware: `Selection ∪ MatchHelperAssignment ∪ LeagueMatchGuestAssignment`, `ParticipantRef`-shaped (ADR-0077, ADR-0106) |
 | `src/app/(app)/matches/match-helper-actions.ts` | Server actions: add/remove League Match helper, list helpers/candidates |
 | `src/components/matches/match-helpers-panel.tsx` | "Add helper" UI on the League match detail Squad tab |
+| `src/lib/matches/league-round-guest-participant.ts` | GuestPlayer League Round participation: Group-boundary assertion, register/unregister, round-participant queries (ADR-0106) |
+| `src/app/(app)/rounds/league-round-guest-actions.ts` | Server actions: register/unregister GuestPlayer for a League Round, list registered/available |
+| `src/components/round/round-guest-players-panel.tsx` | "Register guest player" UI beside the Round Board |
+| `src/app/(app)/matches/league-match-guest-actions.ts` | Server actions: add/remove GuestPlayer for one League Match, list guests/candidates (ADR-0106) |
+| `src/components/matches/league-match-guests-panel.tsx` | "Add guest player" UI on the League match detail Squad tab, beside `MatchHelpersPanel` |
 | `src/lib/participants/participant-ref.ts` | GuestPlayer/Player shared participant resolution (`ParticipantRef`, `resolveParticipantRef()`, exactly-one/at-most-one assertions, display-name formatting) — ADR-0106 |
 | `src/lib/guest-players/guest-player.ts` | GuestPlayer domain CRUD: validation, create/update, `setGuestPlayerActive()` (lifecycle toggle, no delete), `getGroupGuestPlayers()` — ADR-0106 |
 | `src/lib/guest-players/guest-player-constants.ts` | GuestPlayer field-length bounds, dependency-free so client components can import without pulling in `@/lib/db` |
