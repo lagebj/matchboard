@@ -679,3 +679,26 @@ describe("Security audit: authentication architecture", () => {
     expect(middleware).not.toContain("process.env.VERCEL_ENV");
   });
 });
+
+describe("Security audit: preview-allowlist gate never blocks HMAC-authenticated internal routes", () => {
+  // Regression test for a real, confirmed-live bug: the preview-deployment email-allowlist gate
+  // in middleware.ts (isVercelPreview() && path.startsWith("/api/")) was rejecting every call to
+  // /api/internal/live-match/events with 403 before it ever reached that route's own HMAC
+  // signature verification, because a machine-to-machine request has no session email to check.
+  // The Cloudflare Worker's classifyPersistenceFailure() had no way to know this 403 was
+  // permanent, so it retried indefinitely for the life of every live-match session run against
+  // any PR's Test slot Preview deployment — the actual mechanism behind the previously-observed
+  // Cloudflare Durable Object exhaustion. Fixed by excluding /api/internal/** from the gate,
+  // since those routes authenticate via signature, never via session cookie, by design.
+  it("excludes /api/internal/** from the preview-allowlist check", async () => {
+    const { requiresPreviewAllowlistCheck } = await import("@/middleware");
+    expect(requiresPreviewAllowlistCheck("/api/internal/live-match/events")).toBe(false);
+    expect(requiresPreviewAllowlistCheck("/api/internal/live-match/snapshot")).toBe(false);
+  });
+
+  it("still applies the preview-allowlist check to ordinary session-based API routes", async () => {
+    const { requiresPreviewAllowlistCheck } = await import("@/middleware");
+    expect(requiresPreviewAllowlistCheck("/api/season/export")).toBe(true);
+    expect(requiresPreviewAllowlistCheck("/api/admin/audit")).toBe(true);
+  });
+});
