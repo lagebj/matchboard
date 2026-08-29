@@ -111,4 +111,49 @@ describe("createFootballObservations -- League and Event sources", () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].error).toMatch(/exactly one/i);
   });
+
+  it("rejects a GuestPlayer id as an observation subject (ADR-0106 statistics/evidence isolation) -- structurally impossible today, but locked in against future refactors", async () => {
+    const guestPlayer = await testDb.guestPlayer.create({
+      data: { name: "Oliver Hansen", organisationId: fixtureIds.organisationId, footballGroupId: fixtureIds.footballGroupId },
+    });
+    const matchId = fixtureIds.matches["Bla"];
+
+    const result = await createFootballObservations([
+      { playerId: guestPlayer.id, matchId, observationCode: "PASSING_EFFECTIVE", polarity: "POSITIVE" },
+    ]);
+
+    expect(result.created).toBe(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].error).toMatch(/not found|not active|access denied/i);
+
+    const row = await testDb.playerDevelopmentObservation.findFirst({ where: { playerId: guestPlayer.id } });
+    expect(row).toBeNull();
+
+    await testDb.guestPlayer.delete({ where: { id: guestPlayer.id } });
+  });
+
+  it("the database itself rejects a GuestPlayer id in PlayerDevelopmentObservation.playerId (FK to Player, not GuestPlayer)", async () => {
+    const guestPlayer = await testDb.guestPlayer.create({
+      data: { name: "Noah Berg", organisationId: fixtureIds.organisationId, footballGroupId: fixtureIds.footballGroupId },
+    });
+    const matchId = fixtureIds.matches["Bla"];
+
+    await expect(
+      testDb.playerDevelopmentObservation.create({
+        data: {
+          organisationId: fixtureIds.organisationId,
+          playerId: guestPlayer.id,
+          sourceType: "LEAGUE_MATCH",
+          matchId,
+          kind: "ATTRIBUTE",
+          attributeKey: "PASSING_EFFECTIVE",
+          direction: "POSITIVE",
+          observedAt: new Date(),
+          recordedBy: "test-user",
+        },
+      }),
+    ).rejects.toThrow();
+
+    await testDb.guestPlayer.delete({ where: { id: guestPlayer.id } });
+  });
 });
