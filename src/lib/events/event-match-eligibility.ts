@@ -7,6 +7,7 @@ import {
   type ParticipantPlayerLookup,
   type ParticipantGuestPlayerLookup,
 } from '@/lib/participants/participant-ref';
+import { getUnavailableParticipantIdsForMatch } from '@/lib/events/event-match-availability';
 
 // ADR-0106: GuestPlayer-aware canonical Event Match eligibility service. A GuestPlayer assigned
 // to the match's squad is eligible on exactly the same terms as a Player -- eligibility here
@@ -214,7 +215,10 @@ export async function getEligibleEventMatchPlayers(
     });
   }
 
-  return players;
+  // ADR-0106 PR 5b: exclude participants marked unavailable for this specific match (Event-level
+  // UNAVAILABLE/WITHDRAWN or a per-match exception).
+  const unavailableParticipantIds = await getUnavailableParticipantIdsForMatch(eventMatchId, orgFilter);
+  return players.filter((p) => !unavailableParticipantIds.has(p.participantId));
 }
 
 export async function assertEligibleEventMatchPlayer(
@@ -242,6 +246,14 @@ export async function assertEligibleEventMatchPlayer(
 
   if (match.status === 'CANCELLED') {
     return { eligible: false, source: null, reason: 'Match is cancelled' };
+  }
+
+  // ADR-0106 PR 5b: a participant marked unavailable for this specific match (Event-level
+  // UNAVAILABLE/WITHDRAWN or a per-match exception) is never eligible, even if otherwise in the
+  // squad or an approved helper.
+  const unavailableParticipantIds = await getUnavailableParticipantIdsForMatch(eventMatchId, orgFilter);
+  if (unavailableParticipantIds.has(participantId)) {
+    return { eligible: false, source: null, reason: 'Participant is marked unavailable for this match' };
   }
 
   const isInSquad = match.eventSquad.players.some(
