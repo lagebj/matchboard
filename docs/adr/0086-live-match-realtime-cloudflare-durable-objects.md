@@ -612,3 +612,27 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   same shared org (also fixed). See `docs/development/browser-acceptance-testing.md` for detail.
   Awaiting a fully green CI run with all three fixes applied together to close out the "Follow
   live" connectivity work opened by the amendment above.
+- 2026-08-29: **Root cause found and fixed for the confirmed "Cloudflare DO exhaustion" issue**
+  (previously mitigated only indirectly, via `follow-live.spec.ts`'s try/finally session-closure
+  fix, which did not address why sessions were being exhausted in the first place). Confirmed
+  live via Vercel runtime logs during a PR's own Test-slot E2E run: 1000+ rejected calls to
+  `/api/internal/live-match/events` in a single ~12-minute run, every one a 403 "Preview
+  deployment access restricted" — not a 401 from `verifyInternalRequest()`'s own HMAC check (the
+  route's only intended gate), but from `middleware.ts`'s separate, unrelated preview-allowlist
+  gate (`isVercelPreview() && path.startsWith("/api/")`), which requires a session email for
+  every `/api/*` route on a Preview deployment and has no session to check for a machine-to-
+  machine HMAC-signed request. Every PR's Test-slot deployment is a genuine Vercel Preview
+  deployment (ADR-0075), so this made the Stage 4 internal persistence path unreachable from the
+  Cloudflare Worker for the entire lifetime of this feature whenever exercised against a PR's own
+  Test slot (the baseline `test.matchboard.football` alias, pointed at `main`'s `target:
+  "production"` deployment, was never affected). `classifyPersistenceFailure()`
+  (`workers/live-match/src/state.ts`) has no way to distinguish this from a transient failure —
+  it only special-cases 422 as terminal — so the Durable Object retried with exponential backoff
+  indefinitely for the life of every live-match session run against a PR's Test slot, generating
+  sustained background load against the same shared deployment other E2E specs (round-mutation,
+  accessibility) were concurrently hitting in the same CI run. Fixed by excluding
+  `/api/internal/**` from the preview-allowlist gate in `middleware.ts` (those routes
+  authenticate via HMAC signature, never a session cookie, by design) — not by loosening
+  `classifyPersistenceFailure()`'s existing, deliberately-reasoned 401-is-retryable behavior,
+  which was never the actual problem. Regression test: `requiresPreviewAllowlistCheck()`
+  (exported from `middleware.ts`), asserted in `src/test/security-audit.test.ts`.
