@@ -2380,6 +2380,18 @@ See ADR-0057 for the where-clause-injection design and ADR-0087 for the fail-clo
 
 ### Production migrations
 
+- **Schema-changing PRs must follow expand/contract discipline (ADR-0105).** Vercel deploys new
+  application code to production immediately on push, completely independent of the
+  approval-gated migration pipeline below — a migration can sit pending for a human's approval
+  for an arbitrary amount of time while the code that assumes it already applied is already live.
+  A migration that only adds nullable/optional structure, paired with code that reads the new
+  structure defensively (tolerates it being absent), is always safe regardless of which lands
+  first and needs no special sequencing. A migration that removes/renames/retypes something, or
+  that pairs with code that assumes new required structure is already present, must be split into
+  a separate "expand" PR (safe migration + defensive code) followed by a later "contract" PR (code
+  now requires the new shape, old structure dropped) — never both in one PR. See ADR-0105 for the
+  full rule, worked examples, and why deploy-gating was considered and deliberately deferred
+  instead.
 - **Never run `prisma migrate dev` against production.**
 - Production migrations run through the `.github/workflows/production-db-migrate.yml` pipeline
   (ADR-0084), not manually from a local machine. It always uses `npm run db:migrate` (`prisma
