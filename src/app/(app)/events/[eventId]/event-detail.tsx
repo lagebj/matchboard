@@ -40,6 +40,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { BrandIllustration } from '@/components/ui/brand-illustration';
 import { RatingBadge } from '@/components/ratings/rating-badge';
 import { EventGuestPlayerPoolPanel } from '@/components/events/event-guest-player-pool-panel';
+import { EventMatchAvailabilityPanel } from '@/components/events/event-match-availability-panel';
 
 type FormationSlotDisplay = { id: string; roleType: FormationSlotRoleType; label: string; shortLabel: string; acceptedPositionIds: string[]; gridX: number; gridY: number; sortOrder: number };
 
@@ -1269,6 +1270,8 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             initialAvailable={data.availableGuestPlayers}
             isFinalized={isFinalized}
           />
+
+          <EventMatchAvailabilityPanel eventId={data.id} />
         </div>
       )}
 

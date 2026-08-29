@@ -1012,9 +1012,36 @@ page's Squad tab beside `MatchHelpersPanel`). `getEffectiveLeagueMatchRoster()`
 GuestPlayer is always `isActiveParticipant: true` once assigned — match-specific absence tracking
 (`MatchReportAbsence`) remains Player-only.
 
+### Event Match availability (model + UX only — not yet enforced)
+
+A participant (Player or GuestPlayer) can attend an Event but be unavailable for specific Matches
+within it — e.g. arrives late, leaves early, misses one match. `EventMatchAvailability` (schema
+foundation, ADR-0106) is sparse exception storage: a row's mere existence means "unavailable for
+this specific match". `src/lib/events/event-match-availability.ts` is the domain module:
+`getEffectiveEventMatchAvailability()` computes `match exception ?? Event attendance`, with an
+Event-level `UNAVAILABLE` **or `WITHDRAWN`** treated as a hard exclusion no per-match exception
+can override (both carry "out of the whole Event" semantics, even though the originating spec
+text names only `UNAVAILABLE` explicitly — a deliberate, documented interpretation, not
+overreach). `setEventMatchUnavailable()`/`removeEventMatchAvailabilityException()` create/remove
+the exception (upsert — setting it twice never duplicates). `getEventMatchAvailabilityMatrix()`
+returns the full per-Event matrix in one query for the UX below. Server actions:
+`src/app/(app)/events/event-match-availability-actions.ts`. UI: `EventMatchAvailabilityPanel`
+(`src/components/events/event-match-availability-panel.tsx`) on the Event detail page's Player
+pool tab — a desktop grid matrix (participants × matches, click a cell to toggle) and a mobile
+per-participant collapsible list, both backed by the same data.
+
+**This PR is model + UX only — deliberately not yet wired into enforcement.** No existing
+planning/selection/live-reporting code path (auto-selection, starting lineup, lineup editing,
+position planning, planned rotations, substitute choices, expected live participant list,
+coverage/team-strength calculations) reads `getEffectiveEventMatchAvailability()` yet — a coach
+can mark a participant unavailable for a specific match today, but nothing yet stops them being
+planned for it. That wiring is the explicit next phase (ADR-0106's PR 5b) — recorded here as a
+known, temporary gap, not a silent one.
+
 **Current implementation status**: GuestPlayer identity, lifecycle, Group-scoped management UX,
-and manual Event and League participation exist. No Event-Match-availability enforcement exists
-yet. Every remaining read path that touches a newly-nullable `playerId`/`player` field has been
+manual Event and League participation, and the Event Match availability model/UX exist.
+Enforcement of Event Match availability across planning surfaces does not exist yet (see above).
+Every remaining read path that touches a newly-nullable `playerId`/`player` field has been
 updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each such
 site) — this is deliberate, temporary scaffolding pending the follow-up phases that add Event
 Match support/helper assignment for GuestPlayers, generation-engine candidate inclusion, and
@@ -2280,6 +2307,9 @@ Rules:
 | `src/lib/events/event-match-eligibility.ts` | Canonical, GuestPlayer-aware eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` (ADR-0106) |
 | `src/lib/events/event-guest-player-participation.ts` | GuestPlayer Event participation: Group-boundary assertion, pool/available-guest queries (ADR-0106) |
 | `src/app/(app)/events/event-guest-player-actions.ts` | Server actions: GuestPlayer Event pool add/remove, availability, squad assign (ADR-0106) |
+| `src/lib/events/event-match-availability.ts` | Event Match availability domain: `getEffectiveEventMatchAvailability()`, set/remove exception, full-Event matrix query (model + UX only, not yet enforced — ADR-0106) |
+| `src/app/(app)/events/event-match-availability-actions.ts` | Server actions for Event Match availability |
+| `src/components/events/event-match-availability-panel.tsx` | Match availability matrix/list UI on the Event detail page's Player pool tab |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection (Player-only; GuestPlayer helper support not yet integrated, see ADR-0106) |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
@@ -2712,6 +2742,9 @@ Avoid:
 | `src/lib/events/event-match-eligibility.ts` | Canonical, GuestPlayer-aware eligibility service: `getEligibleEventMatchPlayers()`, `assertEligibleEventMatchPlayer()` (ADR-0106) |
 | `src/lib/events/event-guest-player-participation.ts` | GuestPlayer Event participation: Group-boundary assertion, pool/available-guest queries (ADR-0106) |
 | `src/app/(app)/events/event-guest-player-actions.ts` | Server actions: GuestPlayer Event pool add/remove, availability, squad assign (ADR-0106) |
+| `src/lib/events/event-match-availability.ts` | Event Match availability domain: `getEffectiveEventMatchAvailability()`, set/remove exception, full-Event matrix query (model + UX only, not yet enforced — ADR-0106) |
+| `src/app/(app)/events/event-match-availability-actions.ts` | Server actions for Event Match availability |
+| `src/components/events/event-match-availability-panel.tsx` | Match availability matrix/list UI on the Event detail page's Player pool tab |
 | `src/lib/events/event-match-time.ts` | Event match time window calculation, overlap detection, support availability |
 | `src/lib/events/event-match-support.ts` | Event match support candidate logic, conflict detection (Player-only; GuestPlayer helper support not yet integrated, see ADR-0106) |
 | `src/lib/formatters/game-format.ts` | Human-readable game format labels (3-a-side, 5-a-side, etc.) |
