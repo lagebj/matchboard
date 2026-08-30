@@ -748,39 +748,6 @@ export async function movePlayerBetweenSquadsAction(
   revalidatePath(`/events/${fromEventId}`);
 }
 
-export async function togglePlayerLockAction(
-  squadPlayerId: string,
-  locked: boolean,
-) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-
-  const squadPlayer = await db.eventSquadPlayer.findFirst({
-    where: { id: squadPlayerId, ...ctx.orgFilter.filter },
-    select: { eventSquadId: true, eventId: true },
-  });
-
-  if (!squadPlayer) throw new Error('Squad player assignment not found or access denied.');
-
-  await requireEventNotFinalized(squadPlayer.eventId, ctx.orgFilter);
-
-  const _eventId = await requireSquadOrgAccess(squadPlayer.eventSquadId, ctx.orgFilter);
-
-  const updated = await db.eventSquadPlayer.update({
-    where: { id: squadPlayerId },
-    data: {
-      locked,
-      source: locked ? 'LOCKED' : 'MANUAL',
-      selectionReason: locked ? 'Locked by coach' : 'Unlocked by coach',
-    },
-  });
-
-  revalidatePath(`/events/${_eventId}`);
-
-  return updated;
-}
-
 export async function clearEventSquadsAction(eventId: string) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
@@ -927,6 +894,11 @@ export async function generateEventSquadsAction(eventId: string) {
 
   const selectionPattern = (event.selectionPattern ?? 'ALL_BALANCED') as 'ALL_BALANCED' | 'ONE_COMPETITIVE_BALANCED_REMAINDER' | 'MANUAL_SEED_AUTO_BALANCE' | 'PRESERVE_AND_FILL';
 
+  // Every existing MANUAL assignment is protected from automatic movement (ADR-0109 §5, D12) —
+  // a coach assignment does not need a second lock action to be respected by automation.
+  // `LOCKED` is kept readable for historical rows that predate the MANUAL/AUTO provenance
+  // collapse. PRESERVE_AND_FILL is the "fill remaining places" pattern (D15): it protects every
+  // existing assignment, AUTO included, since its whole contract is to only touch empty space.
   const lockedAssignments = new Map<string, string>();
   for (const squad of event.squads) {
     for (const sp of squad.players) {
@@ -935,7 +907,7 @@ export async function generateEventSquadsAction(eventId: string) {
       if (!sp.playerId) continue;
       if (selectionPattern === 'PRESERVE_AND_FILL') {
         lockedAssignments.set(sp.playerId, squad.id);
-      } else if (sp.locked) {
+      } else if (sp.source === 'MANUAL' || sp.source === 'LOCKED') {
         lockedAssignments.set(sp.playerId, squad.id);
       }
     }
@@ -1014,12 +986,14 @@ export async function generateEventSquadsAction(eventId: string) {
     }
   }
 
+  const totalTargetSize = squads.reduce((sum, s) => sum + s.targetSize, 0);
   const validation = validateEventPool(
     playersWithAttrs,
     event.squads.length,
     event.squads[0]?.targetSize ?? 7,
     typeGameFormat,
     formationSlots,
+    totalTargetSize,
   );
 
   // Pre-generation policy evaluation: filter blocked players and collect policy warnings
@@ -1162,13 +1136,17 @@ export async function generateEventSquadsAction(eventId: string) {
         });
       }
     } else {
+      // Regenerate automatic plan (D14/D15/ADR-0109 §5): only AUTO-sourced rows are recalculated
+      // and rewritten. A MANUAL (or legacy LOCKED) row is left untouched in place — never
+      // deleted-and-recreated — so a coach assignment survives regeneration without depending on
+      // a separate lock flag, and without churning its row identity.
       for (const squad of event.squads) {
         await tx.eventSquadPlayer.deleteMany({
-          where: { eventSquadId: squad.id, locked: false },
+          where: { eventSquadId: squad.id, source: 'AUTO' },
         });
       }
 
-      const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED');
+      const newAssignments = result.assignments.filter((a) => a.source !== 'LOCKED' && a.source !== 'MANUAL');
       if (newAssignments.length > 0) {
         await tx.eventSquadPlayer.createMany({
           data: newAssignments.map((assignment) => ({
@@ -1237,5 +1215,111 @@ export async function generateEventSquadsAction(eventId: string) {
     balanceSummaries: result.balanceSummaries,
     validationNotes: result.validationNotes,
     warnings: mergedWarnings,
+  };
+}
+
+/**
+ * "Fill remaining places" (ADR-0109 §5, D15) — non-destructive: preserves every existing
+ * assignment (MANUAL and AUTO alike) and only adds currently-unassigned eligible players to
+ * squads with unmet residual target need, respecting each squad's own min/target/max. This is a
+ * distinct operation from `generateEventSquadsAction` ("regenerate automatic plan", which may
+ * recalculate AUTO assignments) — never overload one ambiguous action with both meanings.
+ */
+export async function fillEventSquadRemainingPlacesAction(eventId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
+
+  const event = await db.event.findFirst({
+    where: { id: eventId, ...ctx.orgFilter.filter },
+    include: {
+      squads: {
+        include: { players: { include: { player: true } } },
+        orderBy: { generationOrder: 'asc' },
+      },
+      players: { include: { player: true } },
+    },
+  });
+
+  if (!event) throw new Error('Event not found.');
+
+  const assignedPlayerIds = new Set(
+    event.squads.flatMap((s) => s.players.map((sp) => sp.playerId).filter((id): id is string => id !== null)),
+  );
+
+  // ADR-0106: EventPlayerAvailability.playerId/player are nullable (GuestPlayer attendee uses
+  // guestPlayerId instead) -- filtered out as a no-op, matching generateEventSquadsAction.
+  const eligibleUnassigned = event.players.filter(
+    (ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } =>
+      ep.playerId !== null && ep.player !== null && ep.status === 'AVAILABLE' && !assignedPlayerIds.has(ep.playerId),
+  );
+
+  const { computeEventSquadFillPlan } = await import('@/lib/events/event-squad-fill');
+
+  const squadInputs = event.squads.map((s) => ({
+    squadId: s.id,
+    generationOrder: s.generationOrder,
+    currentCount: s.players.length,
+    targetSize: s.targetSize,
+    minSize: s.minSize,
+    maxSize: s.maxSize,
+    hasGoalkeeper: s.players.some((sp) => sp.player?.goalkeeperAbility === 'YES' || sp.player?.goalkeeperAbility === 'EMERGENCY'),
+  }));
+
+  const candidatePlayers = eligibleUnassigned.map((ep) => {
+    const p = ep.player;
+    return {
+      playerId: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      coreTeamId: p.coreTeamId,
+      primaryPosition: p.primaryPosition ?? 'flexible',
+      secondaryPosition: p.secondaryPosition,
+      tertiaryPosition: p.tertiaryPosition,
+      goalkeeperAbility: (p.goalkeeperAbility ?? 'NO') as 'NO' | 'EMERGENCY' | 'YES',
+      ballControl: p.ballControl,
+      passing: p.passing,
+      firstTouch: p.firstTouch,
+      oneVOneAttacking: p.oneVOneAttacking,
+      positioning: p.positioning,
+      oneVOneDefending: p.oneVOneDefending,
+      decisionMaking: p.decisionMaking,
+      effort: p.effort,
+      teamplay: p.teamplay,
+      concentration: p.concentration,
+      speed: p.speed,
+      strength: p.strength,
+      nonRotatable: p.nonRotatable,
+      preferredFoot: p.preferredFoot ?? 'RIGHT',
+      bestSide: p.bestSide ?? 'RIGHT',
+    };
+  });
+
+  const plan = computeEventSquadFillPlan(squadInputs, candidatePlayers);
+
+  if (plan.additions.length > 0) {
+    await db.eventSquadPlayer.createMany({
+      data: plan.additions.map((addition) => ({
+        eventId,
+        eventSquadId: addition.squadId,
+        playerId: addition.playerId,
+        source: 'AUTO',
+        locked: false,
+        positionFitTier: null,
+        selectionReason: addition.reason,
+        organisationId: ctx.organisationId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  revalidatePath(`/events/${eventId}`);
+
+  return {
+    additionsCount: plan.additions.length,
+    squadResults: plan.squadResults,
+    notes: plan.notes,
   };
 }

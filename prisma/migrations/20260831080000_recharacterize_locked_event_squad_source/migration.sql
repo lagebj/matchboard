@@ -1,0 +1,14 @@
+-- ADR-0109 §5: collapse the EventSquadPlayer provenance model to MANUAL/AUTO.
+--
+-- A "LOCKED" source previously meant "this assignment was separately locked by the coach after
+-- being assigned" -- a distinct ceremony from a plain "MANUAL" assignment. D12 removes that
+-- second-lock ceremony: any coach assignment (MANUAL or the former LOCKED) is now protected from
+-- automatic movement on the same terms, with no separate lock action required.
+--
+-- This is a pure data reclassification, not a squad/assignment change: no row's eventSquadId,
+-- playerId, or any other column is touched except `source` itself. The `EventSquadPlayerSource`
+-- enum keeps its `LOCKED` value for historical readability (COMPAT — see ADR-0109), and the
+-- `locked` boolean column is untouched by this migration; it is no longer written by any
+-- coach-facing action going forward (see the same ADR), but existing values are left as-is here
+-- since they are harmless, unread state now (not a redundant lifecycle gate).
+UPDATE "EventSquadPlayer" SET "source" = 'MANUAL' WHERE "source" = 'LOCKED';

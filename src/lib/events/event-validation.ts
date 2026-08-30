@@ -36,9 +36,17 @@ export function validateEventPool(
   targetSize: number,
   gameFormat: GameFormat,
   formationSlots: FormationSlotRequirement[],
+  /**
+   * The real total players needed across every squad, when squads have different target sizes
+   * (D16/D17) — `targetSquadCount * targetSize` assumes every squad shares one uniform target,
+   * which silently under/over-counts as soon as squads differ. Defaults to that product for
+   * every existing caller/test that doesn't pass it, so this is purely additive.
+   */
+  totalTargetSizeOverride?: number,
 ): EventPoolValidation {
   const available = players.filter((p) => p !== null);
   const availableCount = available.length;
+  const totalTargetSize = totalTargetSizeOverride ?? targetSquadCount * targetSize;
 
   let missingRatingsCount = 0;
   let partialRatingsCount = 0;
@@ -123,9 +131,9 @@ export function validateEventPool(
   const warnings: string[] = [];
   const notes: string[] = [];
 
-  if (availableCount < targetSquadCount * targetSize) {
+  if (availableCount < totalTargetSize) {
     warnings.push(
-      `Not enough available players: ${availableCount} available, ${targetSquadCount * targetSize} needed for ${targetSquadCount} squads of ${targetSize}`,
+      `Not enough available players: ${availableCount} available, ${totalTargetSize} needed for ${targetSquadCount} squads`,
     );
   }
 
