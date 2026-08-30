@@ -261,7 +261,7 @@ export async function createTestEvent(
       name: overrides?.name ?? `Test Event ${nextId()}`,
       eventType: (overrides?.type as EventType) ?? "CUP",
       startsAt: overrides?.startDate ?? new Date("2025-05-01"),
-      endDate: overrides?.endDate ?? new Date("2025-05-02"),
+      endsAt: overrides?.endDate ?? new Date("2025-05-02"),
       gameFormat: (overrides?.gameFormat as "ELEVEN_A_SIDE" | "SEVEN_A_SIDE" | "FIVE_A_SIDE" | "THREE_A_SIDE" | "NINE_A_SIDE") ?? "FIVE_A_SIDE",
       organisationId,
       footballGroupId: groupId,
