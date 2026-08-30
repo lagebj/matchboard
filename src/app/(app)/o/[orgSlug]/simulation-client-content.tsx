@@ -375,7 +375,7 @@ export function SimulationPageContent() {
 
           <Surface variant="subtle" padding="md">
             <p className="text-xs text-[var(--text-muted)]">
-              Policy version: {result.policy.policyVersion} | Rego: {result.policy.regoEnabled ? "enabled" : "disabled"} | Simulation is dry-run only
+              Policy version: {result.policy.policyVersion} | Policy runtime: {result.policy.policyRuntimeStatus === "HEALTHY" ? "healthy" : "degraded"} | Simulation is dry-run only
             </p>
           </Surface>
 

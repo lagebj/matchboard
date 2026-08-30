@@ -16,12 +16,12 @@ export async function GET() {
   const diagnostics = getWorkbenchDiagnostics();
 
   return NextResponse.json({
-    regoEnabled: diagnostics.regoEnabled,
+    runtimeStatus: diagnostics.runtimeStatus,
     regoWasmLoaded: diagnostics.regoWasmLoaded,
     policyVersion: diagnostics.policyVersion,
     artifactHash: diagnostics.artifactHash,
     packId: diagnostics.packId,
     packVersion: diagnostics.packVersion,
-    failureMode: diagnostics.failureMode,
+    packFailureMode: diagnostics.packFailureMode,
   });
 }

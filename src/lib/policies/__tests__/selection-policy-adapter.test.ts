@@ -57,18 +57,28 @@ describe("CompositePolicyAdapter", () => {
 });
 
 describe("createPolicyPipeline", () => {
-  it("returns default adapter when Rego is disabled", () => {
+  it("always includes the Rego selection layer (ADR-0107: no environment gate)", () => {
     const pipeline = createPolicyPipeline();
-    expect(pipeline).toBeInstanceOf(DefaultMatchboardPolicyAdapter);
+    expect(pipeline).toBeInstanceOf(CompositePolicyAdapter);
+    expect(pipeline.id).toBe("composite");
+  });
+
+  it("evaluates end to end without throwing (built-in pack degrades safely on any evaluation issue)", async () => {
+    const pipeline = createPolicyPipeline();
+    const result = await pipeline.evaluate(makeInput({
+      players: [
+        { id: "p1", displayName: "Active", status: "ACTIVE", availableForContext: true, currentTeamIds: [] },
+      ],
+    }));
+    expect(result.allowedPlayerIds).toContain("p1");
   });
 });
 
 describe("JSON DSL removal", () => {
   it("no JSON DSL adapter exists in the pipeline", () => {
     expect(createPolicyPipeline).toBeDefined();
-    const pipeline = createPolicyPipeline();
-    expect(pipeline.id).toBe("default-matchboard");
-    expect(pipeline.name).toBe("Default Matchboard Policy");
+    const pipeline = createPolicyPipeline() as CompositePolicyAdapter;
+    expect(pipeline.id).toBe("composite");
   });
 
   it("core invariants still apply through composite pipeline", async () => {

@@ -10,8 +10,12 @@ import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregati
 import { getOpponentCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
 import { OpponentCombinationEvidenceSection } from "@/components/opponents/opponent-combination-evidence-section";
+import { OpponentCombinationSituationalSummary } from "@/components/opponents/opponent-combination-situational-summary";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { resolveSituationContext } from "@/lib/situational/resolve-situation-context";
+import { projectCandidates } from "@/lib/situational/get-coach-situation-projection";
+import { opponentCombinationEvidenceToCandidates } from "@/lib/situational/providers/opponent-combination-candidate-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +137,18 @@ export default async function OpponentDetailPage({ params }: PageProps) {
     combinationPlayers.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
   );
 
+  // No `matches` fact is available on this page (it has no notion of "today's matches"), so this
+  // always resolves LONG_TERM unless a future caller supplies imminent-match data -- correct for
+  // a purely historical/analytical detail page. Reuses `combinationSummaries` already loaded
+  // above -- no new query.
+  const combinationSituation = resolveSituationContext({
+    nowIso: new Date().toISOString(),
+    matches: [],
+    routeIntent: "OPPONENT",
+  });
+  const combinationCandidates = opponentCombinationEvidenceToCandidates(combinationSummaries, opponentTeamId);
+  const combinationProjection = await projectCandidates(combinationSituation, combinationCandidates);
+
   const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
   const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
 
@@ -203,6 +219,11 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         opponentTeamId={opponentTeamId}
         initialAggregate={sportingLevelData.aggregate}
         initialEvidence={sportingLevelData.evidence}
+      />
+
+      <OpponentCombinationSituationalSummary
+        projection={combinationProjection}
+        playerNameById={Object.fromEntries(combinationPlayerNameById)}
       />
 
       <OpponentCombinationEvidenceSection

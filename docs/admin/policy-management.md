@@ -38,9 +38,13 @@ The default policy runs after core invariants (`src/lib/policies/default-matchbo
 - Score adjustments for players with fewer recent, period, or season match opportunities
 - Eligibility explanations for active available players
 
-### 3. Optional custom OPA/Rego policy (compiled to Wasm)
+### 3. OPA/Rego policy (compiled to Wasm, always active)
 
-Admins can add a custom Rego policy that runs after the default policy. Custom Rego can:
+OPA/Rego is a standard Matchboard runtime capability (ADR-0107) — there is no environment flag
+that turns it off. The built-in `matchboard-default` pack runs after the default policy and
+always degrades safely (returns an empty result, marks runtime `DEGRADED`) if its own Wasm
+evaluation fails unexpectedly, rather than making coach workflows unavailable. Admins can also
+activate a different, non-built-in policy pack. Custom Rego can:
 
 - Make rules stricter (add additional blocked players)
 - Add warnings
@@ -100,16 +104,19 @@ Policy packs are the primary way to manage Rego policies. Each pack is a self-co
 
 `GET /api/admin/policy` reports:
 
-- Whether Rego is enabled
-- Rego failure mode
+- Policy runtime health (`HEALTHY`/`DEGRADED`) — not a boolean "enabled" flag
+- Last runtime error code, when degraded
 - Policy version and artifact hash
-- Active policy pack id, version, and name (when Rego is enabled)
+- Active policy pack id, version, name, schema version, declared entrypoints, and failure mode
 - Pack validation errors and warnings
 - Whether the Wasm artifact is loaded
 
 No player personal data is included in diagnostics output.
 
-When `MATCHBOARD_POLICY_REGO_ENABLED=true`, the active policy pack is resolved from `MATCHBOARD_POLICY_PACK_ID` (default: `matchboard-default`). The Wasm path is resolved from the pack's `policy-pack.json` unless `MATCHBOARD_POLICY_WASM_PATH` explicitly overrides it.
+The active policy pack is always resolved from `MATCHBOARD_POLICY_PACK_ID` (default:
+`matchboard-default`) — Rego evaluation itself has no separate enable flag. The Wasm path is
+resolved from the pack's `policy-pack.json` unless `MATCHBOARD_POLICY_WASM_PATH` explicitly
+overrides it.
 
 ## Creating a custom policy
 
@@ -125,14 +132,19 @@ When `MATCHBOARD_POLICY_REGO_ENABLED=true`, the active policy pack is resolved f
      "name": "My Custom Policy",
      "version": "1.0.0",
      "description": "Custom policy for my instance",
-     "entrypoint": "my_custom/selection/decision",
+     "schemaVersion": 2,
+     "entrypoints": { "selection": "my_custom/selection/decision" },
      "regoDirectory": "rego",
      "compiledWasm": "compiled/my_custom_selection.wasm",
      "fixturesDirectory": "fixtures",
      "runtime": "opa-wasm",
-     "schemaVersion": 1
+     "failureMode": "fail_closed"
    }
    ```
+
+   `failureMode` is optional (defaults to `"degraded_fallback"` — the same safe fallback the
+   built-in pack always uses). Declare `"fail_closed"` if a broken custom policy should halt
+   evaluation with an error instead of silently degrading.
 
    The `id` must match the directory name. Forbidden keys: `rules`, `conditions`, `effects`, `operators`.
 
@@ -166,18 +178,17 @@ When `MATCHBOARD_POLICY_REGO_ENABLED=true`, the active policy pack is resolved f
    npm run policy:dry-run -- --pack <your-pack-id> <fixture-name>
    ```
 
-9. **Enable and select the pack** by setting environment variables:
+9. **Select the pack** by setting the pack id (Rego evaluation itself has no separate enable flag):
 
    ```bash
-   MATCHBOARD_POLICY_REGO_ENABLED=true
    MATCHBOARD_POLICY_PACK_ID=<your-pack-id>
    ```
 
 10. **Run the full test suite and build**, then commit source and compiled artifact.
 
-### Legacy workflow (backward-compatible)
+### Legacy workflow (backward-compatible, not recommended for new policies)
 
-The legacy flat structure is still supported for existing deployments.
+The legacy flat structure is still readable via `MATCHBOARD_POLICY_WASM_PATH`. Prefer a policy pack for anything new.
 
 1. **Copy an example policy** from `policies/rego/examples/` to `policies/rego/matchboard_selection.rego`
 
@@ -219,11 +230,7 @@ The legacy flat structure is still supported for existing deployments.
    npm run policy:dry-run -- test/fixtures/policies/lineup-input.json
    ```
 
-7. **Enable Rego evaluation** by setting the environment variable:
-
-   ```bash
-   MATCHBOARD_POLICY_REGO_ENABLED=true
-   ```
+7. **Set `MATCHBOARD_POLICY_WASM_PATH`** to point at the compiled legacy artifact (Rego evaluation itself always runs; this only selects which compiled artifact is loaded).
 
 8. **Run the full test suite and build**:
 
@@ -258,13 +265,13 @@ No OPA server, custom server, or sidecar is needed.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MATCHBOARD_POLICY_REGO_ENABLED` | `false` | Set to `true` to enable custom Rego policy evaluation |
 | `MATCHBOARD_POLICY_PACK_ID` | `matchboard-default` | Which policy pack to load. Must match a directory under `policies/packs/`. |
 | `MATCHBOARD_POLICY_WASM_PATH` | *(pack-resolved)* | Path to the compiled Wasm artifact. When set, overrides the pack-resolved path. When not set, the Wasm path is resolved from the active pack's `policy-pack.json`. |
-| `MATCHBOARD_POLICY_REGO_FAILURE_MODE` | `fail_closed` | `fail_closed` (error on failure) or `fail_open` (continue with default policy only) |
 | `MATCHBOARD_POLICY_PACKS_DIR` | `policies/packs` | Override the packs directory (advanced, usually not needed) |
 
-Set these in your Vercel project environment variables or your local `.env` file.
+Set these in your Vercel project environment variables or your local `.env` file. There is no
+`MATCHBOARD_POLICY_REGO_ENABLED`/`MATCHBOARD_POLICY_REGO_FAILURE_MODE` — Rego is always active
+(ADR-0107), and failure behavior is declared per pack (`policy-pack.json`'s `failureMode`).
 
 ## Testing and validation
 
@@ -310,14 +317,17 @@ Test fixtures in `test/fixtures/policies/` are anonymized JSON files matching th
 
 | Condition | Behavior |
 |-----------|----------|
-| Rego is disabled (`MATCHBOARD_POLICY_REGO_ENABLED=false`) | Core invariants + default TypeScript policy only. No Rego evaluation. |
-| Wasm artifact is missing | `fail_closed`: error on evaluation. `fail_open`: continue with default policy only. |
-| Rego evaluation throws an error | `fail_closed`: error propagated. `fail_open`: empty Rego result, default policy still applies. |
-| Rego result has invalid shape | `fail_closed`: error. The adapter validates the result structure and throws `RegoPolicyError` on invalid output. |
+| Wasm artifact is missing or fails to load (built-in `matchboard-default` pack) | Always degrades safely: policy runtime marked `DEGRADED`, empty Rego result returned, default TypeScript policy still applies. Never throws to the coach-facing request. |
+| Wasm artifact is missing or fails to load (custom pack with `failureMode: "fail_closed"`) | Error propagated (`PolicyRuntimeError`); the composite pipeline fails. |
+| Rego evaluation throws an error | Same split as above, by the active pack's `failureMode`. |
+| Rego result has invalid shape from an otherwise-successful evaluation | Always errors (`RegoPolicyError`) regardless of `failureMode` — a malformed policy result is a policy-content bug, never silently masked. |
 | Custom policy blocks additional players | Additive: custom blocked players are merged with default blocked players. Core invariants still apply. |
 | Custom policy produces extreme score adjustments | Clamped to ±20. Values outside `[-20, 20]` are clamped to the nearest bound. |
 
-The `fail_closed` default ensures that a broken custom policy does not silently produce wrong results. Use `fail_open` only if you want the app to remain functional with default policy when Rego fails.
+`"degraded_fallback"` (the default, and the only mode the built-in pack may use) ensures the app
+stays usable for coaches even when Matchboard's own shipped policy has a runtime problem. Declare
+`"fail_closed"` on a custom pack only if you want a broken custom policy to halt evaluation
+immediately rather than silently degrade.
 
 ## Safe admin practices
 

@@ -68,6 +68,46 @@ jobs:
       - run: npm ci
       - run: npm run test:workers
 
+  # ADR-0107: the built-in policy pack is a required build/deploy artifact. Previously no CI
+  # workflow ran any `npm run policy:*` script at all — this was only ever checked by a
+  # developer's own optional local `npm run validate`. Bootstraps a pinned, checksum-verified OPA
+  # binary (scripts/bootstrap-opa.mjs) rather than relying on it being preinstalled on the runner.
+  policy-verify:
+    name: Policy Verify
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: node scripts/bootstrap-opa.mjs
+      - run: npm run policy:test
+      - run: npm run policy:validate
+      - run: npm run policy:verify
+      # Diagnostic aid for a verify failure: `opa build -t wasm` output is not guaranteed
+      # byte-identical across host CPU architectures (confirmed live: a Wasm artifact built and
+      # committed from an arm64 devcontainer failed this job's own amd64 rebuild-and-compare on
+      # first use). This runner is the canonical architecture policy:verify checks against
+      # (GitHub-hosted ubuntu-24.04 = amd64) — rebuild here unconditionally (after verify has
+      # already run its own check against the committed artifact) and upload the result plus the
+      # updated policy-pack.json so a verify failure always comes with a ready-to-commit,
+      # correct-architecture artifact to download rather than requiring a rebuild blind on a
+      # different machine.
+      - run: npm run policy:build:pack
+        if: always()
+      - name: Upload freshly-rebuilt Wasm artifact + metadata (diagnostic, always runs)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: policy-wasm-rebuilt-${{ github.run_id }}
+          path: |
+            policies/packs/matchboard-default/compiled/matchboard_selection.wasm
+            policies/packs/matchboard-default/policy-pack.json
+          retention-days: 5
+          if-no-files-found: ignore
+
   security-check-sql:
     name: Forbidden SQL Methods
     runs-on: ubuntu-24.04
@@ -277,7 +317,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-24.04
-    needs: [typecheck, test, security-check-supply-chain]
+    needs: [typecheck, test, security-check-supply-chain, policy-verify]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

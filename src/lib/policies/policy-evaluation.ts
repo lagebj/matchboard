@@ -1,12 +1,11 @@
 import type { SelectionPolicyInput, SelectionPolicyResult, PolicyWarning, PolicyExplanation } from "./types";
 import { createPolicyPipeline } from "./selection-policy-adapter";
-import { isRegoEnabled, getRegoFailureMode } from "./rego-policy-adapter";
+import { getPolicyRuntimeDiagnostics } from "./policy-runtime";
 
 export type PolicyEvaluationResult = {
   result: SelectionPolicyResult;
   input: SelectionPolicyInput;
-  regoEnabled: boolean;
-  regoFailureMode: string;
+  policyRuntimeStatus: "HEALTHY" | "DEGRADED";
   evaluationDurationMs: number;
 };
 
@@ -58,8 +57,6 @@ export async function evaluateSelectionPolicy(
   input: SelectionPolicyInput,
 ): Promise<PolicyEvaluationResult> {
   const start = Date.now();
-  const regoEnabled = isRegoEnabled();
-  const regoFailureMode = getRegoFailureMode();
 
   const pipeline = createPolicyPipeline();
   const result = await pipeline.evaluate(input);
@@ -68,8 +65,7 @@ export async function evaluateSelectionPolicy(
   return {
     result,
     input,
-    regoEnabled,
-    regoFailureMode,
+    policyRuntimeStatus: getPolicyRuntimeDiagnostics().status,
     evaluationDurationMs,
   };
 }

@@ -1,4 +1,5 @@
 import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+import type { RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
 export type AssistantWorkCategory =
   | "setup_missing"
@@ -65,6 +66,15 @@ export type AssistantCommandCentre = {
   leagueSeasonName: string | null;
   items: AssistantWorkItem[];
   todayMatches: TodayMatch[];
+  /** The already-computed `RoundPlanIntegrity` for every DRAFT round this call inspected, keyed
+   * by matchRoundId. Exposed so a situational candidate provider (ADR-0107,
+   * docs/domain/situational-decision-support.md) can build per-signal candidates without
+   * recomputing plan integrity for the same round a second time. */
+  roundPlanIntegrities: Record<string, RoundPlanIntegrity>;
+  /** Already-loaded `LiveMatchSession` heartbeat facts for every currently ACTIVE session among
+   * today's matches, keyed by matchId. Exposed so a situational candidate provider can detect a
+   * stalled live session (missed heartbeats) without a second `liveMatchSession` query. */
+  activeLiveSessions: Record<string, { startedAt: string; lastHeartbeatAt: string | null }>;
   computedAt: Date;
 };
 

@@ -1456,15 +1456,20 @@ Key files: `src/lib/best-lineup/best-lineup.ts` (all generation/assignment/lock/
 
 Matchboard separates deterministic squad/lineup solving from configurable policy evaluation.
 
+**OPA/Rego is a standard Matchboard runtime capability (ADR-0107), not an opt-in.** There is no
+environment gate that turns Rego off. `MATCHBOARD_POLICY_REGO_ENABLED` and
+`MATCHBOARD_POLICY_REGO_FAILURE_MODE` are removed — do not reintroduce either. Failure behavior is
+now a per-pack `policy-pack.json` field (`failureMode`), not a global env var.
+
 ### Policy layers
 
 1. **Core invariants** — non-overridable safety rules enforced in TypeScript (`src/lib/policies/core-invariants.ts`). Removed players, inactive players, unavailable players, duplicate lineup assignments — these cannot be overridden by custom policies.
 2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations (`src/lib/policies/default-matchboard-policy.ts`). Always runs.
-3. **Optional custom OPA/Rego policy** — compiled to WebAssembly and evaluated server-side via `@open-policy-agent/opa-wasm`. May make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants. No OPA server, no sidecar, no runtime Rego compilation, no browser-side evaluation.
+3. **Rego policy (always active)** — compiled to WebAssembly and evaluated server-side via `@open-policy-agent/opa-wasm`. May make rules stricter, add warnings, adjust scoring, or add explanations. Cannot override core invariants. No OPA server, no sidecar, no runtime Rego compilation, no browser-side evaluation.
 
-### Rego/Wasm policy adapter
+### Rego/Wasm policy runtime
 
-Custom policies are written in Rego, compiled to Wasm before deployment, and evaluated inside the Next.js server runtime using `@open-policy-agent/opa-wasm`.
+Policies are written in Rego, compiled to Wasm before deployment, and evaluated inside the Next.js server runtime using `@open-policy-agent/opa-wasm`. `src/lib/policies/policy-runtime.ts` is the single shared runtime owner (pack resolution, Wasm loading/caching, named-entrypoint evaluation, health tracking); typed adapters (`RegoPolicyAdapter` for `selection`, the situation adapter for `situation`) sit above it and never load Wasm themselves.
 
 Rego may:
 - add blocked player reasons
@@ -1472,13 +1477,16 @@ Rego may:
 - add score adjustments (bounded ±20)
 - add explanations
 - add tags
+- (situation entrypoint only) return contextual visibility/horizon/urgency/interaction/reason codes — see "Situational decision support" below
 
 Rego may not:
 - override core invariants
 - allow players blocked by core invariants
 - mutate data, access the database, access secrets, make network calls, depend on `http.send`, read files, perform side effects, replace squad generation, replace lineup generation, or alter historical snapshots
 
-See `docs/policies.md` and `docs/admin/policy-management.md` for full documentation.
+**Runtime failure degrades safely.** The built-in `matchboard-default` pack always degrades to a safe, deterministic fallback on unexpected runtime failure (Wasm load failure, evaluation exception, invalid output shape) — it never throws up to a coach-facing request and never bypasses core invariants or authorization. This is a fixed structural property (`validatePackMetadataShape()` forces `matchboard-default`'s `failureMode` to `"degraded_fallback"` regardless of its own metadata), not a runtime toggle. A future custom pack may declare `"fail_closed"` in its own `policy-pack.json` if an operator wants a broken custom policy to halt evaluation instead. Check `getPolicyRuntimeDiagnostics()` (`policy-runtime.ts`) for `HEALTHY`/`DEGRADED` status — there is no `regoEnabled` boolean anywhere in the codebase; do not reintroduce one.
+
+See `docs/policies/README.md` and `docs/admin/policy-management.md` for full documentation.
 
 ### Integration points
 
@@ -1487,13 +1495,17 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 - Event match lineup: filter blocked players, warn on weak position coverage
 - League match selection: apply pre/post policy evaluation
 - Assistant: surface policy warnings and explanations
+- Situational decision support: contextual visibility/urgency/horizon/interaction for coach decisions — see "Situational decision support" below
 
 ### Policy configuration
 
-- `MATCHBOARD_POLICY_REGO_ENABLED` — enable Rego adapter (default: `false`)
 - `MATCHBOARD_POLICY_WASM_PATH` — path to compiled Wasm artifact (overrides pack-resolved path when set)
-- `MATCHBOARD_POLICY_REGO_FAILURE_MODE` — `fail_closed` (default) or `fail_open`
 - `MATCHBOARD_POLICY_PACK_ID` — which policy pack to load (default: `matchboard-default`)
+- `MATCHBOARD_POLICY_PACKS_DIR` — override the packs directory (advanced, usually not needed)
+
+### Policy pack schema (v2, named entrypoints)
+
+`policy-pack.json` declares `schemaVersion: 2` with `entrypoints: Record<string, string>` (e.g. `{ "selection": "matchboard/selection/decision", "situation": "matchboard/situation/decision" }`) and a `failureMode: "degraded_fallback" | "fail_closed"` field. Schema v1 (single `entrypoint: string`, no `failureMode`) remains readable for backward compatibility — `policies/examples/packs/custom-example/` deliberately stays on schema v1 as the live exerciser of that path; do not "helpfully" migrate it to v2. The built-in `matchboard-default` pack is schema v2 with both `selection` and `situation` entrypoints compiled into one Wasm artifact (`opa build` with one `-e` flag per declared entrypoint).
 
 ### Policy key files
 
@@ -1503,9 +1515,10 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 | `src/lib/policies/core-invariants.ts` | Non-overridable core invariant checks |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
-| `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
-| `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
-| `src/lib/policies/policy-pack.ts` | Policy pack metadata validation, resolution, diagnostics, and artifact hashing |
+| `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory (always includes the Rego layer) |
+| `src/lib/policies/rego-policy-adapter.ts` | Typed selection-entrypoint adapter over the shared policy runtime |
+| `src/lib/policies/policy-runtime.ts` | Single shared OPA Wasm runtime owner: pack/artifact loading, caching, named-entrypoint evaluation, health/degradation tracking |
+| `src/lib/policies/policy-pack.ts` | Policy pack metadata validation (schema v1/v2), resolution, diagnostics, artifact hashing |
 | `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
@@ -1513,24 +1526,39 @@ See `docs/policies.md` and `docs/admin/policy-management.md` for full documentat
 | `src/lib/workbench/workbench-types.ts` | Workbench request/result/fixture/diagnostics types |
 | `src/lib/workbench/workbench-service.ts` | Workbench service: load fixtures, run policy evaluation, compare default vs Rego |
 | `src/lib/workbench/policy-diff.ts` | Diff policy results (default vs Rego), summarize workbench input |
-| `src/app/api/workbench/diagnostics/route.ts` | GET workbench diagnostics (policy version, Rego status) |
+| `src/app/api/workbench/diagnostics/route.ts` | GET workbench diagnostics (policy version, runtime status) |
 | `src/app/api/workbench/run/route.ts` | POST workbench dry-run policy evaluation |
 | `src/app/api/workbench/fixtures/route.ts` | GET available workbench fixtures |
 | `src/app/(app)/workbench/page.tsx` | Workbench UI page |
 | `test/fixtures/workbench/*.json` | Workbench fixture data (anonymized) |
 | `scripts/workbench-dry-run.mjs` | CLI dry-run script for workbench fixtures |
-| `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime, version, Rego status |
-| `policies/packs/matchboard-default/` | Default policy pack (primary) |
-| `policies/packs/custom-example/` | Example custom policy pack |
-| `policies/rego/matchboard_selection.rego` | Legacy Rego policy source (backward-compatible) |
-| `policies/rego/matchboard_selection_test.rego` | Legacy Rego policy tests |
-| `policies/compiled/matchboard_selection.wasm` | Legacy compiled Wasm artifact (backward-compatible) |
-| `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm (supports `--pack <id>`) |
-| `scripts/policy-dry-run.mjs` | Dry-run utility (supports `--pack <id>`) |
-| `scripts/policy-validate.mjs` | Pack metadata and structure validation |
+| `src/app/api/admin/policy/route.ts` | Admin diagnostics: policy runtime health, version, pack identity |
+| `policies/packs/matchboard-default/` | Default policy pack (primary), schema v2, `selection` + `situation` entrypoints |
+| `policies/examples/packs/custom-example/` | Example custom policy pack (illustrative, non-deployable), schema v1 |
+| `policies/rego/matchboard_selection.rego` | Legacy flat Rego policy source (backward-compatible, not the active default) |
+| `policies/rego/matchboard_selection_test.rego` | Legacy flat Rego policy tests |
+| `policies/compiled/matchboard_selection.wasm` | Legacy flat compiled Wasm artifact (fallback only when `MATCHBOARD_POLICY_WASM_PATH` points at it) |
+| `scripts/policy-metadata-utils.mjs` | Shared v1/v2 entrypoint normalization for all `policy:*` scripts |
+| `scripts/build-opa-policy.mjs` | Build script: compile Rego to Wasm, one `-e` per declared entrypoint (supports `--pack <id>`) |
+| `scripts/policy-dry-run.mjs` | Dry-run utility (supports `--pack <id>` and `--entrypoint <name>`) |
+| `scripts/policy-validate.mjs` | Pack metadata and structure validation (supports `--require-artifact` for build/deploy validation) |
 | `scripts/policy-list.mjs` | List discovered policy packs |
 
 Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Never add proprietary policy DSL. Never let Rego override historical integrity or youth-safe defaults. Update policy docs and tests with every policy change. Run policy tests and build before completion.
+
+## Situational decision support (delivered, v1 scope — ADR-0107)
+
+Matchboard is adding a decision-support layer over the existing domain model that infers the coach's current situation (`MATCHDAY` | `NEXT` | `LONG_TERM`) and produces normalized, ordered `CoachDecision`s from existing domain capabilities, rather than each UI surface (Today, Round Board, Insights) independently reconstructing priority. See `docs/domain/situational-decision-support.md` for the full contract. Key rules:
+
+- These are contextual projections over one domain model, never persistent application modes or parallel data sources.
+- TypeScript/domain owns facts, invariants, recommendations, and commands. OPA/Rego (the `situation` entrypoint on the `matchboard-default` pack) owns contextual visibility/urgency/horizon/interaction treatment only — never database access, squad generation, lineup optimization, or state mutation.
+- `AUTO` interaction is never used for player/squad/lineup/opportunity/report/development mutations.
+- The Round Board and live match reporting remain the deep planning/execution workspaces; the situational layer sits above them, not a replacement.
+- `More` capability locations do not change just because their data becomes situationally relevant (`capability location != situational relevance`).
+
+**Current status**: `src/lib/situational/` implements the resolver, candidate/decision contracts, the situation-policy adapter (with a safe degraded fallback — never suppresses, never throws, never uses `AUTO`), and the projection service. Five candidate providers exist: `assistantWorkItemsToCandidates()` (adapting existing `AssistantWorkItem`s), `createPlanIntegrityCandidateProvider()` (one candidate per `computeRoundPlanIntegrity()` signal, reusing `AssistantCommandCentre.roundPlanIntegrities`), `opportunityGapRowsToCandidates()` (the first real `LONG_TERM` source, adapting `getOpportunityGap()` rows), `createLiveSessionCandidateProvider()` (detects a stalled live-reporting session — active with no heartbeat in 10+ minutes — from `AssistantCommandCentre.activeLiveSessions`), and `opponentCombinationEvidenceToCandidates()` (a second real `LONG_TERM` source, adapting `getOpponentCombinationEvidence()` summaries, wired into the opponent detail page); none recompute domain data the caller hasn't already loaded. Today's hero "Next action" (`/o/{orgSlug}/today`) is selected by the projection, not `CATEGORY_PRIORITY` array order. A first Matchday-mobile slice exists — `MatchdayContextBanner` shows match identity + a live/kickoff status pill + one "Follow live"/"Open match" navigation action above the hero whenever the projection infers `MATCHDAY`. A first Next slice exists too — `NextRoundReadinessSection` lists any round with a blocked/decision-required signal and deep-links to the (unchanged) Round Board. Long-term slices now exist on two pages beyond Today — the Opportunity Gap insights route and the opponent detail page (which required adding an `"OPPONENT"` `SituationRouteIntent` value) both resolve a `LONG_TERM` situation and show a "Situational summary", proving the projection infrastructure is reused across pages, not Today-only. `CoachDecision.affectedEntities` now also carries every id in a candidate's `affectedPlayerIds` (not just the primary entity), so a multi-player candidate (e.g. a partnership) can resolve every player's display name — additive and backward-compatible, a no-op for every existing single-player candidate. Today's grouped sections now carry situational treatment too — a non-promoted item is annotated "Lower priority right now" and sorted after non-deferred items within its group via a stable sort (never hidden or dropped; Blocked/Decision-required items are always excluded from both the annotation and the reorder) — the metric-tile row above them remains fully unfiltered, and no decision is resolvable inline (navigation only so far). The hero's "no decisions" case is also now correctly distinguished from "no projection at all": a projection that legitimately concludes nothing should be featured (every candidate suppressed/deferred) no longer falls back to raw category order, and its empty state shows different copy for `LIVE` vs. `READY`. When the hero DOES render, it now also distinguishes `ACTION_REQUIRED` ("Next action") from `REVIEW_AVAILABLE` ("Worth reviewing") via its pill label, completing SDS-019 for all four `CoachSituationProjectionStatus` values.
+
+**Phase 8 (consolidation) is complete.** The metric-tile row is a deliberate, permanent exception to situational filtering (it shows objective totals; filtering it would make a displayed number sometimes mean "the true total" and sometimes not) — not an oversight. `CATEGORY_PRIORITY` and `AssistantWorkItem` are permanent architecture (the candidate-provider input layer and the grouped-section sort key respectively), not residue scheduled for removal — an earlier working note in this programme's own tracking bundle wrongly implied otherwise; that has been corrected. Inline/direct decision resolution, further candidate providers beyond the five shipped, and a dedicated situational-UI mobile Playwright spec are each documented, deliberate v1 scope boundaries with recorded rationale (see `docs/domain/situational-decision-support.md`'s "Phase 8 consolidation decisions") — legitimate future work, not gaps this programme left unmet. See that document's Status section for the full, final account before assuming any further integration exists.
 
 ## Populate all
 
@@ -1981,10 +2009,12 @@ back to the most recently started season within a ~90-day plausibility window (e
 implausibly-far-future seasons, which only ever arise from generated/test data) when none spans
 "now", and only the absolute most-recent-by-start-date when every season is implausibly far out.
 The window must stay well under 420 days — `e2e/helpers/live-match-fixtures.ts`'s
-`randomFutureMatchDate()` spreads test matches 60-5060 weeks (~420 days minimum) out, and an
-earlier, wider ~2-year window let some of that random spread land inside the "plausible" bucket
-and wrongly outrank this repo's own real seed-dataset season, confirmed live in CI:
-`round-mutation.spec.ts`'s target round disappeared from this page entirely.
+`randomFutureMatchDate()` spreads test matches 60-50,060 weeks (~420 days minimum; the upper
+bound was widened from 5,060 weeks on 2026-08-30 to reduce a birthday-paradox collision risk
+unrelated to this page — see that file's own comment) out, and an earlier, wider ~2-year window
+let some of that random spread land inside the "plausible" bucket and wrongly outrank this
+repo's own real seed-dataset season, confirmed live in CI: `round-mutation.spec.ts`'s target
+round disappeared from this page entirely.
 An earlier unbounded, unscoped version of this query rendered every round the organisation had
 ever accumulated on one page with no pagination — confirmed live in CI causing real page-load
 slowness and intermittent E2E failures once round-count reached the low hundreds.

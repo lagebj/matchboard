@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { computeRoundPlanIntegrity, type RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import type {
@@ -137,6 +137,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     : new Set<string>();
 
   const items: AssistantWorkItem[] = [];
+  const roundPlanIntegrities: Record<string, RoundPlanIntegrity> = {};
 
   if (leagueSeason.status === "FINALIZED") {
     const upcomingLeagueSeason = await db.leagueSeason.findFirst({
@@ -204,6 +205,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
 
     if (round.status === "DRAFT") {
       const integrity = await computeRoundPlanIntegrity(round.id);
+      roundPlanIntegrities[round.id] = integrity;
       const blockedSignals = integrity.signals.filter(
         (s) => s.kind === "BLOCKED",
       );
@@ -430,10 +432,17 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       matchId: { in: todayMatchIds },
       status: "ACTIVE",
     },
-    select: { matchId: true },
+    select: { matchId: true, startedAt: true, lastHeartbeatAt: true },
   });
 
   const matchesWithSession = new Set(activeSessions.map((s) => s.matchId));
+  const activeLiveSessions: AssistantCommandCentre["activeLiveSessions"] = {};
+  for (const session of activeSessions) {
+    activeLiveSessions[session.matchId] = {
+      startedAt: session.startedAt.toISOString(),
+      lastHeartbeatAt: session.lastHeartbeatAt?.toISOString() ?? null,
+    };
+  }
 
   const todayMatchData: TodayMatch[] = todayMatches.map((match) => {
     const selStatuses = matchSelectionMap.get(match.id);
@@ -571,6 +580,8 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     leagueSeasonName: leagueSeason.name,
     items,
     todayMatches: todayMatchData,
+    roundPlanIntegrities,
+    activeLiveSessions,
     computedAt: new Date(),
   };
 }
@@ -605,6 +616,8 @@ function emptyResult(
     leagueSeasonName,
     items,
     todayMatches: [],
+    roundPlanIntegrities: {},
+    activeLiveSessions: {},
     computedAt: new Date(),
   };
 }

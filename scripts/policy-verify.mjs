@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { resolveOpaPath, REPO_ROOT } from "./policy-utils.mjs";
+import { buildEntrypointArgs } from "./policy-metadata-utils.mjs";
 
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 
@@ -84,7 +85,7 @@ async function main() {
         "build",
         regoDir,
         "-t", "wasm",
-        "-e", metadata.entrypoint,
+        ...buildEntrypointArgs(metadata),
         "-o", tempBundle,
       ], { stdio: "pipe" });
 

@@ -1,14 +1,15 @@
-import { isRegoEnabled, getRegoFailureMode } from "./rego-policy-adapter";
+import { getActivePackId, loadPackMetadata } from "./policy-pack";
+import { getPolicyRuntimeDiagnostics } from "./policy-runtime";
 import { getPolicyArtifactHash, getPolicyVersion } from "./policy-version";
 import type { SelectionPolicyResult } from "./types";
 
 export type PolicyDecisionSummary = {
   decisionType: string;
-  policyRuntime: string;
+  policyRuntime: "default+rego";
+  policyRuntimeStatus: "HEALTHY" | "DEGRADED";
   policyVersion: string;
   policyArtifactHash: string | null;
-  regoEnabled: boolean;
-  regoFailureMode: string;
+  packFailureMode: string | null;
   blockedCount: number;
   warningCodes: string[];
   scoreAdjustmentCount: number;
@@ -31,13 +32,15 @@ export function buildDecisionSummary(
     evaluationDurationMs?: number;
   },
 ): PolicyDecisionSummary {
+  const metadata = loadPackMetadata(getActivePackId());
+
   return {
     decisionType,
-    policyRuntime: isRegoEnabled() ? "default+rego" : "default",
+    policyRuntime: "default+rego",
+    policyRuntimeStatus: getPolicyRuntimeDiagnostics().status,
     policyVersion: getPolicyVersion(),
     policyArtifactHash: getPolicyArtifactHash(),
-    regoEnabled: isRegoEnabled(),
-    regoFailureMode: getRegoFailureMode(),
+    packFailureMode: metadata?.failureMode ?? null,
     blockedCount: Object.keys(result.blocked).length,
     warningCodes: result.warnings.map((w) => w.code),
     scoreAdjustmentCount: result.scoreAdjustments.length,

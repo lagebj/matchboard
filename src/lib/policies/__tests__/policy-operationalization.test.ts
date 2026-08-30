@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   evaluateSelectionPolicy,
   filterBlockedPlayerIds,
@@ -34,24 +34,19 @@ const baseInput: SelectionPolicyInput = {
 };
 
 describe("evaluateSelectionPolicy", () => {
-  beforeEach(() => {
-    vi.stubEnv("MATCHBOARD_POLICY_REGO_ENABLED", "false");
-  });
-
-  it("evaluates default policy with core invariants", async () => {
+  it("evaluates core invariants + default policy + the always-on Rego layer", async () => {
     const result = await evaluateSelectionPolicy(baseInput);
     expect(result.result.blocked).toHaveProperty("p2");
     expect(result.result.blocked).toHaveProperty("p3");
     expect(result.result.allowedPlayerIds).toContain("p1");
     expect(result.result.allowedPlayerIds).not.toContain("p2");
     expect(result.result.allowedPlayerIds).not.toContain("p3");
-    expect(result.regoEnabled).toBe(false);
+    expect(result.policyRuntimeStatus).toBe("HEALTHY");
     expect(result.evaluationDurationMs).toBeGreaterThanOrEqual(0);
   });
 
   it("includes policy version info", async () => {
     const result = await evaluateSelectionPolicy(baseInput);
-    expect(result.regoFailureMode).toBe("fail_closed");
     expect(typeof result.evaluationDurationMs).toBe("number");
   });
 });

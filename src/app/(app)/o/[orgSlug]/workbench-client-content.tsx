@@ -24,11 +24,11 @@ type FixtureSummary = {
 };
 
 type WorkbenchDiagnostics = {
-  regoEnabled: boolean;
+  runtimeStatus: "HEALTHY" | "DEGRADED";
   regoWasmLoaded: boolean;
   policyVersion: string;
   artifactHash: string | null;
-  failureMode: string;
+  packFailureMode: string | null;
   evaluationTimestamp: string;
 };
 
@@ -56,8 +56,8 @@ type WorkbenchPolicyRun = {
     tags: { playerId: string; tag: string; reason: string; source?: string }[];
   };
   evaluationDurationMs: number;
-  regoEnabled: boolean;
-  regoFailureMode: string;
+  includesRegoLayer: boolean;
+  policyRuntimeStatus: "HEALTHY" | "DEGRADED";
   policyVersion: string;
   artifactHash: string | null;
 };
@@ -180,16 +180,18 @@ export function WorkbenchPageContent() {
               <p className="font-mono">{diagnostics.policyVersion}</p>
             </div>
             <div>
-              <span className="text-[var(--text-muted)]">Rego enabled</span>
-              <p>{diagnostics.regoEnabled ? "Yes" : "No"}</p>
+              <span className="text-[var(--text-muted)]">Policy runtime</span>
+              <p className={diagnostics.runtimeStatus === "DEGRADED" ? "text-[var(--warning)]" : undefined}>
+                {diagnostics.runtimeStatus === "HEALTHY" ? "Healthy" : "Degraded (safe fallback active)"}
+              </p>
             </div>
             <div>
               <span className="text-[var(--text-muted)]">Artifact hash</span>
               <p className="font-mono text-xs">{diagnostics.artifactHash ?? "N/A"}</p>
             </div>
             <div>
-              <span className="text-[var(--text-muted)]">Failure mode</span>
-              <p>{diagnostics.failureMode}</p>
+              <span className="text-[var(--text-muted)]">Pack failure mode</span>
+              <p>{diagnostics.packFailureMode ?? "N/A"}</p>
             </div>
           </div>
         </Surface>
