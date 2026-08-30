@@ -122,6 +122,39 @@ function isActionable(item: AssistantWorkItem): boolean {
   return item.category !== "upcoming_round";
 }
 
+/** Groups whose categories are excluded from `assistantWorkItemsToCandidates()` (a richer
+ * per-signal provider covers the same underlying problem instead — see today/page.tsx). Their
+ * items have no corresponding situational decision to look up, so situational annotation must
+ * not attempt to map them and must never mark a Blocked/Decision-required item as deferred —
+ * AGENTS.md requires those to always remain prominent, never de-emphasized. */
+const GROUPS_WITHOUT_CANDIDATE_MAPPING: ReadonlySet<GroupKey> = new Set(["blockers", "decisions"]);
+
+/**
+ * Work item ids whose corresponding situational decision was NOT promoted/normal-visibility in
+ * the current projection (i.e. the situation policy deferred or suppressed it) — used to
+ * annotate, never hide, grouped-section rows (docs/domain/situational-decision-support.md:
+ * "Today's grouped sections and metric tiles are not yet situationally filtered"). Items in
+ * `GROUPS_WITHOUT_CANDIDATE_MAPPING` are never included here since they have no candidate to
+ * compare against.
+ */
+function computeDeferredWorkItemIds(
+  actionable: AssistantWorkItem[],
+  projection: CoachSituationProjection | undefined,
+): Set<string> {
+  if (!projection) return new Set();
+  const promotedIds = new Set(
+    projection.decisions
+      .map((d) => workItemIdFromCandidateId(d.candidateId))
+      .filter((id): id is string => id != null),
+  );
+  const deferred = new Set<string>();
+  for (const item of actionable) {
+    if (GROUPS_WITHOUT_CANDIDATE_MAPPING.has(groupForCategory(item.category)?.key as GroupKey)) continue;
+    if (!promotedIds.has(item.id)) deferred.add(item.id);
+  }
+  return deferred;
+}
+
 /**
  * The hero "Next action" is chosen by the situational projection's ordering — not raw
  * `CATEGORY_PRIORITY` array order (ADR-0107, SDS-018) — whenever a projection is available and
@@ -351,7 +384,17 @@ function NextRoundReadinessSection({
   );
 }
 
-function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean }) {
+function WorkRow({
+  item,
+  dim = false,
+  deferred = false,
+}: {
+  item: AssistantWorkItem;
+  dim?: boolean;
+  /** True when the situational projection deferred this item's decision (still shown in full —
+   * never hidden — just annotated as lower priority given the coach's current situation). */
+  deferred?: boolean;
+}) {
   return (
     <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
       <div className="flex min-w-0 flex-col gap-0.5">
@@ -363,6 +406,11 @@ function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean
         {item.summary && (
           <span className="text-xs text-[var(--text-muted)] line-clamp-1">
             {item.summary}
+          </span>
+        )}
+        {deferred && (
+          <span className="text-[11px] text-[var(--text-muted)] italic">
+            Lower priority right now
           </span>
         )}
       </div>
@@ -382,7 +430,13 @@ function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean
   );
 }
 
-function GroupedReports({ items }: { items: AssistantWorkItem[] }) {
+function GroupedReports({
+  items,
+  deferredIds,
+}: {
+  items: AssistantWorkItem[];
+  deferredIds: Set<string>;
+}) {
   const byRound = new Map<string, AssistantWorkItem[]>();
   for (const item of items) {
     const key = item.matchRoundId ?? "_";
@@ -400,7 +454,7 @@ function GroupedReports({ items }: { items: AssistantWorkItem[] }) {
       />
       <ul className="flex flex-col">
         {items.map((item) => (
-          <WorkRow key={item.id} item={item} />
+          <WorkRow key={item.id} item={item} deferred={deferredIds.has(item.id)} />
         ))}
       </ul>
     </Surface>
@@ -475,9 +529,11 @@ function TodayMatchesSection({ matches, orgUrl }: { matches: TodayMatch[]; orgUr
 function StandardGroup({
   group,
   items,
+  deferredIds,
 }: {
   group: GroupConfig;
   items: AssistantWorkItem[];
+  deferredIds: Set<string>;
 }) {
   const Icon = group.icon;
   return (
@@ -507,7 +563,7 @@ function StandardGroup({
       )}
       <ul className="flex flex-col">
         {items.map((item) => (
-          <WorkRow key={item.id} item={item} />
+          <WorkRow key={item.id} item={item} deferred={deferredIds.has(item.id)} />
         ))}
       </ul>
     </Surface>
@@ -529,6 +585,7 @@ export function AssistantCommandCentrePage({
   const actionable = items.filter(isActionable);
   const upcoming = items.filter((i) => i.category === "upcoming_round");
   const nextAction = resolveNextAction(actionable, projection);
+  const deferredWorkItemIds = computeDeferredWorkItemIds(actionable, projection);
 
   // Metric aggregates
   const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);
@@ -653,9 +710,9 @@ export function AssistantCommandCentrePage({
         const filtered = groupItems.filter((i) => i.id !== nextAction?.id);
         if (filtered.length === 0) return null;
         if (group.key === "reports") {
-          return <GroupedReports key={group.key} items={filtered} />;
+          return <GroupedReports key={group.key} items={filtered} deferredIds={deferredWorkItemIds} />;
         }
-        return <StandardGroup key={group.key} group={group} items={filtered} />;
+        return <StandardGroup key={group.key} group={group} items={filtered} deferredIds={deferredWorkItemIds} />;
       })}
 
       {upcoming.length > 0 && (

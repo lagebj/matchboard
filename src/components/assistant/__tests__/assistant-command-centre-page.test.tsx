@@ -299,3 +299,93 @@ describe("NextRoundReadinessSection (Phase 6)", () => {
     expect(screen.getAllByRole("link", { name: /Open Round Board/i })).toHaveLength(2);
   });
 });
+
+describe("Grouped-section situational annotation (Phase 4 continuation)", () => {
+  function decisionFor(candidateSuffix: string, title: string): CoachSituationProjection["decisions"][number] {
+    return {
+      id: `d-${candidateSuffix}`,
+      candidateId: `${ASSISTANT_CANDIDATE_PROVIDER_ID}|${candidateSuffix}`,
+      situation: "MATCHDAY",
+      horizon: "NOW",
+      visibility: "PROMOTE",
+      urgency: "IMMEDIATE",
+      interaction: "CONFIRM",
+      title,
+      alternatives: [],
+      affectedEntities: [],
+      reasonCodes: [],
+    };
+  }
+
+  it("annotates a non-promoted item in a group as deferred, without hiding it", () => {
+    const items = [
+      makeItem({ id: "setup-item", category: "setup_missing", title: "Add teams" }),
+      makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" }),
+    ];
+    const commandCentre = makeCommandCentre(items);
+    // Only "report-item" has a promoted decision -> it becomes the hero (removed from its
+    // group); "setup-item" has none, so it should remain visible but marked deferred.
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({}),
+      decisions: [decisionFor("report-item", "Complete report")],
+    };
+
+    renderPage(commandCentre, projection);
+
+    // Still fully visible -- never hidden.
+    expect(screen.getByText("Add teams")).toBeTruthy();
+    expect(screen.getByText("Lower priority right now")).toBeTruthy();
+  });
+
+  it("does not annotate anything when no projection is provided", () => {
+    const items = [
+      makeItem({ id: "setup-item", category: "setup_missing", title: "Add teams" }),
+      makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" }),
+    ];
+    renderPage(makeCommandCentre(items));
+
+    expect(screen.queryByText("Lower priority right now")).toBeNull();
+  });
+
+  it("does not annotate a promoted item that stays in its group (not chosen as hero)", () => {
+    const items = [
+      makeItem({ id: "setup-item", category: "setup_missing", title: "Add teams" }),
+      makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" }),
+    ];
+    const commandCentre = makeCommandCentre(items);
+    // Both promoted -- "setup-item" wins the hero slot (first decision); "report-item" remains
+    // in its group and IS promoted, so it must not be marked deferred.
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({}),
+      decisions: [decisionFor("setup-item", "Add teams"), decisionFor("report-item", "Complete report")],
+    };
+
+    renderPage(commandCentre, projection);
+
+    expect(screen.getByText("Complete report")).toBeTruthy();
+    expect(screen.queryByText("Lower priority right now")).toBeNull();
+  });
+
+  it("never marks a Blocked or Decision-required item as deferred, even with no matching decision", () => {
+    const items = [
+      makeItem({ id: "blocked_round|round-1", category: "blocked_round", title: "Round 1 blocked", blockedCount: 1 }),
+      makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" }),
+    ];
+    const commandCentre = makeCommandCentre(items);
+    // Only "report-item" is promoted (becomes hero); the blocked_round item has no matching
+    // decision at all (it's excluded from candidate mapping per today/page.tsx), and must never
+    // be shown as deferred regardless.
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({}),
+      decisions: [decisionFor("report-item", "Complete report")],
+    };
+
+    renderPage(commandCentre, projection);
+
+    // "Round 1 blocked" appears twice: once in the IssueMarker, once in the WorkRow -- both
+    // legitimate, pre-existing renders of the same item, not a bug (see the Phase 5 tests above
+    // for the same pattern with other duplicated match-identity text).
+    expect(screen.getAllByText("Round 1 blocked").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Lower priority right now")).toBeNull();
+  });
+});
