@@ -82,10 +82,22 @@ Implemented:
   suppression side is a policy-level guarantee proven by test, not something a coach would ever
   witness live on this particular page — an honest scope boundary, not a gap.
 
+- **Stalled live session (Phase 5 continuation)**: `createLiveSessionCandidateProvider()`
+  (`src/lib/situational/providers/live-session-candidate-provider.ts`) detects an ACTIVE
+  `LiveMatchSession` whose client hasn't sent a heartbeat (the reporting UI heartbeats every 30s
+  while its tab is open) in `STALE_HEARTBEAT_MINUTES` (10) — a real signal ("did the coach walk
+  away from live reporting without ending the session?") with no prior `AssistantWorkItem`
+  category or UI surface. Reuses `AssistantCommandCentre.activeLiveSessions`, a new field added
+  to the existing `liveMatchSession` query in `getAssistantCommandCentre()` (two extra selected
+  columns, no new query) alongside `todayMatches`. Wired into Today alongside the other two
+  providers. Note: "event readiness" was investigated as a candidate next provider and found
+  already fully covered by the existing assistant-work-item provider (every `event_*`
+  `AssistantWorkCategory` already has a `CATEGORY_CONSEQUENCES` mapping) — not rebuilt.
+
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- Candidate providers beyond the three above (event readiness, live-match state, report state,
-  opponent evidence — `pending_profile_suggestions` and the opportunity-gap provider are the only
-  long-term-signal sources so far).
+- Candidate providers beyond the four above (report state beyond existing categories, opponent/
+  combination evidence as a second real long-term source — `pending_profile_suggestions` and the
+  opportunity-gap provider are the only long-term-signal sources so far).
 - Situational filtering of Today's grouped sections and metric tiles (currently unfiltered).
 - Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
   `status`, but the page does not yet render it distinctly from the existing empty state, beyond
@@ -318,6 +330,7 @@ even though no caller exists yet.
 | `src/lib/situational/providers/assistant-candidate-provider.ts` | Adapts existing `AssistantWorkItem`s into `CoachDecisionCandidate`s (`assistantWorkItemsToCandidates()`, `workItemIdFromCandidateId()`) |
 | `src/lib/situational/providers/plan-integrity-candidate-provider.ts` | Adapts `computeRoundPlanIntegrity()`'s per-signal output into one candidate per signal (`createPlanIntegrityCandidateProvider()`, `planIntegritySignalToCandidate()`) — reuses already-computed `RoundPlanIntegrity`, never recomputes |
 | `src/lib/situational/providers/opportunity-gap-candidate-provider.ts` | First real `LONG_TERM` candidate source: adapts `getOpportunityGap()` (I-003) rows with a meaningful gap into candidates (`opportunityGapRowsToCandidates()`) |
+| `src/lib/situational/providers/live-session-candidate-provider.ts` | Detects a stalled `LiveMatchSession` (missed heartbeat) from already-loaded `AssistantCommandCentre.activeLiveSessions` (`createLiveSessionCandidateProvider()`, `staleLiveSessionsToCandidates()`) |
 | `src/app/api/insights/opportunity-gap/route.ts` | Resolves a `LONG_TERM` situation and returns the projection alongside the existing `rows` payload |
 | `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Renders the "Situational summary" block from the route's `projection` |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
