@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, TrendingDown } from "lucide-react";
 import type { OpportunityGapRow } from "@/lib/insights/insights-types";
 import { sortByGapDescending } from "@/lib/insights/opportunity-gap-helpers";
+import type { CoachSituationProjection } from "@/lib/situational/situation-types";
 
 type LeagueSeasonOption = {
   id: string;
@@ -26,6 +27,7 @@ export function OpportunityGapClient({
     activeLeagueSeasonId ?? leagueSeasons[0]?.id ?? "",
   );
   const [rows, setRows] = useState<OpportunityGapRow[] | null>(null);
+  const [projection, setProjection] = useState<CoachSituationProjection | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export function OpportunityGapClient({
       if (res.ok) {
         const data = await res.json();
         setRows(data.rows ?? []);
+        setProjection(data.projection ?? null);
       }
     });
   }, [selectedPeriodId]);
@@ -81,6 +84,24 @@ export function OpportunityGapClient({
       )}
 
       {isPending && !rows && <p className="text-sm text-zinc-500">Loading opportunity gap...</p>}
+
+      {projection && projection.decisions.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">Situational summary</p>
+          <p className="mt-1 text-sm text-zinc-300">
+            {projection.decisions.length} player{projection.decisions.length === 1 ? "" : "s"} show
+            {projection.decisions.length === 1 ? "s" : ""} a lower realised opportunity than
+            planned this league season.
+          </p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {projection.decisions.slice(0, 5).map((decision) => (
+              <li key={decision.id} className="text-xs text-zinc-400">
+                {decision.summary}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {rows && (
         <div className="overflow-x-auto rounded-xl border border-zinc-800">

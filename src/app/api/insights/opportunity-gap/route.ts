@@ -4,6 +4,9 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import { getOpportunityGap } from "@/lib/insights/opportunity-gap";
 import type { InsightScope, InsightContext } from "@/lib/insights/insights-types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { resolveSituationContext } from "@/lib/situational/resolve-situation-context";
+import { projectCandidates } from "@/lib/situational/get-coach-situation-projection";
+import { opportunityGapRowsToCandidates } from "@/lib/situational/providers/opportunity-gap-candidate-provider";
 
 export const runtime = "nodejs";
 
@@ -44,5 +47,16 @@ export async function GET(request: Request) {
     includeInactive: searchParams.get("includeInactive") === "true",
   });
 
-  return NextResponse.json({ rows });
+  // Situational decision support (ADR-0107, Phase 7): this Insights page is a deliberately
+  // analytical route, so it resolves LONG_TERM — reusing the rows already loaded above rather
+  // than issuing a second query for the same data.
+  const situationContext = resolveSituationContext({
+    nowIso: new Date().toISOString(),
+    matches: [],
+    routeIntent: "INSIGHTS",
+  });
+  const candidates = opportunityGapRowsToCandidates(rows);
+  const projection = await projectCandidates(situationContext, candidates);
+
+  return NextResponse.json({ rows, projection });
 }

@@ -64,30 +64,48 @@ Implemented:
   decisions and readiness before entering the full Round Board" acceptance criterion. No inline
   mutation/direct-action wiring yet — every action here is navigation only.
 
+- **Long-term foundation (Phase 7, first slice)**: `opportunityGapRowsToCandidates()`
+  (`src/lib/situational/providers/opportunity-gap-candidate-provider.ts`) is the first genuine
+  `LONG_TERM` candidate source backed by real evidence data — it adapts `getOpportunityGap()`
+  (I-003, descriptive planned-vs-realised gap, never a debt score) rows with a meaningful positive
+  gap (capped at the top 10 by gap size) into `isLongTermSignal: true` candidates. Wired into the
+  existing `/api/insights/opportunity-gap` route (computed from rows that route already loads —
+  no second query) and rendered as a compact "Situational summary" block above the existing table
+  on the Opportunity Gap insights page. This route/page resolves a `LONG_TERM` situation (via
+  `routeIntent: "INSIGHTS"`), proving genuine cross-page reuse of the same projection
+  infrastructure Today uses, not a Today-only mechanism. **Architecture proof, verified two ways**:
+  (1) an integration test evaluates the exact same candidate shape through the real compiled
+  situation policy in both a `MATCHDAY` context (`SUPPRESS`, zero decisions) and a `LONG_TERM`
+  context (`PROMOTE`, `LONG_TERM` horizon) —
+  `opportunity-gap-candidate-provider.test.ts`; (2) the Opportunity Gap page itself only ever
+  resolves `LONG_TERM` (an Insights route has no Matchday/Next operational meaning), so the
+  suppression side is a policy-level guarantee proven by test, not something a coach would ever
+  witness live on this particular page — an honest scope boundary, not a gap.
+
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- Candidate providers beyond the two in Phase 3 (event readiness, live-match state, report state,
-  opponent/opportunity evidence — the first genuine `LONG_TERM` sources with real evidence data;
-  currently only `pending_profile_suggestions` exercises the long-term-signal path via the coarse
-  Assistant adapter).
+- Candidate providers beyond the three above (event readiness, live-match state, report state,
+  opponent evidence — `pending_profile_suggestions` and the opportunity-gap provider are the only
+  long-term-signal sources so far).
 - Situational filtering of Today's grouped sections and metric tiles (currently unfiltered).
 - Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
   `status`, but the page does not yet render it distinctly from the existing empty state, beyond
   the Matchday banner's own live/kickoff pill and the Next-round section's own counts).
-- Anything beyond the Matchday banner and Next-round-readiness slices above: multiple imminent
-  matches are not distinguished in the banner (only the first is shown), last-minute selection-
-  change/lineup-gap content isn't surfaced in the banner itself (that still lives in the grouped
-  sections below), simple NEXT decisions are not yet resolvable inline (navigation to the Round
-  Board only — no safe command boundary has been wired for in-place resolution), and there is no
-  dedicated narrow-viewport Playwright spec beyond the existing accessibility project incidentally
-  covering Today.
-- Long-term UI/projection surfaces.
+- Anything beyond the Matchday banner, Next-round-readiness, and opportunity-gap slices above:
+  multiple imminent matches are not distinguished in the banner (only the first is shown),
+  last-minute selection-change/lineup-gap content isn't surfaced in the banner itself (that still
+  lives in the grouped sections below), simple NEXT decisions are not yet resolvable inline
+  (navigation to the Round Board only — no safe command boundary has been wired for in-place
+  resolution), the opportunity-gap summary is display-only with no deep-link interaction beyond
+  what the existing table already offers, and there is no dedicated narrow-viewport Playwright
+  spec beyond the existing accessibility project incidentally covering Today.
 - Direct-action wiring beyond navigation (no in-place mutation actions yet), mobile Playwright
   coverage beyond the existing accessibility project, and the remaining quality gates in the
-  programme bundle.
+  programme bundle (full Phase 8 consolidation).
 
-Do not treat any part of this document as describing the Round Board itself or Long-term surfaces
-until this status section is updated to say so — Today's hero "Next action" selection, the
-Matchday context banner, and the Next-round-readiness section are the only live situational UI;
+Do not treat any part of this document as describing the Round Board itself until this status
+section is updated to say so — Today's hero "Next action" selection, the Matchday context banner,
+the Next-round-readiness section, and the Opportunity Gap page's situational summary are the only
+live situational UI;
 the Round Board it deep-links to remains the pre-existing, unmodified deep-workspace page.
 
 ## Problem
@@ -299,6 +317,9 @@ even though no caller exists yet.
 | `src/lib/situational/get-coach-situation-projection.ts` | The one projection query boundary: `getCoachSituationProjection()` / `projectCandidates()`, deterministic ordering, status computation |
 | `src/lib/situational/providers/assistant-candidate-provider.ts` | Adapts existing `AssistantWorkItem`s into `CoachDecisionCandidate`s (`assistantWorkItemsToCandidates()`, `workItemIdFromCandidateId()`) |
 | `src/lib/situational/providers/plan-integrity-candidate-provider.ts` | Adapts `computeRoundPlanIntegrity()`'s per-signal output into one candidate per signal (`createPlanIntegrityCandidateProvider()`, `planIntegritySignalToCandidate()`) — reuses already-computed `RoundPlanIntegrity`, never recomputes |
+| `src/lib/situational/providers/opportunity-gap-candidate-provider.ts` | First real `LONG_TERM` candidate source: adapts `getOpportunityGap()` (I-003) rows with a meaningful gap into candidates (`opportunityGapRowsToCandidates()`) |
+| `src/app/api/insights/opportunity-gap/route.ts` | Resolves a `LONG_TERM` situation and returns the projection alongside the existing `rows` payload |
+| `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Renders the "Situational summary" block from the route's `projection` |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
 | `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6) |
 
