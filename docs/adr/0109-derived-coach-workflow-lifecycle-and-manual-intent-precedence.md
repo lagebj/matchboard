@@ -170,6 +170,22 @@ baseline-capture transaction. `MatchLineupAssignment.source`/`locked` (League) a
 manual from suggested assignments and are kept — auto-fill must respect a `MANUAL`/locked-by-coach
 assignment without a second confirm step, matching §5's Event precedent.
 
+### 7a. Scope boundary: whole-EventSquad-set lock (`confirmEventSquadsAction`) is retained
+
+Unlike round/match finalize (pure ceremony with no real-world temporal analog, confirmed by the
+fact its trigger could be fully automated from time), the whole-squad-set lock
+(`EventSquad.status` DRAFT/LOCKED, `confirmEventSquadsAction`/`unconfirmEventSquadsAction`)
+performs real, distinct work with no time-based trigger to replace it: validating the *complete*
+squad set together (no duplicate players across squads, no unavailable players, minimum size,
+goalkeeper coverage) as a deliberate readiness gate, and superseding stale `ReviewRequest`s with a
+notification. There is no kickoff-equivalent boundary for "the coach is done picking Event
+squads" — this is a semantic assertion the system cannot infer from time, analogous to `Complete
+report` (D9/PRINCIPLES.md #10), not a redundant mirror of information already present. This
+programme instead fixes the *player-level* redundant lock this section's D12 examples target
+(§5's `togglePlayerLockAction` removal) and leaves the whole-squad-set lock as-is. Revisit only
+with a new, explicitly-scoped decision if a future audit finds its validation/review-supersession
+role can be safely relocated to a real-world boundary.
+
 ### 7. Scope boundary: `Event.status`/`LeagueSeason.status` container finalization is out of scope
 
 `Event.status` (whole-event DRAFT/FINALIZED, gating exports) and `LeagueSeason.status` (whole
