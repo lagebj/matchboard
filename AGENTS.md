@@ -2009,10 +2009,12 @@ back to the most recently started season within a ~90-day plausibility window (e
 implausibly-far-future seasons, which only ever arise from generated/test data) when none spans
 "now", and only the absolute most-recent-by-start-date when every season is implausibly far out.
 The window must stay well under 420 days — `e2e/helpers/live-match-fixtures.ts`'s
-`randomFutureMatchDate()` spreads test matches 60-5060 weeks (~420 days minimum) out, and an
-earlier, wider ~2-year window let some of that random spread land inside the "plausible" bucket
-and wrongly outrank this repo's own real seed-dataset season, confirmed live in CI:
-`round-mutation.spec.ts`'s target round disappeared from this page entirely.
+`randomFutureMatchDate()` spreads test matches 60-50,060 weeks (~420 days minimum; the upper
+bound was widened from 5,060 weeks on 2026-08-30 to reduce a birthday-paradox collision risk
+unrelated to this page — see that file's own comment) out, and an earlier, wider ~2-year window
+let some of that random spread land inside the "plausible" bucket and wrongly outrank this
+repo's own real seed-dataset season, confirmed live in CI: `round-mutation.spec.ts`'s target
+round disappeared from this page entirely.
 An earlier unbounded, unscoped version of this query rendered every round the organisation had
 ever accumulated on one page with no pagination — confirmed live in CI causing real page-load
 slowness and intermittent E2E failures once round-count reached the low hundreds.

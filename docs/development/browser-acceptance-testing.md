@@ -293,3 +293,25 @@ no additional environment configuration is needed. It still requires a real, alr
 session (`requirePageActorContext()`/`requireMutationRole()`/`requireTeamGroupAccess()`) — this is
 not an auth bypass, only a fast-path around UI navigation for a caller who is already a genuine
 coach.
+
+#### Known incident: birthday-paradox flake on long-lived PRs (fixed 2026-08-30)
+
+`createFinalizedLiveTestMatch()` picks each fixture match's date via
+`randomFutureMatchDate()`, drawn from a fixed future-week pool so unrelated test runs don't
+collide on the same `MatchRound` (matches are grouped by ISO week). Because the per-PR Neon
+branch this endpoint writes to is reused and never cleaned for the life of the PR (see "Fast
+fixture setup for live-match specs" above), every additional commit's CI run draws more dates
+from that same pool — an unusually long-lived PR (e.g. #389, 17 commits) can accumulate enough
+draws to hit a real birthday-paradox collision, surfacing as `seed-finalized-match failed (500)`
+with either `"Finalised matches cannot be recalculated"` (drew a date matching an
+already-finalized match) or `"This date is outside the current league season..."` (a resolved
+league season boundary case). Confirmed live three times across two team-wide incidents plus
+this one; each prior fix simply widened the pool (500 → 5,000 weeks), which only raises the
+commit-count threshold before it recurs. Fixed properly this time in
+`e2e/helpers/live-match-fixtures.ts`: `process.hrtime.bigint()` replaces `Math.random()` (making
+same-run collisions structurally impossible, not just unlikely) and the pool widened another 10x
+(5,000 → 50,000 weeks). If this resurfaces on some future, even-longer-lived PR, the durable fix
+is not a fourth widening — it's giving `createFinalizedLiveTestMatch()` a real teardown (delete
+the match/round it created) instead of accepting permanent accumulation on the shared branch, or
+switching to a collision-proof key (e.g. a monotonically assigned round-slot per PR) instead of
+random sampling at all.

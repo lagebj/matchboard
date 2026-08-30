@@ -40,9 +40,28 @@ import { type Page, expect } from "@playwright/test";
  * calls, but the fast endpoint made setup cheap enough that retries now draw many more dates
  * per run, meaningfully raising the birthday-paradox collision odds. Widening the spread to
  * ~5000 weeks (~100 years) restores the original safety margin.
+ *
+ * Confirmed live a third time, 2026-08-30 (PR #389, an unusually long-lived 17-commit PR): the
+ * per-PR Neon branch (pr-389) is reused and never cleaned across the PR's entire life (see
+ * "cannot be made self-cleaning" above), so every commit's live-reporting.spec.ts/
+ * follow-live.spec.ts run drew more dates from the same fixed 5000-week pool, and the birthday-
+ * paradox odds climbed with every additional commit -- two separate CI runs on this PR hit
+ * collisions (one "Finalised matches cannot be recalculated", one "date is outside the current
+ * league season", and a third run repeated the first verbatim). The team already widened this
+ * pool once before for the identical underlying mechanism (500 -> 5000 weeks); that margin was
+ * sized for a typical PR's commit count, not an outlier this long. Fixed two ways instead of
+ * widening the pool a third time: (1) `process.hrtime.bigint()` (nanosecond-resolution,
+ * effectively never repeats within a process) replaces `Math.random()`, so two calls within the
+ * same test run can no longer coincidentally draw the same date at all -- not just less likely
+ * to, closing the exact retry-collision class documented above outright; (2) the pool itself is
+ * widened another order of magnitude (5000 -> 50,000 weeks, ~960 years -- test dates only need
+ * to be distinct, never plausible), cutting cross-run birthday-paradox odds by roughly 10x for
+ * the same number of draws, so a long-lived PR needs roughly 10x more commits before the same
+ * failure mode resurfaces.
  */
 function randomFutureMatchDate(): Date {
-  const weeksOut = 60 + Math.floor(Math.random() * 5000);
+  const entropy = Number(process.hrtime.bigint() % BigInt(50_000));
+  const weeksOut = 60 + entropy;
   return new Date(Date.now() + weeksOut * 7 * 24 * 60 * 60 * 1000);
 }
 
