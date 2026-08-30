@@ -7,17 +7,13 @@ import {
   removePlayerFromMatchAction,
 } from "@/app/(app)/rounds/[matchRoundId]/draft-selection-actions";
 import {
-  ShieldCheck,
   Trash2,
   RefreshCw,
   GripVertical,
-  Lock,
-  RotateCcw,
+  CalendarClock,
 } from "lucide-react";
 import { generateEmergencyRepairOptionsAction } from "@/app/(app)/matches/emergency-repair-actions";
 import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-options";
-import { ConfirmFinalizeDialog } from "@/components/round/confirm-finalize-dialog";
-import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
@@ -25,9 +21,6 @@ import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-autom
 import {
   clearRoundDraftAction,
   regenerateRoundAction,
-  finalizeSingleMatchFromBoardAction,
-  unfinalizeRoundAction,
-  unfinalizeSingleMatchFromBoardAction,
 } from "@/app/(app)/rounds/[matchRoundId]/actions";
 import { RoleBadge, type SelectionRole as UISelectionRole } from "@/components/ui/role-badge";
 import {
@@ -259,11 +252,9 @@ function MatchColumnComponent({
   onRemovePlayer,
   onMovePlayer,
   onRepairPlayer,
-  showFinalizeMatch,
   onTouchStartPlayer,
   isTouchHighlight,
   touchDragPlayerId,
-  matchRoundId,
 }: {
   match: MatchColumn;
   isPending: boolean;
@@ -278,15 +269,11 @@ function MatchColumnComponent({
   onRemovePlayer: (matchId: string, playerId: string) => void;
   onMovePlayer: (matchId: string, playerId: string, playerName: string) => void;
   onRepairPlayer: (matchId: string, playerId: string, playerName: string) => void;
-  showFinalizeMatch: (matchId: string) => void;
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
   touchDragPlayerId?: string | null;
-  matchRoundId: string;
 }) {
-  const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isFinalizing, startFinalizing] = useTransition();
   const dateStr = match.matchDate.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "numeric",
@@ -373,38 +360,13 @@ function MatchColumnComponent({
           <StatusPill variant={fillVariant}>
             {selectedCount}/{match.targetSquadSize}
           </StatusPill>
-          {match.isFinalized ? (
-            <Button
-              variant="quiet"
-              size="sm"
-              disabled={isFinalizing || isPending}
-              onClick={() => {
-                startFinalizing(async () => {
-                  const fd = new FormData();
-                  fd.set("matchId", match.matchId);
-                  fd.set("matchRoundId", matchRoundId);
-                  await unfinalizeSingleMatchFromBoardAction({ error: "" }, fd);
-                  router.refresh();
-                });
-              }}
-              title="Un-finalise this match"
-              aria-label="Un-finalise this match"
-              className="!px-1.5"
+          {match.isFinalized && (
+            <span
+              className="flex items-center gap-1 text-[var(--text-muted)]"
+              title="Planning is closed for this match — kickoff has passed or live reporting has started. Reschedule the match to reopen planning if it hasn't actually started."
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </Button>
-          ) : (
-            <Button
-              variant="quiet"
-              size="sm"
-              disabled={isFinalizing || isPending}
-              onClick={() => showFinalizeMatch(match.matchId)}
-              title="Finalise this match"
-              aria-label="Finalise this match"
-              className="!px-1.5 hover:!text-[var(--accent-strong)]"
-            >
-              <Lock className="h-3.5 w-3.5" />
-            </Button>
+              <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
           )}
         </div>
       </div>
@@ -470,13 +432,8 @@ export function RoundBoard({
 }: RoundBoardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason] = useState("");
-
-  const [finalizingMatchId, setFinalizingMatchId] = useState<string | null>(null);
-  const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
-  const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState(false);
 
   // Non-drag "Move to..." alternative (PROGRAMME.md §50). Desktop/expanded
   // viewports get a Dialog-based list (no dropdown/menu primitive exists
@@ -594,12 +551,11 @@ export function RoundBoard({
   const computedRoundStatus: RoundStatus = deriveRoundStatus({
     dbStatus: roundStatus,
     hasDraftSelections,
-    // Decision required conditions also require an override reason to finalize (same as Blocked
-    // conditions) and must surface as BLOCKED here too — matching finalize-match-round.ts's own
-    // combined allOverrideSignals treatment and every other deriveRoundStatus() call site. This
-    // was previously blockedCount alone, meaning a round with only Decision required conditions
-    // incorrectly showed as READY in the round badge despite its own "decisions need review"
-    // banner appearing right below it.
+    // Decision required conditions need the same coach attention as Blocked conditions and must
+    // surface as BLOCKED here too — every deriveRoundStatus() call site treats them together.
+    // This was previously blockedCount alone, meaning a round with only Decision required
+    // conditions incorrectly showed as READY in the round badge despite its own "decisions need
+    // review" banner appearing right below it.
     blockedSignalCount: blockedCount + decisionRequiredCount,
   });
 
@@ -785,40 +741,6 @@ export function RoundBoard({
     [matchRoundId, startTransition, movePlayerToMatch, router],
   );
 
-  const handleFinalize = (
-    overrideReasonCategory: string,
-    overrideReasonDetail: string,
-  ) => {
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = `/rounds/${matchRoundId}`;
-    form.style.display = "none";
-    const matchRoundIdInput = document.createElement("input");
-    matchRoundIdInput.type = "hidden";
-    matchRoundIdInput.name = "matchRoundId";
-    matchRoundIdInput.value = matchRoundId;
-    form.appendChild(matchRoundIdInput);
-    if (overrideReasonCategory) {
-      const categoryInput = document.createElement("input");
-      categoryInput.type = "hidden";
-      categoryInput.name = "overrideReasonCategory";
-      categoryInput.value = overrideReasonCategory;
-      form.appendChild(categoryInput);
-    }
-    if (overrideReasonDetail) {
-      const detailInput = document.createElement("input");
-      detailInput.type = "hidden";
-      detailInput.name = "overrideReasonDetail";
-      detailInput.value = overrideReasonDetail;
-      form.appendChild(detailInput);
-    }
-    document.body.appendChild(form);
-    form.submit();
-  };
-
-  const prominentSignals = warnings.filter(
-    (w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE",
-  );
   const planningNotes = warnings.filter((w) => w.severity === "WARNING");
 
   const [availableDragOver, setAvailableDragOver] = useState(false);
@@ -826,26 +748,6 @@ export function RoundBoard({
   const moveDestinations = movePicker
     ? matches.filter((m) => m.matchId !== movePicker.fromMatchId)
     : [];
-
-  const finalizingMatch = finalizingMatchId
-    ? matches.find((m) => m.matchId === finalizingMatchId)
-    : null;
-  const finalizingMatchWarnings = finalizingMatch
-    ? warnings.filter((w) => w.teamName === finalizingMatch.teamName)
-    : [];
-  const finalizingHardBlocks = finalizingMatchWarnings.filter(
-    (w) => w.severity === "HARD_BLOCK",
-  ).length;
-  const finalizingRequiresOverride = finalizingMatchWarnings.filter(
-    (w) => w.severity === "REQUIRES_OVERRIDE",
-  ).length;
-  const finalizingHasBlocking =
-    finalizingHardBlocks > 0 || finalizingRequiresOverride > 0;
-  const finalizingSelected = finalizingMatch
-    ? finalizingMatch.players.filter((p) =>
-        DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
-      ).length
-    : 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -862,14 +764,6 @@ export function RoundBoard({
 
       {roundStatus === "DRAFT" && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="primary"
-            disabled={isPending}
-            onClick={() => setShowFinalizeDialog(true)}
-            leadingIcon={<ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />}
-          >
-            Finalize round
-          </Button>
           <Button
             variant="secondary"
             disabled={isPending}
@@ -901,21 +795,10 @@ export function RoundBoard({
           variant="finalized"
           title={
             <>
-              Finalised · <span className="font-normal">{roundLabel}</span>
+              Planning closed · <span className="font-normal">{roundLabel}</span>
             </>
           }
-          description="Selections are locked. Reopen to make changes."
-          action={
-            <Button
-              variant="warning"
-              size="sm"
-              disabled={isPending}
-              leadingIcon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
-              onClick={() => setShowUnfinalizeConfirm(true)}
-            >
-              Un-finalise round
-            </Button>
-          }
+          description="Every match's planning boundary has closed (kickoff passed or live reporting started). Reschedule a specific match to reopen its plan if it hasn't actually started."
         />
       )}
 
@@ -1100,10 +983,6 @@ export function RoundBoard({
             onRepairPlayer={(matchId, playerId, playerName) =>
               handleOpenRepair(matchId, playerId, playerName)
             }
-            showFinalizeMatch={(matchId: string) => {
-              setFinalizingMatchId(matchId);
-              setMatchOverrideReason({ category: "", detail: "" });
-            }}
             onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
               touchDragRef.current = {
                 playerId,
@@ -1114,28 +993,11 @@ export function RoundBoard({
             }}
             isTouchHighlight={touchDropTarget === match.matchId}
             touchDragPlayerId={touchDragPlayerId}
-            matchRoundId={matchRoundId}
           />
         ))}
       </div>
 
       <FairnessSummary metrics={fairnessMetrics} movementSummary={movementSummary} />
-
-      <ConfirmFinalizeDialog
-        isOpen={showFinalizeDialog}
-        onClose={() => setShowFinalizeDialog(false)}
-        onConfirm={handleFinalize}
-        blockedCount={blockedCount}
-        decisionRequiredCount={decisionRequiredCount}
-        selectedCount={totalSelected}
-        targetSquadSize={totalTarget}
-        matchCount={matches.length}
-        signals={prominentSignals.map((w) => ({
-          severity: w.severity ?? "WARNING",
-          message: w.message,
-          rule: w.code,
-        }))}
-      />
 
       <Dialog
         isOpen={showClearRoundDialog}
@@ -1168,100 +1030,6 @@ export function RoundBoard({
           </>
         }
       />
-
-      <Dialog
-        isOpen={!!finalizingMatchId}
-        onClose={() => setFinalizingMatchId(null)}
-        title="Finalise match"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setFinalizingMatchId(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              leadingIcon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
-              disabled={
-                isPending ||
-                (finalizingHasBlocking &&
-                  (!matchOverrideReason.category ||
-                    matchOverrideReason.detail.trim().length < 10))
-              }
-              onClick={() => {
-                if (!finalizingMatchId) return;
-                const id = finalizingMatchId;
-                startTransition(async () => {
-                  const fd = new FormData();
-                  fd.set("matchId", id);
-                  fd.set("matchRoundId", matchRoundId);
-                  if (matchOverrideReason.category) {
-                    fd.set("overrideReasonCategory", matchOverrideReason.category);
-                  }
-                  if (matchOverrideReason.detail.trim()) {
-                    fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
-                  }
-                  await finalizeSingleMatchFromBoardAction({ error: "" }, fd);
-                  setFinalizingMatchId(null);
-                  router.refresh();
-                });
-              }}
-            >
-              {isPending ? "Finalising…" : "Finalise match"}
-            </Button>
-          </>
-        }
-      >
-        {finalizingMatch && (
-          <>
-            <Surface variant="subtle" padding="md">
-              <p className="text-sm text-[var(--text-soft)]">
-                <span className="font-semibold text-zinc-100">{finalizingMatch.teamName}</span> vs{" "}
-                {finalizingMatch.opponent}:{" "}
-                <span className="font-semibold text-zinc-100">{finalizingSelected}</span>/
-                {finalizingMatch.targetSquadSize} players selected.
-              </p>
-            </Surface>
-
-            {finalizingHardBlocks > 0 && (
-              <DecisionBanner
-                variant="blocked"
-                title={
-                  <>
-                    {finalizingHardBlocks} blocked{" "}
-                    {finalizingHardBlocks === 1 ? "condition" : "conditions"}
-                  </>
-                }
-                description="Override reason required."
-              />
-            )}
-            {finalizingRequiresOverride > 0 && (
-              <DecisionBanner
-                variant="decision"
-                title={
-                  <>
-                    {finalizingRequiresOverride}{" "}
-                    {finalizingRequiresOverride === 1
-                      ? "decision needs review"
-                      : "decisions need review"}
-                  </>
-                }
-                description="Override reason required."
-              />
-            )}
-
-            {finalizingHasBlocking && (
-              <OverrideReasonInput
-                hasBlockingWarnings={true}
-                value={matchOverrideReason}
-                onChange={setMatchOverrideReason}
-              />
-            )}
-          </>
-        )}
-      </Dialog>
 
       <Dialog
         isOpen={!!repairTarget}
@@ -1342,38 +1110,6 @@ export function RoundBoard({
           </div>
         )}
       </Dialog>
-
-      <Dialog
-        isOpen={showUnfinalizeConfirm}
-        onClose={() => setShowUnfinalizeConfirm(false)}
-        title="Un-finalise round"
-        description="All selections will revert to draft and can be recalculated. Finalised history will be affected."
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setShowUnfinalizeConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="warning"
-              disabled={isPending}
-              onClick={() => {
-                setShowUnfinalizeConfirm(false);
-                startTransition(async () => {
-                  const fd = new FormData();
-                  fd.set("matchRoundId", matchRoundId);
-                  await unfinalizeRoundAction({ error: "" }, fd);
-                  router.refresh();
-                });
-              }}
-            >
-              {isPending ? "Un-finalising…" : "Un-finalise round"}
-            </Button>
-          </>
-        }
-      />
 
       {isCompactViewport ? (
         <BottomSheet

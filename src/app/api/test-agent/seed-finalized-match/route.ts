@@ -5,18 +5,20 @@ import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess } 
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { createMatchCore } from "@/app/(app)/matches/actions";
 import { refreshDraftRound } from "@/lib/selection/refresh-draft-selection";
-import { finalizeSingleMatch } from "@/lib/selection/finalize-single-match";
+import { ensureMatchPlanningBaselineCaptured } from "@/lib/selection/capture-planning-baseline";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Test-only fast-path fixture setup: create + generate + finalize a League match in one call,
- * for e2e specs that need a finalized match to exist so they can test something else entirely
- * (live reporting, following) -- not the create/generate/finalize UI flow itself, which is
- * already covered by round-mutation.spec.ts/smoke.spec.ts. Driving that whole pipeline through
- * real UI clicks for every such spec was measured to cost 1-3 minutes of setup per test; this
- * does the same real domain operations (createMatchCore/refreshDraftRound/finalizeSingleMatch --
- * the exact same functions the real UI actions call, never a reimplementation) in a few seconds.
+ * Test-only fast-path fixture setup: create + generate + capture-planning-baseline a League
+ * match in one call, for e2e specs that need a match with a captured (historical) plan to exist
+ * so they can test something else entirely (live reporting, following) -- not the
+ * create/generate/kickoff-boundary flow itself, which is already covered by
+ * round-mutation.spec.ts/smoke.spec.ts. Driving that whole pipeline through real UI clicks/real
+ * elapsed time for every such spec was measured to cost 1-3 minutes of setup per test; this does
+ * the same real domain operations (createMatchCore/refreshDraftRound/
+ * ensureMatchPlanningBaselineCaptured -- the exact same function the boundary itself calls, never
+ * a reimplementation) in a few seconds, forcing capture ahead of the match's real kickoff.
  *
  * Double-gated, matching /api/auth/test-agent's existing pattern:
  * 1. isTestAgentAuthEnabled() -- requires MATCHBOARD_ENV=test AND an explicit opt-in secret to
@@ -89,9 +91,9 @@ export async function POST(request: Request): Promise<Response> {
       return NextResponse.json({ error: "Round has manual edits that were preserved (unexpected for a freshly created round)." }, { status: 500 });
     }
 
-    const finalizeResult = await finalizeSingleMatch(matchId);
-    if (!finalizeResult.success) {
-      return NextResponse.json({ error: `Finalisation failed: ${finalizeResult.warnings.join(", ")}` }, { status: 500 });
+    const captureResult = await ensureMatchPlanningBaselineCaptured(matchId, { force: true });
+    if (!captureResult.captured && !captureResult.alreadyCaptured) {
+      return NextResponse.json({ error: "Could not capture the planning baseline for the seeded match." }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, matchId, opponentName, matchRoundId });

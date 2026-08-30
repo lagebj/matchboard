@@ -72,7 +72,9 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("@/lib/selection/reconcile-integrity", () => ({
-  reconcileRoundAfterDraftMutation: vi.fn(),
+  // Must resolve (not return undefined): updateMatchAction calls
+  // `reconcileRoundAfterDraftMutation(...).catch(...)` directly on the return value.
+  reconcileRoundAfterDraftMutation: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/matches/resolve-or-create-match-round-for-date", () => ({
@@ -86,12 +88,18 @@ vi.mock("@/lib/matches/resolve-or-create-match-round-for-date", () => ({
   },
 }));
 
+vi.mock("@/lib/selection/capture-planning-baseline", () => ({
+  reopenMatchPlanningForReschedule: vi.fn(),
+}));
+
 import { resolveOrCreateMatchRoundForDate, isSameIsoWeek, AmbiguousRoundError } from "@/lib/matches/resolve-or-create-match-round-for-date";
+import { reopenMatchPlanningForReschedule } from "@/lib/selection/capture-planning-baseline";
 
 describe("updateMatchAction automatic round placement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isSameIsoWeek).mockReturnValue(true);
+    vi.mocked(reopenMatchPlanningForReschedule).mockResolvedValue({ reopened: true });
   });
 
   async function setupCrossRoundMocks() {
@@ -147,19 +155,73 @@ describe("updateMatchAction automatic round placement", () => {
     expect(resolveOrCreateMatchRoundForDate).not.toHaveBeenCalled();
   });
 
-  it("FINALIZED cross-round move rejected before resolver call", async () => {
+  it("a closed-boundary cross-round move that cannot be safely reopened is rejected before the resolver call (ADR-0109: real reschedule, not un-finalize)", async () => {
     await setupCrossRoundMocks();
     const { db } = await import("@/lib/db");
-    vi.spyOn(db.selection, "findFirst").mockResolvedValue({ id: "s1" } as unknown as Awaited<ReturnType<typeof db.selection.findFirst>>);
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
+      id: "m1",
+      startsAt: new Date("2026-04-27T15:00:00Z"),
+      matchRoundId: "r1",
+      planningClosedAt: new Date("2026-04-27T15:00:00Z"),
+      matchRound: {
+        id: "r1",
+        name: "W17 2026",
+        leagueSeasonId: "p1",
+        leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
+      },
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
+    vi.mocked(reopenMatchPlanningForReschedule).mockResolvedValue({
+      reopened: false,
+      reason: "This match has a completed post-match report. The plan cannot be reopened — use post-match reconciliation instead.",
+    });
 
     const { updateMatchAction } = await import("@/app/(app)/matches/actions");
     const result = await updateMatchAction("m1", "2026-05-11T15:00:00.000Z");
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("finalised squad plan");
+      expect(result.error).toContain("cannot be reopened");
     }
     expect(resolveOrCreateMatchRoundForDate).not.toHaveBeenCalled();
+  });
+
+  it("a closed-boundary cross-round move reopens automatically when no live/report evidence conflicts", async () => {
+    await setupCrossRoundMocks();
+    const { db } = await import("@/lib/db");
+    vi.spyOn(db.match, "findFirst").mockResolvedValue({
+      id: "m1",
+      startsAt: new Date("2026-04-27T15:00:00Z"),
+      matchRoundId: "r1",
+      planningClosedAt: new Date("2026-04-27T15:00:00Z"),
+      matchRound: {
+        id: "r1",
+        name: "W17 2026",
+        leagueSeasonId: "p1",
+        leagueSeason: { id: "p1", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
+      },
+    } as unknown as Awaited<ReturnType<typeof db.match.findFirst>>);
+    vi.mocked(resolveOrCreateMatchRoundForDate).mockResolvedValue({
+      roundId: "r2",
+      roundName: "W20 2026",
+      created: false,
+      isoWeekLabel: "W20 2026",
+    });
+    const mockTransaction = async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+      const mockTx: Record<string, unknown> = {
+        match: { update: vi.fn().mockResolvedValue({ id: "m1" }) },
+        selection: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn() },
+        movementLedger: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn() },
+      };
+      return fn(mockTx);
+    };
+    vi.spyOn(db, "$transaction").mockImplementation(mockTransaction as unknown as typeof db.$transaction);
+
+    const { updateMatchAction } = await import("@/app/(app)/matches/actions");
+    const result = await updateMatchAction("m1", "2026-05-11T15:00:00.000Z");
+
+    expect(reopenMatchPlanningForReschedule).toHaveBeenCalledWith("m1");
+    expect(result.success).toBe(true);
+    expect(resolveOrCreateMatchRoundForDate).toHaveBeenCalled();
   });
 
   it("ambiguous round error from resolver is surfaced", async () => {

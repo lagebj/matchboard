@@ -5,10 +5,8 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess, requireMatchGroupAccess } from "@/lib/auth/actor-context";
-import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
-import type { OverrideReasonCategory } from "@/lib/selection/types";
 import {
   resolveOrCreateMatchRoundForDate,
   isSameIsoWeek,
@@ -22,6 +20,7 @@ import {
   formatLeagueSeasonLabel,
 } from "@/lib/seasons/league-season";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
+import { reopenMatchPlanningForReschedule } from "@/lib/selection/capture-planning-baseline";
 import {
   cancelMatchDomain,
   reopenMatchDomain,
@@ -300,6 +299,7 @@ export async function updateMatchAction(
         id: true,
         startsAt: true,
         matchRoundId: true,
+        planningClosedAt: true,
         matchRound: {
           select: {
             id: true,
@@ -335,6 +335,17 @@ export async function updateMatchAction(
       return { success: false, error: "This date is outside the current league season. Move the match to a league season covering the new date or update the league season first." };
     }
 
+    // A genuine reschedule proves the match did not start (ADR-0109 §4/PRINCIPLES.md #17): if
+    // planning had already closed for this match, reopen it as part of the correction rather than
+    // requiring a separate "un-finalize" step. Refused (with a clear reason) when live activity or
+    // a completed report makes reopening unsafe.
+    if (match.planningClosedAt) {
+      const reopenResult = await reopenMatchPlanningForReschedule(matchId);
+      if (!reopenResult.reopened) {
+        return { success: false, error: reopenResult.reason };
+      }
+    }
+
     const currentRoundId = match.matchRoundId;
 
     if (isSameIsoWeek(parsedDate, match.startsAt)) {
@@ -354,18 +365,6 @@ export async function updateMatchAction(
         createdRound: false,
         targetRoundId: currentRoundId,
         targetRoundName: match.matchRound.name,
-      };
-    }
-
-    const hasFinalizedSelection = await db.selection.findFirst({
-      where: { matchId, status: "FINALIZED" },
-      select: { id: true },
-    });
-
-    if (hasFinalizedSelection) {
-      return {
-        success: false,
-        error: "This match has a finalised squad plan. Unfinalise it before moving the match to another round.",
       };
     }
 
@@ -453,55 +452,6 @@ export async function updateMatchAction(
     const message = error instanceof Error ? error.message : "Could not update the match.";
     return { success: false, error: message };
   }
-}
-
-export async function finalizeMatchAction(formData: FormData) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const matchId = formData.get("matchId");
-  if (typeof matchId !== "string" || !matchId) {
-    throw new Error("Match ID is required.");
-  }
-
-  await requireMatchOrgAccess(matchId, ctx.orgFilter);
-  await requireMatchGroupAccess(ctx, matchId);
-
-  const overrideReasonCategory = formData.get("overrideReasonCategory");
-  const overrideReasonDetail = formData.get("overrideReasonDetail");
-
-  const { finalizeSingleMatch } = await import("@/lib/selection/finalize-single-match");
-  const { OVERRIDE_REASON_CATEGORIES } = await import("@/lib/selection/types");
-
-  const category = typeof overrideReasonCategory === "string" && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory as OverrideReasonCategory)
-    ? (overrideReasonCategory as OverrideReasonCategory)
-    : undefined;
-  const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
-    ? overrideReasonDetail.trim()
-    : undefined;
-
-  const result = await finalizeSingleMatch(matchId, category, detail);
-
-  if (!result.success) {
-    const queryParams: Record<string, string> = {};
-    if (result.needsOverride) {
-      queryParams.error = "Override reason required: provide a reason to finalise despite warnings.";
-    } else {
-      queryParams.error = "Finalisation failed.";
-    }
-    redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/matches/${matchId}`, queryParams));
-  }
-
-  revalidatePath(`/o/${ctx.organisationSlug}/today`);
-  revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
-  revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
-  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
-
-  const queryParams: Record<string, string> = { finalized: "1" };
-  if (result.roundAutoFinalized) {
-    queryParams.roundFinalized = "1";
-  }
-  redirect(buildPathWithSearch(`/o/${ctx.organisationSlug}/matches/${matchId}`, queryParams));
 }
 
 export async function cancelMatchAction(matchId: string, cancelledReason?: string) {

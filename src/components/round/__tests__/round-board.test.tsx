@@ -15,9 +15,6 @@ vi.mock("@/app/(app)/rounds/[matchRoundId]/draft-selection-actions", () => ({
 vi.mock("@/app/(app)/rounds/[matchRoundId]/actions", () => ({
   clearRoundDraftAction: vi.fn(),
   regenerateRoundAction: vi.fn(),
-  finalizeSingleMatchFromBoardAction: vi.fn(),
-  unfinalizeRoundAction: vi.fn(),
-  unfinalizeSingleMatchFromBoardAction: vi.fn(),
 }));
 
 vi.mock("@/app/(app)/matches/emergency-repair-actions", () => ({
