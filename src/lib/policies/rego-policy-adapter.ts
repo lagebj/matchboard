@@ -1,104 +1,36 @@
-import { readFileSync, existsSync } from "node:fs";
 import type { SelectionPolicyInput, SelectionPolicyResult, PolicyWarning, PolicyScoreAdjustment, PolicyExplanation, PolicyTag } from "./types";
 import { SelectionPolicyAdapter } from "./selection-policy-adapter";
 import {
-  getActivePackId,
-  loadPackMetadata,
-  resolveWasmPath,
-  clearPackCaches as clearPackCachesFromPack,
-} from "./policy-pack";
-import { isRegoEnabled, getRegoFailureMode } from "./policy-pack";
+  evaluatePolicyEntrypoint,
+  clearPolicyRuntimeCache,
+  PolicyRuntimeError,
+  PolicyRuntimeDegradedError,
+} from "./policy-runtime";
 import { logger } from "@/lib/logger";
 
-export { isRegoEnabled, getRegoFailureMode };
+export { PolicyRuntimeError as RegoPolicyError };
 
 const SCORE_ADJUSTMENT_MIN = -20;
 const SCORE_ADJUSTMENT_MAX = 20;
 
-type OpaPolicy = {
-  evaluate: (input: unknown, options?: { entrypoint?: string | number }) => unknown[];
-};
-
-let cachedWasmBufferPromise: Promise<Buffer> | null = null;
-
-async function loadWasmBuffer(): Promise<Buffer> {
-  const explicitPath = process.env.MATCHBOARD_POLICY_WASM_PATH;
-
-  if (explicitPath) {
-    if (!existsSync(explicitPath)) {
-      throw new RegoPolicyError(
-        `Compiled Wasm policy not found at ${explicitPath}. ` +
-        `Run 'npm run policy:build' to compile Rego source, or 'npm run policy:build -- --pack <id>' for a pack, or set MATCHBOARD_POLICY_WASM_PATH.`
-      );
-    }
-    return readFileSync(explicitPath);
-  }
-
-  const packId = getActivePackId();
-  const metadata = loadPackMetadata(packId);
-
-  if (!metadata) {
-    throw new RegoPolicyError(
-      `Policy pack '${packId}' not found or metadata invalid. ` +
-      `Check MATCHBOARD_POLICY_PACK_ID and ensure the pack directory exists.`
-    );
-  }
-
-  const wasmPath = resolveWasmPath(packId, metadata);
-
-  if (!existsSync(wasmPath)) {
-    throw new RegoPolicyError(
-      `Compiled Wasm policy not found at ${wasmPath}. ` +
-      `Run 'npm run policy:build -- --pack ${packId}' to compile Rego source.`
-    );
-  }
-
-  return readFileSync(wasmPath);
-}
-
-function getCachedWasmBuffer(): Promise<Buffer> {
-  if (!cachedWasmBufferPromise) {
-    cachedWasmBufferPromise = loadWasmBuffer();
-  }
-  return cachedWasmBufferPromise;
-}
-
-async function loadOpaModule(): Promise<typeof import("@open-policy-agent/opa-wasm")> {
-  return import("@open-policy-agent/opa-wasm");
-}
-
-async function loadAndCreatePolicy(): Promise<OpaPolicy> {
-  const opaModule = await loadOpaModule();
-  const wasmBuffer = await getCachedWasmBuffer();
-  const policy = await opaModule.loadPolicy(wasmBuffer);
-  return policy as OpaPolicy;
-}
-
-let cachedPolicy: Promise<OpaPolicy> | null = null;
-
-function getPolicy(): Promise<OpaPolicy> {
-  if (!cachedPolicy) {
-    cachedPolicy = loadAndCreatePolicy();
-  }
-  return cachedPolicy;
-}
-
 export function clearRegoPolicyCache(): void {
-  cachedPolicy = null;
-  cachedWasmBufferPromise = null;
-  clearPackCachesFromPack();
+  clearPolicyRuntimeCache();
 }
 
-export class RegoPolicyError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message);
-    this.name = "RegoPolicyError";
-  }
+function emptyResult(input: SelectionPolicyInput): SelectionPolicyResult {
+  return {
+    allowedPlayerIds: input.players.map((p) => p.id),
+    blocked: {},
+    warnings: [],
+    scoreAdjustments: [],
+    explanations: [],
+    tags: [],
+  };
 }
 
 function normalizeRegoResult(raw: unknown, input: SelectionPolicyInput): SelectionPolicyResult {
   if (raw == null || typeof raw !== "object") {
-    throw new RegoPolicyError("Rego policy returned null or non-object result.");
+    throw new Error("Rego selection policy returned null or non-object result.");
   }
 
   const result = raw as Record<string, unknown>;
@@ -203,81 +135,39 @@ function normalizeSeverity(severity: unknown): "info" | "warning" | "blocking" {
   return "warning";
 }
 
+/**
+ * Typed selection-entrypoint adapter over the shared OPA runtime (`policy-runtime.ts`).
+ * Always evaluates — the Rego runtime is a standard Matchboard capability, not an
+ * opt-in gated by an environment variable.
+ */
 export class RegoPolicyAdapter implements SelectionPolicyAdapter {
-  id = "rego-custom";
-  name = "Rego Custom Policy";
-  private policyPromise: Promise<OpaPolicy> | null = null;
-
-  constructor(private options?: { wasmPath?: string }) {}
+  id = "rego-selection";
+  name = "Rego Selection Policy";
 
   async evaluate(input: SelectionPolicyInput): Promise<SelectionPolicyResult> {
-    if (!isRegoEnabled()) {
-      return {
-        allowedPlayerIds: input.players.map((p) => p.id),
-        blocked: {},
-        warnings: [],
-        scoreAdjustments: [],
-        explanations: [],
-        tags: [],
-      };
-    }
-
     try {
-      if (!this.policyPromise) {
-        this.policyPromise = this.options?.wasmPath
-          ? this.loadPolicyFromPath(this.options.wasmPath)
-          : getPolicy();
-      }
-
-      const policy = await this.policyPromise;
       const regoInput = this.transformInput(input);
-      const results = policy.evaluate(regoInput);
-
-      if (!Array.isArray(results) || results.length === 0) {
-        throw new RegoPolicyError("Rego policy returned empty or invalid result.");
-      }
-
-      const decision = results[0];
-      if (decision == null || typeof decision !== "object") {
-        throw new RegoPolicyError("Rego policy decision is null or non-object.");
-      }
-
-      const result = (decision as Record<string, unknown>).result ?? decision;
-      return normalizeRegoResult(result, input);
+      const rawResult = await evaluatePolicyEntrypoint<Record<string, unknown>>("selection", regoInput);
+      return normalizeRegoResult(rawResult, input);
     } catch (error) {
-      if (error instanceof RegoPolicyError) {
+      if (error instanceof PolicyRuntimeDegradedError) {
+        logger.warn(
+          { errorCode: error.errorCode },
+          "[Policy/Rego] Selection entrypoint degraded: returning empty result, default policy still applies.",
+        );
+        return emptyResult(input);
+      }
+
+      if (error instanceof PolicyRuntimeError) {
         throw error;
       }
 
+      // A shape/normalization error from a healthy runtime is a policy content bug, not a
+      // runtime failure — always fail closed so a broken custom policy is never silently
+      // masked, regardless of the pack's declared failureMode.
       const message = error instanceof Error ? error.message : String(error);
-      logger.error({ message }, "[Policy/Rego] Evaluation failed");
-
-      if (getRegoFailureMode() === "fail_open") {
-        logger.warn("[Policy/Rego] fail_open mode: returning empty result (default policy still applies).");
-        return {
-          allowedPlayerIds: input.players.map((p) => p.id),
-          blocked: {},
-          warnings: [],
-          scoreAdjustments: [],
-          explanations: [],
-          tags: [],
-        };
-      }
-
-      throw new RegoPolicyError(
-        `Rego policy evaluation failed (fail_closed): ${message}`,
-        error
-      );
+      throw new PolicyRuntimeError(`Rego selection policy result was invalid: ${message}`, error);
     }
-  }
-
-  private async loadPolicyFromPath(wasmPath: string): Promise<OpaPolicy> {
-    const opaModule = await loadOpaModule();
-    if (!existsSync(wasmPath)) {
-      throw new RegoPolicyError(`Wasm policy file not found: ${wasmPath}`);
-    }
-    const buffer = readFileSync(wasmPath);
-    return opaModule.loadPolicy(buffer) as Promise<OpaPolicy>;
   }
 
   private transformInput(input: SelectionPolicyInput): Record<string, unknown> {

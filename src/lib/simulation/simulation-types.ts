@@ -212,8 +212,8 @@ export type SimulationPolicySummary = {
   policyPackId: string | null;
   policyPackVersion: string | null;
   artifactHash: string | null;
-  regoEnabled: boolean;
-  regoAvailable: boolean;
+  /** OPA/Rego is a standard runtime capability (ADR-0107) — always part of the real pipeline. */
+  policyRuntimeStatus: "HEALTHY" | "DEGRADED";
   decisionTypes: PolicyDecisionType[];
   defaultOnlyResultCount: number;
   withRegoResultCount?: number;

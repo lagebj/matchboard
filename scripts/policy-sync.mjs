@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { resolveOpaPath, REPO_ROOT } from "./policy-utils.mjs";
+import { buildEntrypointArgs } from "./policy-metadata-utils.mjs";
 
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 
@@ -54,7 +55,7 @@ function runOpaTests(opaPath, regoDir, label) {
   }
 }
 
-function buildWasm(opaPath, regoDir, entrypoint, wasmOutput, packId) {
+function buildWasm(opaPath, regoDir, entrypointArgs, wasmOutput, packId) {
   const tempBundle = join(tmpdir(), `matchboard-policy-${packId}-${Date.now()}.tar.gz`);
   const tempExtractDir = join(tmpdir(), `matchboard-extract-${packId}-${Date.now()}`);
 
@@ -64,7 +65,7 @@ function buildWasm(opaPath, regoDir, entrypoint, wasmOutput, packId) {
       "build",
       regoDir,
       "-t", "wasm",
-      "-e", entrypoint,
+      ...entrypointArgs,
       "-o", tempBundle,
     ], { stdio: "pipe" });
 
@@ -161,7 +162,7 @@ async function main() {
     const regoDir = resolve(join(PACKS_DIR, packId), metadata.regoDirectory);
     const wasmOutput = resolve(join(PACKS_DIR, packId), metadata.compiledWasm);
 
-    if (!buildWasm(resolvedOpa, regoDir, metadata.entrypoint, wasmOutput, packId)) {
+    if (!buildWasm(resolvedOpa, regoDir, buildEntrypointArgs(metadata), wasmOutput, packId)) {
       console.error(`Compilation failed for ${packId}.`);
       process.exit(1);
     }

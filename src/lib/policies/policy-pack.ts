@@ -2,17 +2,37 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 
+/**
+ * Policy pack failure mode for the pack's OWN entrypoints (selection, situation, ...).
+ *
+ * "degraded_fallback" (the only mode the built-in "matchboard-default" pack may use,
+ * regardless of its own metadata) means an unexpected runtime evaluation failure marks
+ * the policy runtime DEGRADED and callers fall back to a safe, deterministic TypeScript
+ * path rather than blocking normal coaching workflows.
+ *
+ * "fail_closed" is available to a non-built-in (custom/organization) pack that
+ * explicitly declares it, for instances that want a broken custom policy to halt
+ * selection mutation rather than silently degrade. It replaces the removed global
+ * MATCHBOARD_POLICY_REGO_FAILURE_MODE env var with a pack-scoped, versioned decision.
+ */
+export type PolicyPackFailureMode = "degraded_fallback" | "fail_closed";
+
+export const BUILT_IN_PACK_ID = "matchboard-default";
+
 export type PolicyPackMetadata = {
   id: string;
   name: string;
   version: string;
   description: string;
-  entrypoint: string;
+  /** Name -> Rego package path (e.g. "selection" -> "matchboard/selection/decision"). Always includes "selection". */
+  entrypoints: Record<string, string>;
   regoDirectory: string;
   compiledWasm: string;
   fixturesDirectory: string;
   runtime: string;
+  /** 1 (legacy single `entrypoint` string) or 2 (named `entrypoints` map), as read from the source file. */
   schemaVersion: number;
+  failureMode: PolicyPackFailureMode;
 };
 
 export type PolicyPackValidationResult = {
@@ -28,8 +48,9 @@ export type PolicyPackDiagnostics = {
   packName: string | null;
   artifactHash: string | null;
   artifactLoaded: boolean;
-  regoEnabled: boolean;
-  failureMode: string;
+  schemaVersion: number | null;
+  entrypoints: string[];
+  failureMode: PolicyPackFailureMode | null;
   validationErrors: string[];
   validationWarnings: string[];
 };
@@ -46,7 +67,7 @@ function getExamplesPacksDirectory(): string {
 }
 
 export function getActivePackId(): string {
-  return process.env.MATCHBOARD_POLICY_PACK_ID ?? "matchboard-default";
+  return process.env.MATCHBOARD_POLICY_PACK_ID ?? BUILT_IN_PACK_ID;
 }
 
 export function loadPackMetadata(packId: string, includeExamples = false): PolicyPackMetadata | null {
@@ -80,6 +101,44 @@ export function loadPackMetadata(packId: string, includeExamples = false): Polic
   return null;
 }
 
+const FAILURE_MODES: PolicyPackFailureMode[] = ["degraded_fallback", "fail_closed"];
+
+function normalizeEntrypoints(raw: Record<string, unknown>, errors: string[]): Record<string, string> {
+  const schemaVersion = raw.schemaVersion;
+
+  if (schemaVersion === 2) {
+    const rawEntrypoints = raw.entrypoints;
+    if (rawEntrypoints == null || typeof rawEntrypoints !== "object" || Array.isArray(rawEntrypoints)) {
+      errors.push("metadata.entrypoints must be an object mapping names to Rego package paths");
+      return {};
+    }
+    const entries = Object.entries(rawEntrypoints as Record<string, unknown>);
+    const normalized: Record<string, string> = {};
+    for (const [name, path] of entries) {
+      if (typeof path !== "string" || path.length === 0) {
+        errors.push(`metadata.entrypoints.${name} must be a non-empty string`);
+        continue;
+      }
+      normalized[name] = path;
+    }
+    if (!normalized.selection) {
+      errors.push("metadata.entrypoints must declare a 'selection' entrypoint");
+    }
+    return normalized;
+  }
+
+  if (schemaVersion === 1) {
+    if (typeof raw.entrypoint !== "string" || raw.entrypoint.length === 0) {
+      errors.push("metadata.entrypoint must be a non-empty string");
+      return {};
+    }
+    return { selection: raw.entrypoint };
+  }
+
+  errors.push("metadata.schemaVersion must be 1 or 2");
+  return {};
+}
+
 export function validatePackMetadataShape(
   raw: Record<string, unknown>,
   expectedId?: string,
@@ -98,9 +157,6 @@ export function validatePackMetadataShape(
   if (typeof raw.description !== "string") {
     errors.push("metadata.description must be a string");
   }
-  if (typeof raw.entrypoint !== "string" || raw.entrypoint.length === 0) {
-    errors.push("metadata.entrypoint must be a non-empty string");
-  }
   if (typeof raw.regoDirectory !== "string" || raw.regoDirectory.length === 0) {
     errors.push("metadata.regoDirectory must be a non-empty string");
   }
@@ -113,8 +169,16 @@ export function validatePackMetadataShape(
   if (raw.runtime !== "opa-wasm") {
     errors.push("metadata.runtime must be 'opa-wasm'");
   }
-  if (typeof raw.schemaVersion !== "number" || raw.schemaVersion !== 1) {
-    errors.push("metadata.schemaVersion must be 1");
+
+  const entrypoints = normalizeEntrypoints(raw, errors);
+
+  let failureMode: PolicyPackFailureMode = "degraded_fallback";
+  if (raw.failureMode !== undefined) {
+    if (typeof raw.failureMode !== "string" || !FAILURE_MODES.includes(raw.failureMode as PolicyPackFailureMode)) {
+      errors.push(`metadata.failureMode must be one of: ${FAILURE_MODES.join(", ")}`);
+    } else {
+      failureMode = raw.failureMode as PolicyPackFailureMode;
+    }
   }
 
   const forbiddenKeys = ["rules", "conditions", "effects", "operators"];
@@ -132,18 +196,32 @@ export function validatePackMetadataShape(
     throw new Error(`metadata.id '${raw.id}' does not match expected pack directory '${expectedId}'`);
   }
 
+  // The built-in pack's failure mode is fixed regardless of what its own metadata claims —
+  // it is the always-available safety net and must never be configured into fail_closed.
+  const effectiveFailureMode: PolicyPackFailureMode =
+    raw.id === BUILT_IN_PACK_ID ? "degraded_fallback" : failureMode;
+
   return {
     id: raw.id as string,
     name: raw.name as string,
     version: raw.version as string,
     description: raw.description as string,
-    entrypoint: raw.entrypoint as string,
+    entrypoints,
     regoDirectory: raw.regoDirectory as string,
     compiledWasm: raw.compiledWasm as string,
     fixturesDirectory: raw.fixturesDirectory as string,
     runtime: raw.runtime as string,
     schemaVersion: raw.schemaVersion as number,
+    failureMode: effectiveFailureMode,
   };
+}
+
+export function getPackEntrypoint(metadata: PolicyPackMetadata, name: string): string {
+  const path = metadata.entrypoints[name];
+  if (!path) {
+    throw new Error(`Pack '${metadata.id}' has no declared '${name}' entrypoint.`);
+  }
+  return path;
 }
 
 export function resolvePackDirectory(packId: string, includeExamples = false): string {
@@ -175,7 +253,19 @@ export function resolveFixturesDirectory(packId: string, metadata: PolicyPackMet
   return resolve(packDir, metadata.fixturesDirectory);
 }
 
-export function validatePack(packId: string, includeExamples = false): PolicyPackValidationResult {
+/**
+ * Validate pack source/metadata correctness.
+ *
+ * `requireArtifact` distinguishes source-tree editing (missing Wasm is a warning — "run
+ * policy:build") from build/deploy validation (missing Wasm for a deployable pack is fatal,
+ * since the build pipeline is expected to have produced it by that stage).
+ */
+export function validatePack(
+  packId: string,
+  options?: { includeExamples?: boolean; requireArtifact?: boolean },
+): PolicyPackValidationResult {
+  const includeExamples = options?.includeExamples ?? false;
+  const requireArtifact = options?.requireArtifact ?? false;
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -211,7 +301,12 @@ export function validatePack(packId: string, includeExamples = false): PolicyPac
 
   const wasmPath = resolveWasmPath(packId, metadata, includeExamples);
   if (!existsSync(wasmPath)) {
-    warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:build -- --pack ${packId}' to compile.`);
+    const message = `Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:build -- --pack ${packId}' to compile.`;
+    if (requireArtifact) {
+      errors.push(message);
+    } else {
+      warnings.push(message);
+    }
   }
 
   const fixturesDir = resolveFixturesDirectory(packId, metadata, includeExamples);
@@ -243,7 +338,7 @@ export function listPacks(): Array<{
   id: string;
   name: string;
   version: string;
-  entrypoint: string;
+  entrypoints: string[];
   compiledPresent: boolean;
   deployable: boolean;
 }> {
@@ -258,7 +353,7 @@ export function listPacks(): Array<{
     id: string;
     name: string;
     version: string;
-    entrypoint: string;
+    entrypoints: string[];
     compiledPresent: boolean;
     deployable: boolean;
   }> = [];
@@ -278,7 +373,7 @@ export function listPacks(): Array<{
         id: metadata.id,
         name: metadata.name,
         version: metadata.version,
-        entrypoint: metadata.entrypoint,
+        entrypoints: Object.keys(metadata.entrypoints),
         compiledPresent: existsSync(wasmPath),
         deployable: raw.deployable !== false,
       });
@@ -294,7 +389,7 @@ export function listExamplePacks(): Array<{
   id: string;
   name: string;
   version: string;
-  entrypoint: string;
+  entrypoints: string[];
   compiledPresent: boolean;
 }> {
   const examplesDir = getExamplesPacksDirectory();
@@ -308,7 +403,7 @@ export function listExamplePacks(): Array<{
     id: string;
     name: string;
     version: string;
-    entrypoint: string;
+    entrypoints: string[];
     compiledPresent: boolean;
   }> = [];
 
@@ -327,7 +422,7 @@ export function listExamplePacks(): Array<{
         id: metadata.id,
         name: metadata.name,
         version: metadata.version,
-        entrypoint: metadata.entrypoint,
+        entrypoints: Object.keys(metadata.entrypoints),
         compiledPresent: existsSync(wasmPath),
       });
     } catch {
@@ -352,25 +447,6 @@ export function computeArtifactHash(wasmPath: string): string | null {
 }
 
 export function getActivePackDiagnostics(): PolicyPackDiagnostics {
-  const regoEnabled = (process.env.MATCHBOARD_POLICY_REGO_ENABLED ?? "false") === "true";
-  const failureMode = (process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE ?? "fail_closed") === "fail_open"
-    ? "fail_open"
-    : "fail_closed";
-
-  if (!regoEnabled) {
-    return {
-      packId: null,
-      packVersion: null,
-      packName: null,
-      artifactHash: null,
-      artifactLoaded: false,
-      regoEnabled: false,
-      failureMode,
-      validationErrors: [],
-      validationWarnings: [],
-    };
-  }
-
   const packId = getActivePackId();
   const metadata = loadPackMetadata(packId);
   const validation = validatePack(packId);
@@ -382,8 +458,9 @@ export function getActivePackDiagnostics(): PolicyPackDiagnostics {
       packName: null,
       artifactHash: null,
       artifactLoaded: false,
-      regoEnabled: true,
-      failureMode,
+      schemaVersion: null,
+      entrypoints: [],
+      failureMode: null,
       validationErrors: [`Pack '${packId}' not found or metadata invalid`],
       validationWarnings: [],
     };
@@ -398,8 +475,9 @@ export function getActivePackDiagnostics(): PolicyPackDiagnostics {
     packName: metadata.name,
     artifactHash,
     artifactLoaded: artifactHash !== null,
-    regoEnabled: true,
-    failureMode,
+    schemaVersion: metadata.schemaVersion,
+    entrypoints: Object.keys(metadata.entrypoints),
+    failureMode: metadata.failureMode,
     validationErrors: validation.errors,
     validationWarnings: validation.warnings,
   };
@@ -408,10 +486,6 @@ export function getActivePackDiagnostics(): PolicyPackDiagnostics {
 let cachedArtifactHash: string | null = null;
 
 export function getActivePackArtifactHash(): string | null {
-  if (!isRegoEnabled()) {
-    return null;
-  }
-
   if (cachedArtifactHash !== null) {
     return cachedArtifactHash;
   }
@@ -428,28 +502,16 @@ export function getActivePackArtifactHash(): string | null {
 }
 
 export function getActivePackVersion(): string {
-  if (!isRegoEnabled()) {
-    return "default-typescript";
-  }
-
   const packId = getActivePackId();
   const metadata = loadPackMetadata(packId);
   if (!metadata) {
-    return `rego-unknown-${packId}`;
+    return `policy-unknown-${packId}`;
   }
 
   const hash = getActivePackArtifactHash();
-  return `rego-${metadata.id}-${metadata.version}-${hash ?? "no-hash"}`;
+  return `policy-${metadata.id}-${metadata.version}-${hash ?? "no-hash"}`;
 }
 
 export function clearPackCaches(): void {
   cachedArtifactHash = null;
-}
-
-export function isRegoEnabled(): boolean {
-  return (process.env.MATCHBOARD_POLICY_REGO_ENABLED ?? "false") === "true";
-}
-
-export function getRegoFailureMode(): "fail_closed" | "fail_open" {
-  return (process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE ?? "fail_closed") === "fail_open" ? "fail_open" : "fail_closed";
 }

@@ -2,115 +2,97 @@
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { getEntrypoint, listEntrypointNames } from "./policy-metadata-utils.mjs";
 
 const REPO_ROOT = join(import.meta.dirname, "..");
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 const LEGACY_WASM_PATH = join(REPO_ROOT, "policies", "compiled", "matchboard_selection.wasm");
-const REGO_ENABLED = (process.env.MATCHBOARD_POLICY_REGO_ENABLED ?? "false") === "true";
+const DEFAULT_PACK_ID = "matchboard-default";
 
 function parseArgs() {
   const args = process.argv.slice(2);
   let packId = null;
   let fixturePath = null;
+  let entrypointName = "selection";
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--pack" && args[i + 1]) {
       packId = args[i + 1];
+      i++;
+    } else if (args[i] === "--entrypoint" && args[i + 1]) {
+      entrypointName = args[i + 1];
       i++;
     } else if (!args[i].startsWith("--")) {
       fixturePath = args[i];
     }
   }
 
-  return { packId, fixturePath };
+  return { packId, fixturePath, entrypointName };
 }
 
-function resolvePackWasm(packId) {
+function loadPackMetadataRaw(packId) {
   const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
   if (!existsSync(metadataPath)) {
     console.error(`Pack '${packId}' metadata not found: ${metadataPath}`);
     process.exit(1);
   }
 
-  let metadata;
   try {
-    metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
+    return JSON.parse(readFileSync(metadataPath, "utf-8"));
   } catch (err) {
     console.error(`Invalid metadata: ${err.message}`);
     process.exit(1);
   }
+}
 
+function resolvePackWasm(metadata, packId) {
   return resolve(join(PACKS_DIR, packId), metadata.compiledWasm);
 }
 
-function resolvePackFixture(packId, fixtureName) {
+function resolvePackFixture(metadata, packId, fixtureName) {
   if (!fixtureName) return null;
-  const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
-  if (!existsSync(metadataPath)) return null;
-
-  try {
-    const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
-    const fixturesDir = resolve(join(PACKS_DIR, packId), metadata.fixturesDirectory);
-    const fullPath = resolve(fixturesDir, fixtureName);
-    if (existsSync(fullPath)) return fullPath;
-  } catch {}
-
-  return null;
+  const fixturesDir = resolve(join(PACKS_DIR, packId), metadata.fixturesDirectory);
+  const fullPath = resolve(fixturesDir, fixtureName);
+  return existsSync(fullPath) ? fullPath : null;
 }
 
-function listPackFixtures(packId) {
-  const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
-  if (!existsSync(metadataPath)) return [];
-
-  try {
-    const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
-    const fixturesDir = resolve(join(PACKS_DIR, packId), metadata.fixturesDirectory);
-    if (!existsSync(fixturesDir)) return [];
-    return readdirSync(fixturesDir).filter((f) => f.endsWith(".json"));
-  } catch {
-    return [];
-  }
+function listPackFixtures(metadata, packId) {
+  const fixturesDir = resolve(join(PACKS_DIR, packId), metadata.fixturesDirectory);
+  if (!existsSync(fixturesDir)) return [];
+  return readdirSync(fixturesDir).filter((f) => f.endsWith(".json"));
 }
 
 async function runDryRun() {
-  const { packId, fixturePath } = parseArgs();
+  const { packId: rawPackId, fixturePath, entrypointName } = parseArgs();
+  const packId = rawPackId ?? DEFAULT_PACK_ID;
 
-  const defaultFixture = packId
+  const metadata = loadPackMetadataRaw(packId);
+
+  const defaultFixture = rawPackId
     ? null
     : join(process.cwd(), "test", "fixtures", "policies", "event-selection-input.json");
-  const resolvedFixture = fixturePath ?? defaultFixture;
+  let resolvedFixture = fixturePath
+    ? (resolvePackFixture(metadata, packId, fixturePath) ?? fixturePath)
+    : defaultFixture;
 
-  const wasmPath = packId
-    ? resolvePackWasm(packId)
-    : (process.env.MATCHBOARD_POLICY_WASM_PATH ?? LEGACY_WASM_PATH);
+  const wasmPath = process.env.MATCHBOARD_POLICY_WASM_PATH
+    ?? (rawPackId ? resolvePackWasm(metadata, packId) : LEGACY_WASM_PATH);
 
   console.log("\n=== Policy Dry Run ===\n");
-  console.log(`Rego enabled: ${REGO_ENABLED}`);
-
-  if (packId) {
-    console.log(`Pack: ${packId}`);
-  }
-
-  if (REGO_ENABLED) {
-    console.log(`Wasm path: ${wasmPath}`);
-  }
-
-  if (!REGO_ENABLED) {
-    console.log("\nRego policy is not enabled. Set MATCHBOARD_POLICY_REGO_ENABLED=true to enable.");
-    console.log("\n=== Dry Run Complete ===\n");
-    return;
-  }
+  console.log(`Pack: ${packId}`);
+  console.log(`Entrypoint: ${entrypointName} (${listEntrypointNames(metadata).join(", ") || "none declared"})`);
+  console.log(`Wasm path: ${wasmPath}`);
 
   if (!existsSync(wasmPath)) {
     console.error(`Compiled Wasm policy not found at: ${wasmPath}`);
-    console.error(packId
-      ? `Run 'npm run policy:build -- --pack ${packId}' to compile.`
-      : "Run 'npm run policy:build' to compile Rego source.");
+    console.error(`Run 'npm run policy:build -- --pack ${packId}' to compile.`);
     process.exit(1);
   }
 
-  if (packId && !resolvedFixture) {
-    const fixtures = listPackFixtures(packId);
+  const entrypointPath = getEntrypoint(metadata, entrypointName);
+
+  if (rawPackId && !resolvedFixture) {
+    const fixtures = listPackFixtures(metadata, packId);
     console.log(`\nNo fixture specified. Available fixtures for pack '${packId}':`);
     if (fixtures.length === 0) {
       console.log("  (none found)");
@@ -144,13 +126,13 @@ async function runDryRun() {
   console.log("Default policy evaluation unavailable in standalone dry-run.");
   console.log("Use vitest to run default policy tests.");
 
-  console.log("\n--- Rego Policy (Wasm) ---");
+  console.log(`\n--- Rego Policy: ${entrypointName} (${entrypointPath}) (Wasm) ---`);
   try {
     const { loadPolicy } = await import("@open-policy-agent/opa-wasm");
     const wasmBuffer = readFileSync(wasmPath);
     const policy = await loadPolicy(wasmBuffer);
 
-    const result = policy.evaluate(input);
+    const result = policy.evaluate(input, entrypointPath);
 
     if (!Array.isArray(result) || result.length === 0) {
       console.error("Rego policy returned empty result.");
@@ -161,38 +143,39 @@ async function runDryRun() {
     console.log("\nRego decision:");
     console.log(JSON.stringify(decision, null, 2));
 
-    const blocked = decision?.blocked ?? [];
-    const warnings = decision?.warnings ?? [];
-    const scoreAdjustments = decision?.score_adjustments ?? [];
-    const explanations = decision?.explanations ?? [];
-    const tags = decision?.tags ?? [];
+    if (entrypointName === "selection") {
+      const blocked = decision?.blocked ?? [];
+      const warnings = decision?.warnings ?? [];
+      const scoreAdjustments = decision?.score_adjustments ?? [];
+      const explanations = decision?.explanations ?? [];
+      const tags = decision?.tags ?? [];
 
-    console.log(`\nBlocked players: ${blocked.length}`);
-    console.log(`Warnings: ${warnings.length}`);
-    console.log(`Score adjustments: ${scoreAdjustments.length}`);
-    console.log(`Explanations: ${explanations.length}`);
-    console.log(`Tags: ${tags.length}`);
+      console.log(`\nBlocked players: ${blocked.length}`);
+      console.log(`Warnings: ${warnings.length}`);
+      console.log(`Score adjustments: ${scoreAdjustments.length}`);
+      console.log(`Explanations: ${explanations.length}`);
+      console.log(`Tags: ${tags.length}`);
 
-    if (warnings.length > 0) {
-      console.log("\nWarnings:");
-      for (const w of warnings) {
-        console.log(`  [${w.severity}] ${w.code}: ${w.message}`);
+      if (warnings.length > 0) {
+        console.log("\nWarnings:");
+        for (const w of warnings) {
+          console.log(`  [${w.severity}] ${w.code}: ${w.message}`);
+        }
       }
-    }
 
-    if (scoreAdjustments.length > 0) {
-      console.log("\nScore adjustments:");
-      for (const adj of scoreAdjustments) {
-        console.log(`  ${adj.player_id}: delta=${adj.delta} (${adj.code}: ${adj.reason})`);
+      if (scoreAdjustments.length > 0) {
+        console.log("\nScore adjustments:");
+        for (const adj of scoreAdjustments) {
+          console.log(`  ${adj.player_id}: delta=${adj.delta} (${adj.code}: ${adj.reason})`);
+        }
       }
     }
   } catch (error) {
     console.error("Rego evaluation failed:", error.message);
-    const failureMode = process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE ?? "fail_closed";
-    if (failureMode !== "fail_open") {
-      process.exit(1);
+    if (packId === DEFAULT_PACK_ID) {
+      console.log("(built-in pack degrades safely at runtime; this dry-run still fails so the bug is visible)");
     }
-    console.log("(fail_open: continuing with default policy only)");
+    process.exit(1);
   }
 
   console.log("\n=== Dry Run Complete ===\n");

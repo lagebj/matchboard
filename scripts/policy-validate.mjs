@@ -2,16 +2,18 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { resolveEntrypoints } from "./policy-metadata-utils.mjs";
 
 const REPO_ROOT = join(import.meta.dirname, "..");
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 const EXAMPLES_PACKS_DIR = join(REPO_ROOT, "policies", "examples", "packs");
 
 const FORBIDDEN_KEYS = ["rules", "conditions", "effects", "operators"];
-const REQUIRED_STRING_FIELDS = ["id", "name", "version", "entrypoint", "regoDirectory", "compiledWasm", "fixturesDirectory"];
+const REQUIRED_STRING_FIELDS = ["id", "name", "version", "regoDirectory", "compiledWasm", "fixturesDirectory"];
 const REQUIRED_FIELDS = [...REQUIRED_STRING_FIELDS, "description", "runtime", "schemaVersion"];
+const VALID_FAILURE_MODES = ["degraded_fallback", "fail_closed"];
 
-function validatePack(packId, baseDir) {
+function validatePack(packId, baseDir, requireArtifact = false) {
   const packDir = join(baseDir, packId);
   const metadataPath = join(packDir, "policy-pack.json");
   const errors = [];
@@ -46,8 +48,24 @@ function validatePack(packId, baseDir) {
     errors.push("metadata.runtime must be 'opa-wasm'");
   }
 
-  if (typeof metadata.schemaVersion !== "number" || metadata.schemaVersion !== 1) {
-    errors.push("metadata.schemaVersion must be 1");
+  if (metadata.schemaVersion !== 1 && metadata.schemaVersion !== 2) {
+    errors.push("metadata.schemaVersion must be 1 or 2");
+  } else if (metadata.schemaVersion === 2) {
+    const entrypoints = resolveEntrypoints(metadata);
+    if (Object.keys(entrypoints).length === 0) {
+      errors.push("metadata.entrypoints must be a non-empty object mapping names to Rego package paths");
+    } else if (!entrypoints.selection) {
+      errors.push("metadata.entrypoints must declare a 'selection' entrypoint");
+    }
+  } else if (typeof metadata.entrypoint !== "string" || metadata.entrypoint.length === 0) {
+    errors.push("metadata.entrypoint must be a non-empty string (schemaVersion 1)");
+  }
+
+  if (metadata.failureMode !== undefined && !VALID_FAILURE_MODES.includes(metadata.failureMode)) {
+    errors.push(`metadata.failureMode must be one of: ${VALID_FAILURE_MODES.join(", ")}`);
+  }
+  if (packId === "matchboard-default" && metadata.failureMode && metadata.failureMode !== "degraded_fallback") {
+    errors.push("the built-in 'matchboard-default' pack must not declare a failureMode other than 'degraded_fallback'");
   }
 
   if (metadata.id !== packId) {
@@ -79,7 +97,12 @@ function validatePack(packId, baseDir) {
   const wasmPath = resolve(packDir, metadata.compiledWasm);
   if (!existsSync(wasmPath)) {
     if (isDeployable) {
-      warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:sync' to compile deployable packs.`);
+      const message = `Compiled Wasm artifact not found: ${wasmPath}. Run 'npm run policy:sync' to compile deployable packs.`;
+      if (requireArtifact) {
+        errors.push(message);
+      } else {
+        warnings.push(message);
+      }
     } else {
       warnings.push(`Compiled Wasm artifact not found: ${wasmPath}. Example packs do not need compiled Wasm.`);
     }
@@ -119,6 +142,7 @@ function validatePacksInDir(baseDir, label) {
 function validateAll() {
   const args = process.argv.slice(2);
   let targetPackId = null;
+  const requireArtifact = args.includes("--require-artifact");
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--pack" && args[i + 1]) {
@@ -140,7 +164,7 @@ function validateAll() {
       console.error(`Pack '${targetPackId}' not found in deployable or example packs.`);
       process.exit(1);
     }
-    const result = validatePack(targetPackId, baseDir);
+    const result = validatePack(targetPackId, baseDir, requireArtifact);
     reportResult(result);
     if (!result.valid) process.exit(1);
     return;
@@ -148,7 +172,7 @@ function validateAll() {
 
   for (const packId of deployablePackIds) {
     console.log(`\nValidating deployable pack: ${packId}`);
-    const result = validatePack(packId, PACKS_DIR);
+    const result = validatePack(packId, PACKS_DIR, requireArtifact);
     reportResult(result);
     if (!result.valid) allValid = false;
   }

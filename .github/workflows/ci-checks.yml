@@ -68,6 +68,25 @@ jobs:
       - run: npm ci
       - run: npm run test:workers
 
+  # ADR-0107: the built-in policy pack is a required build/deploy artifact. Previously no CI
+  # workflow ran any `npm run policy:*` script at all — this was only ever checked by a
+  # developer's own optional local `npm run validate`. Bootstraps a pinned, checksum-verified OPA
+  # binary (scripts/bootstrap-opa.mjs) rather than relying on it being preinstalled on the runner.
+  policy-verify:
+    name: Policy Verify
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: node scripts/bootstrap-opa.mjs
+      - run: npm run policy:test
+      - run: npm run policy:validate
+      - run: npm run policy:verify
+
   security-check-sql:
     name: Forbidden SQL Methods
     runs-on: ubuntu-24.04
@@ -277,7 +296,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-24.04
-    needs: [typecheck, test, security-check-supply-chain]
+    needs: [typecheck, test, security-check-supply-chain, policy-verify]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

@@ -47,8 +47,22 @@ export {
 } from "./rego-policy-adapter";
 
 export {
-  isRegoEnabled,
-  getRegoFailureMode,
+  evaluatePolicyEntrypoint,
+  clearPolicyRuntimeCache,
+  getPolicyRuntimeDiagnostics,
+  PolicyRuntimeError,
+  PolicyRuntimeDegradedError,
+  type PolicyEntrypointName,
+  type PolicyRuntimeHealthStatus,
+  type PolicyRuntimeDiagnostics,
+} from "./policy-runtime";
+
+export {
+  getActivePackId,
+  loadPackMetadata,
+  BUILT_IN_PACK_ID,
+  type PolicyPackMetadata,
+  type PolicyPackFailureMode,
 } from "./policy-pack";
 
 export { buildPolicyInput, mapPlayerStatus } from "./build-policy-input";

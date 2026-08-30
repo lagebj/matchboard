@@ -5,17 +5,11 @@ vi.mock("@open-policy-agent/opa-wasm", () => ({
   loadPolicy: vi.fn(),
 }));
 
-vi.mock("node:fs", async () => {
-  const actual = await vi.importActual("node:fs");
-  return {
-    ...actual,
-    existsSync: vi.fn().mockReturnValue(true),
-    readFileSync: vi.fn().mockReturnValue(Buffer.from("mock-wasm-content")),
-  };
-});
-
-import { RegoPolicyAdapter, RegoPolicyError, clearRegoPolicyCache, isRegoEnabled, getRegoFailureMode } from "../rego-policy-adapter";
+import { RegoPolicyAdapter, RegoPolicyError } from "../rego-policy-adapter";
+import { clearPolicyRuntimeCache } from "../policy-runtime";
 import { loadPolicy } from "@open-policy-agent/opa-wasm";
+
+const SELECTION_ENTRYPOINT = "matchboard/selection/decision";
 
 const mockInput: SelectionPolicyInput = {
   context: {
@@ -79,30 +73,18 @@ const mockInput: SelectionPolicyInput = {
   },
 };
 
-function createMockPolicy(evaluateFn: (input: unknown) => unknown[]) {
-  return { evaluate: evaluateFn };
+function createMockPolicy(evaluateFn: (input: unknown, entrypoint?: unknown) => unknown[]) {
+  return { entrypoints: { [SELECTION_ENTRYPOINT]: 0 }, evaluate: evaluateFn };
 }
 
 describe("RegoPolicyAdapter", () => {
   beforeEach(() => {
-    clearRegoPolicyCache();
+    clearPolicyRuntimeCache();
     vi.clearAllMocks();
-    process.env.MATCHBOARD_POLICY_REGO_ENABLED = "true";
-    process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE = "fail_closed";
-  });
-
-  it("returns empty result when Rego is disabled", async () => {
-    process.env.MATCHBOARD_POLICY_REGO_ENABLED = "false";
-    const adapter = new RegoPolicyAdapter();
-    const result = await adapter.evaluate(mockInput);
-    expect(result.allowedPlayerIds).toEqual(["p1", "p2"]);
-    expect(result.blocked).toEqual({});
-    expect(result.warnings).toEqual([]);
-    expect(result.scoreAdjustments).toEqual([]);
   });
 
   it("evaluates a Rego policy with score adjustments", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => [
+    const mockPolicy = createMockPolicy((_input) => [
       {
         result: {
           blocked: [],
@@ -123,7 +105,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     const result = await adapter.evaluate(mockInput);
 
     expect(result.scoreAdjustments).toHaveLength(1);
@@ -134,7 +116,7 @@ describe("RegoPolicyAdapter", () => {
   });
 
   it("evaluates a Rego policy with warnings", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => [
+    const mockPolicy = createMockPolicy((_input) => [
       {
         result: {
           blocked: [],
@@ -155,7 +137,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     const result = await adapter.evaluate(mockInput);
 
     expect(result.warnings).toHaveLength(1);
@@ -165,7 +147,7 @@ describe("RegoPolicyAdapter", () => {
   });
 
   it("evaluates a Rego policy with blocked players", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => [
+    const mockPolicy = createMockPolicy((_input) => [
       {
         result: {
           blocked: [
@@ -184,7 +166,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     const result = await adapter.evaluate(mockInput);
 
     expect(Object.keys(result.blocked)).toHaveLength(1);
@@ -193,7 +175,7 @@ describe("RegoPolicyAdapter", () => {
   });
 
   it("clamps score adjustments to ±20 bounds", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => [
+    const mockPolicy = createMockPolicy((_input) => [
       {
         result: {
           blocked: [],
@@ -210,7 +192,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     const result = await adapter.evaluate(mockInput);
 
     expect(result.scoreAdjustments).toHaveLength(2);
@@ -219,7 +201,7 @@ describe("RegoPolicyAdapter", () => {
   });
 
   it("normalizes severity to valid values", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => [
+    const mockPolicy = createMockPolicy((_input) => [
       {
         result: {
           blocked: [],
@@ -238,7 +220,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     const result = await adapter.evaluate(mockInput);
 
     expect(result.warnings).toHaveLength(4);
@@ -248,30 +230,40 @@ describe("RegoPolicyAdapter", () => {
     expect(result.warnings[3].severity).toBe("warning");
   });
 
-  it("handles missing/invalid Rego result gracefully in fail_closed mode", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => []);
-
-    vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
-
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
-    await expect(adapter.evaluate(mockInput)).rejects.toThrow(RegoPolicyError);
-  });
-
-  it("returns empty result in fail_open mode when evaluation fails", async () => {
-    process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE = "fail_open";
-
+  it("degrades to a safe empty result when the built-in pack's evaluation throws (never throws up)", async () => {
     vi.mocked(loadPolicy).mockRejectedValue(new Error("Wasm load failed"));
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     const result = await adapter.evaluate(mockInput);
 
     expect(result.allowedPlayerIds).toEqual(["p1", "p2"]);
     expect(result.blocked).toEqual({});
     expect(result.warnings).toEqual([]);
+    expect(result.scoreAdjustments).toEqual([]);
+  });
+
+  it("degrades safely when the policy returns an empty result array", async () => {
+    const mockPolicy = createMockPolicy((_input) => []);
+    vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
+
+    const adapter = new RegoPolicyAdapter();
+    const result = await adapter.evaluate(mockInput);
+    expect(result.allowedPlayerIds).toEqual(["p1", "p2"]);
+  });
+
+  it("throws for a shape/normalization error from an otherwise-healthy evaluation (policy content bug)", async () => {
+    // evaluatePolicyEntrypoint itself succeeds (non-empty, object result) — the malformed shape
+    // is only discovered by normalizeRegoResult, which must always fail closed regardless of the
+    // pack's failureMode, since a broken custom policy must never be silently masked.
+    const mockPolicy = createMockPolicy((_input) => [{ result: "not-an-object" }]);
+    vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
+
+    const adapter = new RegoPolicyAdapter();
+    await expect(adapter.evaluate(mockInput)).rejects.toThrow(RegoPolicyError);
   });
 
   it("caches the loaded policy module", async () => {
-    const mockPolicy = createMockPolicy((_input: unknown) => [
+    const mockPolicy = createMockPolicy((_input) => [
       {
         result: {
           blocked: [],
@@ -285,7 +277,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     await adapter.evaluate(mockInput);
     await adapter.evaluate(mockInput);
 
@@ -294,7 +286,7 @@ describe("RegoPolicyAdapter", () => {
 
   it("transforms input to snake_case for Rego", async () => {
     let capturedInput: unknown = null;
-    const mockPolicy = createMockPolicy((input: unknown) => {
+    const mockPolicy = createMockPolicy((input) => {
       capturedInput = input;
       return [
         {
@@ -311,7 +303,7 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     await adapter.evaluate(mockInput);
 
     expect(capturedInput).not.toBeNull();
@@ -335,7 +327,7 @@ describe("RegoPolicyAdapter", () => {
     };
 
     let capturedInput: unknown = null;
-    const mockPolicy = createMockPolicy((input: unknown) => {
+    const mockPolicy = createMockPolicy((input) => {
       capturedInput = input;
       return [
         {
@@ -352,40 +344,12 @@ describe("RegoPolicyAdapter", () => {
 
     vi.mocked(loadPolicy).mockResolvedValue(mockPolicy as never);
 
-    const adapter = new RegoPolicyAdapter({ wasmPath: "/mock/policy.wasm" });
+    const adapter = new RegoPolicyAdapter();
     await adapter.evaluate(inputWithTags);
 
     const input = capturedInput as Record<string, unknown>;
     const players = input.players as Record<string, unknown>[];
     expect(players[0]).toHaveProperty("policy_tags");
     expect((players[0] as Record<string, unknown>).policy_tags).toEqual(["custom_blocked"]);
-  });
-});
-
-describe("isRegoEnabled", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  it("returns true when MATCHBOARD_POLICY_REGO_ENABLED is true", () => {
-    process.env.MATCHBOARD_POLICY_REGO_ENABLED = "true";
-    expect(isRegoEnabled()).toBe(true);
-  });
-
-  it("returns false by default", () => {
-    delete process.env.MATCHBOARD_POLICY_REGO_ENABLED;
-    expect(isRegoEnabled()).toBe(false);
-  });
-});
-
-describe("getRegoFailureMode", () => {
-  it("returns fail_closed by default", () => {
-    delete process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE;
-    expect(getRegoFailureMode()).toBe("fail_closed");
-  });
-
-  it("returns fail_open when set", () => {
-    process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE = "fail_open";
-    expect(getRegoFailureMode()).toBe("fail_open");
   });
 });

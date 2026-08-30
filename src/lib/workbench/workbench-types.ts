@@ -20,8 +20,9 @@ export type WorkbenchPolicyRun = {
   source: "default_only" | "rego_enabled";
   result: SelectionPolicyResult;
   evaluationDurationMs: number;
-  regoEnabled: boolean;
-  regoFailureMode: string;
+  /** Whether this specific comparison run included the Rego selection layer (vs. default-only). */
+  includesRegoLayer: boolean;
+  policyRuntimeStatus: "HEALTHY" | "DEGRADED";
   policyVersion: string;
   artifactHash: string | null;
 };
@@ -69,13 +70,13 @@ export type WorkbenchValidationResult = {
 };
 
 export type WorkbenchDiagnostics = {
-  regoEnabled: boolean;
+  runtimeStatus: "HEALTHY" | "DEGRADED";
   regoWasmLoaded: boolean;
   policyVersion: string;
   artifactHash: string | null;
   packId: string | null;
   packVersion: string | null;
-  failureMode: string;
+  packFailureMode: string | null;
   evaluationTimestamp: string;
 };
 

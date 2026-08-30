@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, rmSync,
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveOpaPath, REPO_ROOT } from "./policy-utils.mjs";
+import { buildEntrypointArgs, listEntrypointNames } from "./policy-metadata-utils.mjs";
 
 const args = process.argv.slice(2);
 let packId = null;
@@ -134,7 +135,7 @@ function buildPack(targetPackId) {
 
   const regoDir = resolve(packDir, metadata.regoDirectory);
   const wasmOutput = resolve(packDir, metadata.compiledWasm);
-  const entrypoint = metadata.entrypoint;
+  const entrypointArgs = buildEntrypointArgs(metadata);
 
   if (!existsSync(regoDir)) {
     console.error(`Rego directory not found: ${regoDir}`);
@@ -148,14 +149,14 @@ function buildPack(targetPackId) {
 
   try {
     console.log(`Building policy pack '${targetPackId}' (v${metadata.version})...`);
-    console.log(`  Entrypoint: ${entrypoint}`);
+    console.log(`  Entrypoints: ${listEntrypointNames(metadata).join(", ")}`);
     console.log(`  Rego source: ${regoDir}`);
 
     execFileSync(opaPath, [
       "build",
       regoDir,
       "-t", "wasm",
-      "-e", entrypoint,
+      ...entrypointArgs,
       "-o", tempBundle,
     ], { stdio: "pipe" });
 

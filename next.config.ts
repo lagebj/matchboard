@@ -13,10 +13,13 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   serverExternalPackages: ["pg", "@prisma/adapter-pg", "@prisma/adapter-neon"],
   outputFileTracingIncludes: {
+    // custom-example (policies/examples/packs/) is non-deployable/illustrative and ships no
+    // compiled Wasm — only the active built-in pack's artifact needs to be traced into the
+    // deployment bundle. The legacy flat path is included for MATCHBOARD_POLICY_WASM_PATH
+    // overrides that still point at it.
     "/**/*": [
       "./policies/compiled/matchboard_selection.wasm",
       "./policies/packs/matchboard-default/compiled/matchboard_selection.wasm",
-      "./policies/packs/custom-example/compiled/custom_selection.wasm",
     ],
   },
   async redirects() {

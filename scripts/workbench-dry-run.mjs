@@ -2,12 +2,13 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { getEntrypoint } from "./policy-metadata-utils.mjs";
 
 const REPO_ROOT = join(import.meta.dirname, "..");
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 const FIXTURES_DIR = join(REPO_ROOT, "test", "fixtures", "workbench");
 const LEGACY_WASM_PATH = join(REPO_ROOT, "policies", "compiled", "matchboard_selection.wasm");
-const REGO_ENABLED = (process.env.MATCHBOARD_POLICY_REGO_ENABLED ?? "false") === "true";
+const DEFAULT_PACK_ID = "matchboard-default";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -49,16 +50,21 @@ function resolveWasmPath(packId) {
   return LEGACY_WASM_PATH;
 }
 
+function loadPackMetadataRaw(packId) {
+  const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
+  if (!existsSync(metadataPath)) return null;
+  try {
+    return JSON.parse(readFileSync(metadataPath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
 function resolvePackInfo(packId) {
   if (!packId) return { id: null, name: null, version: null };
-  const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
-  if (!existsSync(metadataPath)) return { id: packId, name: null, version: null };
-  try {
-    const metadata = JSON.parse(readFileSync(metadataPath, "utf-8"));
-    return { id: metadata.id, name: metadata.name, version: metadata.version };
-  } catch {
-    return { id: packId, name: null, version: null };
-  }
+  const metadata = loadPackMetadataRaw(packId);
+  if (!metadata) return { id: packId, name: null, version: null };
+  return { id: metadata.id, name: metadata.name, version: metadata.version };
 }
 
 function listFixtures() {
@@ -84,16 +90,13 @@ function printUsage() {
   console.log("  --help            Show this help message");
   console.log("");
   console.log("Environment variables:");
-  console.log("  MATCHBOARD_POLICY_REGO_ENABLED    Enable Rego policy evaluation (default: false)");
   console.log("  MATCHBOARD_POLICY_WASM_PATH       Path to compiled Wasm policy (overrides --pack)");
   console.log("  MATCHBOARD_POLICY_PACK_ID         Policy pack to load (default: matchboard-default)");
-  console.log("  MATCHBOARD_POLICY_REGO_FAILURE_MODE Failure mode for Rego (default: fail_closed)");
   console.log("");
   console.log("Examples:");
   console.log("  npm run workbench:dry-run -- -list");
   console.log("  npm run workbench:dry-run -- league-match-selection.json");
   console.log("  npm run workbench:dry-run -- --pack matchboard-default event-selection-input.json");
-  console.log("  MATCHBOARD_POLICY_REGO_ENABLED=true npm run workbench:dry-run -- event-balanced-three-squads.json");
   console.log("");
   console.log("Note: Default policy (TypeScript) evaluation is not available in standalone dry-run.");
   console.log("Use vitest to run default policy tests. This script only evaluates Rego Wasm policies.");
@@ -131,15 +134,11 @@ async function runDryRun(fixturePath, packId) {
   console.log(`Teams: ${fixture.input?.teams?.length ?? 0}`);
   console.log(`Squads: ${fixture.input?.squads?.length ?? 0}`);
   console.log(`Matches: ${fixture.input?.matches?.length ?? 0}`);
-  console.log(`Rego enabled: ${REGO_ENABLED}`);
 
   if (packInfo.id) {
     console.log(`Pack: ${packInfo.id} (v${packInfo.version ?? "?"}, ${packInfo.name ?? "?"})`);
   }
-
-  if (REGO_ENABLED) {
-    console.log(`Wasm path: ${wasmPath}`);
-  }
+  console.log(`Wasm path: ${wasmPath}`);
 
   const input = fixture.input ?? fixture;
 
@@ -148,7 +147,7 @@ async function runDryRun(fixturePath, packId) {
   console.log("Use vitest to run default policy and workbench fixture tests:");
   console.log("  npx vitest run src/lib/workbench/__tests__/");
 
-  if (REGO_ENABLED) {
+  {
     console.log("\n--- Rego Policy (Wasm) ---");
     try {
       if (!existsSync(wasmPath)) {
@@ -161,11 +160,14 @@ async function runDryRun(fixturePath, packId) {
         process.exit(1);
       }
 
+      const packMetadata = loadPackMetadataRaw(packId ?? DEFAULT_PACK_ID);
+      const entrypointPath = packMetadata ? getEntrypoint(packMetadata, "selection") : undefined;
+
       const { loadPolicy } = await import("@open-policy-agent/opa-wasm");
       const wasmBuffer = readFileSync(wasmPath);
       const policy = await loadPolicy(wasmBuffer);
       const startTime = performance.now();
-      const regoResult = policy.evaluate(input);
+      const regoResult = policy.evaluate(input, entrypointPath);
       const duration = performance.now() - startTime;
 
       if (!Array.isArray(regoResult) || regoResult.length === 0) {
@@ -205,14 +207,8 @@ async function runDryRun(fixturePath, packId) {
       }
     } catch (error) {
       console.error("Rego evaluation failed:", error.message);
-      const failureMode = process.env.MATCHBOARD_POLICY_REGO_FAILURE_MODE ?? "fail_closed";
-      if (failureMode !== "fail_open") {
-        process.exit(1);
-      }
-      console.log("(fail_open: continuing despite Rego failure)");
+      process.exit(1);
     }
-  } else {
-    console.log("\nRego policy is not enabled. Set MATCHBOARD_POLICY_REGO_ENABLED=true to enable.");
   }
 
   console.log("\n=== Dry Run Complete ===\n");

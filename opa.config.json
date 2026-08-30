@@ -1,5 +1,5 @@
 {
-  "version": "0.70.0",
+  "version": "1.19.1",
   "platforms": {
     "darwin-arm64": "opa_darwin_arm64_static",
     "darwin-x64": "opa_darwin_amd64",
@@ -7,9 +7,9 @@
     "linux-x64": "opa_linux_amd64"
   },
   "checksums": {
-    "opa_darwin_arm64_static": "267608fe41dba91fb23e2a69a439cb2a39710b3a069a828c744bd99bb3f94508",
-    "opa_darwin_amd64": "7827172827c6c7763fd36dd72052c318a6beb18f7b907c5e67d847bb557af1a1",
-    "opa_linux_arm64_static": "48061407a2d7b0b59440fc3a257e7bb251e9ec62f6ce7b1e45c142263ae24413",
-    "opa_linux_amd64": "2879c01f1e5762f28e27c9f81b4035bd5f532753f18c2c6dcbc2943347cc6ea5"
+    "opa_darwin_arm64_static": "805ce3f336154150bef73bafa2dab8806631851bccc7cae95bef46ffabdf8fc3",
+    "opa_darwin_amd64": "80a9e2bce1a44fd81dc4b5415439918786b4685f0709d533d0005abea7e10e02",
+    "opa_linux_arm64_static": "19dcb5186fd394c32023918c53eaacda55f835abb05e13e0f9a766dd1429494f",
+    "opa_linux_amd64": "fb356176d8063f92920ba9d2650b2b07d0f67e4f6a10b389e2907fc3902c5a9a"
   }
 }

@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { REPO_ROOT } from "./policy-utils.mjs";
+import { resolveEntrypoints } from "./policy-metadata-utils.mjs";
 
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 const EXAMPLES_PACKS_DIR = join(REPO_ROOT, "policies", "examples", "packs");
@@ -30,7 +31,9 @@ function listPacksInDir(baseDir, label) {
         name: metadata.name,
         version: metadata.version,
         description: metadata.description ?? "",
-        entrypoint: metadata.entrypoint,
+        entrypoints: resolveEntrypoints(metadata),
+        schemaVersion: metadata.schemaVersion,
+        failureMode: metadata.failureMode ?? "degraded_fallback",
         runtime: metadata.runtime,
         hasCompiled,
         deployable: isDeployable,
@@ -63,7 +66,9 @@ function listPacks() {
     console.log(`\n  ${pack.id} (v${pack.version}) [${pack.category}]`);
     console.log(`    Name: ${pack.name}`);
     console.log(`    Description: ${pack.description}`);
-    console.log(`    Entrypoint: ${pack.entrypoint}`);
+    console.log(`    Schema version: ${pack.schemaVersion}`);
+    console.log(`    Entrypoints: ${Object.entries(pack.entrypoints).map(([name, path]) => `${name}=${path}`).join(", ") || "(none declared)"}`);
+    console.log(`    Failure mode: ${pack.failureMode}`);
     console.log(`    Runtime: ${pack.runtime}`);
     console.log(`    Deployable: ${pack.deployable ? "YES" : "NO"}`);
     console.log(`    Compiled: ${pack.hasCompiled ? "YES" : "NO — run 'npm run policy:sync' to compile deployable packs"}`);

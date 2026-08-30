@@ -9,7 +9,8 @@ import {
   getPolicyVersion,
   getPolicyArtifactHash,
 } from "@/lib/policies/policy-version";
-import { isRegoEnabled, getRegoFailureMode, clearRegoPolicyCache } from "@/lib/policies/rego-policy-adapter";
+import { clearRegoPolicyCache } from "@/lib/policies/rego-policy-adapter";
+import { getPolicyRuntimeDiagnostics } from "@/lib/policies/policy-runtime";
 import { getActivePackId, loadPackMetadata } from "@/lib/policies/policy-pack";
 import { evaluateDefaultMatchboardPolicy } from "@/lib/policies/default-matchboard-policy";
 import { diffPolicyResults, summarizeInput, type PolicyDiff } from "./policy-diff";
@@ -108,8 +109,8 @@ async function runDefaultOnlyPolicy(
     source: "default_only",
     result,
     evaluationDurationMs: Math.round(duration * 100) / 100,
-    regoEnabled: false,
-    regoFailureMode: "fail_closed",
+    includesRegoLayer: false,
+    policyRuntimeStatus: "HEALTHY",
     policyVersion: getPolicyVersion(),
     artifactHash: null,
   };
@@ -129,8 +130,7 @@ async function runRegoEnabledPolicy(
     result = {
       result: defaultResult,
       input,
-      regoEnabled: true,
-      regoFailureMode: getRegoFailureMode(),
+      policyRuntimeStatus: "DEGRADED",
       evaluationDurationMs: 0,
     };
   }
@@ -141,26 +141,26 @@ async function runRegoEnabledPolicy(
     source: "rego_enabled",
     result: result.result,
     evaluationDurationMs: Math.round(duration * 100) / 100,
-    regoEnabled: result.regoEnabled,
-    regoFailureMode: result.regoFailureMode,
+    includesRegoLayer: true,
+    policyRuntimeStatus: result.policyRuntimeStatus,
     policyVersion: getPolicyVersion(),
     artifactHash: getPolicyArtifactHash(),
   };
 }
 
 export function getWorkbenchDiagnostics(): WorkbenchDiagnostics {
-  const regoEnabled = isRegoEnabled();
-  const packId = regoEnabled ? getActivePackId() : null;
-  const packMetadata = packId ? loadPackMetadata(packId) : null;
+  const runtimeDiagnostics = getPolicyRuntimeDiagnostics();
+  const packId = getActivePackId();
+  const packMetadata = loadPackMetadata(packId);
 
   return {
-    regoEnabled,
-    regoWasmLoaded: regoEnabled,
+    runtimeStatus: runtimeDiagnostics.status,
+    regoWasmLoaded: runtimeDiagnostics.artifactLoaded,
     policyVersion: getPolicyVersion(),
     artifactHash: getPolicyArtifactHash(),
     packId,
     packVersion: packMetadata?.version ?? null,
-    failureMode: getRegoFailureMode(),
+    packFailureMode: packMetadata?.failureMode ?? null,
     evaluationTimestamp: new Date().toISOString(),
   };
 }

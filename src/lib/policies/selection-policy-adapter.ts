@@ -1,7 +1,7 @@
 import type { SelectionPolicyInput, SelectionPolicyResult } from "./types";
 import { evaluateDefaultMatchboardPolicy } from "./default-matchboard-policy";
 import { checkCoreInvariants } from "./core-invariants";
-import { RegoPolicyAdapter, isRegoEnabled } from "./rego-policy-adapter";
+import { RegoPolicyAdapter } from "./rego-policy-adapter";
 
 export interface SelectionPolicyAdapter {
   id: string;
@@ -86,19 +86,14 @@ export class CompositePolicyAdapter implements SelectionPolicyAdapter {
   }
 }
 
+/**
+ * The Rego-backed selection adapter always runs — OPA/Rego is a standard Matchboard runtime
+ * capability, not an opt-in gated by an environment variable (ADR-0107). The built-in pack
+ * degrades safely to an empty result on unexpected runtime failure rather than being toggled
+ * off; see `RegoPolicyAdapter`/`policy-runtime.ts`.
+ */
 export function createPolicyPipeline(): SelectionPolicyAdapter {
   const defaultAdapter = new DefaultMatchboardPolicyAdapter();
-
-  const adapters: SelectionPolicyAdapter[] = [defaultAdapter];
-
-  if (isRegoEnabled()) {
-    const regoAdapter = new RegoPolicyAdapter();
-    adapters.push(regoAdapter);
-  }
-
-  if (adapters.length === 1) {
-    return defaultAdapter;
-  }
-
-  return new CompositePolicyAdapter(adapters);
+  const regoAdapter = new RegoPolicyAdapter();
+  return new CompositePolicyAdapter([defaultAdapter, regoAdapter]);
 }

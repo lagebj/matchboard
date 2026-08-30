@@ -12,7 +12,9 @@ The policy pipeline runs three layers in order. Each layer adds to the result; n
 
 2. **Default Matchboard policy** — standard eligibility, warnings, score adjustments, and explanations enforced in TypeScript (`src/lib/policies/default-matchboard-policy.ts`). Always runs. Cannot be disabled.
 
-3. **Optional custom Rego policy** — compiled to WebAssembly and evaluated server-side via `@open-policy-agent/opa-wasm`. May make rules stricter, add warnings, adjust scoring (bounded ±20), or add explanations. Cannot override core invariants. No OPA server, no sidecar, no runtime Rego compilation, no browser-side evaluation.
+3. **Rego policy (always active)** — compiled to WebAssembly and evaluated server-side via `@open-policy-agent/opa-wasm`. May make rules stricter, add warnings, adjust scoring (bounded ±20), or add explanations. Cannot override core invariants. No OPA server, no sidecar, no runtime Rego compilation, no browser-side evaluation.
+
+**OPA/Rego is a standard Matchboard runtime capability (ADR-0107) — there is no environment gate that turns it off.** The built-in `matchboard-default` pack always degrades safely to an empty result if its own Wasm evaluation fails unexpectedly; it never throws up to a coach-facing request and never bypasses core invariants.
 
 The JSON DSL adapter was removed in Stage 4. Custom policies should use Rego compiled to Wasm. Do not reintroduce a proprietary JSON DSL.
 
@@ -54,42 +56,47 @@ Custom Rego policies run as compiled WebAssembly inside the Next.js server proce
 ```
 policies/
   packs/
-    matchboard-default/                   # Default Matchboard policy pack
-      policy-pack.json                     # Pack metadata (id, version, entrypoint, etc.)
+    matchboard-default/                   # Default Matchboard policy pack (schema v2)
+      policy-pack.json                     # Pack metadata (id, version, entrypoints, failureMode)
       rego/
-        matchboard_selection.rego          # Default Rego policy source
-        matchboard_selection_test.rego     # Rego unit tests
+        matchboard_selection.rego          # Selection policy source
+        matchboard_selection_test.rego     # Selection Rego unit tests
+        matchboard_situation.rego          # Situation policy source (situational decision support)
+        matchboard_situation_test.rego     # Situation Rego unit tests
       compiled/
-        matchboard_selection.wasm          # Compiled Wasm artifact (do not edit)
+        matchboard_selection.wasm          # Compiled Wasm artifact, both entrypoints (do not edit)
         README.md
       fixtures/
         event-selection-input.json         # Dry-run test fixtures
         weak-goalkeeper-coverage-input.json
         event-helper-overlap-input.json
-    custom-example/                        # Example custom policy pack
-      policy-pack.json
-      rego/
-        custom_selection.rego
-        custom_selection_test.rego
-      compiled/
-        README.md
-      fixtures/
-        event-selection-input.json
-  rego/                                    # Legacy Rego source (still supported)
+  examples/
+    packs/
+      custom-example/                     # Example custom policy pack (schema v1, illustrative)
+        policy-pack.json
+        rego/
+          custom_selection.rego
+          custom_selection_test.rego
+        compiled/
+          README.md
+        fixtures/
+          event-selection-input.json
+    rego/
+      goalkeeper_coverage.rego
+      equal_opportunity.rego
+  rego/                                    # Legacy flat Rego source (still readable, not the active default)
     matchboard_selection.rego
     matchboard_selection_test.rego
     custom/
-    examples/
-      goalkeeper_coverage.rego
-      equal_opportunity.rego
-  compiled/                                # Legacy compiled (still supported)
+  compiled/                                # Legacy flat compiled artifact (still readable)
     matchboard_selection.wasm
     README.md
 ```
 
 ### Policy pack metadata
 
-Each pack directory must contain a `policy-pack.json` file with these fields:
+Each pack directory must contain a `policy-pack.json` file. Schema v2 (used by every pack this
+repository ships) fields:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -97,18 +104,23 @@ Each pack directory must contain a `policy-pack.json` file with these fields:
 | `name` | string | Yes | Human-readable pack name |
 | `version` | string | Yes | Semantic version of the pack |
 | `description` | string | Yes | Description of the pack's purpose |
-| `entrypoint` | string | Yes | OPA Wasm entrypoint (e.g. `matchboard/selection/decision`) |
+| `schemaVersion` | number | Yes | `2` for named multi-entrypoint packs |
+| `entrypoints` | object | Yes (v2) | Name → OPA Wasm entrypoint map, e.g. `{ "selection": "matchboard/selection/decision", "situation": "matchboard/situation/decision" }`. Must declare a `selection` entry. |
 | `regoDirectory` | string | Yes | Relative path to Rego source directory |
 | `compiledWasm` | string | Yes | Relative path to compiled Wasm artifact |
 | `fixturesDirectory` | string | Yes | Relative path to dry-run fixture directory |
 | `runtime` | string | Yes | Must be `opa-wasm` |
-| `schemaVersion` | number | Yes | Must be `1` |
+| `failureMode` | string | No | `"degraded_fallback"` (default) or `"fail_closed"`. The built-in `matchboard-default` pack is always forced to `"degraded_fallback"` regardless of this field. |
+
+Schema v1 (single `entrypoint: string`, no `entrypoints`/`failureMode`) remains readable for
+backward compatibility — `policies/examples/packs/custom-example/` deliberately stays on schema
+v1 as the live exerciser of that compatibility path. New/repository-owned packs should use v2.
 
 Pack metadata must **not** contain `rules`, `conditions`, `effects`, or `operators` keys. Policy logic belongs in Rego source files, not in JSON DSL.
 
-### Entrypoint
+### Entrypoints
 
-The Rego policy must use package `matchboard.selection` and export a `decision` rule. The Wasm entrypoint for `opa build` is `matchboard/selection/decision`.
+The `selection` entrypoint policy must use package `matchboard.selection` and export a `decision` rule, at Wasm entrypoint `matchboard/selection/decision`. The built-in pack additionally declares a `situation` entrypoint (package `matchboard.situation`, `matchboard/situation/decision`) for situational decision support — see `docs/domain/situational-decision-support.md`. `opa build` compiles all of a pack's declared entrypoints into one Wasm artifact (one `-e <path>` flag per entrypoint).
 
 The `decision` rule must return an object with these keys:
 
@@ -171,26 +183,27 @@ The `RegoPolicyAdapter` normalizes Rego output from snake_case to the TypeScript
 
 ## Configuration
 
+There is no environment variable that enables or disables Rego — it always runs as part of `createPolicyPipeline()`. Do not reintroduce `MATCHBOARD_POLICY_REGO_ENABLED` or a global `MATCHBOARD_POLICY_REGO_FAILURE_MODE`.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MATCHBOARD_POLICY_REGO_ENABLED` | `false` | Enable Rego/Wasm policy evaluation. When `false`, the Rego adapter returns an empty result and the default TypeScript policy runs alone. |
 | `MATCHBOARD_POLICY_PACK_ID` | `matchboard-default` | Which policy pack to load. Must match a directory name under `policies/packs/`. |
 | `MATCHBOARD_POLICY_WASM_PATH` | *(pack-resolved)* | Path to the compiled Wasm artifact. When set, overrides the pack-resolved path. When not set, the Wasm path is resolved from the active pack's `policy-pack.json`. |
-| `MATCHBOARD_POLICY_REGO_FAILURE_MODE` | `fail_closed` | Controls behavior when Rego evaluation fails. `fail_closed` throws an error (default policy still runs for players not blocked by Rego, but the composite pipeline fails). `fail_open` logs a warning and returns an empty Rego result, so only core invariants and the default TypeScript policy apply. |
+| `MATCHBOARD_POLICY_PACKS_DIR` | `policies/packs` | Override the packs directory (advanced, usually not needed). |
 
-When Rego is disabled (`MATCHBOARD_POLICY_REGO_ENABLED=false`), the policy pipeline runs core invariants and the default TypeScript policy only. No Wasm file is loaded.
+Failure behavior is declared per pack in its own `policy-pack.json` (`failureMode`), not via an environment variable — see "Policy pack metadata" above.
 
 ## Failure behavior
 
-When the Rego policy adapter encounters an error:
+When the shared policy runtime (`src/lib/policies/policy-runtime.ts`) encounters an error evaluating a named entrypoint:
 
-1. **Missing Wasm file**: `RegoPolicyError` is thrown with a message directing the user to run `npm run policy:build` or set `MATCHBOARD_POLICY_WASM_PATH`.
-2. **Evaluation error** (Wasm load or evaluation fails):
-   - `fail_closed` (default): `RegoPolicyError` is thrown. The composite pipeline fails, and the calling code must handle the error. No partial Rego result is applied.
-   - `fail_open`: An empty Rego result is returned. Core invariants and the default TypeScript policy still apply. A warning is logged: `[Policy/Rego] fail_open mode: returning empty result (default policy still applies).`
-3. **Invalid Rego output** (null, non-object, missing keys): `RegoPolicyError` is thrown regardless of failure mode, because an invalid result cannot be safely merged into the pipeline.
+1. **Pack/metadata resolution failure** (missing pack, invalid metadata, missing Wasm file): degrades the same as an evaluation failure below — see pack `failureMode`.
+2. **Evaluation error** (Wasm load or evaluation fails), branching on the active pack's `failureMode`:
+   - `"degraded_fallback"` (the built-in `matchboard-default` pack, always): marks policy runtime `DEGRADED`, logs a structured diagnostic (`[Policy/Runtime]`, no player-sensitive payload), and throws `PolicyRuntimeDegradedError` — the calling adapter (`RegoPolicyAdapter`) catches this and returns a safe empty result so core invariants and the default TypeScript policy still apply. Nothing is thrown up to the coach-facing request.
+   - `"fail_closed"` (available to a non-built-in custom pack that declares it): throws `PolicyRuntimeError`, and the composite pipeline fails — the calling code must handle the error. No partial Rego result is applied.
+3. **Invalid Rego output** (null, non-object, missing keys) from an otherwise-successful evaluation: always throws `RegoPolicyError`/`PolicyRuntimeError` regardless of the pack's `failureMode` — this is a policy-content bug, not a runtime availability failure, and must never be silently masked.
 
-Error messages are logged to the server console with the prefix `[Policy/Rego]`. No player or team data is included in error logs.
+Error messages are logged to the server console. No player or team data is included in error logs.
 
 ## Score adjustment bounds
 
@@ -266,39 +279,29 @@ The `scripts/policy-list.mjs` script shows:
 ### Using a policy pack
 
 1. Create a pack directory under `policies/packs/<your-pack-id>/`
-2. Add a `policy-pack.json` with required metadata fields
+2. Add a `policy-pack.json` with schema v2 metadata (`entrypoints`, optionally `failureMode`)
 3. Place Rego policy files in the pack's `rego/` directory
 4. Run `npm run policy:validate -- --pack <your-pack-id>` to validate metadata
 5. Run `npm run policy:test:pack` to run Rego unit tests
-6. Run `npm run policy:build -- --pack <your-pack-id>` to compile Rego to Wasm
-7. Run `npm run policy:dry-run -- --pack <your-pack-id> <fixture-name>` to verify
+6. Run `npm run policy:build -- --pack <your-pack-id>` to compile Rego to Wasm (all declared entrypoints)
+7. Run `npm run policy:dry-run -- --pack <your-pack-id> [--entrypoint <name>] <fixture-name>` to verify
 8. Commit both the Rego source and the compiled Wasm artifact
-9. Set `MATCHBOARD_POLICY_PACK_ID=<your-pack-id>` and `MATCHBOARD_POLICY_REGO_ENABLED=true`
+9. Set `MATCHBOARD_POLICY_PACK_ID=<your-pack-id>` to activate it — Rego evaluation itself is always on, no separate enable flag needed
 
 ### Legacy Rego custom policies
 
-The legacy flat structure under `policies/rego/` is still supported:
-1. Place Rego policy files in `policies/rego/custom/` using the `matchboard.selection` package
-2. Run `npm run policy:test` to run Rego unit tests
-3. Run `npm run policy:build` (without `--pack`) to compile legacy Rego to Wasm
-4. Run `npm run policy:dry-run` to verify the compiled policy against a fixture
-5. Commit both the Rego source and the compiled Wasm artifact
-6. Set `MATCHBOARD_POLICY_REGO_ENABLED=true`
+The legacy flat structure under `policies/rego/` is still readable via `MATCHBOARD_POLICY_WASM_PATH`, but is not the active default and is not where new custom policy work should go — prefer a policy pack.
 
 ### How custom policies are loaded
 
 1. The default Matchboard policy always runs
-2. If `MATCHBOARD_POLICY_REGO_ENABLED=true`, the Rego policy runs after the default policy
+2. The active pack's `selection` entrypoint always runs after the default policy (ADR-0107: no enable flag)
 3. Custom Rego policy results are merged: denials are additive, warnings and score adjustments are collected
 4. Core invariants are always enforced regardless of custom policy content
 
-### How to disable a custom policy
-
-Set `MATCHBOARD_POLICY_REGO_ENABLED=false` or unset the variable. The Wasm artifact is not loaded.
-
 ### How to test a policy
 
-Write tests in `policies/rego/matchboard_selection_test.rego` and run `npm run policy:test`. Use `npm run policy:dry-run` for end-to-end verification against a fixture.
+Write tests in `policies/packs/<your-pack-id>/rego/*_test.rego` and run `npm run policy:test:pack` (or `npm run policy:test` for the legacy flat structure). Use `npm run policy:dry-run:pack -- --pack <your-pack-id> <fixture>` for end-to-end verification against a fixture.
 
 ## Policy input/output contract
 
@@ -370,7 +373,7 @@ type SelectionPolicyResult = {
 
 1. Core invariants run first and produce blocked entries that cannot be overridden
 2. Default Matchboard policy runs second
-3. Rego policy runs third (if `MATCHBOARD_POLICY_REGO_ENABLED=true`)
+3. Rego policy (active pack's `selection` entrypoint) always runs third
 
 All blocked entries are merged additively across layers. A player blocked by any layer cannot be allowed by a later layer. Warnings, score adjustments, explanations, and tags are collected from all layers.
 
@@ -440,8 +443,9 @@ low_recent_match_adjustments := [adj |
 | `src/lib/policies/build-policy-input.ts` | Build normalized policy input from app data |
 | `src/lib/policies/default-matchboard-policy.ts` | Default Matchboard eligibility/warning/scoring policy |
 | `src/lib/policies/selection-policy-adapter.ts` | Policy adapter interface, composite pipeline, factory |
-| `src/lib/policies/policy-pack.ts` | Policy pack metadata validation, resolution, diagnostics, and artifact hashing |
-| `src/lib/policies/rego-policy-adapter.ts` | OPA/Rego Wasm adapter for custom Rego policies |
+| `src/lib/policies/policy-pack.ts` | Policy pack metadata validation (schema v1/v2), resolution, diagnostics, and artifact hashing |
+| `src/lib/policies/policy-runtime.ts` | Single shared OPA Wasm runtime owner: pack/artifact loading, caching, named-entrypoint evaluation, health/degradation tracking |
+| `src/lib/policies/rego-policy-adapter.ts` | Typed `selection`-entrypoint adapter over the shared policy runtime |
 | `src/lib/policies/policy-evaluation.ts` | Evaluate policy pipeline, filter blocked players, apply score adjustments, coach-facing reason formatting |
 | `src/lib/policies/policy-signal-mapper.ts` | Map policy results to plan integrity signals, merge with existing signals |
 | `src/lib/policies/policy-version.ts` | Policy artifact hash/version tracking for audit and diagnostics |
@@ -517,7 +521,7 @@ Policy warnings and blocked entries map to Matchboard's plan integrity signal mo
 
 | Function | Purpose |
 |----------|---------|
-| `getPolicyArtifactHash()` | SHA-256 hash of the Wasm artifact (or null if Rego disabled) |
+| `getPolicyArtifactHash()` | SHA-256 hash of the active pack's Wasm artifact |
 | `getPolicyVersion()` | Version string combining runtime info and artifact hash |
 
 ### Decision log builder (`policy-decision-log.ts`)
@@ -529,14 +533,12 @@ Policy warnings and blocked entries map to Matchboard's plan integrity signal mo
 ### Admin diagnostics (`/api/admin/policy`)
 
 The admin diagnostics route reports:
-- Whether Rego is enabled
-- Rego failure mode
+- Policy runtime health (`HEALTHY`/`DEGRADED`), not a boolean "enabled" flag
+- Last runtime error code, if degraded
 - Policy version and artifact hash
 - Whether the Wasm artifact is loaded
-- Active policy pack id, version, and name (when Rego is enabled)
+- Active policy pack id, version, name, schema version, declared entrypoints, and failure mode
 - Pack validation errors and warnings
-- Last evaluation timestamp
-- Blocked/warning/adjustment counts from last evaluation
 
 No player personal data is included in diagnostics output.
 
