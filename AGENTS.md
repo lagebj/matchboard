@@ -1556,6 +1556,8 @@ Matchboard is adding a decision-support layer over the existing domain model tha
 - The Round Board and live match reporting remain the deep planning/execution workspaces; the situational layer sits above them, not a replacement.
 - `More` capability locations do not change just because their data becomes situationally relevant (`capability location != situational relevance`).
 
+**Current status**: `src/lib/situational/` implements the resolver, candidate/decision contracts, the situation-policy adapter (with a safe degraded fallback — never suppresses, never throws, never uses `AUTO`), and the projection service. One candidate provider exists (`assistantWorkItemsToCandidates()`, adapting existing `AssistantWorkItem`s). Today's hero "Next action" (`/o/{orgSlug}/today`) is selected by the projection, not `CATEGORY_PRIORITY` array order — but Today's grouped sections/metric tiles are not yet situationally filtered, and Matchday mobile/Next/Long-term projections do not exist yet. See `docs/domain/situational-decision-support.md`'s Status section before assuming any further integration exists.
+
 ## Populate all
 
 Populate all is a convenience workflow that generates drafts for all non-finalized rounds in the active league season.

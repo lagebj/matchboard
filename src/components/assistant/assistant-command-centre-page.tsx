@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
+import type { CoachSituationProjection } from "@/lib/situational/situation-types";
+import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
@@ -116,6 +118,25 @@ const groups: GroupConfig[] = [
 
 function isActionable(item: AssistantWorkItem): boolean {
   return item.category !== "upcoming_round";
+}
+
+/**
+ * The hero "Next action" is chosen by the situational projection's ordering — not raw
+ * `CATEGORY_PRIORITY` array order (ADR-0107, SDS-018) — whenever a projection is available and
+ * has at least one decision. `CATEGORY_PRIORITY` remains in `items`' own order for the grouped
+ * sections below (grouping/diagnostics use per docs/domain/situational-decision-support.md), but
+ * no longer controls which single item is the primary next action.
+ */
+function resolveNextAction(
+  actionable: AssistantWorkItem[],
+  projection: CoachSituationProjection | undefined,
+): AssistantWorkItem | undefined {
+  const topDecision = projection?.decisions[0];
+  if (!topDecision) return actionable[0];
+
+  const workItemId = workItemIdFromCandidateId(topDecision.candidateId);
+  const matched = workItemId ? actionable.find((item) => item.id === workItemId) : undefined;
+  return matched ?? actionable[0];
 }
 
 
@@ -353,14 +374,19 @@ function StandardGroup({
 
 export function AssistantCommandCentrePage({
   commandCentre,
+  projection,
 }: {
   commandCentre: AssistantCommandCentre;
+  /** Situational projection (ADR-0107, docs/domain/situational-decision-support.md). When
+   * provided, it — not raw category order — determines which item is featured as the hero "Next
+   * action". Optional so the component remains usable without a full projection (e.g. tests). */
+  projection?: CoachSituationProjection;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
   const actionable = items.filter(isActionable);
   const upcoming = items.filter((i) => i.category === "upcoming_round");
-  const nextAction = actionable[0];
+  const nextAction = resolveNextAction(actionable, projection);
 
   // Metric aggregates
   const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);

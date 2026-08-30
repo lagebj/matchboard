@@ -4,23 +4,47 @@
 
 **Partial.** This document records the target architecture authorised by ADR-0107.
 
-Implemented as of ADR-0107:
+Implemented:
 - OPA/Rego is a standard runtime capability (no enable/disable gate).
 - Policy pack schema v2 (named multi-entrypoint packs).
 - The `matchboard/situation/decision` Rego entrypoint exists on the built-in `matchboard-default`
   pack, compiled, tested (`policies/packs/matchboard-default/rego/matchboard_situation*.rego`),
   and evaluable via the shared policy runtime (`src/lib/policies/policy-runtime.ts`).
+- The TypeScript `SituationContext` resolver (`src/lib/situational/resolve-situation-context.ts`).
+- `CoachDecisionCandidate` / `DecisionCandidateProvider` contracts
+  (`src/lib/situational/situation-types.ts`), a typed situation-policy adapter with a safe
+  degraded fallback (`src/lib/situational/situation-policy-adapter.ts`), and the projection service
+  (`src/lib/situational/get-coach-situation-projection.ts`).
+- One real candidate provider: `assistantWorkItemsToCandidates()`
+  (`src/lib/situational/providers/assistant-candidate-provider.ts`) adapts existing
+  `AssistantWorkItem`s (from `getAssistantCommandCentre()`) into normalized candidates —
+  `AssistantWorkItem` is not deleted; this is an additive adapter, per the migration path below.
+- **Today is partially migrated**: `/o/{orgSlug}/today` (`src/app/(app)/o/[orgSlug]/today/page.tsx`)
+  resolves a `SituationContext` from `commandCentre.todayMatches` (no new queries), builds
+  candidates from `commandCentre.items`, evaluates the situation policy, and passes the resulting
+  `CoachSituationProjection` to `AssistantCommandCentrePage`. The projection — not
+  `CATEGORY_PRIORITY` array order — now determines which single item is featured as the hero
+  "Next action" (`resolveNextAction()` in `assistant-command-centre-page.tsx`). The grouped
+  sections below the hero, and the summary metric tiles, are **not yet** situationally filtered —
+  they still render every `AssistantWorkItem` grouped by category, matching the pre-existing
+  behaviour. `CATEGORY_PRIORITY` remains in place for that grouping/diagnostics use, which the
+  programme's own spec explicitly allows (`04-PROJECTION-AND-UI-SPEC.md` §2: "If category
+  information remains useful for grouping or diagnostics, it must not control primary urgency
+  ahead of the situational policy" — satisfied for the hero, not yet for the rest of the page).
 
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- The TypeScript `SituationContext` resolver.
-- `CoachDecisionCandidate` / candidate provider interfaces and any concrete providers.
-- The `CoachDecision` normalization layer and `getCoachSituationProjection()` query boundary.
-- Today, Matchday mobile, Next, and Long-term UI migration to consume the projection.
-- Direct-action wiring, mobile Playwright coverage, and the remaining quality gates in the
-  programme bundle.
+- Candidate providers beyond the single Assistant-work-item adapter (plan integrity signals,
+  event readiness, live-match state, report state, opponent/opportunity evidence).
+- Situational filtering of Today's grouped sections and metric tiles (currently unfiltered).
+- Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
+  `status`, but the page does not yet render it distinctly from the existing empty state).
+- Matchday mobile, Next, and Long-term UI/projection surfaces.
+- Direct-action wiring beyond what `AssistantWorkItem.primaryActionHref` already provided, mobile
+  Playwright coverage, and the remaining quality gates in the programme bundle.
 
-Do not treat the type shapes below as already wired into Today, the Round Board, or any other UI
-surface until this status section is updated to say so.
+Do not treat any part of this document as describing the Round Board, Matchday, Next, or
+Long-term surfaces until this status section is updated to say so — only Today's hero "Next
+action" selection is live.
 
 ## Problem
 
@@ -220,6 +244,18 @@ invariants and authorisation fully active, and surface an admin/developer diagno
 coach-facing technical error. This is provided today by the shared runtime
 (`evaluatePolicyEntrypoint()` in `policy-runtime.ts`) for any caller of the `situation` entrypoint,
 even though no caller exists yet.
+
+## Key files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/situational/situation-types.ts` | All type contracts: `SituationContext`, `CoachDecisionCandidate`, `DecisionCandidateProvider`, `CoachDecision`, `CoachSituationProjection` |
+| `src/lib/situational/resolve-situation-context.ts` | Deterministic `resolveSituationContext()`; `MATCHDAY_IMMINENT_MINUTES` (kept identical to the Rego policy's own threshold) |
+| `src/lib/situational/situation-policy-adapter.ts` | Typed adapter over `evaluatePolicyEntrypoint("situation", ...)`; `computeDegradedSituationResult()` safe fallback |
+| `src/lib/situational/get-coach-situation-projection.ts` | The one projection query boundary: `getCoachSituationProjection()` / `projectCandidates()`, deterministic ordering, status computation |
+| `src/lib/situational/providers/assistant-candidate-provider.ts` | Adapts existing `AssistantWorkItem`s into `CoachDecisionCandidate`s (`assistantWorkItemsToCandidates()`, `workItemIdFromCandidateId()`) |
+| `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
+| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` — the hero "Next action" is chosen by the projection, not `CATEGORY_PRIORITY` order |
 
 ## Related
 
