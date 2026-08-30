@@ -61,6 +61,16 @@ Implemented:
   versus `READY`/no-projection (the pre-existing "Nothing urgent right now."). `REVIEW_AVAILABLE`
   and `ACTION_REQUIRED` can never reach the empty state by construction (see
   `computeStatus()`), so only these two cases needed distinguishing.
+- **SDS-019 completed for the remaining two statuses**: when the hero card DOES render (i.e.
+  `nextAction` exists), `heroPillLabel()` shows "Worth reviewing" instead of "Next action" when
+  `projection.status === "REVIEW_AVAILABLE"` (a NORMAL-visibility item featured with nothing
+  urgent/blocking behind it) — avoiding implying urgency that doesn't exist, per this file's own
+  "No red/amber unless actual blocker/decision exists" rule. `ACTION_REQUIRED` keeps the existing
+  "Next action" label (unchanged default). Only the label text changes; the pill's colour/variant
+  remains derived from the item's own category, untouched. `READY`/`LIVE` never reach this branch
+  (no hero renders for those — see the empty-state copy above), so all four statuses are now
+  distinguished somewhere in the UI: `READY`/`LIVE` via the empty state, `ACTION_REQUIRED`/
+  `REVIEW_AVAILABLE` via the hero's pill label.
 
 - **Matchday mobile (Phase 5, first slice)**: `MatchdayContextBanner`
   (`assistant-command-centre-page.tsx`) renders, additively, above the existing hero whenever the
@@ -166,10 +176,11 @@ Implemented:
 - Situational filtering of Today's metric-tile row (blocked/decision/review/report counts remain
   fully unfiltered by the projection — the grouped sections below them do carry annotation and
   reordering now, see above).
-- `READY` vs. `LIVE` are now distinguished in the hero's empty-state copy (see "Explicit
-  ready-state display" above). `REVIEW_AVAILABLE` and `ACTION_REQUIRED` are still not rendered as
-  distinct explicit states anywhere beyond their effect on hero/decision content — no page shows
-  a `projection.status` badge or label directly.
+- All four `CoachSituationProjectionStatus` values are now distinguished somewhere on Today:
+  `READY`/`LIVE` via the empty-state copy, `ACTION_REQUIRED`/`REVIEW_AVAILABLE` via the hero's
+  pill label ("Next action" vs "Worth reviewing" — see "SDS-019 completed" above). No page shows
+  a literal `projection.status` badge/label as raw text, but every status now has a distinct,
+  coach-facing treatment.
 - Anything beyond the Matchday banner, Next-round-readiness, and opportunity-gap slices above:
   multiple imminent matches are not distinguished in the banner (only the first is shown),
   last-minute selection-change/lineup-gap content isn't surfaced in the banner itself (that still
@@ -405,7 +416,7 @@ even though no caller exists yet.
 | `src/app/(app)/o/[orgSlug]/opponents/[opponentTeamId]/page.tsx` | Resolves an `OPPONENT` route-intent `LONG_TERM` situation from already-loaded `combinationSummaries` — no new query |
 | `src/components/opponents/opponent-combination-situational-summary.tsx` | Renders the resulting decisions, resolving player names from the page's own already-loaded map |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
-| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection — no false fallback when the projection legitimately has zero decisions), `readyStateCopy()` (LIVE vs. READY empty-state wording), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()`/`sortByDeferred()` (Phase 4 continuation: grouped-section annotation + reordering) |
+| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection — no false fallback when the projection legitimately has zero decisions), `readyStateCopy()` (LIVE vs. READY empty-state wording), `heroPillLabel()` (ACTION_REQUIRED vs. REVIEW_AVAILABLE hero pill label — SDS-019), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()`/`sortByDeferred()` (Phase 4 continuation: grouped-section annotation + reordering) |
 
 ## Related
 

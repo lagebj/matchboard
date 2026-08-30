@@ -221,7 +221,25 @@ function readyStateCopy(status: CoachSituationProjectionStatus | undefined): {
 }
 
 
-function NextActionCard({ item }: { item: AssistantWorkItem }) {
+/**
+ * `status === "REVIEW_AVAILABLE"` means the featured item is worth a look but nothing is
+ * urgent/blocking (no PROMOTE decision, no active match) -- SDS-019's remaining distinction
+ * beyond the LIVE/READY empty-state copy (see readyStateCopy()). Framing it as "Worth reviewing"
+ * rather than "Next action" avoids implying urgency that doesn't exist, per this file's own
+ * "No red/amber unless actual blocker/decision exists" rule -- the pill's colour/variant is
+ * untouched (still derived from the item's own category), only the label text changes.
+ */
+function heroPillLabel(status: CoachSituationProjectionStatus | undefined): string {
+  return status === "REVIEW_AVAILABLE" ? "Worth reviewing" : "Next action";
+}
+
+function NextActionCard({
+  item,
+  status,
+}: {
+  item: AssistantWorkItem;
+  status: CoachSituationProjectionStatus | undefined;
+}) {
   const config = groupForCategory(item.category);
   return (
     <TacticalSurface variant="hero" padding="lg" pitch className="flex flex-col gap-4">
@@ -231,7 +249,7 @@ function NextActionCard({ item }: { item: AssistantWorkItem }) {
           icon={config?.icon}
           size="md"
         >
-          Next action
+          {heroPillLabel(status)}
         </StatusPill>
         <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
           {config?.label ?? "Action"}
@@ -719,7 +737,7 @@ export function AssistantCommandCentrePage({
 
       {/* Next action hero */}
       {nextAction ? (
-        <NextActionCard item={nextAction} />
+        <NextActionCard item={nextAction} status={projection?.status} />
       ) : (
         <EmptyState
           tone="info"

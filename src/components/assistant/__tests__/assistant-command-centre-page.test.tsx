@@ -238,6 +238,64 @@ describe("AssistantCommandCentrePage next-action selection", () => {
     renderPage(makeCommandCentre([]), projection);
     expect(screen.getByText("Nothing urgent right now.")).toBeTruthy();
   });
+
+  it("labels the hero 'Worth reviewing' (not 'Next action') when status is REVIEW_AVAILABLE", () => {
+    const items = [makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" })];
+    const commandCentre = makeCommandCentre(items);
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({ primarySituation: "NEXT" }),
+      decisions: [
+        {
+          id: "d1",
+          candidateId: `${ASSISTANT_CANDIDATE_PROVIDER_ID}|report-item`,
+          situation: "NEXT",
+          horizon: "NEXT",
+          visibility: "NORMAL",
+          urgency: "NORMAL",
+          interaction: "CONFIRM",
+          title: "Complete report",
+          alternatives: [],
+          affectedEntities: [],
+          reasonCodes: [],
+        },
+      ],
+      status: "REVIEW_AVAILABLE",
+    };
+
+    renderPage(commandCentre, projection);
+
+    expect(screen.getByText("Worth reviewing")).toBeTruthy();
+    expect(screen.queryByText("Next action")).toBeNull();
+  });
+
+  it("labels the hero 'Next action' (default) when status is ACTION_REQUIRED", () => {
+    const items = [makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" })];
+    const commandCentre = makeCommandCentre(items);
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({}),
+      decisions: [
+        {
+          id: "d1",
+          candidateId: `${ASSISTANT_CANDIDATE_PROVIDER_ID}|report-item`,
+          situation: "MATCHDAY",
+          horizon: "NOW",
+          visibility: "PROMOTE",
+          urgency: "IMMEDIATE",
+          interaction: "CONFIRM",
+          title: "Complete report",
+          alternatives: [],
+          affectedEntities: [],
+          reasonCodes: [],
+        },
+      ],
+      status: "ACTION_REQUIRED",
+    };
+
+    renderPage(commandCentre, projection);
+
+    expect(screen.getByText("Next action")).toBeTruthy();
+    expect(screen.queryByText("Worth reviewing")).toBeNull();
+  });
 });
 
 describe("MatchdayContextBanner (Phase 5)", () => {
