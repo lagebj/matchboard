@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
-import type { CoachSituationProjection } from "@/lib/situational/situation-types";
+import type { CoachSituationProjection, SituationContext } from "@/lib/situational/situation-types";
 import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -279,6 +279,78 @@ function MatchdayContextBanner({
   );
 }
 
+/**
+ * Next-round readiness summary (ADR-0107, Phase 6, docs/domain/situational-decision-support.md).
+ * Renders only in the NEXT situation. Sits above the Round Board, never replaces it — every row
+ * only deep-links to the existing `/rounds/{id}` workspace; no inline mutation is offered from
+ * here (the bundle only requires this for genuinely simple decisions once a safe command boundary
+ * exists — not yet true for finalize/override-reason flows, so this stays read-only navigation).
+ * Reuses `roundPlanIntegrities` — already computed by `getAssistantCommandCentre()` — rather than
+ * recomputing readiness.
+ */
+function NextRoundReadinessSection({
+  situation,
+  roundPlanIntegrities,
+  todayMatches,
+  orgUrl,
+}: {
+  situation: SituationContext;
+  roundPlanIntegrities: AssistantCommandCentre["roundPlanIntegrities"];
+  todayMatches: TodayMatch[];
+  orgUrl: (path: string) => string;
+}) {
+  if (situation.primarySituation !== "NEXT") return null;
+
+  const roundsNeedingAttention = Object.values(roundPlanIntegrities).filter(
+    (integrity) => integrity.summary.blockerCount > 0 || integrity.summary.decisionRequiredCount > 0,
+  );
+  if (roundsNeedingAttention.length === 0) return null;
+
+  return (
+    <Surface padding="md" className="flex flex-col gap-3">
+      <SectionHeader
+        title="Next round"
+        description="Readiness before opening the full Round Board."
+        eyebrow={`${roundsNeedingAttention.length} round${roundsNeedingAttention.length === 1 ? "" : "s"}`}
+      />
+      <ul className="flex flex-col">
+        {roundsNeedingAttention.map((integrity) => {
+          const roundName =
+            todayMatches.find((m) => m.matchRoundId === integrity.matchRoundId)?.matchRoundName ??
+            "Round readiness";
+          const parts = [
+            integrity.summary.blockerCount > 0 ? `${integrity.summary.blockerCount} blocked` : null,
+            integrity.summary.decisionRequiredCount > 0
+              ? `${integrity.summary.decisionRequiredCount} decision${integrity.summary.decisionRequiredCount === 1 ? "" : "s"} required`
+              : null,
+          ].filter(Boolean);
+
+          return (
+            <li
+              key={integrity.matchRoundId}
+              className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors"
+            >
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-sm font-medium text-zinc-100 truncate">{roundName}</span>
+                <span className="text-xs text-[var(--text-muted)]">{parts.join(" · ")}</span>
+              </div>
+              <Button
+                as={Link}
+                href={orgUrl(`/rounds/${integrity.matchRoundId}`)}
+                variant="secondary"
+                size="sm"
+                trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
+              >
+                Open Round Board
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </Surface>
+  );
+}
+
 function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean }) {
   return (
     <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
@@ -486,6 +558,15 @@ export function AssistantCommandCentrePage({
 
       {projection && (
         <MatchdayContextBanner projection={projection} todayMatches={commandCentre.todayMatches} orgUrl={orgUrl} />
+      )}
+
+      {projection && (
+        <NextRoundReadinessSection
+          situation={projection.situation}
+          roundPlanIntegrities={commandCentre.roundPlanIntegrities}
+          todayMatches={commandCentre.todayMatches}
+          orgUrl={orgUrl}
+        />
       )}
 
       <InstallPwaCard dismissible />

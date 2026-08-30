@@ -5,6 +5,7 @@ import { OrgSlugProvider } from "@/components/shell/org-slug-context";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import type { CoachSituationProjection } from "@/lib/situational/situation-types";
 import { ASSISTANT_CANDIDATE_PROVIDER_ID } from "@/lib/situational/providers/assistant-candidate-provider";
+import type { RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
 function makeItem(overrides: Partial<AssistantWorkItem> & Pick<AssistantWorkItem, "category" | "id">): AssistantWorkItem {
   return {
@@ -20,13 +21,42 @@ function makeItem(overrides: Partial<AssistantWorkItem> & Pick<AssistantWorkItem
   };
 }
 
-function makeCommandCentre(items: AssistantWorkItem[], todayMatches: TodayMatch[] = []): AssistantCommandCentre {
+function makeCommandCentre(
+  items: AssistantWorkItem[],
+  todayMatches: TodayMatch[] = [],
+  roundPlanIntegrities: Record<string, RoundPlanIntegrity> = {},
+): AssistantCommandCentre {
   return {
     leagueSeasonId: "season-1",
     leagueSeasonName: "Spring 2026",
     items,
     todayMatches,
-    roundPlanIntegrities: {},
+    roundPlanIntegrities,
+    computedAt: new Date(),
+  };
+}
+
+function makeRoundIntegrity(
+  overrides: Partial<RoundPlanIntegrity["summary"]> & Pick<RoundPlanIntegrity, "matchRoundId">,
+): RoundPlanIntegrity {
+  return {
+    matchRoundId: overrides.matchRoundId,
+    signals: [],
+    planningNotes: [],
+    summary: {
+      blockerCount: 0,
+      decisionRequiredCount: 0,
+      belowMinimumMatchCount: 0,
+      unavailableSelectedPlayerCount: 0,
+      missingOpportunityPlayerCount: 0,
+      integrityFailureCount: 0,
+      ...overrides,
+    },
+    coverage: {
+      eligibleAvailablePlayerCount: 0,
+      assignedEligibleAvailablePlayerCount: 0,
+      unassignedEligibleAvailablePlayerIds: [],
+    },
     computedAt: new Date(),
   };
 }
@@ -60,6 +90,13 @@ function makeMatchdayProjection(overrides: Partial<CoachSituationProjection["sit
     deferredCount: 0,
     status: "LIVE",
     policyRuntimeStatus: "HEALTHY",
+  };
+}
+
+function makeNextProjection(overrides: Partial<CoachSituationProjection["situation"]> = {}): CoachSituationProjection {
+  return {
+    ...makeMatchdayProjection({ primarySituation: "NEXT", activeMatchId: undefined, ...overrides }),
+    status: "ACTION_REQUIRED",
   };
 }
 
@@ -211,5 +248,53 @@ describe("MatchdayContextBanner (Phase 5)", () => {
     const commandCentre = makeCommandCentre([], [makeTodayMatch({ matchId: "m1", hasActiveLiveSession: true })]);
     renderPage(commandCentre, undefined);
     expect(screen.queryByText("Live now")).toBeNull();
+  });
+});
+
+describe("NextRoundReadinessSection (Phase 6)", () => {
+  it("does not render when the situation is not NEXT", () => {
+    const commandCentre = makeCommandCentre([], [], { "round-1": makeRoundIntegrity({ matchRoundId: "round-1", blockerCount: 1 }) });
+    renderPage(commandCentre, makeMatchdayProjection({ primarySituation: "MATCHDAY" }));
+    expect(screen.queryByText("Next round")).toBeNull();
+  });
+
+  it("does not render when NEXT but no round has a blocked/decision-required signal", () => {
+    const commandCentre = makeCommandCentre([], [], { "round-1": makeRoundIntegrity({ matchRoundId: "round-1" }) });
+    renderPage(commandCentre, makeNextProjection());
+    expect(screen.queryByText("Next round")).toBeNull();
+  });
+
+  it("shows a round needing attention with counts and a deep link to the Round Board", () => {
+    const commandCentre = makeCommandCentre(
+      [],
+      [makeTodayMatch({ matchId: "m1", matchRoundId: "round-1", matchRoundName: "Round 7" })],
+      { "round-1": makeRoundIntegrity({ matchRoundId: "round-1", blockerCount: 2, decisionRequiredCount: 1 }) },
+    );
+    renderPage(commandCentre, makeNextProjection());
+
+    expect(screen.getByText("Next round")).toBeTruthy();
+    // "Round 7" legitimately appears twice: once in this new section, once in the pre-existing
+    // "Today's matches" section (both reference the same match's round name).
+    expect(screen.getAllByText("Round 7").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("2 blocked · 1 decision required")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /Open Round Board/i });
+    expect(link.getAttribute("href")).toBe("/o/test-org/rounds/round-1");
+  });
+
+  it("falls back to a generic label when no matching TodayMatch provides the round name", () => {
+    const commandCentre = makeCommandCentre([], [], {
+      "round-1": makeRoundIntegrity({ matchRoundId: "round-1", blockerCount: 1 }),
+    });
+    renderPage(commandCentre, makeNextProjection());
+    expect(screen.getByText("Round readiness")).toBeTruthy();
+  });
+
+  it("lists multiple rounds needing attention independently", () => {
+    const commandCentre = makeCommandCentre([], [], {
+      "round-1": makeRoundIntegrity({ matchRoundId: "round-1", blockerCount: 1 }),
+      "round-2": makeRoundIntegrity({ matchRoundId: "round-2", decisionRequiredCount: 2 }),
+    });
+    renderPage(commandCentre, makeNextProjection());
+    expect(screen.getAllByRole("link", { name: /Open Round Board/i })).toHaveLength(2);
   });
 });

@@ -55,28 +55,40 @@ Implemented:
   viewports (see `docs/development/browser-acceptance-testing.md` / the `verify-browser-acceptance`
   swamp procedure) with no new accessibility violations.
 
+- **Next round readiness (Phase 6, first slice)**: `NextRoundReadinessSection`
+  (`assistant-command-centre-page.tsx`) renders, additively, whenever the projection has inferred
+  `NEXT` and at least one round in `roundPlanIntegrities` has a blocked or decision-required
+  signal. Lists each such round (name, blocked/decision-required counts) with one "Open Round
+  Board" action deep-linking to the existing `/rounds/{id}` workspace — the Round Board itself is
+  unchanged; this only surfaces readiness above it, per the programme's "coach can see next-round
+  decisions and readiness before entering the full Round Board" acceptance criterion. No inline
+  mutation/direct-action wiring yet — every action here is navigation only.
+
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- Candidate providers beyond the two above (event readiness, live-match state, report state,
+- Candidate providers beyond the two in Phase 3 (event readiness, live-match state, report state,
   opponent/opportunity evidence — the first genuine `LONG_TERM` sources with real evidence data;
   currently only `pending_profile_suggestions` exercises the long-term-signal path via the coarse
   Assistant adapter).
 - Situational filtering of Today's grouped sections and metric tiles (currently unfiltered).
 - Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
   `status`, but the page does not yet render it distinctly from the existing empty state, beyond
-  the new Matchday banner's own live/kickoff pill).
-- Anything beyond the one Matchday banner slice above: multiple imminent matches are not
-  distinguished (only the first is shown), last-minute selection-change/lineup-gap content isn't
-  surfaced in the banner itself (that still lives in the grouped sections below), and there is no
+  the Matchday banner's own live/kickoff pill and the Next-round section's own counts).
+- Anything beyond the Matchday banner and Next-round-readiness slices above: multiple imminent
+  matches are not distinguished in the banner (only the first is shown), last-minute selection-
+  change/lineup-gap content isn't surfaced in the banner itself (that still lives in the grouped
+  sections below), simple NEXT decisions are not yet resolvable inline (navigation to the Round
+  Board only — no safe command boundary has been wired for in-place resolution), and there is no
   dedicated narrow-viewport Playwright spec beyond the existing accessibility project incidentally
   covering Today.
-- Next, and Long-term UI/projection surfaces.
+- Long-term UI/projection surfaces.
 - Direct-action wiring beyond navigation (no in-place mutation actions yet), mobile Playwright
   coverage beyond the existing accessibility project, and the remaining quality gates in the
   programme bundle.
 
-Do not treat any part of this document as describing the Round Board, Next, or Long-term surfaces
-until this status section is updated to say so — Today's hero "Next action" selection and the
-Matchday context banner are the only live situational UI.
+Do not treat any part of this document as describing the Round Board itself or Long-term surfaces
+until this status section is updated to say so — Today's hero "Next action" selection, the
+Matchday context banner, and the Next-round-readiness section are the only live situational UI;
+the Round Board it deep-links to remains the pre-existing, unmodified deep-workspace page.
 
 ## Problem
 
@@ -288,7 +300,7 @@ even though no caller exists yet.
 | `src/lib/situational/providers/assistant-candidate-provider.ts` | Adapts existing `AssistantWorkItem`s into `CoachDecisionCandidate`s (`assistantWorkItemsToCandidates()`, `workItemIdFromCandidateId()`) |
 | `src/lib/situational/providers/plan-integrity-candidate-provider.ts` | Adapts `computeRoundPlanIntegrity()`'s per-signal output into one candidate per signal (`createPlanIntegrityCandidateProvider()`, `planIntegritySignalToCandidate()`) — reuses already-computed `RoundPlanIntegrity`, never recomputes |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
-| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` — the hero "Next action" is chosen by the projection, not `CATEGORY_PRIORITY` order |
+| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6) |
 
 ## Related
 
