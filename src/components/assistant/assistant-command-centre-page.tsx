@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
-import type { CoachSituationProjection, SituationContext } from "@/lib/situational/situation-types";
+import type {
+  CoachSituationProjection,
+  CoachSituationProjectionStatus,
+  SituationContext,
+} from "@/lib/situational/situation-types";
 import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -166,12 +170,54 @@ function resolveNextAction(
   actionable: AssistantWorkItem[],
   projection: CoachSituationProjection | undefined,
 ): AssistantWorkItem | undefined {
-  const topDecision = projection?.decisions[0];
-  if (!topDecision) return actionable[0];
+  // No projection was ever built (e.g. a caller that doesn't wire up the situational layer) --
+  // fall back to raw category-priority order. This is a graceful-degradation path, distinct from
+  // the case below.
+  if (!projection) return actionable[0];
+
+  const topDecision = projection.decisions[0];
+  if (!topDecision) {
+    // The situation policy evaluated every actionable item's candidate and produced zero
+    // decisions to feature -- respect that conclusion rather than silently reverting to raw
+    // category-priority order, which would defeat the entire point of situational ordering
+    // (SDS-018). This is safe: a Blocked/Decision-required item can never reach this branch,
+    // because its plan-integrity candidate always carries a hard consequence
+    // (SQUAD_DEGRADED/PLANNING_BLOCKED), and matchboard_situation.rego's `hard_consequences` set
+    // is structurally exempt from SUPPRESS -- so `decisions` is only empty here when every
+    // actionable item was a soft, non-hard-consequence signal the policy legitimately decided not
+    // to feature. Those items remain fully visible below in the grouped sections, which are never
+    // filtered by the projection -- nothing is hidden, only not force-featured as the hero.
+    return undefined;
+  }
 
   const workItemId = workItemIdFromCandidateId(topDecision.candidateId);
   const matched = workItemId ? actionable.find((item) => item.id === workItemId) : undefined;
   return matched ?? actionable[0];
+}
+
+/**
+ * Copy for the hero's empty state, distinguished by `projection.status` (SDS-019: "explicit ready
+ * state") -- a coach mid-live-match sees different, situationally-appropriate wording from a
+ * coach with a genuinely quiet day, instead of the same generic "Nothing urgent" message either
+ * way. `REVIEW_AVAILABLE` cannot reach the empty state (it requires at least one decision, per
+ * `computeStatus()`) and `ACTION_REQUIRED` never reaches it either (it implies a promoted
+ * decision, which becomes the hero) -- only `LIVE` and `READY` (or no projection at all) are
+ * actually reachable here, so those are the only two cases distinguished.
+ */
+function readyStateCopy(status: CoachSituationProjectionStatus | undefined): {
+  title: string;
+  description: string;
+} {
+  if (status === "LIVE") {
+    return {
+      title: "Nothing else needs attention while today's match is live.",
+      description: "Follow along above, or open Fixtures to plan ahead.",
+    };
+  }
+  return {
+    title: "Nothing urgent right now.",
+    description: "Upcoming rounds are under control. Open Fixtures to plan ahead.",
+  };
 }
 
 
@@ -594,6 +640,7 @@ export function AssistantCommandCentrePage({
   const upcoming = items.filter((i) => i.category === "upcoming_round");
   const nextAction = resolveNextAction(actionable, projection);
   const deferredWorkItemIds = computeDeferredWorkItemIds(actionable, projection);
+  const readyState = readyStateCopy(projection?.status);
 
   // Metric aggregates
   const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);
@@ -676,8 +723,8 @@ export function AssistantCommandCentrePage({
       ) : (
         <EmptyState
           tone="info"
-          title="Nothing urgent right now."
-          description="Upcoming rounds are under control. Open Fixtures to plan ahead."
+          title={readyState.title}
+          description={readyState.description}
           illustration="matchdayPrepSketch"
           action={
             <Button

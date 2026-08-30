@@ -31,16 +31,36 @@ Implemented:
     recomputing it — `getAssistantCommandCentre()` already computed it once per DRAFT round.
 - **Today is partially migrated**: `/o/{orgSlug}/today` (`src/app/(app)/o/[orgSlug]/today/page.tsx`)
   resolves a `SituationContext` from `commandCentre.todayMatches` (no new queries), builds
-  candidates from both providers above, evaluates the situation policy, and passes the resulting
+  candidates from all four providers, evaluates the situation policy, and passes the resulting
   `CoachSituationProjection` to `AssistantCommandCentrePage`. The projection — not
   `CATEGORY_PRIORITY` array order — now determines which single item is featured as the hero
-  "Next action" (`resolveNextAction()` in `assistant-command-centre-page.tsx`). The grouped
-  sections below the hero, and the summary metric tiles, are **not yet** situationally filtered —
-  they still render every `AssistantWorkItem` grouped by category, matching the pre-existing
-  behaviour. `CATEGORY_PRIORITY` remains in place for that grouping/diagnostics use, which the
-  programme's own spec explicitly allows (`04-PROJECTION-AND-UI-SPEC.md` §2: "If category
-  information remains useful for grouping or diagnostics, it must not control primary urgency
-  ahead of the situational policy" — satisfied for the hero, not yet for the rest of the page).
+  "Next action" (`resolveNextAction()` in `assistant-command-centre-page.tsx`), and correctly
+  shows no hero at all (not a stale fallback item) when the projection legitimately produced zero
+  decisions — see "Explicit ready-state display" below for the bug this fixed. The summary metric
+  tiles above the hero are **not yet** situationally filtered — see "Not yet implemented" below;
+  the grouped sections beneath the hero **are** now annotated and reordered (see "Situational
+  annotation and reordering" below). `CATEGORY_PRIORITY` remains in place for grouping/
+  diagnostics use, which the programme's own spec explicitly allows
+  (`04-PROJECTION-AND-UI-SPEC.md` §2: "If category information remains useful for grouping or
+  diagnostics, it must not control primary urgency ahead of the situational policy" — satisfied
+  for the hero and now the grouped sections; not yet for the metric-tile row).
+- **Explicit ready-state display (SDS-019) and a real hero-selection bug fix**:
+  `resolveNextAction()` previously fell back to raw `actionable[0]` order whenever
+  `projection.decisions` was empty — even when the projection existed and had deliberately
+  produced zero decisions (every candidate was suppressed/deferred by the situation policy). This
+  silently defeated situational ordering in exactly the case where the policy concluded "nothing
+  should be featured." **This is safe to fix without risking Blocked/Decision-required
+  visibility**: those categories' plan-integrity candidates always carry a hard consequence
+  (`SQUAD_DEGRADED`/`PLANNING_BLOCKED`), and `matchboard_situation.rego`'s `hard_consequences` set
+  is structurally exempt from `SUPPRESS` — so `decisions` can only be empty here when every
+  actionable item was a soft, non-hard-consequence signal. Fixed: `resolveNextAction()` now
+  returns no hero (triggering the empty state) when a projection exists but produced zero
+  decisions, distinct from the "no projection at all" graceful-degradation case (which still falls
+  back to raw order). `readyStateCopy()` gives the resulting empty state distinct wording for
+  `projection.status === "LIVE"` ("Nothing else needs attention while today's match is live.")
+  versus `READY`/no-projection (the pre-existing "Nothing urgent right now."). `REVIEW_AVAILABLE`
+  and `ACTION_REQUIRED` can never reach the empty state by construction (see
+  `computeStatus()`), so only these two cases needed distinguishing.
 
 - **Matchday mobile (Phase 5, first slice)**: `MatchdayContextBanner`
   (`assistant-command-centre-page.tsx`) renders, additively, above the existing hero whenever the
@@ -121,9 +141,10 @@ Implemented:
 - Situational filtering of Today's metric-tile row (blocked/decision/review/report counts remain
   fully unfiltered by the projection — the grouped sections below them do carry annotation and
   reordering now, see above).
-- Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
-  `status`, but the page does not yet render it distinctly from the existing empty state, beyond
-  the Matchday banner's own live/kickoff pill and the Next-round section's own counts).
+- `READY` vs. `LIVE` are now distinguished in the hero's empty-state copy (see "Explicit
+  ready-state display" above). `REVIEW_AVAILABLE` and `ACTION_REQUIRED` are still not rendered as
+  distinct explicit states anywhere beyond their effect on hero/decision content — no page shows
+  a `projection.status` badge or label directly.
 - Anything beyond the Matchday banner, Next-round-readiness, and opportunity-gap slices above:
   multiple imminent matches are not distinguished in the banner (only the first is shown),
   last-minute selection-change/lineup-gap content isn't surfaced in the banner itself (that still
@@ -356,7 +377,7 @@ even though no caller exists yet.
 | `src/app/api/insights/opportunity-gap/route.ts` | Resolves a `LONG_TERM` situation and returns the projection alongside the existing `rows` payload |
 | `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Renders the "Situational summary" block from the route's `projection` |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
-| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()`/`sortByDeferred()` (Phase 4 continuation: grouped-section annotation + reordering) |
+| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection — no false fallback when the projection legitimately has zero decisions), `readyStateCopy()` (LIVE vs. READY empty-state wording), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()`/`sortByDeferred()` (Phase 4 continuation: grouped-section annotation + reordering) |
 
 ## Related
 

@@ -198,6 +198,46 @@ describe("AssistantCommandCentrePage next-action selection", () => {
     renderPage(makeCommandCentre([]));
     expect(screen.getByText("Nothing urgent right now.")).toBeTruthy();
   });
+
+  it("respects the projection's conclusion of zero decisions instead of falling back to raw order, even though actionable items exist", () => {
+    // Regression test for a real bug found while extending this file: a projection that legitimately
+    // concluded nothing should be featured (e.g. every candidate was suppressed/deferred by the
+    // situation policy) was being silently overridden by a fallback to raw CATEGORY_PRIORITY
+    // order whenever `projection.decisions` was empty -- defeating the entire point of
+    // situational ordering (SDS-018) in exactly the case where the policy said "nothing to show."
+    const items = [
+      makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" }),
+    ];
+    const commandCentre = makeCommandCentre(items);
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({}),
+      decisions: [],
+      status: "READY",
+    };
+
+    renderPage(commandCentre, projection);
+
+    // No hero card is force-featured...
+    expect(screen.queryByRole("heading", { name: "Complete report" })).toBeNull();
+    // ...but the item remains fully visible in its grouped section below (nothing is hidden).
+    expect(screen.getByText("Complete report")).toBeTruthy();
+  });
+
+  it("shows LIVE-specific empty-state copy when the projection concludes nothing needs attention during a live match", () => {
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({ activeMatchId: "m1" }),
+      decisions: [],
+      status: "LIVE",
+    };
+    renderPage(makeCommandCentre([]), projection);
+    expect(screen.getByText("Nothing else needs attention while today's match is live.")).toBeTruthy();
+  });
+
+  it("shows the default ready-state copy when status is READY", () => {
+    const projection: CoachSituationProjection = { ...makeMatchdayProjection({}), decisions: [], status: "READY" };
+    renderPage(makeCommandCentre([]), projection);
+    expect(screen.getByText("Nothing urgent right now.")).toBeTruthy();
+  });
 });
 
 describe("MatchdayContextBanner (Phase 5)", () => {
