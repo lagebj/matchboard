@@ -30,7 +30,12 @@ function toCandidate(row: OpportunityGapRow): CoachDecisionCandidate {
     source: OPPORTUNITY_GAP_CANDIDATE_PROVIDER_ID,
     entityType: "PLAYER",
     entityId: row.playerId,
-    title: `${row.playerName} — opportunity gap`,
+    // Never include the player's name here (AGENTS.md: "Do not store player names inside
+    // assistant issues, explanations, recommendations, decision records ... Use player IDs.
+    // Resolve names for display only."). The player id is already carried via entityId/
+    // affectedPlayerIds; the UI resolves the display name from its own already-loaded
+    // OpportunityGapRow list at render time.
+    title: "Opportunity gap",
     summary: `${row.realisedOpportunities} realised vs ${row.plannedOpportunities} planned opportunities this league season (gap: ${row.gap}).`,
     facts: [
       { code: "PLANNED_OPPORTUNITIES", numericValue: row.plannedOpportunities },

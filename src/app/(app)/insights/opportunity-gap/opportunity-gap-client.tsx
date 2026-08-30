@@ -94,11 +94,20 @@ export function OpportunityGapClient({
             planned this league season.
           </p>
           <ul className="mt-2 flex flex-col gap-1">
-            {projection.decisions.slice(0, 5).map((decision) => (
-              <li key={decision.id} className="text-xs text-zinc-400">
-                {decision.summary}
-              </li>
-            ))}
+            {projection.decisions.slice(0, 5).map((decision) => {
+              // The candidate/decision itself never carries the player's name (AGENTS.md:
+              // "Resolve names for display only") -- resolve it here from the rows this page
+              // already loaded, matched by the decision's own affected-player entity id.
+              const playerId = decision.affectedEntities.find((e) => e.entityType === "PLAYER")?.entityId;
+              const playerName = rows?.find((r) => r.playerId === playerId)?.playerName;
+              return (
+                <li key={decision.id} className="text-xs text-zinc-400">
+                  {playerName ? <span className="text-zinc-300">{playerName}</span> : null}
+                  {playerName ? " — " : ""}
+                  {decision.summary}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

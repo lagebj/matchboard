@@ -49,6 +49,16 @@ describe("opportunityGapRowsToCandidates", () => {
     const [candidate] = opportunityGapRowsToCandidates([makeRow({ playerId: "p1", gap: 2 })]);
     expect(candidate.recommendedAction).toBeUndefined();
   });
+
+  it("never includes the player's name in title or summary (AGENTS.md: use player IDs, resolve names for display only)", () => {
+    const [candidate] = opportunityGapRowsToCandidates([
+      makeRow({ playerId: "p1", playerName: "Ada Lovelace", gap: 2 }),
+    ]);
+    expect(candidate.title).not.toContain("Ada");
+    expect(candidate.summary).not.toContain("Ada");
+    expect(candidate.entityId).toBe("p1");
+    expect(candidate.affectedPlayerIds).toEqual(["p1"]);
+  });
 });
 
 describe("opportunity gap candidate through the real situation policy (Phase 7 architecture proof)", () => {

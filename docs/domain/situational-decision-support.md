@@ -80,7 +80,13 @@ Implemented:
   `opportunity-gap-candidate-provider.test.ts`; (2) the Opportunity Gap page itself only ever
   resolves `LONG_TERM` (an Insights route has no Matchday/Next operational meaning), so the
   suppression side is a policy-level guarantee proven by test, not something a coach would ever
-  witness live on this particular page — an honest scope boundary, not a gap.
+  witness live on this particular page — an honest scope boundary, not a gap. **Privacy fix**: the
+  candidate's `title` originally embedded the player's name (`"${playerName} — opportunity gap"`)
+  — a violation of AGENTS.md's "Do not store player names inside ... decision records ... Use
+  player IDs. Resolve names for display only," inconsistent with every other provider's candidates
+  (which never carry a name). Fixed: the candidate title is now the generic `"Opportunity gap"`;
+  `opportunity-gap-client.tsx` resolves the display name at render time from its own already-loaded
+  `OpportunityGapRow[]`, matched via the decision's `affectedEntities` (`entityType: "PLAYER"`).
 
 - **Stalled live session (Phase 5 continuation)**: `createLiveSessionCandidateProvider()`
   (`src/lib/situational/providers/live-session-candidate-provider.ts`) detects an ACTIVE
