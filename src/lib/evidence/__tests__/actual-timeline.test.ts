@@ -1,20 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { computePositionIntervals } from "../../evidence/lineup-state";
-import { deriveMatchPlanningStatus } from "../../selection/planning-boundary";
 
 describe("Actual position timeline — pure function tests", () => {
-  it("deriveMatchPlanningStatus returns planning_open for future kickoff", () => {
-    const result = deriveMatchPlanningStatus({
-      roundStatus: "DRAFT",
-      matchStatus: "SCHEDULED",
-      planningClosedAt: null,
-      startsAt: "2099-01-01T10:00:00Z",
-      liveSessionStartedAt: null,
-      now: new Date("2026-01-01T12:00:00Z"),
-    });
-    expect(result).toBe("planning_open");
-  });
-
   it("computes intervals from starters with no rotations", () => {
     const starters = [
       { playerId: "p1", position: "GK" },

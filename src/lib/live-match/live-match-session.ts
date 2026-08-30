@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import type { LiveSessionInfo } from "./live-match-types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { ensureMatchPlanningBaselineCaptured } from "@/lib/selection/capture-planning-baseline";
 
 export async function startLiveSession(matchId: string): Promise<LiveSessionInfo> {
   const ctx = await requireActorContext();
@@ -51,10 +52,9 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
     },
   });
 
-  await db.match.updateMany({
-    where: { id: matchId, planningClosedAt: null },
-    data: { planningClosedAt: new Date() },
-  });
+  // Live activity starting is the earliest planning boundary (ADR-0109 §2, D4): capture the
+  // planned baseline immediately, even if scheduled kickoff has not arrived yet.
+  await ensureMatchPlanningBaselineCaptured(matchId, { force: true });
 
   return {
     id: session.id,
