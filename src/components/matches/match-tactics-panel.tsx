@@ -8,7 +8,7 @@ import { getPlayerSlotCompatibility } from "@/lib/formations/lineup-compatibilit
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
-import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { StatusPill } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { PlannedPartnershipEvidenceList } from "@/components/matches/planned-partnership-evidence";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
@@ -52,6 +52,10 @@ type MatchTacticsPanelProps = {
   teamId: string;
   teamName: string;
   gameFormat: string;
+  /** False once the match's planning boundary has closed (kickoff passed or live reporting
+   * started) — the lineup becomes read-only, matching every other pre-match plan mutation
+   * (ADR-0109 §6). There is no separate "Confirm lineup" ceremony. */
+  planningEditable: boolean;
   selections: {
     playerId: string;
     playerName: string;
@@ -62,17 +66,12 @@ type MatchTacticsPanelProps = {
   }[];
 };
 
-const LINEUP_STATUS_PILL: Record<string, { label: string; variant: StatusPillVariant }> = {
-  DRAFT: { label: "Draft lineup", variant: "warning" },
-  CONFIRMED: { label: "Confirmed", variant: "finalized" },
-  ARCHIVED: { label: "Archived", variant: "neutral" },
-};
-
 export function MatchTacticsPanel({
   matchId,
   teamId,
   teamName,
   gameFormat,
+  planningEditable,
   selections,
 }: MatchTacticsPanelProps) {
   const [isPending, startTransition] = useTransition();
@@ -184,34 +183,6 @@ export function MatchTacticsPanel({
       setError(e instanceof Error ? e.message : "Failed to apply suggestion");
     }
   }, [matchId, lineup, lineupSuggestion, refreshLineup]);
-
-  const handleConfirm = useCallback(() => {
-    if (!lineup) return;
-    startTransition(async () => {
-      try {
-        setError(null);
-        const { confirmLineup } = await import("@/app/(app)/matches/lineup-actions");
-        await confirmLineup(lineup.id);
-        await refreshLineup();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to confirm lineup");
-      }
-    });
-  }, [lineup, refreshLineup]);
-
-  const handleRevertToDraft = useCallback(() => {
-    if (!lineup) return;
-    startTransition(async () => {
-      try {
-        setError(null);
-        const { revertLineupToDraft } = await import("@/app/(app)/matches/lineup-actions");
-        await revertLineupToDraft(lineup.id);
-        await refreshLineup();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to revert lineup");
-      }
-    });
-  }, [lineup, refreshLineup]);
 
   const handleClearSuggestions = useCallback(() => {
     if (!lineup) return;
@@ -486,10 +457,15 @@ export function MatchTacticsPanel({
     );
   }
 
-  const isConfirmed = lineup.status === "CONFIRMED";
+  // The lineup is read-only once the match's planning boundary has closed — there is no
+  // separate "Confirm lineup" ceremony (ADR-0109 §6). `isConfirmed` names the read-only state
+  // for minimal diff against the surrounding JSX below, not lineup.status.
+  const isConfirmed = !planningEditable;
   const unassignedCount = lineup.assignments.filter((a) => !a.playerId).length;
   const totalSlots = lineup.assignments.length;
-  const lineupStatus = LINEUP_STATUS_PILL[lineup.status];
+  const lineupStatus = isConfirmed
+    ? { label: "Planning closed", variant: "finalized" as const }
+    : { label: "Current plan", variant: "warning" as const };
   const currentAssignedPlayerId = pickerState?.assignmentId
     ? lineup.assignments.find((a) => a.id === pickerState.assignmentId)?.playerId ?? null
     : null;
@@ -531,16 +507,6 @@ export function MatchTacticsPanel({
                 Clear suggestions
               </Button>
             </>
-          )}
-          {unassignedCount === 0 && !isConfirmed && (
-            <Button variant="primary" size="sm" disabled={isPending} onClick={handleConfirm}>
-              Confirm lineup
-            </Button>
-          )}
-          {isConfirmed && (
-            <Button variant="ghost" size="sm" disabled={isPending} onClick={handleRevertToDraft}>
-              Revert to draft
-            </Button>
           )}
         </div>
 

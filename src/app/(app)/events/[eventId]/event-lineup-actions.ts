@@ -169,7 +169,6 @@ export async function assignPlayerToLineupSlot(
   });
 
   if (!lineup) throw new Error('Lineup not found');
-  if (lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
 
   const playerInOrg = await db.player.findFirst({
     where: { id: playerId, ...ctx.orgFilter.filter },
@@ -219,7 +218,6 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
   });
 
   if (!assignment) throw new Error('Assignment not found');
-  if (assignment.lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
   await requireLineupOrgAccess(assignment.lineupId, ctx.orgFilter);
 
   const eventId = assignment.lineup.eventMatch.eventId;
@@ -227,28 +225,6 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
   const updated = await db.eventMatchLineupAssignment.update({
     where: { id: assignmentId },
     data: { playerId: null },
-  });
-
-  revalidatePath(`/events/${eventId}`);
-  return updated;
-}
-
-export async function saveEventMatchLineup(lineupId: string) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
-
-  const lineup = await db.eventMatchLineup.findUnique({
-    where: { id: lineupId },
-    include: { assignments: true },
-  });
-
-  if (!lineup) throw new Error('Lineup not found');
-
-  const updated = await db.eventMatchLineup.update({
-    where: { id: lineupId },
-    data: { status: 'DRAFT' },
   });
 
   revalidatePath(`/events/${eventId}`);
@@ -266,7 +242,6 @@ export async function clearEventMatchLineup(lineupId: string) {
   });
 
   if (!lineup) throw new Error('Lineup not found');
-  if (lineup.status === 'CONFIRMED') throw new Error('Cannot clear confirmed lineup');
 
   await db.eventMatchLineupAssignment.updateMany({
     where: { lineupId },
@@ -288,7 +263,6 @@ export async function deleteEventMatchLineup(lineupId: string) {
   });
 
   if (!lineup) throw new Error('Lineup not found');
-  if (lineup.status === 'CONFIRMED') throw new Error('Cannot delete confirmed lineup');
 
   await db.eventMatchLineupAssignment.deleteMany({
     where: { lineupId },
@@ -313,7 +287,6 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
   });
 
   if (!lineup) throw new Error('Lineup not found');
-  if (lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
 
   let formationSlots: { id: string; gridX: number; gridY: number; roleType: FormationSlotRoleType; acceptedPositionIds: string[]; sortOrder: number }[] = [];
 
@@ -381,7 +354,6 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   });
 
   if (!lineup) throw new Error('Lineup not found');
-  if (lineup.status === 'CONFIRMED') throw new Error('Cannot modify confirmed lineup');
 
   const eventMatch = await db.eventMatch.findUnique({
     where: { id: lineup.eventMatchId },

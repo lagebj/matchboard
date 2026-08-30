@@ -645,6 +645,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
           teamId={match.teamId}
           teamName={match.teamName}
           gameFormat={match.gameFormat}
+          planningEditable={!matchFinalized}
           selections={match.selections.map((s) => ({
             playerId: s.playerId,
             playerName: s.playerName,
