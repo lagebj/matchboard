@@ -15,13 +15,23 @@ Implemented:
   (`src/lib/situational/situation-types.ts`), a typed situation-policy adapter with a safe
   degraded fallback (`src/lib/situational/situation-policy-adapter.ts`), and the projection service
   (`src/lib/situational/get-coach-situation-projection.ts`).
-- One real candidate provider: `assistantWorkItemsToCandidates()`
-  (`src/lib/situational/providers/assistant-candidate-provider.ts`) adapts existing
-  `AssistantWorkItem`s (from `getAssistantCommandCentre()`) into normalized candidates —
-  `AssistantWorkItem` is not deleted; this is an additive adapter, per the migration path below.
+- Two real candidate providers:
+  - `assistantWorkItemsToCandidates()` (`src/lib/situational/providers/assistant-candidate-provider.ts`)
+    adapts existing `AssistantWorkItem`s (from `getAssistantCommandCentre()`) into normalized
+    candidates — `AssistantWorkItem` is not deleted; this is an additive adapter, per the
+    migration path below. Accepts an `excludeCategories` option so a richer provider can take over
+    specific categories without double-representing the same problem.
+  - `createPlanIntegrityCandidateProvider()` (`src/lib/situational/providers/plan-integrity-candidate-provider.ts`)
+    adapts `computeRoundPlanIntegrity()`'s per-signal output (BLOCKED/DECISION_REQUIRED only) into
+    one candidate **per signal** — finer-grained than the Assistant adapter's one-aggregated-item-
+    per-round `blocked_round`/`decision_required` categories, which it replaces (Today excludes
+    those two categories from the Assistant adapter once this provider is also registered — see
+    "Today is partially migrated" below). Takes already-computed `RoundPlanIntegrity` data
+    (`AssistantCommandCentre.roundPlanIntegrities`, exposed for exactly this reuse) rather than
+    recomputing it — `getAssistantCommandCentre()` already computed it once per DRAFT round.
 - **Today is partially migrated**: `/o/{orgSlug}/today` (`src/app/(app)/o/[orgSlug]/today/page.tsx`)
   resolves a `SituationContext` from `commandCentre.todayMatches` (no new queries), builds
-  candidates from `commandCentre.items`, evaluates the situation policy, and passes the resulting
+  candidates from both providers above, evaluates the situation policy, and passes the resulting
   `CoachSituationProjection` to `AssistantCommandCentrePage`. The projection — not
   `CATEGORY_PRIORITY` array order — now determines which single item is featured as the hero
   "Next action" (`resolveNextAction()` in `assistant-command-centre-page.tsx`). The grouped
@@ -33,8 +43,10 @@ Implemented:
   ahead of the situational policy" — satisfied for the hero, not yet for the rest of the page).
 
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- Candidate providers beyond the single Assistant-work-item adapter (plan integrity signals,
-  event readiness, live-match state, report state, opponent/opportunity evidence).
+- Candidate providers beyond the two above (event readiness, live-match state, report state,
+  opponent/opportunity evidence — the first genuine `LONG_TERM` sources with real evidence data;
+  currently only `pending_profile_suggestions` exercises the long-term-signal path via the coarse
+  Assistant adapter).
 - Situational filtering of Today's grouped sections and metric tiles (currently unfiltered).
 - Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
   `status`, but the page does not yet render it distinctly from the existing empty state).
@@ -254,6 +266,7 @@ even though no caller exists yet.
 | `src/lib/situational/situation-policy-adapter.ts` | Typed adapter over `evaluatePolicyEntrypoint("situation", ...)`; `computeDegradedSituationResult()` safe fallback |
 | `src/lib/situational/get-coach-situation-projection.ts` | The one projection query boundary: `getCoachSituationProjection()` / `projectCandidates()`, deterministic ordering, status computation |
 | `src/lib/situational/providers/assistant-candidate-provider.ts` | Adapts existing `AssistantWorkItem`s into `CoachDecisionCandidate`s (`assistantWorkItemsToCandidates()`, `workItemIdFromCandidateId()`) |
+| `src/lib/situational/providers/plan-integrity-candidate-provider.ts` | Adapts `computeRoundPlanIntegrity()`'s per-signal output into one candidate per signal (`createPlanIntegrityCandidateProvider()`, `planIntegritySignalToCandidate()`) — reuses already-computed `RoundPlanIntegrity`, never recomputes |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
 | `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` — the hero "Next action" is chosen by the projection, not `CATEGORY_PRIORITY` order |
 

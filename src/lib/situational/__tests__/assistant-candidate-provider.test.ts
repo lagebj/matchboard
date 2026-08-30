@@ -89,4 +89,20 @@ describe("assistantWorkItemsToCandidates", () => {
     const [candidate] = assistantWorkItemsToCandidates(items, lookup);
     expect(candidate.deadlineAt).toBe("2026-02-02T00:00:00.000Z");
   });
+
+  it("excludes explicitly excluded categories (e.g. when a richer provider already covers them)", () => {
+    const items = [
+      makeItem({ category: "blocked_round" }),
+      makeItem({ category: "decision_required" }),
+      makeItem({ category: "setup_missing" }),
+    ];
+    const candidates = assistantWorkItemsToCandidates(items, () => undefined, ["blocked_round", "decision_required"]);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].source).toBe(ASSISTANT_CANDIDATE_PROVIDER_ID);
+  });
+
+  it("with no excludeCategories argument, still covers blocked_round/decision_required (backward-compatible default)", () => {
+    const items = [makeItem({ category: "blocked_round" }), makeItem({ category: "decision_required" })];
+    expect(assistantWorkItemsToCandidates(items, () => undefined)).toHaveLength(2);
+  });
 });

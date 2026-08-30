@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { computeRoundPlanIntegrity, type RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import type {
@@ -137,6 +137,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     : new Set<string>();
 
   const items: AssistantWorkItem[] = [];
+  const roundPlanIntegrities: Record<string, RoundPlanIntegrity> = {};
 
   if (leagueSeason.status === "FINALIZED") {
     const upcomingLeagueSeason = await db.leagueSeason.findFirst({
@@ -204,6 +205,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
 
     if (round.status === "DRAFT") {
       const integrity = await computeRoundPlanIntegrity(round.id);
+      roundPlanIntegrities[round.id] = integrity;
       const blockedSignals = integrity.signals.filter(
         (s) => s.kind === "BLOCKED",
       );
@@ -571,6 +573,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     leagueSeasonName: leagueSeason.name,
     items,
     todayMatches: todayMatchData,
+    roundPlanIntegrities,
     computedAt: new Date(),
   };
 }
@@ -605,6 +608,7 @@ function emptyResult(
     leagueSeasonName,
     items,
     todayMatches: [],
+    roundPlanIntegrities: {},
     computedAt: new Date(),
   };
 }

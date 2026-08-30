@@ -26,6 +26,7 @@ function makeCommandCentre(items: AssistantWorkItem[]): AssistantCommandCentre {
     leagueSeasonName: "Spring 2026",
     items,
     todayMatches: [],
+    roundPlanIntegrities: {},
     computedAt: new Date(),
   };
 }

@@ -59,13 +59,20 @@ export function workItemIdFromCandidateId(candidateId: string): string | null {
  * @param getMatchDeadlineAt Resolves an item's `matchId` (if any) to that match's kickoff ISO
  *   timestamp, so the situation policy can reason about deadline proximity. Callers already have
  *   this from `AssistantCommandCentre.todayMatches` — do not re-query the database here.
+ * @param excludeCategories Categories to skip because a richer, dedicated provider already covers
+ *   them with finer granularity (e.g. `plan-integrity-candidate-provider.ts` covers
+ *   `blocked_round`/`decision_required` one signal at a time instead of one aggregated item per
+ *   round). Defaults to none — a caller that hasn't registered a richer provider still gets full
+ *   coverage from this adapter alone.
  */
 export function assistantWorkItemsToCandidates(
   items: AssistantWorkItem[],
   getMatchDeadlineAt: MatchDeadlineLookup,
+  excludeCategories: AssistantWorkCategory[] = [],
 ): CoachDecisionCandidate[] {
+  const excluded = new Set<AssistantWorkCategory>(["upcoming_round", ...excludeCategories]);
   return items
-    .filter((item) => item.category !== "upcoming_round")
+    .filter((item) => !excluded.has(item.category))
     .map((item) => toCandidate(item, getMatchDeadlineAt));
 }
 
