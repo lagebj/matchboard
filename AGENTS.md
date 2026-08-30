@@ -1560,6 +1560,57 @@ Matchboard is adding a decision-support layer over the existing domain model tha
 
 **Phase 8 (consolidation) is complete.** The metric-tile row is a deliberate, permanent exception to situational filtering (it shows objective totals; filtering it would make a displayed number sometimes mean "the true total" and sometimes not) — not an oversight. `CATEGORY_PRIORITY` and `AssistantWorkItem` are permanent architecture (the candidate-provider input layer and the grouped-section sort key respectively), not residue scheduled for removal — an earlier working note in this programme's own tracking bundle wrongly implied otherwise; that has been corrected. Inline/direct decision resolution, further candidate providers beyond the five shipped, and a dedicated situational-UI mobile Playwright spec are each documented, deliberate v1 scope boundaries with recorded rationale (see `docs/domain/situational-decision-support.md`'s "Phase 8 consolidation decisions") — legitimate future work, not gaps this programme left unmet. See that document's Status section for the full, final account before assuming any further integration exists.
 
+## Weekly Coaching Context (ADR-0108)
+
+One derived, non-persisted read model (`getWeeklyCoachingContext()`, `src/lib/weekly/`) answering
+three related questions from the same underlying facts: what's happening this week (current-week
+pulse), what actually happened (completed-week review), and what's worth carrying forward into
+next-round planning. See `docs/domain/weekly-coaching-context.md` for the full contract. Key
+rules:
+
+- **Derived only.** No `WeeklySummary` Prisma model, no stored snapshot, no cron/scheduled
+  generation. Recomputed from canonical tables (`Match`, `EventMatch`, `Selection`,
+  `EventSquadPlayer`, `Availability`, post-match report/actual models, `MovementLedger`) on every
+  call, keyed by an explicit ISO `weekKey` reusing `src/lib/date-utils.ts`'s existing week helpers
+  — never a second week definition.
+- **Reuses canonical facts, never reimplements them**: available-without-opportunity comes from
+  `computeRoundPlanIntegrity()`; planned-vs-actual deviation reuses
+  `planned-vs-actual-delta.ts`'s classification meaning (batched by week, not its per-match
+  loop); support movement comes from `MovementLedger`, never inferred from cross-team appearance;
+  report completeness reuses `deriveRoundProgress()`'s cancelled-excluded, REPORTED/LOCKED-complete
+  rule for both League and Event.
+- **Not a new `CoachDecisionCandidate` provider.** The weekly context is objective coaching
+  context; its genuinely actionable facts (missing reports, available-without-opportunity) are
+  already covered by the existing `plan-integrity`/`assistant-work-items` providers. Do not add a
+  weekly-specific provider preemptively — see the domain doc's "Why no new candidate provider."
+- **League and Event activity are shown together; fairness stays apart.** An Event appearance
+  satisfies "had a recorded appearance" but never substitutes for "had a planned league
+  opportunity" — the two facts are always computed and displayed independently.
+  `GuestPlayer`s are excluded from every player-identity statistic (never counted via
+  `guestPlayerId`), per ADR-0106.
+- **Presentation-only situational branching.** The same read model renders differently based on
+  the already-computed `CoachSituationProjection.situation.primarySituation` — hidden/minimal
+  during `MATCHDAY` (never outranks `MatchdayContextBanner`), carry-forward framing during `NEXT`,
+  review/pulse framing during `LONG_TERM`. No fourth `CoachingSituation`, no second Rego
+  entrypoint, no persisted mode flag.
+- **Identity is player ID; names resolved once, for display only** — matching the pattern every
+  situational candidate provider already follows.
+
+**Current status**: implemented — `getWeeklyCoachingContext()` (`src/lib/weekly/get-weekly-coaching-context.ts`,
+the DB-bound loader and fact assembly) and the small pure helpers in
+`derive-weekly-coaching-context.ts` (`deriveWeeklyContextStatus()`, `getPreviousIsoWeekKey()`)
+exist; `WeeklyCoachingContextSection` renders on Today (after `NextRoundReadinessSection`, before
+the metric-tile row, always for the *current* ISO week) and `WeeklyCarryForwardPanel` renders near
+the top of the Round Board (always for the ISO week immediately *before* the round being planned),
+both reading the same shared loader. Deferred: a "most recent complete/provisional week" fallback
+search when the current/previous week is empty (v1 uses a fixed current/previous-week offset
+only), planned-vs-actual for Event matches (no `Selection`-equivalent per-match plan concept
+exists for Event), planned-vs-actual minutes/position exposure (no authoritative planned target to
+compare against), development-evidence-changed-this-week (no reliable match/report linkage
+timestamp), and historical week browsing beyond current+previous week (the `weekKey` parameter
+already supports it; no UI entry point was added). See `docs/domain/weekly-coaching-context.md`'s
+"Deliberately deferred" section for the full list.
+
 ## Populate all
 
 Populate all is a convenience workflow that generates drafts for all non-finalized rounds in the active league season.
@@ -2846,6 +2897,16 @@ Avoid:
 | `src/app/(app)/events/event-squad-commit-actions.ts` | Server actions: squad validation, lock, unlock, aggregate status |
 | `src/app/(app)/events/[eventId]/event-lineup-actions.ts` | Server actions: event match lineup CRUD, auto-fill, formation change |
 | `src/app/(app)/events/[eventId]/event-match-lineup-panel.tsx` | Event match lineup panel with formation selector, dropdown-per-slot assignment, auto-fill |
+
+### Weekly Coaching Context files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/weekly/weekly-coaching-context-types.ts` | Pure type contracts (`WeeklyContextStatus`, `WeeklyCoachingContext`, display types) — no React, no Prisma |
+| `src/lib/weekly/get-weekly-coaching-context.ts` | DB-bound loader: batched League/Event queries, calls `computeRoundPlanIntegrity()`, builds display maps |
+| `src/lib/weekly/derive-weekly-coaching-context.ts` | Pure, DB-free helpers: `RoundProgressStage` → `WeeklyContextStatus` mapping, `getPreviousIsoWeekKey()`. Classification logic lives in the loader, verified via DB-backed integration tests |
+| `src/components/assistant/weekly-coaching-context-section.tsx` | Today UI: situational pulse/review/carry-forward presentation |
+| `src/components/round/weekly-carry-forward-panel.tsx` | Round Board UI: compact read-only carry-forward panel |
 
 ### Coaching intelligence files
 

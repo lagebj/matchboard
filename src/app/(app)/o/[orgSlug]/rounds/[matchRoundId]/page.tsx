@@ -3,6 +3,10 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { RoundBoard } from "@/components/round/round-board";
 import { RoundGuestPlayersPanel } from "@/components/round/round-guest-players-panel";
+import { WeeklyCarryForwardPanel } from "@/components/round/weekly-carry-forward-panel";
+import { getWeeklyCoachingContext } from "@/lib/weekly/get-weekly-coaching-context";
+import { getPreviousIsoWeekKey } from "@/lib/weekly/derive-weekly-coaching-context";
+import { formatIsoWeekKey } from "@/lib/date-utils";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import type { PlayerInMatch } from "@/lib/round-types";
 import { db } from "@/lib/db";
@@ -64,6 +68,15 @@ export default async function RoundBoardPage({
   }
 
   const matchIds = matchRound.matches.map((m) => m.id);
+
+  // Weekly Coaching Context (ADR-0108): the Round Board plans the *next* round, so this reviews
+  // the previous week's carry-forward context, not the round's own week.
+  const roundWeekKey =
+    matchRound.matches.length > 0 ? formatIsoWeekKey(matchRound.matches[0]!.startsAt) : formatIsoWeekKey(new Date());
+  const weeklyCarryForward = await getWeeklyCoachingContext(ctx.orgFilter, {
+    leagueSeasonId: matchRound.leagueSeasonId,
+    weekKey: getPreviousIsoWeekKey(roundWeekKey),
+  });
 
   const [selections, allPlayers, rotationPaths, roundIntents, matchIntents, readinessSignalsRaw] = await Promise.all([
     db.selection.findMany({
@@ -466,6 +479,7 @@ export default async function RoundBoardPage({
           Round generated successfully.
         </div>
       )}
+      <WeeklyCarryForwardPanel result={weeklyCarryForward} />
       <RoundBoard
         roundLabel={roundLabel}
         roundStatus={matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED"}

@@ -4,6 +4,8 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getAssistantCommandCentre } from "@/lib/assistant/get-assistant-command-centre";
 import { AssistantCommandCentrePage } from "@/components/assistant/assistant-command-centre-page";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getWeeklyCoachingContext } from "@/lib/weekly/get-weekly-coaching-context";
+import { formatIsoWeekKey } from "@/lib/date-utils";
 import { resolveSituationContext, type SituationMatchFact } from "@/lib/situational/resolve-situation-context";
 import { getCoachSituationProjection } from "@/lib/situational/get-coach-situation-projection";
 import {
@@ -19,6 +21,10 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   const ctx = await requirePageActorContext(orgSlug);
   setTenantOrganisationId(ctx.organisationId);
   const commandCentre = await getAssistantCommandCentre(ctx.orgFilter);
+  const weeklyContext = await getWeeklyCoachingContext(ctx.orgFilter, {
+    leagueSeasonId: commandCentre.leagueSeasonId,
+    weekKey: formatIsoWeekKey(new Date()),
+  });
 
   // The situational projection reuses commandCentre's already-loaded facts (todayMatches, items,
   // roundPlanIntegrities) rather than issuing new queries — see AGENTS.md's projection
@@ -65,5 +71,11 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
     liveSessionProvider,
   ]);
 
-  return <AssistantCommandCentrePage commandCentre={commandCentre} projection={projection} />;
+  return (
+    <AssistantCommandCentrePage
+      commandCentre={commandCentre}
+      projection={projection}
+      weeklyContext={weeklyContext}
+    />
+  );
 }

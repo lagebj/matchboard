@@ -7,6 +7,8 @@ import type {
   CoachSituationProjectionStatus,
   SituationContext,
 } from "@/lib/situational/situation-types";
+import type { WeeklyCoachingContextResult } from "@/lib/weekly/weekly-coaching-context-types";
+import { WeeklyCoachingContextSection } from "@/components/assistant/weekly-coaching-context-section";
 import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -645,12 +647,17 @@ function StandardGroup({
 export function AssistantCommandCentrePage({
   commandCentre,
   projection,
+  weeklyContext,
 }: {
   commandCentre: AssistantCommandCentre;
   /** Situational projection (ADR-0107, docs/domain/situational-decision-support.md). When
    * provided, it — not raw category order — determines which item is featured as the hero "Next
    * action". Optional so the component remains usable without a full projection (e.g. tests). */
   projection?: CoachSituationProjection;
+  /** Weekly Coaching Context (ADR-0108, docs/domain/weekly-coaching-context.md). Optional so the
+   * component remains usable without it (e.g. tests, or a caller with no projection at all —
+   * the section also needs `projection.situation.primarySituation` to know how to present). */
+  weeklyContext?: WeeklyCoachingContextResult;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -696,6 +703,13 @@ export function AssistantCommandCentrePage({
           roundPlanIntegrities={commandCentre.roundPlanIntegrities}
           todayMatches={commandCentre.todayMatches}
           orgUrl={orgUrl}
+        />
+      )}
+
+      {projection && (
+        <WeeklyCoachingContextSection
+          result={weeklyContext ?? null}
+          primarySituation={projection.situation.primarySituation}
         />
       )}
 
