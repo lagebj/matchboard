@@ -32,6 +32,7 @@ function makeCommandCentre(
     items,
     todayMatches,
     roundPlanIntegrities,
+    activeLiveSessions: {},
     computedAt: new Date(),
   };
 }

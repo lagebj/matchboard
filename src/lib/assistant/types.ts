@@ -71,6 +71,10 @@ export type AssistantCommandCentre = {
    * docs/domain/situational-decision-support.md) can build per-signal candidates without
    * recomputing plan integrity for the same round a second time. */
   roundPlanIntegrities: Record<string, RoundPlanIntegrity>;
+  /** Already-loaded `LiveMatchSession` heartbeat facts for every currently ACTIVE session among
+   * today's matches, keyed by matchId. Exposed so a situational candidate provider can detect a
+   * stalled live session (missed heartbeats) without a second `liveMatchSession` query. */
+  activeLiveSessions: Record<string, { startedAt: string; lastHeartbeatAt: string | null }>;
   computedAt: Date;
 };
 

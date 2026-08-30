@@ -11,6 +11,7 @@ import {
   assistantWorkItemsToCandidates,
 } from "@/lib/situational/providers/assistant-candidate-provider";
 import { createPlanIntegrityCandidateProvider } from "@/lib/situational/providers/plan-integrity-candidate-provider";
+import { createLiveSessionCandidateProvider } from "@/lib/situational/providers/live-session-candidate-provider";
 import type { DecisionCandidateProvider } from "@/lib/situational/situation-types";
 
 export default async function TodayPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -52,7 +53,17 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
     matchDeadlineLookup,
   );
 
-  const projection = await getCoachSituationProjection(situationContext, [assistantProvider, planIntegrityProvider]);
+  const liveSessionProvider: DecisionCandidateProvider = createLiveSessionCandidateProvider(
+    commandCentre.activeLiveSessions,
+    commandCentre.todayMatches,
+    situationContext.nowIso,
+  );
+
+  const projection = await getCoachSituationProjection(situationContext, [
+    assistantProvider,
+    planIntegrityProvider,
+    liveSessionProvider,
+  ]);
 
   return <AssistantCommandCentrePage commandCentre={commandCentre} projection={projection} />;
 }

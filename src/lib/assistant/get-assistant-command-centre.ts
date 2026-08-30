@@ -432,10 +432,17 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       matchId: { in: todayMatchIds },
       status: "ACTIVE",
     },
-    select: { matchId: true },
+    select: { matchId: true, startedAt: true, lastHeartbeatAt: true },
   });
 
   const matchesWithSession = new Set(activeSessions.map((s) => s.matchId));
+  const activeLiveSessions: AssistantCommandCentre["activeLiveSessions"] = {};
+  for (const session of activeSessions) {
+    activeLiveSessions[session.matchId] = {
+      startedAt: session.startedAt.toISOString(),
+      lastHeartbeatAt: session.lastHeartbeatAt?.toISOString() ?? null,
+    };
+  }
 
   const todayMatchData: TodayMatch[] = todayMatches.map((match) => {
     const selStatuses = matchSelectionMap.get(match.id);
@@ -574,6 +581,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     items,
     todayMatches: todayMatchData,
     roundPlanIntegrities,
+    activeLiveSessions,
     computedAt: new Date(),
   };
 }
@@ -609,6 +617,7 @@ function emptyResult(
     items,
     todayMatches: [],
     roundPlanIntegrities: {},
+    activeLiveSessions: {},
     computedAt: new Date(),
   };
 }
