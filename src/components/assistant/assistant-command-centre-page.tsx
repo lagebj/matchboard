@@ -28,6 +28,8 @@ import {
   ShieldAlert,
   Eye,
   FileText,
+  Radio,
+  Timer,
 } from "lucide-react";
 
 /**
@@ -207,6 +209,74 @@ function ItemCounts({ item }: { item: AssistantWorkItem }) {
 
 function groupForCategory(category: WorkCategory): GroupConfig | undefined {
   return groups.find((g) => g.categories.includes(category));
+}
+
+/**
+ * Matchday mobile decision-first surface (ADR-0107, Phase 5,
+ * docs/domain/situational-decision-support.md). Renders only when the situational projection has
+ * inferred MATCHDAY — a relevant match is live or imminent. Additive: it sits above the existing
+ * hero/grouped content, which is unchanged, and never replaces the live reporter — "Follow live"/
+ * "Open match" both route to the existing match pages; no new mutation logic is introduced here.
+ *
+ * Deliberately compact for a phone viewport per the programme's mobile rules: minimal text before
+ * the one primary action, a single large touch target, no information that requires hover.
+ */
+function MatchdayContextBanner({
+  projection,
+  todayMatches,
+  orgUrl,
+}: {
+  projection: CoachSituationProjection;
+  todayMatches: TodayMatch[];
+  orgUrl: (path: string) => string;
+}) {
+  const { situation } = projection;
+  if (situation.primarySituation !== "MATCHDAY") return null;
+
+  const relevantMatchId = situation.activeMatchId ?? situation.imminentMatchIds[0];
+  const match = todayMatches.find((m) => m.matchId === relevantMatchId);
+  if (!match) return null;
+
+  const isLive = match.hasActiveLiveSession;
+  const minutesToKickoff =
+    !isLive && match.startsAt
+      ? Math.round((new Date(match.startsAt).getTime() - Date.now()) / 60_000)
+      : null;
+
+  const statusLabel = isLive
+    ? "Live now"
+    : minutesToKickoff != null && minutesToKickoff >= 0
+      ? minutesToKickoff <= 1
+        ? "Kicking off now"
+        : `Kicks off in ${minutesToKickoff} min`
+      : "Matchday";
+
+  return (
+    <TacticalSurface
+      variant="hero"
+      padding="md"
+      pitch
+      className="flex items-center justify-between gap-3"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <StatusPill variant={isLive ? "danger" : "warning"} icon={isLive ? Radio : Timer} size="sm">
+          {statusLabel}
+        </StatusPill>
+        <span className="min-w-0 truncate text-sm font-semibold text-zinc-50">
+          {match.teamName} {match.homeAway === "HOME" ? "vs" : "@"} {match.opponent}
+        </span>
+      </div>
+      <Button
+        as={Link}
+        href={orgUrl(isLive ? `/matches/${match.matchId}/live` : `/matches/${match.matchId}`)}
+        variant="primary"
+        size="sm"
+        trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
+      >
+        {isLive ? "Follow live" : "Open match"}
+      </Button>
+    </TacticalSurface>
+  );
 }
 
 function WorkRow({ item, dim = false }: { item: AssistantWorkItem; dim?: boolean }) {
@@ -413,6 +483,10 @@ export function AssistantCommandCentrePage({
           />
         )}
       </div>
+
+      {projection && (
+        <MatchdayContextBanner projection={projection} todayMatches={commandCentre.todayMatches} orgUrl={orgUrl} />
+      )}
 
       <InstallPwaCard dismissible />
 

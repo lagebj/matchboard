@@ -42,6 +42,19 @@ Implemented:
   information remains useful for grouping or diagnostics, it must not control primary urgency
   ahead of the situational policy" — satisfied for the hero, not yet for the rest of the page).
 
+- **Matchday mobile (Phase 5, first slice)**: `MatchdayContextBanner`
+  (`assistant-command-centre-page.tsx`) renders, additively, above the existing hero whenever the
+  projection has inferred `MATCHDAY` (a relevant match is live or imminent — see
+  `resolve-situation-context.ts`) and a matching `TodayMatch` can be found. Shows match identity
+  (team vs opponent), a live-now/kickoff-countdown status pill, and one primary action: "Follow
+  live" (routes to the existing `/matches/{id}/live` live-reporting page, only when a live session
+  is already active) or "Open match" (routes to `/matches/{id}` otherwise, where the coach can
+  start live reporting from the existing entry point). It does not replace or duplicate the live
+  reporter, does not introduce any new mutation, and does not touch the existing hero/grouped
+  content below it. Verified in a real browser at desktop, 390×844 phone, and 768×1024 tablet
+  viewports (see `docs/development/browser-acceptance-testing.md` / the `verify-browser-acceptance`
+  swamp procedure) with no new accessibility violations.
+
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
 - Candidate providers beyond the two above (event readiness, live-match state, report state,
   opponent/opportunity evidence — the first genuine `LONG_TERM` sources with real evidence data;
@@ -49,14 +62,21 @@ Implemented:
   Assistant adapter).
 - Situational filtering of Today's grouped sections and metric tiles (currently unfiltered).
 - Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
-  `status`, but the page does not yet render it distinctly from the existing empty state).
-- Matchday mobile, Next, and Long-term UI/projection surfaces.
-- Direct-action wiring beyond what `AssistantWorkItem.primaryActionHref` already provided, mobile
-  Playwright coverage, and the remaining quality gates in the programme bundle.
+  `status`, but the page does not yet render it distinctly from the existing empty state, beyond
+  the new Matchday banner's own live/kickoff pill).
+- Anything beyond the one Matchday banner slice above: multiple imminent matches are not
+  distinguished (only the first is shown), last-minute selection-change/lineup-gap content isn't
+  surfaced in the banner itself (that still lives in the grouped sections below), and there is no
+  dedicated narrow-viewport Playwright spec beyond the existing accessibility project incidentally
+  covering Today.
+- Next, and Long-term UI/projection surfaces.
+- Direct-action wiring beyond navigation (no in-place mutation actions yet), mobile Playwright
+  coverage beyond the existing accessibility project, and the remaining quality gates in the
+  programme bundle.
 
-Do not treat any part of this document as describing the Round Board, Matchday, Next, or
-Long-term surfaces until this status section is updated to say so — only Today's hero "Next
-action" selection is live.
+Do not treat any part of this document as describing the Round Board, Next, or Long-term surfaces
+until this status section is updated to say so — Today's hero "Next action" selection and the
+Matchday context banner are the only live situational UI.
 
 ## Problem
 

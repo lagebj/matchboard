@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AssistantCommandCentrePage } from "../assistant-command-centre-page";
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
-import type { AssistantCommandCentre, AssistantWorkItem } from "@/lib/assistant/types";
+import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import type { CoachSituationProjection } from "@/lib/situational/situation-types";
 import { ASSISTANT_CANDIDATE_PROVIDER_ID } from "@/lib/situational/providers/assistant-candidate-provider";
 
@@ -20,14 +20,46 @@ function makeItem(overrides: Partial<AssistantWorkItem> & Pick<AssistantWorkItem
   };
 }
 
-function makeCommandCentre(items: AssistantWorkItem[]): AssistantCommandCentre {
+function makeCommandCentre(items: AssistantWorkItem[], todayMatches: TodayMatch[] = []): AssistantCommandCentre {
   return {
     leagueSeasonId: "season-1",
     leagueSeasonName: "Spring 2026",
     items,
-    todayMatches: [],
+    todayMatches,
     roundPlanIntegrities: {},
     computedAt: new Date(),
+  };
+}
+
+function makeTodayMatch(overrides: Partial<TodayMatch> & Pick<TodayMatch, "matchId">): TodayMatch {
+  return {
+    matchRoundId: "round-1",
+    matchRoundName: "Round 1",
+    teamName: "Blue",
+    opponent: "Red",
+    homeAway: "HOME",
+    startsAt: null,
+    squadStatus: "finalized",
+    hasActiveLiveSession: false,
+    reportStatus: null,
+    lifecycleStatus: "planning_closed",
+    ...overrides,
+  };
+}
+
+function makeMatchdayProjection(overrides: Partial<CoachSituationProjection["situation"]>): CoachSituationProjection {
+  return {
+    situation: {
+      nowIso: new Date().toISOString(),
+      primarySituation: "MATCHDAY",
+      imminentMatchIds: [],
+      temporal: {},
+      ...overrides,
+    },
+    decisions: [],
+    deferredCount: 0,
+    status: "LIVE",
+    policyRuntimeStatus: "HEALTHY",
   };
 }
 
@@ -127,5 +159,57 @@ describe("AssistantCommandCentrePage next-action selection", () => {
   it("shows the ready empty state when there are no actionable items regardless of projection", () => {
     renderPage(makeCommandCentre([]));
     expect(screen.getByText("Nothing urgent right now.")).toBeTruthy();
+  });
+});
+
+describe("MatchdayContextBanner (Phase 5)", () => {
+  it("does not render when the situation is not MATCHDAY", () => {
+    const commandCentre = makeCommandCentre([], [makeTodayMatch({ matchId: "m1", hasActiveLiveSession: true })]);
+    const projection = makeMatchdayProjection({ primarySituation: "NEXT", activeMatchId: "m1" });
+    renderPage(commandCentre, projection);
+    expect(screen.queryByText("Live now")).toBeNull();
+  });
+
+  it("does not render when MATCHDAY but no matching TodayMatch is found", () => {
+    const commandCentre = makeCommandCentre([], []);
+    const projection = makeMatchdayProjection({ activeMatchId: "missing-match" });
+    renderPage(commandCentre, projection);
+    expect(screen.queryByText("Live now")).toBeNull();
+  });
+
+  it("shows a live banner with a Follow live action for an active match", () => {
+    const commandCentre = makeCommandCentre(
+      [],
+      [makeTodayMatch({ matchId: "m1", teamName: "Blue", opponent: "Red FC", hasActiveLiveSession: true })],
+    );
+    const projection = makeMatchdayProjection({ activeMatchId: "m1", imminentMatchIds: ["m1"] });
+    renderPage(commandCentre, projection);
+
+    expect(screen.getByText("Live now")).toBeTruthy();
+    // "Blue vs Red FC" and "Follow live" legitimately appear twice each: once in the new banner,
+    // once in the pre-existing "Today's matches" section — both rendering the same match.
+    expect(screen.getAllByText((_, el) => el?.textContent === "Blue vs Red FC").length).toBeGreaterThanOrEqual(1);
+    const links = screen.getAllByRole("link", { name: /Follow live/i });
+    expect(links.some((l) => l.getAttribute("href") === "/o/test-org/matches/m1/live")).toBe(true);
+  });
+
+  it("shows a kickoff countdown with an Open match action for an imminent, not-yet-live match", () => {
+    const startsAt = new Date(Date.now() + 25 * 60_000).toISOString();
+    const commandCentre = makeCommandCentre(
+      [],
+      [makeTodayMatch({ matchId: "m1", startsAt, hasActiveLiveSession: false })],
+    );
+    const projection = makeMatchdayProjection({ imminentMatchIds: ["m1"] });
+    renderPage(commandCentre, projection);
+
+    expect(screen.getByText(/Kicks off in 2[45] min/)).toBeTruthy();
+    const link = screen.getByRole("link", { name: /Open match/i });
+    expect(link.getAttribute("href")).toBe("/o/test-org/matches/m1");
+  });
+
+  it("does not render when no projection is supplied at all", () => {
+    const commandCentre = makeCommandCentre([], [makeTodayMatch({ matchId: "m1", hasActiveLiveSession: true })]);
+    renderPage(commandCentre, undefined);
+    expect(screen.queryByText("Live now")).toBeNull();
   });
 });
