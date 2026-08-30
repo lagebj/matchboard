@@ -91,10 +91,10 @@ function resolvePrimarySituation(facts: {
   }
 
   // With no immediate operational focus, an explicit analytical route (Insights, a player's
-  // development view) puts the coach in LONG_TERM review rather than default NEXT planning.
-  // Route intent influences focus; it never creates persistent hidden mode state — this is
-  // recomputed on every call from the caller's current route.
-  if (facts.routeIntent === "INSIGHTS" || facts.routeIntent === "PLAYER") {
+  // development view, an opponent's historical detail page) puts the coach in LONG_TERM review
+  // rather than default NEXT planning. Route intent influences focus; it never creates persistent
+  // hidden mode state — this is recomputed on every call from the caller's current route.
+  if (facts.routeIntent === "INSIGHTS" || facts.routeIntent === "PLAYER" || facts.routeIntent === "OPPONENT") {
     return "LONG_TERM";
   }
 

@@ -64,6 +64,20 @@ describe("resolveSituationContext", () => {
     expect(context.primarySituation).toBe("MATCHDAY");
   });
 
+  it("resolves LONG_TERM for the OPPONENT route intent when nothing is imminent", () => {
+    const context = resolveSituationContext({ nowIso: NOW, matches: [], routeIntent: "OPPONENT" });
+    expect(context.primarySituation).toBe("LONG_TERM");
+  });
+
+  it("MATCHDAY dominates the OPPONENT route intent when a match is imminent", () => {
+    const context = resolveSituationContext({
+      nowIso: NOW,
+      matches: [{ matchId: "m1", startsAt: isoMinutesFromNow(10), hasActiveLiveSession: false }],
+      routeIntent: "OPPONENT",
+    });
+    expect(context.primarySituation).toBe("MATCHDAY");
+  });
+
   it("computes nearestKickoffMinutes as the minimum across future matches only", () => {
     const context = resolveSituationContext({
       nowIso: NOW,

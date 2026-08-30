@@ -108,6 +108,30 @@ Implemented:
   `opportunity-gap-client.tsx` resolves the display name at render time from its own already-loaded
   `OpportunityGapRow[]`, matched via the decision's `affectedEntities` (`entityType: "PLAYER"`).
 
+- **Opponent combination evidence — a second real `LONG_TERM` source**:
+  `opponentCombinationEvidenceToCandidates()`
+  (`src/lib/situational/providers/opponent-combination-candidate-provider.ts`) adapts
+  `getOpponentCombinationEvidence()`'s factual, descriptive combination-evidence summaries
+  (AGENTS.md "Combination evidence": "never a chemistry score") — excluding `INSUFFICIENT`
+  confidence, capped at 8 — into candidates. Wired into the existing opponent detail page
+  (`/opponents/{opponentTeamId}`), which already calls `getOpponentCombinationEvidence()` for its
+  own `OpponentCombinationEvidenceSection` — no new query. This required a new
+  `SituationRouteIntent` value, `"OPPONENT"`, and a `resolve-situation-context.ts` branch update
+  (the opponent detail page has no notion of "today's matches," so it needed an explicit route
+  intent to resolve `LONG_TERM` rather than falling through to the `NEXT` default). The candidate's
+  primary entity is the opponent team (`entityType: "TEAM"`); every affected player id (a
+  partnership/triangle can span 2+ players) surfaces via `affectedEntities` for display-time name
+  resolution — this required extending `toCoachDecision()` in `get-coach-situation-projection.ts`
+  to also map `candidate.affectedPlayerIds` into additional `affectedEntities` entries (previously
+  only the single primary `entityType`/`entityId` pair was ever included), a small, additive,
+  backward-compatible change verified with 3 new tests covering both the no-op case (every
+  existing single-player candidate) and the new multi-player case. `OpponentCombinationSituationalSummary`
+  (`src/components/opponents/`) renders the resulting decisions above the existing evidence
+  section, resolving names from the page's own already-loaded player-name map — the candidate
+  itself never carries a name. This page always resolves `LONG_TERM` (no `matches` fact is
+  available there), proving the projection infrastructure is reused a third time beyond Today and
+  Opportunity Gap.
+
 - **Stalled live session (Phase 5 continuation)**: `createLiveSessionCandidateProvider()`
   (`src/lib/situational/providers/live-session-candidate-provider.ts`) detects an ACTIVE
   `LiveMatchSession` whose client hasn't sent a heartbeat (the reporting UI heartbeats every 30s
@@ -135,9 +159,10 @@ Implemented:
   correctness requirement, not an oversight.
 
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- Candidate providers beyond the four above (report state beyond existing categories, opponent/
-  combination evidence as a second real long-term source — `pending_profile_suggestions` and the
-  opportunity-gap provider are the only long-term-signal sources so far).
+- Candidate providers beyond the five above (report state beyond existing categories, live-match
+  state beyond the stalled-heartbeat signal — `pending_profile_suggestions`, the opportunity-gap
+  provider, and the opponent-combination-evidence provider are the only long-term-signal sources
+  so far).
 - Situational filtering of Today's metric-tile row (blocked/decision/review/report counts remain
   fully unfiltered by the projection — the grouped sections below them do carry annotation and
   reordering now, see above).
@@ -374,8 +399,11 @@ even though no caller exists yet.
 | `src/lib/situational/providers/plan-integrity-candidate-provider.ts` | Adapts `computeRoundPlanIntegrity()`'s per-signal output into one candidate per signal (`createPlanIntegrityCandidateProvider()`, `planIntegritySignalToCandidate()`) — reuses already-computed `RoundPlanIntegrity`, never recomputes |
 | `src/lib/situational/providers/opportunity-gap-candidate-provider.ts` | First real `LONG_TERM` candidate source: adapts `getOpportunityGap()` (I-003) rows with a meaningful gap into candidates (`opportunityGapRowsToCandidates()`) |
 | `src/lib/situational/providers/live-session-candidate-provider.ts` | Detects a stalled `LiveMatchSession` (missed heartbeat) from already-loaded `AssistantCommandCentre.activeLiveSessions` (`createLiveSessionCandidateProvider()`, `staleLiveSessionsToCandidates()`) |
+| `src/lib/situational/providers/opponent-combination-candidate-provider.ts` | Second real `LONG_TERM` source: adapts `getOpponentCombinationEvidence()` summaries into candidates (`opponentCombinationEvidenceToCandidates()`), never a synthesized score |
 | `src/app/api/insights/opportunity-gap/route.ts` | Resolves a `LONG_TERM` situation and returns the projection alongside the existing `rows` payload |
 | `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Renders the "Situational summary" block from the route's `projection` |
+| `src/app/(app)/o/[orgSlug]/opponents/[opponentTeamId]/page.tsx` | Resolves an `OPPONENT` route-intent `LONG_TERM` situation from already-loaded `combinationSummaries` — no new query |
+| `src/components/opponents/opponent-combination-situational-summary.tsx` | Renders the resulting decisions, resolving player names from the page's own already-loaded map |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
 | `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection — no false fallback when the projection legitimately has zero decisions), `readyStateCopy()` (LIVE vs. READY empty-state wording), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()`/`sortByDeferred()` (Phase 4 continuation: grouped-section annotation + reordering) |
 

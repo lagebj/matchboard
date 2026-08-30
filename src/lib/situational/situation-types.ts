@@ -15,6 +15,7 @@ export type SituationRouteIntent =
   | "EVENT"
   | "PLAYER"
   | "INSIGHTS"
+  | "OPPONENT"
   | "DOMAIN_MANAGEMENT";
 
 export type SituationContext = {

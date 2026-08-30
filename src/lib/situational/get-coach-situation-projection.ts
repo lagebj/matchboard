@@ -72,6 +72,16 @@ function toCoachDecision(
   candidate: CoachDecisionCandidate,
   result: SituationPolicyResult,
 ): CoachDecision {
+  // The primary entity (candidate.entityType/entityId) plus any OTHER affected players not
+  // already covered by it -- e.g. a multi-player candidate (entityType "TEAM", a partnership's
+  // player ids in affectedPlayerIds) needs every player id reachable here so a UI can resolve
+  // each display name (AGENTS.md: "Resolve names for display only") without the domain layer
+  // ever storing a name itself. A no-op for every existing single-player candidate, where
+  // entityType is already "PLAYER" and affectedPlayerIds is exactly [entityId].
+  const extraPlayerRefs = candidate.affectedPlayerIds
+    .filter((id) => !(candidate.entityType === "PLAYER" && id === candidate.entityId))
+    .map((id) => ({ entityType: "PLAYER" as const, entityId: id }));
+
   return {
     id: `${context.primarySituation}|${candidate.id}`,
     candidateId: candidate.id,
@@ -84,7 +94,7 @@ function toCoachDecision(
     summary: candidate.summary,
     recommendedAction: candidate.recommendedAction,
     alternatives: candidate.alternativeActions,
-    affectedEntities: [{ entityType: candidate.entityType, entityId: candidate.entityId }],
+    affectedEntities: [{ entityType: candidate.entityType, entityId: candidate.entityId }, ...extraPlayerRefs],
     deadlineAt: candidate.deadlineAt,
     deepLink: candidate.defaultDeepLink,
     reasonCodes: result.reasonCodes,

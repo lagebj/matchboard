@@ -135,4 +135,45 @@ describe("projectCandidates", () => {
       expect(decision.interaction).not.toBe("AUTO");
     }
   });
+
+  describe("affectedEntities", () => {
+    it("includes only the primary entity for a single-player candidate (no duplicate)", async () => {
+      const context = baseContext({ primarySituation: "NEXT" });
+      const candidates = [
+        candidate({ id: "a", entityType: "PLAYER", entityId: "p1", affectedPlayerIds: ["p1"] }),
+      ];
+      const [decision] = (await projectCandidates(context, candidates)).decisions;
+      expect(decision.affectedEntities).toEqual([{ entityType: "PLAYER", entityId: "p1" }]);
+    });
+
+    it("includes every affected player for a multi-player candidate (e.g. a partnership) alongside its primary entity", async () => {
+      const context = baseContext({ primarySituation: "NEXT" });
+      const candidates = [
+        candidate({
+          id: "a",
+          entityType: "TEAM",
+          entityId: "opponent-1",
+          affectedPlayerIds: ["p1", "p2"],
+        }),
+      ];
+      const [decision] = (await projectCandidates(context, candidates)).decisions;
+      expect(decision.affectedEntities).toEqual([
+        { entityType: "TEAM", entityId: "opponent-1" },
+        { entityType: "PLAYER", entityId: "p1" },
+        { entityType: "PLAYER", entityId: "p2" },
+      ]);
+    });
+
+    it("does not duplicate a player id also referenced by a non-PLAYER primary entity's affectedPlayerIds", async () => {
+      const context = baseContext({ primarySituation: "NEXT" });
+      const candidates = [
+        candidate({ id: "a", entityType: "MATCH", entityId: "m1", affectedPlayerIds: ["p1"] }),
+      ];
+      const [decision] = (await projectCandidates(context, candidates)).decisions;
+      expect(decision.affectedEntities).toEqual([
+        { entityType: "MATCH", entityId: "m1" },
+        { entityType: "PLAYER", entityId: "p1" },
+      ]);
+    });
+  });
 });
