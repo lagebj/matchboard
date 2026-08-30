@@ -58,13 +58,12 @@ describe("getAssistantCommandCentre", () => {
     await teardownTestDb();
   });
 
-  it("shows ready_to_finalize or decision_required for draft round", async () => {
+  it("shows decision_required or blocked_round for draft round", async () => {
     const result = await getAssistantCommandCentre();
     const roundItems = result.items.filter(
       (i) =>
         i.matchRoundId === fixture.matchRoundId &&
-        (i.category === "ready_to_finalize" ||
-          i.category === "decision_required" ||
+        (i.category === "decision_required" ||
           i.category === "blocked_round"),
     );
     expect(roundItems.length).toBeGreaterThanOrEqual(1);
@@ -225,16 +224,16 @@ describe("getAssistantCommandCentre", () => {
     expect(populateItems[0]!.matchRoundId).toBe(fixture.matchRoundId);
   });
 
-  it("sorting: blocked_round before ready_to_finalize", async () => {
+  it("sorting: blocked_round before decision_required", async () => {
     await db.matchRound.update({
       where: { id: fixture.matchRoundId },
       data: { status: "DRAFT" },
     });
 
     // NOT_GENERATED/READY are never persisted values (Phase 11 Sec68, ADR-0083) -- the round is
-    // DRAFT in the database, and "ready" is derived live from having draft selections with no
-    // blocked/decision-required signals, so round2 needs a real draft selection below to
-    // genuinely exercise the ready_to_finalize path this test is about.
+    // DRAFT in the database, and a decision_required signal is derived live from an available
+    // player with no planned opportunity, so round2 needs a real draft selection below to
+    // genuinely exercise the decision_required path this test is about.
     const round2 = await db.matchRound.create({
       data: {
         leagueSeasonId: fixture.leagueSeasonId,
@@ -281,11 +280,11 @@ describe("getAssistantCommandCentre", () => {
     const blockedIdx = result.items.findIndex(
       (i) => i.category === "blocked_round",
     );
-    const readyIdx = result.items.findIndex(
-      (i) => i.category === "ready_to_finalize",
+    const decisionIdx = result.items.findIndex(
+      (i) => i.category === "decision_required",
     );
-    if (blockedIdx >= 0 && readyIdx >= 0) {
-      expect(blockedIdx).toBeLessThan(readyIdx);
+    if (blockedIdx >= 0 && decisionIdx >= 0) {
+      expect(blockedIdx).toBeLessThan(decisionIdx);
     }
 
     await db.match.deleteMany({ where: { matchRoundId: round2.id } });

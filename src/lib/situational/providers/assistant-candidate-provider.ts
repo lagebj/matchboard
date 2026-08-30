@@ -28,7 +28,6 @@ const CATEGORY_CONSEQUENCES: Record<AssistantWorkCategory, DecisionConsequence[]
   blocked_round: ["SQUAD_DEGRADED", "PLANNING_BLOCKED"],
   decision_required: ["PLAYER_OPPORTUNITY"],
   event_helpers_missing: ["RESPONSIBILITY_GAP"],
-  ready_to_finalize: ["INFORMATION_ONLY"],
   review_assigned: ["RESPONSIBILITY_GAP"],
   review_changes_requested: ["RESPONSIBILITY_GAP"],
   event_report_needed: ["REPORTING_DEBT"],
