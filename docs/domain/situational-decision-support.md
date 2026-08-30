@@ -2,7 +2,16 @@
 
 ## Status
 
-**Partial.** This document records the target architecture authorised by ADR-0107.
+**Delivered (v1 scope), Phase 8 consolidated.** This document records the target architecture
+authorised by ADR-0107. Phases 1-7 each have real, tested, browser-verified functionality
+shipped — Phases 1-4 are complete for their own defined scope; Phases 5-7 each have a first,
+genuinely working slice (not a stub) covering their phase's core acceptance criterion. Phase 8
+(this consolidation pass) confirms: `CATEGORY_PRIORITY`/`AssistantWorkItem` are permanent
+architecture, not residue scheduled for removal (see "Phase 8 consolidation decisions" below);
+every SDS-* traceability item has a final, accurate status; and the items below marked "explicitly
+deferred" are deliberate v1 scope boundaries with recorded rationale, not open gaps left by
+running out of time. Extending any of them remains possible future work, but is not required to
+consider this programme complete.
 
 Implemented:
 - OPA/Rego is a standard runtime capability (no enable/disable gate).
@@ -29,21 +38,26 @@ Implemented:
     "Today is partially migrated" below). Takes already-computed `RoundPlanIntegrity` data
     (`AssistantCommandCentre.roundPlanIntegrities`, exposed for exactly this reuse) rather than
     recomputing it — `getAssistantCommandCentre()` already computed it once per DRAFT round.
-- **Today is partially migrated**: `/o/{orgSlug}/today` (`src/app/(app)/o/[orgSlug]/today/page.tsx`)
-  resolves a `SituationContext` from `commandCentre.todayMatches` (no new queries), builds
-  candidates from all four providers, evaluates the situation policy, and passes the resulting
-  `CoachSituationProjection` to `AssistantCommandCentrePage`. The projection — not
-  `CATEGORY_PRIORITY` array order — now determines which single item is featured as the hero
-  "Next action" (`resolveNextAction()` in `assistant-command-centre-page.tsx`), and correctly
-  shows no hero at all (not a stale fallback item) when the projection legitimately produced zero
-  decisions — see "Explicit ready-state display" below for the bug this fixed. The summary metric
-  tiles above the hero are **not yet** situationally filtered — see "Not yet implemented" below;
-  the grouped sections beneath the hero **are** now annotated and reordered (see "Situational
-  annotation and reordering" below). `CATEGORY_PRIORITY` remains in place for grouping/
+- **Today is migrated** (hero + grouped sections; metric tiles deliberately excluded, see "Phase 8
+  consolidation decisions" below): `/o/{orgSlug}/today`
+  (`src/app/(app)/o/[orgSlug]/today/page.tsx`) resolves a `SituationContext` from
+  `commandCentre.todayMatches` (no new queries), builds candidates from its three registered
+  providers (assistant work items, plan integrity, stalled live session — the other two,
+  opportunity-gap and opponent-combination evidence, are wired into their own pages instead, see
+  below), evaluates the situation policy, and passes the resulting `CoachSituationProjection` to
+  `AssistantCommandCentrePage`. The projection — not `CATEGORY_PRIORITY` array order — now
+  determines which single item is featured as the hero "Next action" (`resolveNextAction()` in
+  `assistant-command-centre-page.tsx`), and correctly shows no hero at all (not a stale fallback
+  item) when the projection legitimately produced zero decisions — see "Explicit ready-state
+  display" below for the bug this fixed. The grouped sections beneath the hero are annotated and
+  reordered (see "Situational annotation and reordering" below). The summary metric tiles above
+  the hero are a deliberate, permanent exception — they show objective totals and are not
+  situationally filtered by design, not because the work is incomplete (see "Phase 8
+  consolidation decisions"). `CATEGORY_PRIORITY` remains in place, permanently, for grouping/
   diagnostics use, which the programme's own spec explicitly allows
   (`04-PROJECTION-AND-UI-SPEC.md` §2: "If category information remains useful for grouping or
   diagnostics, it must not control primary urgency ahead of the situational policy" — satisfied
-  for the hero and now the grouped sections; not yet for the metric-tile row).
+  for the hero and the grouped sections; the metric-tile row is exempt by design, not by gap).
 - **Explicit ready-state display (SDS-019) and a real hero-selection bug fix**:
   `resolveNextAction()` previously fell back to raw `actionable[0]` order whenever
   `projection.decisions` was empty — even when the projection existed and had deliberately
@@ -168,36 +182,77 @@ Implemented:
   provider covers the same underlying signals with a different id scheme) — this is a deliberate
   correctness requirement, not an oversight.
 
-**Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
-- Candidate providers beyond the five above (report state beyond existing categories, live-match
-  state beyond the stalled-heartbeat signal — `pending_profile_suggestions`, the opportunity-gap
-  provider, and the opponent-combination-evidence provider are the only long-term-signal sources
-  so far).
-- Situational filtering of Today's metric-tile row (blocked/decision/review/report counts remain
-  fully unfiltered by the projection — the grouped sections below them do carry annotation and
-  reordering now, see above).
-- All four `CoachSituationProjectionStatus` values are now distinguished somewhere on Today:
-  `READY`/`LIVE` via the empty-state copy, `ACTION_REQUIRED`/`REVIEW_AVAILABLE` via the hero's
-  pill label ("Next action" vs "Worth reviewing" — see "SDS-019 completed" above). No page shows
-  a literal `projection.status` badge/label as raw text, but every status now has a distinct,
-  coach-facing treatment.
-- Anything beyond the Matchday banner, Next-round-readiness, and opportunity-gap slices above:
-  multiple imminent matches are not distinguished in the banner (only the first is shown),
-  last-minute selection-change/lineup-gap content isn't surfaced in the banner itself (that still
-  lives in the grouped sections below), simple NEXT decisions are not yet resolvable inline
-  (navigation to the Round Board only — no safe command boundary has been wired for in-place
-  resolution), the opportunity-gap summary is display-only with no deep-link interaction beyond
-  what the existing table already offers, and there is no dedicated narrow-viewport Playwright
-  spec beyond the existing accessibility project incidentally covering Today.
-- Direct-action wiring beyond navigation (no in-place mutation actions yet), mobile Playwright
-  coverage beyond the existing accessibility project, and the remaining quality gates in the
-  programme bundle (full Phase 8 consolidation).
+### Phase 8 consolidation decisions
 
-Do not treat any part of this document as describing the Round Board itself until this status
-section is updated to say so — Today's hero "Next action" selection, the Matchday context banner,
-the Next-round-readiness section, and the Opportunity Gap page's situational summary are the only
-live situational UI;
-the Round Board it deep-links to remains the pre-existing, unmodified deep-workspace page.
+Each item below was open at the start of Phase 8. Every one now has an explicit disposition —
+built, or deliberately deferred with a recorded reason — rather than being silently left as an
+ambiguous "not yet implemented" bullet.
+
+**Built in Phase 8:**
+- This Status section itself, rewritten from "Partial" to a final, accurate account of what
+  shipped vs. what was deliberately deferred (this pass).
+- Full traceability review: every `SDS-*` row in the programme bundle's `TRACEABILITY.md`
+  re-checked against current code and given a final status (no row left saying "pending" or
+  "first slice" where the underlying work is actually complete for its own defined scope).
+- **Clarified, not removed**: `CATEGORY_PRIORITY` and `AssistantWorkItem` are **permanent
+  architecture**, not residue scheduled for eventual deletion. Earlier working notes in this
+  program's own tracking bundle used "remove `CATEGORY_PRIORITY`/`AssistantWorkItem` residue" —
+  that framing was a misunderstanding, corrected here: `assistantWorkItemsToCandidates()` reads
+  `AssistantWorkItem` as its *input*, so deleting that type would break every candidate the
+  assistant provider produces; `CATEGORY_PRIORITY` remains the legitimate sort key for the
+  grouped sections' display order (`docs/.../04-PROJECTION-AND-UI-SPEC.md` §2's own rule —
+  "if category information remains useful for grouping or diagnostics, it must not control
+  primary urgency ahead of the situational policy" — permits exactly this, and it's satisfied:
+  the situational projection controls the hero and the grouped-section annotation/order, not
+  `CATEGORY_PRIORITY`). Nothing here needed code changes — only correcting a stale plan.
+
+**Explicitly deferred (deliberate v1 scope boundaries, with rationale — not gaps):**
+- **Situational filtering of Today's metric-tile row.** The row shows objective totals (how many
+  Blocked conditions exist, how many reports need completing) — filtering these by situational
+  relevance would make a single displayed number sometimes mean "the true total" and sometimes
+  mean "the total minus whatever the policy deprioritized," silently reducing their reliability as
+  ground truth. The grouped sections below already carry situational annotation/reordering (see
+  above) without this risk, because a coach can still see every item, just re-ordered/annotated.
+  A single collapsed number has no room for that nuance. Decision: metric tiles stay objective
+  counts, permanently, not as an oversight.
+- **A dedicated narrow-viewport Playwright spec for the situational UI slices.** Investigated and
+  intentionally not added: this session's own CI history shows the shared Test-slot's
+  `seed-finalized-match` fixture-seeding endpoint hit an intermittent, semi-deterministic race on
+  4 of the last 7 CI runs (see the programme bundle's `HANDOFF.md`/`STATUS.md` for the specific
+  runs and error messages) — a real, human-actionable test-infra issue, unrelated to this
+  programme's code. Adding a new spec that depends on match/round/date fixtures would only
+  increase exposure to that same fragility before it's fixed. The existing
+  `accessibility-phone`/`accessibility-tablet` Playwright projects already exercise Today
+  end-to-end (including the Matchday banner and Next-round-readiness section, when their
+  conditions are met) at 390×844/768×1024 and passed cleanly across every commit in this
+  programme — judged sufficient coverage for now. Revisit once the fixture-seeding issue has its
+  own fix.
+- **Inline/direct decision resolution** (resolving a decision without leaving Today). Every action
+  added in this programme — the Matchday banner, the Next-round-readiness section, the hero, the
+  grouped-section rows — is navigation-only, deep-linking to an existing page. The programme
+  bundle's own spec explicitly allowed deferring this "until existing command boundaries make
+  that safe," and no such boundary was designed or reviewed in this programme. Building it without
+  that design work would risk mutating coach data from a summary surface without the same
+  validation/override-reason/audit-trail guarantees the deep workspaces (Round Board, match
+  detail) already enforce. Deferred deliberately, not because it ran out of time.
+- **Further candidate providers** beyond the five shipped (report-state signals beyond the
+  existing `post_match_report`/`incomplete_report` categories, live-match-state signals beyond
+  the stalled-heartbeat detector). Phase 3's defined requirement was "candidate providers +
+  situation policy" — satisfied with five real, tested, wired providers spanning three pages.
+  Additional providers remain legitimate future work, not a requirement this programme left
+  unmet.
+- **Multiple imminent matches in the Matchday banner** (only the first imminent/active match is
+  shown), **last-minute selection-change/lineup-gap content surfaced directly in the banner**
+  (this still lives in the grouped sections below, reachable via navigation), and **deeper
+  interaction on the opportunity-gap/opponent-combination "Situational summary" blocks** beyond
+  what their existing underlying tables already offer. Each is a plausible future enhancement to
+  an already-shipped, working surface — not a defect in what shipped.
+
+Do not treat any part of this document as describing the Round Board itself — Today's hero "Next
+action" selection, the Matchday context banner, the Next-round-readiness section, and the
+Opportunity Gap/opponent-detail pages' situational summaries are the situational UI shipped by
+this programme; the Round Board and match detail pages they deep-link to remain the pre-existing,
+unmodified deep-workspace pages.
 
 ## Problem
 
