@@ -86,6 +86,27 @@ jobs:
       - run: npm run policy:test
       - run: npm run policy:validate
       - run: npm run policy:verify
+      # Diagnostic aid for a verify failure: `opa build -t wasm` output is not guaranteed
+      # byte-identical across host CPU architectures (confirmed live: a Wasm artifact built and
+      # committed from an arm64 devcontainer failed this job's own amd64 rebuild-and-compare on
+      # first use). This runner is the canonical architecture policy:verify checks against
+      # (GitHub-hosted ubuntu-24.04 = amd64) — rebuild here unconditionally (after verify has
+      # already run its own check against the committed artifact) and upload the result plus the
+      # updated policy-pack.json so a verify failure always comes with a ready-to-commit,
+      # correct-architecture artifact to download rather than requiring a rebuild blind on a
+      # different machine.
+      - run: npm run policy:build:pack
+        if: always()
+      - name: Upload freshly-rebuilt Wasm artifact + metadata (diagnostic, always runs)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: policy-wasm-rebuilt-${{ github.run_id }}
+          path: |
+            policies/packs/matchboard-default/compiled/matchboard_selection.wasm
+            policies/packs/matchboard-default/policy-pack.json
+          retention-days: 5
+          if-no-files-found: ignore
 
   security-check-sql:
     name: Forbidden SQL Methods
