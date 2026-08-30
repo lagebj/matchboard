@@ -6,7 +6,6 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireTeamGroupAccess, requireMatchGroupAccess } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
-import { getWeekRange } from "@/lib/date-utils";
 import { cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 import { getOrCreateDefaultGroup } from "@/lib/groups/group-domain";
 import type { OverrideReasonCategory } from "@/lib/selection/types";
@@ -136,15 +135,24 @@ export async function createMatchCore(
     throw new Error("Opponent team is required.");
   }
 
-  const { startsAt: weekStart, endsAt: weekEnd } = getWeekRange(startsAt);
-
   let matchRoundId: string;
 
+  // Looks up by the match's exact startsAt, not its ISO week: a season boundary
+  // (getLeagueSeasonDateRange's Jan1/Jun30/Jul1/Dec31 cutoffs) is not generally ISO-week-aligned,
+  // so a week-range overlap check here could find an adjacent season whose exact bounds don't
+  // actually cover startsAt (e.g. a match on Wed Jul 2 falls in the ISO week of Mon Jun 30 - Sun
+  // Jul 6, which overlaps a SPRING season ending Jun 30) -- resolveOrCreateMatchRoundForDate then
+  // re-validates the exact date against that wrongly-matched season and throws
+  // DateOutsideLeagueSeasonError even though a FALL season covering Jul 2 should have been used
+  // (or created) instead. Confirmed live via repeated e2e flakes on PR #389 (2026-08-30) once
+  // enough distinct league seasons had accumulated on that PR's long-lived Test-slot branch for
+  // this boundary case to actually get hit; regression test in
+  // src/app/(app)/matches/__tests__/create-match-core.test.ts.
   const activeLeagueSeason = await db.leagueSeason.findFirst({
     where: {
       organisationId: orgId,
-      startDate: { lte: weekEnd },
-      endDate: { gte: weekStart },
+      startDate: { lte: startsAt },
+      endDate: { gte: startsAt },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -157,7 +165,7 @@ export async function createMatchCore(
     });
     matchRoundId = resolved.roundId;
   } else {
-    matchRoundId = await createFullHierarchy(startsAt, weekStart, weekEnd, orgId);
+    matchRoundId = await createFullHierarchy(startsAt, orgId);
   }
 
   const match = await db.match.create({
@@ -202,7 +210,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
   redirect(`/o/${ctx.organisationSlug}/fixtures?saved=created`);
 }
 
-async function createFullHierarchy(startsAt: Date, _weekStart: Date, _weekEnd: Date, organisationId: string): Promise<string> {
+async function createFullHierarchy(startsAt: Date, organisationId: string): Promise<string> {
   const season = await db.season.findFirst({ where: { organisationId }, orderBy: { createdAt: "desc" } });
 
   const part = getLeagueSeasonPartForDate(startsAt);

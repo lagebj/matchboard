@@ -294,24 +294,41 @@ session (`requirePageActorContext()`/`requireMutationRole()`/`requireTeamGroupAc
 not an auth bypass, only a fast-path around UI navigation for a caller who is already a genuine
 coach.
 
-#### Known incident: birthday-paradox flake on long-lived PRs (fixed 2026-08-30)
+#### Known incident: two distinct causes behind `seed-finalized-match` flakes (fixed 2026-08-30)
 
-`createFinalizedLiveTestMatch()` picks each fixture match's date via
-`randomFutureMatchDate()`, drawn from a fixed future-week pool so unrelated test runs don't
-collide on the same `MatchRound` (matches are grouped by ISO week). Because the per-PR Neon
-branch this endpoint writes to is reused and never cleaned for the life of the PR (see "Fast
-fixture setup for live-match specs" above), every additional commit's CI run draws more dates
-from that same pool — an unusually long-lived PR (e.g. #389, 17 commits) can accumulate enough
-draws to hit a real birthday-paradox collision, surfacing as `seed-finalized-match failed (500)`
-with either `"Finalised matches cannot be recalculated"` (drew a date matching an
-already-finalized match) or `"This date is outside the current league season..."` (a resolved
-league season boundary case). Confirmed live three times across two team-wide incidents plus
-this one; each prior fix simply widened the pool (500 → 5,000 weeks), which only raises the
-commit-count threshold before it recurs. Fixed properly this time in
-`e2e/helpers/live-match-fixtures.ts`: `process.hrtime.bigint()` replaces `Math.random()` (making
-same-run collisions structurally impossible, not just unlikely) and the pool widened another 10x
-(5,000 → 50,000 weeks). If this resurfaces on some future, even-longer-lived PR, the durable fix
-is not a fourth widening — it's giving `createFinalizedLiveTestMatch()` a real teardown (delete
-the match/round it created) instead of accepting permanent accumulation on the shared branch, or
-switching to a collision-proof key (e.g. a monotonically assigned round-slot per PR) instead of
-random sampling at all.
+`createFinalizedLiveTestMatch()` picks each fixture match's date via `randomFutureMatchDate()`.
+An unusually long-lived PR (#389, 17+ commits) hit `seed-finalized-match failed (500)` repeatedly
+during CI, with two *different* error messages that turned out to have two *unrelated* root
+causes — investigated and fixed separately rather than treated as one flake:
+
+1. **`"Finalised matches cannot be recalculated"`** — a genuine birthday-paradox collision.
+   `randomFutureMatchDate()` draws from a fixed future-week pool so unrelated test runs don't
+   collide on the same `MatchRound` (matches are grouped by ISO week). Because the per-PR Neon
+   branch this endpoint writes to is reused and never cleaned for the life of the PR (see "Fast
+   fixture setup for live-match specs" above), every additional commit's CI run draws more dates
+   from that same pool, and an outlier-long PR can accumulate enough draws to hit a real
+   collision. Confirmed live three times across two team-wide incidents plus this one; each prior
+   fix simply widened the pool (500 → 5,000 weeks), which only raises the commit-count threshold
+   before it recurs. Fixed properly this time in `e2e/helpers/live-match-fixtures.ts`:
+   `process.hrtime.bigint()` replaces `Math.random()` (making same-run collisions structurally
+   impossible, not just unlikely) and the pool widened another 10x (5,000 → 50,000 weeks). If this
+   resurfaces on some future, even-longer-lived PR, the durable fix is not a fourth widening —
+   it's giving `createFinalizedLiveTestMatch()` a real teardown (delete the match/round it
+   created) instead of accepting permanent accumulation on the shared branch, or switching to a
+   collision-proof key (e.g. a monotonically assigned round-slot per PR) instead of random
+   sampling at all.
+
+2. **`"This date is outside the current league season..."`** — a **separate, real product bug**,
+   not another instance of the birthday-paradox mechanism above, and not fixed by anything in
+   item 1. `createMatchCore()` (`src/app/(app)/matches/actions.ts`) looked up the covering league
+   season by whether it overlapped the match's *whole ISO week*, but
+   `resolveOrCreateMatchRoundForDate()` then validates the match's *exact* `startsAt` against that
+   season's exact bounds — a mismatch whenever a match's week straddles a season boundary (season
+   cutoffs are Jan1/Jun30/Jul1/Dec31, none of which are generally ISO-week-aligned). This is also
+   reachable from the real "add match" UI, for any coach scheduling a match in the first few days
+   of a new league-season half when the adjacent half's season already exists — not test-only
+   fallout. Fixed at the source: `createMatchCore` now looks up the covering season by the exact
+   `startsAt` instead of the ISO week range. Regression test:
+   `src/app/(app)/matches/__tests__/create-match-core.test.ts` (reproduces the exact boundary
+   scenario against a real Postgres test DB, confirmed to fail against the pre-fix code and pass
+   against the fix).
