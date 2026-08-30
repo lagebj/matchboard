@@ -13,8 +13,6 @@
 export type PostMatchLifecycleStatus = "NOT_STARTED" | "DRAFT" | "REPORTED" | "LOCKED";
 
 export type PostMatchReportCapabilities = {
-  /** League: DRAFT -> REPORTED -> LOCKED (separate Submit/Lock steps). Event: DRAFT -> LOCKED directly. */
-  hasSubmitLockSteps: boolean;
   /** Whether addPlayer accepts an unplanned-appearance reason (League only). */
   hasUnplannedReason: boolean;
 };
@@ -70,9 +68,6 @@ export type PostMatchReportActions = {
   removePlayer: (playerReportId: string) => Promise<ActionResult>;
   complete: () => Promise<ActionResult>;
   reopen: (target?: "DRAFT" | "REPORTED") => Promise<ActionResult>;
-  /** Only meaningful when capabilities.hasSubmitLockSteps is true. */
-  submit?: () => Promise<ActionResult>;
-  lock?: () => Promise<ActionResult>;
 };
 
 export type PostMatchAvailablePlayer = { id: string; name: string; teamName?: string };

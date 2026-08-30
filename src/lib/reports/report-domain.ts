@@ -32,11 +32,16 @@ export function canTransitionTo(
   currentStatus: MatchReportStatus | "NOT_STARTED",
   targetStatus: MatchReportStatus,
 ): ReportTransitionResult {
+  // D9/ADR-0109 §E: one meaningful completion boundary (incomplete/editable <-> completed/
+  // stable). Reopening a completed report goes straight back to the single editable (DRAFT)
+  // state -- there is no coach-visible intermediate "REPORTED" stop to reopen through. REPORTED
+  // remains a valid target only for historical/compat reasons (no current writer produces it,
+  // see report-mutations.ts).
   const validTransitions: Record<string, MatchReportStatus[]> = {
     NOT_STARTED: ["DRAFT"],
     DRAFT: ["REPORTED", "LOCKED"],
     REPORTED: ["LOCKED", "DRAFT"],
-    LOCKED: ["REPORTED"],
+    LOCKED: ["REPORTED", "DRAFT"],
   };
 
   const allowed = validTransitions[currentStatus];

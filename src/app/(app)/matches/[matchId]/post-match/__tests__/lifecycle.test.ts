@@ -24,8 +24,6 @@ import {
   markPlannedAbsence,
   removePlannedAbsence,
   updatePlayerStats,
-  submitMatchReport,
-  lockMatchReport,
   completeMatchReport,
   reopenMatchReport,
   updateMatchResult,
@@ -85,8 +83,8 @@ describe("Post-match report lifecycle", () => {
     });
   });
 
-  describe("full lifecycle: DRAFT → REPORTED → LOCKED → reopen", () => {
-    it("transitions through the full lifecycle", async () => {
+  describe("full lifecycle: DRAFT → complete → LOCKED → reopen for correction → complete again", () => {
+    it("transitions through the one meaningful completion boundary (D9/ADR-0109 §E)", async () => {
       const matchId = fixture.matches.Bla!;
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
       const hvitPlayer = fixture.players.find((p) => p.coreTeamName === "Hvit")!;
@@ -113,17 +111,12 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
-      const submitResult = await submitMatchReport(reportId);
-      expect(submitResult.success).toBe(true);
-
-      const reported = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
-      expect(reported!.status).toBe("REPORTED");
-
       const setResult = await updateMatchResult(reportId, { homeGoals: 3, awayGoals: 1 });
       expect(setResult.success).toBe(true);
 
-      const lockResult = await lockMatchReport(reportId);
-      expect(lockResult.success).toBe(true);
+      // One explicit completion action -- no separate coach-visible Submit/Lock steps.
+      const completeResult = await completeMatchReport(reportId);
+      expect(completeResult.success).toBe(true);
 
       const locked = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
       expect(locked!.status).toBe("LOCKED");
@@ -134,17 +127,18 @@ describe("Post-match report lifecycle", () => {
       });
       expect(addBlocked.success).toBe(false);
 
-      const reopenResult = await reopenMatchReport(reportId, "REPORTED");
+      // Deliberate reopen for correction, then complete again.
+      const reopenResult = await reopenMatchReport(reportId, "DRAFT");
       expect(reopenResult.success).toBe(true);
 
       const reopened = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
-      expect(reopened!.status).toBe("REPORTED");
+      expect(reopened!.status).toBe("DRAFT");
 
-      const reopenDraftResult = await reopenMatchReport(reportId, "DRAFT");
-      expect(reopenDraftResult.success).toBe(true);
+      const recompleteResult = await completeMatchReport(reportId);
+      expect(recompleteResult.success).toBe(true);
 
-      const draftAgain = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
-      expect(draftAgain!.status).toBe("DRAFT");
+      const relocked = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
+      expect(relocked!.status).toBe("LOCKED");
 
       await cleanup();
     });
@@ -199,8 +193,6 @@ describe("Post-match report lifecycle", () => {
 
       const seedResult = await seedMatchReport(matchId);
       const reportId = seedResult.reportId!;
-
-      await submitMatchReport(reportId);
 
       const statsResult = await updatePlayerStats(reportId, {
         playerId: blaPlayer.id,
@@ -321,8 +313,7 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
-      await submitMatchReport(reportId);
-      await lockMatchReport(reportId);
+      await completeMatchReport(reportId);
 
       const addResult = await addActualPlayer(reportId, {
         playerId: hvitPlayer.id,
@@ -345,57 +336,6 @@ describe("Post-match report lifecycle", () => {
         type: "NORMAL",
       });
       expect(goalResult.success).toBe(false);
-
-      await cleanup();
-    });
-  });
-
-  describe("UNKNOWN attendance blocks submission and locking", () => {
-    it("rejects submit when player has UNKNOWN attendance", async () => {
-      const matchId = fixture.matches.Bla!;
-      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
-
-      await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: fixture.organisationId},
-      });
-
-      const seedResult = await seedMatchReport(matchId);
-      const reportId = seedResult.reportId!;
-
-      const submitResult = await submitMatchReport(reportId);
-      expect(submitResult.success).toBe(false);
-      expect(submitResult.error).toContain("UNKNOWN attendance");
-
-      await cleanup();
-    });
-
-    it("rejects lock when player has UNKNOWN attendance", async () => {
-      const matchId = fixture.matches.Bla!;
-      const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
-
-      await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId: blaPlayer.id, role: "CORE" as const, status: "FINALIZED" , organisationId: fixture.organisationId},
-      });
-
-      const seedResult = await seedMatchReport(matchId);
-      const reportId = seedResult.reportId!;
-
-      await testDb.postMatchPlayerActual.updateMany({
-        where: { reportId, attendanceStatus: "UNKNOWN" },
-        data: { attendanceStatus: "PRESENT" },
-      });
-
-      const submitResult = await submitMatchReport(reportId);
-      expect(submitResult.success).toBe(true);
-
-      await testDb.postMatchPlayerActual.updateMany({
-        where: { reportId },
-        data: { attendanceStatus: "UNKNOWN" },
-      });
-
-      const lockResult = await lockMatchReport(reportId);
-      expect(lockResult.success).toBe(false);
-      expect(lockResult.error).toContain("UNKNOWN attendance");
 
       await cleanup();
     });
@@ -448,7 +388,7 @@ describe("Post-match report lifecycle", () => {
       await cleanup();
     });
 
-    it("transitions REPORTED → LOCKED", async () => {
+    it("completes a legacy REPORTED report directly to LOCKED (compat: REPORTED is readable history, no current writer produces it)", async () => {
       const matchId = fixture.matches.Bla!;
       const blaPlayer = fixture.players.find((p) => p.coreTeamName === "Bla")!;
 
@@ -464,8 +404,10 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
-      const submitResult = await submitMatchReport(reportId);
-      expect(submitResult.success).toBe(true);
+      // Simulates data from before the Submit/Lock ceremony was removed -- no current action
+      // produces REPORTED, but completeMatchReport must still handle a report already sitting
+      // there.
+      await testDb.postMatchReport.update({ where: { id: reportId }, data: { status: "REPORTED" } });
 
       const completeResult = await completeMatchReport(reportId);
       expect(completeResult.success).toBe(true);
@@ -492,8 +434,7 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
-      await submitMatchReport(reportId);
-      await lockMatchReport(reportId);
+      await completeMatchReport(reportId);
 
       const completeResult = await completeMatchReport(reportId);
       expect(completeResult.success).toBe(false);

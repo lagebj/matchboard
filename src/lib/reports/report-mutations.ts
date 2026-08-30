@@ -624,60 +624,6 @@ export async function updatePlayerStatsInReport(
   return { success: true, matchId: report.matchId };
 }
 
-export async function submitReport(reportId: string, orgFilter?: OrgFilterMode): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findFirst({
-    where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) },
-    include: { playerActuals: true },
-  });
-  if (!report) return { success: false, error: "Report not found." };
-
-  if (!canTransitionTo(report.status, "REPORTED").allowed) {
-    return { success: false, error: "Only DRAFT reports can be submitted." };
-  }
-
-  const unknownAttendance = hasUnknownAttendance(report.playerActuals);
-  if (unknownAttendance) {
-    return {
-      success: false,
-      error: `Cannot submit report: ${unknownAttendance} player(s) have UNKNOWN attendance. Resolve all attendance before submitting.`,
-    };
-  }
-
-  await db.postMatchReport.update({
-    where: { id: reportId },
-    data: { status: "REPORTED" as MatchReportStatus },
-  });
-
-  return { success: true, matchId: report.matchId };
-}
-
-export async function lockReport(reportId: string): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({
-    where: { id: reportId },
-    include: { playerActuals: true },
-  });
-  if (!report) return { success: false, error: "Report not found." };
-
-  if (!canTransitionTo(report.status, "LOCKED").allowed) {
-    return { success: false, error: "Only REPORTED reports can be locked." };
-  }
-
-  const unknownAttendance = hasUnknownAttendance(report.playerActuals);
-  if (unknownAttendance) {
-    return {
-      success: false,
-      error: `Cannot lock report: ${unknownAttendance} player(s) have UNKNOWN attendance. Resolve all attendance before locking.`,
-    };
-  }
-
-  await db.postMatchReport.update({
-    where: { id: reportId },
-    data: { status: "LOCKED" as MatchReportStatus, completedAt: new Date() },
-  });
-
-  return { success: true, matchId: report.matchId };
-}
-
 export async function completeReport(reportId: string, coachEmail: string): Promise<ReportTransitionResult> {
   const report = await db.postMatchReport.findUnique({
     where: { id: reportId },

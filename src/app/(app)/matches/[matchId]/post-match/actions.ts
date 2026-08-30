@@ -13,8 +13,6 @@ import {
   markPlannedAbsenceInReport,
   removePlannedAbsenceFromReport,
   updatePlayerStatsInReport,
-  submitReport,
-  lockReport,
   completeReport,
   reopenReport,
   addGoalToReportMutation,
@@ -440,56 +438,6 @@ export async function updatePlayerStats(
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to update stats." };
-  }
-}
-
-export async function submitMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
-  if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
-
-  try {
-    const result = await submitReport(reportId, ctx.orgFilter);
-    if (!result.success) return { success: false, error: result.error };
-
-    revalidatePath(`/matches/${result.matchId}`);
-    revalidatePath(`/matches/${result.matchId}/post-match`);
-    revalidatePath("/rounds");
-    revalidatePath("/fixtures");
-    revalidatePath("/teams");
-    revalidatePath("/players");
-    revalidatePath("/");
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to submit report." };
-  }
-}
-
-export async function lockMatchReport(reportId: string): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const reportMatchId = await requireReportOrgAccess(reportId, ctx.orgFilter);
-  if (reportMatchId) await requireMatchGroupAccess(ctx, reportMatchId);
-
-  try {
-    const result = await lockReport(reportId);
-    if (!result.success) return { success: false, error: result.error };
-
-    revalidatePath(`/matches/${result.matchId}`);
-    revalidatePath(`/matches/${result.matchId}/post-match`);
-    revalidatePath("/rounds");
-    revalidatePath("/fixtures");
-    revalidatePath("/teams");
-    revalidatePath("/players");
-    revalidatePath("/");
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to lock report." };
   }
 }
 

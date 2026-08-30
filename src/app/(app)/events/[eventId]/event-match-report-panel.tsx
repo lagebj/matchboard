@@ -82,7 +82,7 @@ interface EventMatchReportPanelProps {
   onRefresh: () => void;
 }
 
-const CAPABILITIES: PostMatchReportCapabilities = { hasSubmitLockSteps: false, hasUnplannedReason: false };
+const CAPABILITIES: PostMatchReportCapabilities = { hasUnplannedReason: false };
 
 function toViewModel(report: ReportData, teamLabel: string, opponentLabel: string): PostMatchReportViewModel {
   return {

@@ -51,9 +51,9 @@ describe("report-domain", () => {
       expect(result.allowed).toBe(false);
     });
 
-    it("rejects LOCKED → DRAFT (must go through REPORTED)", () => {
+    it("allows LOCKED → DRAFT directly (D9/ADR-0109 §E: one completion boundary, no forced REPORTED detour to reopen)", () => {
       const result = canTransitionTo("LOCKED", "DRAFT");
-      expect(result.allowed).toBe(false);
+      expect(result.allowed).toBe(true);
     });
 
     it("rejects DRAFT → NOT_STARTED", () => {
