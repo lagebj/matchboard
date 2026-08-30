@@ -14,5 +14,5 @@
   "runtime": "opa-wasm",
   "failureMode": "degraded_fallback",
   "deployable": true,
-  "wasmHash": "8cd84090fa23f4e194ca3f6a6d9ad26ce3ac88aa0a6b530d23a18c2a089366da"
+  "wasmHash": "2a762459793af36a396c2316f5f5d2aa5ad2aeef660d4b0eacb1fe0d057a2d27"
 }
