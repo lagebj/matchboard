@@ -1596,16 +1596,20 @@ rules:
 - **Identity is player ID; names resolved once, for display only** — matching the pattern every
   situational candidate provider already follows.
 
-**Current status**: implemented — `getWeeklyCoachingContext()` (loader) and
-`deriveWeeklyCoachingContext()` (pure deriver) exist; `WeeklyCoachingContextSection` renders on
-Today (after `NextRoundReadinessSection`, before the metric-tile row) and
-`WeeklyCarryForwardPanel` renders near the top of the Round Board, both reading the same shared
-loader. Deferred: planned-vs-actual for Event matches (no `Selection`-equivalent per-match plan
-concept exists for Event), planned-vs-actual minutes/position exposure (no authoritative planned
-target to compare against), development-evidence-changed-this-week (no reliable match/report
-linkage timestamp), and historical week browsing beyond current+previous week (the `weekKey`
-parameter already supports it; no UI entry point was added). See
-`docs/domain/weekly-coaching-context.md`'s "Deliberately deferred" section for the full list.
+**Current status**: implemented — `getWeeklyCoachingContext()` (`src/lib/weekly/get-weekly-coaching-context.ts`,
+the DB-bound loader and fact assembly) and the small pure helpers in
+`derive-weekly-coaching-context.ts` (`deriveWeeklyContextStatus()`, `getPreviousIsoWeekKey()`)
+exist; `WeeklyCoachingContextSection` renders on Today (after `NextRoundReadinessSection`, before
+the metric-tile row, always for the *current* ISO week) and `WeeklyCarryForwardPanel` renders near
+the top of the Round Board (always for the ISO week immediately *before* the round being planned),
+both reading the same shared loader. Deferred: a "most recent complete/provisional week" fallback
+search when the current/previous week is empty (v1 uses a fixed current/previous-week offset
+only), planned-vs-actual for Event matches (no `Selection`-equivalent per-match plan concept
+exists for Event), planned-vs-actual minutes/position exposure (no authoritative planned target to
+compare against), development-evidence-changed-this-week (no reliable match/report linkage
+timestamp), and historical week browsing beyond current+previous week (the `weekKey` parameter
+already supports it; no UI entry point was added). See `docs/domain/weekly-coaching-context.md`'s
+"Deliberately deferred" section for the full list.
 
 ## Populate all
 
@@ -2900,7 +2904,7 @@ Avoid:
 |------|---------|
 | `src/lib/weekly/weekly-coaching-context-types.ts` | Pure type contracts (`WeeklyContextStatus`, `WeeklyCoachingContext`, display types) — no React, no Prisma |
 | `src/lib/weekly/get-weekly-coaching-context.ts` | DB-bound loader: batched League/Event queries, calls `computeRoundPlanIntegrity()`, builds display maps |
-| `src/lib/weekly/derive-weekly-coaching-context.ts` | Pure derivation: status, classification, candidate-pool scoping — DB-free, unit-testable |
+| `src/lib/weekly/derive-weekly-coaching-context.ts` | Pure, DB-free helpers: `RoundProgressStage` → `WeeklyContextStatus` mapping, `getPreviousIsoWeekKey()`. Classification logic lives in the loader, verified via DB-backed integration tests |
 | `src/components/assistant/weekly-coaching-context-section.tsx` | Today UI: situational pulse/review/carry-forward presentation |
 | `src/components/round/weekly-carry-forward-panel.tsx` | Round Board UI: compact read-only carry-forward panel |
 

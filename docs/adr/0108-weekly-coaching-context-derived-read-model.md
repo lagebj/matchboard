@@ -57,8 +57,8 @@ not a new situational mode, and not a new source of truth for facts that already
 (`getWeeklyCoachingContext()`, `src/lib/weekly/`), consumed by both Today and the Round Board,
 with no new Prisma model, no stored snapshot, and no scheduled generation.**
 
-1. **Derived only, keyed by ISO week.** `getWeeklyCoachingContext({ organisationId,
-   leagueSeasonId, weekKey })` recomputes its result from canonical tables on every call.
+1. **Derived only, keyed by ISO week.** `getWeeklyCoachingContext(orgFilter, { leagueSeasonId,
+   weekKey })` recomputes its result from canonical tables on every call.
    `weekKey` (e.g. `"2026-W35"`) uses the *existing* ISO-week helpers in `src/lib/date-utils.ts`
    (`formatIsoWeekKey`, `getWeekRangeFromIsoWeekKey`) — no second week definition is introduced.
    No migration is required: every fact the read model exposes is derived from `Match`,
@@ -69,9 +69,12 @@ with no new Prisma model, no stored snapshot, and no scheduled generation.**
 2. **Reuses canonical facts; does not reimplement them.**
    - "Available without a planned league opportunity" is read directly from
      `computeRoundPlanIntegrity()`'s `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` signals for
-     the `MatchRound` whose `name` equals the week's ISO week label (rounds are already named by
-     ISO week label per `resolveOrCreateMatchRoundForDate()` — see AGENTS.md "Match schedule
-     editing") — never a second "does this player have an opportunity" calculation.
+     the `MatchRound` whose matches fall within the week's date range (`matchRound.findFirst({
+     leagueSeasonId, matches: { some: { startsAt: weekRange } } })` — a direct date-range query,
+     not a match against the round's `name` label, since a round's matches are the operational
+     source of truth for "which round is this week" and a name-string comparison would be an
+     unnecessary second encoding of the same fact) — never a second "does this player have an
+     opportunity" calculation.
    - "Planned but absent" / "unplanned appearance" reuse the exact classification meaning of
      `src/lib/insights/planned-vs-actual-delta.ts` (a `FINALIZED` selection with no `PRESENT`
      actual = planned-but-absent; a `PRESENT` actual with no matching finalized selection =
@@ -207,10 +210,19 @@ section exists to prevent, and would need its own ARR the moment it shipped.
 
 ## Migration and compatibility
 
-No schema migration. Implementation is split into a DB-bound loader (`get-weekly-coaching-context.ts`)
-and a pure deriver (`derive-weekly-coaching-context.ts`) so the derivation logic is testable
-without a database, per the existing repository convention (`compute-plan-integrity.ts`,
-`round-progress.ts`). Rollback is a plain revert — nothing is persisted that would need cleanup.
+No schema migration. Implementation is split into a DB-bound loader
+(`get-weekly-coaching-context.ts`, all batched queries and fact assembly) and a small pure module
+(`derive-weekly-coaching-context.ts`: the `RoundProgressStage` → `WeeklyContextStatus` mapping and
+ISO-week arithmetic for "the previous week"). The classification logic proper (planned-but-absent/
+unplanned-appearance/no-recorded-appearance) lives inside the loader rather than a fully separate
+pure core — a deliberate, smaller-than-originally-scoped split: the values it classifies (Prisma
+result rows) only exist after the batched queries run, so factoring it out would mean either
+duplicating query-shaped types in the pure module or passing large intermediate structures across
+the boundary for limited benefit at this feature's size. It is verified instead via DB-backed
+integration tests (`src/lib/weekly/__tests__/get-weekly-coaching-context.test.ts`) against a real
+seeded fixture, per the existing `compute-plan-integrity.test.ts` convention, while the genuinely
+input/output-pure pieces (status mapping, week arithmetic) are separately unit-tested with no
+database. Rollback is a plain revert — nothing is persisted that would need cleanup.
 
 ## Related decisions
 

@@ -38,10 +38,12 @@ week's key/label from a date, `getWeekRangeFromIsoWeekKey()` to get `{ startsAt,
 Monday 00:00:00.000 through Sunday 23:59:59.999) for querying. No second week definition exists
 anywhere in this feature.
 
-A `MatchRound`'s `name` is already the ISO week label it represents (set by
-`resolveOrCreateMatchRoundForDate()` — see AGENTS.md "Match schedule editing"). The weekly loader
-finds "the round for this week" by `matchRound.findFirst({ leagueSeasonId, name: isoWeekLabel })`
-— it does not introduce a second week-to-round mapping.
+The weekly loader finds "the round for this week" directly from match dates:
+`matchRound.findFirst({ leagueSeasonId, matches: { some: { startsAt: weekRange } } })`. This is a
+date-range query, not a comparison against the round's `name` label (a round's own `name` is
+already the ISO week label it represents, per `resolveOrCreateMatchRoundForDate()` — see AGENTS.md
+"Match schedule editing" — but matching against that string would be a second, redundant encoding
+of the same fact the round's actual matches already establish).
 
 ## Lifecycle status
 
@@ -68,7 +70,7 @@ Future matches never create reporting debt (they are simply not yet reportable).
 
 | Fact | Canonical owner | How the weekly loader uses it |
 |---|---|---|
-| Available player without a planned league opportunity | `computeRoundPlanIntegrity()` (`src/lib/selection/compute-plan-integrity.ts`), rule `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` | Calls it once for the round matching this week's ISO label; extracts `playerId`s from that rule's signals. Never recomputes availability/eligibility itself. |
+| Available player without a planned league opportunity | `computeRoundPlanIntegrity()` (`src/lib/selection/compute-plan-integrity.ts`), rule `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` | Calls it once for the round whose matches fall within this week's date range; extracts `playerId`s from that rule's signals. Never recomputes availability/eligibility itself. |
 | Planned vs. actual deviation (planned-but-absent / unplanned appearance) | Classification meaning of `src/lib/insights/planned-vs-actual-delta.ts` | Reuses the same meaning (`FINALIZED` selection + no `PRESENT` actual = planned-but-absent; `PRESENT` actual + no matching finalized selection = unplanned), computed with **batched** queries (`matchId IN (...)`) instead of that file's per-match loop — a documented, intentional query-shape divergence, not a meaning divergence. See ADR-0108 Decision §2. |
 | Support/movement between teams | `MovementLedger` (AGENTS.md: "the movement ledger is the authoritative record of player movement, not the Selection table alone") | Queried directly for `role: "SUPPORT"` entries on the week's matches. Never inferred from a player appearing for a non-core team. |
 | Report completeness | `deriveRoundProgress()`'s rule (`src/lib/rounds/round-progress.ts`) | Same complete-iff-`REPORTED`/`LOCKED`, cancelled-excluded rule, applied to League and Event matches alike. |
@@ -136,12 +138,18 @@ the already-computed `CoachSituationProjection.situation.primarySituation` passe
   it must never outrank `MatchdayContextBanner` or other immediate match work. Any genuinely
   urgent weekly-related problem is still surfaced through the existing candidate providers
   regardless (they are unaffected by this feature).
-- **`NEXT`**: renders as a compact **carry-forward** panel from the most recent `COMPLETE` (or, if
-  none, `PROVISIONAL`) week, positioned near `NextRoundReadinessSection`. Language is strictly
-  factual ("Noah had no recorded appearance last week"), never a directive ("Noah must play this
-  week") — the coach remains responsible for the decision.
-- **`LONG_TERM`**: renders as a **review/pulse** of the current week if it has meaningful activity,
-  otherwise the most recently completed week.
+- **`NEXT`**: on Today, `WeeklyCoachingContextSection` renders as a compact **"carries into next
+  round"** panel for the *current* ISO week, positioned directly after `NextRoundReadinessSection`.
+  On the Round Board, the separate `WeeklyCarryForwardPanel` always shows the *previous* ISO week
+  relative to the round being planned (the round itself represents the upcoming week). Language is
+  strictly factual ("2 players planned but did not play"), never a directive ("play them this
+  week") — the coach remains responsible for the decision. v1 does not implement a "most recent
+  `COMPLETE`-or-`PROVISIONAL` week" fallback search; it always uses the current (Today) or
+  immediately preceding (Round Board) ISO week — see "Deliberately deferred" below.
+- **`LONG_TERM`**: on Today, the same section renders as a broader **"weekly pulse"** framing of
+  the same current-week data (different title/copy, identical underlying facts) — v1 does not
+  search backward for the most recently completed week when the current week is empty; an empty
+  current week simply renders nothing (see `isWeeklyCoachingContextEmpty`).
 
 ## Today integration
 
@@ -165,6 +173,11 @@ model — only a UI entry point.
 
 ## Deliberately deferred / omitted (not silently approximated)
 
+- **"Most recent complete/provisional week" fallback search**: v1 always uses the current ISO
+  week (Today) or the immediately preceding one (Round Board, relative to the round being
+  planned) — it does not search backward for the most recently completed week when that week is
+  empty. An empty current/previous week simply renders nothing. Revisit if coaches report the
+  fixed-offset behavior as confusing around bye weeks or irregular scheduling.
 - **Planned vs. actual for Event matches**: Event has no `Selection`-equivalent per-match plan
   concept (see "League and Event" above) — extending this fact class to Event is future work, not
   approximated with `EventSquadPlayer` membership (which answers a different question — squad
@@ -191,6 +204,6 @@ model — only a UI entry point.
 |------|---------|
 | `src/lib/weekly/weekly-coaching-context-types.ts` | Pure type contracts: `WeeklyContextStatus`, `WeeklyCoachingContext`, candidate-pool and display types. No React, no Prisma. |
 | `src/lib/weekly/get-weekly-coaching-context.ts` | DB-bound loader: batched queries for League/Event matches, reports, actuals, movement, plan integrity; builds the raw fact bag and display maps. |
-| `src/lib/weekly/derive-weekly-coaching-context.ts` | Pure derivation: status computation, classification, candidate-pool scoping — takes the loader's raw fact bag, no DB access, fully unit-testable. |
+| `src/lib/weekly/derive-weekly-coaching-context.ts` | Pure, DB-free helpers: `RoundProgressStage` → `WeeklyContextStatus` mapping and `getPreviousIsoWeekKey()` ISO-week arithmetic. Classification logic (planned-but-absent, unplanned appearance, no-recorded-appearance) lives in the loader itself, verified via DB-backed integration tests instead — see ADR-0108's "Migration and compatibility" for why. |
 | `src/components/assistant/weekly-coaching-context-section.tsx` | Today UI: situational presentation (pulse/review/carry-forward variants), player name/link rendering with accessible expand/show-all. |
 | `src/components/round/weekly-carry-forward-panel.tsx` | Round Board UI: compact, read-only carry-forward panel. |
