@@ -47,3 +47,11 @@ Current state:
 - Phase 1 of the programme will add the planning boundary concept and server-side checks.
 - Phase 6 will consolidate the lifecycle vocabulary and remove vestigial states (REPORTED).
 - No breaking changes to existing finalization behavior until Phase 6.
+
+## Superseded (2026-08-30)
+
+Decision item 1 ("the existing finalization model is retained as the current mechanism") is
+superseded by ADR-0109, which wires the date-driven boundary this ADR introduced into an
+automatic, lazy, idempotent baseline capture and removes the coach-operated finalize/un-finalize
+actions entirely. The planning-boundary concept and `planningClosedAt` field introduced here are
+retained and extended, not replaced.
