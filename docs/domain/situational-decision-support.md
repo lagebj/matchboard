@@ -94,26 +94,27 @@ Implemented:
   already fully covered by the existing assistant-work-item provider (every `event_*`
   `AssistantWorkCategory` already has a `CATEGORY_CONSEQUENCES` mapping) — not rebuilt.
 
-- **Situational annotation of Today's grouped sections (Phase 4 continuation, first slice)**:
+- **Situational annotation and reordering of Today's grouped sections (Phase 4 continuation)**:
   `computeDeferredWorkItemIds()` in `assistant-command-centre-page.tsx` marks a grouped-section
   item as "Lower priority right now" (a small, non-alarming annotation on its `WorkRow`) when the
   projection has decisions but this item's corresponding decision was not promoted — it is never
   hidden or removed, only annotated, consistent with AGENTS.md's requirement that Blocked/
-  Decision-required signals always remain prominent. The "Blockers" and "Decisions" groups
-  (`blocked_round`/`decision_required` categories) are explicitly excluded from this annotation
-  entirely, since those categories have no corresponding situational candidate to compare against
-  (the richer plan-integrity provider covers the same underlying signals with a different id
-  scheme) — never annotating them as deferred is a deliberate correctness requirement, not an
-  oversight. This is filtering by *annotation*, not by *hiding*: "Today's grouped sections and
-  metric tiles are not yet situationally filtered" (the item below) is now more precisely "not yet
-  filtered by removal or reordering" — annotation is the first, safest slice of that filtering.
+  Decision-required signals always remain prominent. `sortByDeferred()` additionally reorders each
+  group so non-deferred items render before deferred ones (a stable sort — items keep their
+  original relative order within each bucket; nothing is ever dropped or duplicated). The
+  "Blockers" and "Decisions" groups (`blocked_round`/`decision_required` categories) are
+  explicitly excluded from both the annotation and any resulting reorder, since those categories
+  have no corresponding situational candidate to compare against (the richer plan-integrity
+  provider covers the same underlying signals with a different id scheme) — this is a deliberate
+  correctness requirement, not an oversight.
 
 **Not yet implemented** (tracked for follow-up work, not claimed as current behaviour):
 - Candidate providers beyond the four above (report state beyond existing categories, opponent/
   combination evidence as a second real long-term source — `pending_profile_suggestions` and the
   opportunity-gap provider are the only long-term-signal sources so far).
-- Reordering or hiding of Today's grouped sections and metric tiles by situational relevance
-  (annotation exists — see above — reordering/hiding does not).
+- Situational filtering of Today's metric-tile row (blocked/decision/review/report counts remain
+  fully unfiltered by the projection — the grouped sections below them do carry annotation and
+  reordering now, see above).
 - Explicit `READY`/`LIVE`/`REVIEW_AVAILABLE` status display on Today (the projection computes
   `status`, but the page does not yet render it distinctly from the existing empty state, beyond
   the Matchday banner's own live/kickoff pill and the Next-round section's own counts).
@@ -349,7 +350,7 @@ even though no caller exists yet.
 | `src/app/api/insights/opportunity-gap/route.ts` | Resolves a `LONG_TERM` situation and returns the projection alongside the existing `rows` payload |
 | `src/app/(app)/insights/opportunity-gap/opportunity-gap-client.tsx` | Renders the "Situational summary" block from the route's `projection` |
 | `src/app/(app)/o/[orgSlug]/today/page.tsx` | Resolves the situation context and projection from already-loaded `AssistantCommandCentre` data, passes both to the page component |
-| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()` (Phase 4 continuation: grouped-section annotation) |
+| `src/components/assistant/assistant-command-centre-page.tsx` | `resolveNextAction()` (hero selection), `MatchdayContextBanner` (Phase 5), `NextRoundReadinessSection` (Phase 6), `computeDeferredWorkItemIds()`/`sortByDeferred()` (Phase 4 continuation: grouped-section annotation + reordering) |
 
 ## Related
 

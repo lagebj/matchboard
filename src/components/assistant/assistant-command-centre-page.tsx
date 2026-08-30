@@ -430,6 +430,14 @@ function WorkRow({
   );
 }
 
+/** Stable sort placing deferred items after non-deferred ones -- never drops or duplicates an
+ * item, only reorders within the group it was already going to render in. An empty `deferredIds`
+ * (no projection, or nothing deferred) leaves order unchanged. */
+function sortByDeferred(items: AssistantWorkItem[], deferredIds: Set<string>): AssistantWorkItem[] {
+  if (deferredIds.size === 0) return items;
+  return [...items].sort((a, b) => Number(deferredIds.has(a.id)) - Number(deferredIds.has(b.id)));
+}
+
 function GroupedReports({
   items,
   deferredIds,
@@ -453,7 +461,7 @@ function GroupedReports({
         eyebrow={`${byRound.size} round${byRound.size === 1 ? "" : "s"}`}
       />
       <ul className="flex flex-col">
-        {items.map((item) => (
+        {sortByDeferred(items, deferredIds).map((item) => (
           <WorkRow key={item.id} item={item} deferred={deferredIds.has(item.id)} />
         ))}
       </ul>
@@ -562,7 +570,7 @@ function StandardGroup({
         </div>
       )}
       <ul className="flex flex-col">
-        {items.map((item) => (
+        {sortByDeferred(items, deferredIds).map((item) => (
           <WorkRow key={item.id} item={item} deferred={deferredIds.has(item.id)} />
         ))}
       </ul>

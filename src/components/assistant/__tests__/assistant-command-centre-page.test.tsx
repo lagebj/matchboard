@@ -388,4 +388,34 @@ describe("Grouped-section situational annotation (Phase 4 continuation)", () => 
     expect(screen.getAllByText("Round 1 blocked").length).toBeGreaterThan(0);
     expect(screen.queryByText("Lower priority right now")).toBeNull();
   });
+
+  it("reorders a group's remaining items so non-deferred items come before deferred ones, stably", () => {
+    const items = [
+      makeItem({ id: "setup-1", category: "setup_missing", title: "Setup 1" }),
+      makeItem({ id: "setup-2", category: "setup_missing", title: "Setup 2" }),
+      makeItem({ id: "setup-3", category: "setup_missing", title: "Setup 3" }),
+      makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" }),
+    ];
+    const commandCentre = makeCommandCentre(items);
+    // "report-item" is the top decision -> becomes the hero (removed from its own group).
+    // "setup-2" is also promoted but stays in the setup group (it's not the top decision).
+    const projection: CoachSituationProjection = {
+      ...makeMatchdayProjection({}),
+      decisions: [decisionFor("report-item", "Complete report"), decisionFor("setup-2", "Setup 2")],
+    };
+
+    renderPage(commandCentre, projection);
+
+    const rowTitles = screen
+      .getAllByRole("listitem")
+      .map((li) => li.textContent ?? "")
+      .filter((text) => text.startsWith("Setup "));
+    // Setup 2 (promoted, not deferred) sorts before Setup 1/Setup 3 (deferred), which keep their
+    // original relative order (stable sort).
+    expect(rowTitles.map((t) => t.includes("Setup 2") ? "Setup 2" : t.includes("Setup 1") ? "Setup 1" : "Setup 3")).toEqual([
+      "Setup 2",
+      "Setup 1",
+      "Setup 3",
+    ]);
+  });
 });
