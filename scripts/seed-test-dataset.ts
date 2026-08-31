@@ -23,6 +23,20 @@ import "dotenv/config";
 
 const TEST_DATASET_VERSION = 1;
 
+// ADR-0109: `isMatchRoundPlanningEditable()`/`isMatchPlanningEditable()` now check each match's
+// real `startsAt` against real wall-clock "now" (previously only `MatchRound.status` mattered,
+// so a hardcoded past calendar date on a "DRAFT" fixture round was invisible to the app). A
+// hardcoded calendar date here inevitably drifts into the past as real time advances past it,
+// which then makes these "still open for planning" fixture rounds incorrectly appear
+// boundary-closed. Compute them relative to script-run time instead so they stay valid
+// regardless of when this script is next run.
+function daysFromNow(days: number, hour = 10): Date {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+}
+
 function createAdapter(url: string) {
   // max: 1 — a pool capped at exactly one connection. `new Pool()` with its default size
   // manages multiple concurrent connections — sequential awaited db.X.create() calls could
@@ -206,9 +220,9 @@ async function main() {
     await db.match.create({ data: { matchRoundId: roundA1W10.id, teamId: teamA1Whites.id, opponent: "Lakeside Athletic", opponentTeamId: opponentTeamIdsA["lakeside athletic"], startsAt: new Date("2026-05-25T12:00:00Z"), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
     await db.match.create({ data: { matchRoundId: roundA1W10.id, teamId: teamA1Reds.id, opponent: "Hilltop United", opponentTeamId: opponentTeamIdsA["hilltop united"], startsAt: new Date("2026-05-25T14:00:00Z"), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
 
-    // Matches for A1 W11 (draft)
-    await db.match.create({ data: { matchRoundId: roundA1W11.id, teamId: teamA1Blues.id, opponent: "Valley FC", opponentTeamId: opponentTeamIdsA["valley fc"], startsAt: new Date("2026-06-01T10:00:00Z"), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
-    await db.match.create({ data: { matchRoundId: roundA1W11.id, teamId: teamA1Whites.id, opponent: "Metro Stars", opponentTeamId: opponentTeamIdsA["metro stars"], startsAt: new Date("2026-06-01T12:00:00Z"), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
+    // Matches for A1 W11 (draft, planning still open -- kept relative to "now", see daysFromNow)
+    await db.match.create({ data: { matchRoundId: roundA1W11.id, teamId: teamA1Blues.id, opponent: "Valley FC", opponentTeamId: opponentTeamIdsA["valley fc"], startsAt: daysFromNow(14, 10), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
+    await db.match.create({ data: { matchRoundId: roundA1W11.id, teamId: teamA1Whites.id, opponent: "Metro Stars", opponentTeamId: opponentTeamIdsA["metro stars"], startsAt: daysFromNow(14, 12), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
 
     // Rotation paths for Group A1
     await db.rotationPath.createMany({
@@ -343,8 +357,8 @@ async function main() {
     const oppB1 = await db.opponentTeam.create({ data: { displayName: "Cross Town Rivals", normalizedName: "cross town rivals", organisationId: orgB.id } });
     const oppB2 = await db.opponentTeam.create({ data: { displayName: "Suburban FC", normalizedName: "suburban fc", organisationId: orgB.id } });
 
-    await db.match.create({ data: { matchRoundId: roundB1W10.id, teamId: teamB1Lions.id, opponent: "Cross Town Rivals", opponentTeamId: oppB1.id, startsAt: new Date("2026-06-01T10:00:00Z"), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgB.id } });
-    await db.match.create({ data: { matchRoundId: roundB1W10.id, teamId: teamB1Wolves.id, opponent: "Suburban FC", opponentTeamId: oppB2.id, startsAt: new Date("2026-06-01T12:00:00Z"), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgB.id } });
+    await db.match.create({ data: { matchRoundId: roundB1W10.id, teamId: teamB1Lions.id, opponent: "Cross Town Rivals", opponentTeamId: oppB1.id, startsAt: daysFromNow(14, 10), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgB.id } });
+    await db.match.create({ data: { matchRoundId: roundB1W10.id, teamId: teamB1Wolves.id, opponent: "Suburban FC", opponentTeamId: oppB2.id, startsAt: daysFromNow(14, 12), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgB.id } });
 
     // Rotation paths for Group B1
     await db.rotationPath.createMany({
