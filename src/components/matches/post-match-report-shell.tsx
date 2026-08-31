@@ -46,7 +46,7 @@ type Props = {
  * (planned squad, structured absence, player stats) via `extraSections`, since those have no
  * Event equivalent (a deliberate, documented decision -- see ARR-0034, not silent scope-narrowing).
  */
-export function PostMatchReportShell({ report, actions, capabilities, availablePlayers, onChanged, extraSections }: Props) {
+export function PostMatchReportShell({ report, actions, availablePlayers, onChanged, extraSections }: Props) {
   const [isPending, startTransition] = useTransition();
   const [ourScore, setOurScore] = useState(report.ourScore?.toString() ?? "");
   const [opponentScore, setOpponentScore] = useState(report.opponentScore?.toString() ?? "");
