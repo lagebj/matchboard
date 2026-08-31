@@ -208,7 +208,7 @@ The primary coach workflow is:
 3. **Populate all** — Generate draft selections for all rounds in the active league season. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
 4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
-6. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
+6. **Finalize (derived, not a coach action — ADR-0109)** — There is no coach-operated "Finalize round"/"Finalize match" action. The plan becomes historical automatically the moment the real-world planning boundary closes for a match: scheduled kickoff passes, or live match reporting starts, whichever happens first. Finalized rounds and matches become history and cannot be silently mutated. A genuine reschedule that proves a match did not actually start can reopen its planning — see "Real-world planning boundary" below. This is not "un-finalize."
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
@@ -333,9 +333,9 @@ Intent categories (initial set):
 
 Rules:
 - Intent informs explanations and plan integrity signals but does not silently override hard eligibility rules.
-- Intent can be edited by the coach before finalization.
+- Intent can be edited by the coach until the planning boundary closes for that scope (ADR-0109).
 - Intent remains coach-facing unless explicitly exported through neutral parent-safe language.
-- Finalized history preserves intent snapshots from finalization time.
+- Finalized history preserves intent snapshots from the moment the planning boundary was captured.
 
 ### Matchday responsibilities
 
@@ -735,6 +735,80 @@ If required support cannot be fulfilled, generate a Blocked or Decision required
 
 Fairness must not override required support. Fairness is a scoring preference, not a hard rule.
 
+## Derived coach workflow lifecycle (ADR-0109)
+
+Matchboard removed manual finalize/confirm/lock ceremony wherever the same fact can be derived
+from real-world time, activity, or existing records (the coach-workflow-simplification
+programme). This section is the durable doctrine; ADR-0109 records the decision and rationale in
+full, superseding ADR-0095's "finalization model is retained" and ADR-0100's refusal to remove
+ceremony (ADR-0101's match-level lifecycle derivation is extended by this work, not superseded).
+
+Standing rules for all future work in this area:
+
+- Coaches manage football decisions and real-world facts, not internal lifecycle state. Do not
+  add a button whose only purpose is to change a database status the system could otherwise
+  derive from time, activity, or an existing record.
+- **Real-world planning boundary.** Pre-match planning (League selections, League match
+  line-ups) remains editable until the match's planning boundary closes: scheduled kickoff
+  passing, or live match reporting starting, whichever happens first. Past scheduled kickoff
+  closes ordinary pre-match mutation even if no background job ever runs — closure and the
+  historical-baseline capture happen lazily and idempotently the next time the boundary is
+  checked or a live session starts (`src/lib/selection/capture-planning-baseline.ts`'s
+  `ensureMatchPlanningBaselineCaptured()`, read via `src/lib/selection/planning-boundary.ts`'s
+  `isMatchPlanningEditable()`/`isMatchRoundPlanningEditable()`). There is no cron/timer job.
+- **Round/match finalization is not a coach action.** `Selection.status`, `MovementLedger.isDraft`,
+  and `MatchRound.status` keep their exact existing DRAFT/FINALIZED values and meaning for every
+  existing reader (evidence, fairness, exports, history) — only the write trigger changed, from a
+  coach clicking "Finalize" to the boundary closing automatically. There is no
+  `finalizeRoundAction`/`finalizeSingleMatchFromBoardAction`/`unfinalizeRoundAction`/etc., no
+  "Finalize round"/"Un-finalize round" UI, and no `/api/finalize-round` route — all removed.
+- **A genuine reschedule reopens planning; this is not "un-finalize."** Moving a match's
+  `startsAt` into the future via the normal match-edit/reschedule command
+  (`updateMatchAction`) calls `reopenMatchPlanningForReschedule()`, which reverts the
+  Selection/MovementLedger/round state above back to DRAFT — but only when no live session and no
+  completed post-match report exist for that match; otherwise the reschedule is refused with a
+  reason. There is no standalone "un-finalize" action independent of a real schedule correction.
+- **Line-up confirmation is not a coach action.** A League match line-up is authoritative and
+  editable under the exact same planning-boundary check above, not its own separate
+  `CONFIRMED` status. `confirmLineup`/`revertLineupToDraft`/`archiveLineup` do not exist.
+  `MatchLineup.status` CONFIRMED/ARCHIVED values remain valid for historical rows only.
+- **An Event squad-player assignment does not need a second lock.** Any assignment with
+  `source: 'MANUAL'` is protected from automatic movement during Event squad generation on the
+  same terms a separately-"locked" one used to be — there is no per-player Lock/Unlock action
+  (`togglePlayerLockAction` does not exist). `EventSquadPlayerSource.LOCKED` is legacy-only
+  (existing rows were migrated to MANUAL); do not write it from new code. The whole-Event
+  squad-set lock (`confirmEventSquadsAction`/`unconfirmEventSquadsAction`, `EventSquad.status`
+  DRAFT/LOCKED) is a deliberately retained, separate concept — see "Event squad draft/commit
+  lifecycle" below — not touched by this rule.
+- **Event allocation has two distinct, non-destructive operations.** "Fill remaining places"
+  (`fillEventSquadRemainingPlacesAction`/`computeEventSquadFillPlan()`,
+  `src/lib/events/event-squad-fill.ts`) preserves every existing assignment and only adds
+  currently-unassigned eligible players to squads with unmet `targetSize - currentCount` residual
+  need, using each squad's own min/target/max — never a shared/first-squad value, and never
+  exceeding max. "Regenerate automatic plan" (`generateEventSquadsAction`) preserves every MANUAL
+  assignment and may recalculate AUTO ones. Never overload one action with both meanings.
+- **Post-match report completion is one meaningful boundary.** `Complete report`
+  (DRAFT-or-REPORTED → LOCKED) is the only completion action; `Reopen report` (LOCKED → DRAFT
+  directly, no forced detour through REPORTED) is the only correction action. There is no
+  separate coach-visible "Submit"/"Lock" two-step (`submitMatchReport`/`lockMatchReport` and their
+  domain primitives do not exist). REPORTED remains a valid, readable historical status that no
+  current writer produces; `completeReport()`/`reopenReport()` still handle a report already
+  sitting in that state correctly.
+- **A round with nothing to decide gets no work item.** Today/Assistant no longer surfaces a
+  "ready to finalize"/"ready to finalise" item — a round with zero Blocked/Decision-required
+  signals needs no coach action; it becomes historical automatically at the boundary.
+- **Pin validity follows the planning boundary, not round-FINALIZED status.** A Pin (`PlayerLock`)
+  can no longer affect generation once planning has closed for its round — `createPlayerLock()`
+  checks `isMatchRoundPlanningEditable()`, not `MatchRound.status === "FINALIZED"` directly.
+- **Explicitly out of scope, unchanged by this doctrine:** whole-`Event.status` finalize
+  (`finalizeEventAction`/`unfinalizeEventAction`), whole-`LeagueSeason.status` finalize, and the
+  whole-Event-squad-set lock described above — each is a genuine semantic assertion about an
+  entire container closing out, not per-round/per-match planning ceremony, and none has a
+  real-world temporal boundary to derive from. See ADR-0109 §7/§7a for the reasoning. ARR-0038
+  records one verified, pre-existing (not introduced by this programme) residue: Event match
+  line-ups have no real planning-boundary editability gate at all yet — resolving it requires a
+  new `EventMatch`-shaped boundary concept, deferred.
+
 ## RotationPath authority
 
 RotationPath is the single source of truth for automatic non-core player movement. A player may only be selected outside their core team when an active directed RotationPath exists from the player's core team to the target team for the exact role being assigned, unless a manual override with reason is used.
@@ -761,7 +835,7 @@ Rules:
 - **Pin out** (`LOCKED_OUT`) excludes the player from the entire round automatically — a hard exclusion, always honored (no override needed to exclude further, since it's already the coach's explicit instruction).
 - **Pin in** (`LOCKED_IN`) forces the player into a selection for the round if they are not otherwise chosen. If a hard rule (e.g. unavailability) would block them, the pin does not override it — the round instead shows a `player_locked_in_blocked` warning explaining why.
 - One `PlayerLock` per `(matchRoundId, playerId)` — pinning a player again while already pinned replaces the existing pin (upsert), it does not create a duplicate.
-- Cannot pin a player in a `FINALIZED` round.
+- Cannot pin a player once planning has closed for the round (ADR-0109 §8: checked via `isMatchRoundPlanningEditable()`, the same real-world planning-boundary check every other pre-match mutation uses — not a `MatchRound.status === "FINALIZED"` check directly).
 - UI: `src/components/team/team-detail.tsx`'s Current Round tab (`PinControl`) — a coach can pin/unpin any player shown there (selected as core, sent as support, or dropped) for that team's current round.
 - Domain: `src/lib/selection/player-lock.ts`. Actions: `src/app/(app)/teams/player-lock-actions.ts`.
 
@@ -1187,11 +1261,9 @@ The UI must not display legacy database enum names (`HARD_BLOCK`, `REQUIRES_OVER
 
 Warnings are generated during round generation and must be persisted to the database.
 
-The coach can always finalize Blocked rounds by providing an explicit override reason. No condition can absolutely prevent finalization, but Blocked conditions require conscious acceptance and recorded reason.
+No condition can prevent the planning boundary from closing — a Blocked round still becomes historical automatically at kickoff (ADR-0109: capture is automatic and time-driven, not a coach decision point, so there is no override-reason prompt at capture time). A coach who wants to consciously accept a Blocked/Decision-required condition before the boundary closes does so via a manual edit's own override reason (see "Manual draft squad editing"), which is captured as part of the plan when the boundary closes — not via a separate finalization-time prompt.
 
-Planning notes must not require acknowledgement in the finalization dialog.
-
-Finalisation recomputes live integrity from current state server-side. Stale rows cannot affect finalisation after their condition resolves.
+Plan integrity is recomputed live from current state on every read. Stale rows cannot affect a later capture after their condition resolves.
 
 `computeRoundPlanIntegrity()` must evaluate squad size, goalkeeper coverage, and any other
 per-match squad-composition check against a match's full selection set — DRAFT and FINALIZED
@@ -1222,14 +1294,14 @@ Hard rules:
 
 ## Manual draft squad editing
 
-Draft match squads can be manually edited before finalization.
+Draft match squads can be manually edited while the match's planning boundary is still open (ADR-0109).
 
-**Manual override principle: selection rules are for the automatic engine only.** A coach can manually override any domain rule (same-round conflict, rotation path, availability, non-rotatable, squad size) by providing an override reason. The only absolute hard blocks for manual edits are data integrity: finalized round/match, non-existent player/match/selection.
+**Manual override principle: selection rules are for the automatic engine only.** A coach can manually override any domain rule (same-round conflict, rotation path, availability, non-rotatable, squad size) by providing an override reason. The only absolute hard blocks for manual edits are data integrity: the planning boundary has closed for the round/match, non-existent player/match/selection.
 
-Manual editing applies to draft/non-finalized selections only. Finalized selections cannot be edited by normal draft actions.
+Manual editing applies to selections whose planning boundary is still open only (checked via `isMatchPlanningEditable()`/`isMatchRoundPlanningEditable()`, `src/lib/selection/planning-boundary.ts`). Once the boundary closes (kickoff passed, or live reporting started), the plan cannot be edited by normal draft actions — record what actually happened via post-match reconciliation instead.
 
 Manual editing must:
-- validate that the match exists and the round is not finalized
+- validate that the match exists and its planning boundary is still open
 - validate that the player exists and is active in the registry
 - check domain rules and require an override reason when bypassing any of them
 - recalculate match status, round status, plan integrity signals, explanations, and fairness impact
@@ -1245,11 +1317,11 @@ Domain rules that require override reason for manual edits (not hard blocks):
 - non-rotatable player movement outside core team
 
 The only hard blocks for manual edits:
-- round is FINALIZED
+- the match/round's planning boundary has closed (kickoff passed, or live reporting started — see "Derived coach workflow lifecycle" above)
 - match/selection/player does not exist
 - player has been removed from the active registry
 
-Manual override requires reason. Manual override must be persisted with the selection. Manual override must appear in finalization summary.
+Manual override requires reason. Manual override must be persisted with the selection.
 
 ### Manual override reason categories
 
@@ -1274,7 +1346,10 @@ Free-text detail is required for:
 - same-round conflict in planned assignment
 - unavailable player selection
 - invalid path usage
-- finalized history edit
+
+(A boundary-closed/historical selection cannot be edited by normal draft actions at all — see
+"Manual draft squad editing" above — so there is no "finalized history edit" override path here;
+post-match reconciliation is the correct mechanism for correcting historical reality.)
 
 `double_load_needed` was removed from the structured categories above (no UI ever offered it,
 and only historical rows could reference it). The `OverrideReasonCategory.DOUBLE_LOAD_NEEDED`
@@ -1300,8 +1375,8 @@ Rules:
 - Squad repair (BACKFILL) from another team creates a movement ledger entry
 - Legacy controlled double-load data retains its movement ledger entries
 - Manual override does not remove the need for movement ledger entries
-- Finalization flips `isDraft` from `true` to `false`; it does not create new entries
-- Un-finalization flips `isDraft` back from `false` to `true`
+- Planning-boundary capture flips `isDraft` from `true` to `false`; it does not create new entries (ADR-0109: automatic, triggered by kickoff passing or live start — not a coach "Finalize" click)
+- A genuine reschedule-before-actual-start that reopens planning (`reopenMatchPlanningForReschedule()`) flips `isDraft` back from `false` to `true`
 
 Existing data that has non-core selections but empty MovementLedger must be backfilled via a normalization/migration function.
 
@@ -1316,48 +1391,57 @@ Regeneration rules:
 - Regeneration preserves manual edits: selections marked as manually added or manually removed are kept, and only automatic selections are recalculated
 - If a match/round has only manual edits, regeneration is effectively a no-op (the manual selections are preserved as-is)
 - To fully regenerate a match/round that has manual edits, clear the draft first, then regenerate
-- Regeneration never touches FINALIZED selections
+- Regeneration never touches FINALIZED selections (a match whose planning boundary has already closed — see below)
 - Regeneration rebuilds plan integrity signals after recalculation
 - Regeneration buttons must be clearly visible: on match columns in the round board (RefreshCw icon), via the round board action bar ("Regenerate"), and on rounds list and today page ("Regenerate all drafts")
 
-## Per-match and round finalization
+## Planning baseline capture (was "Per-match and round finalization") — ADR-0109
 
-Finalization can happen at two levels:
+There is no coach-operated finalize/un-finalize action for a round or a match. See "Derived coach
+workflow lifecycle (ADR-0109)" above for the full doctrine; this section covers the mechanical
+detail of what capture actually does, for anyone still working with `Selection.status`/
+`MatchRound.status`/`MovementLedger.isDraft`.
 
-1. **Per-match**: The coach can finalize individual matches within a round. This locks only the selections for that specific match. Other matches in the round remain in DRAFT state.
+`ensureMatchPlanningBaselineCaptured()` (`src/lib/selection/capture-planning-baseline.ts`) is
+called automatically — from `isMatchPlanningEditable()`/`isMatchRoundPlanningEditable()` the first
+time either observes that a match's scheduled kickoff has passed, and from live match session
+start (`startLiveSession()`, with `force: true` since live starting closes planning immediately
+regardless of kickoff). It is idempotent and race-safe (an atomic `updateMany` claim on
+`planningClosedAt`), reuses the exact same writer `round-finalization-transitions.ts`'s
+`finalizeSelectionsForScope()`/`finalizeRoundRecord()` always used:
 
-2. **Round-level**: The coach can finalize an entire round at once. This locks all selections in all matches in the round.
+- Locks all DRAFT selections for that match as FINALIZED (no override reason — there is no coach
+  decision point at automatic capture time; whatever plan exists becomes the historical baseline,
+  imperfect or not, per PRINCIPLES.md #15/#17).
+- When it was the round's last remaining open match, also flips `MatchRound.status` to FINALIZED
+  and bumps the rule-config version (identical side effect to the old finalize action, only the
+  trigger changed).
+- A match whose round is already FINALIZED cannot be captured again (idempotent no-op).
 
-Per-match finalization rules:
-- Per-match finalization locks all DRAFT selections for the target match as FINALIZED
-- Per-match finalization checks Blocked and Decision required conditions scoped to the target match only (not the entire round); both require override reason, neither absolutely prevents finalization
-- When all matches in a round have been finalized (no remaining DRAFT selections), the round's status must automatically transition to FINALIZED
-- A match in a FINALIZED round cannot be finalized again
-- Per-match finalization uses the same rule config version stamping as round-level finalization
+A one-time backfill script (`scripts/backfill-match-planning-baseline.ts`,
+`npm run backfill:planning-baseline`) captures the baseline for any pre-existing match whose
+kickoff already passed before this mechanism existed, so fairness/evidence queries filtering on
+`Selection.status === "FINALIZED"` don't wait on a lazy revisit that might never happen.
 
-Round-level finalization finalizes all remaining DRAFT selections in the round atomically.
+### Reopening planning after a genuine reschedule
 
-### Un-finalization
+`reopenMatchPlanningForReschedule()` (same file) is the replacement for "un-finalize" — it is not
+a standalone action. It is called from the normal match reschedule command (`updateMatchAction`,
+`src/app/(app)/matches/actions.ts`) whenever the new `startsAt` moves a boundary-closed match back
+into the future:
 
-Finalized matches and rounds can be un-finalized to revert selections back to DRAFT for recalculation.
+- Reverts `Selection.status` from FINALIZED back to DRAFT, clears `ruleConfigVersion`/
+  `overrideReason` fields, and reverts `MovementLedger.isDraft` from `false` back to `true`.
+- Reverts `MatchRound.status` from FINALIZED back to DRAFT only if the round actually was
+  FINALIZED (i.e. this was its last closed match) — other already-closed matches in the round are
+  untouched.
+- Refused (with a stated reason, no state change) when the match has recorded live activity or a
+  completed post-match report — a reschedule cannot retroactively pretend a played match didn't
+  happen.
 
-Un-finalization can happen at two levels:
-
-1. **Per-match**: The coach can un-finalize individual matches. Selections revert from FINALIZED to DRAFT, movement ledger entries revert to draft, and ruleConfigVersion/overrideReason are cleared.
-
-2. **Round-level**: The coach can un-finalize an entire round. All selections in the round revert to DRAFT.
-
-Un-finalization rules:
-- Reverts Selection.status from FINALIZED back to DRAFT
-- Clears ruleConfigVersion and overrideReason on affected selections
-- Reverts MovementLedger.isDraft from false back to true
-- Re-derives round status from plan integrity signals (DRAFT/BLOCKED/READY)
-- When un-finalizing a single match in a FINALIZED round, if other finalized selections remain, the round stays FINALIZED; only when all selections are back to DRAFT does the round status revert
-- Only FINALIZED rounds/matches can be un-finalized
-- Un-finalize requires confirmation (not silent)
-- Finalized data used for fairness calculations is affected: un-finalized selections no longer count as history
-
-The match detail page shows per-match finalization controls and also provides a link to finalizing the entire round from the round workbench.
+The match detail page and round board show a read-only "Planning closed" indicator once a match's
+boundary has closed — not an action button. A coach corrects the schedule via the existing match
+edit/reschedule control, not a separate un-finalize control.
 
 The round board uses a column-based layout: one "Available players" column on the left showing all unassigned players, and one column per match showing assigned players grouped by role. Players are moved between columns via drag-and-drop (desktop and touch).
 
@@ -1633,7 +1717,7 @@ information architecture from the UI/UX programme (Phase 2.4,
 `.matchboard-work/ux-branding-language-ui/PROGRAMME.md` §6, gitignored working bundle):
 
 1. **Today** (`/o/{orgSlug}/today`) — next action, setup progress, blockers, urgent reviews and upcoming work. Canonical operational landing surface; renders the same command-centre content previously called "Assistant" (`getAssistantCommandCentre()`, `AssistantCommandCentrePage`) — the underlying data/component did not change, only its canonical route and nav label.
-2. **League** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all non-finalized rounds; generate round generates one round; finalize locks selections. League teams (`/o/{orgSlug}/teams`) are reachable via a "League teams" link on this page's header, not their own primary sidebar item.
+2. **League** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. Primary actions: populate all, generate round. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade: populate all generates all rounds whose planning boundary hasn't closed; generate round generates one round. There is no coach-operated "finalize" action (ADR-0109) — a round/match becomes historical automatically once its planning boundary closes. League teams (`/o/{orgSlug}/teams`) are reachable via a "League teams" link on this page's header, not their own primary sidebar item.
 3. **Events** (`/o/{orgSlug}/events`) — event squads and planning (cups, tournaments, friendly days). See "Event squad planning".
 4. **Players** (`/o/{orgSlug}/players`) — season participation, current planning attention, and base-group administration.
 5. **More** (`/o/{orgSlug}/more`) — analysis, administration, and secondary destinations: Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews, and (admin roles only) Simulation and Policy workbench.
@@ -1657,7 +1741,7 @@ These remain accessible through contextually appropriate links, buttons, tabs or
 Other canonical routes:
 | Route | Purpose |
 |-------|---------|
-| `/o/{orgSlug}/rounds` | Rounds — generate, review, finalize per match round |
+| `/o/{orgSlug}/rounds` | Rounds — generate and review per match round; the plan becomes historical automatically at each match's planning boundary (ADR-0109) |
 | `/o/{orgSlug}/rounds/[matchRoundId]` | Round Board |
 | `/o/{orgSlug}/season` | Season — player-by-round matrix, movement paths, fairness overview |
 | `/o/{orgSlug}/history` | Historical audit of finalized selections and movement |
@@ -1868,7 +1952,7 @@ Match schedule editing:
 - Ambiguous same-range target-round matches must fail safely rather than choose arbitrarily.
 - Same-week date/time edits retain the current round. No new round is created.
 - Cross-round movement must keep Match, DRAFT Selection and DRAFT MovementLedger references consistent in one transaction.
-- Any FINALIZED selection blocks automatic cross-round relocation until explicit unfinalisation.
+- A closed planning boundary on the match being moved is reopened automatically as part of the reschedule (`reopenMatchPlanningForReschedule()`, ADR-0109) when no live activity or completed report makes that unsafe — there is no separate "un-finalise first" step. If reopening is refused (live activity or a completed report exists), the reschedule itself is refused with that reason.
 - A match with a completed post-match report cannot be casually rescheduled. Date correction requires an explicit authorised workflow.
 - Successful cross-round moves trigger canonical integrity recalculation for both affected rounds.
 - Empty old rounds are not automatically deleted.
@@ -1880,9 +1964,10 @@ Direct post-match workflow:
 - When no report exists and a finalised squad exists, the first explicit entry creates a DRAFT report seeded from the planned squad automatically. No separate "Open post-match report" or "Seed from plan" step is required.
 - When no report exists and no finalised squad exists, the first entry opens an empty editable report with a contextual note.
 - Existing draft reports open directly. Existing completed reports open directly in read-only mode.
-- Normal post-match completion uses one visible "Complete report" action, not separate Submit plus Lock steps.
-- "Complete report" validates all required inputs and transitions the report to the final completed state (LOCKED).
-- The REPORTED status remains in the schema for backward compatibility but is not a routine user-facing workflow step.
+- Normal post-match completion uses one visible "Complete report" action, not separate Submit plus Lock steps. (Enforced end-to-end as of ADR-0109: `submitMatchReport`/`lockMatchReport` and the "More actions" Submit/Lock dropdown they powered do not exist; League previously exposed them alongside Complete report via a `hasSubmitLockSteps` capability flag — that flag is gone.)
+- "Complete report" validates all required inputs and transitions the report to the final completed state (LOCKED), from either DRAFT or REPORTED.
+- "Reopen report" reverts LOCKED directly back to DRAFT (no forced detour through REPORTED) for deliberate correction, then "Complete report" completes it again.
+- The REPORTED status remains in the schema for backward compatibility but is not a routine user-facing workflow step; no current writer produces it, but `completeReport()`/`reopenReport()` still handle a report already sitting in that state correctly.
 - Legacy completed records (REPORTED, LOCKED) remain included in statistics and results.
 
 Post-match feedback eligibility:
@@ -2053,8 +2138,9 @@ Note: BACKFILL remains the internal code role and rotation path role. Use "squad
 
 `/o/{orgSlug}/rounds` defaults to the active league season's rounds only, not every round the
 organisation has ever had — matching the same per-league-season default already used by `/players`
-and `/fixtures`. This page is the coach's active planning workflow (generate/review/finalize per
-round), not a historical archive; `/history` already serves that. `resolveActiveLeagueSeason()`
+and `/fixtures`. This page is the coach's active planning workflow (generate/review per
+round; the plan becomes historical automatically at each match's planning boundary, ADR-0109),
+not a historical archive; `/history` already serves that. `resolveActiveLeagueSeason()`
 (`src/app/(app)/o/[orgSlug]/rounds/build-round-item.ts`) picks the season containing "now", falling
 back to the most recently started season within a ~90-day plausibility window (excluding
 implausibly-far-future seasons, which only ever arise from generated/test data) when none spans
@@ -2070,15 +2156,22 @@ An earlier unbounded, unscoped version of this query rendered every round the or
 ever accumulated on one page with no pagination — confirmed live in CI causing real page-load
 slowness and intermittent E2E failures once round-count reached the low hundreds.
 
-### Round status model (5 states)
+### Round status model (5 states) — internal/secondary vocabulary (ADR-0109)
 
 | Status | Meaning |
 |--------|---------|
 | NOT_GENERATED | No selections yet |
-| DRAFT | Selections generated, not finalized |
+| DRAFT | Selections generated, planning still open |
 | BLOCKED | Draft with Blocked conditions |
 | READY | Draft with no blockers |
-| FINALIZED | Locked history |
+| FINALIZED | Historical baseline captured — every constituent match's planning boundary has closed |
+
+`FINALIZED` is never set by a coach action. It is a downstream side effect of every constituent
+match's own planning boundary closing (`ensureMatchPlanningBaselineCaptured()` — see "Derived
+coach workflow lifecycle" above), preserved exactly as before for the ~90 existing readers
+(evidence, fairness, exports, history) that depend on its meaning. This vocabulary remains valid
+internal/secondary detail (plan-integrity, override requirements); "Round progress" below is the
+primary round-level signal a coach acts on.
 
 ### Round progress (aggregate, not a per-match replacement)
 
@@ -2298,7 +2391,7 @@ Event squads have a status field: DRAFT or LOCKED.
 - Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
 - Blocking issues prevent locking; warning and info issues do not
 - Locked squads can be unlocked back to DRAFT via `unconfirmEventSquadsAction`
-- The Assistant surfaces `event_squads_ready` work items when all event squads are DRAFT
+- The Assistant surfaces `event_squads_draft` work items when all event squads are DRAFT (this whole-squad-set lock is a deliberately retained semantic assertion — see "Derived coach workflow lifecycle" above — unlike the removed per-player Event squad lock and the removed round/match finalize ceremony)
 - Aggregate status (DRAFT/LOCKED/MIXED) is available via `getEventSquadsStatusAction`
 - Review is optional and advisory via `ReviewRequest` — locking does not require review
 
@@ -2383,15 +2476,14 @@ Mode B — ONE_COMPETITIVE_BALANCED_REMAINDER: Build one competitive squad first
 
 Competitive scoring weights: position/formation fit (high), overall level (medium/high), defending/attacking depending on slot (high), game understanding/decision making (medium/high), effort/intensity (medium), teamplay (medium). Missing ratings: neutral with uncertainty penalty, not zero ability.
 
-Mode C — MANUAL_SEED_AUTO_BALANCE: Coach locks players to squads. Generator distributes unlocked players around anchors. Locked assignments are preserved on regeneration. Regenerate unlocks only unlocked assignments.
+Mode C — MANUAL_SEED_AUTO_BALANCE: Coach manually assigns anchor players to squads. Generator distributes remaining (AUTO) players around those anchors. MANUAL assignments are preserved on regeneration without a separate lock action (ADR-0109 §5); regeneration only recalculates AUTO assignments.
 
 ### Manual override and regeneration
 
-- Coach can manually move players between event squads
-- Coach can lock assignments
+- Coach can manually move players between event squads — a manual assignment (`source: 'MANUAL'`) is protected from automatic movement on its own; there is no separate lock action (`togglePlayerLockAction` does not exist — ADR-0109 §5, D12)
 - Coach can clear generated event squads
-- Coach can regenerate all unlocked assignments
-- Coach can regenerate one squad or the balanced remainder
+- Coach can fill remaining places (`fillEventSquadRemainingPlacesAction`) — preserves every existing assignment, adds only unassigned eligible players to squads with unmet target residual, using each squad's own min/target/max
+- Coach can regenerate the automatic plan (`generateEventSquadsAction`) — preserves every MANUAL assignment, may recalculate AUTO ones
 - Manual changes recalculate balance summaries and notes
 - Structural issues produce planning notes (not Blocked conditions):
   - Squad has no goalkeeper-capable player
@@ -2444,6 +2536,7 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
+| `src/lib/events/event-squad-fill.ts` | `computeEventSquadFillPlan()` — "Fill remaining places": non-destructive residual-target allocation, distinct from generation/regeneration (ADR-0109 §5, D15/D16/D17) |
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and pre-generation checks |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
@@ -2533,8 +2626,8 @@ Required test coverage should include:
 - season/league-season fairness
 - unavailable rounds excluded from fairness debt
 - explanation output for important decisions
-- populate all generates all rounds without finalizing
-- populate all skips finalized rounds
+- populate all generates all rounds whose planning boundary hasn't closed
+- populate all skips rounds whose planning boundary has already closed
 - populate all reports partial failures without rollback
 - clear all removes only non-finalized draft data
 - clear round removes only selected round draft data
@@ -2546,16 +2639,17 @@ Required test coverage should include:
 - manual remove player recalculates plan integrity signals
 - manual role change validates role-specific path
 - manual override requires reason
-- finalized match cannot be edited by draft action
+- a match whose planning boundary has closed cannot be edited by draft action
 - regenerate match preserves manual edits
 - regenerate round preserves manual edits
-- regenerate all drafts skips finalized rounds
-- regeneration never touches finalized selections
+- regenerate all drafts skips rounds whose planning boundary has already closed
+- regeneration never touches selections whose planning boundary has closed
 - invariant validation catches invalid non-core movement
 - rotation path policy enforces exact role matching
-- un-finalize round reverts selections and movement ledger to DRAFT
-- un-finalize single match reverts selections and re-derives round status
-- un-finalize preserves other finalized matches in the round
+- planning boundary self-closes at kickoff and captures the historical baseline idempotently (ensureMatchPlanningBaselineCaptured)
+- a genuine reschedule reopens planning (reverts selections and movement ledger to DRAFT) when no live activity or completed report exists
+- a genuine reschedule is refused, with a stated reason, when live activity or a completed report exists
+- reopening one match's planning preserves other already-closed matches in the round
 - consecutive support rotation penalizes repeated support assignments
 - consecutive support penalty increases with more consecutive rounds
 - consecutive support does not prevent selection when no other candidate exists
@@ -2578,39 +2672,17 @@ Required test coverage should include:
 - event squad: remaining players are balanced after competitive squad is removed
 - event squad: unavailable/unknown/withdrawn players are excluded
 - event squad: reserves are excluded unless included
-- event squad: locked players are preserved on regeneration
-- event squad: manual seed + auto-balance does not overwrite locked assignments
+- event squad: manual assignments are preserved on regeneration without a separate lock action (ADR-0109 §5)
+- event squad: manual seed + auto-balance does not overwrite manual assignments
 - event squad: missing goalkeeper coverage produces planning note
 - event squad: missing ratings produce uncertainty note
 - event squad: no player appears in two event squads for the same event
+- event squad fill: residual target need is met per squad using each squad's own min/target/max, never a shared/first-squad value (mandatory fixture: targets 12/9/9, current 11/5/5, 9 unassigned -> additions 1/4/4)
+- event squad fill: never moves an existing assignment (MANUAL or AUTO)
+- event squad fill: never exceeds a squad's own max; explains remaining shortage/surplus
 - player attribute: null displays as Not rated, not 0 or max
 - player attribute: 1-10 validation rejects out-of-range values
 - player attribute: composite ratings derive correctly from null-aware averages
-- populate all skips finalized rounds
-- populate all reports partial failures without rollback
-- clear all removes only non-finalized draft data
-- clear round removes only selected round draft data
-- clear match removes only selected match draft data
-- clear actions preserve finalized history and setup data
-- manual add player with and without valid path
-- manual same-round conflict override with reason
-- manual duplicate selection override with reason
-- manual remove player recalculates plan integrity signals
-- manual role change validates role-specific path
-- manual override requires reason
-- finalized match cannot be edited by draft action
-- regenerate match preserves manual edits
-- regenerate round preserves manual edits
-- regenerate all drafts skips finalized rounds
-- regeneration never touches finalized selections
-- invariant validation catches invalid non-core movement
-- rotation path policy enforces exact role matching
-- un-finalize round reverts selections and movement ledger to DRAFT
-- un-finalize single match reverts selections and re-derives round status
-- un-finalize preserves other finalized matches in the round
-- consecutive support rotation penalizes repeated support assignments
-- consecutive support penalty increases with more consecutive rounds
-- consecutive support does not prevent selection when no other candidate exists
 
 ## Data safety
 
@@ -2790,12 +2862,9 @@ Avoid:
 | `src/lib/selection/migrate-double-load-roles.ts` | Migration: merge standalone DOUBLE_LOAD rows into base role rows with controlledDoubleLoad=true |
 | `src/lib/selection/migrate-squad-repair-roles.ts` | Migration: role=CORE with "squad repair" explanation → role=BACKFILL |
 | `src/lib/selection/backfill-movement-ledger.ts` | Normalization: create MovementLedger entries for existing non-core selections without ledger entries |
-| `src/lib/selection/round-finalization-transitions.ts` | Owning writes for the Plan-phase finalize/un-finalize transition (ADR-0088): shared selection/movement-ledger/round-record writes called by all four functions below, scoped by `{ matchRoundId }` or `{ matchId }` |
-| `src/lib/selection/finalize-match-round.ts` | Finalize a round |
-| `src/lib/selection/finalize-single-match.ts` | Finalize a single match within a round |
-| `src/lib/selection/unfinalize-match-round.ts` | Un-finalize a round (revert to DRAFT) |
-| `src/lib/selection/unfinalize-single-match.ts` | Un-finalize a single match (revert to DRAFT) |
-| `src/lib/selection/availability-impact.ts` | Availability change impact analysis (affected rounds, unfinalization needed) |
+| `src/lib/selection/round-finalization-transitions.ts` | Owning writes for the planning-boundary-capture transition (ADR-0088; trigger moved from coach-operated finalize/un-finalize to automatic boundary closure by ADR-0109): shared selection/movement-ledger/round-record writes, scoped by `{ matchRoundId }` or `{ matchId }` |
+| `src/lib/selection/capture-planning-baseline.ts` | `ensureMatchPlanningBaselineCaptured()` — the one owner of automatic boundary-closure capture (called from `planning-boundary.ts` and live-session start); `reopenMatchPlanningForReschedule()` — genuine reschedule-before-start correction (ADR-0109) |
+| `src/lib/selection/availability-impact.ts` | Availability change impact analysis (affected rounds, whether the round's planning boundary has already closed and a reschedule would be needed to reopen it) |
 | `src/lib/selection/edit-impact-preview.ts` | Manual edit consequence preview (dry-run add/remove, plan integrity diff) |
 | `src/app/(app)/matches/emergency-repair-actions.ts` | Server actions: availability impact, manual edit preview, emergency repair options |
 | `src/lib/selection/emergency-repair-options.ts` | Pre-kickoff emergency repair options generator (ranked, reuses manual-edit mutation as eligibility gate) |
@@ -2879,6 +2948,7 @@ Avoid:
 | `src/app/api/admin/reconcile/route.ts` | POST `/api/admin/reconcile` — reconcile derived projections |
 | `src/app/(app)/teams/movement-candidate-actions.ts` | Server actions for movement candidate CRUD |
 | `src/lib/events/event-squad-generation.ts` | Event squad generation engine (all modes) |
+| `src/lib/events/event-squad-fill.ts` | `computeEventSquadFillPlan()` — "Fill remaining places": non-destructive residual-target allocation, distinct from generation/regeneration (ADR-0109 §5, D15/D16/D17) |
 | `src/lib/events/event-types.ts` | TypeScript types for event squad generation; `getEffectiveEventTeamGameFormat()` centralized per-squad effective format resolver |
 | `src/lib/events/event-validation.ts` | Event pool validation and `applyPolicyWarnings()` helper |
 | `src/lib/events/event-balance.ts` | Balance summary calculation |
@@ -3000,7 +3070,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/components/formations/formations-builder.tsx` | `FormationsBuilderClient` — create/edit formation page component |
 | `src/components/matches/match-tactics-panel.tsx` | `MatchTacticsPanel` — tactics tab in match detail |
 | `src/app/(app)/rules/formation-actions.ts` | Server actions: CRUD for formations and slots, duplicate, archive |
-| `src/app/(app)/matches/lineup-actions.ts` | Server actions: create lineup, assign/remove player, toggle lock, confirm, archive, revert, bench |
+| `src/app/(app)/matches/lineup-actions.ts` | Server actions: create lineup, assign/remove player, toggle slot lock, change formation, update bench/notes — all gated by the planning boundary (`isMatchPlanningEditable()`), not a separate lineup CONFIRMED status (ADR-0109 §6; confirm/revert/archive actions removed) |
 | `src/app/(app)/matches/suggest-actions.ts` | Server actions: suggest formation, suggest lineup, apply, clear, fill |
 
 ### Simulation files
@@ -3223,9 +3293,14 @@ Key rules:
 - Do not introduce ability scores, best-XI language, permanent weak/strong labels, or public player ranking.
 - Overrides must require a reason.
 - Player-development and assistant-manager actions must create an auditable `DecisionRecord`.
-  Selection-engine actions (finalize, un-finalize, manual override, draft clear/regenerate) are
-  audited separately, via `logSecurityEvent()` and its named helpers (`logFinalization()`,
-  `logManualOverride()`, etc. — `src/lib/security/audit-log.ts`), not `DecisionRecord`.
+  Selection-engine coach-triggered actions (manual override, draft clear/regenerate) are audited
+  separately, via `logSecurityEvent()` and its named helpers (`logManualOverride()`, etc. —
+  `src/lib/security/audit-log.ts`), not `DecisionRecord`. `logFinalization()` has no remaining
+  caller since round/match finalization became an automatic, time-driven capture rather than a
+  discrete coach action (ADR-0109) — retained for now rather than removed, since deleting an
+  audit-logging capability without an equivalent replacement is a deliberate decision, not a
+  routine cleanup; flagged for a future decision on whether automatic boundary capture should be
+  audited on its own terms.
 - Use the `git-branch-commit-pr` workflow.
 - Do not commit internal work logs, scratch notes, or handover documents.
 
@@ -3274,8 +3349,10 @@ introduced by the `user-documentation-experience` programme (ADR-0103).
 - **Documentation dataset**: `scripts/seed-docs-dataset.ts` (+ `seed-docs-scenarios.ts`) seeds a
   dedicated, distinct-from-E2E-fixtures Fjordvik FK universe (`npm run db:seed:docs`, requires
   `MATCHBOARD_ENV=test`). Derived state (draft selections, finalized history, evidence) is
-  produced by calling the real domain operations (`generateMatchRound`, `finalizeMatchRound`,
-  `completeReport`, `rebuildActualTimeline`, `generateEventSquads`), not by hand-inserting rows
+  produced by calling the real domain operations (`generateMatchRound`,
+  `ensureMatchPlanningBaselineCaptured` with `force: true` to deliberately close planning ahead of
+  a match's real kickoff for a documentation scenario, `completeReport`, `rebuildActualTimeline`,
+  `generateEventSquads`), not by hand-inserting rows
   that merely resemble their output. Its dates are anchored to real "now" (not a fixed calendar
   date) so the League season reads as genuinely current — there is no server-side "frozen time"
   seam, and one must not be added without a new ADR (PROGRAMME.md §10.2 deliberately rejected
