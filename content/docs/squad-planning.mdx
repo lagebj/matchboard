@@ -24,9 +24,9 @@ with a reason if no path exists.
 
 Every selection has a "Why this selection" explanation: which rule placed them there, what
 fairness or load impact it has, and whether it is a hard rule or a scoring preference. Plan
-integrity is shown as **Blocked** conditions (must be resolved or consciously overridden before
-finalizing), **Decision required** conditions (an available player has no match this round), and
-**Planning notes** (useful context that does not block finalizing).
+integrity is shown as **Blocked** conditions (worth resolving or consciously overriding before
+kickoff), **Decision required** conditions (an available player has no match this round), and
+**Planning notes** (useful context that never blocks anything).
 
 ![Round Board showing core and support selections across three matches, with a blocked-conditions banner](/docs/screenshots/planning/round-board-plan-integrity.png)
 
@@ -43,9 +43,10 @@ eligible replacements from teams with an active support path to Fjordvik Blå, a
 ## What Matchboard does next
 
 Manual changes recalculate plan integrity, fairness impact, and the movement ledger immediately
-— the board never shows a stale picture after an edit. Once the board is clear of unresolved
-Blocked/Decision-required conditions (or you have consciously overridden them with a reason),
-the round can be finalized from [Fixtures and rounds](/docs/fixtures-and-rounds).
+— the board never shows a stale picture after an edit. There is no separate "finalize" step: the
+plan stays editable here right up until a match's own kickoff (or live reporting starting),
+whichever comes first — at which point it becomes historical automatically. See
+[Fixtures and rounds](/docs/fixtures-and-rounds) for how that boundary works.
 
 The Round Board is fully usable on a phone for a quick check between matches, with the same
 plan-integrity summary at the top:

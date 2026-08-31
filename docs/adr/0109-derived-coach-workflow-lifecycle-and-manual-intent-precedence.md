@@ -117,15 +117,25 @@ and re-verifying ~90 call sites with no product benefit. `MatchRound.status = FI
 to exist and continues to display via the existing round-level `StatusBadge`; it is simply no
 longer capable of being set by a coach action, and no longer consulted by the mutability gate.
 
-### 3. Round-level derived projection extends ADR-0101's pattern to rounds
+### 3. Round-level derived projection remains additive (not promoted, corrected 2026-08-31)
 
 `deriveRoundProgress()` (ADR-0100, `round-progress.ts`) already computes
-Planning/Partially played/All matches played/Reporting/Complete as an additive line. This ADR
-promotes a round-level analogue of ADR-0101's per-match promotion: the Rounds list and Round Board
-header show round *progress* (this five-state model) as the primary round-level fact a coach
-acts on; `MatchRound.status`'s Draft/Blocked/Ready/Finalized remains available as secondary/plan-
-integrity detail (Blocked/Decision-required counts), exactly mirroring how ADR-0101 kept
-Draft/Blocked/Ready/Finalized as a legitimate secondary signal at match level.
+Planning/Partially played/All matches played/Reporting/Complete as an additive line, and
+`RoundItem.progress` (`build-round-item.ts`) already carries it into the Rounds list. This ADR
+originally claimed a round-level analogue of ADR-0101's per-match promotion — progress becoming
+the *primary* round-level fact, `MatchRound.status`'s Draft/Blocked/Ready/Finalized demoted to
+secondary — on both the Rounds list and the Round Board header. That claim was aspirational, not
+implemented, and was never required by the coach-workflow-simplification programme's own
+`DECISIONS.md`/`MIGRATION.md` (neither mentions a round-progress display promotion). Verified
+2026-08-31: `round-list-client.tsx` still renders `StatusBadge` (derivedStatus) as the prominent
+element and `round.progress.label` as a small muted secondary line beneath it — unchanged from
+before this programme, i.e. still the ADR-0100 Phase-6 "additive only" arrangement. The Round
+Board itself (`round-board.tsx`) never displayed round-level `derivedStatus` or `progress` in a
+header at all, before or after this programme — there is no header element to swap there. This
+section is corrected to record that reality rather than a design intent that was never carried
+out: round-level progress stays additive/secondary exactly as ADR-0100 left it. Promoting it to
+primary remains a legitimate future UX decision (routed through `ux-webapp-design-craft` if taken
+up) but is explicitly out of scope for this ADR.
 
 ### 4. Reschedule-before-start reopens planning; there is no "un-finalize"
 

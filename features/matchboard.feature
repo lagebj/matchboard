@@ -51,7 +51,7 @@ Feature: Matchboard football operations workspace
     And each player has exactly one core team
     And each match belongs to exactly one team
     And match selections are generated per match round from configured rules
-    And every finalized selection stores a snapshot of rule configuration, availability, warnings, explanations, and manual overrides
+    And every selection that becomes historical when its match's planning boundary closes stores a snapshot of rule configuration, availability, warnings, explanations, and manual overrides
 
 
   Rule: System boundary
@@ -376,93 +376,86 @@ Feature: Matchboard football operations workspace
       When the coach opens league season review
       Then the app must include selections, movements, drops, warnings, match fit feedback, and overrides from all match rounds in the league season
 
-    Scenario: Finalized match round stores snapshot
-      Given match round "R1" has generated selections
-      When the coach finalizes match round "R1"
-      Then the app must store selected players
-      And the app must store availability at finalization time
+    Scenario: The planning boundary closing captures a historical baseline automatically
+      Given match "M1" in match round "R1" has generated selections
+      When scheduled kickoff for "M1" passes with no live activity, or live match reporting starts for "M1"
+      Then the app must automatically capture the planned baseline for "M1"
+      And the app must store selected players
+      And the app must store availability at the moment of capture
       And the app must store rule configuration version
       And the app must store warnings
       And the app must store manual overrides
       And the app must store movement ledger entries
-      And the app must preserve enough information to explain the finalized round later
+      And the app must preserve enough information to explain the historical plan later
+      And no coach action is required to trigger this capture
 
-    Scenario: Coach can finalize a single match within a round
+    Scenario: One match's boundary closing does not close the whole round
       Given match round "R1" contains matches "M1" and "M2"
       And match "M1" has draft selections
       And match "M2" has draft selections
-      When the coach finalizes match "M1"
-      Then match "M1" selections must be locked as FINALIZED
-      And match "M2" selections must remain as DRAFT
-      And match round "R1" must remain in DRAFT state
+      When the planning boundary closes for "M1" only
+      Then match "M1" selections must become historical (FINALIZED)
+      And match "M2" selections must remain as DRAFT and editable
+      And match round "R1" must remain open (not FINALIZED)
 
-    Scenario: Finalizing all matches auto-finalizes the round
+    Scenario: A round becomes historical once every match's boundary has closed
       Given match round "R1" contains matches "M1" and "M2"
       And match "M1" has draft selections
       And match "M2" has draft selections
-      When the coach finalizes match "M1"
-      And the coach finalizes match "M2"
-      Then match round "R1" must be in FINALIZED state
+      When the planning boundary closes for "M1"
+      And the planning boundary closes for "M2"
+      Then match round "R1" must be in FINALIZED state automatically
+      And no coach action is required to reach this state
 
-    Scenario: Per-match finalization respects match-scoped hard blockers
+    Scenario: A blocked or decision-required plan still closes at the boundary
       Given match round "R1" contains matches "M1" and "M2"
       And match "M1" has a BLOCKED condition
       And match "M2" has no blockers
-      When the coach finalizes match "M2"
-      Then the app must finalize match "M2" successfully
-      And match "M1" must remain unfinalized
+      When the planning boundary closes for "M1"
+      Then the app must still capture "M1"'s plan as historical
+      And the BLOCKED condition remains visible as historical context
+      And the app must not require an override reason to let the boundary close
+      And the coach was expected to resolve the BLOCKED condition before kickoff, not at capture time
 
-    Scenario: Per-match finalization with hard blockers requires override reason
-      Given match round "R1" contains matches "M1" and "M2"
-      And match "M1" has a BLOCKED condition
-      When the coach finalizes match "M1" without an override reason
-      Then the app must require an override reason
-      When the coach provides an override reason and finalizes match "M1"
-      Then match "M1" must be finalized with the override reason stored
+    Scenario: Capturing a match's baseline twice is a safe no-op
+      Given match "M1"'s planning boundary has already closed and its baseline is captured
+      When the app observes the closed boundary for "M1" again, from a concurrent or later check
+      Then the app must not create a second historical snapshot
+      And the app must not change the already-captured selections
 
-    Scenario: Finalized match in finalized round cannot be re-finalized
-      Given match round "R1" has been finalized
-      When the coach attempts to finalize a match in "R1"
-      Then the app must reject the finalization
-
-    Scenario: Unfinalized drafts can change freely
-      Given match round "R1" is in draft state
-      When the coach regenerates selections
+    Scenario: Future plans remain fully editable until the boundary closes
+      Given match round "R1" is open with draft selections for every match
+      When the coach regenerates selections before any match's kickoff
       Then the app may replace draft selections
       And the app must show what changed after regeneration
 
-    Scenario: Finalized selections are protected from silent mutation
-      Given match round "R1" has been finalized
-      When the coach edits a finalized selection
-      Then the app must create an audit entry
-      And must record the reason for the change
-      And must preserve the original finalized snapshot
+    Scenario: The plan is not rewritten after the boundary closes
+      Given match "M1"'s planning boundary has closed and its selections are historical
+      When the coach attempts to add, remove, or move a player in "M1"'s plan
+      Then the app must reject the mutation
+      And the app must explain that planning is closed for this match
+      And the historical plan must remain unchanged
+      And any real-world deviation must be recorded separately as actual match reality, not as a plan edit
 
-    Scenario: Coach can un-finalize a round to recalculate
-      Given match round "R1" has been finalized
-      When the coach un-finalizes round "R1"
-      Then all selections in "R1" must revert to DRAFT status
-      And movement ledger entries must revert to draft
+    Scenario: A genuine reschedule before actual start reopens planning
+      Given match "M1"'s planning boundary has closed because scheduled kickoff passed
+      And "M1" has no live match activity recorded
+      And "M1" has no completed post-match report
+      When the coach reschedules "M1" to a new future kickoff time
+      Then the app must reopen planning for "M1"
+      And "M1" selections must revert to DRAFT status
+      And movement ledger entries for "M1" must revert to draft
       And ruleConfigVersion and overrideReason must be cleared on affected selections
-      And the round status must be re-derived from warnings
+      And match round "R1" status must be re-derived from its matches' current boundaries
+      And this is a real-world schedule correction, not an "un-finalize" action
 
-    Scenario: Coach can un-finalize a single match within a finalized round
-      Given match round "R1" has matches "M1" and "M2" and both are finalized
-      When the coach un-finalizes match "M1"
-      Then selections for "M1" must revert to DRAFT status
-      And selections for "M2" must remain FINALIZED
-      And the round must remain FINALIZED because other matches are still finalized
-
-    Scenario: Un-finalizing the last finalized match reverts round status
-      Given match round "R1" has match "M1" and "M1" is finalized
-      When the coach un-finalizes match "M1"
-      Then round "R1" must no longer be FINALIZED
-      And round "R1" status must be re-derived from warnings
-
-    Scenario: Un-finalize requires confirmation
-      Given match round "R1" has been finalized
-      When the coach attempts to un-finalize round "R1"
-      Then the app must ask for confirmation before reverting finalized selections
+    Scenario: A reschedule cannot reopen planning once real match evidence exists
+      Given match "M1"'s planning boundary has closed
+      And "M1" has live match activity recorded, or a completed post-match report
+      When the coach attempts to reschedule "M1" to reopen its plan
+      Then the app must refuse to reopen planning for "M1"
+      And the app must explain that real match evidence already exists
+      And the coach must use post-match reconciliation instead of reopening the plan
 
 
   Rule: Player identity
@@ -684,14 +677,14 @@ Feature: Matchboard football operations workspace
       Then game format must be one of "7-a-side", "9-a-side", or "11-a-side"
       And the game format must control available tactics board formations and pitch slot count
 
-    Scenario: Coach can remove an unfinalized match
-      Given a match exists without finalized selection history
+    Scenario: Coach can remove a match with no historical selection baseline
+      Given a match exists whose planning boundary has never closed
       When the coach removes the match
       Then the match must be removed from the schedule
       And it must no longer appear in match round planning
 
-    Scenario: Removing finalized match requires explicit confirmation
-      Given a match has finalized selection history
+    Scenario: Removing a match with a historical selection baseline requires explicit confirmation
+      Given a match has a historical (FINALIZED) selection baseline
       When the coach removes the match
       Then the app must require confirmation
       And must preserve enough historical information for planning-period review unless the coach explicitly deletes history
@@ -762,8 +755,10 @@ Feature: Matchboard football operations workspace
       When the coach opens the Round Board
       Then the app must show a Blocked system-integrity issue
       And the app must identify the affected player and matches
-      And the app must not allow normal finalisation until the invalid state is corrected
       And this must be treated as exceptional invalid data, not a normal planning option
+      And the Blocked signal remains visible as an attention item even after the planning
+        boundary closes automatically, since no plan-integrity signal can prevent that boundary
+        from closing (ADR-0109)
 
     Scenario: Date spacing applies outside same match round
       Given player "p3" is selected for a match in match round "R1"
@@ -912,18 +907,18 @@ Feature: Matchboard football operations workspace
 
      Selection ranking and engine rationale are shown as "Why this selection" explanations and must never be counted or displayed as unresolved issues.
 
-     Blocked conditions prevent normal finalisation until resolved or an explicitly permitted exceptional path is used.
+     Blocked conditions demand coach attention before kickoff; they do not stop the planning boundary from closing automatically when kickoff arrives or live reporting starts.
 
-     Decision required conditions require a conscious coach decision and recorded reason before finalisation.
+     Decision required conditions require a conscious coach decision, ideally resolved before kickoff, but do not stop the planning boundary from closing either.
 
-     Planning notes are useful context that does not affect finalisation flow.
+     Planning notes are useful context that never require coach action.
 
      Scenario: Squad below minimum size is blocked
        Given match "M1" has fewer selected players than its configured minimum accepted squad size
        When the Round Board validates the plan
        Then the match must be marked "Blocked"
        And the issue must explain the current selected count and configured minimum
-       And normal finalisation must be prevented until resolved
+       And the coach is expected to resolve it before kickoff, though it does not stop the planning boundary from closing at kickoff
 
      Scenario: Selected unavailable player is blocked
        Given player "p1" is selected for match "M1"
@@ -1467,7 +1462,7 @@ Feature: Matchboard football operations workspace
       When Team A supplies players downstream
       Then Team A may be selected with 9 or 10 players
       And the app must warn that Team A is below target
-      But the app must not block finalization unless Team A falls below 9 players
+      But the app must not treat this as a Blocked condition unless Team A falls below 9 players
 
     Scenario: Team cannot fall below minimum accepted squad size
       Given Team B has minimum accepted squad size 10
@@ -1536,7 +1531,7 @@ Feature: Matchboard football operations workspace
       And only 1 eligible support player is available
       When the app generates Team C selection
       Then the app must flag support below minimum
-      And require manual override before finalization
+      And require manual override to accept this reduced support level
 
     Scenario: Lower-numbered support priority is resolved first
       Given Team C has support priority 1
@@ -1726,8 +1721,10 @@ Feature: Matchboard football operations workspace
       When the coach opens the Round Board
       Then the app must show a Blocked system-integrity issue
       And the app must identify the affected player and matches
-      And the app must not allow normal finalisation until the invalid state is corrected
       And this must be treated as exceptional invalid data, not a normal planning option
+      And the Blocked signal remains visible as an attention item even after the planning
+        boundary closes automatically, since no plan-integrity signal can prevent that boundary
+        from closing (ADR-0109)
 
 
   Rule: Actual participation may differ from planned selection
@@ -2267,7 +2264,7 @@ Feature: Matchboard football operations workspace
     Setup Registries (Teams, Players, Matches) are table-first dense data views.
     The coach can then populate all draft squads.
     Populate all groups matches by round and generates draft selections per round.
-    The coach reviews plan integrity signals by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time.
+    The coach reviews plan integrity signals by round, fixes issues per match, and may manually adjust draft squads. A round's plan becomes historical automatically once every match's own planning boundary closes (kickoff passes or live reporting starts) — there is no separate coach action to finalize a round.
     Season/planning-period history is used to keep load, support, drops, development exposure, and fairness balanced over time.
 
     The Assistant page must always show the next action based on this workflow state.
@@ -2309,21 +2306,21 @@ Feature: Matchboard football operations workspace
       When the coach opens the app
       Then the next action must be to review decision-required items
 
-    Scenario: After drafts exist without blockers, finalize ready round
+    Scenario: A round with no blockers and no decisions required shows no work item
       Given draft squads have been populated
-      And no rounds have Blocked conditions
-      And at least one round is not finalized
+      And no rounds have Blocked or Decision-required conditions
       When the coach opens the app
-      Then the next action must be to finalize a ready round
+      Then the app must show no work item asking the coach to finalize or lock the round
+      And the round becomes historical automatically once every match's own planning boundary closes
 
-    Scenario: Finalized match without post-match report shows report action
-      Given a match round is finalized
+    Scenario: A historical match without a post-match report shows a report action
+      Given a match round has become historical because every match's planning boundary closed
       And a match in that round has no post-match report
       When the coach opens the app
       Then the Assistant must show a post-match report work item for that match
 
-    Scenario: No active work when all rounds finalized
-      Given all rounds in the active league season are finalized
+    Scenario: No active work when every match's planning boundary has closed and every report is complete
+      Given every match in the active league season has a closed planning boundary and a complete post-match report
       When the coach opens the app
       Then the app must show no active work
 
@@ -2521,13 +2518,13 @@ Feature: Matchboard football operations workspace
 
   Rule: Manual match squad editing
 
-    Draft match squads can be manually edited before finalization.
+    Draft match squads can be manually edited while the match's planning boundary is still open (before scheduled kickoff, or before live match reporting starts).
     Selection rules are for the automatic engine only. A coach can manually override any domain rule by providing an override reason.
-    Manual edits apply to draft selections only. Finalized selections cannot be edited without an explicit reopen or audit trail.
+    Manual edits apply only while planning is open. Once the planning boundary has closed for a match, its selections cannot be edited by a draft action; a genuine reschedule before actual start may reopen planning (see Main domain hierarchy), and post-match reconciliation records real-world deviations separately.
     All manual edits must recalculate match status, round status, warnings, explanations, and fairness impact.
-    
+
     The only hard blocks for manual edits are data integrity:
-    - finalized round/match
+    - the match's planning boundary has closed
     - non-existent player/match/selection
     - player removed from the active registry
 
@@ -2539,7 +2536,7 @@ Feature: Matchboard football operations workspace
     - squad size limits
     - non-rotatable player movement outside core team
 
-    Manual override requires reason. The reason must be persisted with the selection. The override must appear in the finalization summary.
+    Manual override requires reason. The reason must be persisted with the selection. The override must appear in the selection's explanation and audit trail.
 
     Scenario: Coach adds eligible core player to empty draft match
       Given match "M1" for Team A has no assigned players
@@ -2636,18 +2633,19 @@ Feature: Matchboard football operations workspace
       And match and round status must recalculate
       And fairness impact difference must be visible
 
-    Scenario: Finalized match cannot be edited by draft action
-      Given match round "R1" has been finalized
-      When the coach attempts to add, remove, or change a player in a match in "R1"
+    Scenario: A match with a closed planning boundary cannot be edited by draft action
+      Given match "M1" in match round "R1" has a closed planning boundary
+      When the coach attempts to add, remove, or change a player in match "M1"
       Then the app must reject the edit
-      And explain that finalized rounds cannot be modified without explicit reopen
+      And explain that planning is closed for this match
+      And a genuine reschedule before actual start is the only way to reopen it
 
     Scenario: Manual override requires reason
       Given the coach is adding or modifying a player selection that bypasses a domain rule
       When the coach confirms the manual override
       Then the app must require an override reason
       And the reason must be persisted with the selection
-      And the override must appear in the finalization summary
+      And the override must appear in the selection's explanation and audit trail
 
     Scenario: Manual edit recalculate warnings and explanations
       Given match "M1" for Team A has draft selections
@@ -2772,7 +2770,7 @@ Feature: Matchboard football operations workspace
       Given an active league season contains match rounds in draft state
       When the coach triggers populate all
       Then every match round must remain in draft state after generation
-      And the coach must explicitly finalize each round after review
+      And no round becomes historical until its own matches' planning boundaries close naturally
 
     Scenario: Draft selections from earlier rounds may inform later rounds
       Given match round "R1" is generated before match round "R2" in the same populate-all run
@@ -2788,21 +2786,20 @@ Feature: Matchboard football operations workspace
       And each warning must include severity, rule, message, and affected entities
       And the coach must be able to view warnings without regenerating
 
-    Scenario: Blocked conditions require override reason during finalization
+    Scenario: Blocked conditions remain visible and do not stop the planning boundary from closing
       Given match round "R1" has persisted plan integrity signals
       And at least one signal has category "BLOCKED"
-      When the coach attempts to finalize match round "R1" without an override reason
-      Then the app must require an override reason
-      And must show the blocking conditions
-      When the coach provides an override reason and finalizes
-      Then the app must allow finalization with the override reason stored
+      When the planning boundary closes for a match in "R1" with the BLOCKED signal still unresolved
+      Then the app must still capture that match's plan as historical
+      And the BLOCKED condition must remain visible as historical context
+      And no override reason is required to let the boundary close
 
-    Scenario: Decision required conditions allow finalization with acknowledgment
+    Scenario: Decision-required conditions do not stop the planning boundary from closing either
       Given match round "R1" has persisted plan integrity signals
       And all signals have category below "BLOCKED" (i.e., DECISION_REQUIRED or PLANNING_NOTE)
-      When the coach finalizes match round "R1"
-      Then the app must allow finalization with acknowledgment
-      And must record the acknowledgment
+      When the planning boundary closes for a match in "R1"
+      Then the app must capture that match's plan as historical
+      And the DECISION_REQUIRED or PLANNING_NOTE signals must remain visible as historical context
 
     Scenario: Plan integrity signals show appropriately on round board
       Given match round "R1" has BLOCKED and DECISION_REQUIRED and PLANNING_NOTE signals
@@ -2817,8 +2814,8 @@ Feature: Matchboard football operations workspace
       Then the app must show which rounds have been generated
       And which rounds need generation
       And which rounds have unresolved blockers
-      And which rounds are ready for finalization
-      And which rounds are finalized
+      And which rounds are ready (no blockers, no decisions required)
+      And which rounds have become historical (every match's planning boundary closed)
 
     Scenario: Next action reflects current setup state
       Given an active league season has no generated rounds
@@ -2829,7 +2826,7 @@ Feature: Matchboard football operations workspace
       Then the next action must be to review blockers
       Given an active league season has draft rounds without blockers
       When the coach opens the Assistant page
-      Then the next action must be to finalize the ready round
+      Then the app must show no next action for that round — it becomes historical automatically once its matches' planning boundaries close
 
 
   Rule: Human-readable exports
@@ -2963,9 +2960,15 @@ Feature: Matchboard football operations workspace
 
     Scenario: Assistant shows work items by workflow priority
       Given match round "R1" has Blocked conditions
-      And match round "R2" is Ready to finalize
+      And match round "R2" has a played match missing a post-match report
       When the coach opens the Assistant page
-      Then the blocked round item must appear before the ready-to-finalize item
+      Then the blocked round item must appear before the post-match report item
+
+    Scenario: A round with no Blocked or Decision-required conditions shows no work item
+      Given match round "R2" has no Blocked or Decision-required conditions
+      When the coach opens the Assistant page
+      Then the Assistant must not show a work item asking the coach to finalize or lock "R2"
+      And "R2" becomes historical automatically once every match's own planning boundary closes
 
     Scenario: Assistant aggregates one item per round per category
       Given match round "R1" has two Blocked conditions
@@ -3552,7 +3555,7 @@ Feature: Matchboard football operations workspace
       Then the plan integrity section must summarize Blocked conditions
       And Decision required conditions
       And planning notes behind a toggle
-      And finalization status
+      And whether every match's planning boundary has closed (Planning closed) or remains open
 
 
   Rule: Matchday mode
@@ -3634,7 +3637,7 @@ Feature: Matchboard football operations workspace
       Given match round "R1" has hard blockers
       When the coach opens the round
       Then the app must show "Human review required"
-      And require override reason to finalize
+      And any manual edit that bypasses the blocking condition must still require an override reason
 
     Scenario: Human review required for too many warnings
       Given match round "R1" has more warnings than configured threshold
@@ -3847,11 +3850,12 @@ Feature: Matchboard football operations workspace
       Then the export movements array must not be empty
       And each movement must reference the correct player, source team, target team, and role
 
-    Scenario: Finalization flips movement ledger isDraft from true to false
+    Scenario: The planning boundary closing flips movement ledger isDraft from true to false
       Given match round "R1" has draft selections with movement ledger entries where isDraft = true
-      When the coach finalizes match round "R1"
+      When the planning boundary closes for every match in "R1"
       Then the movement ledger entries for "R1" must have isDraft = false
-      And no new movement ledger entries must be created during finalization
+      And no new movement ledger entries must be created during this capture
+      And no coach action is required to trigger it
 
     # ---- Squad repair must be structured ----
 
@@ -3949,17 +3953,17 @@ Feature: Matchboard football operations workspace
       Then the selection may reference the coaching intent it serves
       And the intent reference must be coach-facing by default
 
-    Scenario: Intent can be edited by the coach before finalization
+    Scenario: Intent can be edited by the coach while planning is open
       Given a match has coaching intent "team_first"
-      And the match round is in DRAFT state
+      And the match's planning boundary is still open
       When the coach changes the match intent to "support_teammates"
       Then the match intent must be updated
       And draft selections may be regenerated to reflect the updated intent
 
-    Scenario: Finalized history preserves intent snapshots
-      Given a match had coaching intent "defensive_recovery" when finalized
-      When the coach reviews the finalized round history
-      Then the intent snapshot must be preserved from the finalization time
+    Scenario: Historical plans preserve intent snapshots
+      Given a match had coaching intent "defensive_recovery" when its planning boundary closed
+      When the coach reviews the historical round
+      Then the intent snapshot must be preserved from the moment the boundary closed
       And the intent must remain visible in coach-facing review
 
     Scenario: Intent remains coach-facing unless explicitly exported through parent-safe language
@@ -4359,7 +4363,7 @@ Feature: Matchboard football operations workspace
       Given the coach manually overrides a domain rule
       When the override is saved
       Then the override must require a structured reason category and detail
-      And the override must appear in the finalization summary
+      And the override must appear in the selection's explanation and audit trail
       And the override must not be silently applied
 
     Scenario: Hosted deployment does not weaken privacy boundaries
@@ -5433,13 +5437,19 @@ Feature: Matchboard football operations workspace
     And those changes must occur in one transaction
     And live integrity must be recalculated for the old and new rounds
 
-  Scenario: Finalised planned match cannot silently change round
+  Scenario: Rescheduling a finalised-but-unplayed match reopens its plan and moves it (ADR-0109 §4)
     Given match "M1" has FINALIZED selections in "W18 2026"
-    And no completed post-match report exists
+    And no completed post-match report exists and no live match session has run
     When the coach reschedules "M1" to "W24 2026"
+    Then the reschedule proves "M1" did not actually start, so its plan is reopened automatically
+    And "M1" selections revert to DRAFT and reference "W24 2026"
+    And this is a real-world schedule correction, not a coach-operated "un-finalize" action
+
+  Scenario: A match with recorded live activity cannot have its plan silently reopened by reschedule
+    Given match "M1" has FINALIZED selections and a recorded live match session
+    When the coach reschedules "M1" to a different round
     Then the save must be rejected
-    And no new target round must be created as a side effect
-    And the app must state "This match has a finalised squad plan. Unfinalise it before moving the match to another round."
+    And the app must state that the match has live match activity recorded and its plan cannot be reopened this way
 
   Scenario: Completed match remains protected
     Given match "M1" has a REPORTED or LOCKED post-match report
@@ -5809,13 +5819,14 @@ Feature: Matchboard football operations workspace
       And teamplay must be weighted medium
       And missing ratings must be treated as uncertainty with an uncertainty penalty, not as zero ability
 
-    Scenario: Manual seed preserves locked players
+    Scenario: Manual seed preserves manually assigned players without a separate lock action
       Given an event has 18 available players
-      And the coach has locked 5 players to specific squads
+      And the coach has manually assigned 5 players to specific squads
       When the coach generates squads with MANUAL_SEED_AUTO_BALANCE mode
-      Then the locked players must remain in their assigned squads
-      And the generation engine must distribute all unlocked players around the locked anchors
+      Then the manually assigned players must remain in their assigned squads
+      And the generation engine must distribute all other (AUTO) players around the manual anchors
       And balance summaries must be recalculated after generation
+      And the coach did not need to separately lock those 5 players — a manual assignment is protected on its own
 
     Scenario: No player appears in two event squads
       Given an event has generated event squads
@@ -5957,24 +5968,36 @@ Feature: Matchboard football operations workspace
       And NINE_A_SIDE must display as "9-a-side"
       And ELEVEN_A_SIDE must display as "11-a-side"
 
-    Scenario: Coach can lock players in event squads
+    Scenario: A manual assignment is protected from automatic movement without a separate lock action
       Given an event has generated event squads
-      When the coach locks a player assignment
-      Then the locked player must not be moved by regeneration
-      And the locked player must remain in the assigned squad until the coach explicitly unlocks or moves them
+      When the coach manually assigns or moves a player to a specific squad
+      Then that assignment's source becomes MANUAL
+      And the app must not require a separate "Lock" action to protect it from regeneration
+      And the assignment must remain in the assigned squad until the coach explicitly moves it again
 
-    Scenario: Coach can regenerate unlocked assignments
-      Given an event has generated event squads with some locked players
-      When the coach regenerates the event squads
-      Then locked players must remain in their assigned squads
-      And unlocked players must be redistributed by the generation engine
+    Scenario: Coach can regenerate the automatic plan while manual assignments are preserved
+      Given an event has generated event squads with some MANUAL assignments
+      When the coach regenerates the event squads ("Regenerate automatic plan")
+      Then MANUAL assignments must remain in their assigned squads
+      And AUTO assignments must be redistributed by the generation engine
       And balance summaries must be recalculated
+      And no MANUAL assignment's ownership silently reverts to AUTO
+
+    Scenario: Coach can fill remaining places without touching existing assignments
+      Given an event has squads with targets 12, 9, and 9
+      And the squads currently have 11, 5, and 5 assigned players respectively
+      And 9 eligible players remain unassigned
+      When the coach fills remaining places ("Fill remaining places")
+      Then the squads must receive 1, 4, and 4 additional players respectively
+      And every existing assignment (MANUAL and AUTO alike) must remain unchanged
+      And no squad may exceed its own maximum size
+      And this is a distinct operation from "Regenerate automatic plan"
 
     Scenario: Coach can clear generated event squads
       Given an event has generated event squads
       When the coach clears the event squads
       Then all generated squad assignments must be removed
-      And locked and unlocked assignments must both be removed
+      And MANUAL and AUTO assignments must both be removed
       And the event must return to a not-generated state
       And the event itself must not be deleted
 
@@ -6004,13 +6027,13 @@ Feature: Matchboard football operations workspace
       Then the app must display "Cancelled" status
       And the app must never display "Forfeit", "No result", or "Reported as cancelled"
 
-    Rule: Cancelled matches cannot be finalized
+    Rule: Cancelled matches never capture a planning baseline
 
-    Scenario: Coach cannot finalize a cancelled match
+    Scenario: A cancelled match's planning boundary never closes and no baseline is captured
       Given match "M1" has status CANCELLED
-      When the coach attempts to finalize match "M1"
-      Then the finalization must be rejected
-      And the error must state that cancelled matches cannot be finalized
+      When scheduled kickoff for "M1" passes, or the app observes "M1" for baseline capture
+      Then the app must not capture a planned baseline for "M1"
+      And "M1" selections must not become historical (FINALIZED)
 
     Scenario: Coach cannot regenerate draft for a cancelled match
       Given match "M1" has status CANCELLED
@@ -7021,7 +7044,7 @@ Feature: Matchboard football operations workspace
     Rule: Input validation
 
       Scenario: Critical mutation routes validate input with Zod schemas
-        Given a coach sends a request to finalize-round, populate-all, clear-match, clear-round, or generate-round
+        Given a coach sends a request to generate-round, populate-all, or clear-draft
         When the request body contains invalid or unexpected fields
         Then the route must reject the request with a 400 error
         And must not process the invalid input
@@ -7049,7 +7072,7 @@ Feature: Matchboard football operations workspace
     Rule: Rate limiting
 
       Scenario: Critical API routes enforce rate limits
-        Given a coach makes requests to finalize-round, populate-all, clear-match, clear-round, or generate-round
+        Given a coach makes requests to generate-round, populate-all, or clear-draft
         When the rate limit is exceeded
         Then the route must return a 429 status
         And must not process further requests until the limit resets
@@ -7136,40 +7159,42 @@ Feature: Matchboard football operations workspace
         When the coach sets a player attribute rating to null
         Then the database must accept null as "not rated"
 
-  # --- Finalization transaction integrity ---
+  # --- Planning-boundary capture transaction integrity ---
 
-  Feature: Finalization transaction integrity
+  Feature: Planning-boundary capture transaction integrity
 
-    Critical mutations must be atomic. Warning creation during finalization must not create orphaned data if the transaction fails.
+    Critical mutations must be atomic. There is no coach-operated "finalize" action (see ADR-0109) — the planned baseline is captured automatically, once, the moment a match's planning boundary closes (scheduled kickoff passes, or live match reporting starts). Capturing it must not create orphaned data if the transaction fails, and must never run twice for the same match.
 
-    Rule: Warning creation is atomic with finalization
+    Rule: Baseline capture is atomic
 
-      Scenario: Warning creation during round finalization is inside the transaction
+      Scenario: Warning creation during round-level baseline capture is inside the transaction
         Given match round "R1" has draft selections with non-core movement
         And some non-core selections lack movement ledger entries
-        When the coach finalizes round "R1"
+        When the planning boundary closes for every match in "R1", capturing the round's baseline
         Then missing ledger warnings must be created inside the same transaction as the selection status change
-        And if the finalization transaction fails, the warnings must not be persisted
+        And if the capture transaction fails, the warnings must not be persisted
 
-      Scenario: Warning creation during match finalization is inside the transaction
+      Scenario: Warning creation during a single match's baseline capture is inside the transaction
         Given match "M1" has draft selections with non-core movement
         And some non-core selections lack movement ledger entries
-        When the coach finalizes match "M1"
+        When the planning boundary closes for "M1", capturing its baseline
         Then missing ledger warnings must be created inside the same transaction as the selection status change
-        And if the finalization transaction fails, the warnings must not be persisted
+        And if the capture transaction fails, the warnings must not be persisted
 
-    Rule: Finalization is idempotent
+    Rule: Baseline capture is idempotent and race-safe
 
-      Scenario: Finalizing an already-finalized round is a no-op
-        Given match round "R1" has been finalized
-        When the coach attempts to finalize round "R1" again
-        Then the app must return a result indicating no draft selections found
+      Scenario: Observing an already-captured match's closed boundary again is a safe no-op
+        Given match "M1"'s planning boundary has already closed and its baseline is captured
+        When the app observes the closed boundary for "M1" again, from a concurrent live-session start or a later read
+        Then the app must not create a second historical snapshot
         And must not create duplicate warnings or ledger entries
 
-      Scenario: Finalizing an already-finalized match is rejected
-        Given match "M1" is in a finalized round
-        When the coach attempts to finalize match "M1"
-        Then the app must reject the finalization with a message that the match is already finalized
+      Scenario: A concurrent race to capture the same match's baseline produces one consistent result
+        Given match "M1"'s planning boundary has just closed and no capture has happened yet
+        When two concurrent requests both observe the closed boundary for "M1" at the same time
+        Then exactly one of them must perform the capture
+        And the other must safely no-op
+        And "M1" must never end up with two contradictory planned baselines
 
   # --- Organisation membership and role enforcement ---
 
@@ -7689,10 +7714,12 @@ Feature: Matchboard football operations workspace
         Then the player must not be force-selected
         And a decision-required warning must explain why the pin could not be honored
 
-      Scenario: A player cannot be pinned in a finalized round
-        Given a match round is finalized
+      Scenario: A player cannot be pinned once planning has closed for the round
+        Given every match in a match round has a closed planning boundary
         When the coach attempts to pin a player for that round
         Then the pin must be rejected
+        And the app must explain that planning is closed for this round
+        And this is the same real-world boundary that closes ordinary selection edits, not a separate round-FINALIZED check
 
     Rule: Today surfaces a delayed planned rotation change as a real work item
 
