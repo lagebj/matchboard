@@ -811,7 +811,7 @@ export function RoundBoard({
               {blockedCount === 1 ? "condition" : "conditions"}
             </>
           }
-           description="Resolve or record an override reason before finalise."
+           description="Resolve or record an override reason before kickoff."
         />
       )}
 
@@ -826,7 +826,7 @@ export function RoundBoard({
                 : `${decisionRequiredCount} decisions need review`}
             </>
           }
-           description="Coach judgement required before finalise."
+           description="Coach judgement required before kickoff."
         />
       )}
 
