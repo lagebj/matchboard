@@ -82,7 +82,11 @@ async function createFreshFixture(): Promise<TestFixtureIds> {
 
   const matchIds: Record<string, string> = {};
   const opponentTeamIds: Record<string, string> = {};
-  const baseDate = new Date("2025-04-28T10:00:00Z");
+  // Deliberately future-relative, not a fixed historical date: these tests exercise draft
+  // editing (clear-draft-selection), which requires the planning boundary to still be open
+  // (ADR-0109). A fixed past date would silently become "kickoff has passed" as real time moves
+  // on, blocking these mutations for reasons unrelated to what the tests verify.
+  const baseDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
   for (const t of teams) {
     const opponentName = `Opp ${t.name}`;
     const normalizedName = normalizeOpponentName(opponentName);
@@ -362,7 +366,7 @@ describe("clear-draft-selection", () => {
           teamId: fx.teams["Hvit"]!,
           opponent: "Opp",
           opponentTeamId: Object.values(fx.opponentTeamIds)[0]!,
-          startsAt: new Date("2025-05-05T10:00:00Z"),
+          startsAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
           homeAway: "HOME",
           squadSize: 11,
           matchType: "FRIENDLY",
@@ -408,9 +412,12 @@ describe("clear-draft-selection", () => {
       expect(otherRoundWarnings).toBe(1);
     });
 
-    it("throws for finalized rounds", async () => {
+    it("throws once the planning boundary has closed for a match in the round (ADR-0109: round FINALIZED status alone no longer gates this)", async () => {
       const fx = await createFreshFixture();
 
+      // A round can carry a legacy/mirrored FINALIZED status without the boundary actually
+      // being closed for its matches — status is no longer the canonical gate (Migration Rule
+      // #8), so setting it alone must NOT block editing here.
       await testDb.matchRound.update({
         where: { id: fx.matchRoundId },
         data: { status: "FINALIZED" },
@@ -419,9 +426,19 @@ describe("clear-draft-selection", () => {
       const { clearRoundDraftSelection } = await import(
         "@/lib/selection/clear-draft-selection"
       );
+      // Still editable: every match's own kickoff is in the future.
+      await expect(clearRoundDraftSelection(fx.matchRoundId)).resolves.toBeDefined();
+
+      // Now actually close the boundary for one match in the round.
+      const blaMatchId = fx.matches["Bla"]!;
+      await testDb.match.update({
+        where: { id: blaMatchId },
+        data: { planningClosedAt: new Date() },
+      });
+
       await expect(
         clearRoundDraftSelection(fx.matchRoundId),
-      ).rejects.toThrow("finalised round");
+      ).rejects.toThrow("Planning is closed");
     });
   });
 

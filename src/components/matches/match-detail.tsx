@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { OverrideReasonInput } from "@/components/round/override-reason-input";
 import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
 import type { SelectionRole } from "@/generated/prisma/client";
 import {
@@ -13,7 +12,6 @@ import {
   Users,
   ClipboardList,
   ClipboardCheck,
-  ShieldCheck,
   Eye,
   LayoutGrid,
   XCircle,
@@ -231,12 +229,9 @@ function severityToBannerVariant(
 export function MatchDetail({ match }: { match: MatchData }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
-  const finalized = searchParams.get("finalized");
-  const roundFinalized = searchParams.get("roundFinalized");
   const orgUrl = useOrgUrl();
   const [isPending, startTransition] = useTransition();
   const [showAllWarnings, setShowAllWarnings] = useState(false);
-  const [matchOverrideReason, setMatchOverrideReason] = useState({ category: "", detail: "" });
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const router = useRouter();
@@ -275,12 +270,9 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const otherWarnings = match.warnings.filter(
     (w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE",
   );
-  const hasOverrideWarnings =
-    blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0;
 
   const matchFinalized = isMatchFinalized(match.selections);
   const roundFinalizedFlag = match.matchRoundStatus === "FINALIZED";
-  const canFinalize = !matchFinalized && !roundFinalizedFlag && match.selections.length > 0;
 
   const intentLabel = match.coachingIntent
     ? COACHING_INTENT_LABELS[match.coachingIntent as CoachingIntentCategory] ??
@@ -540,93 +532,24 @@ export function MatchDetail({ match }: { match: MatchData }) {
             {!isCancelled && <MatchHelpersPanel matchId={match.id} />}
             {!isCancelled && <LeagueMatchGuestsPanel matchId={match.id} />}
 
-            {finalized && (
+            {matchFinalized && (
               <DecisionBanner
                 variant="finalized"
-                 title="Match finalised"
-                 description={roundFinalized ? "Entire round finalised." : undefined}
+                title="Planning is closed for this match."
+                description="Kickoff has passed or live reporting has started. Reschedule the match to reopen planning if it hasn't actually started."
               />
             )}
 
-            {matchFinalized && !finalized && (
+            {roundFinalizedFlag && !matchFinalized && (
               <DecisionBanner
                 variant="finalized"
-                 title="This match is finalised."
-              />
-            )}
-
-            {roundFinalizedFlag && !finalized && !matchFinalized && (
-              <DecisionBanner
-                variant="finalized"
-                 title="This round is finalised."
+                 title="Planning is closed for every match in this round."
                 action={
                   <Button as={Link} href={orgUrl(`/rounds/${match.matchRoundId}`)} variant="ghost" size="sm">
                     View round
                   </Button>
                 }
               />
-            )}
-
-            {canFinalize && (
-              <Surface padding="md">
-                <SectionHeader
-                   title="Finalise match"
-                  description={`Lock selections. ${match.selections.length} of ${match.squadSize} players selected.`}
-                />
-                {hasOverrideWarnings && (
-                  <p className="mt-2 text-xs text-[var(--danger)] inline-flex items-center gap-1.5">
-                    <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                    {blockingWarnings.length} blocked, {requiresOverrideWarnings.length} decision
-                    {requiresOverrideWarnings.length === 1 ? "" : "s"} — override reason required.
-                  </p>
-                )}
-                {hasOverrideWarnings && (
-                  <div className="mt-3">
-                    <OverrideReasonInput
-                      hasBlockingWarnings={true}
-                      value={matchOverrideReason}
-                      onChange={setMatchOverrideReason}
-                    />
-                  </div>
-                )}
-                <div className="mt-3 flex flex-col gap-2">
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    leadingIcon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
-                    disabled={
-                      isPending ||
-                      (hasOverrideWarnings &&
-                        (!matchOverrideReason.category ||
-                          matchOverrideReason.detail.trim().length < 10))
-                    }
-                    onClick={() => {
-                      startTransition(async () => {
-                        const fd = new FormData();
-                        fd.set("matchId", match.id);
-                        if (hasOverrideWarnings && matchOverrideReason.category) {
-                          fd.set("overrideReasonCategory", matchOverrideReason.category);
-                        }
-                        if (hasOverrideWarnings && matchOverrideReason.detail.trim()) {
-                          fd.set("overrideReasonDetail", matchOverrideReason.detail.trim());
-                        }
-                        const { finalizeMatchAction } = await import(
-                          "@/app/(app)/matches/actions"
-                        );
-                        await finalizeMatchAction(fd);
-                      });
-                    }}
-                  >
-                    {isPending ? "Finalising…" : "Finalise this match"}
-                  </Button>
-                  <Link
-                    href={orgUrl(`/rounds/${match.matchRoundId}`)}
-                    className="text-center text-xs text-[var(--accent-strong)] hover:underline"
-                  >
-                    Finalise entire round instead
-                  </Link>
-                </div>
-              </Surface>
             )}
 
             {(blockingWarnings.length > 0 || requiresOverrideWarnings.length > 0) && (
@@ -722,6 +645,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
           teamId={match.teamId}
           teamName={match.teamName}
           gameFormat={match.gameFormat}
+          planningEditable={!matchFinalized}
           selections={match.selections.map((s) => ({
             playerId: s.playerId,
             playerName: s.playerName,

@@ -42,3 +42,10 @@ A full Phase 6 (actually reworking the finalize/unfinalize interaction model its
 ## Migration
 
 None — no schema change (`PlayerLock` already existed); additive UI, server actions, domain functions, and one new `AssistantWorkCategory` value (`planned_rotation_delayed`).
+
+## Superseded (2026-08-30)
+
+This ADR's refusal to remove finalize/unfinalize/lock/confirm ceremony ("finalize/finalized" as
+"a technical invariant... not something to remove") is superseded by ADR-0109, on the explicit
+maintainer authority described there. The additive changes this ADR made (round progress, Pin UI)
+are retained; ADR-0109 extends the round-progress concept to be the primary round-level signal.

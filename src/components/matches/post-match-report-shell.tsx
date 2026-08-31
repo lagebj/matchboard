@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, type CSSProperties } from "react";
+import { useState, useTransition } from "react";
 import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -46,7 +46,7 @@ type Props = {
  * (planned squad, structured absence, player stats) via `extraSections`, since those have no
  * Event equivalent (a deliberate, documented decision -- see ARR-0034, not silent scope-narrowing).
  */
-export function PostMatchReportShell({ report, actions, capabilities, availablePlayers, onChanged, extraSections }: Props) {
+export function PostMatchReportShell({ report, actions, availablePlayers, onChanged, extraSections }: Props) {
   const [isPending, startTransition] = useTransition();
   const [ourScore, setOurScore] = useState(report.ourScore?.toString() ?? "");
   const [opponentScore, setOpponentScore] = useState(report.opponentScore?.toString() ?? "");
@@ -55,34 +55,6 @@ export function PostMatchReportShell({ report, actions, capabilities, availableP
   const [newGoalMinute, setNewGoalMinute] = useState("");
   const [newAssistPlayerId, setNewAssistPlayerId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [showMoreActions, setShowMoreActions] = useState(false);
-  const moreActionsRef = useRef<HTMLDivElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
-
-  useEffect(() => {
-    if (!showMoreActions) return;
-    const btn = moreActionsRef.current?.querySelector("button");
-    if (btn) {
-      const rect = btn.getBoundingClientRect();
-      setDropdownStyle({ position: "fixed", top: rect.bottom + 4, left: rect.left, zIndex: 50 });
-    }
-    function handleClickOutside(e: MouseEvent) {
-      if (moreActionsRef.current && !moreActionsRef.current.contains(e.target as Node)) {
-        setShowMoreActions(false);
-      }
-    }
-    function handleClose() {
-      setShowMoreActions(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("scroll", handleClose, true);
-    window.addEventListener("resize", handleClose);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("scroll", handleClose, true);
-      window.removeEventListener("resize", handleClose);
-    };
-  }, [showMoreActions]);
 
   const status = report.status;
   const isLocked = status === "LOCKED";
@@ -119,7 +91,7 @@ export function PostMatchReportShell({ report, actions, capabilities, availableP
         </div>
 
         <div className="flex items-center gap-2 mt-3">
-          {(isDraft || (isReported && !capabilities.hasSubmitLockSteps)) && (
+          {(isDraft || isReported) && (
             <Button
               variant="primary"
               size="sm"
@@ -132,72 +104,18 @@ export function PostMatchReportShell({ report, actions, capabilities, availableP
               Complete report
             </Button>
           )}
-          {capabilities.hasSubmitLockSteps && (isDraft || isReported) && (
-            <div ref={moreActionsRef}>
-              <Button variant="secondary" size="sm" onClick={() => setShowMoreActions((v) => !v)}>
-                More actions
-              </Button>
-              {showMoreActions && (
-                <div style={dropdownStyle} className="flex flex-col gap-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-lg">
-                  {isDraft && actions.submit && (
-                    <button
-                      className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
-                      disabled={isPending}
-                      onClick={() => {
-                        setShowMoreActions(false);
-                        if (!confirm("Submit this post-match report? It will be marked as Reported.")) return;
-                        run(actions.submit!);
-                      }}
-                      type="button"
-                    >
-                      Submit (Draft &rarr; Reported)
-                    </button>
-                  )}
-                  {isReported && actions.lock && (
-                    <button
-                      className="rounded px-3 py-1.5 text-xs text-[var(--info)] hover:bg-[var(--surface-hover)] text-left whitespace-nowrap"
-                      disabled={isPending}
-                      onClick={() => {
-                        setShowMoreActions(false);
-                        if (!confirm("Lock this report? It cannot be edited after locking.")) return;
-                        run(actions.lock!);
-                      }}
-                      type="button"
-                    >
-                      Lock (Reported &rarr; Locked)
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
           {isLocked && (
-            <>
-              <Button
-                variant="warning"
-                size="sm"
-                disabled={isPending}
-                onClick={() => {
-                  if (!confirm("Reopen this report to draft status?")) return;
-                  run(() => actions.reopen("DRAFT"));
-                }}
-              >
-                Reopen as draft
-              </Button>
-              {capabilities.hasSubmitLockSteps && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={() => {
-                    if (!confirm("Reopen this report to reported status?")) return;
-                    run(() => actions.reopen("REPORTED"));
-                  }}
-                >
-                  Reopen (reported)
-                </Button>
-              )}
-            </>
+            <Button
+              variant="warning"
+              size="sm"
+              disabled={isPending}
+              onClick={() => {
+                if (!confirm("Reopen this report for correction?")) return;
+                run(() => actions.reopen("DRAFT"));
+              }}
+            >
+              Reopen report
+            </Button>
           )}
         </div>
       </Surface>

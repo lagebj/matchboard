@@ -5,16 +5,6 @@ import { createFormationSnapshot } from "@/lib/formations/snapshot";
 import { preserveAssignmentsOnChange } from "@/lib/formations/suggest";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-export function canModifyLineup(status: string): boolean {
-  return status !== "CONFIRMED";
-}
-
-export function requireModifiableLineup(status: string): void {
-  if (!canModifyLineup(status)) {
-    throw new Error("Cannot modify a confirmed lineup");
-  }
-}
-
 export async function requireLineupExists(lineupId: string) {
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId },
@@ -52,13 +42,6 @@ export async function requireNoExistingLineup(matchId: string, teamId: string) {
   });
 
   if (existing) throw new Error("A lineup already exists for this match and team");
-}
-
-export function requireAllSlotsAssigned(assignments: { playerId: string | null }[]): void {
-  const unassigned = assignments.filter((a) => !a.playerId);
-  if (unassigned.length > 0) {
-    throw new Error(`Cannot confirm: ${unassigned.length} slot(s) have no player assigned`);
-  }
 }
 
 function toFormationSlotData(slot: {
@@ -108,7 +91,9 @@ export async function changeLineupFormation(data: {
     },
   });
   if (!lineup) throw new Error("Lineup not found");
-  requireModifiableLineup(lineup.status);
+  // Planning-boundary editability is checked by the calling action (changeMatchLineupFormation),
+  // matching the pattern for every other lineup mutation (ADR-0109 §6) — a lineup no longer has
+  // its own separate CONFIRMED-blocks-edit status check.
 
   if (lineup.formationId === data.newFormationId) {
     // Already on this formation — nothing to reconcile.

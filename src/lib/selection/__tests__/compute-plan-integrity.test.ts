@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
-import { finalizeSingleMatch } from "@/lib/selection/finalize-single-match";
+import { ensureMatchPlanningBaselineCaptured } from "@/lib/selection/capture-planning-baseline";
 
 let testDb: PrismaClient;
 
@@ -66,8 +66,8 @@ describe("computeRoundPlanIntegrity: already-finalized matches within a DRAFT ro
     const blaMatchId = fixtureIds.matches["Bla"]!;
     const blaTeamId = fixtureIds.teams["Bla"]!;
 
-    const result = await finalizeSingleMatch(blaMatchId, "coach_judgement", "Test override");
-    expect(result.success).toBe(true);
+    const result = await ensureMatchPlanningBaselineCaptured(blaMatchId, { force: true });
+    expect(result.captured).toBe(true);
 
     // Round stays DRAFT — Hvit and Rod still have real DRAFT selections.
     const round = await testDb.matchRound.findUnique({

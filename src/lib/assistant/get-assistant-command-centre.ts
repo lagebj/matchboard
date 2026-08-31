@@ -260,20 +260,9 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
         );
       }
 
-      if (blockedSignals.length === 0 && decisionSignals.length === 0) {
-        items.push(
-          makeItem({
-            category: "ready_to_finalize",
-            matchRoundId: round.id,
-            title: `${round.name} — Ready to finalize`,
-            summary: "No blocked conditions or decisions required. Draft is ready to lock.",
-            primaryActionLabel: "Review round",
-            primaryActionHref: `/rounds/${round.id}`,
-            affectedTeamIds: [],
-            affectedPlayerIds: [],
-          }),
-        );
-      }
+      // A round with no blocked/decision signals needs no coach action (ADR-0109/PRINCIPLES.md
+      // #15): it will become historical automatically once its matches' planning boundaries
+      // close. There is nothing to "finalize" and no work item belongs here.
       continue;
     }
 

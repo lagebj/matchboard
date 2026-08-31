@@ -65,19 +65,6 @@ export async function clearRoundDraftSelection(
     throw new Error(planningBoundary.reason ?? "Planning is closed for this round.");
   }
 
-  const matchRound = await db.matchRound.findFirst({
-    where: { id: matchRoundId },
-    select: { status: true },
-  });
-
-  if (!matchRound) {
-    throw new Error("Match round not found.");
-  }
-
-  if (matchRound.status === "FINALIZED") {
-    throw new Error("Cannot clear draft for a finalised round.");
-  }
-
   const [selections, warnings, ledger] = await db.$transaction([
     db.selection.deleteMany({
       where: {
@@ -117,15 +104,11 @@ export async function clearMatchDraftSelection(
 
   const match = await db.match.findFirst({
     where: { id: matchId },
-    include: { matchRound: { select: { id: true, status: true } } },
+    include: { matchRound: { select: { id: true } } },
   });
 
   if (!match) {
     throw new Error("Match not found.");
-  }
-
-  if (match.matchRound.status === "FINALIZED") {
-    throw new Error("Cannot clear draft for a match in a finalised round.");
   }
 
   const [selections, ledger] = await db.$transaction([

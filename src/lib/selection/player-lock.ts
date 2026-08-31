@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 
 // "Pin" is the coach-facing name for an explicit, round-scoped planning constraint (DECISIONS.md
 // "User-facing lifecycle vocabulary": "Use `Pin` for an explicit coach planning constraint").
@@ -36,11 +37,17 @@ export async function createPlayerLock(
 ): Promise<PlayerLockRow> {
   const round = await db.matchRound.findFirst({
     where: { id: input.matchRoundId, organisationId: orgFilter.organisationId },
-    select: { status: true },
+    select: { id: true },
   });
   if (!round) throw new Error("Match round not found.");
-  if (round.status === "FINALIZED") {
-    throw new Error("Cannot pin a player in a finalized round.");
+
+  // A Pin remains valid only while it can still affect a future generation/edit (ADR-0109 §8):
+  // once every match's own planning boundary has closed, a Pin can no longer do anything, so the
+  // gate is the same real-world boundary as every other planning mutation, not a separate
+  // round-FINALIZED check.
+  const boundary = await isMatchRoundPlanningEditable(input.matchRoundId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? "Cannot pin a player once planning has closed for this round.");
   }
 
   const player = await db.player.findFirst({

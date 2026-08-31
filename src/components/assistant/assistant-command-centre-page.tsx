@@ -26,7 +26,6 @@ import { useOrgUrl } from "@/components/shell/org-slug-context";
 import {
   OctagonAlert,
   AlertTriangle,
-  CheckCircle2,
   ClipboardList,
   CalendarRange,
   CalendarDays,
@@ -54,7 +53,7 @@ import {
 
 type WorkCategory = AssistantWorkItem["category"];
 
-type GroupKey = "blockers" | "decisions" | "setup" | "events" | "reviews" | "ready" | "reports";
+type GroupKey = "blockers" | "decisions" | "setup" | "events" | "reviews" | "reports";
 
 type GroupConfig = {
   key: GroupKey;
@@ -69,7 +68,7 @@ const groups: GroupConfig[] = [
   {
     key: "blockers",
     label: "Blockers",
-    description: "Hard problems preventing finalise.",
+    description: "Hard problems that need fixing before kickoff.",
     categories: ["blocked_round"],
     icon: OctagonAlert,
     variant: "danger",
@@ -77,7 +76,7 @@ const groups: GroupConfig[] = [
   {
     key: "decisions",
     label: "Decisions",
-    description: "Coach judgement required before finalise.",
+    description: "Coach judgement needed before kickoff.",
     categories: ["decision_required"],
     icon: AlertTriangle,
     variant: "warning",
@@ -105,14 +104,6 @@ const groups: GroupConfig[] = [
     categories: ["review_assigned", "review_changes_requested"],
     icon: Eye,
     variant: "warning",
-  },
-  {
-    key: "ready",
-    label: "Ready to finalise",
-    description: "Drafts that meet plan checks.",
-    categories: ["ready_to_finalize"],
-    icon: CheckCircle2,
-    variant: "success",
   },
   {
     key: "reports",

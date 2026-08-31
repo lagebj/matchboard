@@ -40,8 +40,7 @@ export async function seedScenarios(ctx: SeedContext) {
   const { persistRoundExplanations } = await import("../src/lib/selection/persist-explanations");
   const { buildPersistableWarnings, persistRoundWarnings } = await import("../src/lib/selection/persist-warnings");
   const { reconcileRoundAfterDraftMutation } = await import("../src/lib/selection/reconcile-integrity");
-  const { finalizeMatchRound } = await import("../src/lib/selection/finalize-match-round");
-  const { finalizeSingleMatch } = await import("../src/lib/selection/finalize-single-match");
+  const { ensureMatchPlanningBaselineCaptured } = await import("../src/lib/selection/capture-planning-baseline");
 
   // generateMatchRound() only computes a plan -- persisting draft Selection rows,
   // explanations, and plan-integrity warnings are separate steps every real caller
@@ -118,8 +117,10 @@ export async function seedScenarios(ctx: SeedContext) {
     });
     await markAllAvailable(round.id);
     await generateAndPersistRound(round.id);
-    const finalizeResult = await finalizeMatchRound(round.id, "no_planned_match_opportunity", "Documentation seed: this historical round intentionally schedules only one Fjordvik FK team.");
-    if (!finalizeResult.success) throw new Error(`Failed to finalize ${opts.weekLabel}: ${JSON.stringify(finalizeResult.warnings)}`);
+    // This historical round intentionally schedules only one Fjordvik FK team, so capturing this
+    // match's baseline also closes the (single-match) round automatically.
+    const captureResult = await ensureMatchPlanningBaselineCaptured(match.id, { force: true });
+    if (!captureResult.captured) throw new Error(`Failed to capture planning baseline for ${opts.weekLabel}`);
 
     const seeded = await seedReportFromFinalizedSquad(match.id, { type: "org", filter: { organisationId: org.id }, filterNullable: { organisationId: org.id }, organisationId: org.id });
     if (!seeded.success) throw new Error(`Failed to seed report for ${opts.weekLabel}: ${seeded.error}`);
@@ -219,8 +220,8 @@ export async function seedScenarios(ctx: SeedContext) {
   });
   await markAllAvailable(storyRound.id);
   await generateAndPersistRound(storyRound.id);
-  const storyFinalizeResult = await finalizeMatchRound(storyRound.id, "no_planned_match_opportunity", "Documentation seed: this historical round intentionally schedules only one Fjordvik FK team.");
-  if (!storyFinalizeResult.success) throw new Error(`Failed to finalize story round: ${JSON.stringify(storyFinalizeResult.warnings)}`);
+  const storyCaptureResult = await ensureMatchPlanningBaselineCaptured(storyMatch.id, { force: true });
+  if (!storyCaptureResult.captured) throw new Error("Failed to capture planning baseline for story round");
 
   await seedSystemFormations();
   const formation = await db.formation.findFirst({ where: { gameFormat: "SEVEN_A_SIDE", source: "SYSTEM", isArchived: false }, include: { slots: { orderBy: { sortOrder: "asc" } } } });
@@ -327,12 +328,10 @@ export async function seedScenarios(ctx: SeedContext) {
   await markAllAvailable(upcomingRound.id, blaPlayerIds.slice(0, 1));
   await generateAndPersistRound(upcomingRound.id);
 
-  // Finalize only the Hvit match ("ready" — S2) via per-match finalization; Rød/Blå stay DRAFT
-  // for review (S1).
-  const hvitFinalizeResult = await finalizeSingleMatch(hvitMatch.id);
-  if (!hvitFinalizeResult.success) {
-    await finalizeSingleMatch(hvitMatch.id, "coach_judgement", "Documentation seed: Fjordvik Rød/Blå players without a Hvit match opportunity this round are expected and reviewed separately.");
-  }
+  // Close planning only for the Hvit match ("ready"/planning-closed — S2); Rød/Blå stay open
+  // (DRAFT) for review (S1).
+  const hvitCaptureResult = await ensureMatchPlanningBaselineCaptured(hvitMatch.id, { force: true });
+  if (!hvitCaptureResult.captured) throw new Error("Failed to capture planning baseline for the Hvit match");
   void blaMatch;
 
   // ============ S6: event/cup ============

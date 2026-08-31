@@ -3,56 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearAllDraftSelections } from "@/lib/selection/clear-draft-selection";
-import { finalizeMatchRound } from "@/lib/selection/finalize-match-round";
-import type { OverrideReasonCategory } from "@/lib/selection/types";
-import { OVERRIDE_REASON_CATEGORIES } from "@/lib/selection/types";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { buildPathWithSearch } from "@/lib/build-path-with-search";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
-
-export async function finalizeRoundFromListAction(formData: FormData) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const matchRoundId = formData.get("matchRoundId");
-  if (typeof matchRoundId !== "string" || !matchRoundId) {
-    throw new Error("Match round ID is required.");
-  }
-
-  const round = await db.matchRound.findFirst({
-    where: { id: matchRoundId, ...ctx.orgFilter.filter },
-    select: { id: true },
-  });
-  if (!round) {
-    throw new Error("Round not found or access denied.");
-  }
-
-
-  const overrideReasonCategory = formData.get("overrideReasonCategory");
-  const overrideReasonDetail = formData.get("overrideReasonDetail");
-
-  const category: OverrideReasonCategory | undefined = typeof overrideReasonCategory === "string" && overrideReasonCategory.trim() && OVERRIDE_REASON_CATEGORIES.includes(overrideReasonCategory.trim() as OverrideReasonCategory)
-    ? (overrideReasonCategory.trim() as OverrideReasonCategory)
-    : undefined;
-  const detail = typeof overrideReasonDetail === "string" && overrideReasonDetail.trim()
-    ? overrideReasonDetail.trim()
-    : undefined;
-
-  const result = await finalizeMatchRound(matchRoundId, category, detail);
-
-  revalidatePath("/");
-  revalidatePath("/rounds");
-  revalidatePath(`/rounds/${matchRoundId}`);
-  revalidatePath("/fixtures");
-
-  if (!result.success) {
-    return { error: result.needsOverride ? "Override reason required" : "Finalisation failed" };
-  }
-
-  return { error: "" };
-}
 
 export async function clearAllDraftsAction(formData: FormData) {
   const ctx = await requirePageActorContext();
@@ -231,48 +186,6 @@ export async function regenerateAllDraftsAction(prevState: { error: string; resu
     return { error: "", result: summary };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Regenerate all failed.", result: undefined };
-  }
-}
-
-export async function unfinalizeRoundFromListAction(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  try {
-    const matchRoundId = formData.get("matchRoundId");
-    if (typeof matchRoundId !== "string" || !matchRoundId) {
-      throw new Error("Match round ID is required.");
-    }
-
-    const round = await db.matchRound.findFirst({
-      where: { id: matchRoundId, ...ctx.orgFilter.filter },
-      select: { id: true },
-    });
-    if (!round) {
-      throw new Error("Round not found or access denied.");
-    }
-
-    const { unfinalizeMatchRound } = await import("@/lib/selection/unfinalize-match-round");
-    const result = await unfinalizeMatchRound(matchRoundId);
-
-    try {
-      await reconcileRoundAfterDraftMutation(matchRoundId);
-    } catch {
-      // reconciliation failure must not block unfinalize
-    }
-    revalidatePath("/");
-    revalidatePath("/rounds");
-    revalidatePath(`/rounds/${matchRoundId}`);
-    revalidatePath("/fixtures");
-    revalidatePath("/today");
-
-    if (!result.success) {
-      return { error: result.message };
-    }
-
-    return { error: "" };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Un-finalise failed." };
   }
 }
 

@@ -19,8 +19,14 @@ league selection, never affects league fairness history, and never touches a fin
 
 Create an event, mark player availability for it, and generate one or more squads: a single
 competitive squad built around your strongest available line-up, a balanced split across
-several squads, or squads seeded manually and balanced automatically around your locks. Squads
-stay editable until you lock them; locking runs a validation pass first.
+several squads, or squads seeded manually and balanced automatically around your existing
+assignments. A player you assign to a squad yourself is respected automatically — there is no
+separate "lock" step for an individual assignment. Two operations solve different problems on
+top of that: **Fill remaining places** only adds currently-unassigned eligible players to squads
+below their target size, and never moves anyone already assigned; **Regenerate automatic plan**
+preserves your manual assignments and recalculates the rest. When the whole squad list is
+settled, lock it as a set — that still runs a validation pass and protects it from further
+automatic changes.
 
 Matches within an event can share helpers across squads when their matches do not overlap in
 time, similar to League helpers in normal rounds. Set the number of halves, the duration of each

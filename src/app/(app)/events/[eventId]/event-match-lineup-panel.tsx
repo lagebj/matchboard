@@ -210,7 +210,7 @@ export function EventMatchLineupPanel({
   };
 
   const handleSlotClick = useCallback((assignmentId: string | null, slotId: string, _playerId: string | null) => {
-    if (!lineup || lineup.status === 'CONFIRMED') return;
+    if (!lineup) return;
     const formationSlot = lineup.formation?.slots.find((s) => s.id === slotId);
     setPickerState({
       assignmentId,
@@ -461,7 +461,7 @@ export function EventMatchLineupPanel({
             assignments={pitchAssignments}
             players={pitchPlayers}
             onSlotClick={handleSlotClick}
-            readOnly={lineup.status === 'CONFIRMED' || isPending}
+            readOnly={isPending}
             orientation="horizontal"
           />
         ) : (

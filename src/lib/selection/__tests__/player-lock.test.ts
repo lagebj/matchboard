@@ -7,6 +7,7 @@ const {
   mockLockDelete,
   mockRoundFindFirst,
   mockPlayerFindFirst,
+  mockMatchFindMany,
 } = vi.hoisted(() => ({
   mockLockFindMany: vi.fn(),
   mockLockUpsert: vi.fn(),
@@ -14,6 +15,7 @@ const {
   mockLockDelete: vi.fn(),
   mockRoundFindFirst: vi.fn(),
   mockPlayerFindFirst: vi.fn(),
+  mockMatchFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -26,12 +28,18 @@ vi.mock("@/lib/db", () => ({
     },
     matchRound: { findFirst: mockRoundFindFirst },
     player: { findFirst: mockPlayerFindFirst },
+    match: { findMany: mockMatchFindMany },
   },
 }));
 
 import { getPlayerLocksForRound, createPlayerLock, deletePlayerLock } from "../player-lock";
 
 const orgFilter = { type: "org" as const, filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" };
+
+// A future match with no closures: isMatchRoundPlanningEditable() reports the round still open.
+const OPEN_ROUND_MATCH = { id: "match-1", startsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), planningClosedAt: null, liveSession: null };
+// A match whose planning boundary has already closed.
+const CLOSED_ROUND_MATCH = { id: "match-1", startsAt: new Date("2020-01-01T00:00:00Z"), planningClosedAt: new Date("2020-01-01T00:00:00Z"), liveSession: null };
 
 const LOCK_ROW = {
   id: "lock-1",
@@ -62,7 +70,8 @@ describe("createPlayerLock", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("pins a player in via upsert", async () => {
-    mockRoundFindFirst.mockResolvedValue({ status: "DRAFT" });
+    mockRoundFindFirst.mockResolvedValue({ id: "round-1", status: "DRAFT" });
+    mockMatchFindMany.mockResolvedValue([OPEN_ROUND_MATCH]);
     mockPlayerFindFirst.mockResolvedValue({ id: "player-1" });
     mockLockUpsert.mockResolvedValue(LOCK_ROW);
 
@@ -76,12 +85,13 @@ describe("createPlayerLock", () => {
     );
   });
 
-  it("rejects pinning in a finalized round", async () => {
-    mockRoundFindFirst.mockResolvedValue({ status: "FINALIZED" });
+  it("rejects pinning once planning has closed for the round (ADR-0109: real boundary, not round-FINALIZED status)", async () => {
+    mockRoundFindFirst.mockResolvedValue({ id: "round-1", status: "DRAFT" });
+    mockMatchFindMany.mockResolvedValue([CLOSED_ROUND_MATCH]);
 
     await expect(
       createPlayerLock({ matchRoundId: "round-1", playerId: "player-1", lockType: "LOCKED_OUT" }, orgFilter),
-    ).rejects.toThrow(/finalized round/);
+    ).rejects.toThrow(/[Pp]lanning is closed/);
     expect(mockLockUpsert).not.toHaveBeenCalled();
   });
 
@@ -94,7 +104,8 @@ describe("createPlayerLock", () => {
   });
 
   it("rejects when the player does not exist or is outside the organisation", async () => {
-    mockRoundFindFirst.mockResolvedValue({ status: "DRAFT" });
+    mockRoundFindFirst.mockResolvedValue({ id: "round-1", status: "DRAFT" });
+    mockMatchFindMany.mockResolvedValue([OPEN_ROUND_MATCH]);
     mockPlayerFindFirst.mockResolvedValue(null);
 
     await expect(
@@ -103,7 +114,8 @@ describe("createPlayerLock", () => {
   });
 
   it("trims a blank reason to null", async () => {
-    mockRoundFindFirst.mockResolvedValue({ status: "DRAFT" });
+    mockRoundFindFirst.mockResolvedValue({ id: "round-1", status: "DRAFT" });
+    mockMatchFindMany.mockResolvedValue([OPEN_ROUND_MATCH]);
     mockPlayerFindFirst.mockResolvedValue({ id: "player-1" });
     mockLockUpsert.mockResolvedValue(LOCK_ROW);
 

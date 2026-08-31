@@ -3,18 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess, requireTeamGroupAccess } from "@/lib/auth/actor-context";
-import { supersedePendingReviews } from "@/lib/review/review-service";
-import { enqueueAndSendNotification } from "@/lib/email/outbox";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
-  canModifyLineup,
   requireAssignmentExists,
-  requireAllSlotsAssigned,
-  requireLineupExists,
   createLineupFromFormation,
   changeLineupFormation,
 } from "@/lib/lineups/lineup-domain";
+import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+
+async function requirePlanningEditable(matchId: string): Promise<void> {
+  const boundary = await isMatchPlanningEditable(matchId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? "Planning is closed for this match.");
+  }
+}
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
   const match = await db.match.findFirst({
@@ -33,13 +36,13 @@ async function requireLineupOrgAccess(lineupId: string, orgFilter: OrgFilterMode
   return { matchId: lineup.matchId };
 }
 
-async function requireAssignmentOrgAccess(assignmentId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string; matchLineupId: string; matchLineupStatus: string }> {
+async function requireAssignmentOrgAccess(assignmentId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string; matchLineupId: string }> {
   const assignment = await db.matchLineupAssignment.findFirst({
     where: { id: assignmentId, matchLineup: orgFilter.filter },
-    select: { matchLineupId: true, matchLineup: { select: { matchId: true, status: true } } },
+    select: { matchLineupId: true, matchLineup: { select: { matchId: true } } },
   });
   if (!assignment) throw new Error("Assignment not found or access denied.");
-  return { matchId: assignment.matchLineup.matchId, matchLineupId: assignment.matchLineupId, matchLineupStatus: assignment.matchLineup.status };
+  return { matchId: assignment.matchLineup.matchId, matchLineupId: assignment.matchLineupId };
 }
 
 export async function getMatchLineup(matchId: string, teamId: string) {
@@ -86,6 +89,7 @@ export async function changeMatchLineupFormation(lineupId: string, formationId: 
 
   const lineupInfo = await requireLineupOrgAccess(lineupId, orgFilter);
   await requireMatchGroupAccess(ctx, lineupInfo.matchId);
+  await requirePlanningEditable(lineupInfo.matchId);
 
   const lineup = await changeLineupFormation({ lineupId, newFormationId: formationId, orgFilter });
 
@@ -104,11 +108,9 @@ export async function assignPlayerToSlot(
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
   await requireMatchGroupAccess(ctx, assignmentInfo.matchId);
+  await requirePlanningEditable(assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
-  if (!canModifyLineup(assignment.matchLineup.status)) {
-    throw new Error("Cannot modify a confirmed lineup");
-  }
 
   const existingAssignment = await db.matchLineupAssignment.findFirst({
     where: {
@@ -155,11 +157,9 @@ export async function removePlayerFromSlot(assignmentId: string) {
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
   await requireMatchGroupAccess(ctx, assignmentInfo.matchId);
+  await requirePlanningEditable(assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
-  if (!canModifyLineup(assignment.matchLineup.status)) {
-    throw new Error("Cannot modify a confirmed lineup");
-  }
 
   const updated = await db.matchLineupAssignment.update({
     where: { id: assignmentId },
@@ -177,11 +177,9 @@ export async function toggleSlotLock(assignmentId: string) {
   const orgFilter = ctx.orgFilter;
   const assignmentInfo = await requireAssignmentOrgAccess(assignmentId, orgFilter);
   await requireMatchGroupAccess(ctx, assignmentInfo.matchId);
+  await requirePlanningEditable(assignmentInfo.matchId);
 
   const assignment = await requireAssignmentExists(assignmentId);
-  if (!canModifyLineup(assignment.matchLineup.status)) {
-    throw new Error("Cannot modify a confirmed lineup");
-  }
 
   const updated = await db.matchLineupAssignment.update({
     where: { id: assignmentId },
@@ -189,92 +187,6 @@ export async function toggleSlotLock(assignmentId: string) {
   });
 
   revalidatePath(`/o/${ctx.organisationSlug}/matches/${assignment.matchLineup.matchId}`);
-  return updated;
-}
-
-export async function confirmLineup(lineupId: string) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const orgFilter = ctx.orgFilter;
-  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchGroupAccess(ctx, matchId);
-
-  const lineup = await requireLineupExists(lineupId);
-  requireAllSlotsAssigned(lineup.assignments);
-
-  const updated = await db.matchLineup.update({
-    where: { id: lineupId },
-    data: { status: "CONFIRMED" },
-  });
-
-  const { superseded } = await supersedePendingReviews("MATCH_LINEUP", lineupId);
-  for (const review of superseded) {
-    const requester = await db.organisationMembership.findFirst({
-      where: { id: review.requestedByMembershipId, organisationId: ctx.organisationId },
-      include: { user: { select: { email: true } } },
-    });
-    if (requester?.user?.email) {
-      const organisation = await db.organisation.findFirst({
-        where: { id: ctx.organisationId },
-        select: { name: true, slug: true },
-      });
-      await enqueueAndSendNotification({
-        organisationId: ctx.organisationId,
-        idempotencyKey: `review-superseded-${review.id}`,
-        template: 'REVIEW_SUPERSEDED',
-        payload: {
-          organisationName: organisation?.name ?? 'Matchboard',
-          requesterName: requester.user.email,
-          requesterEmail: requester.user.email,
-          targetType: review.targetType,
-          targetId: review.targetId,
-          targetLabel: review.targetId,
-          reason: 'Lineup confirmed',
-          reviewUrl: `/o/${organisation?.slug ?? ctx.organisationSlug}/matches/${matchId}`,
-          organisationSlug: organisation?.slug ?? ctx.organisationSlug,
-        },
-        recipientEmail: requester.user.email,
-        recipientUserId: requester.userId,
-      });
-    }
-  }
-
-  revalidatePath(`/o/${ctx.organisationSlug}/matches/${lineup.matchId}`);
-  return updated;
-}
-
-export async function archiveLineup(lineupId: string) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const orgFilter = ctx.orgFilter;
-  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchGroupAccess(ctx, matchId);
-
-  const updated = await db.matchLineup.update({
-    where: { id: lineupId },
-    data: { status: "ARCHIVED" },
-  });
-
-  revalidatePath(`/o/${ctx.organisationSlug}/matches/${updated.matchId}`);
-  return updated;
-}
-
-export async function revertLineupToDraft(lineupId: string) {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const orgFilter = ctx.orgFilter;
-  const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
-  await requireMatchGroupAccess(ctx, matchId);
-
-  const updated = await db.matchLineup.update({
-    where: { id: lineupId },
-    data: { status: "DRAFT" },
-  });
-
-  revalidatePath(`/o/${ctx.organisationSlug}/matches/${updated.matchId}`);
   return updated;
 }
 

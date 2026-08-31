@@ -498,10 +498,12 @@ function distributeRemainingByBalance(
   }
 
   for (const player of sorted) {
-    const maxSquadSize = squads[0]?.maxSize ?? squads[0]?.targetSize ?? 7;
     const targetSquads = squads
       .filter((s) => {
         const currentCount = squadCounts.get(s.id) ?? 0;
+        // Each squad's own max governs its own capacity (D16/D17) — a shared/first-squad value
+        // previously leaked here, silently capping every squad at squad[0]'s maximum.
+        const maxSquadSize = s.maxSize ?? s.targetSize ?? 7;
         return currentCount < maxSquadSize;
       })
       .sort((a, b) => {
@@ -629,6 +631,9 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
 
   const unlockedPlayers = availablePlayers.filter((p) => !lockedPlayerIds.has(p.playerId));
 
+  // `lockedAssignments` is the caller's set of assignments to protect from automatic movement —
+  // every existing MANUAL assignment, not only ones separately toggled "locked" (ADR-0109 §5,
+  // D12: an assignment does not need a second lock action to be respected by automation).
   for (const [playerId, squadId] of lockedAssignments) {
     const player = availablePlayers.find((p) => p.playerId === playerId);
     if (player) {
@@ -642,9 +647,9 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
           assignedSlotIndex: null,
           assignedSlotLabel: null,
           lineupOrder: null,
-          source: 'LOCKED',
+          source: 'MANUAL',
           locked: true,
-          selectionReason: 'Kept because assignment was locked by coach',
+          selectionReason: 'Kept because this is the coach\'s existing assignment',
           positionFitTier: null,
         });
       }

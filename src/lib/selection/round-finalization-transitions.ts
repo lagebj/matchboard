@@ -4,16 +4,15 @@ import type { OverrideReasonCategory } from "@/lib/selection/types";
 import { toPrismaCategory } from "@/lib/selection/override-reason-utils";
 
 /**
- * Owning writes for the Plan-phase FINALIZE/UN-FINALIZE transition (ADR-0088, ARR-0028).
+ * Owning writes for the planning-boundary-capture transition (ADR-0088, ARR-0028; trigger moved
+ * from coach-operated finalize/un-finalize to the automatic boundary closure by ADR-0109).
  *
- * `finalize-match-round.ts` (round-level) and `finalize-single-match.ts` (per-match) are
- * distinct product operations at different granularity — not duplicates of each other — but
- * both must persist an identical field set when a set of selections becomes FINALIZED, and an
- * identical field set when a round record itself becomes FINALIZED. Likewise for
- * `unfinalize-match-round.ts`/`unfinalize-single-match.ts` reverting to DRAFT. This module is
- * the one place those field sets are decided; the four callers orchestrate validation,
- * plan-integrity checks, and response shape around a call to these functions instead of
- * reimplementing the writes.
+ * `capture-planning-baseline.ts`'s `ensureMatchPlanningBaselineCaptured()` (per-match capture,
+ * with round-record capture as an automatic side effect when it was the round's last open match)
+ * and `reopenMatchPlanningForReschedule()` (the reverse, for a genuine reschedule-before-start
+ * correction) are the only two callers. This module is the one place the field sets they persist
+ * are decided; those callers orchestrate the boundary condition and transaction shape around a
+ * call to these functions instead of reimplementing the writes.
  */
 
 type TransactionClient = Parameters<Parameters<typeof db.$transaction>[0]>[0];

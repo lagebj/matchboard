@@ -232,7 +232,7 @@ describe('event-squad-generation', () => {
       expect(gkAssignment.eventSquadId).toBe('s1');
     });
 
-    it('locked players are preserved on regeneration', () => {
+    it('manual assignments are preserved on regeneration (ADR-0109: MANUAL provenance, not a second lock)', () => {
       const locked = makePlayer({ playerId: 'locked1' });
       const others = Array.from({ length: 8 }, (_, i) =>
         makePlayer({ playerId: `p${i}` }),
@@ -251,7 +251,7 @@ describe('event-squad-generation', () => {
 
       const lockedAssignment = result.assignments.find((a) => a.playerId === 'locked1')!;
       expect(lockedAssignment.eventSquadId).toBe('s1');
-      expect(lockedAssignment.source).toBe('LOCKED');
+      expect(lockedAssignment.source).toBe('MANUAL');
       expect(lockedAssignment.locked).toBe(true);
     });
 
@@ -388,9 +388,9 @@ describe('event-squad-generation', () => {
       const s2Assignments = result.assignments.filter((a) => a.eventSquadId === 's2');
 
       expect(s1Assignments.find((a) => a.playerId === 'p1')).toBeDefined();
-      expect(s1Assignments.find((a) => a.playerId === 'p1')!.source).toBe('LOCKED');
+      expect(s1Assignments.find((a) => a.playerId === 'p1')!.source).toBe('MANUAL');
       expect(s1Assignments.find((a) => a.playerId === 'p2')).toBeDefined();
-      expect(s1Assignments.find((a) => a.playerId === 'p2')!.source).toBe('LOCKED');
+      expect(s1Assignments.find((a) => a.playerId === 'p2')!.source).toBe('MANUAL');
 
       expect(result.assignments.length).toBe(6);
       expect(s2Assignments.length).toBeGreaterThan(0);

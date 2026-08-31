@@ -61,12 +61,6 @@ describe("assistantWorkItemsToCandidates", () => {
     expect(candidate.isLongTermSignal).toBe(false);
   });
 
-  it("falls back to INFORMATION_ONLY for an unmapped-in-practice category (defensive)", () => {
-    const items = [makeItem({ category: "ready_to_finalize" })];
-    const [candidate] = assistantWorkItemsToCandidates(items, () => undefined);
-    expect(candidate.consequences).toEqual(["INFORMATION_ONLY"]);
-  });
-
   it("derives entityId from eventId when present, else matchId, else matchRoundId", () => {
     const withEvent = assistantWorkItemsToCandidates(
       [makeItem({ category: "event_squads_missing", eventId: "event-1", matchRoundId: "round-1" })],

@@ -17,6 +17,9 @@ export type AffectedRoundSummary = {
   hasFinalizedSelections: boolean;
   impactSummary: string;
   integrityBefore: RoundPlanIntegrity | null;
+  /** True when this round's planning boundary has already closed for this player's selection —
+   * ADR-0109: there is no coach "unfinalize" action; a genuine reschedule of the affected match
+   * (which reopens planning automatically when safe) is the only way to make it editable again. */
   wouldRequireUnfinalize: boolean;
 };
 
@@ -74,7 +77,7 @@ export async function analyzeAvailabilityChangeImpact(
 
     let impactSummary: string;
     if (hasFinalized) {
-      impactSummary = `Player has finalized selections in this round. Unfinalizing is required before regeneration.`;
+      impactSummary = `Player has finalized selections in this round — its planning boundary has closed. Reschedule the affected match to reopen planning before regenerating, if it hasn't actually started.`;
     } else if (roundSelections.length > 0) {
       impactSummary = `Player has draft selections in this round. Plan integrity will be recalculated.`;
     } else {

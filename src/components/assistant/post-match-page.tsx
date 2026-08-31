@@ -25,8 +25,6 @@ import {
   updateMatchResult,
   addActualPlayer,
   removeActualPlayer,
-  submitMatchReport,
-  lockMatchReport,
   completeMatchReport,
   reopenMatchReport,
   markPlannedAbsence,
@@ -48,7 +46,7 @@ const ABSENCE_REASON_LABELS: Record<string, string> = {
   AWAY: "Away",
 };
 
-const CAPABILITIES: PostMatchReportCapabilities = { hasSubmitLockSteps: true, hasUnplannedReason: true };
+const CAPABILITIES: PostMatchReportCapabilities = { hasUnplannedReason: true };
 
 function toViewModel(report: ReportData): PostMatchReportViewModel {
   const isHome = report.homeAway === "HOME";
@@ -176,8 +174,6 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
     removePlayer: (playerReportId) => removeActualPlayer(playerReportId),
     complete: () => completeMatchReport(report.id),
     reopen: (target) => reopenMatchReport(report.id, target),
-    submit: () => submitMatchReport(report.id),
-    lock: () => lockMatchReport(report.id),
   };
 
   return (

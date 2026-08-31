@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   generateEventSquadsAction,
+  fillEventSquadRemainingPlacesAction,
   clearEventSquadsAction,
   deleteEventAction,
   updateEventPlayerAvailability,
   movePlayerBetweenSquadsAction,
-  togglePlayerLockAction,
   addPlayersToEventPoolAction,
   removePlayerFromEventPoolAction,
   assignPlayerToEventSquadAction,
@@ -284,6 +284,24 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     });
   }
 
+  function handleFillRemainingPlaces() {
+    if (totalAvailable === 0) {
+      alert('No available players. Mark players as Available on the Player pool tab before filling remaining places.');
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const result = await fillEventSquadRemainingPlacesAction(data.id);
+        router.refresh();
+        if (result.notes.length > 0) {
+          alert(result.notes.join('\n'));
+        }
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to fill remaining places.');
+      }
+    });
+  }
+
   function handleClear() {
     if (!confirm('Clear all generated squad assignments? Locked players will be kept.')) return;
     startTransition(async () => {
@@ -338,12 +356,6 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     });
   }
 
-  function handleToggleLock(squadPlayerId: string, locked: boolean) {
-    startTransition(async () => {
-      await togglePlayerLockAction(squadPlayerId, locked);
-      router.refresh();
-    });
-  }
 
   function handleAddPlayers() {
     if (selectedToAdd.size === 0) return;
@@ -399,7 +411,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             {!isFinalized && (
               <>
                 <Button variant="primary" onClick={handleGenerate} disabled={isPending}>
-                  {isPending ? 'Generating...' : 'Generate squads'}
+                  {isPending ? 'Generating...' : totalAssigned > 0 ? 'Regenerate automatic plan' : 'Generate squads'}
+                </Button>
+                <Button variant="secondary" onClick={handleFillRemainingPlaces} disabled={isPending} title="Add unassigned eligible players to squads with unmet target size. Never moves an existing assignment.">
+                  {isPending ? 'Filling...' : 'Fill remaining places'}
                 </Button>
                 <Button variant="secondary" onClick={handleClear} disabled={isPending}>
                   Clear
@@ -710,7 +725,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             title={p.selectionReason || undefined}
                           >
                             {formatName(p)}
-                            {p.locked && <span className="ml-1 text-[var(--accent)]">🔒</span>}
+                            {(p.source === 'MANUAL' || p.source === 'LOCKED') && <span className="ml-1 text-[10px] text-[var(--accent)]" title="Coach assignment">●</span>}
                           </span>
                         ))}
                       </div>
@@ -1016,24 +1031,6 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                               <span className="text-[10px] text-[var(--text-muted)]">{FIT_TIER_LABELS[p.positionFitTier]}</span>
                             )}
                             <div className={`${isFinalized ? 'hidden' : 'invisible group-hover:visible'} flex gap-1 ml-1`}>
-                              {!p.locked && (
-                                <button
-                                  onClick={() => handleToggleLock(p.id, true)}
-                                  className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-                                  title="Lock player"
-                                >
-                                  Lock
-                                </button>
-                              )}
-                              {p.locked && (
-                                <button
-                                  onClick={() => handleToggleLock(p.id, false)}
-                                  className="text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)]"
-                                  title="Unlock player"
-                                >
-                                  Unlock
-                                </button>
-                              )}
                               <button
                                 onClick={() => handleUnassign(p.id)}
                                 className="text-[10px] text-[var(--danger)] hover:underline"

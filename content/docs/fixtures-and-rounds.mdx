@@ -1,12 +1,12 @@
 ---
 title: Fixtures and rounds
-description: The league season, round, and match hierarchy, and where to generate and finalize squads.
+description: The league season, round, and match hierarchy, and where to generate squads.
 ---
 
 ## What
 
 Fixtures is the one-stop view of your league season's structure: league season, then match
-round, then individual match. It is also where you generate draft squads and finalize rounds.
+round, then individual match. It is also where you generate draft squads.
 
 ## Why
 
@@ -17,29 +17,33 @@ switching pages.
 
 ## How
 
-- **Populate all** generates draft selections for every non-finalized round in the active
-  league season in one action, without finalizing anything.
+- **Populate all** generates draft selections for every round whose planning boundary hasn't
+  closed yet in the active league season, in one action.
 - **Generate round** runs the same generation for a single round, considering every match in it
   together so player movement between matches in the same round is resolved consistently.
-- **Finalize** locks a round's (or a single match's) selections once you are satisfied with the
-  draft, turning it into history.
+- There is no "Finalize" button. The plan becomes historical automatically the moment a match's
+  real-world planning boundary closes — scheduled kickoff passes, or live match reporting
+  starts, whichever happens first. Nothing needs locking by hand.
 
 Each level shows its readiness state, a count of plan-integrity issues that need a decision,
 and how many players are selected — not a raw warning count.
 
-![Fixtures page listing finalized rounds with results and outcomes](/docs/screenshots/fixtures/fixtures-league-season.png)
+![Fixtures page listing rounds with results and outcomes](/docs/screenshots/fixtures/fixtures-league-season.png)
 
 ## Example
 
 At the start of the week, Fjordvik FK's coach runs Populate all for the upcoming round, which
 creates draft squads for Fjordvik Rød, Blå, and Hvit's matches at once. The coach then opens the
-[Round Board](/docs/squad-planning) to review and adjust before finalizing.
+[Round Board](/docs/squad-planning) to review and adjust — the plan stays editable right up to
+each match's own kickoff.
 
 ## What Matchboard does next
 
-Finalizing a round does not mean the match has been played — that is a separate fact, shown
-once a match's post-match report is completed. See [Matchday](/docs/matchday) and
-[Post-match](/docs/post-match) for what happens after a round is finalized.
+A round becoming historical does not mean its matches have been played — that is a separate
+fact, shown once a match's post-match report is completed. If a match's kickoff time turns out to
+be wrong and it genuinely hasn't started yet, rescheduling it reopens planning automatically. See
+[Matchday](/docs/matchday) and [Post-match](/docs/post-match) for what happens once a match is
+underway or complete.
 
 ## Related
 

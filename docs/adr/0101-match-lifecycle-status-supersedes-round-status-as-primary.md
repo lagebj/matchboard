@@ -42,3 +42,12 @@ None — pure derivation/display layer addition. `RoundStatus` type and all roun
 ## Supersedes
 
 The "no alternative visible status terms" clause of AGENTS.md's prior "Status vocabulary" rule, for the single-match display case only. The underlying `RoundStatus` vocabulary itself is not superseded — it continues to exist and is used exactly as before for its original (planning-completeness) purpose.
+
+## Extended (2026-08-30)
+
+ADR-0109 extends this ADR's pattern to the round level: `deriveRoundProgress()` (ADR-0100) becomes
+the primary round-level signal, mirroring how this ADR promoted `deriveMatchLifecycleStatus()` at
+match level — the "full Phase 6... remains open" gap this ADR named is closed there. ADR-0109 also
+removes the coach-operated finalize/un-finalize mechanism itself (superseding ADR-0095/ADR-0100 on
+that point); this ADR's match-level derivation logic and status values are unchanged and remain in
+effect.

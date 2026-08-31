@@ -125,9 +125,8 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
         const derivedRoundStatus = deriveRoundStatus({
           dbStatus: round.status,
           hasDraftSelections,
-          // Decision required conditions also require an override reason to finalize (same as
-          // Blocked) and must surface as BLOCKED here too — matching finalize-match-round.ts's
-          // own combined allOverrideSignals treatment.
+          // Decision required conditions need the same coach attention as Blocked conditions and
+          // must surface as BLOCKED here too.
           blockedSignalCount: blockerCount + decisionRequiredCount,
         });
 
