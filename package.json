@@ -127,7 +127,7 @@
     "eslint-config-next": "16.3.3",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
-    "prisma": "^7.9.1",
+    "prisma": "^7.10.0",
     "tailwindcss": "^4",
     "typescript": "^6",
     "vitest": "^4.1.11",
