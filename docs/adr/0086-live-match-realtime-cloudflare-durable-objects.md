@@ -634,5 +634,14 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   `/api/internal/**` from the preview-allowlist gate in `proxy.ts` (those routes
   authenticate via HMAC signature, never a session cookie, by design) — not by loosening
   `classifyPersistenceFailure()`'s existing, deliberately-reasoned 401-is-retryable behavior,
-  which was never the actual problem. Regression test: `requiresPreviewAllowlistCheck()`
+  which was never the actual problem.   Regression test: `requiresPreviewAllowlistCheck()`
   (exported from `proxy.ts`), asserted in `src/test/security-audit.test.ts`.
+- 2026-09-02: **Per-PR Worker deployment added to the test-acceptance pipeline** (ADR-0112).
+  The `deploy-live-match-worker.yml` workflow only deploys the Worker after CI-green pushes to
+  `main`, so PR branches previously tested against stale main-branch Worker code. This was the
+  direct cause of the `follow-live.spec.ts` CI failure on PR #401 — the PR's client code
+  expected `period`/`matchSeconds` fields in the broadcast that the deployed (main-branch)
+  Worker didn't populate. The test-acceptance workflow now deploys the PR's Worker code to the
+  Cloudflare test environment (`wrangler deploy --env test`) before running Playwright,
+  closing the same deployment gap ADR-0075 closed for Vercel. Production Worker deploys remain
+  gated by the main-branch workflow.
