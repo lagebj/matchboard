@@ -16,6 +16,9 @@ import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/li
 import type { LiveEventSummary, MatchClockState } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
 import {
+  reconcileFromServerEvents,
+} from "@/lib/live-match/live-match-reconciliation";
+import {
   saveEventLocally,
   markEventSynced,
   getUnsyncedEvents,
@@ -431,8 +434,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     const result = await actions.getRecentEvents(matchId, 20);
     if (result.success && result.data) {
       setRecentEvents(result.data);
+      // Reconcile score and on-field state from canonical server events (ADR-0112).
+      // This ensures local state converges with the canonical record, preventing
+      // drift between reporter and follower displays after refresh or reconnect.
+      if (squad.length > 0) {
+        const initialOnField = new Set(squad.filter((p) => p.startingOnField).map((p) => p.playerId));
+        const reconciled = reconcileFromServerEvents(result.data, initialOnField);
+        setGoalsFor(reconciled.goalsFor);
+        setGoalsAgainst(reconciled.goalsAgainst);
+        setOnFieldIds(reconciled.onFieldPlayerIds);
+      }
     }
-  }, [actions, matchId]);
+  }, [actions, matchId, squad]);
 
   useEffect(() => {
     if (!sessionActive) return;
@@ -911,7 +924,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
               }
               return (
                 <div key={event.id} className="flex items-center justify-between py-1.5 px-2 bg-zinc-900/80 rounded text-xs">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex items-baseline gap-1.5">
+                    {event.matchSeconds != null && (
+                      <span className="text-[10px] font-mono text-zinc-500 shrink-0">{formatElapsedMs(event.matchSeconds * 1000)}</span>
+                    )}
                     <span className="text-zinc-300">{displayText}</span>
                     {event.isReversed && <span className="text-red-400 ml-1 text-[10px]">reversed</span>}
                     {event.isCorrected && <span className="text-amber-400 ml-1 text-[10px]">corrected</span>}

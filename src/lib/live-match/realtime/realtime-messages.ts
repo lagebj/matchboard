@@ -26,7 +26,12 @@ export interface ClockAnchor {
  * Extended in Stage 5 to carry player context for live event display: playerId identifies
  * who the event is about (scorer, rotated-out player, etc.), secondaryPlayerId identifies
  * the secondary actor (assist, rotated-in player). Both are optional — some event types
- * (FAIR_PLAY_POSITIVE, FAIR_PLAY_CONCERN) may not have either. */
+ * (FAIR_PLAY_POSITIVE, FAIR_PLAY_CONCERN) may not have either.
+ *
+ * Extended further to carry period and matchSeconds for timestamped event display in both
+ * Live Reporting and Follow Live surfaces (ADR-0112). These mirror LiveEventSummary's
+ * period/matchSeconds fields and are populated from the event submission's original fields
+ * when available. Events originating from reconciliation (Stage 6) may lack these fields. */
 export interface CanonicalLiveEvent {
   id: string;
   clientEventId: string;
@@ -34,6 +39,12 @@ export interface CanonicalLiveEvent {
   createdAt: string;
   playerId?: string;
   secondaryPlayerId?: string;
+  /** Match period when the event was recorded (e.g. FIRST_HALF, SECOND_HALF). Null for
+   *  period-transition events and reconciled events that lack this context. */
+  period?: MatchPeriod | null;
+  /** Elapsed match clock time in milliseconds when the event was recorded. Null for
+   *  events submitted without a clock position and for reconciled events. */
+  matchSeconds?: number | null;
 }
 
 /** SPEC.md §25 — the full active-session snapshot sent on attach/reconnect. Fully specified

@@ -326,7 +326,7 @@ describe("MatchdayContextBanner (Phase 5)", () => {
     // once in the pre-existing "Today's matches" section — both rendering the same match.
     expect(screen.getAllByText((_, el) => el?.textContent === "Blue vs Red FC").length).toBeGreaterThanOrEqual(1);
     const links = screen.getAllByRole("link", { name: /Follow live/i });
-    expect(links.some((l) => l.getAttribute("href") === "/o/test-org/matches/m1/live")).toBe(true);
+    expect(links.some((l) => l.getAttribute("href") === "/o/test-org/matches/m1/live/follow")).toBe(true);
   });
 
   it("shows a kickoff countdown with an Open match action for an imminent, not-yet-live match", () => {
