@@ -27,6 +27,14 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   // function / cold Neon compute on a freshly created branch.
   test.setTimeout(120_000);
 
+  // Warm up the serverless function and Neon connection before the heavy seed call.
+  // On a cold deployment (first request after deploy), the proxy + API route + Neon
+  // cold start can exceed the request timeout. A lightweight warm-up GET avoids this.
+  const warmupResponse = await page.request.get("/api/health");
+  if (!warmupResponse.ok()) {
+    throw new Error(`Warm-up /api/health failed (${warmupResponse.status()}). Is the target environment reachable?`);
+  }
+
   // Create a fresh DRAFT round with future matches via the test-agent API.
   // startsAt is 14 days from now — well within the planning boundary, so the round stays DRAFT.
   const startsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
