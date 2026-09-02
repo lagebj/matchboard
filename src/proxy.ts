@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { proxyAuth } from "@/auth-proxy";
 import { NextResponse } from "next/server";
 import { getContentSecurityPolicy } from "@/lib/security/csp";
 import { isPublicRoute, isProduction, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
@@ -37,7 +37,7 @@ function withSecurityHeaders(response: NextResponse, pathname?: string): NextRes
   return response;
 }
 
-export default auth((req) => {
+export default proxyAuth((req) => {
   const path = req.nextUrl.pathname;
 
   if (isPublicRoute(path)) {

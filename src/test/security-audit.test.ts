@@ -244,6 +244,23 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     expect(proxyFile).not.toContain("ALLOWED_COACH_EMAILS");
   });
 
+  it("proxy and auth-proxy do not import database modules (cold-start isolation)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const proxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/proxy.ts"),
+      "utf-8",
+    );
+    const authProxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/auth-proxy.ts"),
+      "utf-8",
+    );
+    expect(proxyFile).not.toContain("@/lib/db");
+    expect(proxyFile).not.toContain("PrismaAdapter");
+    expect(authProxyFile).not.toContain("@/lib/db");
+    expect(authProxyFile).not.toContain("PrismaAdapter");
+  });
+
   it("auth.ts signIn callback does not check isAllowedCoach", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
