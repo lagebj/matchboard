@@ -347,11 +347,11 @@ describe("MT-7: First-tenant and synthetic-tenant validation", () => {
       expect(authLib).not.toContain("isAllowedCoach");
       expect(authLib).not.toContain("ALLOWED_COACH_EMAILS");
 
-      const middleware = fs.readFileSync(
-        path.join(process.cwd(), "src/middleware.ts"),
+      const proxyFile = fs.readFileSync(
+        path.join(process.cwd(), "src/proxy.ts"),
         "utf-8",
       );
-      expect(middleware).not.toContain("ALLOWED_COACH_EMAILS");
+      expect(proxyFile).not.toContain("ALLOWED_COACH_EMAILS");
     });
   });
 });
