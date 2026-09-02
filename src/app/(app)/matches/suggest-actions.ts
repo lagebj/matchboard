@@ -24,7 +24,7 @@ type PlayerPoolEntry = {
 const NEUTRAL_POSITION = "FLEX";
 
 async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMode): Promise<PlayerPoolEntry[]> {
-  const [selections, helpers] = await Promise.all([
+  const [selections, helpers, absences] = await Promise.all([
     db.selection.findMany({
       where: { matchId, status: { in: ["DRAFT", "FINALIZED"] } },
       select: {
@@ -60,20 +60,29 @@ async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMo
         },
       },
     }),
+    db.matchReportAbsence.findMany({
+      where: { matchId },
+      select: { playerId: true },
+    }),
   ]);
 
-  const pool: PlayerPoolEntry[] = selections.map((s) => ({
-    id: s.player.id,
-    firstName: s.player.firstName,
-    lastName: s.player.lastName,
-    primaryPosition: s.player.primaryPosition ?? NEUTRAL_POSITION,
-    secondaryPosition: s.player.secondaryPosition,
-    coreTeamId: s.player.coreTeamId,
-    coreTeamName: s.player.coreTeam?.name ?? undefined,
-    isHelper: false,
-  }));
+  const absentPlayerIds = new Set(absences.map((a) => a.playerId));
+
+  const pool: PlayerPoolEntry[] = selections
+    .filter((s) => !absentPlayerIds.has(s.playerId))
+    .map((s) => ({
+      id: s.player.id,
+      firstName: s.player.firstName,
+      lastName: s.player.lastName,
+      primaryPosition: s.player.primaryPosition ?? NEUTRAL_POSITION,
+      secondaryPosition: s.player.secondaryPosition,
+      coreTeamId: s.player.coreTeamId,
+      coreTeamName: s.player.coreTeam?.name ?? undefined,
+      isHelper: false,
+    }));
 
   for (const h of helpers) {
+    if (absentPlayerIds.has(h.playerId)) continue;
     pool.push({
       id: h.player.id,
       firstName: h.player.firstName,

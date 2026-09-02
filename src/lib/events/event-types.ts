@@ -211,6 +211,7 @@ export interface EventPoolValidation {
   availablePlayerCount: number;
   targetSquadCount: number;
   targetSize: number;
+  totalTargetSize: number;
   missingRatingsCount: number;
   partialRatingsCount: number;
   ratedPlayerCount: number;

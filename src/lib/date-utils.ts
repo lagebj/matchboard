@@ -158,3 +158,65 @@ export function isInSameWeek(leftDate: Date, rightDate: Date): boolean {
 
   return rightDate >= leftRange.startsAt && rightDate <= leftRange.endsAt;
 }
+
+/**
+ * Football kickoff time formatting — local wall-clock values, not UTC instants.
+ *
+ * Matchboard treats match start times as local wall-clock values entered by the coach.
+ * A coach entering "17:30" expects to see "17:30" everywhere regardless of timezone.
+ * The stored Date's year/month/day/hours/minutes represent the coach's local wall-clock time,
+ * not a UTC instant that needs timezone conversion.
+ *
+ * These functions extract date and time parts from the stored value without timezone
+ * conversion, ensuring "entered 17:30 → displayed 17:30" round-trips correctly.
+ */
+
+/** Extract the date portion as YYYY-MM-DD from a stored kickoff time (wall-clock, no TZ shift). */
+export function getKickoffDateInputValue(startsAt: Date): string {
+  const y = startsAt.getFullYear();
+  const m = String(startsAt.getMonth() + 1).padStart(2, "0");
+  const d = String(startsAt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Extract the time portion as HH:MM from a stored kickoff time (wall-clock, no TZ shift). */
+export function getKickoffTimeInputValue(startsAt: Date): string {
+  const h = String(startsAt.getHours()).padStart(2, "0");
+  const min = String(startsAt.getMinutes()).padStart(2, "0");
+  return `${h}:${min}`;
+}
+
+/** Format a kickoff date as a long human-readable string (e.g. "Monday, 15 September 2026"). */
+export function formatKickoffDate(startsAt: Date): string {
+  return startsAt.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** Format a kickoff time as HH:MM (e.g. "17:30"). Wall-clock, no timezone shift. */
+export function formatKickoffTime(startsAt: Date): string {
+  const h = String(startsAt.getHours()).padStart(2, "0");
+  const min = String(startsAt.getMinutes()).padStart(2, "0");
+  return `${h}:${min}`;
+}
+
+/** Format a kickoff date+time for display (e.g. "Mon 15 Sep, 17:30"). */
+export function formatKickoffDateTime(startsAt: Date): string {
+  return startsAt.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }) + ", " + formatKickoffTime(startsAt);
+}
+
+/** Get today's date as YYYY-MM-DD in the browser's local timezone for date input defaults. */
+export function getTodayLocalDateInputValue(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}

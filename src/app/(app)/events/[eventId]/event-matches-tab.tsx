@@ -32,6 +32,7 @@ import { OpponentTeamSelect } from '@/components/opponents/opponent-team-select'
 import { formatEventMatchSupportRole } from '@/lib/formatters/event-labels';
 import type { EventMatchSupportRole } from '@/generated/prisma/client';
 import { getEventMatchWindow } from '@/lib/events/event-match-time';
+import { formatKickoffDateTime, formatKickoffTime } from '@/lib/date-utils';
 
 const PLANNED_ROLE_OPTIONS: { value: EventMatchSupportRole | ''; label: string }[] = [
   { value: '', label: 'No specific role' },
@@ -781,14 +782,16 @@ function EventMatchCard({
             {CATEGORY_LABELS[match.category] ?? match.category}
           </StatusPill>
           <span className="text-xs text-[var(--text-muted)]">
-            {new Date(match.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {formatKickoffDateTime(new Date(match.startsAt))}
             {matchDurationMinutes && (
-              <>-{getEventMatchWindow(
-                { id: match.id, eventSquadId: match.eventSquadId, startsAt: new Date(match.startsAt), status: match.status },
-                matchDurationMinutes,
-                numberOfHalves,
-                breakDurationMinutes,
-              ).endsAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</>
+              <>-{formatKickoffTime(
+                getEventMatchWindow(
+                  { id: match.id, eventSquadId: match.eventSquadId, startsAt: new Date(match.startsAt), status: match.status },
+                  matchDurationMinutes,
+                  numberOfHalves,
+                  breakDurationMinutes,
+                ).endsAt
+              )}</>
             )}
           </span>
         </div>

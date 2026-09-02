@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { formatKickoffDate } from '@/lib/date-utils';
 import {
   generateEventSquadsAction,
   fillEventSquadRemainingPlacesAction,
@@ -396,7 +397,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     <div className="space-y-6">
       <PageHeader
         title={data.name}
-        description={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${new Date(data.startsAt).toLocaleDateString()} · ${EVENT_STATUS_LABELS[data.status] ?? data.status}`}
+        description={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${formatKickoffDate(new Date(data.startsAt))} · ${EVENT_STATUS_LABELS[data.status] ?? data.status}`}
         actions={
           <div className="flex gap-2">
             {isFinalized ? (
@@ -444,7 +445,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
         <DecisionBanner
           variant="note"
           title="Event is finalised"
-          description={`This event is finalised and locked for changes. Unfinalise to edit squads, matches, or player assignments.${data.finalizedAt ? ` Finalised on ${new Date(data.finalizedAt).toLocaleDateString()}.` : ''}`}
+          description={`This event is finalised and locked for changes. Unfinalise to edit squads, matches, or player assignments.${data.finalizedAt ? ` Finalised on ${formatKickoffDate(new Date(data.finalizedAt))}.` : ''}`}
         />
       )}
 
@@ -658,7 +659,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               )}
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Starts</p>
-                <p className="text-sm text-zinc-100">{new Date(data.startsAt).toLocaleDateString()}</p>
+                <p className="text-sm text-zinc-100">{formatKickoffDate(new Date(data.startsAt))}</p>
               </div>
               {data.endsAt && (
                 <div>

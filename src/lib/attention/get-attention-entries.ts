@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { requireActorContext, canAdmin, hasTeamGroupAccess } from '@/lib/auth/actor-context';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { formatKickoffDate } from '@/lib/date-utils';
 
 export type AttentionCategory =
   | 'review_assigned'
@@ -264,7 +265,7 @@ export async function getAttentionEntries(orgSlug?: string): Promise<AttentionEn
         id: `unowned-fixture-${match.id}`,
         category: 'unowned_fixture',
         title: `No owner assigned: vs ${match.opponent}`,
-        summary: `The upcoming match on ${match.startsAt.toLocaleDateString()} has no assigned owner.`,
+        summary: `The upcoming match on ${formatKickoffDate(match.startsAt)} has no assigned owner.`,
         href: `/matches/${match.id}`,
         urgency: 'LOW',
         dueAt: match.startsAt,

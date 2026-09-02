@@ -20,6 +20,7 @@ import {
   Radio,
   Tv,
 } from "lucide-react";
+import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
@@ -248,16 +249,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
           : "squad";
   const selectedTab = activeTab ?? currentTab;
 
-  const dateStr = match.startsAt.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const timeStr = match.startsAt.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = formatKickoffDate(match.startsAt);
+  const timeStr = formatKickoffTime(match.startsAt);
 
   const grouped = roleOrder
     .map((role) => ({ role, players: match.selections.filter((s) => s.role === role) }))
@@ -653,6 +646,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
             coreTeamName: s.coreTeamName,
             primaryPosition: s.primaryPosition,
             secondaryPosition: s.secondaryPosition,
+            absenceReason: s.absenceReason,
           }))}
         />
       )}

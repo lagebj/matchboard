@@ -6,7 +6,6 @@ export type AssistantWorkCategory =
   | "availability_missing"
   | "event_setup_missing"
   | "event_squads_missing"
-  | "event_squads_draft"
   | "event_lineup_missing"
   | "populate_needed"
   | "blocked_round"
@@ -83,20 +82,19 @@ export const CATEGORY_PRIORITY: Record<AssistantWorkCategory, number> = {
   event_setup_missing: 2,
   blocked_round: 3,
   event_squads_missing: 4,
-  event_squads_draft: 5,
-  event_lineup_missing: 6,
-  populate_needed: 7,
-  decision_required: 8,
-  review_assigned: 9,
-  review_changes_requested: 10,
-  event_helpers_missing: 11,
-  event_report_needed: 12,
-  post_match_report: 13,
-  incomplete_report: 14,
-  unknown_attendance: 15,
-  event_report_incomplete: 16,
-  upcoming_round: 17,
-  live_report_available: 18,
-  pending_profile_suggestions: 19,
-  planned_rotation_delayed: 20,
+  event_lineup_missing: 5,
+  populate_needed: 6,
+  decision_required: 7,
+  review_assigned: 8,
+  review_changes_requested: 9,
+  event_helpers_missing: 10,
+  event_report_needed: 11,
+  post_match_report: 12,
+  incomplete_report: 13,
+  unknown_attendance: 14,
+  event_report_incomplete: 15,
+  upcoming_round: 16,
+  live_report_available: 17,
+  pending_profile_suggestions: 18,
+  planned_rotation_delayed: 19,
 };

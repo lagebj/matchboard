@@ -180,6 +180,7 @@ export function validateEventPool(
     availablePlayerCount: availableCount,
     targetSquadCount,
     targetSize,
+    totalTargetSize,
     missingRatingsCount,
     partialRatingsCount,
     ratedPlayerCount,

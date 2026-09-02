@@ -10,6 +10,7 @@ import {
   hasUnknownAttendance,
 } from "./report-domain";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { deriveInitialAttendance } from "@/lib/matches/attendance-derivation";
 
 export type ReportTransitionResult =
   | { success: true; matchId: string }
@@ -32,6 +33,7 @@ export async function seedReportFromFinalizedSquad(
     select: {
       id: true,
       organisationId: true,
+      matchRoundId: true,
       selections: {
         where: { status: { in: selectionStatuses } },
         select: { playerId: true, role: true },
@@ -45,6 +47,28 @@ export async function seedReportFromFinalizedSquad(
   if (!match) {
     return { success: false, error: "Match not found." };
   }
+
+  const allPlayerIds = [
+    ...match.selections.map((s) => s.playerId),
+    ...match.helperAssignments.map((h) => h.playerId),
+  ];
+
+  const [availabilities, absences] = await Promise.all([
+    db.availability.findMany({
+      where: {
+        playerId: { in: allPlayerIds },
+        matchRoundId: match.matchRoundId,
+      },
+      select: { playerId: true, status: true },
+    }),
+    db.matchReportAbsence.findMany({
+      where: { matchId, playerId: { in: allPlayerIds } },
+      select: { playerId: true, reason: true },
+    }),
+  ]);
+
+  const availabilityByPlayerId = new Map(availabilities.map((a) => [a.playerId, a.status]));
+  const absenceByPlayerId = new Map(absences.map((a) => [a.playerId, a.reason]));
 
   const plannedPlayerIds = new Set(match.selections.map((s) => s.playerId));
 
@@ -60,12 +84,8 @@ export async function seedReportFromFinalizedSquad(
             matchId,
             playerId: s.playerId,
             source: "PLANNED" as const,
-            attendanceStatus: "UNKNOWN" as const,
+            attendanceStatus: deriveInitialAttendance(s.playerId, availabilityByPlayerId, absenceByPlayerId),
           })),
-          // League Match helpers (ADR-0077): seeded unconditionally, same as the planned squad,
-          // so a helper added before the match is already present here — the coach never adds
-          // them again retroactively. `plannedPlayerIds` guard is defensive only; the add-helper
-          // action already refuses a player who's already a Selection participant in this match.
           ...match.helperAssignments
             .filter((h) => !plannedPlayerIds.has(h.playerId))
             .map((h) => ({
@@ -73,7 +93,7 @@ export async function seedReportFromFinalizedSquad(
               matchId,
               playerId: h.playerId,
               source: "EMERGENCY_BACKFILL" as const,
-              attendanceStatus: "UNKNOWN" as const,
+              attendanceStatus: deriveInitialAttendance(h.playerId, availabilityByPlayerId, absenceByPlayerId),
               unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
             })),
         ],
@@ -555,8 +575,13 @@ export async function markMatchAbsence(
 }
 
 /**
- * Reverses markMatchAbsence — restores the player to participating. Only meaningful before the
- * report is locked; the coach uses the existing post-match correction mechanism after that.
+ * Reverses markMatchAbsence — restores the player to their pre-absence attendance state.
+ * Only meaningful before the report is locked; the coach uses the existing post-match
+ * correction mechanism after that.
+ *
+ * When clearing an absence, the player's attendance is restored to their pre-match
+ * availability status (AVAILABLE/TENTATIVE → PRESENT) rather than always UNKNOWN,
+ * since clearing an absence means the coach confirms the player is now available.
  */
 export async function clearMatchAbsence(
   matchId: string,
@@ -576,9 +601,31 @@ export async function clearMatchAbsence(
     await db.matchReportAbsence.delete({ where: { id: absence.id } });
   }
 
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { matchRoundId: true },
+  });
+
+  let restoredStatus: PostMatchAttendanceStatus = "UNKNOWN";
+
+  if (match) {
+    const availability = await db.availability.findFirst({
+      where: { playerId, matchRoundId: match.matchRoundId },
+      select: { status: true },
+    });
+
+    if (availability) {
+      if (availability.status === "AVAILABLE" || availability.status === "TENTATIVE") {
+        restoredStatus = "PRESENT";
+      } else if (availability.status === "UNAVAILABLE" || availability.status === "INJURED" || availability.status === "SICK" || availability.status === "AWAY") {
+        restoredStatus = "NO_SHOW";
+      }
+    }
+  }
+
   await db.postMatchPlayerActual.updateMany({
     where: { reportId: report.id, playerId, attendanceStatus: "NO_SHOW" },
-    data: { attendanceStatus: "UNKNOWN" },
+    data: { attendanceStatus: restoredStatus },
   });
 
   return { success: true, matchId, reportId: report.id };

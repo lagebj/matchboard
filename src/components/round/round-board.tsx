@@ -44,6 +44,7 @@ import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Dialog } from "@/components/ui/dialog";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
+import { formatKickoffDate } from "@/lib/date-utils";
 
 type SelectionRole = UISelectionRole;
 
@@ -274,11 +275,7 @@ function MatchColumnComponent({
   touchDragPlayerId?: string | null;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const dateStr = match.matchDate.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  const dateStr = formatKickoffDate(match.matchDate);
 
   const playersByRole = new Map<string, PlayerInColumn[]>();
   for (const role of DISPLAY_ROLE_ORDER) playersByRole.set(role, []);

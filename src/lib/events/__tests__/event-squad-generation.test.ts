@@ -781,6 +781,36 @@ describe('event-validation', () => {
       expect(result.goalkeeperCoverage.sufficient).toBe(true);
       expect(result.availablePlayerCount).toBe(14);
     });
+
+    it('uses totalTargetSizeOverride for mixed-format events (D16/D17)', () => {
+      const gk1 = makePlayer({ playerId: 'gk1', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const gk2 = makePlayer({ playerId: 'gk2', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const gk3 = makePlayer({ playerId: 'gk3', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const outfield = Array.from({ length: 17 }, (_, i) =>
+        makePlayer({ playerId: `p${i}` }),
+      );
+      const players = [gk1, gk2, gk3, ...outfield];
+
+      const defaultTarget = validateEventPool(players, 2, 7, 'SEVEN_A_SIDE', formatSlots);
+      const overrideTarget = validateEventPool(players, 2, 7, 'SEVEN_A_SIDE', formatSlots, 20);
+
+      expect(defaultTarget.totalTargetSize).toBe(2 * 7);
+      expect(overrideTarget.totalTargetSize).toBe(20);
+      expect(overrideTarget.totalTargetSize).not.toBe(2 * 7);
+    });
+
+    it('correctly detects shortage when totalTargetSizeOverride exceeds default product', () => {
+      const gk = makePlayer({ playerId: 'gk1', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
+      const outfield = Array.from({ length: 10 }, (_, i) =>
+        makePlayer({ playerId: `p${i}` }),
+      );
+      const players = [gk, ...outfield];
+
+      const result = validateEventPool(players, 2, 5, 'FIVE_A_SIDE', formatSlots, 14);
+      expect(result.warnings).toContainEqual(
+        expect.stringContaining('Not enough available players'),
+      );
+    });
   });
 });
 

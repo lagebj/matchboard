@@ -7,6 +7,7 @@ import {
   createTestGroup,
 } from "@/test/test-db";
 import { getEventWorkItems } from "../get-event-work-items";
+import type { AssistantWorkCategory } from "../types";
 
 vi.mock("@/lib/db", () => {
   let _db: PrismaClient;
@@ -373,10 +374,13 @@ describe("getEventWorkItems", () => {
     await cleanEventTables(db);
   });
 
-  it("returns event_squads_draft when all squads are DRAFT", async () => {
+  it("does not return event_squads_draft — obsolete category removed (remediation programme)", async () => {
+    // The event_squads_draft category has been removed from AssistantWorkCategory.
+    // Draft squads are not an actionable decision (ADR-0109).
+    // Verify the category string never appears in work items for a DRAFT-squad event.
     const event = await db.event.create({
       data: {
-        name: "Draft Review Cup",
+        name: "Review Cup",
         eventType: "CUP",
         startsAt: new Date("2028-09-01T09:00:00Z"),
         endsAt: new Date("2028-09-01T17:00:00Z"),
@@ -388,7 +392,7 @@ describe("getEventWorkItems", () => {
     const squad = await db.eventSquad.create({
       data: {
         eventId: event.id,
-        name: "Draft Squad",
+        name: "Red Squad",
         intent: "COMPETITIVE",
         targetSize: 7,
         status: "DRAFT",
@@ -400,7 +404,7 @@ describe("getEventWorkItems", () => {
         eventId: event.id,
         eventSquadId: squad.id,
         category: "CUP",
-        opponentName: "Draft Opponent",
+        opponentName: "Opponent",
         opponentTeamId: opponentTeamId,
         startsAt: new Date("2028-09-01T10:00:00Z"),
         organisationId: testOrgId,
@@ -408,12 +412,9 @@ describe("getEventWorkItems", () => {
     });
 
     const items = await getEventWorkItems();
-    const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
-    );
-    expect(draftItems.length).toBe(1);
-    expect(draftItems[0]!.title).toContain("Draft Review Cup");
-    expect(draftItems[0]!.primaryActionLabel).toBe("View squads");
+    const eventItems = items.filter((i) => i.eventId === event.id);
+    // No item should have the removed "event_squads_draft" category
+    expect(eventItems.every((i) => i.category !== ("event_squads_draft" as AssistantWorkCategory))).toBe(true);
 
     await cleanEventTables(db);
   });
@@ -453,10 +454,8 @@ describe("getEventWorkItems", () => {
     });
 
     const items = await getEventWorkItems();
-    const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
-    );
-    expect(draftItems.length).toBe(0);
+    const eventItems = items.filter((i) => i.eventId === event.id);
+    expect(eventItems.every((i) => i.category !== ("event_squads_draft" as AssistantWorkCategory))).toBe(true);
 
     await cleanEventTables(db);
   });
@@ -476,7 +475,7 @@ describe("getEventWorkItems", () => {
     await db.eventSquad.create({
       data: {
         eventId: event.id,
-        name: "Draft Squad",
+        name: "Squad A",
         intent: "BALANCED",
         targetSize: 7,
         status: "DRAFT",
@@ -486,7 +485,7 @@ describe("getEventWorkItems", () => {
     await db.eventSquad.create({
       data: {
         eventId: event.id,
-        name: "Locked Squad",
+        name: "Squad B",
         intent: "COMPETITIVE",
         targetSize: 7,
         status: "LOCKED",
@@ -495,18 +494,16 @@ describe("getEventWorkItems", () => {
     });
 
     const items = await getEventWorkItems();
-    const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
-    );
-    expect(draftItems.length).toBe(0);
+    const eventItems = items.filter((i) => i.eventId === event.id);
+    expect(eventItems.every((i) => i.category !== ("event_squads_draft" as AssistantWorkCategory))).toBe(true);
 
     await cleanEventTables(db);
   });
 
-  it("does not return event_squads_draft once the event is fully played and reported (2026-08-24 stale-item regression)", async () => {
+  it("does not return event_squads_draft once the event is fully played and reported (stale-item regression)", async () => {
     const event = await db.event.create({
       data: {
-        name: "Sandar Cup 2026",
+        name: "Past Cup",
         eventType: "CUP",
         startsAt: new Date("2020-03-01T09:00:00Z"),
         endsAt: new Date("2020-03-01T17:00:00Z"),
@@ -519,7 +516,7 @@ describe("getEventWorkItems", () => {
     const squad = await db.eventSquad.create({
       data: {
         eventId: event.id,
-        name: "Draft Squad",
+        name: "Red Squad",
         intent: "COMPETITIVE",
         targetSize: 7,
         status: "DRAFT",
@@ -546,10 +543,8 @@ describe("getEventWorkItems", () => {
     });
 
     const items = await getEventWorkItems();
-    const draftItems = items.filter(
-      (i) => i.category === "event_squads_draft" && i.eventId === event.id,
-    );
-    expect(draftItems.length).toBe(0);
+    const eventItems = items.filter((i) => i.eventId === event.id);
+    expect(eventItems.every((i) => i.category !== ("event_squads_draft" as AssistantWorkCategory))).toBe(true);
 
     await cleanEventTables(db);
   });

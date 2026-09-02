@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import { PREVIOUS_ENCOUNTERS_DISCLAIMER } from "@/lib/opponents/observation-labels";
+import { formatKickoffDate } from "@/lib/date-utils";
 
 type Props = {
   history: OpponentHistoryData | null;
@@ -94,7 +95,7 @@ export function PreviousEncountersDisplay({ history, concernCount, latestConcern
                 <span className={`text-xs font-bold w-5 text-center shrink-0 ${resultColour(m.result)}`}>
                   {formatResult(m.result)}
                 </span>
-                <span className="text-zinc-400 shrink-0">{m.matchDate ? new Date(m.matchDate).toLocaleDateString() : "—"}</span>
+                <span className="text-zinc-400 shrink-0">{m.matchDate ? formatKickoffDate(new Date(m.matchDate)) : "—"}</span>
                 <span className="text-zinc-200 truncate">{m.teamName}</span>
                 <span className="text-zinc-500 shrink-0">{m.homeAway === "HOME" ? "H" : "A"}</span>
               </div>

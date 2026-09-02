@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateMatchAction } from "@/app/(app)/matches/actions";
 import { Pencil, Check, X, Loader2 } from "lucide-react";
+import { getKickoffDateInputValue, getKickoffTimeInputValue } from "@/lib/date-utils";
 
 type MatchEditFormProps = {
   matchId: string;
@@ -12,14 +13,6 @@ type MatchEditFormProps = {
   phaseEndDate: Date;
 };
 
-function toDateInputValue(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
-function toTimeInputValue(date: Date): string {
-  return date.toISOString().split("T")[1]?.slice(0, 5) ?? "12:00";
-}
-
 export function MatchEditForm({
   matchId,
   startsAt,
@@ -28,8 +21,8 @@ export function MatchEditForm({
   phaseEndDate,
 }: MatchEditFormProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dateValue, setDateValue] = useState(toDateInputValue(startsAt));
-  const [timeValue, setTimeValue] = useState(toTimeInputValue(startsAt));
+  const [dateValue, setDateValue] = useState(getKickoffDateInputValue(startsAt));
+  const [timeValue, setTimeValue] = useState(getKickoffTimeInputValue(startsAt));
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -64,15 +57,20 @@ export function MatchEditForm({
       return;
     }
 
-    const combined = `${dateValue}T${timeValue}:00.000Z`;
-    const parsed = new Date(combined);
+    // Parse as local wall-clock time — the coach enters the time they see on
+    // their watch, not UTC. No timezone conversion should occur.
+    const [year, month, day] = dateValue.split("-").map(Number);
+    const [hours, minutes] = timeValue.split(":").map(Number);
+    const parsed = new Date(year, month - 1, day, hours ?? 0, minutes ?? 0, 0);
     if (isNaN(parsed.getTime())) {
       setError("Invalid date or time.");
       return;
     }
+    // Send as ISO string — the server stores this as a local wall-clock value
+    const isoString = parsed.toISOString();
 
     startTransition(async () => {
-      const result = await updateMatchAction(matchId, combined);
+      const result = await updateMatchAction(matchId, isoString);
       if (result.success) {
         if (!result.movedRound) {
           setSuccessMsg("Match date updated.");
@@ -92,8 +90,8 @@ export function MatchEditForm({
   }
 
   function handleCancel() {
-    setDateValue(toDateInputValue(startsAt));
-    setTimeValue(toTimeInputValue(startsAt));
+    setDateValue(getKickoffDateInputValue(startsAt));
+    setTimeValue(getKickoffTimeInputValue(startsAt));
     setError(null);
     setSuccessMsg(null);
     setIsOpen(false);
@@ -113,8 +111,8 @@ export function MatchEditForm({
             type="date"
             value={dateValue}
             onChange={(e) => handleDateChange(e.target.value)}
-            min={toDateInputValue(phaseStartDate)}
-            max={toDateInputValue(phaseEndDate)}
+            min={getKickoffDateInputValue(phaseStartDate)}
+            max={getKickoffDateInputValue(phaseEndDate)}
             className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
           />
         </div>

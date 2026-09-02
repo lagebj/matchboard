@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { createMatchAction } from "@/app/(app)/matches/actions";
 import { OpponentTeamSelect } from "@/components/opponents/opponent-team-select";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { getTodayLocalDateInputValue } from "@/lib/date-utils";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -32,7 +33,7 @@ export function MatchCreateForm({
   const [state, formAction] = useActionState(createMatchAction, INITIAL_STATE);
   const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | null>(null);
   const orgUrl = useOrgUrl();
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayLocalDateInputValue();
 
   if (teams.length === 0) {
     return (
@@ -93,6 +94,18 @@ export function MatchCreateForm({
           type="date"
           required
           defaultValue={today}
+          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="kickoffTime" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
+          Kick-off time
+        </label>
+        <input
+          id="kickoffTime"
+          name="kickoffTime"
+          type="time"
           className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none"
         />
       </div>

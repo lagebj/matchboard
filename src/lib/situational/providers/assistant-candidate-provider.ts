@@ -22,7 +22,6 @@ const CATEGORY_CONSEQUENCES: Record<AssistantWorkCategory, DecisionConsequence[]
   availability_missing: ["PLANNING_BLOCKED"],
   event_setup_missing: ["PLANNING_BLOCKED"],
   event_squads_missing: ["PLANNING_BLOCKED"],
-  event_squads_draft: ["PLAYER_OPPORTUNITY"],
   event_lineup_missing: ["POSITION_COVERAGE"],
   populate_needed: ["PLANNING_BLOCKED"],
   blocked_round: ["SQUAD_DEGRADED", "PLANNING_BLOCKED"],

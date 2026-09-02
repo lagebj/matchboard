@@ -250,12 +250,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
     });
   });
 
+  const totalTargetSize = squads.reduce((sum, s) => sum + (s.targetSize ?? 7), 0);
+
   const validation = validateEventPool(
     availablePlayerProfiles,
     squads.length,
     squads[0]?.targetSize ?? 7,
     gameFormat,
     [],
+    totalTargetSize > 0 ? totalTargetSize : undefined,
   );
 
   const [guestPlayerPool, availableGuestPlayers] = await Promise.all([

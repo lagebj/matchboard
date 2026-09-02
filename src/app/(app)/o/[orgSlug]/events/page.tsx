@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { getEvents } from '@/app/(app)/events/actions';
+import { formatKickoffDate } from '@/lib/date-utils';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BrandedSurface } from '@/components/ui/branded-surface';
 
@@ -72,7 +73,7 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
                         {event.eventType}
                       </span>
                       <span>
-                        {new Date(event.startsAt).toLocaleDateString()}
+                        {formatKickoffDate(new Date(event.startsAt))}
                       </span>
                       <span>
                         {formatGameFormat(event.gameFormat)}

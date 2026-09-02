@@ -63,6 +63,10 @@ type MatchTacticsPanelProps = {
     primaryPosition: string;
     secondaryPosition: string | null;
     coreTeamName: string;
+    /** Match-specific absence reason — null/undefined means the player is an active participant.
+     * Absent/no-show players are excluded from the tactics player pool (they cannot be placed
+     * on the field) but remain visible in the squad list for context. */
+    absenceReason?: string | null;
   }[];
 };
 
@@ -84,7 +88,12 @@ export function MatchTacticsPanel({
   const [loaded, setLoaded] = useState(false);
   const [pickerState, setPickerState] = useState<{ assignmentId: string | null; slotId: string; slotLabel: string; acceptedPositions: BroadPosition[] } | null>(null);
 
-  const playerPool = selections.map((s) => ({
+  /** Eligible players for tactical selection — absent/no-show players are excluded.
+   * The tactics board answers "Who is currently eligible to play?", not "Who belongs to this
+   * match?". Squad membership is a separate concept from tactical eligibility. */
+  const eligibleSelections = selections.filter((s) => !s.absenceReason);
+
+  const playerPool = eligibleSelections.map((s) => ({
     id: s.playerId,
     firstName: s.playerName.split(" ")[0],
     lastName: s.playerName.split(" ").slice(1).join(" ") || null,

@@ -47,14 +47,31 @@ function readText(formData: FormData, fieldName: string): string {
 function readNonEmptyString(formData: FormData, fieldName: string, label: string): string {
   const value = readText(formData, fieldName);
   if (!value) throw new Error(`${label} is required.`);
-  return value;
-}
+   return value;
+ }
 
-function readDate(formData: FormData, fieldName: string, label: string): Date {
-  const value = readText(formData, fieldName);
-  if (!value) throw new Error(`${label} is required.`);
-  const parsed = new Date(value);
-  if (isNaN(parsed.getTime())) throw new Error(`${label} must be a valid date.`);
+/** Parse a date + optional kickoff time into a Date representing the local wall-clock time.
+ * If no time is provided, defaults to noon (12:00) local time to avoid day-boundary issues. */
+function readKickoffDateTime(formData: FormData, dateField: string, timeField: string, label: string): Date {
+  const dateValue = readText(formData, dateField);
+  if (!dateValue) throw new Error(`${label} is required.`);
+  const timeValue = readText(formData, timeField);
+
+  const [year, month, day] = dateValue.split("-").map(Number);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    throw new Error(`${label} must be a valid date.`);
+  }
+
+  let hours = 12;
+  let minutes = 0;
+  if (timeValue) {
+    const parts = timeValue.split(":").map(Number);
+    hours = parts[0] ?? 0;
+    minutes = parts[1] ?? 0;
+  }
+
+  const parsed = new Date(year, month - 1, day, hours, minutes, 0);
+  if (isNaN(parsed.getTime())) throw new Error(`${label} must be a valid date and time.`);
   return parsed;
 }
 
@@ -193,7 +210,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     await requireTeamGroupAccess(ctx, teamId);
     const opponentText = readText(formData, "opponent");
     const opponentTeamIdInput = readText(formData, "opponentTeamId");
-    const startsAt = readDate(formData, "startsAt", "Match date");
+    const startsAt = readKickoffDateTime(formData, "startsAt", "kickoffTime", "Match date");
     const homeAway = readRequiredEnum(formData, "homeAway", VALID_VENUES, "Home or away");
     const matchType = readRequiredEnum(formData, "matchType", VALID_TYPES, "Match type");
     const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");
