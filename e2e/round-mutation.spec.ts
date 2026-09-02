@@ -38,16 +38,34 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   // Create a fresh DRAFT round with future matches via the test-agent API.
   // startsAt is 14 days from now — well within the planning boundary, so the round stays DRAFT.
   const startsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-  const seedResponse = await page.request.post("/api/test-agent/seed-draft-match", {
-    data: {
-      teamName: "A1 Blues",
-      opponentName: `E2E Draft ${Date.now()}`,
-      startsAt,
-    },
-    timeout: 60_000,
-  });
-  if (!seedResponse.ok()) {
-    throw new Error(`seed-draft-match failed (${seedResponse.status()}): ${await seedResponse.text()}`);
+
+  // Retry the seed call up to 3 times with increasing delays — cold serverless + cold Neon
+  // on a freshly forked branch can cause the first request to time out. Retrying gives the
+  // function time to warm up while avoiding a single-point-of-failure on the first attempt.
+  let seedResponse: Awaited<ReturnType<typeof page.request.post>> | undefined;
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      seedResponse = await page.request.post("/api/test-agent/seed-draft-match", {
+        data: {
+          teamName: "A1 Blues",
+          opponentName: `E2E Draft ${Date.now()}`,
+          startsAt,
+        },
+        timeout: 60_000,
+      });
+      if (seedResponse.ok()) break;
+      lastError = new Error(`seed-draft-match failed (${seedResponse.status()}): ${await seedResponse.text()}`);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
+    if (attempt < 2) {
+      // Wait 5s before retrying to allow the serverless function to warm up.
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  if (!seedResponse || !seedResponse.ok()) {
+    throw lastError ?? new Error("seed-draft-match failed after 3 attempts");
   }
   const { matchRoundId } = (await seedResponse.json()) as { matchRoundId: string };
 
