@@ -218,7 +218,6 @@ export function FollowLiveClient({
       client.disconnect();
       clientRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- baseline is ref-stable; matchId is the connection key
   }, [matchId]);
 
   // Derived display values
