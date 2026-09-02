@@ -234,14 +234,31 @@ describe("Security audit: auth is membership-based, not allowlist-based", () => 
     expect(violations).toEqual([]);
   });
 
-  it("middleware does not check ALLOWED_COACH_EMAILS", async () => {
+  it("proxy does not check ALLOWED_COACH_EMAILS", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const middleware = fs.readFileSync(
-      path.join(process.cwd(), "src/middleware.ts"),
+    const proxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/proxy.ts"),
       "utf-8",
     );
-    expect(middleware).not.toContain("ALLOWED_COACH_EMAILS");
+    expect(proxyFile).not.toContain("ALLOWED_COACH_EMAILS");
+  });
+
+  it("proxy and auth-proxy do not import database modules (cold-start isolation)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const proxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/proxy.ts"),
+      "utf-8",
+    );
+    const authProxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/auth-proxy.ts"),
+      "utf-8",
+    );
+    expect(proxyFile).not.toContain("@/lib/db");
+    expect(proxyFile).not.toContain("PrismaAdapter");
+    expect(authProxyFile).not.toContain("@/lib/db");
+    expect(authProxyFile).not.toContain("PrismaAdapter");
   });
 
   it("auth.ts signIn callback does not check isAllowedCoach", async () => {
@@ -591,15 +608,15 @@ describe("Security audit: authentication architecture", () => {
     expect(providerFile).not.toContain("localhost:3333");
   });
 
-  it("HSTS header is set in production middleware", async () => {
+  it("HSTS header is set in production proxy", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const middlewareFile = fs.readFileSync(
-      path.join(process.cwd(), "src/middleware.ts"),
+    const proxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/proxy.ts"),
       "utf-8",
     );
-    expect(middlewareFile).toContain("Strict-Transport-Security");
-    expect(middlewareFile).toContain("isProduction");
+    expect(proxyFile).toContain("Strict-Transport-Security");
+    expect(proxyFile).toContain("isProduction");
   });
 
   it("environment config reads are centralized through env.ts", async () => {
@@ -669,20 +686,20 @@ describe("Security audit: authentication architecture", () => {
     expect(db).toContain("isRlsDebug");
     expect(db).not.toContain("process.env.RLS_DEBUG");
 
-    const middleware = fs.readFileSync(
-      path.join(process.cwd(), "src/middleware.ts"),
+    const proxyFile = fs.readFileSync(
+      path.join(process.cwd(), "src/proxy.ts"),
       "utf-8",
     );
-    expect(middleware).toContain("getPreviewAllowlistEmails");
-    expect(middleware).toContain("isVercelPreview");
-    expect(middleware).not.toContain("process.env.PREVIEW_ALLOWLIST_EMAILS");
-    expect(middleware).not.toContain("process.env.VERCEL_ENV");
+    expect(proxyFile).toContain("getPreviewAllowlistEmails");
+    expect(proxyFile).toContain("isVercelPreview");
+    expect(proxyFile).not.toContain("process.env.PREVIEW_ALLOWLIST_EMAILS");
+    expect(proxyFile).not.toContain("process.env.VERCEL_ENV");
   });
 });
 
 describe("Security audit: preview-allowlist gate never blocks HMAC-authenticated internal routes", () => {
   // Regression test for a real, confirmed-live bug: the preview-deployment email-allowlist gate
-  // in middleware.ts (isVercelPreview() && path.startsWith("/api/")) was rejecting every call to
+  // in proxy.ts (isVercelPreview() && path.startsWith("/api/")) was rejecting every call to
   // /api/internal/live-match/events with 403 before it ever reached that route's own HMAC
   // signature verification, because a machine-to-machine request has no session email to check.
   // The Cloudflare Worker's classifyPersistenceFailure() had no way to know this 403 was
@@ -691,13 +708,13 @@ describe("Security audit: preview-allowlist gate never blocks HMAC-authenticated
   // Cloudflare Durable Object exhaustion. Fixed by excluding /api/internal/** from the gate,
   // since those routes authenticate via signature, never via session cookie, by design.
   it("excludes /api/internal/** from the preview-allowlist check", async () => {
-    const { requiresPreviewAllowlistCheck } = await import("@/middleware");
+    const { requiresPreviewAllowlistCheck } = await import("@/proxy");
     expect(requiresPreviewAllowlistCheck("/api/internal/live-match/events")).toBe(false);
     expect(requiresPreviewAllowlistCheck("/api/internal/live-match/snapshot")).toBe(false);
   });
 
   it("still applies the preview-allowlist check to ordinary session-based API routes", async () => {
-    const { requiresPreviewAllowlistCheck } = await import("@/middleware");
+    const { requiresPreviewAllowlistCheck } = await import("@/proxy");
     expect(requiresPreviewAllowlistCheck("/api/season/export")).toBe(true);
     expect(requiresPreviewAllowlistCheck("/api/admin/audit")).toBe(true);
   });

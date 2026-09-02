@@ -36,7 +36,7 @@ All responses through the edge middleware receive security headers:
 | Permissions-Policy | camera=(), microphone=(), geolocation=(), payment=() | Deny unnecessary browser APIs |
 | X-DNS-Prefetch-Control | on | Enable DNS prefetching |
 
-Headers are set in `src/middleware.ts` via a `withSecurityHeaders()` wrapper applied to all middleware responses.
+Headers are set in `src/proxy.ts` (formerly `src/middleware.ts`) via a `withSecurityHeaders()` wrapper applied to all proxy responses.
 
 ### 2. Content Security Policy (report-only)
 
@@ -136,5 +136,5 @@ All 30 server action files already have `"use server"` directive. Server Actions
 - `src/lib/security/validation.ts` — Zod input schemas
 - `src/lib/security/errors.ts` — Safe error handling
 - `src/lib/security/csp.ts` — CSP configuration
-- `src/middleware.ts` — Security headers middleware
+- `src/proxy.ts` — Security headers proxy (formerly `src/middleware.ts`)
 - `src/app/api/csp-report/route.ts` — CSP violation reporting endpoint

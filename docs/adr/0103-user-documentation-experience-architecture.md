@@ -41,7 +41,7 @@ Verified directly against repository state, not only local programme metadata:
 
 ### Repository facts this decision depends on
 
-- **Auth boundary is enforced by `src/middleware.ts`**, gated by `isPublicRoute(path)`
+- **Auth boundary is enforced by `src/proxy.ts`**, gated by `isPublicRoute(path)`
   (`src/lib/env.ts`), which checks a plain `PUBLIC_ROUTES` string-prefix array
   (`/api/auth`, `/_next`, `/favicon.ico`, `/robots.txt`, `/signin`, `/error`, `/api/health`,
   `/api/meta`, `/api/locale`). This is already the exact mechanism used to exempt the existing
@@ -78,7 +78,7 @@ Verified directly against repository state, not only local programme metadata:
    CMS.
 
 2. **Public route boundary: add `"/docs"` to `PUBLIC_ROUTES`** in `src/lib/env.ts`. This is the
-   entire auth-boundary change — no middleware redesign, no new auth mode, no weakening of the
+   entire auth-boundary change — no proxy redesign, no new auth mode, no weakening of the
    existing "authenticated session required for everything else" default. `/docs/**` pages and any
    docs-only API/search route must not read tenant/player/match/user data; they read only the
    canonical MDX content tree.
@@ -112,7 +112,7 @@ Verified directly against repository state, not only local programme metadata:
      authored against plain `/docs/**` paths; `embed-link.tsx` rewrites them to `/docs/embed/**`
      when rendered in embed mode so browsing cross-references stays inside the compact embed
      rather than reintroducing the full chrome mid-navigation. No changes were needed to
-     `PUBLIC_ROUTES`, CSP's `frame-ancestors`, or the X-Frame-Options middleware check — all three
+     `PUBLIC_ROUTES`, CSP's `frame-ancestors`, or the X-Frame-Options proxy check — all three
      already match on the `/docs/` prefix, which `/docs/embed/**` still satisfies, so the "do not
      widen this beyond /docs/**" boundary in AGENTS.md is preserved exactly, not relaxed.
 

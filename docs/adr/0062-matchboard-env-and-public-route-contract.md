@@ -57,7 +57,7 @@ A new module exports:
 - `src/lib/db.ts` — `isProduction()` instead of `process.env.NODE_ENV !== "production"`
 - `src/lib/security/csp.ts` — `isDevelopment()` instead of `process.env.NODE_ENV === "development"`
 - `src/app/api/webhooks/brevo/route.ts` — `isProduction()` instead of `NODE_ENV`
-- `src/middleware.ts` — `isPublicRoute(path)` instead of inline boolean expression
+- `src/proxy.ts` — `isPublicRoute(path)` instead of inline boolean expression (formerly `src/middleware.ts`)
 
 ### 4. Declarative public route contract
 
@@ -135,7 +135,7 @@ Current public routes: `/api/auth`, `/_next`, `/favicon.ico`, `/robots.txt`, `/s
 - ADR-0061 (remove email allowlist)
 - ADR-0032 (authentication baseline)
 - `src/lib/env.ts` — environment module
-- `src/middleware.ts` — public route contract usage
+- `src/proxy.ts` — public route contract usage (formerly `src/middleware.ts`)
 
 ## Implementation evidence
 

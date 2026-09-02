@@ -1,4 +1,4 @@
-import { edgeAuth } from "@/auth-edge";
+import { proxyAuth } from "@/auth-proxy";
 import { NextResponse } from "next/server";
 import { getContentSecurityPolicy } from "@/lib/security/csp";
 import { isPublicRoute, isProduction, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
@@ -12,7 +12,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 /** Exported for regression testing (src/test/security-audit.test.ts) without needing to invoke
- * the full edgeAuth/NextAuth-wrapped handler. See the call site's comment for why
+ * the full auth-wrapped handler. See the call site's comment for why
  * /api/internal/** must never be subject to the preview-allowlist gate. */
 export function requiresPreviewAllowlistCheck(path: string): boolean {
   return path.startsWith("/api/") && !path.startsWith("/api/internal/");
@@ -37,7 +37,7 @@ function withSecurityHeaders(response: NextResponse, pathname?: string): NextRes
   return response;
 }
 
-export default edgeAuth((req) => {
+export default proxyAuth((req) => {
   const path = req.nextUrl.pathname;
 
   if (isPublicRoute(path)) {

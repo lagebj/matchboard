@@ -6,8 +6,8 @@ import { getCorrelationId } from "@/lib/logging/correlation-context";
 // Node-runtime server code (server actions, API routes, db/security/policy/email libs) with
 // structured JSON output carrying a correlationId set once at the request/action boundary
 // (requireActorContext()). Deliberately NOT used from src/lib/env.ts (imported by
-// src/middleware.ts, which runs on the Edge Runtime — pino depends on Node.js streams and does
-// not work there) or from client components (src/app/global-error.tsx runs in the browser).
+// src/proxy.ts at the request boundary — pino depends on Node.js streams and is not
+// needed in the proxy layer) or from client components (src/app/global-error.tsx runs in the browser).
 export function correlationMixin(): Record<string, string> {
   const correlationId = getCorrelationId();
   return correlationId ? { correlationId } : {};

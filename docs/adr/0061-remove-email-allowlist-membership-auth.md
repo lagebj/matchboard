@@ -41,7 +41,7 @@ The `PREVIEW_ALLOWLIST_EMAILS` env var restricts Vercel preview API routes. This
 
 4. Update `src/auth.ts` `signIn` callback: any Google-authenticated user with an email can sign in. The sign-in gate moves from "is on allowlist" to "has a valid Google account with email".
 
-5. Update `src/middleware.ts`: replace `ALLOWED_COACH_EMAILS` check with a simple session-email check. Keep `PREVIEW_ALLOWLIST_EMAILS` for preview API route protection.
+5. Update `src/middleware.ts` (now `src/proxy.ts`): replace `ALLOWED_COACH_EMAILS` check with a simple session-email check. Keep `PREVIEW_ALLOWLIST_EMAILS` for preview API route protection.
 
 6. Update error and sign-in pages: replace allowlist language with membership language.
 
