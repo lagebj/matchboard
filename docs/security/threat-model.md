@@ -50,7 +50,7 @@ This document describes the threat model for Matchboard as a hosted web applicat
 | Boundary | Description |
 |----------|-------------|
 | Browser → Vercel Edge | Client HTTPS requests to Next.js application |
-| Vercel Edge → Next.js Application | Edge middleware processes auth before route handlers |
+| Vercel Edge → Next.js Application | Proxy processes auth before route handlers |
 | Route/Action → Command/Query Layer | Application business logic boundary |
 | Application → Neon PostgreSQL | Database queries over pooled or direct connection |
 | Application → External AI or integrations | Outbound HTTP to allowlisted providers (currently none active) |
@@ -94,10 +94,10 @@ This document describes the threat model for Matchboard as a hosted web applicat
 
 | Control | Status | Location |
 |---------|--------|----------|
-| Google OAuth via Auth.js | Active | `src/auth.ts`, `src/auth-edge.ts` |
+| Google OAuth via Auth.js | Active | `src/auth.ts` |
 | JWT session strategy | Active | `src/auth.ts` |
 | Organisation membership | Active | `src/lib/organisations/organisation-resolver.ts` |
-| Middleware auth check (all routes) | Active | `src/middleware.ts` |
+| Proxy auth check (all routes) | Active | `src/proxy.ts` (formerly `src/middleware.ts`) |
 | `BYPASS_AUTH` for tests | Active (test only) | `src/lib/auth.ts` |
 
 ### 6.2 Authorization
@@ -191,7 +191,7 @@ This document describes the threat model for Matchboard as a hosted web applicat
 | G-04 | Auth: No role granularity | **Resolved** | OWNER/ADMIN/COACH/VIEWER/SUPPORT roles |
 | G-05 | Auth: Edge auth duplicates allowlist logic | Code work | Extract shared module |
 | G-06 | Headers: No CSP | Code work | Deploy report-only first, then enforce |
-| G-07 | Headers: No security headers (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy, Permissions-Policy) | Code work | Add Next.js headers config or middleware |
+| G-07 | Headers: No security headers (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy, Permissions-Policy) | Code work | Add Next.js headers config or proxy |
 | G-08 | Validation: No central schema validation library | **Partially Resolved** — Zod on mutations | Continue expanding Zod coverage |
 | G-09 | Validation: No CSV formula injection prevention | Code work | Escape formula prefixes in exports |
 | G-10 | Rate Limit: Non-functional on serverless | ADR (defer Redis) | Document compensating controls |

@@ -25,7 +25,7 @@ This document prepares Matchboard for an independent security assessment by prov
 - **Database**: PostgreSQL (Neon for production, Docker Compose for local)
 - **ORM**: Prisma v7
 - **Auth**: Auth.js (Google OAuth, email allowlist)
-- **Hosting**: Vercel (serverless functions, edge middleware)
+- **Hosting**: Vercel (serverless functions, request proxy)
 - **CI/CD**: GitHub Actions
 
 ### Multitenancy Model

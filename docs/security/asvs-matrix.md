@@ -33,7 +33,7 @@ This is an engineering aid, not a certification claim.
 | V1.3.2 | Central authorisation mechanism | Partial | `requireCoachAccess()` central; no resource-level auth |
 | V1.3.3 | Role-based access control | Partial | COACH role only; no OWNER/ADMIN/VIEWER distinction |
 | V1.4.1 | Security documentation | Planned | This matrix + threat model |
-| V1.5.1 | Secure defaults | Partial | Deny-by-default middleware; some gaps (admin/policy route) |
+| V1.5.1 | Secure defaults | Partial | Deny-by-default proxy; some gaps (admin/policy route) |
 | V1.5.2 | Minimal privilege | Partial | All coaches have same access; no scoped access |
 | V1.6.1 | Secure component definition | Planned | Architectural boundaries defined in AGENTS.md |
 
@@ -157,7 +157,7 @@ This is an engineering aid, not a certification claim.
 | ASVS ID | Requirement | Status | Implementation/Notes |
 |---------|-------------|--------|---------------------|
 | V11.1.1 | Server hardening | Partial | Vercel manages; no custom server config |
-| V11.1.2 | Security headers | Gap | No security headers middleware |
+| V11.1.2 | Security headers | Gap | No security headers proxy |
 | V11.1.3 | HTTP methods restricted | Partial | Next.js restricts methods on API routes |
 | V11.2.1 | Rate limiting | Partial | In-memory rate limiter; non-functional on serverless |
 | V11.2.2 | DoS protection | Partial | Vercel provides DDoS mitigation |

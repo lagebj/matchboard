@@ -36,6 +36,6 @@ Application code must not use `$queryRawUnsafe` or `$executeRawUnsafe` Prisma me
 
 - SEC-4: Edge, WAF, and abuse protection
 - SEC-5: Secrets, environments, and supply chain
-- `src/middleware.ts` — preview deployment protection
+- `src/proxy.ts` — preview deployment protection (formerly `src/middleware.ts`)
 - `scripts/check-forbidden-sql.ts` — forbidden SQL methods scanner
 - `src/test/security-audit.test.ts` — forbidden SQL methods test

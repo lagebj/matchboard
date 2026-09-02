@@ -33,7 +33,7 @@ Set explicit session lifetime:
 - `maxAge: 24 * 60 * 60` (24 hours) — reduced from the 30-day default
 - `updateAge: 4 * 60 * 60` (4 hours) — token refreshed if older than 4 hours
 
-Both `src/auth.ts` and `src/auth-edge.ts` now have explicit session configuration.
+Both `src/auth.ts` and the former `src/auth-edge.ts` had explicit session configuration. `auth-edge.ts` was removed when the proxy migrated from Edge Runtime to Node.js runtime — `src/proxy.ts` now uses `src/auth.ts` directly.
 
 ### 3. Session revocation design (documented, deferred)
 
@@ -82,7 +82,7 @@ Added tests for:
 - ADR-0061 (remove email allowlist, use membership-based auth — supersedes allowlist sections)
 - `src/lib/auth.ts` — AuthenticationError, AuthorizationError, requireCoachAccess
 - `src/lib/security/errors.ts` — AppError, safeErrorResponse
-- `src/auth.ts`, `src/auth-edge.ts` — Explicit session lifetime configuration
+- `src/auth.ts` — Explicit session lifetime configuration (now also used by `src/proxy.ts`; `src/auth-edge.ts` removed)
 - Threat model: `docs/security/threat-model.md`
 - ASVS matrix: `docs/security/asvs-matrix.md`
 
