@@ -7,6 +7,7 @@ import { createMatchCore } from "@/app/(app)/matches/actions";
 import { refreshDraftRound } from "@/lib/selection/refresh-draft-selection";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Test-only fast-path fixture setup: create + generate a League match in DRAFT state

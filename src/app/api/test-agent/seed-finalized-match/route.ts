@@ -8,6 +8,7 @@ import { refreshDraftRound } from "@/lib/selection/refresh-draft-selection";
 import { ensureMatchPlanningBaselineCaptured } from "@/lib/selection/capture-planning-baseline";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Test-only fast-path fixture setup: create + generate + capture-planning-baseline a League
