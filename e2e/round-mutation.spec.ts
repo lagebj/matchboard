@@ -21,6 +21,16 @@ import { test, expect } from "@playwright/test";
 // generation from that empty state — a plain list-page "Generate squads" control only appears
 // for the (here unreachable) NOT_GENERATED derived status, which the first live run against this
 // spec surfaced was not this round's actual state.
+//
+// Navigates via the Fixtures page's league-season selector to find the target DRAFT round,
+// regardless of which season resolveActiveLeagueSeason() would pick. The persistent Test database
+// accumulates far-future league seasons from live-reporting E2E runs (each
+// createFinalizedLiveTestMatch call auto-creates one via resolveOrCreateMatchRoundForDate).
+// resolveActiveLeagueSeason() picks one of those over the real (ended) Spring 2026 season,
+// so the Rounds list page (/o/test-club-a/rounds) may show the wrong season. The Fixtures page
+// (/o/test-club-a/fixtures) fetches ALL league seasons and lets the user select one from a
+// dropdown, then shows round cards with "Review board" links that navigate directly to the round
+// board by round ID (bypassing resolveActiveLeagueSeason entirely).
 
 test("regenerate round, verify persisted selections, then clear back to empty draft", async ({ page }) => {
   // Round-level generation is a multi-phase pipeline (AGENTS.md: per-match core selection,
@@ -30,18 +40,59 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   // function / cold Neon compute on a freshly created branch.
   test.setTimeout(90_000);
 
-  await page.goto("/o/test-club-a/rounds");
+  // Navigate via the Fixtures page, which has a league-season selector. The persistent Test
+  // database accumulates far-future league seasons from live-reporting E2E runs (each
+  // createFinalizedLiveTestMatch call auto-creates one via resolveOrCreateMatchRoundForDate).
+  // resolveActiveLeagueSeason() picks one of those over the real (ended) Spring 2026 season,
+  // so the Rounds list page would show the wrong season. The Fixtures page lets us select
+  // the correct season and navigate directly to the round board from there.
+  await page.goto("/o/test-club-a/fixtures");
 
-  // Wait for the rounds list to hydrate before filtering — the list loads
-  // asynchronously and the round cards may not be present on first render.
+  // Wait for the Fixtures page to load its data (all league seasons).
+  // The league-season select appears when there are 2+ periods.
+  await page.waitForSelector("#league-season-select, div.rounded-xl", { timeout: 30_000 });
+
+  // If the dropdown is visible, select the target season. Try "Test A1 Fall 2026" first
+  // (the seed dataset's current-season league season that contains the A1 W11 draft round).
+  // If Fall doesn't exist yet (stale seed data without the Fall season), try
+  // "Test A1 Spring 2026" as fallback.
+  const seasonSelect = page.locator("#league-season-select");
+  if (await seasonSelect.isVisible()) {
+    const fallOption = seasonSelect.locator("option").filter({ hasText: "Test A1 Fall 2026" });
+    const springOption = seasonSelect.locator("option").filter({ hasText: "Test A1 Spring 2026" });
+    if (await fallOption.count() > 0) {
+      await seasonSelect.selectOption({ label: await fallOption.first().innerText() });
+    } else if (await springOption.count() > 0) {
+      await seasonSelect.selectOption({ label: await springOption.first().innerText() });
+    }
+    // Allow the UI to re-render after season selection.
+    await page.waitForTimeout(500);
+  }
+
+  // Wait for round data to render after potential season switch.
   await page.waitForSelector("div.rounded-xl", { timeout: 30_000 });
 
-  const roundCard = page
-    .locator("div.rounded-xl")
-    .filter({ has: page.getByText("A1 Blues · A1 Whites", { exact: true }) });
-  await expect(roundCard).toHaveCount(1, { timeout: 30_000 });
+  // Find the DRAFT round card containing both "A1 Blues" and "A1 Whites" match rows.
+  // On the Fixtures page, each round card is a TacticalSurface (div.rounded-xl) containing
+  // match rows with team names like "A1 Blues vs Valley FC". We also filter on "W11" to
+  // avoid matching the completed A1 W10 round (which also has A1 Blues but is FINALIZED).
+  const targetRoundCard = page.locator("div.rounded-xl").filter({
+    has: page.getByText("A1 Blues"),
+  }).filter({
+    has: page.getByText("A1 Whites"),
+  }).filter({
+    has: page.getByText("W11"),
+  });
+  await expect(targetRoundCard).toHaveCount(1, { timeout: 30_000 });
 
-  await roundCard.getByRole("link").click();
+  // Click the "Review board" link for DRAFT rounds (roundPrimaryAction returns this label
+  // for selectionState === "DRAFT"). This navigates directly to the round board by round ID,
+  // bypassing resolveActiveLeagueSeason entirely.
+  const reviewBoardLink = targetRoundCard.getByRole("link", { name: "Review board" });
+  await expect(reviewBoardLink).toBeVisible({ timeout: 10_000 });
+  await reviewBoardLink.click();
+
+  // Should navigate to the round board page.
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
 
   const regenerateButton = page.getByRole("button", { name: "Regenerate" });
