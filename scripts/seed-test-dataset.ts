@@ -188,18 +188,27 @@ async function main() {
     const leagueA1Spring = await db.leagueSeason.create({
       data: { name: "Test A1 Spring 2026", part: "SPRING", seasonId: seasonA1.id, organisationId: orgA.id, footballGroupId: groupA1.id, startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
     });
+    // A1 Fall 2026 — covers the current time period so resolveActiveLeagueSeason picks it,
+    // keeping the draft round visible on the Rounds list even after Spring 2026 has ended.
+    const leagueA1Fall = await db.leagueSeason.create({
+      data: { name: "Test A1 Fall 2026", part: "FALL", seasonId: seasonA1.id, organisationId: orgA.id, footballGroupId: groupA1.id, startDate: new Date("2026-09-01"), endDate: new Date("2026-12-31") },
+    });
 
-    // Completed round (W10)
+    // Completed round in Spring (W10, finalized)
     const roundA1W10 = await db.matchRound.create({ data: { name: "W10", leagueSeasonId: leagueA1Spring.id, organisationId: orgA.id, status: "FINALIZED" } });
-    // Draft round (W11)
-    const roundA1W11 = await db.matchRound.create({ data: { name: "W11", leagueSeasonId: leagueA1Spring.id, organisationId: orgA.id, status: "DRAFT" } });
+    // Draft round in Fall (W11, planning still open) — matches use daysFromNow so kickoff stays in the future
+    const roundA1W11 = await db.matchRound.create({ data: { name: "W11", leagueSeasonId: leagueA1Fall.id, organisationId: orgA.id, status: "DRAFT" } });
 
     // Season and league season for Group A2
     const seasonA2 = await db.season.create({ data: { name: "Test Season A2 2026", year: 2026, organisationId: orgA.id } });
     const leagueA2Spring = await db.leagueSeason.create({
       data: { name: "Test A2 Spring 2026", part: "SPRING", seasonId: seasonA2.id, organisationId: orgA.id, footballGroupId: groupA2.id, startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
     });
-    const roundA2W10 = await db.matchRound.create({ data: { name: "W10", leagueSeasonId: leagueA2Spring.id, organisationId: orgA.id, status: "DRAFT" } });
+    // A2 Fall 2026 — same rationale as A1 Fall above.
+    const leagueA2Fall = await db.leagueSeason.create({
+      data: { name: "Test A2 Fall 2026", part: "FALL", seasonId: seasonA2.id, organisationId: orgA.id, footballGroupId: groupA2.id, startDate: new Date("2026-09-01"), endDate: new Date("2026-12-31") },
+    });
+    const roundA2W10 = await db.matchRound.create({ data: { name: "W10", leagueSeasonId: leagueA2Fall.id, organisationId: orgA.id, status: "DRAFT" } });
 
     // Opponent teams for Org A
     const opponentsAData = [
@@ -223,6 +232,10 @@ async function main() {
     // Matches for A1 W11 (draft, planning still open -- kept relative to "now", see daysFromNow)
     await db.match.create({ data: { matchRoundId: roundA1W11.id, teamId: teamA1Blues.id, opponent: "Valley FC", opponentTeamId: opponentTeamIdsA["valley fc"], startsAt: daysFromNow(14, 10), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
     await db.match.create({ data: { matchRoundId: roundA1W11.id, teamId: teamA1Whites.id, opponent: "Metro Stars", opponentTeamId: opponentTeamIdsA["metro stars"], startsAt: daysFromNow(14, 12), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "ELEVEN_A_SIDE", squadSize: 11, organisationId: orgA.id } });
+
+    // Matches for A2 W10 (draft, planning still open)
+    await db.match.create({ data: { matchRoundId: roundA2W10.id, teamId: teamA2Eagles.id, opponent: "Riverside Juniors", opponentTeamId: opponentTeamIdsA["riverside juniors"], startsAt: daysFromNow(14, 10), homeAway: "HOME", matchType: "LEAGUE", gameFormat: "NINE_A_SIDE", squadSize: 9, organisationId: orgA.id } });
+    await db.match.create({ data: { matchRoundId: roundA2W10.id, teamId: teamA2Hawks.id, opponent: "Lakeside Athletic", opponentTeamId: opponentTeamIdsA["lakeside athletic"], startsAt: daysFromNow(14, 12), homeAway: "AWAY", matchType: "LEAGUE", gameFormat: "NINE_A_SIDE", squadSize: 9, organisationId: orgA.id } });
 
     // Rotation paths for Group A1
     await db.rotationPath.createMany({
@@ -350,8 +363,12 @@ async function main() {
     const leagueB1Spring = await db.leagueSeason.create({
       data: { name: "Test B1 Spring 2026", part: "SPRING", seasonId: seasonB1.id, organisationId: orgB.id, footballGroupId: groupB1.id, startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") },
     });
+    // B1 Fall 2026 — same rationale as A1/A2 Fall above.
+    const leagueB1Fall = await db.leagueSeason.create({
+      data: { name: "Test B1 Fall 2026", part: "FALL", seasonId: seasonB1.id, organisationId: orgB.id, footballGroupId: groupB1.id, startDate: new Date("2026-09-01"), endDate: new Date("2026-12-31") },
+    });
 
-    const roundB1W10 = await db.matchRound.create({ data: { name: "W10", leagueSeasonId: leagueB1Spring.id, organisationId: orgB.id, status: "DRAFT" } });
+    const roundB1W10 = await db.matchRound.create({ data: { name: "W10", leagueSeasonId: leagueB1Fall.id, organisationId: orgB.id, status: "DRAFT" } });
 
     // Opponents for Org B
     const oppB1 = await db.opponentTeam.create({ data: { displayName: "Cross Town Rivals", normalizedName: "cross town rivals", organisationId: orgB.id } });

@@ -6,21 +6,18 @@ import { test, expect } from "@playwright/test";
 // empty-draft state — so this is safe to run repeatedly against the shared persistent Test slot
 // in local development, not only against CI's disposable per-PR Neon branch (ADR-0075).
 //
-// Targets round A1 W11 (league "Test A1 Spring 2026", group A1) from the canonical seed dataset
-// (scripts/seed-test-dataset.ts) — the only round in Org A whose team-names line reads exactly
-// "A1 Blues · A1 Whites" (round A1 W10 involves those same two teams plus "A1 Reds" — a superset
-// that would also match a substring filter on either name alone, which is exactly what broke
-// this locator on its first live run; round A2 W10 involves "A2 Eagles"/"A2 Hawks" — an
-// exact-text match on the full two-team line is unique to this one round, so no round ID needs
-// to be known ahead of time).
+// Uses the test-agent seed-draft-match endpoint to create a fresh DRAFT round with future
+// matches (whose planning boundary is still open), then navigates directly to the round board
+// by round ID — bypassing resolveActiveLeagueSeason entirely. The persistent Test database
+// accumulates far-future FINALIZED rounds from live-reporting E2E runs (each
+// createFinalizedLiveTestMatch call auto-creates one via resolveOrCreateMatchRoundForDate), so
+// navigating via the Rounds list page would show the wrong season. Navigating by round ID
+// sidesteps this problem completely.
 //
-// The seed dataset creates every non-finalized round with dbStatus "DRAFT" already (there is no
-// separate "not generated" MatchRound.status value — see src/lib/round-status.ts), so round A1
-// W11 already derives to "DRAFT" even with zero selections, and the Round Board's "Regenerate"
-// control (round-board.tsx, shown whenever roundStatus === "DRAFT") is what actually runs full
-// generation from that empty state — a plain list-page "Generate squads" control only appears
-// for the (here unreachable) NOT_GENERATED derived status, which the first live run against this
-// spec surfaced was not this round's actual state.
+// The endpoint creates a match with startsAt 14 days from now (well within the planning
+// boundary), generates draft selections for the round, and returns the round ID — but does NOT
+// capture the planning baseline, so the round stays in DRAFT state with the Regenerate button
+// available.
 
 test("regenerate round, verify persisted selections, then clear back to empty draft", async ({ page }) => {
   // Round-level generation is a multi-phase pipeline (AGENTS.md: per-match core selection,
@@ -30,18 +27,24 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   // function / cold Neon compute on a freshly created branch.
   test.setTimeout(90_000);
 
-  await page.goto("/o/test-club-a/rounds");
+  // Create a fresh DRAFT round with future matches via the test-agent API.
+  // startsAt is 14 days from now — well within the planning boundary, so the round stays DRAFT.
+  const startsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const seedResponse = await page.request.post("/api/test-agent/seed-draft-match", {
+    data: {
+      teamName: "A1 Blues",
+      opponentName: `E2E Draft ${Date.now()}`,
+      startsAt,
+    },
+    timeout: 45_000,
+  });
+  if (!seedResponse.ok()) {
+    throw new Error(`seed-draft-match failed (${seedResponse.status()}): ${await seedResponse.text()}`);
+  }
+  const { matchRoundId } = (await seedResponse.json()) as { matchRoundId: string };
 
-  // Wait for the rounds list to hydrate before filtering — the list loads
-  // asynchronously and the round cards may not be present on first render.
-  await page.waitForSelector("div.rounded-xl", { timeout: 30_000 });
-
-  const roundCard = page
-    .locator("div.rounded-xl")
-    .filter({ has: page.getByText("A1 Blues · A1 Whites", { exact: true }) });
-  await expect(roundCard).toHaveCount(1, { timeout: 30_000 });
-
-  await roundCard.getByRole("link").click();
+  // Navigate directly to the round board by round ID, bypassing resolveActiveLeagueSeason.
+  await page.goto(`/o/test-club-a/rounds/${matchRoundId}`);
   await expect(page).toHaveURL(/\/o\/test-club-a\/rounds\//);
 
   const regenerateButton = page.getByRole("button", { name: "Regenerate" });

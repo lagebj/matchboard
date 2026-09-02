@@ -146,7 +146,10 @@ describe("resolveActiveLeagueSeason", () => {
   // `now` is 2026-08-29 (no season contains now), and e2e specs auto-create far-future seasons
   // (up to ~100 years out) alongside it in the same organisation. The already-ended real season
   // must still win over the far-future test noise -- this is the exact scenario an unfiltered
-  // "most recent startDate" fallback would get wrong.
+  // "most recent startDate" fallback would get wrong. (The seed dataset also has "Test A1 Fall
+  // 2026" starting 2026-09-01, but this test's `now` is 2026-08-29, deliberately before Fall
+  // starts, to exercise the fallback path. In real usage, Fall 2026 contains the current date
+  // and is picked directly by the "contains now" branch above.)
   it("prefers an already-ended real season over far-future test-generated seasons", () => {
     const realSeason = { id: "real-spring-2026", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") };
     const testSeasonA = { id: "test-season-a", startDate: new Date("2062-03-01"), endDate: new Date("2062-05-31") };
@@ -167,6 +170,17 @@ describe("resolveActiveLeagueSeason", () => {
     const narrower = { id: "narrower", startDate: new Date("2026-08-01"), endDate: new Date("2026-09-30") };
 
     expect(resolveActiveLeagueSeason([wider, narrower], now)?.id).toBe("narrower");
+  });
+
+  // Mirrors the seed dataset's actual structure: Spring 2026 (ended), Fall 2026 (contains now),
+  // and far-future test noise. When `now` is inside Fall, Fall wins — no fallback needed.
+  it("picks the Fall season that contains now over an ended Spring season and far-future noise", () => {
+    const spring = { id: "spring-2026", startDate: new Date("2026-04-01"), endDate: new Date("2026-06-30") };
+    const fall = { id: "fall-2026", startDate: new Date("2026-09-01"), endDate: new Date("2026-12-31") };
+    const noise = { id: "test-noise", startDate: new Date("2062-03-01"), endDate: new Date("2062-05-31") };
+    const fallNow = new Date("2026-10-15T12:00:00Z");
+
+    expect(resolveActiveLeagueSeason([spring, fall, noise], fallNow)?.id).toBe("fall-2026");
   });
 
   // Regression test for a real bug this exact function had, found live in CI: an earlier ~2-year
