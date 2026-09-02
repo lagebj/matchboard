@@ -6,21 +6,12 @@ import { test, expect } from "@playwright/test";
 // empty-draft state — so this is safe to run repeatedly against the shared persistent Test slot
 // in local development, not only against CI's disposable per-PR Neon branch (ADR-0075).
 //
-// Targets round A1 W11 (league "Test A1 Fall 2026", group A1) from the canonical seed dataset
-// (scripts/seed-test-dataset.ts) — the only round in Org A whose team-names line reads exactly
-// "A1 Blues · A1 Whites" (round A1 W10 involves those same two teams plus "A1 Reds" — a superset
+// Targets round A1 W11 (league "Test A1 Fall 2026" in fresh seeds, or "Test A1 Spring 2026" in
+// the persistent Test branch) from the canonical seed dataset (scripts/seed-test-dataset.ts) —
+// the only round in Org A whose team-names line reads exactly "A1 Blues · A1 Whites" on the
+// Rounds list page (round A1 W10 involves those same two teams plus "A1 Reds" — a superset
 // that would also match a substring filter on either name alone, which is exactly what broke
-// this locator on its first live run; round A2 W10 involves "A2 Eagles"/"A2 Hawks" — an
-// exact-text match on the full two-team line is unique to this one round, so no round ID needs
-// to be known ahead of time).
-//
-// The seed dataset creates every non-finalized round with dbStatus "DRAFT" already (there is no
-// separate "not generated" MatchRound.status value — see src/lib/round-status.ts), so round A1
-// W11 already derives to "DRAFT" even with zero selections, and the Round Board's "Regenerate"
-// control (round-board.tsx, shown whenever roundStatus === "DRAFT") is what actually runs full
-// generation from that empty state — a plain list-page "Generate squads" control only appears
-// for the (here unreachable) NOT_GENERATED derived status, which the first live run against this
-// spec surfaced was not this round's actual state.
+// this locator on its first live run).
 //
 // Navigates via the Fixtures page's league-season selector to find the target DRAFT round,
 // regardless of which season resolveActiveLeagueSeason() would pick. The persistent Test database
@@ -50,27 +41,33 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
 
   // Wait for the Fixtures page to load its data (all league seasons).
   // The league-season select appears when there are 2+ periods.
-  await page.waitForSelector("#league-season-select, div.rounded-xl", { timeout: 30_000 });
-
-  // If the dropdown is visible, select the target season. Try "Test A1 Fall 2026" first
-  // (the seed dataset's current-season league season that contains the A1 W11 draft round).
-  // If Fall doesn't exist yet (stale seed data without the Fall season), try
-  // "Test A1 Spring 2026" as fallback.
   const seasonSelect = page.locator("#league-season-select");
-  if (await seasonSelect.isVisible()) {
-    const fallOption = seasonSelect.locator("option").filter({ hasText: "Test A1 Fall 2026" });
-    const springOption = seasonSelect.locator("option").filter({ hasText: "Test A1 Spring 2026" });
-    if (await fallOption.count() > 0) {
-      await seasonSelect.selectOption({ label: await fallOption.first().innerText() });
-    } else if (await springOption.count() > 0) {
-      await seasonSelect.selectOption({ label: await springOption.first().innerText() });
-    }
-    // Allow the UI to re-render after season selection.
-    await page.waitForTimeout(500);
-  }
+  await expect(seasonSelect).toBeVisible({ timeout: 30_000 });
 
-  // Wait for round data to render after potential season switch.
-  await page.waitForSelector("div.rounded-xl", { timeout: 30_000 });
+  // Select the target season by value (UUID). Use evaluate to find the option value for the
+  // A1 league season that contains the draft round. Try Fall first (fresh seeds), then Spring
+  // (persistent Test branch). selectOption by value is more reliable than by label, especially
+  // with the duplicated date-range text the option elements produce.
+  const targetPeriodValue = await page.evaluate(() => {
+    const select = document.querySelector("#league-season-select") as HTMLSelectElement | null;
+    if (!select) return null;
+    for (const option of select.options) {
+      if (option.text.includes("Test A1 Fall 2026")) return option.value;
+    }
+    for (const option of select.options) {
+      if (option.text.includes("Test A1 Spring 2026")) return option.value;
+    }
+    return null;
+  });
+
+  if (targetPeriodValue) {
+    await seasonSelect.selectOption(targetPeriodValue);
+    // Wait for React state to update and re-render the period sections.
+    // The Fixtures page filters displayedPeriods client-side, so the update is
+    // near-instant, but we still need to wait for the DOM to reflect the new content.
+    // Wait for the heading to show the target season name (not the old default).
+    await expect(page.locator("h2").filter({ hasText: "Test A1" })).toBeVisible({ timeout: 10_000 });
+  }
 
   // Find the DRAFT round card containing both "A1 Blues" and "A1 Whites" match rows.
   // On the Fixtures page, each round card is a TacticalSurface (div.rounded-xl) containing
