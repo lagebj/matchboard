@@ -25,23 +25,26 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   // policy evaluation), each phase a real round trip to the isolated per-PR Neon branch — the
   // default 30s Playwright test timeout is too tight for that plus a possibly-cold serverless
   // function / cold Neon compute on a freshly created branch.
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
 
   // Warm up the serverless function and Neon connection before the heavy seed call.
   // On a cold deployment (first request after deploy), the proxy + API route + Neon
-  // cold start can exceed the request timeout. A warm-up request through the auth-wrapped
-  // path ensures the proxy function, auth layer, and database connection pool are warm.
-  // /api/auth/session is a lightweight authenticated endpoint that exercises the full
-  // proxy → auth → DB path without modifying any data.
-  await page.request.get("/api/auth/session");
+  // cold start can exceed the request timeout. A warm-up request to the seed endpoint
+  // (which will 404 since it only accepts POST) still warms the Vercel serverless function
+  // container, so the subsequent POST reaches a warm function.
+  await page.request.get("/api/test-agent/seed-draft-match").catch(() => {});
+
+  // Also warm up auth + DB connection path.
+  await page.request.get("/api/auth/session").catch(() => {});
 
   // Create a fresh DRAFT round with future matches via the test-agent API.
   // startsAt is 14 days from now — well within the planning boundary, so the round stays DRAFT.
   const startsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Retry the seed call up to 3 times with increasing delays — cold serverless + cold Neon
-  // on a freshly forked branch can cause the first request to time out. Retrying gives the
-  // function time to warm up while avoiding a single-point-of-failure on the first attempt.
+  // Retry the seed call up to 3 times — cold serverless + cold Neon on a freshly forked
+  // branch can cause the first request to time out. Each attempt uses a 45s timeout (matching
+  // seed-finalized-match's proven budget), and the overall test timeout of 300s accommodates
+  // up to 3 attempts with 10s delays between them.
   let seedResponse: Awaited<ReturnType<typeof page.request.post>> | undefined;
   let lastError: Error | undefined;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -52,7 +55,7 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
           opponentName: `E2E Draft ${Date.now()}`,
           startsAt,
         },
-        timeout: 60_000,
+        timeout: 45_000,
       });
       if (seedResponse.ok()) break;
       lastError = new Error(`seed-draft-match failed (${seedResponse.status()}): ${await seedResponse.text()}`);
@@ -60,8 +63,8 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
       lastError = e instanceof Error ? e : new Error(String(e));
     }
     if (attempt < 2) {
-      // Wait 5s before retrying to allow the serverless function to warm up.
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      // Wait 10s before retrying to allow the serverless function to warm up.
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
     }
   }
   if (!seedResponse || !seedResponse.ok()) {
