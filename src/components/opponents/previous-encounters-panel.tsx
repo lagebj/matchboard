@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { PREVIOUS_ENCOUNTERS_DISCLAIMER } from "@/lib/opponents/observation-labels";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
+import { formatKickoffDate } from "@/lib/date-utils";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 type Props = {
@@ -111,7 +112,7 @@ export async function PreviousEncountersPanel({ opponentTeamId, footballGroupId,
                 <span className={`text-xs font-bold w-5 text-center shrink-0 ${resultColour(m.result)}`}>
                   {formatResult(m.result)}
                 </span>
-                <span className="text-zinc-400 shrink-0">{m.matchDate ? m.matchDate.toLocaleDateString() : "—"}</span>
+                <span className="text-zinc-400 shrink-0">{m.matchDate ? formatKickoffDate(m.matchDate) : "—"}</span>
                 <span className="text-zinc-200 truncate">{m.teamName}</span>
                 <span className="text-zinc-500 shrink-0">{m.homeAway === "HOME" ? "H" : "A"}</span>
               </div>

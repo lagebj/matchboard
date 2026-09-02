@@ -196,12 +196,15 @@ export async function simulateEvent(
     });
   }
 
+  const totalTargetSize = event.squads.reduce((sum, s) => sum + (s.targetSize ?? 0), 0);
+
   const poolValidation = validateEventPool(
     playersWithAttrs,
     event.squads.length,
     event.squads[0]?.targetSize ?? 5,
     gameFormat,
     [],
+    totalTargetSize,
   );
 
   return {

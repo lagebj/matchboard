@@ -5,6 +5,7 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { CoachHandoverView } from "@/components/matches/coach-handover-view";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
+import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -103,8 +104,8 @@ export default async function MatchHandoverPage({ params }: HandoverPageProps) {
 
   const plannedRotation = await getPlannedRotation(matchId, match.teamId, ctx.orgFilter);
 
-  const dateStr = match.startsAt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-  const timeStr = match.startsAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = formatKickoffDate(match.startsAt);
+  const timeStr = formatKickoffTime(match.startsAt);
 
   return (
     <CoachHandoverView

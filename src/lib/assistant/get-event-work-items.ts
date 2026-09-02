@@ -17,7 +17,7 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
     const eventMatches = await db.eventMatch.findMany({
       where: { eventId: event.id, status: { not: "CANCELLED" } },
       include: {
-        eventSquad: { select: { id: true, name: true, targetSize: true } },
+        eventSquad: { select: { id: true, name: true, targetSize: true, formationId: true } },
         postMatchReport: { select: { id: true, status: true } },
         lineup: { select: { id: true } },
         supportAssignments: { select: { id: true } },
@@ -28,9 +28,15 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
       where: { eventId: event.id },
     });
 
-    const availablePlayerCount = await db.eventPlayerAvailability.count({
-      where: { eventId: event.id, status: "AVAILABLE" },
+    // Count assigned players per squad for "helpers needed" deficiency check
+    const squadAssignments = await db.eventSquadPlayer.findMany({
+      where: { eventId: event.id },
+      select: { eventSquadId: true },
     });
+    const assignedBySquadId = new Map<string, number>();
+    for (const sa of squadAssignments) {
+      assignedBySquadId.set(sa.eventSquadId, (assignedBySquadId.get(sa.eventSquadId) ?? 0) + 1);
+    }
 
     const totalMatchCount = await db.eventMatch.count({
       where: { eventId: event.id },
@@ -74,40 +80,11 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
       continue;
     }
 
-    if (squadCount > 0) {
-      const draftSquadCount = await db.eventSquad.count({
-        where: { eventId: event.id, status: "DRAFT" },
-      });
-
-      // Squad locking is optional/advisory (no approval gate), so draftSquadCount === squadCount
-      // stays true forever once an event is done being played — without this check the nudge
-      // never expires. Once every match is played and reported, reviewing draft squads is no
-      // longer a meaningful next action.
-      const eventIsFullyPlayedAndReported = eventMatches.every((match) => {
-        const hasPassed = hasMatchPassed(
-          { startsAt: match.startsAt, matchDurationMinutes: event.matchDurationMinutes, status: match.status },
-          now,
-        );
-        const reportCompleted = !!match.postMatchReport && match.postMatchReport.status !== "DRAFT";
-        return hasPassed && reportCompleted;
-      });
-
-      if (draftSquadCount === squadCount && !eventIsFullyPlayedAndReported) {
-        items.push({
-          id: `event-squads-draft-${event.id}`,
-          category: "event_squads_draft",
-          priority: 5,
-          title: `${event.name}: draft squads generated`,
-          summary: "Squads have been generated. Review and adjust if needed before locking.",
-          matchRoundId: "",
-          eventId: event.id,
-          affectedTeamIds: [],
-          affectedPlayerIds: [],
-          primaryActionLabel: "View squads",
-          primaryActionHref: `/events/${event.id}`,
-        });
-      }
-    }
+    // Squad status is informational only — the coach does not need to "finalize" or "lock"
+    // squads as a discrete action (ADR-0109). Showing "draft squads generated" for every event
+    // with all-DRAFT squads is not an actionable decision. Removed per the Today-page rule:
+    // if removing the item would not make the coach more likely to miss a decision, it should
+    // not be there.
 
     for (const match of eventMatches) {
       const lineupExists = !!match.lineup;
@@ -177,25 +154,40 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
         continue;
       }
 
-      if (match.supportAssignments.length === 0 && match.eventSquad && availablePlayerCount > (match.eventSquad.targetSize ?? 0)) {
-        const hasExistingItem = items.some(
-          (i) => i.category === "event_helpers_missing" && i.eventId === event.id,
-        );
-        if (!hasExistingItem) {
-          items.push({
-            id: `event-helpers-${match.id}`,
-            category: "event_helpers_missing",
-            priority: 9,
-            title: `${event.name}: helpers needed`,
-            summary: `Match vs ${match.opponentName || "opponent"} may need support players.`,
-            matchRoundId: "",
-            matchId: match.id,
-            eventId: event.id,
-            affectedTeamIds: [],
-            affectedPlayerIds: [],
-            primaryActionLabel: "Plan helpers",
-            primaryActionHref: `/events/${event.id}`,
-          });
+      if (match.supportAssignments.length === 0 && match.eventSquad) {
+        const squadTarget = match.eventSquad.targetSize ?? 0;
+        const squadAssigned = assignedBySquadId.get(match.eventSquad.id) ?? 0;
+        const playerShortfall = Math.max(0, squadTarget - squadAssigned);
+        const hasPositionGaps = !match.eventSquad.formationId;
+
+        // Recommend helpers only when there is an actual operational deficiency:
+        // - squad is below target size (players needed), or
+        // - no formation is set (position coverage may be missing)
+        // A full squad with adequate coverage does not need helpers regardless of
+        // how many available players exist.
+        if (playerShortfall > 0 || hasPositionGaps) {
+          const hasExistingItem = items.some(
+            (i) => i.category === "event_helpers_missing" && i.eventId === event.id,
+          );
+          if (!hasExistingItem) {
+            const reason = playerShortfall > 0
+              ? `${match.eventSquad.name} has ${squadAssigned}/${squadTarget} players.`
+              : `${match.eventSquad.name} needs a formation set.`;
+            items.push({
+              id: `event-helpers-${match.id}`,
+              category: "event_helpers_missing",
+              priority: 9,
+              title: `${event.name}: support players needed`,
+              summary: `Match vs ${match.opponentName || "opponent"} — ${reason}`,
+              matchRoundId: "",
+              matchId: match.id,
+              eventId: event.id,
+              affectedTeamIds: [],
+              affectedPlayerIds: [],
+              primaryActionLabel: "Plan helpers",
+              primaryActionHref: `/events/${event.id}`,
+            });
+          }
         }
       }
     }

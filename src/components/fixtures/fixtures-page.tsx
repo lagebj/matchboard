@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatKickoffDate } from "@/lib/date-utils";
 import type {
   FixturesOverview,
   FixturePeriod,
@@ -95,7 +96,7 @@ function MatchRow({ match }: { match: FixtureMatch }) {
       <MatchTicket
         teamName={match.teamName}
         opponentName={match.opponent}
-        dateLabel={match.startsAt ? new Date(match.startsAt).toLocaleDateString() : undefined}
+        dateLabel={match.startsAt ? formatKickoffDate(new Date(match.startsAt)) : undefined}
         lifecycleStatus={isCancelled ? "cancelled" : match.lifecycleStatus}
         homeScore={isCancelled ? undefined : completedResult?.goalsFor}
         awayScore={isCancelled ? undefined : completedResult?.goalsAgainst}

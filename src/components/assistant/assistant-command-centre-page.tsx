@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatKickoffTime } from "@/lib/date-utils";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import type {
   CoachSituationProjection,
@@ -93,7 +94,7 @@ const groups: GroupConfig[] = [
     key: "events",
     label: "Events",
     description: "Event setup, lineups, helpers, and reports.",
-    categories: ["event_setup_missing", "event_squads_missing", "event_squads_draft", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
+    categories: ["event_setup_missing", "event_squads_missing", "event_lineup_missing", "event_helpers_missing", "event_report_needed", "event_report_incomplete"],
     icon: CalendarDays,
     variant: "info",
   },
@@ -529,7 +530,7 @@ function GroupedReports({
 function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: string) => string }) {
   const homeAway = match.homeAway === "HOME" ? "vs" : "@";
   const timeStr = match.startsAt
-    ? new Date(match.startsAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    ? formatKickoffTime(new Date(match.startsAt))
     : "";
   const squadHref = match.squadStatus === "not_generated"
     ? orgUrl(`/fixtures`)
