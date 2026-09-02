@@ -25,7 +25,7 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
   // policy evaluation), each phase a real round trip to the isolated per-PR Neon branch — the
   // default 30s Playwright test timeout is too tight for that plus a possibly-cold serverless
   // function / cold Neon compute on a freshly created branch.
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
 
   // Create a fresh DRAFT round with future matches via the test-agent API.
   // startsAt is 14 days from now — well within the planning boundary, so the round stays DRAFT.
@@ -36,7 +36,7 @@ test("regenerate round, verify persisted selections, then clear back to empty dr
       opponentName: `E2E Draft ${Date.now()}`,
       startsAt,
     },
-    timeout: 45_000,
+    timeout: 60_000,
   });
   if (!seedResponse.ok()) {
     throw new Error(`seed-draft-match failed (${seedResponse.status()}): ${await seedResponse.text()}`);
