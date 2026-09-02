@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
 // empty-draft state — so this is safe to run repeatedly against the shared persistent Test slot
 // in local development, not only against CI's disposable per-PR Neon branch (ADR-0075).
 //
-// Targets round A1 W11 (league "Test A1 Spring 2026", group A1) from the canonical seed dataset
+// Targets round A1 W11 (league "Test A1 Fall 2026", group A1) from the canonical seed dataset
 // (scripts/seed-test-dataset.ts) — the only round in Org A whose team-names line reads exactly
 // "A1 Blues · A1 Whites" (round A1 W10 involves those same two teams plus "A1 Reds" — a superset
 // that would also match a substring filter on either name alone, which is exactly what broke
