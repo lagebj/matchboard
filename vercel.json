@@ -5,5 +5,13 @@
       "path": "/api/cron/notification-outbox",
       "schedule": "0 6 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/test-agent/seed-draft-match/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/test-agent/seed-finalized-match/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }
