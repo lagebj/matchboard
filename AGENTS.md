@@ -2391,7 +2391,7 @@ Event squads have a status field: DRAFT or LOCKED.
 - Validation checks: no duplicate players across squads, no unavailable players in squads, minimum size, goalkeeper coverage
 - Blocking issues prevent locking; warning and info issues do not
 - Locked squads can be unlocked back to DRAFT via `unconfirmEventSquadsAction`
-- The Assistant surfaces `event_squads_draft` work items when all event squads are DRAFT (this whole-squad-set lock is a deliberately retained semantic assertion — see "Derived coach workflow lifecycle" above — unlike the removed per-player Event squad lock and the removed round/match finalize ceremony)
+- The Assistant does not surface `event_squads_draft` work items — draft squad status is not an actionable coach decision (removed per ADR-0109, same programme that removed round/match finalize ceremony). Squad-set locking remains a deliberate whole-Event assertion, but the coach takes that action directly on the Squads tab, not via an Assistant work item.
 - Aggregate status (DRAFT/LOCKED/MIXED) is available via `getEventSquadsStatusAction`
 - Review is optional and advisory via `ReviewRequest` — locking does not require review
 
