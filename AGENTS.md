@@ -946,6 +946,54 @@ Eligibility/domain invariants
   consumer would be speculative plumbing; deferred to whichever of Bundle 7/8 first needs it. See
   ADR-0117 for the full audit and rationale.
 
+### Evidence-aware automatic rotation generation (Evidence-Informed Match Planning, Bundle 7 — ADR-0118)
+
+Generates a complete match rotation plan — a sequence of evolving on-field states, not
+independent substitutions — from role suitability, fairness, and recorded evidence. The first
+automatic rotation-sequence generator in the codebase (round-level selection decides who is in a
+squad; Best Lineup fills a formation once; neither previously generated a timed in-match
+sequence).
+
+- `src/lib/planned-rotation/generate-rotation-plan.ts` (new, pure, deterministic) —
+  `generateRotationPlan()`. Search strategy, fully disclosed (PROGRAMME.md requires this):
+  candidate decision points are a small internal grid (1/3 and 2/3 of each playing period, plus
+  every natural break) — a computational search bound, never asserted as footballing doctrine.
+  Batch size is emergent: however many on-pitch outfield players are simultaneously "due" (stint
+  ≥ 5 minutes, waived at natural breaks, and meaningfully ahead of a per-match fair-share-to-date
+  baseline) become one batch — there is no `>N = bad` rule anywhere. This is a deterministic
+  **greedy** algorithm, not exhaustive backtracking search — disclosed as a real, deliberate scope
+  limit, not claimed optimal. Bench candidates are scored by role-suitability tier (Bundle 5,
+  UNSUPPORTED scores 0 but is never excluded), fairness under-share, and a capped
+  opponent-function-continuity bonus (Bundle 6's `capEvidenceBonus()`, gated on a small explicit
+  opponent-tendency → tactical-function mapping covering 7 of 17 tags with a stated rationale
+  each). `assertEvidenceDidNotExcludeCandidates()` (Bundle 6) is called after every scoring step —
+  the first real exercise of that guardrail. Goalkeeper is excluded from candidacy entirely by
+  construction.
+- `src/lib/evidence/transition-structure-evidence.ts` (new) closes a gap flagged by name in
+  earlier bundles' own handoffs ("Bundle 7 territory") — historical evidence correlating a
+  transition's shape (batch-size bucket, natural-break flag, period) with goals conceded in the
+  5 minutes after it, aggregated from Bundle 1's `MatchTransition`s. Occurrence-count confidence
+  thresholds (`<2`/`2-3`/`4+`) match Bundle 2's occurrence-based (not match-count-based)
+  vocabulary. Currently informs only bench-candidate *explanations* in the generator, not scoring
+  — a disclosed scope cut, not an oversight.
+- `generateRotationPlanAction()` (`planned-rotation-actions.ts`) is the DB-bound orchestrator,
+  persisting via the existing `createPlannedRotation()` — never a new persistence path. Offered
+  only when no rotation plan exists yet for the match/team (`createPlannedRotation()` already
+  refuses otherwise) — a coach regenerates from scratch by deleting the existing plan first,
+  matching the round-level draft "clear first, then regenerate" convention. No new
+  MANUAL/AUTO source column was added to `PlannedRotationChange`.
+- A real integration bug was caught (and is now regression-tested) during this bundle: `position`
+  strings from a real match line-up are raw `FormationSlotRoleType` values
+  (`DEFENDER`/`MIDFIELDER`/`FORWARD`/etc.), not Bundle 5's `OutfieldStructuralRole` vocabulary
+  (`DEFENCE`/`MIDFIELD`/`ATTACK`/`FLEXIBLE`) — the generator's own pure-function unit tests
+  (written first, using its own string literals) could not have caught this; only an end-to-end
+  test against real formation-slot fixtures did. `mapPositionLabelToOutfieldRole()` inside
+  `generate-rotation-plan.ts` now accepts both conventions.
+- UI: one "Generate rotation plan" button beside the existing "Create rotation plan" button on
+  `PlannedRotationPanel`'s empty state. The generated plan flows through every existing
+  Rotations-tab mechanism unchanged (edit/reorder/delete a change, Bundle 4's "what happens with
+  this plan" evaluation).
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2814,6 +2862,8 @@ Rules:
 | `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking (`checkPlannedRotationCoverage`) |
 | `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation; `checkPlannedRotationCoverageAction` (starters read from the team's current match line-up, never fabricated from the full squad) plus its planned partnership evidence and full scenario evaluation (ADR-0115) |
 | `src/lib/planned-rotation/scenario-evaluation.ts` | Bundle 4 (ADR-0115): `evaluatePlannedScenario()` — the shared reactive "what happens if I change this?" evaluator for a hypothetical plan, built on `projectPlannedLineup()` and the shared `diffPlayerStates()` primitive |
+| `src/lib/planned-rotation/generate-rotation-plan.ts` | Bundle 7 (ADR-0118): `generateRotationPlan()` — pure, deterministic evidence-aware automatic rotation-sequence generator (bounded greedy search, emergent batch size, role/fairness/opponent-function scoring) |
+| `src/lib/evidence/transition-structure-evidence.ts` | Bundle 7 (ADR-0118): `getTeamSeasonTransitionPatterns()`/`aggregateTransitionStructurePatterns()` — historical transition-shape (batch size, disruption, natural break) vs. goals-conceded-shortly-after evidence |
 | `src/app/(app)/matches/lineup-combination-evidence-actions.ts` | Server action: season partnership evidence relevant to a specific set of planned-together players — shared by the Tactics and Rotations tabs |
 | `src/components/matches/planned-partnership-evidence.tsx` | Presentational: factual season partnership evidence list, shared by the Tactics and Rotations tabs |
 | `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply (writes real actual-timeline events server-side), skip, delay, modify planned change during live match |

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown, Pencil, X, ShieldAlert } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Pencil, X, ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -13,6 +13,7 @@ import {
   deletePlannedRotationAction,
   validatePlannedChangesAction,
   checkPlannedRotationCoverageAction,
+  generateRotationPlanAction,
 } from "@/app/(app)/matches/planned-rotation-actions";
 import type { PlannedRotationWithChanges, PlannedRotationChangeData, PlannedRotationValidationIssue, PlannedRotationCoverageIssue } from "@/lib/planned-rotation/planned-rotation";
 import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
@@ -342,6 +343,16 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
     });
   }
 
+  function handleGenerate() {
+    setError(null);
+    startTransition(async () => {
+      const result = await generateRotationPlanAction(matchId, teamId);
+      if (!result.success) {
+        setError(result.error);
+      }
+    });
+  }
+
   function handleSaveChange(formData: ChangeFormData) {
     if (!rotation) return;
     const newChange = formDataToChangeData(formData);
@@ -452,12 +463,23 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
           No rotation plan yet. Create one to plan substitutions and position changes before kickoff.
         </div>
         {!readOnly && (
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={handleCreate} disabled={isPending} size="sm">
               <Plus className="h-4 w-4 mr-1.5" />
               Create rotation plan
             </Button>
+            <Button onClick={handleGenerate} disabled={isPending} variant="secondary" size="sm">
+              <Sparkles className="h-4 w-4 mr-1.5" />
+              Generate rotation plan
+            </Button>
           </div>
+        )}
+        {!readOnly && (
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
+            Generating produces a starting proposal from role fit, fairness, and any recorded
+            opponent/history evidence — set a match line-up first, then review and adjust every
+            generated change.
+          </p>
         )}
         {error && <p className="mt-2 text-sm text-[var(--text-error)]">{error}</p>}
       </Surface>
