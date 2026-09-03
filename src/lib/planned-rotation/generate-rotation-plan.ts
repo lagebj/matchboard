@@ -50,6 +50,7 @@ import {
   computeOpponentFunctionBonus,
   type OpponentFunctionTendency,
 } from "@/lib/planned-rotation/opponent-function-preference";
+import { computePositionContextBonus, type PlayerPositionContextEvidence } from "@/lib/evidence/position-context-evidence";
 import type { MatchPeriod } from "@/generated/prisma/client";
 
 export type { OpponentFunctionTendency };
@@ -82,6 +83,9 @@ export interface GenerateRotationPlanInput {
   decisionPoints: RotationPlanDecisionPoint[];
   opponentTendencies?: OpponentFunctionTendency[];
   transitionPatterns?: TransitionStructureEvidenceRow[];
+  /** Position-context evidence addendum: one row per (playerId, position) pair a bench
+   * candidate could be assigned to. Absent/empty contributes no position-context bonus. */
+  positionContextEvidence?: PlayerPositionContextEvidence[];
   seed: string;
 }
 
@@ -184,16 +188,26 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
 
       const scored = remainingCandidates.map((candidate) => {
         const player = input.players.get(candidate.playerId);
-        if (!player) return { candidate, score: -Infinity, outfieldProfile: [] as OutfieldRoleSuitabilityResult[], roleResult: undefined, evidenceBonus: 0 };
+        if (!player) return { candidate, score: -Infinity, outfieldProfile: [] as OutfieldRoleSuitabilityResult[], roleResult: undefined, evidenceBonus: 0, positionContextBonus: 0 };
 
         const outfieldProfile = computeOutfieldRoleSuitabilityProfile(player.declaredPositions, { matchCountByRole: {} });
         const roleResult = outfieldProfile.find((r) => r.role === mapPositionLabelToOutfieldRole(vacatedRole));
         const roleScore = roleResult ? ROLE_TIER_SCORE[roleResult.tier] : 0;
         const fairnessScore = Math.min(candidate.underShare, 600) / 10;
         const evidenceBonus = computeOpponentFunctionBonus(player.tacticalAttributes, outfieldProfile, preferred);
+        const positionContextBonus = computePositionContextBonus(
+          input.positionContextEvidence?.find((e) => e.playerId === candidate.playerId && e.position === vacatedRole),
+        );
         const tiebreak = stableTiebreak(input.seed, candidate.playerId) / 1e10;
 
-        return { candidate, score: roleScore + fairnessScore + evidenceBonus + tiebreak, outfieldProfile, roleResult, evidenceBonus };
+        return {
+          candidate,
+          score: roleScore + fairnessScore + evidenceBonus + positionContextBonus + tiebreak,
+          outfieldProfile,
+          roleResult,
+          evidenceBonus,
+          positionContextBonus,
+        };
       });
 
       // Guardrail (Bundle 6): scoring must never shrink who was actually considered for this
@@ -232,6 +246,7 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
           roleResult: chosen.roleResult,
           underShareSeconds: chosen.candidate.underShare,
           evidenceBonus: chosen.evidenceBonus > 0,
+          positionContextBonus: chosen.positionContextBonus > 0,
           preferred,
           isNaturalBreak: point.isNaturalBreak,
           transitionEvidence,
@@ -256,6 +271,7 @@ function buildExplanation(args: {
   roleResult: OutfieldRoleSuitabilityResult | undefined;
   underShareSeconds: number;
   evidenceBonus: boolean;
+  positionContextBonus: boolean;
   preferred: { code: TacticalFunctionCode; confidence: "EMERGING" | "ESTABLISHED" } | null;
   isNaturalBreak: boolean;
   transitionEvidence: TransitionStructureEvidenceRow | undefined;
@@ -271,6 +287,10 @@ function buildExplanation(args: {
 
   if (args.evidenceBonus && args.preferred) {
     parts.push(`helps preserve a useful function against a recorded opponent tendency`);
+  }
+
+  if (args.positionContextBonus) {
+    parts.push(`recorded outcomes at this position have historically been more favorable for this player`);
   }
 
   if (args.isNaturalBreak) {

@@ -1040,6 +1040,114 @@ brittle plan later" (PROGRAMME.md). This is the programme's final functional bun
   verification against PROGRAMME.md's 25-item programme completion criteria, and for the disclosed
   outstanding item (documentation screenshot regeneration, deferred consistently since Bundle 3).
 
+### Position-context evidence (Evidence-Informed Match Planning addendum — ADR-0120)
+
+Answers "what has historically happened while THIS player occupied THIS outfield position,
+compared to the team's other recorded exposure at that same position?" — contextual evidence,
+never a player-quality judgement.
+
+- `src/lib/evidence/position-context-evidence.ts` (new) — the one owner. Team-season scoped,
+  League-only, matching Bundle 2's own D-003 scope decision exactly, for the same reason; a
+  group-longitudinal variant is a disclosed, deliberate deferral. Derived on read, nothing
+  persisted, reusing the exact canonical facts Bundle 1/2 already established
+  (`getActualPositionIntervalsForRef`, `getGoalAttributionEventsForRef`) — no new persistence, no
+  new query shape for those underlying facts.
+- **Baseline**: "same team-season at the same position, other players" — the one baseline this
+  addendum implements (the addendum's own worked example); the other possible baselines it names
+  (same player at other positions, group-level evidence) are a disclosed scope decision for a
+  later pass, not built here.
+- **Confidence**: reuses `classifyMatchPhaseConfidence()` (Bundle 2) directly rather than a second
+  threshold table — the same match-count vocabulary (INSUFFICIENT/EMERGING/ESTABLISHED) means the
+  same thing here as everywhere else in the programme.
+- **Attribution hierarchy**: before surfacing an individually-attributed pattern, a broader
+  structural explanation is checked and surfaced first when the evidence supports one — currently:
+  a recurring teammate combination during the same exposure, reusing the existing season
+  combination-evidence engine's own aggregation (`getSeasonCombinationEvidence()`/
+  `aggregateSeasonCombinations()`) outright, never a new causal-inference mechanism.
+  `findRelevantPartnershipForPlayer()` (own module) filters to `PARTNERSHIP` rows the player is a
+  *member of* (`playerIds.includes(playerId)`) — deliberately not the existing
+  `selectRelevantPartnerships()` helper, which answers a different question ("partnerships fully
+  contained within an exact given set of players", built for "who's on the pitch together" and
+  structurally unable to match a single-player query). Opponent-strength/formation context are
+  named by the addendum as further possible explanations but not built here — a disclosed scope
+  decision, not an oversight.
+- **Neutral language is a hard rule, not a style preference.** `outcomeDifference` is
+  `MORE_FAVORABLE` / `SIMILAR` / `LESS_FAVORABLE` — never "good"/"bad"/"weak"/"poor"/"harmful"/
+  "problematic"/"underperforming"/"risky", in code, generated text, or documentation. Enforced by
+  a direct unit test on the module's own exported values/phrases
+  (`src/lib/evidence/__tests__/position-context-evidence.test.ts`) rather than a global
+  terminology-checker regex — a blanket ban on bare words like "weak"/"poor" across the whole
+  scanned codebase would false-positive on unrelated legitimate usage (`scripts/check-terminology.mjs`
+  already only bans specific phrases, e.g. "weak opponent", never a bare word).
+- **Pre-match scenario integration (Bundle 4)**: `scenario-evaluation.ts`'s `evaluatePlannedScenario()`
+  takes an optional `positionContextEvidence?: PlayerPositionContextEvidence[]` (pre-loaded plain
+  data by the caller, matching how `matchPhasePatterns`/`combinationEvidence` already work — the
+  module stays pure/DB-free). Produces a `HISTORICAL_PATTERN` signal for a starting assignment
+  (`startingLineupSignals`, new field) and for any transition where a player enters or changes
+  position — recomputed automatically on every edit, since the evaluator is a pure function of its
+  inputs. `checkPlannedRotationCoverageAction` (`planned-rotation-actions.ts`) loads evidence for
+  every (playerId, position) pair the plan can touch via `getTeamPositionContextEvidenceForPairs()`
+  (the batch form — shares one match/interval/goal query across every pair instead of repeating it,
+  since a whole-plan check can touch dozens of pairs).
+- **Automation integration (Section 6 precedence)**: `computePositionContextBonus()` — a small,
+  capped (`MAX_POSITION_CONTEXT_BONUS`), confidence-gated bonus reusing `capEvidenceBonus()`
+  (Bundle 6) exactly like `computeOpponentFunctionBonus()` already does. Wired into both the
+  rotation generator's bench-candidate scoring (`generate-rotation-plan.ts`, after role-suitability
+  scoring, alongside the opponent-function bonus) and the integrated starting-line-up generator's
+  `evidenceBonusForSlot()` (`integrated-match-plan-actions.ts`). Only ever a bonus: `MORE_FAVORABLE`
+  evidence adds up to the cap; `SIMILAR`, `LESS_FAVORABLE`, or unknown/insufficient evidence all
+  contribute exactly 0 — never a penalty, matching Bundle 6's "negative individual outcome evidence
+  cannot exclude an eligible player" invariant by construction rather than by a separate check.
+  Both callers already run `assertEvidenceDidNotExcludeCandidates()` around their whole scoring
+  step, which now also covers this new signal for free.
+- **Position learning (verified, not assumed)**: the addendum's own instruction is "feed evidence
+  into the existing position evidence/suggestion mechanism; do not create another stored-position
+  mutation path." A repository search found no existing mechanism that automatically mutates
+  `Player.primaryPosition`/`secondaryPosition`/`tertiaryPosition` from evidence anywhere in this
+  codebase — only a coach's own manual inline edit (`src/app/(app)/players/[playerId]/inline-actions.ts`).
+  This addendum therefore creates no new mutation path either (satisfying the instruction's actual
+  intent) and stays purely observational/scoring, exactly like every other evidence signal in this
+  programme (D-010's own "existing engine" premise does not describe anything present in this
+  repository — recorded here as a verified finding, not silently assumed true).
+- Not shown on live-match surfaces, matching every other analytical evidence signal in this
+  programme (PROGRAMME.md's live-mode boundary).
+
+### Rebuild historical evidence (transient admin tool)
+
+Once an organisation has completed matches from before this programme's `ActualPositionInterval`/
+combination/opponent fixes existed, its historical evidence needs reprocessing through the current
+pipeline. `replayPostMatchLearningHistory()` (`src/lib/evidence/post-match-learning-replay.ts`,
+Bundle 2) already implemented this — reprocessing every completed League and Event match through
+the one shared `runPostMatchLearning()` orchestrator (ADR-0104), per-match failure isolation, no
+giant transaction, idempotent, org-scoped — but had no admin UI wired up yet. This addendum is only
+that wiring, mirroring the existing "Populate opponent levels" tool's exact operational pattern:
+
+- `src/app/(app)/o/[orgSlug]/evidence-rebuild-actions.ts` — `rebuildHistoricalEvidenceAction(orgSlug)`,
+  admin-only (`canAdmin()`), org-scoped via the resolved actor context only (never a caller-supplied
+  organisation id) — same auth pattern as `opponent-population-actions.ts`.
+- `src/app/(app)/o/[orgSlug]/evidence-rebuild/page.tsx` + `evidence-rebuild-client-content.tsx` —
+  same page/redirect-if-not-admin shape as `opponent-population/page.tsx`; explains what the tool
+  does, requires an explicit confirm, shows a final processed/updated/skipped/failed summary with a
+  per-source (League/Event) breakdown and a failed-match list (match id + generic error message
+  only — never player-identifying detail), and states plainly that it is safe to rerun.
+  Deliberately does not offer a dry-run/preview mode (unlike "Populate opponent levels") — the
+  underlying replay is already idempotent and non-destructive, so a preview step would add
+  complexity without a safety benefit; a browser `confirm()` before running is enough.
+  Reachable via a new "Rebuild historical evidence" card in More's admin-only "Advanced" section.
+- Covers everything the addendum asked for without a second rebuild path: `runPostMatchLearning()`'s
+  four steps (actual timeline → opponent evidence → player evidence → combination evidence)
+  already rebuild every underlying fact the programme's other evidence types are *derived from* —
+  match-phase patterns, transition-structure evidence, opponent tactical tendency, and this
+  addendum's own position-context evidence are all "derive on read, nothing persisted" (D-002), so
+  correctly rebuilding `ActualPositionInterval`/`CombinationEvidence`/opponent evidence is
+  sufficient; there is no separate aggregate table for any of those to rebuild.
+- **Transient, matching "Populate opponent levels"'s own lifecycle**: remove once existing active
+  organisations have rebuilt their historical evidence and new matches are guaranteed to use the
+  canonical pipeline automatically (true for every match completed after ADR-0104 shipped).
+- Security regression tests: `src/app/(app)/o/[orgSlug]/__tests__/evidence-rebuild-actions.test.ts`
+  (non-admin rejection before the replay engine ever runs; organisation scoping never trusts a
+  caller-supplied id).
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -3315,6 +3423,10 @@ Avoid:
 | `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
 | `src/lib/evidence/match-state-timeline.ts` | Canonical `MatchStateInterval`/`MatchTransition` reconstruction (ADR-0113): `buildMatchStateTimeline()`, pure `deriveMatchStateIntervals`/`deriveMatchTransitions`, match phase windows, the shared `buildSegmentsFromIntervals` segment primitive (moved from `combination-topology.ts`), and the shared `diffPlayerStates()` structural-diff primitive (ADR-0115, also used by `scenario-evaluation.ts`) |
 | `src/lib/evidence/match-phase-pattern-evidence.ts` | Team-season match-phase pattern aggregation (ADR-0114): `getTeamSeasonMatchPhasePatterns()`, derived not persisted, confidence-scored |
+| `src/lib/evidence/position-context-evidence.ts` | Position-context evidence addendum (ADR-0120): `getPlayerPositionContextEvidence()`/`getTeamPositionContextEvidenceForPairs()`, `computePositionContextBonus()`, neutral `outcomeDifference` vocabulary, derived not persisted |
+| `src/lib/evidence/post-match-learning-replay.ts` | `replayPostMatchLearningHistory()` — reprocesses every completed League/Event match through `runPostMatchLearning()`; domain owner for the "Rebuild historical evidence" transient tool (ADR-0120) |
+| `src/app/(app)/o/[orgSlug]/evidence-rebuild-actions.ts` | Server action: admin-only, org-scoped wrapper around `replayPostMatchLearningHistory()` |
+| `src/app/(app)/o/[orgSlug]/evidence-rebuild/page.tsx`, `evidence-rebuild-client-content.tsx` | "Rebuild historical evidence" transient admin tool UI, mirrors `opponent-population/` |
 | `src/lib/opponents/playing-style-aggregation.ts` | Pure opponent tactical-tendency aggregation from `OpponentEncounterObservation.playingStyleTags` (ADR-0114): confidence, recency window, "our response" outcome derivation |
 | `src/lib/opponents/playing-style-query.ts` | DB-bound `getOpponentTacticalTendencies()`/`getOpponentTendencyOutcomes()` (ADR-0114) |
 | `src/lib/evidence/post-match-learning-replay.ts` | Historical catch-up: `replayPostMatchLearningHistory()` reprocesses every eligible completed match through `runPostMatchLearning()` (ADR-0114) |

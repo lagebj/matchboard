@@ -29,6 +29,7 @@ import {
 import { getMatchPhaseWindows } from "@/lib/evidence/match-state-timeline";
 import { getLeaguePeriodConfig, getTotalPeriodDurationMs } from "@/lib/live-match/period-config";
 import { getTeamSeasonMatchPhasePatterns } from "@/lib/evidence/match-phase-pattern-evidence";
+import { getTeamPositionContextEvidenceForPairs } from "@/lib/evidence/position-context-evidence";
 import { getOpponentTacticalTendencies } from "@/lib/opponents/playing-style-query";
 import {
   evaluatePlannedScenario,
@@ -303,6 +304,28 @@ export async function checkPlannedRotationCoverageAction(
       match.opponentTeamId ? getOpponentTacticalTendencies(match.opponentTeamId, ctx.orgFilter) : Promise.resolve([]),
     ]);
 
+    // Position-context evidence addendum: every distinct (playerId, position) pair the plan can
+    // possibly touch -- starting assignments plus every change's incoming position -- evaluated
+    // once up front so evaluatePlannedScenario (pure/DB-free) can look each up by key.
+    const positionContextPairs = new Map<string, { playerId: string; position: string }>();
+    for (const starter of starters) {
+      positionContextPairs.set(`${starter.playerId}:${starter.position}`, starter);
+    }
+    for (const change of changes) {
+      if (change.inPlayerId && change.inPosition) {
+        positionContextPairs.set(`${change.inPlayerId}:${change.inPosition}`, {
+          playerId: change.inPlayerId,
+          position: change.inPosition,
+        });
+      }
+    }
+    const positionContextEvidence = await getTeamPositionContextEvidenceForPairs(
+      match.matchRound.leagueSeasonId,
+      teamId,
+      [...positionContextPairs.values()],
+      ctx.orgFilter,
+    );
+
     const scenario = evaluatePlannedScenario({
       starters,
       changes,
@@ -311,6 +334,7 @@ export async function checkPlannedRotationCoverageAction(
       matchPhasePatterns,
       combinationEvidence,
       opponentTendencies,
+      positionContextEvidence,
     });
 
     return { success: true, hasLineup: true, issues, partnershipEvidence, scenario };
@@ -473,6 +497,19 @@ export async function generateRotationPlanAction(
       match.opponentTeamId ? getOpponentTacticalTendencies(match.opponentTeamId, ctx.orgFilter) : Promise.resolve([]),
     ]);
 
+    // Position-context evidence addendum: every (bench player, starting role) pair a
+    // substitution could plausibly create -- the generator itself decides which are actually
+    // used, this only needs to cover every combination it might look up.
+    const distinctStartingRoles = [...new Set(starters.map((s) => s.position))];
+    const positionContextEvidence = match.matchRound.leagueSeasonId
+      ? await getTeamPositionContextEvidenceForPairs(
+          match.matchRound.leagueSeasonId,
+          teamId,
+          benchPlayerIds.flatMap((playerId) => distinctStartingRoles.map((position) => ({ playerId, position }))),
+          ctx.orgFilter,
+        )
+      : [];
+
     const generated = generateRotationPlan({
       starters,
       benchPlayerIds,
@@ -481,6 +518,7 @@ export async function generateRotationPlanAction(
       decisionPoints,
       opponentTendencies: opponentTendencies.map((t) => ({ tag: t.tag, confidence: t.confidence })),
       transitionPatterns,
+      positionContextEvidence,
       seed: `${matchId}:${teamId}`,
     });
 
