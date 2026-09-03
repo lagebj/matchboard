@@ -359,7 +359,7 @@ function MatchdayContextBanner({
       </div>
       <Button
         as={Link}
-        href={orgUrl(isLive ? `/matches/${match.matchId}/live` : `/matches/${match.matchId}`)}
+        href={orgUrl(isLive ? `/matches/${match.matchId}/live/follow` : `/matches/${match.matchId}`)}
         variant="primary"
         size="sm"
         trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -554,7 +554,7 @@ function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: st
           View
         </Button>
         {match.hasActiveLiveSession && (
-          <Button as={Link} href={orgUrl(`/matches/${match.matchId}/live`)} variant="primary" size="sm">
+          <Button as={Link} href={orgUrl(`/matches/${match.matchId}/live/follow`)} variant="primary" size="sm">
             Follow live
           </Button>
         )}

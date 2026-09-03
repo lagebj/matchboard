@@ -11,12 +11,14 @@ interface FollowLivePageProps {
 }
 
 /**
- * Read-only "Follow live" viewer (ADR-0086 amendment). Server-side authorization here is the
- * real boundary — `requireMatchGroupAccess()` accepts GROUP_COACH or GROUP_VIEWER, matching
- * exactly what `/api/live-match/[matchId]/realtime-ticket`'s `mode: "view"` path requires, so
- * a coach who can reach this page can also actually obtain a view ticket. This page never
- * renders reporting controls — `FollowLiveClient` only ever calls read RPCs
- * (`getSnapshot`/callback handlers), never `recordEvent`/`endSession`.
+ * Read-only "Follow live" viewer (ADR-0086 amendment, ADR-0112 consistency).
+ * Server-side authorization here is the real boundary — `requireMatchGroupAccess()`
+ * accepts GROUP_COACH or GROUP_VIEWER, matching exactly what
+ * `/api/live-match/[matchId]/realtime-ticket`'s `mode: "view"` path requires.
+ *
+ * This page provides the FollowLiveClient with a baseline squad (including
+ * startingOnField) so it can project on-field players from events, and the
+ * match type so it can show the correct period config.
  */
 export default async function FollowLivePage({ params }: FollowLivePageProps) {
   const { orgSlug, matchId } = await params;
@@ -25,12 +27,15 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
-    select: {
-      id: true,
-      opponent: true,
-      homeAway: true,
-      team: { select: { id: true, name: true } },
-    },
+      select: {
+        id: true,
+        opponent: true,
+        homeAway: true,
+        gameFormat: true,
+        type: true,
+        teamId: true,
+        team: { select: { id: true, name: true } },
+      },
   });
 
   if (!match) {
@@ -63,25 +68,75 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
     );
   }
 
-  // Build playerId → playerName map for resolving player names in live event display.
-  // Uses the effective roster: normal squad + match helpers (ADR-0077).
-  const [squadPlayers, helperAssignments] = await Promise.all([
+  // Build playerId → playerName map and baseline squad with startingOnField.
+  // Uses the effective roster: normal squad + match helpers (ADR-0077) + match
+  // absence tracking, matching the live reporting client's getPreMatchPackage.
+  const [squadPlayers, helperAssignments, lineup, absences] = await Promise.all([
     db.selection.findMany({
       where: { matchId, match: { organisationId: ctx.organisationId } },
-      select: { player: { select: { id: true, firstName: true, lastName: true } } },
+      select: {
+        playerId: true,
+        role: true,
+        player: { select: { id: true, firstName: true, lastName: true, shirtNumber: true, primaryPosition: true } },
+      },
     }),
     db.matchHelperAssignment.findMany({
       where: { matchId, match: { organisationId: ctx.organisationId } },
-      select: { player: { select: { id: true, firstName: true, lastName: true } } },
+      select: {
+        playerId: true,
+        sourceTeam: { select: { name: true } },
+        player: { select: { id: true, firstName: true, lastName: true, shirtNumber: true, primaryPosition: true } },
+      },
+    }),
+    db.matchLineup.findFirst({
+      where: { matchId, teamId: match.teamId, status: { in: ["CONFIRMED", "DRAFT"] } },
+      select: {
+        id: true,
+        assignments: { select: { slotId: true, playerId: true } },
+        formation: { select: { slots: { select: { id: true } } } },
+      },
+    }),
+    db.matchReportAbsence.findMany({
+      where: { matchId, organisationId: ctx.organisationId },
+      select: { playerId: true },
     }),
   ]);
 
-  const playerMap: Record<string, string> = {};
-  for (const s of squadPlayers) {
-    playerMap[s.player.id] = [s.player.firstName, s.player.lastName].filter(Boolean).join(" ");
+  const onFieldPlayerIds = new Set<string>();
+  if (lineup?.formation) {
+    for (const slot of lineup.formation.slots) {
+      const assignment = lineup.assignments.find((a) => a.slotId === slot.id && a.playerId);
+      if (assignment?.playerId) {
+        onFieldPlayerIds.add(assignment.playerId);
+      }
+    }
   }
+
+  const absentPlayerIds = new Set(absences.map((a) => a.playerId));
+
+  const playerMap: Record<string, string> = {};
+  const baselineSquad: { playerId: string; playerName: string; startingOnField: boolean; isActiveParticipant: boolean }[] = [];
+
+  for (const s of squadPlayers) {
+    const name = [s.player.firstName, s.player.lastName].filter(Boolean).join(" ");
+    playerMap[s.player.id] = name;
+    baselineSquad.push({
+      playerId: s.player.id,
+      playerName: name,
+      startingOnField: onFieldPlayerIds.has(s.player.id),
+      isActiveParticipant: !absentPlayerIds.has(s.player.id),
+    });
+  }
+
   for (const h of helperAssignments) {
-    playerMap[h.player.id] = [h.player.firstName, h.player.lastName].filter(Boolean).join(" ");
+    const name = [h.player.firstName, h.player.lastName].filter(Boolean).join(" ");
+    playerMap[h.player.id] = name;
+    baselineSquad.push({
+      playerId: h.player.id,
+      playerName: name,
+      startingOnField: onFieldPlayerIds.has(h.player.id),
+      isActiveParticipant: !absentPlayerIds.has(h.player.id),
+    });
   }
 
   return (
@@ -91,6 +146,8 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
       opponentName={match.opponent}
       homeAway={match.homeAway}
       playerMap={playerMap}
+      squad={baselineSquad}
+      matchType={match.type}
     />
   );
 }

@@ -309,6 +309,8 @@ export class MatchSessionObject extends DurableObject<Env> {
         createdAt: new Date(event.acceptedAt).toISOString(),
         playerId: typeof event.eventFields?.playerId === "string" ? event.eventFields.playerId : undefined,
         secondaryPlayerId: typeof event.eventFields?.secondaryPlayerId === "string" ? event.eventFields.secondaryPlayerId : undefined,
+        period: typeof event.eventFields?.period === "string" ? event.eventFields.period as CanonicalLiveEvent["period"] : undefined,
+        matchSeconds: typeof event.eventFields?.matchSeconds === "number" ? event.eventFields.matchSeconds : undefined,
       }));
 
     const snapshot: MatchSessionSnapshot = {
@@ -405,6 +407,8 @@ export class MatchSessionObject extends DurableObject<Env> {
           createdAt: new Date(decision.record.acceptedAt).toISOString(),
           playerId: typeof eventFields.playerId === "string" ? eventFields.playerId : undefined,
           secondaryPlayerId: typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
+          period: typeof eventFields.period === "string" ? eventFields.period as CanonicalLiveEvent["period"] : undefined,
+          matchSeconds: typeof eventFields.matchSeconds === "number" ? eventFields.matchSeconds : undefined,
         };
         let persistenceStatus: RecordEventResult["persistenceStatus"] = "pending";
 

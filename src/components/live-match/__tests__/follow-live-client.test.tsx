@@ -75,6 +75,7 @@ describe("FollowLiveClient (read-only)", () => {
         opponentName="Red"
         homeAway="HOME"
         playerMap={{}}
+        squad={[]}
       />,
     );
 
@@ -95,6 +96,7 @@ describe("FollowLiveClient (read-only)", () => {
         opponentName="Red"
         homeAway="HOME"
         playerMap={{}}
+        squad={[]}
       />,
     );
 
@@ -112,6 +114,7 @@ describe("FollowLiveClient (read-only)", () => {
         opponentName="Red"
         homeAway="HOME"
         playerMap={{}}
+        squad={[]}
       />,
     );
 
