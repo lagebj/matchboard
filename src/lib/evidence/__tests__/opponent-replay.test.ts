@@ -140,6 +140,32 @@ describe("Populate opponent levels -- League + Event history (ARR-0031)", () => 
     expect(evidence!.eventMatchId).toBeNull();
   });
 
+  /**
+   * Regression: `from`/`to` were previously built as two separate conditional spreads onto the
+   * same `startsAt`/`occurredAt` key, so the second spread silently clobbered the first instead
+   * of merging both bounds into one range (found while building the Evidence-Informed Match
+   * Planning programme's Bundle 2 historical catch-up tool, which shares this same bug pattern).
+   */
+  it("combining from and to narrows the range instead of one bound silently overriding the other", async () => {
+    const opponentTeam = await testDb.opponentTeam.create({
+      data: { displayName: "Date Range Opponent", normalizedName: `date-range-${Date.now()}`, organisationId: fixtureIds.organisationId },
+    });
+    // buildLeagueHistoricalMatch always uses startsAt 2025-04-01T10:00:00Z.
+    const matchId = await buildLeagueHistoricalMatch(opponentTeam.id);
+
+    const outsideRange = await dryRunOpponentEvidence(fixtureIds.organisationId, {
+      from: new Date("2025-04-02T00:00:00Z"),
+      to: new Date("2025-04-05T00:00:00Z"),
+    });
+    expect(outsideRange.details.some((d) => d.matchId === matchId)).toBe(false);
+
+    const insideRange = await dryRunOpponentEvidence(fixtureIds.organisationId, {
+      from: new Date("2025-03-30T00:00:00Z"),
+      to: new Date("2025-04-05T00:00:00Z"),
+    });
+    expect(insideRange.details.some((d) => d.matchId === matchId)).toBe(true);
+  });
+
   it("dry run counts and applies Event-only history", async () => {
     const opponentTeam = await testDb.opponentTeam.create({
       data: { displayName: "Event Only Opponent", normalizedName: `event-only-${Date.now()}`, organisationId: fixtureIds.organisationId },
