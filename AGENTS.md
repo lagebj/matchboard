@@ -707,6 +707,48 @@ algorithms. See ADR-0104.
   boundary rules and ARR-0031) processes both historical League and Event matches through this
   same pipeline — not a second historical-only algorithm.
 
+### Canonical match-state and transition timeline (Evidence-Informed Match Planning, Bundle 1 — ADR-0113)
+
+One canonical, deterministically reconstructed representation of actual on-field state through a
+completed match, built on top of `ActualPositionInterval` (ADR-0096) and `FootballMatchRef`
+(ADR-0104) rather than a parallel history subsystem. Nothing here is persisted (derive first,
+persist selectively) — it is the shared foundation for the Evidence-Informed Match Planning
+programme's later bundles (historical pattern aggregation, observability, reactive scenario
+evaluation, evidence-aware rotation generation), not new planning advice on its own.
+
+- `src/lib/evidence/match-state-timeline.ts` is the one owner. `buildSegmentsFromIntervals`/
+  `MatchSegment`/`PlayerSlot` — previously private to `combination-topology.ts` — live here now;
+  `combination-topology.ts` imports and re-exports them, so existing combination-evidence
+  consumers/tests are unaffected.
+- `MatchStateInterval`: a maximal window of constant on-pitch composition, enriched with resolved
+  `MatchPeriod`, matching named phase windows (`OPENING_5`/`OPENING_10`/
+  `IMMEDIATELY_AFTER_RESTART`/`LATE_PERIOD`/`FINAL_10`/`FINAL_5` — scaled down for a short game
+  format rather than assuming senior-football minutes), on-field players with position/line/lane,
+  a structural summary (counts by line/lane), cumulative score at start/end, goals for/against
+  inside the interval, and a timing-quality flag (`EXACT`/`INFERRED`/`PARTIAL`/`UNAVAILABLE`).
+- `MatchTransition`: derived only from an actually-recorded boundary between two adjacent
+  intervals — never invented at a period boundary with no recorded change. Carries players
+  off/on/remaining, position-only changes among remaining players, substitution count, the union
+  of lines touched, a documented disruption-descriptor set (`SUBSTITUTION_ONLY`/`POSITION_ONLY`/
+  `SUBSTITUTION_WITH_RESHUFFLE`, `SINGLE_LINE_CHANGE`/`MULTI_LINE_CHANGE`,
+  `CENTRAL_AXIS_CHANGED`), score before/after, and `isAtNaturalBreak` (crosses a period boundary).
+- `buildMatchStateTimeline(ref: FootballMatchRef)` is the one DB-bound orchestrator;
+  `deriveMatchStateIntervals`/`deriveMatchTransitions` are pure, so later bundles' scenario
+  evaluators can reuse them against a hypothetical plan without touching the database.
+- Period-relative timestamps (`MatchRotation`/`LiveMatchEvent`/`EventLiveMatchEvent.matchSeconds`
+  reset to 0 at the start of every period — `match-clock.ts`'s `advancePeriod`) are converted to
+  one continuous absolute match-clock value before any cross-period comparison, via
+  `period-config.ts`'s `getCumulativePeriodOffsetsMs`/`toAbsoluteMatchMs`/
+  `getTotalPeriodDurationMs`/`resolvePeriodForAbsoluteMs`. This fixed a real, previously-untested
+  ordering bug: `actual-timeline.ts`'s rotation/position-change queries ignored `period` entirely,
+  so a second-half substitution's small period-relative timestamp could sort before a first-half
+  one. It also fixed `rebuildEventActualTimeline` capping the final interval at one half's
+  `matchDurationMinutes` instead of the full two-half duration for `Event.numberOfHalves = 2`.
+- Existing `ActualPositionInterval` rows for a multi-period match recorded before this fix
+  self-correct the next time `rebuildActualTimeline`/`rebuildEventActualTimeline` reruns for that
+  match (already idempotent). No backfill script ships with this — the programme's Bundle 2
+  historical rebuild/catch-up tool is the intended place to reprocess existing organisations.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2893,6 +2935,7 @@ Avoid:
 | `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
 | `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
+| `src/lib/evidence/match-state-timeline.ts` | Canonical `MatchStateInterval`/`MatchTransition` reconstruction (ADR-0113): `buildMatchStateTimeline()`, pure `deriveMatchStateIntervals`/`deriveMatchTransitions`, match phase windows, and the shared `buildSegmentsFromIntervals` segment primitive (moved from `combination-topology.ts`) |
 | `src/lib/evidence/post-match-learning.ts` | `runPostMatchLearning(ref)` — the one shared post-match learning orchestrator used by League and Event report completion |
 | `src/lib/evidence/adapters/league-evidence-adapter.ts` | Builds a League `FootballMatchRef` (`buildLeagueMatchRef`), resolving `leagueSeasonId` via the match's round |
 | `src/lib/evidence/adapters/event-evidence-adapter.ts` | Builds an Event `FootballMatchRef` (`buildEventMatchRef`), resolving `evidenceLeagueSeasonId` via football-group + date-range overlap (learning context only, never League competition membership) |
@@ -3188,7 +3231,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
 | `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |
 | `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |
-| `src/lib/live-match/period-config.ts` | Period configuration: league and event period models, labels, durations |
+| `src/lib/live-match/period-config.ts` | Period configuration: league and event period models, labels, durations; cumulative period-offset/absolute-match-time helpers (`getCumulativePeriodOffsetsMs`, `toAbsoluteMatchMs`, `getTotalPeriodDurationMs`, `resolvePeriodForAbsoluteMs` — ADR-0113) |
 | `src/lib/live-match/live-match-context.ts` | Shared context types for LiveMatchClient (league and event) |
 | `src/components/live-match/live-match-client.tsx` | Shared live match client component (score, clock, goal/rotation/fair play/marked moment) |
 | `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config) |
