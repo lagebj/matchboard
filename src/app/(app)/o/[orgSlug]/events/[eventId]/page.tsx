@@ -106,20 +106,24 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
         sortOrder: slot.sortOrder,
       })),
       generationOrder: s.generationOrder,
-      // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment
-      // uses guestPlayerId instead). GuestPlayer-aware rendering on this page is a later,
-      // separate change; filtered to Player-backed rows as a no-op today (no write path
-      // produces a guest row yet, and the source query already filters `playerId: { not: null }`).
-      players: s.players
-        .filter(
-          (p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
-            p.playerId !== null && p.player !== null,
-        )
-        .map((p) => {
+      // ADR-0106 planning-parity completion: EventSquadPlayer.playerId/player are nullable (a
+      // GuestPlayer assignment uses guestPlayerId/guestPlayer instead). Both sources are merged
+      // into one participant-kind-aware list here -- a GuestPlayer has no ratings/declared
+      // position at all (no fabricated attributes, per AGENTS.md's GuestPlayer isolation rules),
+      // so those fields degrade to neutral/null rather than being guessed.
+      players: [
+        ...s.players
+          .filter(
+            (p): p is typeof p & { playerId: string; player: NonNullable<typeof p.player> } =>
+              p.playerId !== null && p.player !== null,
+          )
+          .map((p) => {
         const rating = getPlayerOverallRating(p.player);
         return {
           id: p.id,
-          playerId: p.playerId,
+          playerId: p.playerId as string | null,
+          guestPlayerId: null as string | null,
+          participantType: 'PLAYER' as const,
           source: p.source as string,
           locked: p.locked,
           selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
@@ -141,13 +145,47 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
           isGK: p.player.goalkeeperAbility === 'YES' || p.player.goalkeeperAbility === 'EMERGENCY',
         };
       }),
+        ...s.players
+          .filter(
+            (p): p is typeof p & { guestPlayerId: string; guestPlayer: NonNullable<typeof p.guestPlayer> } =>
+              p.guestPlayerId !== null && p.guestPlayer !== null,
+          )
+          .map((p) => ({
+            id: p.id,
+            playerId: null as string | null,
+            guestPlayerId: p.guestPlayerId as string | null,
+            participantType: 'GUEST_PLAYER' as const,
+            source: p.source as string,
+            locked: p.locked,
+            selectionReason: typeof p.selectionReason === 'string' ? p.selectionReason : JSON.stringify(p.selectionReason) ?? '',
+            positionFitTier: p.positionFitTier,
+            assignedSlotIndex: p.assignedSlotIndex,
+            assignedSlotLabel: p.assignedSlotLabel,
+            assignedRoleType: p.assignedRoleType,
+            assignedPositionId: p.assignedPositionId,
+            lineupOrder: p.lineupOrder,
+            firstName: p.guestPlayer.name,
+            lastName: null as string | null,
+            coreTeamId: null as string | null,
+            // A GuestPlayer has no declared position or rating -- neutral/null, never fabricated
+            // (AGENTS.md GuestPlayer isolation rules; also matches getEligibleEventMatchPlayers()'s
+            // identical treatment).
+            primaryPosition: null as string | null,
+            secondaryPosition: null as string | null,
+            tertiaryPosition: null as string | null,
+            goalkeeperAbility: 'NO',
+            overallLevel: null as number | null,
+            ratedAttributeCount: 0,
+            isGK: false,
+          })),
+      ],
     };
   });
 
   // ADR-0106: EventPlayerAvailability.playerId/player are now nullable (a GuestPlayer entry uses
-  // guestPlayerId instead). GuestPlayer-aware rendering on this page is a later, separate change;
-  // filtered to Player-backed rows as a no-op today (source query already filters
-  // `playerId: { not: null }`).
+  // guestPlayerId instead). This `players` list stays Player-only deliberately -- it feeds the
+  // "add an existing group player to a squad" pool, which has its own parallel Guest entry point
+  // (`guestPlayerPool`/`availableGuestPlayers` below), not a merge into this list.
   const players = event.players
     .filter(
       (ep): ep is typeof ep & { playerId: string; player: NonNullable<typeof ep.player> } =>
@@ -180,13 +218,48 @@ export default async function EventDetailPage({ params }: { params: Promise<{ or
   const gameFormat = toGameFormat(event.gameFormat);
 
   const squadBalances = squads.map((squad) => {
+    // ADR-0106 planning-parity completion: a Guest Player contributes to the squad's actual-vs-
+    // target size count and coverage stats like any other participant, via a transient, all-null-
+    // attribute PlayerAttributeProfile (never persisted, never a fabricated Player record) --
+    // matching the existing degraded-fallback profile pattern used below for a Player missing from
+    // `playerById`. An empty `primaryPosition` resolves to FLEXIBLE (position-suitability.ts's
+    // documented "unrecognised label" default), the same "unknown, not fabricated" treatment used
+    // throughout the codebase for missing declared position.
     const squadPlayerProfiles = squad.players.map((sp) => {
-      const fullPlayer = playerById.get(sp.playerId);
+      if (sp.participantType === 'GUEST_PLAYER') {
+        return toPlayerAttributeProfile({
+          id: sp.guestPlayerId as string,
+          firstName: sp.firstName,
+          lastName: sp.lastName,
+          coreTeamId: null,
+          primaryPosition: null,
+          secondaryPosition: null,
+          tertiaryPosition: null,
+          goalkeeperAbility: 'NO',
+          ballControl: null,
+          passing: null,
+          firstTouch: null,
+          oneVOneAttacking: null,
+          positioning: null,
+          oneVOneDefending: null,
+          decisionMaking: null,
+          effort: null,
+          teamplay: null,
+          concentration: null,
+          speed: null,
+          strength: null,
+          nonRotatable: false,
+          preferredFoot: 'RIGHT',
+          bestSide: 'RIGHT',
+        });
+      }
+      const playerId = sp.playerId as string;
+      const fullPlayer = playerById.get(playerId);
       if (fullPlayer) {
         return toPlayerAttributeProfile(fullPlayer);
       }
       return toPlayerAttributeProfile({
-        id: sp.playerId,
+        id: playerId,
         firstName: sp.firstName,
         lastName: sp.lastName,
         coreTeamId: sp.coreTeamId,

@@ -778,5 +778,74 @@ describe('Event export route', () => {
 
       expect(foundHelper).toBe(true);
     });
+
+    it('shows a GuestPlayer starter by name in the lineup, and excludes them from Missing/Subs (ADR-0106 planning parity)', async () => {
+      const { event, squad1 } = await createTestEvent();
+
+      const guestPlayer = await testDb.guestPlayer.create({
+        data: {
+          organisationId: fixtureIds.organisationId,
+          footballGroupId: fixtureIds.footballGroupId,
+          name: 'Guest Solberg',
+        },
+      });
+      await testDb.eventSquadPlayer.create({
+        data: { eventSquadId: squad1.id, eventId: event.id, guestPlayerId: guestPlayer.id, source: 'MANUAL', locked: false, organisationId: fixtureIds.organisationId },
+      });
+
+      const formation = await testDb.formation.create({
+        data: {
+          name: 'Test 7v7 D',
+          gameFormat: 'SEVEN_A_SIDE',
+          source: 'CUSTOM',
+          isArchived: false,
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+      const slot = { gridX: 2, gridY: 5, label: 'GK', shortLabel: 'GK', roleType: 'GOALKEEPER' as FormationSlotRoleType, sortOrder: 0 };
+      await testDb.formationSlot.create({
+        data: { formationId: formation.id, ...slot, acceptedPositionIds: [], organisationId: fixtureIds.organisationId },
+      });
+
+      const match = await testDb.eventMatch.findFirst({ where: { eventId: event.id, eventSquadId: squad1.id } });
+      const lineup = await testDb.eventMatchLineup.create({
+        data: { eventMatchId: match!.id, formationId: formation.id, status: 'DRAFT', organisationId: fixtureIds.organisationId },
+      });
+      await testDb.eventMatchLineupAssignment.create({
+        data: {
+          lineupId: lineup.id,
+          guestPlayerId: guestPlayer.id,
+          slotId: 'GK',
+          slotIndex: 0,
+          slotLabel: 'GK',
+          roleType: 'GOALKEEPER',
+          source: 'BASE_SQUAD',
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+
+      const { workbook } = await exportWorkbook(event.id);
+      const ws = workbook.getWorksheet('Event Match Lineups')!;
+
+      let foundGuestInStarters = false;
+      let foundGuestInSubsOrMissing = false;
+      for (let i = 1; i <= ws.rowCount; i++) {
+        const row = ws.getRow(i);
+        const label = getCellText(row.getCell(1));
+        for (let j = 1; j <= ws.columnCount; j++) {
+          const cellText = getCellText(row.getCell(j));
+          if (cellText.includes('Guest Solberg')) {
+            if (label === 'Missing' || label === 'Subs') {
+              foundGuestInSubsOrMissing = true;
+            } else {
+              foundGuestInStarters = true;
+            }
+          }
+        }
+      }
+
+      expect(foundGuestInStarters).toBe(true);
+      expect(foundGuestInSubsOrMissing).toBe(false);
+    });
   });
 });

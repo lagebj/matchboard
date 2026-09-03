@@ -182,6 +182,50 @@ export async function assignGuestPlayerToEventSquadAction(
   revalidatePath(`/events/${eventId}`);
 }
 
+export async function moveGuestPlayerBetweenSquadsAction(
+  eventId: string,
+  guestPlayerId: string,
+  fromSquadId: string,
+  toSquadId: string,
+) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  await requireEventOrgAccess(eventId, ctx.orgFilter);
+  await requireEventNotFinalized(eventId, ctx.orgFilter);
+  await assertGuestPlayerBelongsToEventGroup(eventId, guestPlayerId, ctx.orgFilter);
+
+  const toSquad = await db.eventSquad.findFirst({
+    where: { id: toSquadId, eventId },
+    select: { id: true },
+  });
+  if (!toSquad) {
+    throw new Error('Squad does not belong to this event.');
+  }
+
+  const existing = await db.eventSquadPlayer.findFirst({
+    where: { guestPlayerId, eventSquadId: fromSquadId, eventId },
+  });
+  if (!existing) throw new Error('Guest player not found in source squad.');
+
+  await db.$transaction(async (tx) => {
+    await tx.eventSquadPlayer.delete({ where: { id: existing.id } });
+    await tx.eventSquadPlayer.create({
+      data: {
+        eventId,
+        eventSquadId: toSquadId,
+        guestPlayerId,
+        source: 'MANUAL',
+        locked: false,
+        selectionReason: 'Moved by coach',
+        organisationId: ctx.organisationId,
+      },
+    });
+  });
+
+  revalidatePath(`/events/${eventId}`);
+}
+
 export async function getEventGuestPlayerPoolAction(eventId: string) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);

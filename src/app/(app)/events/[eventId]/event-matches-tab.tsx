@@ -104,28 +104,16 @@ interface EventMatchesTabProps {
     effectiveMatchDurationMinutes?: number | null;
     effectiveBreakDurationMinutes?: number | null;
     effectiveFormationId?: string | null;
-    players: Array<{ playerId: string }>;
   }>;
   eventType: string;
   gameFormat: string;
   matchDurationMinutes: number | null;
   numberOfHalves: number;
   breakDurationMinutes: number | null;
-  playerProfiles: Array<{
-    id: string;
-    firstName: string;
-    lastName: string | null;
-    primaryPosition: string | null;
-    secondaryPosition: string | null;
-    tertiaryPosition: string | null;
-    goalkeeperAbility: string | null;
-    coreTeamId: string | null;
-    overallLevel: number | null;
-  }>;
   opponentTeams: Array<{ id: string; displayName: string }>;
 }
 
-export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, numberOfHalves, breakDurationMinutes, playerProfiles, opponentTeams }: EventMatchesTabProps) {
+export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, numberOfHalves, breakDurationMinutes, opponentTeams }: EventMatchesTabProps) {
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -548,7 +536,6 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                     lineupMatchId={lineupMatchId}
                     onToggleLineup={(matchId) => setLineupMatchId(prev => prev === matchId ? null : matchId)}
                     gameFormat={squad.effectiveGameFormat ?? gameFormat}
-                    playerProfiles={playerProfiles}
                   />
               ))}
             </div>
@@ -648,7 +635,6 @@ function EventMatchCard({
   lineupMatchId,
   onToggleLineup,
   gameFormat,
-  playerProfiles,
 }: {
   eventId: string;
   match: EventMatchWithReport;
@@ -688,23 +674,12 @@ function EventMatchCard({
   setEditNotes: (v: string) => void;
   onSaveEdit: (matchId: string) => void;
   cancelEdit: () => void;
-  squads: Array<{ id: string; name: string; intent: string; effectiveFormationId?: string | null; players: Array<{ playerId: string }> }>;
+  squads: Array<{ id: string; name: string; intent: string; effectiveFormationId?: string | null }>;
   opponentTeams: Array<{ id: string; displayName: string }>;
   refreshReport: () => void;
   lineupMatchId: string | null;
   onToggleLineup: (matchId: string) => void;
   gameFormat: string;
-  playerProfiles: Array<{
-    id: string;
-    firstName: string;
-    lastName: string | null;
-    primaryPosition: string | null;
-    secondaryPosition: string | null;
-    tertiaryPosition: string | null;
-    goalkeeperAbility: string | null;
-    coreTeamId: string | null;
-    overallLevel: number | null;
-  }>;
 }) {
   const [addingHelper, setAddingHelper] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -1143,49 +1118,7 @@ function EventMatchCard({
           <EventMatchLineupPanel
             eventMatchId={match.id}
             effectiveFormationId={squads.find((s) => s.id === match.eventSquadId)?.effectiveFormationId ?? null}
-            squadPlayers={squads
-              .filter((s) => s.id === match.eventSquadId)
-              .flatMap((s) =>
-                s.players
-                  .map((sp) => {
-                    const profile = playerProfiles.find((pp) => pp.id === sp.playerId);
-                    return profile
-                      ? {
-                          id: profile.id,
-                          firstName: profile.firstName,
-                          lastName: profile.lastName,
-                          primaryPosition: profile.primaryPosition,
-                          secondaryPosition: profile.secondaryPosition,
-                          tertiaryPosition: profile.tertiaryPosition,
-                          goalkeeperAbility: profile.goalkeeperAbility ?? 'NO',
-                          isGK: profile.goalkeeperAbility === 'YES',
-                          source: 'squad' as const,
-                          squadName: squads.find((sq) => sq.id === s.id)?.name ?? null,
-                          overallLevel: profile.overallLevel ?? null,
-                        }
-                      : undefined;
-                  })
-                  .filter((p): p is NonNullable<typeof p> => p !== undefined),
-              )}
             gameFormat={gameFormat}
-            helperPlayers={assignmentsForMatch
-              .filter((a) => !a.isConflict)
-              .map((a) => {
-                const profile = playerProfiles.find((pp) => pp.id === a.playerId);
-                return {
-                  id: a.playerId,
-                  firstName: a.firstName,
-                  lastName: a.lastName,
-                  primaryPosition: profile?.primaryPosition ?? null,
-                  secondaryPosition: profile?.secondaryPosition ?? null,
-                  tertiaryPosition: profile?.tertiaryPosition ?? null,
-                  goalkeeperAbility: profile?.goalkeeperAbility ?? 'NO',
-                  isGK: profile?.goalkeeperAbility === 'YES',
-                  source: 'helper' as const,
-                  squadName: a.sourceEventSquadName,
-                  overallLevel: profile?.overallLevel ?? null,
-                };
-              })}
           />
         </div>
       )}

@@ -370,3 +370,33 @@ currently required with no "unattributed" precedent (unlike `Goal`), `LiveMatchE
 real FK rather than a loose string, and `MatchRotation.outPlayerId`/`inPlayerId` are both required
 — each of these determined which constraint shape (exactly-one vs. at-most-one) applies to that
 specific model.
+
+### 2026-09-03 (Event planning parity completion)
+
+A GuestPlayer could already be assigned to an Event squad, but several read paths built after this
+ADR's own foundational migration still filtered to `playerId: { not: null }` (each marked with its
+own `// ADR-0106:` "later, separate change" comment at the time), and `assignPlayerToLineupSlot()`
+rejected every GuestPlayer id via a hardcoded `db.player.findFirst()` pre-check that ran before the
+already-correct, already-GuestPlayer-aware `assertEligibleEventMatchPlayer()` eligibility check two
+lines later. The practical effect: a coach could add a guest to an Event and assign them to a
+squad, then watch them disappear from the squad overview, the actual-vs-target squad size count,
+and the starting-lineup participant pool, and be silently excluded from the Excel export's Lineups
+sheet if they were ever placed as a starter.
+
+This pass closed that gap for every planning surface a GuestPlayer needs once assigned to an
+Event — `getEventById()`'s stale filter, the Event detail page's squad/balance derivation,
+`assignPlayerToLineupSlot()`'s participant-kind-aware rewrite, wiring the already-existing
+`getEligibleEventMatchPlayers()` into the actual lineup/tactics UI (it had zero real callers
+before this), a new `moveGuestPlayerBetweenSquadsAction()` (the prior guest-assignment action
+explicitly refused re-assignment, so there was no move capability at all), and the export route's
+Lineups sheet. See AGENTS.md's "Event planning parity (squad overview, squad size, lineup/tactics,
+exports)" section for the full file-by-file account.
+
+Two boundaries from this ADR's original phased plan remain deliberately unchanged, not resolved by
+this pass: Event Match support/helper assignment for GuestPlayers, and automatic
+`event-squad-generation.ts`/auto-fill candidate-pool inclusion — both stay Player-only by design
+(a GuestPlayer is always a manual planning decision, never fairness-scored or auto-selected).
+Evidence/statistics isolation was re-verified, not just assumed, with a new regression test
+confirming a GuestPlayer occupying a lineup starting slot (now a real write path) still produces no
+`ActualPositionInterval` row — `getEventStartingLineup()`'s own query stays `playerId: { not: null
+}`, so this pass's planning-side fix does not create a new evidence-layer leak.

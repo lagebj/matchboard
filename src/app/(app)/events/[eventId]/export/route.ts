@@ -320,6 +320,9 @@ export async function GET(
               strength: true,
             },
           },
+          // ADR-0106 planning-parity completion: a lineup assignment slot may be occupied by a
+          // GuestPlayer (guestPlayerId set, playerId null) instead of a Player.
+          guestPlayer: { select: { id: true, name: true, sourceLabel: true } },
         },
         orderBy: { slotIndex: 'asc' },
       },
@@ -599,6 +602,7 @@ type LineupData = {
   assignments: {
     id: string;
     playerId: string | null;
+    guestPlayerId: string | null;
     slotId: string | null;
     slotIndex: number | null;
     slotLabel: string | null;
@@ -625,6 +629,8 @@ type LineupData = {
       speed: number | null;
       strength: number | null;
     } | null;
+    // ADR-0106 planning-parity completion: a lineup slot may be occupied by a GuestPlayer.
+    guestPlayer: { id: string; name: string; sourceLabel: string | null } | null;
   }[];
   eventMatch: {
     id: string;
@@ -675,10 +681,13 @@ function buildLineupsSheet(
     const formation = lineup.formation;
     const formationSlots = formation?.slots ?? [];
     const totalSlots = formationSlots.length || lineup.assignments.length;
-    const assignedSlots = lineup.assignments.filter((a) => a.playerId !== null);
-    const starters = assignedSlots
-      .filter((a) => a.player)
-      .map((a) => ({ overallLevel: getPlayerOverallRating(a.player!).value }));
+    const assignedSlots = lineup.assignments.filter((a) => a.playerId !== null || a.guestPlayerId !== null);
+    // A GuestPlayer starter counts toward totalStarterCount (they occupy a real slot) but is
+    // never fabricated a rating -- overallLevel stays null, matching the "Not rated" treatment
+    // used everywhere else for a GuestPlayer (AGENTS.md "Player attribute ratings").
+    const starters = assignedSlots.map((a) => ({
+      overallLevel: a.player ? getPlayerOverallRating(a.player).value : null,
+    }));
 
     const rating = computeLineupRating(starters, totalSlots);
     const isComplete = assignedSlots.length >= totalSlots;
@@ -716,7 +725,7 @@ function buildLineupsSheet(
 
     if (!isComplete && totalSlots > 0) {
       const missingRoles = lineup.assignments
-        .filter((a) => !a.playerId)
+        .filter((a) => !a.playerId && !a.guestPlayerId)
         .map((a) => a.slotLabel ?? a.roleType ?? '?')
         .join(', ');
       const warnRow = ws.addRow(['Missing', missingRoles]);
@@ -736,11 +745,14 @@ function buildLineupsSheet(
 
       for (const assignment of lineup.assignments) {
         const group = roleGroup(assignment.roleType);
-        const player = assignment.player;
-        const playerName = player ? formatPlayerName(player.firstName, player.lastName) : '—';
+        const occupantName = assignment.player
+          ? formatPlayerName(assignment.player.firstName, assignment.player.lastName)
+          : assignment.guestPlayer
+            ? `${assignment.guestPlayer.name} (Guest)`
+            : null;
         const slotLabel = assignment.slotLabel ?? '—';
         const isHelper = assignment.source === 'HELPER';
-        const display = player ? `${playerName} (${slotLabel}${isHelper ? ', helper' : ''})` : `— (${slotLabel})`;
+        const display = occupantName ? `${occupantName} (${slotLabel}${isHelper ? ', helper' : ''})` : `— (${slotLabel})`;
         groups.get(group)!.players.push(display);
       }
 
@@ -759,7 +771,9 @@ function buildLineupsSheet(
       noLineupRow.getCell(2).font = { size: 10, italic: true, color: { argb: 'FF9CA3AF' } };
     }
 
-    const starterIds = new Set(assignedSlots.map((a) => a.playerId).filter(Boolean));
+    const starterIds = new Set(
+      assignedSlots.map((a) => a.playerId ?? a.guestPlayerId).filter((id): id is string => id !== null),
+    );
 
     const matchHelpers = matchHelperMap.get(match.id) ?? [];
 

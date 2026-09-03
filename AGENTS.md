@@ -1419,6 +1419,72 @@ page's Squad tab beside `MatchHelpersPanel`). `getEffectiveLeagueMatchRoster()`
 GuestPlayer is always `isActiveParticipant: true` once assigned — match-specific absence tracking
 (`MatchReportAbsence`) remains Player-only.
 
+### Event planning parity (squad overview, squad size, lineup/tactics, exports)
+
+A GuestPlayer already assignable to an Event squad (see "Event participation" above) previously
+disappeared from most of the actual planning surfaces that read that assignment back — the
+squad-assignment write path existed but several read paths still filtered to
+`playerId: { not: null }` (a query-level artifact predating this pass, each marked with its own
+`// ADR-0106:` comment at the time), and `assignPlayerToLineupSlot()` rejected any GuestPlayer id
+outright via a hardcoded `db.player.findFirst()` pre-check that ran *before* the already-correct,
+already-GuestPlayer-aware `assertEligibleEventMatchPlayer()` eligibility check two lines later.
+This pass closes that gap for every planning surface a GuestPlayer needs once assigned to an
+Event — the underlying boundary ("Guest Player ≠ persistent registered Player", see "Statistics/
+evidence isolation" below) is unchanged and re-verified, not weakened:
+
+- `getEventById()` (`src/app/(app)/events/actions.ts`) now includes `guestPlayer` and drops the
+  stale `playerId: { not: null }` filter on both the squad-level and event-level player queries —
+  the root cause of a GuestPlayer disappearing from the squad overview entirely.
+- The Event detail page (`src/app/(app)/o/[orgSlug]/events/[eventId]/page.tsx`) merges Player- and
+  GuestPlayer-backed squad rows into one participant-kind-aware list per squad
+  (`participantType: 'PLAYER' | 'GUEST_PLAYER'`), degrading a guest's position/rating/goalkeeper
+  fields to null/neutral rather than fabricating them (matching
+  `getEligibleEventMatchPlayers()`'s existing treatment). `computeSquadBalance()`'s
+  `squadPlayerProfiles` input includes a transient, all-null-attribute `PlayerAttributeProfile` per
+  guest (never persisted, never a fabricated Player record) so a squad's actual-vs-target size
+  count correctly includes guests (e.g. 9 registered + 1 guest = 10/10, not 9/10).
+- `event-detail.tsx` renders a subtle "Guest" label alongside a guest's name in both the Overview
+  and Squads tab player lists, and `moveGuestPlayerBetweenSquadsAction()`
+  (`event-guest-player-actions.ts`, mirroring `movePlayerBetweenSquadsAction`'s transactional
+  delete+create pattern) lets a coach move a guest between squads — the prior guest-only write path
+  (`assignGuestPlayerToEventSquadAction`) explicitly refused re-assignment once already assigned,
+  so there was previously no move capability at all for a guest.
+- `assignPlayerToLineupSlot()` (`event-lineup-actions.ts`) now takes an explicit
+  `participantType: 'PLAYER' | 'GUEST_PLAYER'` parameter, writes to the correct FK
+  (`guestPlayerId`/`playerId`, always nulling the other), and no longer runs the Player-only
+  pre-check that rejected every GuestPlayer id before eligibility was ever checked.
+  `removePlayerFromLineupSlot()`/`clearEventMatchLineup()` null both FKs.
+  `autoFillEventMatchLineup()` remains deliberately Player-only (auto-fill is always a Player-only
+  automatic candidate pool, per the existing "GuestPlayer must be manually assigned" boundary
+  below) but its slot skip-condition now also checks `guestPlayerId`, so a manually-placed guest is
+  never silently overwritten by a subsequent auto-fill run.
+- `getEligibleEventMatchPlayersAction()` (new, thin wrapper over the already-existing,
+  already-GuestPlayer-aware `getEligibleEventMatchPlayers()`) is now actually wired up:
+  `EventMatchLineupPanel` (`event-match-lineup-panel.tsx`) fetches the eligible participant pool
+  from this one canonical source instead of the event-matches-tab's previous manual, Player-only
+  `squadPlayers`/`helperPlayers` prop construction (removed — the parity fix collapsed two parallel,
+  divergent constructions of "who can be assigned to this match" into the one that was already
+  correct but unused). The lineup panel and its `PlayerPicker` show a "Guest" indicator next to a
+  guest occupant, matching the existing amber "H" helper indicator's pattern.
+- The Excel export's Lineups sheet (`export/route.ts`'s `buildLineupsSheet()`) now reads
+  `assignment.guestPlayer` alongside `assignment.player` when rendering starters, so a guest
+  starter shows correctly under their role group instead of appearing only in "Subs" (or, worse,
+  counting toward "Missing"). The Squads and Match call-out sheets already handled this correctly
+  before this pass (via the pre-existing `squadPlayerDisplayName()` helper); the Planned vs Actual
+  sheet is unchanged and correctly stays Player-only — see its own in-file comment — since it joins
+  against post-match evidence models a GuestPlayer never populates, by design.
+- No pre-match "planned rotation" feature exists for Event matches at all (unlike League's
+  `PlannedRotation`/`PlannedRotationChange`) — this remains true after this pass. The starting
+  lineup (`EventMatchLineup`) is Event's only pre-match planning mechanism beyond squad assignment,
+  and it is now the one made GuestPlayer-aware above; building a new Event rotation-planning
+  feature from scratch was explicitly out of scope for this parity pass.
+- Verified non-regression: `getEventStartingLineup()` (`src/lib/evidence/actual-timeline.ts`), the
+  query that seeds a match's starting state for `ActualPositionInterval` reconstruction, still
+  filters strictly to `playerId: { not: null }` — a GuestPlayer occupying a lineup starting slot
+  (now a real write path after this pass) is correctly excluded from the persistent evidence layer
+  rather than fabricating positional/combination evidence for them. Locked in with a regression
+  test (`src/lib/evidence/__tests__/post-match-learning-pipeline.test.ts`).
+
 ### Event Match availability
 
 A participant (Player or GuestPlayer) can attend an Event but be unavailable for specific Matches
@@ -1483,6 +1549,11 @@ immediately rather than discovered later:
   Planned-vs-Actual sheet correctly shows blank actual/goals/assists for that row, since the
   evidence/stats pipelines it joins against remain Player-only by construction
   (`src/app/(app)/events/__tests__/event-export.test.ts`).
+- `rebuildEventActualTimeline()` — a GuestPlayer occupying an Event match's starting lineup slot
+  (a real write path as of the planning-parity pass above) never produces an
+  `ActualPositionInterval` row; the co-starting registered Player's own reconstruction is
+  unaffected by the guest's presence in the same lineup
+  (`src/lib/evidence/__tests__/post-match-learning-pipeline.test.ts`).
 
 ### Demo data
 
@@ -1509,11 +1580,17 @@ generated Prisma client is TypeScript source, not requirable via plain Node.
 
 **Current implementation status**: GuestPlayer identity, lifecycle, Group-scoped management UX,
 manual Event and League participation, Event Match availability (model, UX, and enforcement),
-statistics/evidence isolation (locked in with regression tests), and demo seed data all exist.
-Every remaining read path that touches a newly-nullable `playerId`/`player` field has been
-updated only enough to keep it Player-scoped (an explicit `// ADR-0106:` comment marks each such
-site) — this is deliberate, temporary scaffolding pending the follow-up phases that add Event
-Match support/helper assignment for GuestPlayers and generation-engine candidate inclusion. See
+Event planning parity (squad overview, squad-size counts, lineup/tactics assignment, squad-to-squad
+movement, Excel export), statistics/evidence isolation (locked in with regression tests), and demo
+seed data all exist. A GuestPlayer assigned to an Event squad now behaves as a normal selectable
+Event participant through squad overview → squad assignment/movement → match participant pool →
+starting lineup → exports, while never gaining persistent registered-Player evidence/statistics —
+see "Event planning parity" above. The two boundaries listed under "Explicitly not yet integrated"
+above (Event Match support/helper assignment for GuestPlayers, and automatic
+`event-squad-generation.ts`/auto-fill candidate inclusion) remain deliberately out of scope, not
+oversights — each is called out again above at the specific site where it applies. Any other read
+path still touching a newly-nullable `playerId`/`player` field without an explicit note above
+remains marked with its own `// ADR-0106:` comment as deliberate, temporary scaffolding. See
 ADR-0106 for the full design and phased delivery plan, and ARR-0036 for unrelated pre-existing
 schema/migration-history drift found (and deliberately left unbundled) while preparing the
 foundational migration.
