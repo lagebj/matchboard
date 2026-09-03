@@ -37,6 +37,7 @@ import type { OutfieldPositionExposureEvidence } from "@/domain/team-composition
 import { getPositionExposure } from "@/lib/insights/position-exposure";
 import { summarizeExposureByOutfieldRole } from "@/lib/players/get-player-outfield-role-suitability";
 import { preferredFunctionFor, computeOpponentFunctionBonus } from "@/lib/planned-rotation/opponent-function-preference";
+import { computePositionContextBonus, getTeamPositionContextEvidenceForPairs } from "@/lib/evidence/position-context-evidence";
 import { generateRotationPlan, type RotationPlanPlayer, type RotationPlanDecisionPoint } from "@/lib/planned-rotation/generate-rotation-plan";
 import { getTeamSeasonTransitionPatterns } from "@/lib/evidence/transition-structure-evidence";
 import { createPlannedRotation, type PlannedRotationChangeData } from "@/lib/planned-rotation/planned-rotation";
@@ -139,6 +140,20 @@ export async function generateIntegratedMatchPlanAction(
       exposureByPlayerId.set(row.playerId, summarizeExposureByOutfieldRole(row.realisedPositions));
     }
 
+    // Position-context evidence addendum: one shared evidence context for both stages (starting
+    // line-up scoring below, and rotation-plan generation further down) -- loaded once, matching
+    // this bundle's own "one shared evidence context, not two independently-loaded stages"
+    // design. Covers every (playerPool player, formation role) pair either stage could look up.
+    const distinctRoleTypes = [...new Set(formation.slots.map((s) => (s.roleType as FormationSlotRoleType) === "GOALKEEPER" ? "GK" : s.roleType))];
+    const positionContextEvidence = leagueSeasonId
+      ? await getTeamPositionContextEvidenceForPairs(
+          leagueSeasonId,
+          match.teamId,
+          playerPool.flatMap((p) => distinctRoleTypes.map((position) => ({ playerId: p.id, position }))),
+          ctx.orgFilter,
+        )
+      : [];
+
     const evidenceBonusForSlot = (playerId: string, slot: { roleType: FormationSlotRoleType }, alreadyAssignedPlayerIds: string[]): LineupEvidenceBonus | undefined => {
       if (slot.roleType === "GOALKEEPER") return undefined; // Goalkeeper boundary — never evidence-scored.
 
@@ -198,6 +213,14 @@ export async function generateIntegratedMatchPlanAction(
       if (combinationBonus > 0) {
         score += combinationBonus;
         reasons.push("Recorded partnership evidence with an already-placed teammate");
+      }
+
+      const positionContextBonus = computePositionContextBonus(
+        positionContextEvidence.find((e) => e.playerId === playerId && e.position === slot.roleType),
+      );
+      if (positionContextBonus > 0) {
+        score += positionContextBonus;
+        reasons.push("Recorded outcomes at this position have historically been more favorable for this player");
       }
 
       if (score === 0) return undefined;
@@ -285,6 +308,7 @@ export async function generateIntegratedMatchPlanAction(
         decisionPoints,
         opponentTendencies: opponentTendencies.map((t) => ({ tag: t.tag, confidence: t.confidence })),
         transitionPatterns,
+        positionContextEvidence,
         seed: `${matchId}:${match.teamId}`,
       });
 

@@ -11,6 +11,7 @@ import { getLeaguePeriodConfig } from "@/lib/live-match/period-config";
 import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
 import type { MatchPhasePatternRow } from "@/lib/evidence/match-phase-pattern-evidence";
 import type { OpponentTacticalTendency } from "@/lib/opponents/playing-style-aggregation";
+import type { PlayerPositionContextEvidence } from "@/lib/evidence/position-context-evidence";
 
 const STARTERS: PlannedScenarioPlayer[] = [
   { playerId: "p1", position: "GK" },
@@ -273,5 +274,77 @@ describe("evaluatePlannedScenario — reactive full evaluator (TEST-MATRIX §12)
     });
     const laterTransition = changed.transitions.find((t) => t.atSeconds === 1500);
     expect(laterTransition!.signals.some((s) => s.text.includes("5 matches"))).toBe(false);
+  });
+});
+
+describe("evaluatePlannedScenario — position-context evidence addendum", () => {
+  function evidenceRow(playerId: string, position: string): PlayerPositionContextEvidence {
+    return {
+      playerId,
+      position,
+      player: { matches: 6, exposureMinutes: 150, goalsFor: 4, goalsAgainst: 1, confidence: "ESTABLISHED" },
+      baseline: { matches: 6, exposureMinutes: 150, goalsFor: 1, goalsAgainst: 1, confidence: "ESTABLISHED" },
+      outcomeDifference: "MORE_FAVORABLE",
+      structuralNote: null,
+      explanation: "150 recorded minutes at CM across 6 matches (an established pattern). Recorded outcomes during those intervals were more favorable outcomes than the team's other recorded CM intervals this season.",
+    };
+  }
+
+  it("attaches a position-context signal for a starting assignment", () => {
+    const result = evaluatePlannedScenario({
+      starters: STARTERS,
+      changes: [],
+      totalMatchSeconds: 3000,
+      positionContextEvidence: [evidenceRow("p3", "CM")],
+    });
+
+    expect(result.startingLineupSignals).toHaveLength(1);
+    expect(result.startingLineupSignals[0]!.playerId).toBe("p3");
+    expect(result.startingLineupSignals[0]!.signal.kind).toBe("HISTORICAL_PATTERN");
+    expect(result.startingLineupSignals[0]!.signal.text).toContain("more favorable");
+  });
+
+  it("attaches a position-context signal when a player enters at a position with recorded evidence", () => {
+    const result = evaluatePlannedScenario({
+      starters: STARTERS,
+      changes: [change({ outPlayerId: "p3", inPlayerId: "p5", inPosition: "CM", approximateMatchSeconds: 900 })],
+      totalMatchSeconds: 3000,
+      positionContextEvidence: [evidenceRow("p5", "CM")],
+    });
+
+    expect(result.transitions[0]!.signals.some((s) => s.kind === "HISTORICAL_PATTERN" && s.text.includes("established pattern"))).toBe(true);
+  });
+
+  it("recomputes the signal when the assigned position changes — no evidence for the new position produces no signal", () => {
+    const result = evaluatePlannedScenario({
+      starters: STARTERS,
+      changes: [change({ outPlayerId: "p3", inPlayerId: "p5", inPosition: "ST", approximateMatchSeconds: 900 })],
+      totalMatchSeconds: 3000,
+      positionContextEvidence: [evidenceRow("p5", "CM")], // evidence exists for CM, not ST
+    });
+
+    expect(result.transitions[0]!.signals.some((s) => s.kind === "HISTORICAL_PATTERN")).toBe(false);
+  });
+
+  it("recomputes the signal when the assigned player changes — a different player has no evidence at this position", () => {
+    const result = evaluatePlannedScenario({
+      starters: STARTERS,
+      changes: [change({ outPlayerId: "p3", inPlayerId: "p6", inPosition: "CM", approximateMatchSeconds: 900 })],
+      totalMatchSeconds: 3000,
+      positionContextEvidence: [evidenceRow("p5", "CM")], // evidence is for p5, not the incoming p6
+    });
+
+    expect(result.transitions[0]!.signals.some((s) => s.kind === "HISTORICAL_PATTERN")).toBe(false);
+  });
+
+  it("produces no position-context signal when no evidence was loaded at all", () => {
+    const result = evaluatePlannedScenario({
+      starters: STARTERS,
+      changes: [change({ outPlayerId: "p3", inPlayerId: "p5", inPosition: "CM", approximateMatchSeconds: 900 })],
+      totalMatchSeconds: 3000,
+    });
+
+    expect(result.startingLineupSignals).toEqual([]);
+    expect(result.transitions[0]!.signals).toEqual([]);
   });
 });

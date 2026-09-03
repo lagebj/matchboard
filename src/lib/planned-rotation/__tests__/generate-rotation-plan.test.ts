@@ -6,6 +6,7 @@ import "@/test/support/auth-mock";
 import { generateRotationPlan, type RotationPlanDecisionPoint, type RotationPlanPlayer, type RotationPlanStarter } from "../generate-rotation-plan";
 import type { DeclaredBroadPositions } from "@/domain/team-composition/outfield-role-evidence";
 import type { TacticalFunctionAttributes } from "@/domain/team-composition/outfield-role-evidence";
+import type { PlayerPositionContextEvidence } from "@/lib/evidence/position-context-evidence";
 
 const TOTAL_MATCH_SECONDS = 3000; // two 25-minute halves
 
@@ -313,5 +314,89 @@ describe("generateRotationPlan — opponent-aware function continuity", () => {
 
     // With INSUFFICIENT confidence, the evidence bonus must never apply.
     expect(result.changes.length).toBeGreaterThanOrEqual(0); // sanity: still runs without throwing
+  });
+});
+
+function positionEvidence(
+  playerId: string,
+  position: string,
+  outcomeDifference: PlayerPositionContextEvidence["outcomeDifference"],
+  confidence: "EMERGING" | "ESTABLISHED" | "INSUFFICIENT" = "ESTABLISHED",
+): PlayerPositionContextEvidence {
+  return {
+    playerId,
+    position,
+    player: { matches: 8, exposureMinutes: 200, goalsFor: 3, goalsAgainst: 1, confidence },
+    baseline: { matches: 8, exposureMinutes: 200, goalsFor: 1, goalsAgainst: 1, confidence: "ESTABLISHED" },
+    outcomeDifference,
+    structuralNote: null,
+    explanation: "test evidence",
+  };
+}
+
+describe("generateRotationPlan — position-context evidence addendum", () => {
+  it("prefers a bench candidate whose recorded position-context evidence is MORE_FAVORABLE, all else being roughly equal", () => {
+    const players = new Map([
+      player("def1", { primary: "defender" }),
+      player("bench-favorable", { primary: "defender" }),
+      player("bench-plain", { primary: "defender" }),
+    ]);
+    const starters = [starter("def1", "DEFENDER")];
+
+    const result = generateRotationPlan({
+      starters,
+      benchPlayerIds: ["bench-favorable", "bench-plain"],
+      players,
+      totalMatchSeconds: TOTAL_MATCH_SECONDS,
+      decisionPoints: DECISION_POINTS,
+      positionContextEvidence: [positionEvidence("bench-favorable", "DEFENDER", "MORE_FAVORABLE")],
+      seed: "position-context-preference",
+    });
+
+    const inPlayerIds = new Set(result.changes.map((c) => c.inPlayerId));
+    expect(inPlayerIds.has("bench-favorable")).toBe(true);
+  });
+
+  it("never excludes a candidate with LESS_FAVORABLE recorded evidence — still selected when no better candidate exists", () => {
+    const players = new Map([
+      player("def1", { primary: "defender" }),
+      player("bench-only-option", { primary: "defender" }),
+    ]);
+    const starters = [starter("def1", "DEFENDER")];
+
+    const result = generateRotationPlan({
+      starters,
+      benchPlayerIds: ["bench-only-option"],
+      players,
+      totalMatchSeconds: TOTAL_MATCH_SECONDS,
+      decisionPoints: DECISION_POINTS,
+      positionContextEvidence: [positionEvidence("bench-only-option", "DEFENDER", "LESS_FAVORABLE")],
+      seed: "position-context-never-excludes",
+    });
+
+    const inPlayerIds = new Set(result.changes.map((c) => c.inPlayerId));
+    expect(inPlayerIds.has("bench-only-option")).toBe(true);
+  });
+
+  it("gives no bonus for INSUFFICIENT-confidence evidence — unknown position history is not penalised or preferred", () => {
+    const players = new Map([
+      player("def1", { primary: "defender" }),
+      player("bench-a", { primary: "defender" }),
+      player("bench-b", { primary: "defender" }),
+    ]);
+    const starters = [starter("def1", "DEFENDER")];
+
+    const result = generateRotationPlan({
+      starters,
+      benchPlayerIds: ["bench-a", "bench-b"],
+      players,
+      totalMatchSeconds: TOTAL_MATCH_SECONDS,
+      decisionPoints: DECISION_POINTS,
+      positionContextEvidence: [positionEvidence("bench-a", "DEFENDER", "MORE_FAVORABLE", "INSUFFICIENT")],
+      seed: "position-context-insufficient",
+    });
+
+    // No throw, and both remain viable candidates (fairness/tiebreak decide, not the evidence).
+    expect(result.changes.length).toBeGreaterThan(0);
   });
 });

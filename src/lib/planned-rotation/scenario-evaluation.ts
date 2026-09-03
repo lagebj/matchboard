@@ -13,6 +13,7 @@ import type { MatchPhasePatternRow } from "@/lib/evidence/match-phase-pattern-ev
 import type { OpponentTacticalTendency } from "@/lib/opponents/playing-style-aggregation";
 import { PLAYING_STYLE_TAG_LABELS } from "@/lib/opponents/playing-style-tags";
 import { projectPlannedLineup } from "@/lib/planned-rotation/planned-rotation";
+import type { PlayerPositionContextEvidence } from "@/lib/evidence/position-context-evidence";
 
 /**
  * Evidence-Informed Match Planning programme, Bundle 4: the shared "what happens if I change
@@ -74,6 +75,10 @@ export type PlannedScenarioEvaluation = {
   /** Match-level, not per-transition — Bundle 4 has no role-fit reasoning yet (Bundle 5), so an
    * opponent tendency is shown as context for the whole plan, never attached to one player. */
   opponentContext: PlanEvidenceSignal[];
+  /** Position-context evidence addendum: one signal per starting player whose starting position
+   * has recorded evidence, keyed by player so the UI can attach each to its own starter — a
+   * starting assignment is a position decision too, evaluated on the same terms as any later one. */
+  startingLineupSignals: Array<{ playerId: string; signal: PlanEvidenceSignal }>;
 };
 
 function toMatchStatePlayers(players: PlannedScenarioPlayer[]): MatchStatePlayer[] {
@@ -156,6 +161,20 @@ export function buildPlannedScenarioTransitions(
  * evidence produces no signal at all rather than a forced, empty-sounding one — "unknown stays
  * quiet" (PRINCIPLES.md).
  */
+/**
+ * Looks up position-context evidence for a (playerId, position) pair from a pre-loaded array —
+ * this module stays pure/DB-free like the rest of Bundle 4, so the caller loads evidence for
+ * every pair the plan can possibly touch ahead of time (mirroring how `matchPhasePatterns`/
+ * `combinationEvidence` are already pre-loaded plain data, not fetched here).
+ */
+function findPositionContextEvidence(
+  rows: PlayerPositionContextEvidence[],
+  playerId: string,
+  position: string,
+): PlayerPositionContextEvidence | undefined {
+  return rows.find((r) => r.playerId === playerId && r.position === position);
+}
+
 export function evaluatePlannedScenario(input: {
   starters: PlannedScenarioPlayer[];
   changes: PlannedScenarioChange[];
@@ -164,16 +183,20 @@ export function evaluatePlannedScenario(input: {
   matchPhasePatterns?: MatchPhasePatternRow[];
   combinationEvidence?: SeasonCombinationSummary[];
   opponentTendencies?: OpponentTacticalTendency[];
+  /** Position-context evidence addendum: one row per (playerId, position) pair the plan may
+   * touch, pre-loaded by the caller. Absent/empty produces no position-context signals at all. */
+  positionContextEvidence?: PlayerPositionContextEvidence[];
 }): PlannedScenarioEvaluation {
   const phaseWindows = input.phaseWindows ?? [];
   const matchPhasePatterns = input.matchPhasePatterns ?? [];
   const combinationEvidence = input.combinationEvidence ?? [];
   const opponentTendencies = input.opponentTendencies ?? [];
+  const positionContextEvidence = input.positionContextEvidence ?? [];
 
   const intervals = buildPlannedScenarioIntervals(input.starters, input.changes, input.totalMatchSeconds);
   const rawTransitions = buildPlannedScenarioTransitions(intervals);
 
-  const transitions: PlannedScenarioTransition[] = rawTransitions.map((t) => {
+  const transitions: PlannedScenarioTransition[] = rawTransitions.map((t, i) => {
     const signals: PlanEvidenceSignal[] = [];
 
     if (t.playersRemaining.length >= 2) {
@@ -202,6 +225,29 @@ export function evaluatePlannedScenario(input: {
       }
     }
 
+    // Position-context evidence addendum: evaluated for every player whose position is newly
+    // relevant at this transition — entering the pitch, or changing position while remaining on
+    // it. A player simply continuing at an unchanged position produces no repeated signal here
+    // (their position-context evidence was already surfaced at the transition where they took
+    // up that position).
+    if (positionContextEvidence.length > 0) {
+      const afterInterval = intervals[i + 1];
+      for (const playerId of t.playersOn) {
+        const position = afterInterval?.players.find((p) => p.playerId === playerId)?.position;
+        if (!position) continue;
+        const evidence = findPositionContextEvidence(positionContextEvidence, playerId, position);
+        if (evidence?.explanation) {
+          signals.push({ kind: "HISTORICAL_PATTERN", text: evidence.explanation });
+        }
+      }
+      for (const change of t.positionOnlyChanges) {
+        const evidence = findPositionContextEvidence(positionContextEvidence, change.playerId, change.toPosition);
+        if (evidence?.explanation) {
+          signals.push({ kind: "HISTORICAL_PATTERN", text: evidence.explanation });
+        }
+      }
+    }
+
     return { ...t, signals };
   });
 
@@ -212,5 +258,18 @@ export function evaluatePlannedScenario(input: {
       text: `Recent observations repeatedly show ${(PLAYING_STYLE_TAG_LABELS[tendency.tag as OpponentPlayingStyleTag] ?? tendency.tag).toLowerCase()} from this opponent, across ${tendency.occurrences} recorded encounter${tendency.occurrences === 1 ? "" : "s"} (${confidenceLabel(tendency.confidence)} confidence).`,
     }));
 
-  return { intervals, transitions, opponentContext };
+  const startingLineupSignals: Array<{ playerId: string; signal: PlanEvidenceSignal }> = [];
+  if (positionContextEvidence.length > 0) {
+    for (const starter of input.starters) {
+      const evidence = findPositionContextEvidence(positionContextEvidence, starter.playerId, starter.position);
+      if (evidence?.explanation) {
+        startingLineupSignals.push({
+          playerId: starter.playerId,
+          signal: { kind: "HISTORICAL_PATTERN", text: evidence.explanation },
+        });
+      }
+    }
+  }
+
+  return { intervals, transitions, opponentContext, startingLineupSignals };
 }
