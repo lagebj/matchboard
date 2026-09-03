@@ -5,7 +5,7 @@ import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-c
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { revalidatePath } from 'next/cache';
 import type { FormationSlotRoleType, GameFormat } from '@/generated/prisma/client';
-import { assertEligibleEventMatchPlayer } from '@/lib/events/event-match-eligibility';
+import { assertEligibleEventMatchPlayer, getEligibleEventMatchPlayers } from '@/lib/events/event-match-eligibility';
 import { getUnavailableParticipantIdsForMatch } from '@/lib/events/event-match-availability';
 import { getEffectiveEventSquadFormationId } from '@/lib/events/event-types';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -50,7 +50,12 @@ export async function getEventMatchLineup(eventMatchId: string) {
     include: {
       formation: { include: { slots: { orderBy: { sortOrder: 'asc' } } } },
       assignments: {
-        include: { player: { select: { id: true, firstName: true, lastName: true, primaryPosition: true, secondaryPosition: true, tertiaryPosition: true, goalkeeperAbility: true } } },
+        include: {
+          player: { select: { id: true, firstName: true, lastName: true, primaryPosition: true, secondaryPosition: true, tertiaryPosition: true, goalkeeperAbility: true } },
+          // ADR-0106 planning-parity completion: an assignment slot may be occupied by a
+          // GuestPlayer instead of a Player (guestPlayerId set, playerId null).
+          guestPlayer: { select: { id: true, name: true } },
+        },
         orderBy: { slotIndex: 'asc' },
       },
     },
@@ -154,7 +159,8 @@ export async function createEventMatchLineup(input: {
 export async function assignPlayerToLineupSlot(
   lineupId: string,
   assignmentId: string,
-  playerId: string,
+  participantId: string,
+  participantType: 'PLAYER' | 'GUEST_PLAYER' = 'PLAYER',
 ) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
@@ -170,29 +176,24 @@ export async function assignPlayerToLineupSlot(
 
   if (!lineup) throw new Error('Lineup not found');
 
-  const playerInOrg = await db.player.findFirst({
-    where: { id: playerId, ...ctx.orgFilter.filter },
-    select: { id: true },
-  });
-  if (!playerInOrg) {
-    throw new Error('Player not found or access denied.');
-  }
-
   // Enforce the same squad/helper eligibility every other event match surface uses
-  // (getEligibleEventMatchPlayers/assertEligibleEventMatchPlayer) — a player is only
-  // assignable if they're in the match's own squad, or have an approved
-  // EventMatchSupportAssignment targeting it. Without this, any org player could be assigned
-  // to any lineup slot, bypassing the whole support/helper approval system.
-  const eligibility = await assertEligibleEventMatchPlayer(lineup.eventMatchId, playerId, ctx.orgFilter);
+  // (getEligibleEventMatchPlayers/assertEligibleEventMatchPlayer) — a participant is only
+  // assignable if they're in the match's own squad, or (Player-only) have an approved
+  // EventMatchSupportAssignment targeting it. ADR-0106 planning-parity completion: this is the
+  // sole eligibility gate for both Player and GuestPlayer participants -- a separate `db.player`
+  // pre-check here previously rejected every GuestPlayer id before eligibility was ever checked.
+  const eligibility = await assertEligibleEventMatchPlayer(lineup.eventMatchId, participantId, ctx.orgFilter);
   if (!eligibility.eligible) {
     throw new Error(eligibility.reason ?? 'Player is not eligible for this match.');
   }
 
-  const existingAssignment = lineup.assignments.find((a) => a.playerId === playerId);
+  const existingAssignment = lineup.assignments.find((a) =>
+    participantType === 'GUEST_PLAYER' ? a.guestPlayerId === participantId : a.playerId === participantId,
+  );
   if (existingAssignment && existingAssignment.id !== assignmentId) {
     await db.eventMatchLineupAssignment.update({
       where: { id: existingAssignment.id },
-      data: { playerId: null },
+      data: { playerId: null, guestPlayerId: null },
     });
   }
 
@@ -200,7 +201,10 @@ export async function assignPlayerToLineupSlot(
 
   const assignment = await db.eventMatchLineupAssignment.update({
     where: { id: assignmentId },
-    data: { playerId, source },
+    data:
+      participantType === 'GUEST_PLAYER'
+        ? { guestPlayerId: participantId, playerId: null, source }
+        : { playerId: participantId, guestPlayerId: null, source },
   });
 
   revalidatePath(`/events/${eventId}`);
@@ -224,7 +228,7 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
 
   const updated = await db.eventMatchLineupAssignment.update({
     where: { id: assignmentId },
-    data: { playerId: null },
+    data: { playerId: null, guestPlayerId: null },
   });
 
   revalidatePath(`/events/${eventId}`);
@@ -245,7 +249,7 @@ export async function clearEventMatchLineup(lineupId: string) {
 
   await db.eventMatchLineupAssignment.updateMany({
     where: { lineupId },
-    data: { playerId: null },
+    data: { playerId: null, guestPlayerId: null },
   });
 
   revalidatePath(`/events/${eventId}`);
@@ -396,9 +400,12 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   // UNAVAILABLE/WITHDRAWN or a per-match exception) from the auto-fill candidate pool.
   const unavailableParticipantIds = await getUnavailableParticipantIdsForMatch(lineup.eventMatchId, ctx.orgFilter);
 
-  // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer assignment uses
-  // guestPlayerId instead). GuestPlayer-aware auto-fill is a later, separate change; filtered to
-  // Player-backed rows as a no-op today (no write path produces a guest row yet).
+  // ADR-0106 planning-parity completion: EventSquadPlayer.playerId/player are nullable (a
+  // GuestPlayer assignment uses guestPlayerId instead). Auto-fill/automatic generation remains
+  // Player-only by deliberate design (guests are always a manual planning decision, never
+  // auto-selected or fairness-scored) -- filtered to Player-backed rows here is intentional, not
+  // a gap. A manually-placed guest elsewhere in the lineup is still protected from being
+  // overwritten below (skip condition checks guestPlayerId too).
   const squadPlayers = eventMatch.eventSquad.players
     .filter(
       (sp): sp is typeof sp & { player: NonNullable<typeof sp.player> } =>
@@ -426,7 +433,10 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   const updates: { assignmentId: string; playerId: string }[] = [];
 
   for (const assignment of lineup.assignments) {
-    if (assignment.playerId && lockedPlayerIds.has(assignment.playerId)) continue;
+    // A slot already occupied by a Player OR a manually-placed GuestPlayer must never be
+    // silently overwritten by auto-fill (auto-fill itself only ever assigns Players, but must
+    // still respect an existing guest occupant).
+    if (assignment.playerId || assignment.guestPlayerId) continue;
 
     const slotPositions = assignment.roleType
       ? roleTypeToPositions(assignment.roleType)
@@ -496,6 +506,21 @@ function scorePlayerForSlot(player: PlayerForScoring, slotPositions: string[]): 
   if (slotPositions.length === 0) score += 10;
 
   return score;
+}
+
+/**
+ * ADR-0106 planning-parity completion: thin wrapper exposing the already-existing,
+ * GuestPlayer-aware `getEligibleEventMatchPlayers()` (event-match-eligibility.ts) as a server
+ * action. This is the canonical eligible-participant pool for lineup/tactics planning -- callers
+ * should use this instead of reconstructing squad/helper participant lists by hand from squad
+ * data, which silently drops GuestPlayer rows (they have no `playerId`).
+ */
+export async function getEligibleEventMatchPlayersAction(eventMatchId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+
+  return getEligibleEventMatchPlayers(eventMatchId, ctx.orgFilter);
 }
 
 export async function getAvailableFormations(gameFormat: string) {

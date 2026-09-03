@@ -10,7 +10,9 @@ import {
   autoFillEventMatchLineup,
   changeEventMatchLineupFormation,
   getAvailableFormations,
+  getEligibleEventMatchPlayersAction,
 } from './event-lineup-actions';
+import type { EligibleEventMatchPlayer } from '@/lib/events/event-match-eligibility';
 
 import type { FormationSlotRoleType, BroadPosition, FormationSlotData } from '@/lib/formations/types';
 import { ROLE_TYPE_LABELS } from '@/lib/formations/types';
@@ -42,6 +44,7 @@ type LineupAssignment = {
   id: string;
   lineupId: string;
   playerId: string | null;
+  guestPlayerId: string | null;
   slotId: string | null;
   slotIndex: number | null;
   slotLabel: string | null;
@@ -58,6 +61,7 @@ type LineupAssignment = {
     tertiaryPosition: string | null;
     goalkeeperAbility: string;
   } | null;
+  guestPlayer: { id: string; name: string } | null;
 };
 
 type LineupData = {
@@ -69,31 +73,13 @@ type LineupData = {
   assignments: LineupAssignment[];
 };
 
-type PoolPlayer = {
-  id: string;
-  firstName: string;
-  lastName: string | null;
-  primaryPosition: string | null;
-  secondaryPosition: string | null;
-  tertiaryPosition: string | null;
-  goalkeeperAbility: string;
-  isGK: boolean;
-  source: 'squad' | 'helper';
-  squadName: string | null;
-  overallLevel: number | null;
-};
-
 export function EventMatchLineupPanel({
   eventMatchId,
-  squadPlayers,
   gameFormat,
-  helperPlayers,
   effectiveFormationId,
 }: {
   eventMatchId: string;
-  squadPlayers: PoolPlayer[];
   gameFormat: string;
-  helperPlayers?: PoolPlayer[];
   /** The squad's own formation, or the Event default -- see getEffectiveEventSquadFormationId
    * (event-types.ts). Preferred over `formations[0]` when creating a lineup with no explicit
    * coach choice. */
@@ -101,6 +87,11 @@ export function EventMatchLineupPanel({
 }) {
   const [lineup, setLineup] = useState<LineupData | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
+  // ADR-0106 planning-parity completion: the eligible-participant pool (squad members + approved
+  // helpers, Player and GuestPlayer alike) is fetched from the one canonical, GuestPlayer-aware
+  // source (getEligibleEventMatchPlayers()) rather than reconstructed from Player-only props --
+  // see AGENTS.md "Event match participant pool" / ADR-0106.
+  const [eligiblePlayers, setEligiblePlayers] = useState<EligibleEventMatchPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -111,31 +102,21 @@ export function EventMatchLineupPanel({
     acceptedPositions: BroadPosition[];
   } | null>(null);
 
-  const eligiblePlayers = useMemo(() => {
-    const pool = [...squadPlayers];
-    if (helperPlayers) {
-      for (const hp of helperPlayers) {
-        if (!pool.some((p) => p.id === hp.id)) {
-          pool.push(hp);
-        }
-      }
-    }
-    return pool;
-  }, [squadPlayers, helperPlayers]);
-
   const loadLineup = useCallback(() => {
     startTransition(async () => {
       try {
         setLoading(true);
         setError(null);
-        const [lineupData, formationsData] = await Promise.all([
+        const [lineupData, formationsData, eligible] = await Promise.all([
           getEventMatchLineup(eventMatchId),
           getAvailableFormations(gameFormat),
+          getEligibleEventMatchPlayersAction(eventMatchId),
         ]);
         if (lineupData) {
           setLineup(lineupData as LineupData);
         }
         setFormations(formationsData as unknown as Formation[]);
+        setEligiblePlayers(eligible);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load lineup');
       } finally {
@@ -192,7 +173,7 @@ export function EventMatchLineupPanel({
 
   const handleChangeFormation = (formationId: string) => {
     if (!lineup) return;
-    const hasAssignments = lineup.assignments.some((a) => a.playerId !== null);
+    const hasAssignments = lineup.assignments.some((a) => a.playerId !== null || a.guestPlayerId !== null);
     if (hasAssignments) {
       const confirmed = window.confirm('Changing formation will replace all current assignments. Continue?');
       if (!confirmed) return;
@@ -220,14 +201,15 @@ export function EventMatchLineupPanel({
     });
   }, [lineup]);
 
-  const handlePlayerSelect = useCallback((playerId: string) => {
+  const handlePlayerSelect = useCallback((participantId: string) => {
     if (!pickerState || !lineup) return;
     startTransition(async () => {
       try {
         setError(null);
-        const targetAssignmentId = pickerState.assignmentId ?? lineup.assignments.find((a) => a.slotId === pickerState.slotId && !a.playerId)?.id;
+        const targetAssignmentId = pickerState.assignmentId ?? lineup.assignments.find((a) => a.slotId === pickerState.slotId && !a.playerId && !a.guestPlayerId)?.id;
         if (!targetAssignmentId) return;
-        await assignPlayerToLineupSlot(lineup.id, targetAssignmentId, playerId);
+        const participant = eligiblePlayers.find((p) => p.participantId === participantId);
+        await assignPlayerToLineupSlot(lineup.id, targetAssignmentId, participantId, participant?.participantType ?? 'PLAYER');
         setPickerState(null);
         const updated = await getEventMatchLineup(eventMatchId);
         setLineup(updated as LineupData | null);
@@ -235,7 +217,7 @@ export function EventMatchLineupPanel({
         setError(err instanceof Error ? err.message : 'Failed to assign player');
       }
     });
-  }, [pickerState, lineup, eventMatchId, startTransition]);
+  }, [pickerState, lineup, eventMatchId, eligiblePlayers, startTransition]);
 
   const handleRemovePlayer = useCallback(() => {
     if (!pickerState?.assignmentId || !lineup) return;
@@ -253,18 +235,19 @@ export function EventMatchLineupPanel({
   }, [pickerState, lineup, eventMatchId, startTransition]);
 
   const assignedPlayerIds = useMemo(
-    () => new Set((lineup?.assignments ?? []).filter((a) => a.playerId).map((a) => a.playerId!)),
+    () => new Set((lineup?.assignments ?? []).map((a) => a.playerId ?? a.guestPlayerId).filter((id): id is string => id !== null)),
     [lineup],
   );
 
   const assignedAssignmentId = useMemo(() => {
     if (!pickerState) return null;
-    return lineup?.assignments.find((a) => a.slotId === pickerState.slotId && a.playerId)?.playerId ?? null;
+    const a = lineup?.assignments.find((x) => x.slotId === pickerState.slotId && (x.playerId || x.guestPlayerId));
+    return a ? (a.playerId ?? a.guestPlayerId) : null;
   }, [pickerState, lineup]);
 
   const currentAssignedPlayer = useMemo(() => {
     if (!assignedAssignmentId) return null;
-    return eligiblePlayers.find((p) => p.id === assignedAssignmentId) ?? null;
+    return eligiblePlayers.find((p) => p.participantId === assignedAssignmentId) ?? null;
   }, [assignedAssignmentId, eligiblePlayers]);
 
   const pickerSlot: FormationSlotData | null = useMemo(() => {
@@ -300,7 +283,7 @@ export function EventMatchLineupPanel({
     return lineup.assignments.map((a) => ({
       id: a.id,
       slotId: a.slotId ?? '',
-      playerId: a.playerId,
+      playerId: a.playerId ?? a.guestPlayerId,
       locked: false,
       source: a.source,
     }));
@@ -308,19 +291,19 @@ export function EventMatchLineupPanel({
 
   const pitchPlayers = useMemo(() => {
     return eligiblePlayers.map((p) => ({
-      id: p.id,
-      firstName: p.firstName,
-      lastName: p.lastName,
+      id: p.participantId,
+      firstName: p.displayName,
+      lastName: null,
       primaryPosition: p.primaryPosition ?? 'FREE',
     }));
   }, [eligiblePlayers]);
 
   const lineupRating = useMemo(() => {
     if (!lineup || !lineup.formation) return null;
-    const assignedPlayerIds = new Set(
-      (lineup.assignments ?? []).filter((a) => a.playerId).map((a) => a.playerId!),
+    const assignedIds = new Set(
+      (lineup.assignments ?? []).map((a) => a.playerId ?? a.guestPlayerId).filter((id): id is string => id !== null),
     );
-    const starters = eligiblePlayers.filter((p) => assignedPlayerIds.has(p.id));
+    const starters = eligiblePlayers.filter((p) => assignedIds.has(p.participantId));
     const totalSlots = lineup.formation.slots.length;
     return computeLineupRating(
       starters.map((p) => ({ overallLevel: p.overallLevel })),
@@ -479,10 +462,10 @@ export function EventMatchLineupPanel({
             </p>
             <div className="flex flex-wrap gap-1">
               {eligiblePlayers
-                .filter((p) => !assignedPlayerIds.has(p.id))
+                .filter((p) => !assignedPlayerIds.has(p.participantId))
                 .map((p) => (
                   <span
-                    key={p.id}
+                    key={p.participantId}
                     className={cn(
                       "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px]",
                       p.source === 'helper'
@@ -490,11 +473,12 @@ export function EventMatchLineupPanel({
                         : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-zinc-300",
                     )}
                   >
-                    {p.firstName}{p.lastName ? ` ${p.lastName}` : ''}{p.isGK ? ' · GK' : ''}{p.primaryPosition ? ` · ${p.primaryPosition}` : ''}
+                    {p.displayName}{p.isGK ? ' · GK' : ''}{p.primaryPosition ? ` · ${p.primaryPosition}` : ''}
                     {p.source === 'helper' && <span className="ml-1 text-amber-400">H</span>}
+                    {p.participantType === 'GUEST_PLAYER' && <span className="ml-1 text-[var(--text-muted)]" title="Guest player">Guest</span>}
                   </span>
                 ))}
-              {eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.id)).length === 0 && (
+              {eligiblePlayers.filter((p) => !assignedPlayerIds.has(p.participantId)).length === 0 && (
                 <span className="text-xs text-[var(--text-muted)]">All players assigned</span>
               )}
             </div>
@@ -506,18 +490,20 @@ export function EventMatchLineupPanel({
             isOpen={!!pickerState}
             onClose={() => setPickerState(null)}
             players={eligiblePlayers.map((p) => ({
-              id: p.id,
-              firstName: p.firstName,
-              lastName: p.lastName,
+              id: p.participantId,
+              firstName: p.displayName,
+              lastName: null,
               primaryPosition: p.primaryPosition ?? 'FREE',
-              coreTeamName: p.source === 'helper' ? `Helper${p.squadName ? ` from ${p.squadName}` : ''}` : undefined,
+              coreTeamName: p.source === 'helper'
+                ? `Helper from ${p.sourceSquadName}`
+                : p.participantType === 'GUEST_PLAYER' ? 'Guest player' : undefined,
             }))}
             slot={pickerSlot}
             assignedPlayerIds={assignedPlayerIds}
             currentAssignedPlayer={currentAssignedPlayer ? {
-              id: currentAssignedPlayer.id,
-              firstName: currentAssignedPlayer.firstName,
-              lastName: currentAssignedPlayer.lastName,
+              id: currentAssignedPlayer.participantId,
+              firstName: currentAssignedPlayer.displayName,
+              lastName: null,
               primaryPosition: currentAssignedPlayer.primaryPosition ?? 'FREE',
             } : null}
             onSelect={handlePlayerSelect}

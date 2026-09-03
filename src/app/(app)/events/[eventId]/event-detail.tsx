@@ -22,6 +22,7 @@ import {
   updateEventBreakDurationAction,
 } from '../actions';
 import { finalizeEventAction, unfinalizeEventAction } from '../event-finalization-actions';
+import { moveGuestPlayerBetweenSquadsAction } from '../event-guest-player-actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
 import { formatGameFormatShort } from '@/lib/formations/types';
@@ -72,7 +73,11 @@ type EventSquad = {
   effectiveBreakDurationMinutes: number | null;
   players: {
     id: string;
-    playerId: string;
+    // ADR-0106 planning-parity completion: a squad slot is either a Player (playerId set,
+    // guestPlayerId null) or a GuestPlayer (guestPlayerId set, playerId null) -- never both.
+    playerId: string | null;
+    guestPlayerId: string | null;
+    participantType: 'PLAYER' | 'GUEST_PLAYER';
     source: string;
     locked: boolean;
     selectionReason: string;
@@ -353,6 +358,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   function handleMovePlayer(playerId: string, fromSquadId: string, toSquadId: string) {
     startTransition(async () => {
       await movePlayerBetweenSquadsAction(playerId, fromSquadId, toSquadId);
+      router.refresh();
+    });
+  }
+
+  function handleMoveGuestPlayer(guestPlayerId: string, fromSquadId: string, toSquadId: string) {
+    startTransition(async () => {
+      await moveGuestPlayerBetweenSquadsAction(data.id, guestPlayerId, fromSquadId, toSquadId);
       router.refresh();
     });
   }
@@ -726,6 +738,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             title={p.selectionReason || undefined}
                           >
                             {formatName(p)}
+                            {p.participantType === 'GUEST_PLAYER' && <span className="ml-1 text-[10px] text-[var(--text-muted)]" title="Guest player">Guest</span>}
                             {(p.source === 'MANUAL' || p.source === 'LOCKED') && <span className="ml-1 text-[10px] text-[var(--accent)]" title="Coach assignment">●</span>}
                           </span>
                         ))}
@@ -1015,6 +1028,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                             title={p.selectionReason || undefined}
                           >
                             <span>{formatName(p)}</span>
+                            {p.participantType === 'GUEST_PLAYER' && <span className="text-[10px] text-[var(--text-muted)]" title="Guest player">Guest</span>}
                             {p.isGK && <span className="text-[10px] font-medium text-amber-400">GK</span>}
                             {p.primaryPosition && (
                               <span className="text-[10px] text-[var(--text-muted)]">{p.primaryPosition}</span>
@@ -1045,7 +1059,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                                   defaultValue=""
                                   onChange={(e) => {
                                     if (e.target.value) {
-                                      handleMovePlayer(p.playerId, squad.id, e.target.value);
+                                      if (p.participantType === 'GUEST_PLAYER' && p.guestPlayerId) {
+                                        handleMoveGuestPlayer(p.guestPlayerId, squad.id, e.target.value);
+                                      } else if (p.playerId) {
+                                        handleMovePlayer(p.playerId, squad.id, e.target.value);
+                                      }
                                     }
                                   }}
                                 >
@@ -1282,17 +1300,6 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           matchDurationMinutes={data.matchDurationMinutes}
           numberOfHalves={data.numberOfHalves}
           breakDurationMinutes={data.breakDurationMinutes}
-          playerProfiles={data.players.map((p) => ({
-            id: p.playerId,
-            firstName: p.firstName,
-            lastName: p.lastName,
-            primaryPosition: p.primaryPosition,
-            secondaryPosition: p.secondaryPosition,
-            tertiaryPosition: p.tertiaryPosition,
-            goalkeeperAbility: p.goalkeeperAbility,
-            coreTeamId: p.coreTeamId,
-            overallLevel: p.overallLevel ?? null,
-          }))}
           opponentTeams={data.opponentTeams}
         />
       )}

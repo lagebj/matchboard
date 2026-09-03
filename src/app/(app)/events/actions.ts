@@ -98,13 +98,13 @@ export async function getEventById(id: string) {
     include: {
       squads: {
         include: {
-          // ADR-0106: EventSquadPlayer.playerId/player are now nullable (a GuestPlayer
-          // assignment uses guestPlayerId instead). This is the main Event detail page's data
-          // source -- GuestPlayer-aware rendering here is a later, separate change; filtered to
-          // Player-backed rows as a no-op today (no write path produces a guest row yet).
+          // ADR-0106 planning-parity completion: EventSquadPlayer.playerId/player are nullable (a
+          // GuestPlayer assignment uses guestPlayerId/guestPlayer instead). This is the main Event
+          // detail page's data source -- both sources are now loaded and merged into one
+          // participant-kind-aware list downstream (see page.tsx), not filtered to Player-backed
+          // rows.
           players: {
-            where: { playerId: { not: null } },
-            include: { player: true },
+            include: { player: true, guestPlayer: true },
           },
           formation: {
             include: { slots: true },
@@ -113,8 +113,7 @@ export async function getEventById(id: string) {
         orderBy: { generationOrder: 'asc' },
       },
       players: {
-        where: { playerId: { not: null } },
-        include: { player: { include: { coreTeam: true } } },
+        include: { player: { include: { coreTeam: true } }, guestPlayer: true },
       },
     },
   });

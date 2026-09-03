@@ -271,6 +271,69 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
   });
 
   /**
+   * ADR-0106 planning-parity completion (Section 14 evidence isolation): a GuestPlayer starting
+   * lineup slot (EventMatchLineupAssignment.guestPlayerId) is now a real write path for planning
+   * purposes. This proves that presence does NOT leak into the persistent evidence layer --
+   * getEventStartingLineup()'s own query stays `playerId: { not: null }`, so the guest is
+   * silently excluded from ActualPositionInterval reconstruction (no combination/positional
+   * evidence is fabricated for a GuestPlayer), while the co-starting registered Player's own
+   * timeline reconstruction is unaffected by the guest's presence in the same lineup.
+   */
+  it("rebuildEventActualTimeline never creates an ActualPositionInterval for a GuestPlayer starter", async () => {
+    const event = await testDb.event.create({
+      data: {
+        name: "Guest Timeline Isolation Event",
+        eventType: "FRIENDLY_DAY",
+        startsAt: new Date("2025-05-15"),
+        gameFormat: "SEVEN_A_SIDE",
+        matchDurationMinutes: 60,
+        footballGroupId: fixtureIds.footballGroupId,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const squad = await testDb.eventSquad.create({
+      data: { eventId: event.id, name: "Squad D", intent: "BALANCED", targetSize: 7, organisationId: fixtureIds.organisationId },
+    });
+    const eventMatch = await testDb.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        opponentName: "Guest Isolation Opponent",
+        startsAt: new Date("2025-05-15T10:00:00Z"),
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const lineup = await testDb.eventMatchLineup.create({
+      data: { eventMatchId: eventMatch.id, status: "DRAFT", organisationId: fixtureIds.organisationId },
+    });
+    const player = fixtureIds.players[0]!;
+    await testDb.eventMatchLineupAssignment.create({
+      data: { lineupId: lineup.id, playerId: player.id, roleType: "DEFENDER", organisationId: fixtureIds.organisationId },
+    });
+
+    const guestPlayer = await testDb.guestPlayer.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        footballGroupId: fixtureIds.footballGroupId,
+        name: "Guest Isolation Tester",
+      },
+    });
+    await testDb.eventMatchLineupAssignment.create({
+      data: { lineupId: lineup.id, guestPlayerId: guestPlayer.id, roleType: "FORWARD", organisationId: fixtureIds.organisationId },
+    });
+
+    const result = await rebuildEventActualTimeline(eventMatch.id);
+    // Only the registered Player produces an interval -- the guest starter is not fabricated one.
+    expect(result.intervalsCreated).toBe(1);
+
+    const rows = await testDb.actualPositionInterval.findMany({ where: { eventMatchId: eventMatch.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.playerId).toBe(player.id);
+    expect(rows.some((r) => r.guestPlayerId === guestPlayer.id)).toBe(false);
+  });
+
+  /**
    * Canonical match-state foundation (Bundle 1, ADR-0113) regression: MatchRotation/LiveMatchEvent
    * timestamps are period-relative (each period's live clock restarts at 0). Before this fix,
    * rebuildActualTimeline ignored MatchRotation.period entirely and ordered purely by the raw
