@@ -16,7 +16,6 @@ import { generateEmergencyRepairOptionsAction } from "@/app/(app)/matches/emerge
 import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-options";
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
-import { deriveRoundStatus, type RoundStatus } from "@/lib/round-status";
 import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-automatic-role";
 import {
   clearRoundDraftAction,
@@ -99,9 +98,13 @@ type SignalSummary = {
 
 type RoundBoardProps = {
   roundLabel: string;
-  roundStatus: "NOT_GENERATED" | "DRAFT" | "FINALIZED";
+  /** Live-derived (isMatchRoundPlanningEditable()), not the persisted MatchRound.status — a
+   * round finalized manually before ADR-0109 removed coach-operated finalize can carry a stale
+   * MatchRound.status of "FINALIZED" even though none of its matches ever actually closed. This
+   * drives the "Planning closed" banner and the Regenerate/Clear button gate; per-match editing
+   * gates (drag/drop, add player) use their own per-match live check — see MatchColumn.isFinalized. */
+  planningBoundaryOpen: boolean;
   matchRoundId: string;
-  hasDraftSelections: boolean;
   matches: MatchColumn[];
   availablePlayers: PlayerInColumn[];
   rotationPathMap: Record<string, string[]>;
@@ -416,9 +419,8 @@ function MatchColumnComponent({
 
 export function RoundBoard({
   roundLabel,
-  roundStatus,
+  planningBoundaryOpen,
   matchRoundId,
-  hasDraftSelections,
   matches,
   availablePlayers: initialAvailable,
   rotationPathMap,
@@ -544,17 +546,6 @@ export function RoundBoard({
   );
   const blockedCount = signalSummary?.blocked ?? 0;
   const decisionRequiredCount = signalSummary?.decisionRequired ?? 0;
-
-  const computedRoundStatus: RoundStatus = deriveRoundStatus({
-    dbStatus: roundStatus,
-    hasDraftSelections,
-    // Decision required conditions need the same coach attention as Blocked conditions and must
-    // surface as BLOCKED here too — every deriveRoundStatus() call site treats them together.
-    // This was previously blockedCount alone, meaning a round with only Decision required
-    // conditions incorrectly showed as READY in the round badge despite its own "decisions need
-    // review" banner appearing right below it.
-    blockedSignalCount: blockedCount + decisionRequiredCount,
-  });
 
   const assignedPlayerIds = new Set<string>();
   for (const match of matches) {
@@ -759,7 +750,7 @@ export function RoundBoard({
         totalTarget={totalTarget}
       />
 
-      {roundStatus === "DRAFT" && (
+      {planningBoundaryOpen && (
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="secondary"
@@ -787,7 +778,7 @@ export function RoundBoard({
         </div>
       )}
 
-      {computedRoundStatus === "FINALIZED" && (
+      {!planningBoundaryOpen && (
         <DecisionBanner
           variant="finalized"
           title={

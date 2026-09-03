@@ -16,6 +16,7 @@ import { formatPlayerName } from "@/lib/player-metrics";
 import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 import type { CoachingIntentCategory } from "@/lib/coaching/types";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { isMatchPlanningEditable, isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 import { WarningSeverity } from "@/generated/prisma/client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
@@ -25,7 +26,6 @@ type RoundBoardPageProps = {
     matchRoundId: string;
   }>;
   searchParams: Promise<{
-    finalized?: string;
     generated?: string;
     error?: string;
   }>;
@@ -36,7 +36,7 @@ export default async function RoundBoardPage({
   searchParams,
 }: RoundBoardPageProps) {
   const { orgSlug, matchRoundId } = await params;
-  const { finalized, generated, error } = await searchParams;
+  const { generated, error } = await searchParams;
 
   const ctx = await requirePageActorContext(orgSlug);
   setTenantOrganisationId(ctx.organisationId);
@@ -254,6 +254,24 @@ export default async function RoundBoardPage({
 
   const SELECTED_ROLES = new Set(["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT", "CONFIDENCE_REBUILD", "MANUAL_OVERRIDE"]);
 
+  // Live per-match planning-boundary check (ADR-0109), not the persisted MatchRound.status: a
+  // round finalized by the coach-operated action that existed before ADR-0109 removed it can
+  // still carry a stale MatchRound.status of "FINALIZED" even though none of its matches have
+  // actually reached their real planning boundary (kickoff passed / live reporting started) —
+  // the migration that introduced planningClosedAt never went back and corrected historical
+  // MatchRound rows that were finalized early under the old model. isMatchPlanningEditable()
+  // re-derives the real boundary per match, so the board reflects what manual-edit actions
+  // (which already check this same function server-side) will actually allow.
+  const planningEditableByMatchId = new Map(
+    await Promise.all(
+      matchRound.matches.map(async (match) => {
+        const result = await isMatchPlanningEditable(match.id);
+        return [match.id, result.editable] as const;
+      }),
+    ),
+  );
+  const roundPlanningBoundary = await isMatchRoundPlanningEditable(matchRoundId);
+
   const squads = matchRound.matches.map((match) => {
     const matchSels = (selectionsByMatchId.get(match.id) ?? [])
       .filter((s) => !s.manuallyRemoved);
@@ -350,7 +368,7 @@ export default async function RoundBoardPage({
       supportStatus,
       squadRepairCount: squadRepairReceivedByTeamId.get(match.teamId) ?? 0,
       warningCount: matchWarnings.length,
-      isFinalized: matchRound.status === "FINALIZED",
+      isFinalized: !(planningEditableByMatchId.get(match.id) ?? true),
     };
   });
 
@@ -469,11 +487,6 @@ export default async function RoundBoardPage({
           {error}
         </div>
       )}
-      {finalized && (
-        <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
-          Round finalized.
-        </div>
-      )}
       {generated && (
         <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
           Round generated successfully.
@@ -482,9 +495,8 @@ export default async function RoundBoardPage({
       <WeeklyCarryForwardPanel result={weeklyCarryForward} />
       <RoundBoard
         roundLabel={roundLabel}
-        roundStatus={matchRound.status as "NOT_GENERATED" | "DRAFT" | "FINALIZED"}
+        planningBoundaryOpen={roundPlanningBoundary.editable}
         matchRoundId={matchRoundId}
-        hasDraftSelections={selections.length > 0}
         matches={boardMatches}
         availablePlayers={boardAvailablePlayers}
         rotationPathMap={rotationPathMap}
@@ -501,7 +513,7 @@ export default async function RoundBoardPage({
         fairnessMetrics={fairnessMetrics}
       />
       <RoundGuestPlayersPanel matchRoundId={matchRoundId} />
-      {matchRound.status !== "FINALIZED" && (
+      {roundPlanningBoundary.editable && (
         <div className="flex flex-col gap-3">
           <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
             <h3 className="text-sm font-semibold text-zinc-200 mb-3">Coaching intent</h3>
