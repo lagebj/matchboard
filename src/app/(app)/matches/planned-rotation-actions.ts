@@ -34,6 +34,10 @@ import {
   evaluatePlannedScenario,
   type PlannedScenarioEvaluation,
 } from "@/lib/planned-rotation/scenario-evaluation";
+import { generateRotationPlan, type RotationPlanDecisionPoint, type RotationPlanPlayer } from "@/lib/planned-rotation/generate-rotation-plan";
+import { getTeamSeasonTransitionPatterns } from "@/lib/evidence/transition-structure-evidence";
+import { getCumulativePeriodOffsetsMs, type PeriodConfig } from "@/lib/live-match/period-config";
+import { mapPositionCodeToBroad } from "@/domain/team-composition/position-suitability";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: { type: string; filter: Record<string, unknown> }): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -312,5 +316,192 @@ export async function checkPlannedRotationCoverageAction(
     return { success: true, hasLineup: true, issues, partnershipEvidence, scenario };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to check rotation coverage." };
+  }
+}
+/**
+ * Bounded internal decision-point grid (Evidence-Informed Match Planning, Bundle 7, ADR-0118):
+ * 1/3 and 2/3 of each playing period's own duration, plus the absolute start of every playing
+ * period after the first (a natural-break rotation opportunity). A computational search bound,
+ * not asserted footballing doctrine — see generate-rotation-plan.ts's own header comment.
+ */
+function buildDecisionPoints(periodConfig: PeriodConfig[]): RotationPlanDecisionPoint[] {
+  const offsets = getCumulativePeriodOffsetsMs(periodConfig);
+  const playingPeriods = periodConfig.filter((p) => p.type === "playing" && p.durationMs != null);
+  const points: RotationPlanDecisionPoint[] = [];
+
+  playingPeriods.forEach((period, index) => {
+    const startMs = offsets[period.key] ?? 0;
+    const durationMs = period.durationMs!;
+    const startSeconds = Math.round(startMs / 1000);
+
+    if (index > 0) {
+      points.push({ atSeconds: startSeconds, period: period.key, isNaturalBreak: true });
+    }
+
+    const thirdMs = durationMs / 3;
+    points.push({ atSeconds: Math.round((startMs + thirdMs) / 1000), period: period.key, isNaturalBreak: false });
+    points.push({ atSeconds: Math.round((startMs + 2 * thirdMs) / 1000), period: period.key, isNaturalBreak: false });
+  });
+
+  return points;
+}
+
+/**
+ * Evidence-aware automatic rotation plan generation (Evidence-Informed Match Planning, Bundle 7,
+ * ADR-0118). Only offered when no rotation plan exists yet for this match/team — matching the
+ * existing round-draft "clear first, then regenerate" convention rather than adding a new
+ * MANUAL/AUTO source column to PlannedRotationChange. A coach who wants to regenerate from
+ * scratch deletes the existing plan first (the existing "Clear rotation plan" action), exactly
+ * as clearing a round's draft selections before regenerating it.
+ */
+export async function generateRotationPlanAction(
+  matchId: string,
+  teamId: string,
+): Promise<{ success: true; rotation: PlannedRotationWithChanges } | { success: false; error: string }> {
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    requireMutationRole(ctx);
+
+    const match = await db.match.findFirst({
+      where: { id: matchId, teamId, ...ctx.orgFilter.filter },
+      select: {
+        id: true,
+        gameFormat: true,
+        matchType: true,
+        status: true,
+        opponentTeamId: true,
+        matchRound: { select: { leagueSeasonId: true } },
+      },
+    });
+    if (!match) return { success: false, error: "Match not found or access denied." };
+    if (match.status === "CANCELLED") return { success: false, error: "Cannot generate a rotation plan for a cancelled match." };
+
+    const lineup = await db.matchLineup.findFirst({
+      where: { matchId, teamId, ...ctx.orgFilter.filter },
+      include: {
+        formation: { include: { slots: { select: { id: true, roleType: true } } } },
+        assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
+      },
+    });
+    if (!lineup || lineup.assignments.length === 0) {
+      return { success: false, error: "Set a match line-up before generating a rotation plan." };
+    }
+
+    const slotsById = new Map((lineup.formation?.slots ?? []).map((s) => [s.id, s]));
+    const starters = lineup.assignments
+      .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
+      .map((a) => {
+        const roleType = slotsById.get(a.slotId)?.roleType;
+        return { playerId: a.playerId, position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE") };
+      });
+
+    const selections = await db.selection.findMany({
+      where: { matchId, status: { in: ["DRAFT", "FINALIZED"] }, match: { teamId } },
+      select: { playerId: true },
+    });
+    const starterIds = new Set(starters.map((s) => s.playerId));
+    const benchPlayerIds = selections.map((s) => s.playerId).filter((id) => !starterIds.has(id));
+
+    if (benchPlayerIds.length === 0) {
+      return { success: false, error: "No bench players available to rotate — add players to the squad first." };
+    }
+
+    const squadPlayerIds = [...starterIds, ...benchPlayerIds];
+    const squadPlayers = await db.player.findMany({
+      where: { id: { in: squadPlayerIds }, ...ctx.orgFilter.filter },
+      select: {
+        id: true,
+        primaryPosition: true,
+        secondaryPosition: true,
+        tertiaryPosition: true,
+        ballControl: true,
+        passing: true,
+        firstTouch: true,
+        oneVOneAttacking: true,
+        positioning: true,
+        oneVOneDefending: true,
+        decisionMaking: true,
+        effort: true,
+        teamplay: true,
+        concentration: true,
+        speed: true,
+        strength: true,
+      },
+    });
+
+    const players = new Map<string, RotationPlanPlayer>(
+      squadPlayers.map((p) => [
+        p.id,
+        {
+          playerId: p.id,
+          declaredPositions: {
+            primary: mapPositionCodeToBroad(p.primaryPosition ?? ""),
+            secondary: p.secondaryPosition ? mapPositionCodeToBroad(p.secondaryPosition) : undefined,
+            tertiary: p.tertiaryPosition ? mapPositionCodeToBroad(p.tertiaryPosition) : undefined,
+          },
+          tacticalAttributes: {
+            ballControl: p.ballControl,
+            passing: p.passing,
+            firstTouch: p.firstTouch,
+            oneVOneAttacking: p.oneVOneAttacking,
+            positioning: p.positioning,
+            oneVOneDefending: p.oneVOneDefending,
+            decisionMaking: p.decisionMaking,
+            effort: p.effort,
+            teamplay: p.teamplay,
+            concentration: p.concentration,
+            speed: p.speed,
+            strength: p.strength,
+          },
+        },
+      ]),
+    );
+
+    const periodConfig = getLeaguePeriodConfig(match.matchType);
+    const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
+    const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : 0;
+    if (totalMatchSeconds <= 0) {
+      return { success: false, error: "Match duration is not configured." };
+    }
+    const decisionPoints = buildDecisionPoints(periodConfig);
+
+    const [transitionPatterns, opponentTendencies] = await Promise.all([
+      match.matchRound.leagueSeasonId
+        ? getTeamSeasonTransitionPatterns(match.matchRound.leagueSeasonId, teamId, ctx.orgFilter)
+        : Promise.resolve([]),
+      match.opponentTeamId ? getOpponentTacticalTendencies(match.opponentTeamId, ctx.orgFilter) : Promise.resolve([]),
+    ]);
+
+    const generated = generateRotationPlan({
+      starters,
+      benchPlayerIds,
+      players,
+      totalMatchSeconds,
+      decisionPoints,
+      opponentTendencies: opponentTendencies.map((t) => ({ tag: t.tag, confidence: t.confidence })),
+      transitionPatterns,
+      seed: `${matchId}:${teamId}`,
+    });
+
+    const changes: PlannedRotationChangeData[] = generated.changes.map((c) => ({
+      outPlayerId: c.outPlayerId,
+      inPlayerId: c.inPlayerId,
+      outPosition: c.outPosition,
+      inPosition: c.inPosition,
+      positionOnly: c.positionOnly,
+      approximateMatchSeconds: c.approximateMatchSeconds,
+      notes: `Generated: ${c.explanation}`,
+    }));
+
+    const result = await createPlannedRotation({ matchId, teamId, changes }, ctx.orgFilter);
+    if (!result.success) return { success: false, error: result.error };
+
+    logMutationEvent("planned_rotation_generate", ctx.email || "unknown", "planned_rotation", result.rotation.id, "success");
+    revalidateMatchPaths(matchId);
+
+    return { success: true, rotation: result.rotation };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to generate rotation plan." };
   }
 }

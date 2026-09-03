@@ -33,6 +33,7 @@ type SecurityEventAction =
   | "planned_rotation_create"
   | "planned_rotation_update"
   | "planned_rotation_delete"
+  | "planned_rotation_generate"
   | "policy_evaluation"
   | "session_revoked"
   | "organisation_create"
