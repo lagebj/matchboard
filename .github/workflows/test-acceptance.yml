@@ -43,6 +43,9 @@ jobs:
       VERCEL_TEST_PROJECT_ID: ${{ secrets.VERCEL_TEST_PROJECT_ID }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TEST_AGENT_AUTH_SECRET: ${{ secrets.TEST_AGENT_AUTH_SECRET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      LIVE_MATCH_INTERNAL_SECRET_TEST: ${{ secrets.LIVE_MATCH_INTERNAL_SECRET_TEST }}
     steps:
       # The `secrets` context is not valid in any `if:` expression (job- or step-level) —
       # GitHub rejects the whole workflow file at parse time if it appears there, which is
@@ -54,6 +57,18 @@ jobs:
         run: |
           if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_TEST_PROJECT_ID" ] || [ -z "$TEST_AGENT_AUTH_SECRET" ]; then
             echo "Required secrets not fully configured; skipping per-PR Test acceptance."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      # Separate, optional gate (ADR-0112): a PR that doesn't touch workers/live-match/ still
+      # gets full Vercel/Neon acceptance even when Cloudflare secrets are absent — only the
+      # Worker deploy step below is skipped, never the whole job.
+      - name: Check Cloudflare secrets are configured
+        id: check-cf
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare secrets not fully configured; skipping per-PR Worker deploy."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -122,6 +137,20 @@ jobs:
       - name: Deploy PR commit to isolated Test slot
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: bash scripts/test-acceptance/deploy.sh
+      # ADR-0112: the Worker serving realtime-test.matchboard.football otherwise always runs
+      # whatever `main` last deployed (deploy-live-match-worker.yml only fires on CI-green
+      # pushes to main), so a PR that changes the Worker protocol/event shapes/broadcast
+      # behavior tests its client code against stale Worker code. Deploy this PR's own
+      # workers/live-match/ code to the shared --env test Worker first, mirroring how the
+      # Vercel preview deploy above already puts the PR's own app code live in the test slot.
+      # Gracefully skipped (not job-failing) when Cloudflare secrets aren't configured — a PR
+      # that doesn't touch Worker code still gets full Vercel/Neon acceptance either way.
+      - name: Deploy PR's Worker code to Test environment
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true' && steps.check-cf.outputs.configured == 'true'
+        run: npx wrangler deploy --config workers/live-match/wrangler.jsonc --env test
+      - name: Sync test Worker internal secret
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true' && steps.check-cf.outputs.configured == 'true' && env.LIVE_MATCH_INTERNAL_SECRET_TEST != ''
+        run: printf '%s' "$LIVE_MATCH_INTERNAL_SECRET_TEST" | npx wrangler secret put LIVE_MATCH_INTERNAL_SECRET --config workers/live-match/wrangler.jsonc --env test
       - name: Install Playwright browser
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npx playwright install --with-deps chromium
