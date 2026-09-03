@@ -9,7 +9,9 @@ import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
 import { getOpponentCombinationEvidence } from "@/lib/evidence/combination-aggregation";
+import { getOpponentTacticalTendencies, getOpponentTendencyOutcomes } from "@/lib/opponents/playing-style-query";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
+import { OpponentTacticalTendencySection } from "@/components/opponents/opponent-tactical-tendency-section";
 import { OpponentCombinationEvidenceSection } from "@/components/opponents/opponent-combination-evidence-section";
 import { OpponentCombinationSituationalSummary } from "@/components/opponents/opponent-combination-situational-summary";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
@@ -153,6 +155,9 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   const evidenceRecords = await getOpponentSportingEvidence(opponentTeamId, ctx.orgFilter);
   const aggregate = aggregateSportingLevel(evidenceRecords as Parameters<typeof aggregateSportingLevel>[0]);
 
+  const tacticalTendencies = await getOpponentTacticalTendencies(opponentTeamId, ctx.orgFilter);
+  const tendencyOutcomes = await getOpponentTendencyOutcomes(opponentTeamId, ctx.orgFilter);
+
   sportingLevelData = {
     aggregate: aggregate
       ? {
@@ -221,6 +226,8 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         initialAggregate={sportingLevelData.aggregate}
         initialEvidence={sportingLevelData.evidence}
       />
+
+      <OpponentTacticalTendencySection tendencies={tacticalTendencies} outcomes={tendencyOutcomes} />
 
       <OpponentCombinationSituationalSummary
         projection={combinationProjection}
