@@ -5,6 +5,7 @@ import { rebuildActualTimeline, rebuildEventActualTimeline, rebuildActualTimelin
 import { runPostMatchLearning } from "@/lib/evidence/post-match-learning";
 import { recordOpponentSportingEvidenceForRef } from "@/lib/opponents/sporting-level-recording";
 import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
+import { buildMatchStateTimeline } from "@/lib/evidence/match-state-timeline";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 vi.mock("@/lib/db", () => ({
@@ -267,6 +268,132 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     expect(rows.length).toBe(players.length);
     expect(rows.every((r) => r.matchId === null && r.eventMatchId === eventMatch.id)).toBe(true);
     expect(rows.every((r) => r.endedAtMs === 60 * 60 * 1000)).toBe(true);
+  });
+
+  /**
+   * Canonical match-state foundation (Bundle 1, ADR-0113) regression: MatchRotation/LiveMatchEvent
+   * timestamps are period-relative (each period's live clock restarts at 0). Before this fix,
+   * rebuildActualTimeline ignored MatchRotation.period entirely and ordered purely by the raw
+   * per-period matchSeconds value, so a second-half substitution could sort BEFORE a first-half
+   * one whenever its period-relative timestamp happened to be smaller.
+   */
+  it("rebuildActualTimeline orders a second-half substitution after every first-half one (period-offset fix)", async () => {
+    const matchId = fixtureIds.matches["Rod"];
+    const teamId = fixtureIds.teams["Rod"];
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === teamId).slice(0, 3);
+    await testDb.match.update({ where: { id: matchId }, data: { matchType: "LEAGUE" } });
+    // Only the first two players start -- the third only ever enters via the second-half
+    // rotation below, so its single interval unambiguously reflects the sub's own timing.
+    await buildLeagueLineup(matchId, teamId, players.slice(0, 2).map((p) => p.id));
+
+    // Second-half substitution 3 minutes into that half (period-relative matchSeconds, LEAGUE
+    // period index 3 = SECOND_HALF -- see PERIOD_TO_INT in report-mutations.ts).
+    await testDb.matchRotation.create({
+      data: {
+        matchId,
+        outPlayerId: players[1]!.id,
+        inPlayerId: players[2]!.id,
+        period: 3,
+        matchSeconds: 3 * 60 * 1000,
+        source: "LIVE",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const result = await rebuildActualTimeline(matchId);
+    expect(result.intervalsCreated).toBeGreaterThan(0);
+
+    const incoming = await testDb.actualPositionInterval.findFirst({
+      where: { matchId, playerId: players[2]!.id },
+    });
+    // Absolute: 25-minute first half + 3 minutes into the second = 28 minutes since kickoff,
+    // not the raw period-relative 3 minutes a pre-fix reconstruction would have stored (which
+    // would have sorted this substitution BEFORE kickoff, not after 25 minutes of play).
+    expect(incoming!.startedAtMs).toBe(25 * 60 * 1000 + 3 * 60 * 1000);
+
+    const outgoing = await testDb.actualPositionInterval.findFirst({
+      where: { matchId, playerId: players[1]!.id, position: { not: "BENCH" } },
+    });
+    expect(outgoing!.endedAtMs).toBe(25 * 60 * 1000 + 3 * 60 * 1000);
+  });
+
+  /**
+   * Canonical match-state foundation (Bundle 1, ADR-0113) regression: rebuildEventActualTimeline
+   * previously capped the final open-ended interval at the Event's single per-half
+   * matchDurationMinutes, silently truncating the timeline (and every downstream evidence
+   * computation) at the end of the FIRST half for any two-half Event match.
+   */
+  it("rebuildEventActualTimeline caps the final interval at the full two-half duration, not one half", async () => {
+    const event = await testDb.event.create({
+      data: {
+        name: "Two-Half Event",
+        eventType: "FRIENDLY_DAY",
+        startsAt: new Date("2025-05-20"),
+        gameFormat: "SEVEN_A_SIDE",
+        matchDurationMinutes: 20,
+        numberOfHalves: 2,
+        footballGroupId: fixtureIds.footballGroupId,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const squad = await testDb.eventSquad.create({
+      data: { eventId: event.id, name: "Squad D", intent: "BALANCED", targetSize: 7, organisationId: fixtureIds.organisationId },
+    });
+    const eventMatch = await testDb.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        opponentName: "Two-Half Opponent",
+        startsAt: new Date("2025-05-20T10:00:00Z"),
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const lineup = await testDb.eventMatchLineup.create({
+      data: { eventMatchId: eventMatch.id, status: "CONFIRMED", organisationId: fixtureIds.organisationId },
+    });
+    const player = fixtureIds.players[0]!;
+    await testDb.eventMatchLineupAssignment.create({
+      data: { lineupId: lineup.id, playerId: player.id, roleType: "DEFENDER", organisationId: fixtureIds.organisationId },
+    });
+
+    await rebuildEventActualTimeline(eventMatch.id);
+
+    const row = await testDb.actualPositionInterval.findFirst({ where: { eventMatchId: eventMatch.id } });
+    expect(row!.endedAtMs).toBe(40 * 60 * 1000);
+  });
+
+  it("buildMatchStateTimeline reconstructs canonical intervals/transitions end to end for a League match", async () => {
+    const teamId = fixtureIds.teams["Rod"];
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === teamId).slice(0, 2);
+    const opponentTeam = await testDb.opponentTeam.create({
+      data: { displayName: "Canonical Timeline Opponent", normalizedName: "canonical timeline opponent", organisationId: fixtureIds.organisationId },
+    });
+    const match = await testDb.match.create({
+      data: {
+        matchRoundId: fixtureIds.matchRoundId,
+        teamId,
+        opponent: "Canonical Timeline Opponent",
+        opponentTeamId: opponentTeam.id,
+        startsAt: new Date("2025-05-25T10:00:00Z"),
+        homeAway: "HOME",
+        matchType: "LEAGUE",
+        gameFormat: "ELEVEN_A_SIDE",
+        matchDurationMinutes: 50,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    await buildLeagueLineup(match.id, teamId, players.map((p) => p.id));
+    await rebuildActualTimeline(match.id);
+
+    const ref = await buildLeagueMatchRef(match.id);
+    const timeline = await buildMatchStateTimeline(ref);
+
+    expect(timeline).not.toBeNull();
+    expect(timeline!.intervals.length).toBeGreaterThan(0);
+    expect(timeline!.timingQuality).toBe("EXACT");
+    expect(timeline!.context.opponent.displayName).toBe("Canonical Timeline Opponent");
+    expect(timeline!.phaseWindows.length).toBeGreaterThan(0);
   });
 
   it("runPostMatchLearning orchestrates actual-timeline + opponent evidence for a League match without throwing", async () => {

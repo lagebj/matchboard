@@ -1,4 +1,5 @@
 import { ActualIntervalSource } from "@/generated/prisma/client";
+import type { MatchPeriod } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   computePositionIntervals,
@@ -6,6 +7,15 @@ import {
 } from "@/lib/evidence/lineup-state";
 import { ROLE_TYPE_TO_LINE, laneFromGridX, type FormationSlotRoleType } from "@/lib/formations/types";
 import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
+import { MATCH_PERIOD_ORDER } from "@/lib/live-match/live-match-types";
+import {
+  getCumulativePeriodOffsetsMs,
+  getEventPeriodConfig,
+  getLeaguePeriodConfig,
+  getTotalPeriodDurationMs,
+  toAbsoluteMatchMs,
+} from "@/lib/live-match/period-config";
+import { getEffectiveEventSquadMatchTiming } from "@/lib/events/event-types";
 
 type RotationInput = {
   outPlayerId: string;
@@ -43,6 +53,7 @@ export async function rebuildActualTimeline(matchId: string): Promise<{
       id: true,
       organisationId: true,
       matchDurationMinutes: true,
+      matchType: true,
     },
   });
 
@@ -54,9 +65,15 @@ export async function rebuildActualTimeline(matchId: string): Promise<{
     ? match.matchDurationMinutes * 60 * 1000
     : null;
 
+  // Rotations/position-change events are recorded relative to their OWN period (each period's
+  // live clock restarts at 0 -- see period-config.ts's getCumulativePeriodOffsetsMs) and must be
+  // converted to one continuous absolute match-clock before ordering across periods.
+  const periodConfig = getLeaguePeriodConfig(match.matchType);
+  const periodOffsets = getCumulativePeriodOffsetsMs(periodConfig);
+
   const starters = await getStartingLineup(matchId);
-  const rotations = await getMatchRotations(matchId);
-  const positionChanges = await getPositionChanges(matchId);
+  const rotations = await getMatchRotations(matchId, periodOffsets);
+  const positionChanges = await getPositionChanges(matchId, periodOffsets);
 
   const computedIntervals = computePositionIntervals(
     starters,
@@ -134,7 +151,16 @@ export async function rebuildEventActualTimeline(eventMatchId: string): Promise<
     select: {
       id: true,
       organisationId: true,
-      event: { select: { matchDurationMinutes: true } },
+      event: {
+        select: { numberOfHalves: true, matchDurationMinutes: true, breakDurationMinutes: true },
+      },
+      eventSquad: {
+        select: {
+          numberOfHalvesOverride: true,
+          matchDurationMinutesOverride: true,
+          breakDurationMinutesOverride: true,
+        },
+      },
     },
   });
 
@@ -142,12 +168,21 @@ export async function rebuildEventActualTimeline(eventMatchId: string): Promise<
     throw new Error("Event match not found.");
   }
 
-  const matchEndMs = eventMatch.event.matchDurationMinutes
-    ? eventMatch.event.matchDurationMinutes * 60 * 1000
-    : null;
+  // Effective per-squad timing (ADR: getEffectiveEventSquadMatchTiming is the one centralized
+  // resolver -- see AGENTS.md "Mixed game formats inside one Event"), not the Event-level
+  // default alone: a squad's own halves/duration/break override must be honoured here exactly
+  // as it is for live reporting and lineup formation selection.
+  const timing = getEffectiveEventSquadMatchTiming(eventMatch.event, eventMatch.eventSquad);
+  const periodConfig = getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
+  const periodOffsets = getCumulativePeriodOffsetsMs(periodConfig);
+  // Total elapsed match-clock duration (both halves + tracked break, when numberOfHalves=2) --
+  // previously this only ever used the Event's single per-half `matchDurationMinutes`, silently
+  // truncating the actual timeline (and every downstream evidence computation) at the end of the
+  // FIRST half for any two-half Event match.
+  const matchEndMs = getTotalPeriodDurationMs(periodConfig);
 
   const starters = await getEventStartingLineup(eventMatchId);
-  const { rotations, positionChanges } = await getEventRotationsAndPositionChanges(eventMatchId);
+  const { rotations, positionChanges } = await getEventRotationsAndPositionChanges(eventMatchId, periodOffsets);
 
   const computedIntervals = computePositionIntervals(starters, rotations, positionChanges, matchEndMs);
 
@@ -231,7 +266,10 @@ async function getEventStartingLineup(eventMatchId: string): Promise<StarterAssi
     });
 }
 
-async function getEventRotationsAndPositionChanges(eventMatchId: string): Promise<{
+async function getEventRotationsAndPositionChanges(
+  eventMatchId: string,
+  periodOffsets: Partial<Record<MatchPeriod, number>>,
+): Promise<{
   rotations: RotationInput[];
   positionChanges: PositionChangeInput[];
 }> {
@@ -241,8 +279,8 @@ async function getEventRotationsAndPositionChanges(eventMatchId: string): Promis
       eventType: { in: ["ROTATION_OUT", "ROTATION_IN", "POSITIONS_CHANGED"] },
       correctionType: null,
     },
-    select: { eventType: true, playerId: true, payload: true, matchSeconds: true, createdAt: true },
-    orderBy: [{ matchSeconds: "asc" }, { createdAt: "asc" }],
+    select: { eventType: true, playerId: true, payload: true, period: true, matchSeconds: true, createdAt: true },
+    orderBy: [{ period: "asc" }, { matchSeconds: "asc" }, { createdAt: "asc" }],
   });
 
   const rotations: RotationInput[] = [];
@@ -253,7 +291,10 @@ async function getEventRotationsAndPositionChanges(eventMatchId: string): Promis
 
   for (const e of events) {
     if (!e.playerId) continue;
-    const seconds = e.matchSeconds ?? 0;
+    // Absolute match-clock ms since kickoff -- EventLiveMatchEvent.period is already a
+    // MatchPeriod enum value (unlike League's LiveMatchEvent.period int index), so no
+    // MATCH_PERIOD_ORDER lookup is needed here.
+    const seconds = toAbsoluteMatchMs(e.period, e.matchSeconds ?? 0, periodOffsets);
     if (e.eventType === "ROTATION_OUT") {
       const list = outsBySeconds.get(seconds) ?? [];
       list.push(e.playerId);
@@ -371,7 +412,10 @@ async function getStartingLineup(matchId: string): Promise<StarterAssignment[]> 
     });
 }
 
-async function getMatchRotations(matchId: string): Promise<RotationInput[]> {
+async function getMatchRotations(
+  matchId: string,
+  periodOffsets: Partial<Record<MatchPeriod, number>>,
+): Promise<RotationInput[]> {
   const rotations = await db.matchRotation.findMany({
     where: { matchId, outPlayerId: { not: null }, inPlayerId: { not: null } },
     select: {
@@ -380,9 +424,10 @@ async function getMatchRotations(matchId: string): Promise<RotationInput[]> {
       outPosition: true,
       inPosition: true,
       positionOnly: true,
+      period: true,
       matchSeconds: true,
     },
-    orderBy: { matchSeconds: "asc" },
+    orderBy: [{ period: "asc" }, { matchSeconds: "asc" }],
   });
 
   // ADR-0106: MatchRotation.outPlayerId/inPlayerId are now nullable (a GuestPlayer rotation side
@@ -391,17 +436,22 @@ async function getMatchRotations(matchId: string): Promise<RotationInput[]> {
   // lookup) -- carrying a guest's rotation through here is a later, separate change (needs a
   // resolved outPlayerId ?? outGuestPlayerId per side); filtered to Player-only rotations here
   // as a no-op today (no write path produces a guest rotation yet).
-  return rotations.map((r) => ({
-    outPlayerId: r.outPlayerId!,
-    inPlayerId: r.inPlayerId!,
-    outPosition: r.outPosition,
-    inPosition: r.inPosition,
-    positionOnly: r.positionOnly,
-    matchSeconds: r.matchSeconds ?? 0,
-  }));
+  return rotations
+    .map((r) => ({
+      outPlayerId: r.outPlayerId!,
+      inPlayerId: r.inPlayerId!,
+      outPosition: r.outPosition,
+      inPosition: r.inPosition,
+      positionOnly: r.positionOnly,
+      matchSeconds: toAbsoluteMatchMs(MATCH_PERIOD_ORDER[r.period], r.matchSeconds ?? 0, periodOffsets),
+    }))
+    .sort((a, b) => a.matchSeconds - b.matchSeconds);
 }
 
-async function getPositionChanges(matchId: string): Promise<PositionChangeInput[]> {
+async function getPositionChanges(
+  matchId: string,
+  periodOffsets: Partial<Record<MatchPeriod, number>>,
+): Promise<PositionChangeInput[]> {
   const events = await db.liveMatchEvent.findMany({
     where: {
       matchId,
@@ -411,9 +461,10 @@ async function getPositionChanges(matchId: string): Promise<PositionChangeInput[
     select: {
       playerId: true,
       payload: true,
+      period: true,
       matchSeconds: true,
     },
-    orderBy: { matchSeconds: "asc" },
+    orderBy: [{ period: "asc" }, { matchSeconds: "asc" }],
   });
 
   return events
@@ -424,9 +475,14 @@ async function getPositionChanges(matchId: string): Promise<PositionChangeInput[
         playerId: e.playerId!,
         fromPosition: (payload?.fromPosition as string) ?? "unknown",
         toPosition: (payload?.toPosition as string) ?? "unknown",
-        matchSeconds: e.matchSeconds ?? 0,
+        matchSeconds: toAbsoluteMatchMs(
+          e.period != null ? MATCH_PERIOD_ORDER[e.period] : null,
+          e.matchSeconds ?? 0,
+          periodOffsets,
+        ),
       };
-    });
+    })
+    .sort((a, b) => a.matchSeconds - b.matchSeconds);
 }
 
 function inferSource(

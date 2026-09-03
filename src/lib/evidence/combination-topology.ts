@@ -1,7 +1,18 @@
 import { db } from "@/lib/db";
-import { getActualPositionIntervalsForRef, type ActualIntervalRow } from "@/lib/evidence/actual-timeline";
+import { getActualPositionIntervalsForRef } from "@/lib/evidence/actual-timeline";
 import { getGoalAttributionEventsForRef } from "@/lib/evidence/combination-goal-attribution";
 import { footballMatchRefSourceId, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
+import {
+  buildSegmentsFromIntervals,
+  type MatchSegment,
+  type PlayerSlot,
+} from "@/lib/evidence/match-state-timeline";
+
+// buildSegmentsFromIntervals/MatchSegment/PlayerSlot now live in match-state-timeline.ts (Bundle
+// 1 of the Evidence-Informed Match Planning programme, ADR-0113) as the canonical segment
+// primitive shared by combination evidence and the new canonical match-state/transition
+// reconstruction. Re-exported here so existing imports/tests of this module are unaffected.
+export { buildSegmentsFromIntervals, type MatchSegment, type PlayerSlot };
 
 export type CombinationFamily =
   | "PARTNERSHIP"
@@ -48,19 +59,6 @@ export type CombinationEvidenceRow = {
   createdAt: Date;
 };
 
-/**
- * A player's occupied slot at a point in time. `position` is the raw role-type string persisted
- * on `ActualPositionInterval` (see actual-timeline.ts); `line`/`lane` are the pre-resolved
- * classification from the same row — never re-derived from `position`/label parsing here.
- */
-type PlayerSlot = { position: string; line: string | null; lane: string | null };
-
-interface MatchSegment {
-  startMs: number;
-  endMs: number;
-  playersOnPitch: Map<string, PlayerSlot>;
-}
-
 // Depth ordering used only to detect "adjacent line" structures (triangles, corridors, units).
 // This is finer-grained than the 4-value LINE family classification (GK|DEF|MID|ATT) — it keeps
 // DEFENSIVE_MIDFIELDER/ATTACKING_MIDFIELDER distinguishable from MIDFIELDER for triangle/unit
@@ -74,54 +72,6 @@ const ROLE_DEPTH: Record<string, number> = {
   ATTACKING_MIDFIELDER: 4,
   FORWARD: 5,
 };
-
-export function buildSegmentsFromIntervals(intervals: ActualIntervalRow[], matchEndMs: number | null): MatchSegment[] {
-  if (intervals.length === 0) return [];
-
-  const endTimePoints = new Set<number>();
-  endTimePoints.add(0);
-
-  for (const interval of intervals) {
-    if (interval.position !== "BENCH" && interval.position !== "unknown") {
-      endTimePoints.add(interval.startedAtMs);
-      if (interval.endedAtMs !== null) {
-        endTimePoints.add(interval.endedAtMs);
-      }
-    }
-  }
-
-  if (matchEndMs !== null) {
-    endTimePoints.add(matchEndMs);
-  }
-
-  const sortedTimes = [...endTimePoints].sort((a, b) => a - b);
-  const segments: MatchSegment[] = [];
-
-  for (let i = 0; i < sortedTimes.length - 1; i++) {
-    const startMs = sortedTimes[i]!;
-    const endMs = sortedTimes[i + 1]!;
-
-    const playersOnPitch = new Map<string, PlayerSlot>();
-    for (const interval of intervals) {
-      if (interval.position === "BENCH" || interval.position === "unknown") continue;
-      const intervalStart = interval.startedAtMs;
-      const intervalEnd = interval.endedAtMs ?? matchEndMs ?? Infinity;
-      if (intervalStart <= startMs && intervalEnd > startMs) {
-        playersOnPitch.set(interval.playerId, {
-          position: interval.position,
-          line: interval.line,
-          lane: interval.lane,
-        });
-      }
-    }
-
-    if (playersOnPitch.size >= 2) {
-      segments.push({ startMs, endMs, playersOnPitch });
-    }
-  }
-
-  return segments;
-}
 
 type DetectedCombo = {
   family: CombinationFamily;
