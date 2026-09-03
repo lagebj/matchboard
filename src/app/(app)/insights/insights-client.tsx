@@ -15,6 +15,7 @@ import {
   Users2,
   Shuffle,
   Activity,
+  Clock,
 } from "lucide-react";
 import type { InsightOverview } from "@/lib/insights/insights-types";
 
@@ -108,6 +109,12 @@ const SURFACE_CARDS = [
     icon: Activity,
     label: "Operational Health",
     description: "Concrete grouped facts about planning state — incomplete lineups, missing reports, stale assignments",
+  },
+  {
+    href: "/insights/match-phase-patterns",
+    icon: Clock,
+    label: "Match Timing Patterns",
+    description: "Repeated goal patterns by match phase (opening minutes, late period) — descriptive, with confidence",
   },
 ];
 

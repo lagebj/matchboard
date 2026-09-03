@@ -792,6 +792,37 @@ here is planning advice yet (that starts at Bundle 4) — this is the descriptiv
   `from` bound (the second spread clobbered the first instead of merging) — a real bug in the
   "Populate opponent levels" admin tool's date-range filtering, now fixed with a regression test.
 
+### Long-term observability surfaces (Evidence-Informed Match Planning, Bundle 3)
+
+Exposes Bundle 1/2's evidence to a coach before any new automation consumes it (PROGRAMME.md's
+completion condition: "a coach can inspect what Matchboard has learned and why the system is or
+is not confident, before any new generation uses the evidence"). No new evidence semantics —
+this bundle only adds UI over what Bundle 2 already computes.
+
+- **Opponent profile**: `OpponentTacticalTendencySection`
+  (`src/components/opponents/opponent-tactical-tendency-section.tsx`) renders
+  `getOpponentTacticalTendencies()`/`getOpponentTendencyOutcomes()` on the opponent detail page
+  (`/o/{orgSlug}/opponents/[opponentTeamId]`), alongside the existing sporting-level and
+  combination-evidence sections. `INSUFFICIENT`-confidence tags are excluded from the list
+  (matches `OpponentCombinationEvidenceSection`'s same exclusion on this page).
+- **Team-season match-phase view**: Match Timing Patterns (I-008,
+  `/o/{orgSlug}/insights/match-phase-patterns`) — a new Insights surface following the exact
+  established Insights pattern (thin API route, server page, client component with league
+  season + team selectors), rendering `getTeamSeasonMatchPhasePatterns()` directly. No new
+  `src/lib/insights/*.ts` wrapper was added — the evidence module's own output is already
+  insight-ready, so a pass-through wrapper would be pure duplication.
+- **Deliberately deferred** (real, documented scope boundaries, not oversights): a
+  group-longitudinal match-phase view (Bundle 2 only built team-season scope); a Player profile
+  role-exposure surface beyond what already exists (I-004 Position & Formation Exposure, I-005
+  Player Combinations already substantially cover "actual minutes by outfield role" and
+  "recurring combinations" — "emerging alternate-role evidence" needs Bundle 5's role-suitability
+  engine, which does not exist yet); "recurring transition structures"/"rotation-size/cadence
+  observations" Group/Team-season views (no aggregated transition-structure evidence exists yet
+  — that is Bundle 7 territory, not something to force prematurely here).
+- Live-reporting components (`live-match-client.tsx` and its League/Event adapters) import none
+  of this — the analytical/observability surfaces stay out of live execution views, per
+  PROGRAMME.md's live-mode boundary.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -1842,6 +1873,7 @@ Other canonical routes:
 | `/o/{orgSlug}/insights/player-combinations` | Player Combinations (I-005) — co-selection/co-appearance frequency |
 | `/o/{orgSlug}/insights/continuity` | Continuity vs Exploration (I-006) — round-over-round retained/new players and formation repeats |
 | `/o/{orgSlug}/insights/operational-health` | Operational Health (I-007) — 9 grouped concrete facts, no composite score |
+| `/o/{orgSlug}/insights/match-phase-patterns` | Match Timing Patterns (I-008) — team-season match-phase goal patterns with exposure/confidence (Evidence-Informed Match Planning programme, Bundle 3) |
 | `/o/{orgSlug}/more` | More — hub page linking Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews (plus Simulation/Workbench for admin roles) |
 
 Setup registry create routes (no top-level nav):
@@ -3256,6 +3288,9 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/app/api/insights/operational-health/route.ts` | GET `/api/insights/operational-health` — operational health API |
 | `src/app/(app)/insights/operational-health/page.tsx` | Operational Health page |
 | `src/app/(app)/insights/operational-health/operational-health-client.tsx` | Operational Health interactive client component |
+| `src/app/api/insights/match-phase-patterns/route.ts` | I-008: GET `/api/insights/match-phase-patterns` — thin wrapper over `getTeamSeasonMatchPhasePatterns()` (`match-phase-pattern-evidence.ts`, Bundle 2); no domain logic of its own |
+| `src/app/(app)/insights/match-phase-patterns/page.tsx` | Match Timing Patterns page |
+| `src/app/(app)/insights/match-phase-patterns/match-phase-patterns-client.tsx` | Match Timing Patterns interactive client component (league season + team selector) |
 
 ### Player Pathways files
 
