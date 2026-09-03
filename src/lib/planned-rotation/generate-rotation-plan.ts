@@ -36,33 +36,26 @@
 
 import {
   computeOutfieldRoleSuitabilityProfile,
-  computeTacticalFunctionFit,
   type DeclaredBroadPositions,
   type TacticalFunctionAttributes,
 } from "@/domain/team-composition/outfield-role-evidence";
-import type { OutfieldRoleSuitabilityResult, OutfieldStructuralRole, TacticalFunctionCode } from "@/domain/team-composition/team-composition-types";
-import { capEvidenceBonus, assertEvidenceDidNotExcludeCandidates } from "@/lib/policies/evidence-guardrails";
+import type { OutfieldRoleSuitabilityResult, TacticalFunctionCode } from "@/domain/team-composition/team-composition-types";
+import { mapPositionLabelToOutfieldRole } from "@/domain/team-composition/position-suitability";
+import { assertEvidenceDidNotExcludeCandidates } from "@/lib/policies/evidence-guardrails";
 import { projectPlannedMinutes, type PlannedRotationChangeData } from "@/lib/planned-rotation/planned-rotation";
 import type { TransitionStructureEvidenceRow } from "@/lib/evidence/transition-structure-evidence";
 import { bucketForSubstitutionCount } from "@/lib/evidence/transition-structure-evidence";
-import type { MatchPeriod, OpponentPlayingStyleTag } from "@/generated/prisma/client";
+import {
+  preferredFunctionFor,
+  computeOpponentFunctionBonus,
+  type OpponentFunctionTendency,
+} from "@/lib/planned-rotation/opponent-function-preference";
+import type { MatchPeriod } from "@/generated/prisma/client";
+
+export type { OpponentFunctionTendency };
 
 const MINIMUM_USEFUL_STINT_SECONDS = 5 * 60;
 const MEANINGFUL_SHARE_GAP_SECONDS = 60;
-const MAX_OPPONENT_FUNCTION_BONUS = 6;
-
-// A small, explicit, football-justified mapping — not an attempt to cover every tag. Each pairing
-// names the response it stands for; tags with no clear, defensible functional response are
-// deliberately left unmapped rather than guessed (PROGRAMME.md: "not vague AI labels").
-const OPPONENT_TENDENCY_PREFERRED_FUNCTION: Partial<Record<OpponentPlayingStyleTag, TacticalFunctionCode>> = {
-  SLOW_BUILD_UP: "FIRST_LINE_PRESS",
-  TECHNICAL_AND_PATIENT: "FIRST_LINE_PRESS",
-  POSSESSION_BASED: "FIRST_LINE_PRESS",
-  HIGH_PRESSING: "PACE_IN_BEHIND",
-  LOW_BLOCK: "HOLD_UP_LINK_PLAY",
-  COUNTER_ATTACKING: "CENTRAL_DEFENSIVE_CONTINUITY",
-  FAST_PACED_TRANSITIONS: "CENTRAL_DEFENSIVE_CONTINUITY",
-};
 
 export interface RotationPlanPlayer {
   playerId: string;
@@ -79,11 +72,6 @@ export interface RotationPlanDecisionPoint {
   atSeconds: number;
   period: MatchPeriod;
   isNaturalBreak: boolean;
-}
-
-export interface OpponentFunctionTendency {
-  tag: OpponentPlayingStyleTag;
-  confidence: "INSUFFICIENT" | "EMERGING" | "ESTABLISHED";
 }
 
 export interface GenerateRotationPlanInput {
@@ -105,33 +93,6 @@ export interface GenerateRotationPlanResult {
   changes: GeneratedRotationChange[];
 }
 
-/**
- * `position`/`vacatedRole` strings arriving from real match line-ups are raw
- * `FormationSlotRoleType` values (DEFENDER/DEFENSIVE_MIDFIELDER/MIDFIELDER/
- * ATTACKING_MIDFIELDER/FORWARD/FREE — see checkPlannedRotationCoverageAction's identical
- * convention), not the `OutfieldStructuralRole` vocabulary role-suitability uses. This maps
- * either convention (also accepting the OutfieldStructuralRole strings directly, so a caller
- * that already resolved a broad role — e.g. this module's own tests — works unchanged) onto
- * the four suitability roles, defaulting unrecognised labels to FLEXIBLE rather than guessing a
- * specific line.
- */
-function mapPositionLabelToOutfieldRole(label: string): OutfieldStructuralRole {
-  switch (label) {
-    case "DEFENCE":
-    case "DEFENDER":
-      return "DEFENCE";
-    case "MIDFIELD":
-    case "MIDFIELDER":
-    case "DEFENSIVE_MIDFIELDER":
-    case "ATTACKING_MIDFIELDER":
-      return "MIDFIELD";
-    case "ATTACK":
-    case "FORWARD":
-      return "ATTACK";
-    default:
-      return "FLEXIBLE";
-  }
-}
 
 function stableTiebreak(seed: string, id: string): number {
   let hash = 2166136261;
@@ -141,28 +102,6 @@ function stableTiebreak(seed: string, id: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
-}
-
-function preferredFunctionFor(tendencies: OpponentFunctionTendency[] | undefined): { code: TacticalFunctionCode; confidence: "EMERGING" | "ESTABLISHED" } | null {
-  if (!tendencies) return null;
-  for (const tendency of tendencies) {
-    if (tendency.confidence === "INSUFFICIENT") continue;
-    const code = OPPONENT_TENDENCY_PREFERRED_FUNCTION[tendency.tag];
-    if (code) return { code, confidence: tendency.confidence };
-  }
-  return null;
-}
-
-function opponentFunctionBonus(
-  candidate: RotationPlanPlayer,
-  outfieldProfile: OutfieldRoleSuitabilityResult[],
-  preferred: { code: TacticalFunctionCode; confidence: "EMERGING" | "ESTABLISHED" } | null,
-): number {
-  if (!preferred) return 0;
-  const fit = computeTacticalFunctionFit(preferred.code, candidate.tacticalAttributes, outfieldProfile);
-  if (fit.tier !== "STRONG_FIT") return 0;
-  const raw = preferred.confidence === "ESTABLISHED" ? 8 : 4;
-  return capEvidenceBonus(raw, MAX_OPPONENT_FUNCTION_BONUS);
 }
 
 const ROLE_TIER_SCORE: Record<OutfieldRoleSuitabilityResult["tier"], number> = {
@@ -251,7 +190,7 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
         const roleResult = outfieldProfile.find((r) => r.role === mapPositionLabelToOutfieldRole(vacatedRole));
         const roleScore = roleResult ? ROLE_TIER_SCORE[roleResult.tier] : 0;
         const fairnessScore = Math.min(candidate.underShare, 600) / 10;
-        const evidenceBonus = opponentFunctionBonus(player, outfieldProfile, preferred);
+        const evidenceBonus = computeOpponentFunctionBonus(player.tacticalAttributes, outfieldProfile, preferred);
         const tiebreak = stableTiebreak(input.seed, candidate.playerId) / 1e10;
 
         return { candidate, score: roleScore + fairnessScore + evidenceBonus + tiebreak, outfieldProfile, roleResult, evidenceBonus };

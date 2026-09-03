@@ -987,12 +987,58 @@ sequence).
   (`DEFENDER`/`MIDFIELDER`/`FORWARD`/etc.), not Bundle 5's `OutfieldStructuralRole` vocabulary
   (`DEFENCE`/`MIDFIELD`/`ATTACK`/`FLEXIBLE`) — the generator's own pure-function unit tests
   (written first, using its own string literals) could not have caught this; only an end-to-end
-  test against real formation-slot fixtures did. `mapPositionLabelToOutfieldRole()` inside
-  `generate-rotation-plan.ts` now accepts both conventions.
+  test against real formation-slot fixtures did. `mapPositionLabelToOutfieldRole()` (moved to
+  `position-suitability.ts` in Bundle 8, see below, once a second caller needed it) accepts both
+  conventions.
 - UI: one "Generate rotation plan" button beside the existing "Create rotation plan" button on
   `PlannedRotationPanel`'s empty state. The generated plan flows through every existing
   Rotations-tab mechanism unchanged (edit/reorder/delete a change, Bundle 4's "what happens with
   this plan" evaluation).
+
+### Integrated starting-line-up and rotation generation (Evidence-Informed Match Planning, Bundle 8 — ADR-0119, final bundle)
+
+"Do not generate a best XI." "Starting line-up and rotation generation must reason together. Do
+not optimise the starting seven and force rotation generation to repair an unfair or structurally
+brittle plan later" (PROGRAMME.md). This is the programme's final functional bundle.
+
+- `src/lib/formations/suggest.ts`'s `suggestLineupForFormation()` (the existing match-specific
+  lineup-suggestion owner — already "not a best XI" by design, scoring only position-fit tier and
+  scarcity) gains one new **optional** input: `evidenceBonusForSlot?: (playerId, slot,
+  alreadyAssignedPlayerIds) => LineupEvidenceBonus | undefined`. A callback, not a data map — this
+  module never imports evidence/policy code itself, keeping role/fairness/opponent/combination
+  scoring owned exactly where each already lives. Absent by default: every existing caller (Event
+  lineup suggestion, the plain "Suggest lineup" flow) is unaffected, locked in by regression tests
+  proving identical output with the hook absent and that a large evidence bonus can never override
+  a genuine position mismatch (the existing `-1000` no-fit penalty still dominates).
+- `src/app/(app)/matches/integrated-match-plan-actions.ts`'s `generateIntegratedMatchPlanAction()`
+  (new) is the one orchestrator making the two stages reason together: loads season fairness
+  (`getLeagueSeasonFairness()`'s `coreCount`, reused directly — no new fairness model), opponent
+  tendency (Bundle 2), season combination evidence (existing, pre-programme), and per-player
+  position-exposure evidence (Bundle 5's `getPositionExposure()` reuse) **once**, blends four
+  bounded/capped contributions into `evidenceBonusForSlot()` (fairness under-share, a
+  `DEVELOPMENTAL`-tier role-suitability discovery bonus, a capped opponent-function-continuity
+  bonus, a capped combination-evidence bonus), generates the starting XI via
+  `suggestLineupForFormation()` + persists via the existing `applySuggestedLineup()`, then
+  **immediately** calls Bundle 7's `generateRotationPlan()` with that XI and the same
+  already-loaded evidence, persisting via the existing `createPlannedRotation()`. Offered only
+  when no rotation plan exists yet for the match/team, matching the "clear first, then
+  regenerate" convention every prior bundle used — no schema change.
+- **What "reason together" does not mean here (disclosed in ADR-0119)**: a sequential pipeline
+  sharing one evidence context and one action, not joint combinatorial optimisation across both
+  search spaces (trying multiple candidate XIs against multiple candidate rotation plans). The
+  requirement is satisfied because the starting XI is never chosen in ignorance of the same
+  fairness/evidence context the rotation plan also uses — not by an unbounded joint search.
+- `src/lib/planned-rotation/opponent-function-preference.ts` (new): the opponent-tendency →
+  tactical-function mapping and its bounded scoring, extracted from Bundle 7's generator (which
+  now imports it) so this football-judgment table exists exactly once, shared by both stages.
+  `mapPositionLabelToOutfieldRole()` similarly moved to `position-suitability.ts` (the correct
+  existing owner for position-mapping, ADR-0116) once this bundle needed the identical mapping
+  Bundle 7 already had.
+- UI: one "Generate lineup & rotation plan" button beside the existing "Suggest lineup" button on
+  the Tactics tab (`MatchTacticsPanel`) — additive, the plain suggestion flow is unchanged.
+- **Programme status: this is the last of the eight bundles.** See CURRENT-STATE.md for the full
+  verification against PROGRAMME.md's 25-item programme completion criteria, and for the disclosed
+  outstanding item (documentation screenshot regeneration, deferred consistently since Bundle 3).
 
 ### Quick observations
 
@@ -2864,6 +2910,8 @@ Rules:
 | `src/lib/planned-rotation/scenario-evaluation.ts` | Bundle 4 (ADR-0115): `evaluatePlannedScenario()` — the shared reactive "what happens if I change this?" evaluator for a hypothetical plan, built on `projectPlannedLineup()` and the shared `diffPlayerStates()` primitive |
 | `src/lib/planned-rotation/generate-rotation-plan.ts` | Bundle 7 (ADR-0118): `generateRotationPlan()` — pure, deterministic evidence-aware automatic rotation-sequence generator (bounded greedy search, emergent batch size, role/fairness/opponent-function scoring) |
 | `src/lib/evidence/transition-structure-evidence.ts` | Bundle 7 (ADR-0118): `getTeamSeasonTransitionPatterns()`/`aggregateTransitionStructurePatterns()` — historical transition-shape (batch size, disruption, natural break) vs. goals-conceded-shortly-after evidence |
+| `src/lib/planned-rotation/opponent-function-preference.ts` | Bundle 7/8 (ADR-0118/ADR-0119): shared opponent-tendency → tactical-function mapping and bounded scoring (`preferredFunctionFor()`, `computeOpponentFunctionBonus()`), reused by both the rotation generator and the integrated starting-lineup generator |
+| `src/app/(app)/matches/integrated-match-plan-actions.ts` | Bundle 8 (ADR-0119): `generateIntegratedMatchPlanAction()` — one orchestrator generating a starting lineup and its rotation plan together from one shared evidence context |
 | `src/app/(app)/matches/lineup-combination-evidence-actions.ts` | Server action: season partnership evidence relevant to a specific set of planned-together players — shared by the Tactics and Rotations tabs |
 | `src/components/matches/planned-partnership-evidence.tsx` | Presentational: factual season partnership evidence list, shared by the Tactics and Rotations tabs |
 | `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply (writes real actual-timeline events server-side), skip, delay, modify planned change during live match |
@@ -2882,7 +2930,7 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/domain/team-composition/team-composition-types.ts` | Shared contract: TeamCompositionProblem, TeamCompositionProposal, CompositionPlayer, RoleSuitabilityProfile, all scenario/metric/validation types |
-| `src/domain/team-composition/position-suitability.ts` | Position mapping, fit tiers, role-relevant strength, scarcity, deterministic sorting; `buildRoleSuitability()` — declared-position → `RoleSuitabilityProfile`, shared by `league-team-adapter.ts` and the Bundle 5 outfield-role-evidence adapter |
+| `src/domain/team-composition/position-suitability.ts` | Position mapping, fit tiers, role-relevant strength, scarcity, deterministic sorting; `buildRoleSuitability()` — declared-position → `RoleSuitabilityProfile`, shared by `league-team-adapter.ts` and the Bundle 5 outfield-role-evidence adapter; `mapPositionLabelToOutfieldRole()` (Bundle 8, ADR-0119) — `FormationSlotRoleType` ↔ `OutfieldStructuralRole`, shared by the Bundle 7 rotation generator and the Bundle 8 integrated lineup generator |
 | `src/domain/team-composition/outfield-role-evidence.ts` | Evidence-Informed Match Planning, Bundle 5 (ADR-0116): evidence-aware `OutfieldRoleSuitabilityTier` (NATURAL/PLAUSIBLE/DEVELOPMENTAL/UNSUPPORTED, goalkeeper excluded at the type level) and `TacticalFunctionFit` — pure, DB-free |
 | `src/lib/players/get-player-outfield-role-suitability.ts` | DB-bound adapter: combines declared position with I-004 Position & Formation Exposure evidence, resolves the active league season |
 | `src/components/players/player-outfield-role-suitability-panel.tsx` | Player Profile UI: read-only outfield-role-suitability and tactical-function-fit panel |
@@ -3362,7 +3410,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/formations/validate.ts` | Formation validation for match use |
 | `src/lib/formations/slot-defaults.ts` | `suggestSlotDefaults()` for auto-fill on grid cell click |
 | `src/lib/formations/snapshot.ts` | `createFormationSnapshot()` for lineup creation |
-| `src/lib/formations/suggest.ts` | `suggestFormationForMatch()`, `suggestLineupForFormation()`, `preserveAssignmentsOnChange()` |
+| `src/lib/formations/suggest.ts` | `suggestFormationForMatch()`, `suggestLineupForFormation()` (Bundle 8, ADR-0119: optional `evidenceBonusForSlot` hook, absent by default), `preserveAssignmentsOnChange()` |
 | `src/lib/formations/lineup-compatibility.ts` | `getPlayerSlotCompatibility()`, `sortPlayersBySlotCompatibility()`, `getPlayersForLineup()` |
 | `src/lib/formations/normalize.ts` | `findFormationDataIssues()` — formation data validation/normalization |
 | `src/lib/formations/seed.ts` | `seedSystemFormations()` — DB seeding from system-formations data |

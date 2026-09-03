@@ -10,7 +10,7 @@ import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
-type PlayerPoolEntry = {
+export type PlayerPoolEntry = {
   id: string;
   firstName: string;
   lastName: string | null;
@@ -19,11 +19,43 @@ type PlayerPoolEntry = {
   coreTeamId: string | null;
   coreTeamName?: string;
   isHelper?: boolean;
+  // Additive fields (Evidence-Informed Match Planning, Bundle 8, ADR-0119) — optional so every
+  // existing caller of this pool (the plain "Suggest lineup" flow, Event equivalents) is
+  // unaffected. Populated for the new evidence-aware integrated generation flow only.
+  tertiaryPosition?: string | null;
+  ballControl?: number | null;
+  passing?: number | null;
+  firstTouch?: number | null;
+  oneVOneAttacking?: number | null;
+  positioning?: number | null;
+  oneVOneDefending?: number | null;
+  decisionMaking?: number | null;
+  effort?: number | null;
+  teamplay?: number | null;
+  concentration?: number | null;
+  speed?: number | null;
+  strength?: number | null;
 };
 
 const NEUTRAL_POSITION = "FLEX";
 
-async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMode): Promise<PlayerPoolEntry[]> {
+const PLAYER_EVIDENCE_ATTRIBUTE_SELECT = {
+  tertiaryPosition: true,
+  ballControl: true,
+  passing: true,
+  firstTouch: true,
+  oneVOneAttacking: true,
+  positioning: true,
+  oneVOneDefending: true,
+  decisionMaking: true,
+  effort: true,
+  teamplay: true,
+  concentration: true,
+  speed: true,
+  strength: true,
+} as const;
+
+export async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMode): Promise<PlayerPoolEntry[]> {
   const [selections, helpers, absences] = await Promise.all([
     db.selection.findMany({
       where: { matchId, status: { in: ["DRAFT", "FINALIZED"] } },
@@ -39,6 +71,7 @@ async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMo
             secondaryPosition: true,
             coreTeamId: true,
             coreTeam: { select: { id: true, name: true } },
+            ...PLAYER_EVIDENCE_ATTRIBUTE_SELECT,
           },
         },
       },
@@ -56,6 +89,7 @@ async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMo
             secondaryPosition: true,
             coreTeamId: true,
             coreTeam: { select: { id: true, name: true } },
+            ...PLAYER_EVIDENCE_ATTRIBUTE_SELECT,
           },
         },
       },
@@ -71,6 +105,7 @@ async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMo
   const pool: PlayerPoolEntry[] = selections
     .filter((s) => !absentPlayerIds.has(s.playerId))
     .map((s) => ({
+      ...s.player,
       id: s.player.id,
       firstName: s.player.firstName,
       lastName: s.player.lastName,
@@ -84,6 +119,7 @@ async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgFilterMo
   for (const h of helpers) {
     if (absentPlayerIds.has(h.playerId)) continue;
     pool.push({
+      ...h.player,
       id: h.player.id,
       firstName: h.player.firstName,
       lastName: h.player.lastName,
