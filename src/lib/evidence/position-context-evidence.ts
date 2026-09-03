@@ -4,7 +4,7 @@ import type { ConfidenceLevel } from "@/lib/evidence/combination-topology";
 import { classifyMatchPhaseConfidence } from "@/lib/evidence/match-phase-pattern-evidence";
 import { getActualPositionIntervalsForRef, type ActualIntervalRow } from "@/lib/evidence/actual-timeline";
 import { getGoalAttributionEventsForRef, type GoalAttributionEvent } from "@/lib/evidence/combination-goal-attribution";
-import { getSeasonCombinationEvidence, aggregateSeasonCombinations, selectRelevantPartnerships } from "@/lib/evidence/combination-aggregation";
+import { getSeasonCombinationEvidence, aggregateSeasonCombinations, type SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
 import { capEvidenceBonus, isEvidenceConfidentEnoughToInfluence } from "@/lib/policies/evidence-guardrails";
 
 /**
@@ -340,7 +340,22 @@ export function computePositionContextBonus(evidence: PlayerPositionContextEvide
  * explanation): if the player's own combination evidence already shows an established recurring
  * partnership, surface that as context rather than implying the pattern is about the player
  * alone. Reuses the existing season combination-evidence engine outright — no new inference.
+ *
+ * Deliberately does NOT reuse `selectRelevantPartnerships()` — that helper answers a different
+ * question ("which partnerships are fully contained within this exact set of players", used by
+ * the scenario evaluator for "who's on the pitch together"). Here the question is "which
+ * partnerships include this one player at all", so partnerships are matched directly against
+ * `playerIds.includes(playerId)`.
  */
+export function findRelevantPartnershipForPlayer(
+  playerId: string,
+  summaries: SeasonCombinationSummary[],
+): SeasonCombinationSummary | undefined {
+  return summaries
+    .filter((s) => s.family === "PARTNERSHIP" && s.confidence !== "INSUFFICIENT" && s.playerIds.includes(playerId))
+    .sort((a, b) => b.totalMinutesTogether - a.totalMinutesTogether)[0];
+}
+
 async function buildStructuralNote(
   leagueSeasonId: string,
   playerId: string,
@@ -349,9 +364,7 @@ async function buildStructuralNote(
   if (orgFilter.type !== "org") return null;
   const rows = await getSeasonCombinationEvidence(leagueSeasonId);
   const evidence = aggregateSeasonCombinations(rows);
-  const relevant = selectRelevantPartnerships([playerId], evidence)
-    .filter((p) => p.confidence !== "INSUFFICIENT")
-    .sort((a, b) => b.totalMinutesTogether - a.totalMinutesTogether)[0];
+  const relevant = findRelevantPartnershipForPlayer(playerId, evidence);
 
   if (!relevant) return null;
   return `Most of this exposure occurred alongside a recurring teammate combination (${relevant.matchCount} match${relevant.matchCount === 1 ? "" : "es"} this season) — a broader structural pattern worth reviewing alongside the individual one.`;

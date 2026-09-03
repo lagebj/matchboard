@@ -200,3 +200,18 @@ None.
 Record created. Position-context evidence module, scenario-evaluator wiring, automation
 integration (rotation generator and integrated starting-line-up generator), and the "Rebuild
 historical evidence" transient admin tool all landed in the same change.
+
+### 2026-09-03 (review fix: attribution hierarchy was silently non-functional)
+
+A pre-merge review found that `buildStructuralNote()`'s call to the existing
+`selectRelevantPartnerships([playerId], evidence)` could never return a match: that helper filters
+to `PARTNERSHIP` rows fully *contained within* a given player set (`playerIds.every(id =>
+idSet.has(id))`), built for "who's on the pitch together" (a multi-player query). Given a
+single-player set, no real two-player partnership row can ever satisfy `every`, so the call always
+returned `[]` and `structuralNote` was always `null` — the attribution-hierarchy requirement (a
+broader structural explanation surfacing ahead of individual attribution) silently never fired,
+and no test caught it since the only existing assertion checked the `structuralNote: null` case.
+Fixed with a new, correctly-scoped `findRelevantPartnershipForPlayer()` (`playerIds.includes(playerId)`,
+not `.every`), plus five new unit tests exercising the fixed function directly (including a
+regression test naming the original bug). See AGENTS.md's "Position-context evidence" section for
+the corrected description.

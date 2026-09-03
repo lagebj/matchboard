@@ -1062,9 +1062,15 @@ never a player-quality judgement.
 - **Attribution hierarchy**: before surfacing an individually-attributed pattern, a broader
   structural explanation is checked and surfaced first when the evidence supports one — currently:
   a recurring teammate combination during the same exposure, reusing the existing season
-  combination-evidence engine (`selectRelevantPartnerships()`) outright, never a new
-  causal-inference mechanism. Opponent-strength/formation context are named by the addendum as
-  further possible explanations but not built here — a disclosed scope decision, not an oversight.
+  combination-evidence engine's own aggregation (`getSeasonCombinationEvidence()`/
+  `aggregateSeasonCombinations()`) outright, never a new causal-inference mechanism.
+  `findRelevantPartnershipForPlayer()` (own module) filters to `PARTNERSHIP` rows the player is a
+  *member of* (`playerIds.includes(playerId)`) — deliberately not the existing
+  `selectRelevantPartnerships()` helper, which answers a different question ("partnerships fully
+  contained within an exact given set of players", built for "who's on the pitch together" and
+  structurally unable to match a single-player query). Opponent-strength/formation context are
+  named by the addendum as further possible explanations but not built here — a disclosed scope
+  decision, not an oversight.
 - **Neutral language is a hard rule, not a style preference.** `outcomeDifference` is
   `MORE_FAVORABLE` / `SIMILAR` / `LESS_FAVORABLE` — never "good"/"bad"/"weak"/"poor"/"harmful"/
   "problematic"/"underperforming"/"risky", in code, generated text, or documentation. Enforced by

@@ -2,11 +2,13 @@ import { describe, it, expect } from "vitest";
 import {
   aggregatePositionContextEvidence,
   computePositionContextBonus,
+  findRelevantPartnershipForPlayer,
   MAX_POSITION_CONTEXT_BONUS,
   type PlayerPositionContextEvidence,
 } from "../position-context-evidence";
 import type { ActualIntervalRow } from "../actual-timeline";
 import type { GoalAttributionEvent } from "../combination-goal-attribution";
+import type { SeasonCombinationSummary } from "../combination-aggregation";
 
 function interval(playerId: string, position: string, startedAtMs: number, endedAtMs: number): ActualIntervalRow {
   return { playerId, position, line: null, lane: null, startedAtMs, endedAtMs, source: "SUBSTITUTION" as ActualIntervalRow["source"], approximateTiming: false };
@@ -141,6 +143,62 @@ describe("computePositionContextBonus — automation integration guardrails", ()
     for (const outcome of ["MORE_FAVORABLE", "SIMILAR", "LESS_FAVORABLE", null] as const) {
       expect(computePositionContextBonus(evidence({ outcomeDifference: outcome }))).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+describe("findRelevantPartnershipForPlayer — attribution hierarchy (broader structural explanation)", () => {
+  function partnership(overrides: Partial<SeasonCombinationSummary>): SeasonCombinationSummary {
+    return {
+      playerIds: ["target", "other"],
+      positions: ["CM"],
+      family: "PARTNERSHIP",
+      subtype: null,
+      totalMinutesTogether: 120,
+      matchCount: 6,
+      goalsForTotal: 4,
+      goalsAgainstTotal: 1,
+      directGoalContributionsTotal: 0,
+      directAssistContributionsTotal: 0,
+      opponentDiversity: 4,
+      confidence: "ESTABLISHED",
+      approximateTiming: false,
+      ...overrides,
+    };
+  }
+
+  it("finds a partnership that includes the target player as one of its members (not equal to the full set)", () => {
+    // Regression: a naive reuse of selectRelevantPartnerships([playerId], summaries) filters to
+    // partnerships fully CONTAINED WITHIN a given set of players -- for a single-player set that
+    // is structurally impossible to satisfy for any real 2+ player partnership, so it always
+    // returned nothing. This must instead match any partnership the player is a MEMBER of.
+    const summaries = [partnership({ playerIds: ["target", "other"] })];
+    const found = findRelevantPartnershipForPlayer("target", summaries);
+    expect(found).toBeDefined();
+    expect(found!.playerIds).toContain("target");
+  });
+
+  it("ignores partnerships the player is not part of", () => {
+    const summaries = [partnership({ playerIds: ["someoneElse", "other"] })];
+    expect(findRelevantPartnershipForPlayer("target", summaries)).toBeUndefined();
+  });
+
+  it("ignores INSUFFICIENT-confidence partnerships", () => {
+    const summaries = [partnership({ confidence: "INSUFFICIENT" })];
+    expect(findRelevantPartnershipForPlayer("target", summaries)).toBeUndefined();
+  });
+
+  it("ignores non-PARTNERSHIP families", () => {
+    const summaries = [partnership({ family: "TRIANGLE" })];
+    expect(findRelevantPartnershipForPlayer("target", summaries)).toBeUndefined();
+  });
+
+  it("picks the partnership with the most minutes together when several qualify", () => {
+    const summaries = [
+      partnership({ playerIds: ["target", "a"], totalMinutesTogether: 50 }),
+      partnership({ playerIds: ["target", "b"], totalMinutesTogether: 200 }),
+    ];
+    const found = findRelevantPartnershipForPlayer("target", summaries);
+    expect(found!.playerIds).toContain("b");
   });
 });
 
