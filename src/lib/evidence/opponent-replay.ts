@@ -5,6 +5,7 @@ import { recordOpponentSportingEvidenceForRef } from "@/lib/opponents/sporting-l
 import { footballMatchRefSourceId, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import { getEffectiveEventTeamGameFormat } from "@/lib/events/event-types";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { startsAtRangeFilter } from "@/lib/evidence/date-range-filter";
 
 /**
  * Historical match eligible for the "Populate opponent levels" transient catch-up tool
@@ -52,11 +53,11 @@ export async function dryRunOpponentEvidence(
   const historicalFactChanges = 0;
   const details: HistoricalDryRunResult["details"] = [];
 
+  const occurredAtFilter = startsAtRangeFilter(options);
   const existingEvidence = await db.opponentSportingEvidence.findMany({
     where: {
       organisationId,
-      ...(options?.from ? { occurredAt: { gte: options.from } } : {}),
-      ...(options?.to ? { occurredAt: { lte: options.to } } : {}),
+      ...(occurredAtFilter ? { occurredAt: occurredAtFilter } : {}),
     },
     select: {
       matchId: true,
@@ -182,12 +183,12 @@ async function getEligibleLeagueMatches(
   organisationId: string,
   options?: { gameFormat?: string; from?: Date; to?: Date },
 ): Promise<MatchForReplay[]> {
+  const startsAtFilter = startsAtRangeFilter(options);
   const matches = await db.match.findMany({
     where: {
       organisationId,
       opponentTeamId: { not: null },
-      ...(options?.from ? { startsAt: { gte: options.from } } : {}),
-      ...(options?.to ? { startsAt: { lte: options.to } } : {}),
+      ...(startsAtFilter ? { startsAt: startsAtFilter } : {}),
     },
     select: {
       id: true,
@@ -245,12 +246,12 @@ async function getEligibleEventMatches(
   organisationId: string,
   options?: { gameFormat?: string; from?: Date; to?: Date },
 ): Promise<MatchForReplay[]> {
+  const startsAtFilter = startsAtRangeFilter(options);
   const eventMatches = await db.eventMatch.findMany({
     where: {
       organisationId,
       opponentTeamId: { not: null },
-      ...(options?.from ? { startsAt: { gte: options.from } } : {}),
-      ...(options?.to ? { startsAt: { lte: options.to } } : {}),
+      ...(startsAtFilter ? { startsAt: startsAtFilter } : {}),
     },
     select: {
       id: true,
@@ -416,11 +417,11 @@ export async function applyOpponentEvidenceHistory(
   const matches = await getEligibleMatches(organisationId, options);
   const orgFilter: OrgFilterMode = { type: "org", organisationId, filter: { organisationId }, filterNullable: { organisationId } };
 
+  const occurredAtFilter = startsAtRangeFilter(options);
   const existingEvidence = await db.opponentSportingEvidence.findMany({
     where: {
       organisationId,
-      ...(options?.from ? { occurredAt: { gte: options.from } } : {}),
-      ...(options?.to ? { occurredAt: { lte: options.to } } : {}),
+      ...(occurredAtFilter ? { occurredAt: occurredAtFilter } : {}),
     },
     select: { matchId: true, eventMatchId: true },
   });

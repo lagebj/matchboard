@@ -749,6 +749,49 @@ evaluation, evidence-aware rotation generation), not new planning advice on its 
   match (already idempotent). No backfill script ships with this — the programme's Bundle 2
   historical rebuild/catch-up tool is the intended place to reprocess existing organisations.
 
+### Historical pattern and opponent tactical evidence (Evidence-Informed Match Planning, Bundle 2 — ADR-0114)
+
+Aggregates historical evidence with explicit scope, exposure, recency and confidence. Nothing
+here is planning advice yet (that starts at Bundle 4) — this is the descriptive layer.
+
+- **Match-phase patterns** (`src/lib/evidence/match-phase-pattern-evidence.ts`) — derived, not
+  persisted, extending Bundle 1's `MatchStateInterval`/`getMatchPhaseWindows`.
+  `getTeamSeasonMatchPhasePatterns(leagueSeasonId, teamId, orgFilter)` aggregates goals-for/
+  against and exposure minutes by `(period, phase)` pair across a team's completed matches in one
+  League season (D-003: team-season scoped, not group-longitudinal — deferred). Confidence:
+  `INSUFFICIENT` &lt;3 matches, `EMERGING` 3-5, `ESTABLISHED` 6+ (shared `ConfidenceLevel` from
+  `combination-topology.ts`).
+- **Opponent tactical tendency** (`src/lib/opponents/playing-style-aggregation.ts` +
+  `playing-style-query.ts`) — extends the existing per-match, coach-captured
+  `OpponentEncounterObservation.playingStyleTags` (`playing-style-tags.ts`) into a confidence-bound
+  tendency per opponent: `getOpponentTacticalTendencies(opponentTeamId, orgFilter)`. League-only
+  (no Event-match equivalent of `OpponentEncounterObservation` exists yet — a deliberate,
+  documented boundary, not an oversight). Confidence: `INSUFFICIENT` &lt;2 occurrences, `EMERGING`
+  2-3, `ESTABLISHED` 4+ — deliberately a **different** vocabulary from
+  `sporting-level-aggregation.ts`'s unknown/low/medium/high scale, since estimated sporting level
+  and tactical tendency are different evidence (D-016). A 12-month recency window excludes stale
+  observations from presenting as current certainty. Nothing is persisted, matching
+  `aggregateSportingLevel()`'s existing on-the-fly aggregation pattern.
+- **Our response to opponent tendencies** (`getOpponentTendencyOutcomes()`, same query module) —
+  purely descriptive: factual `OpponentSportingEvidence.goalsFor`/`goalsAgainst` summed across the
+  matches behind each non-`INSUFFICIENT` tendency. No causal claim, no new evidence source.
+- **Historical post-match-learning catch-up** (`src/lib/evidence/post-match-learning-replay.ts`,
+  `replayPostMatchLearningHistory(organisationId, options)`) reprocesses every eligible completed
+  League/Event match through the shared `runPostMatchLearning()` orchestrator (ADR-0104) — the
+  *whole* pipeline (actual timeline + opponent + player + combination evidence), not just
+  opponent sporting-level evidence like the existing `opponent-replay.ts`/"Populate opponent
+  levels" tool (ARR-0031). This is how an existing organisation's historical data actually
+  receives Bundle 1's `ActualPositionInterval` ordering/truncation fixes. Per-match outcome is
+  `APPLIED`/`SKIPPED`/`FAILED`, idempotent and safe to rerun. Domain function only in this
+  bundle — no admin action/route wiring yet (deferred, same as `opponent-replay.ts`'s own
+  domain-then-UI split).
+- **Fixed a real, separate bug**: `src/lib/evidence/date-range-filter.ts`'s
+  `startsAtRangeFilter()` merges an optional `{ from, to }` pair into one Prisma range filter on
+  one key. `opponent-replay.ts` previously built `from`/`to` as two separate conditional object
+  spreads onto the same `startsAt`/`occurredAt` key, so supplying both silently dropped the
+  `from` bound (the second spread clobbered the first instead of merging) — a real bug in the
+  "Populate opponent levels" admin tool's date-range filtering, now fixed with a regression test.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2936,6 +2979,11 @@ Avoid:
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
 | `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
 | `src/lib/evidence/match-state-timeline.ts` | Canonical `MatchStateInterval`/`MatchTransition` reconstruction (ADR-0113): `buildMatchStateTimeline()`, pure `deriveMatchStateIntervals`/`deriveMatchTransitions`, match phase windows, and the shared `buildSegmentsFromIntervals` segment primitive (moved from `combination-topology.ts`) |
+| `src/lib/evidence/match-phase-pattern-evidence.ts` | Team-season match-phase pattern aggregation (ADR-0114): `getTeamSeasonMatchPhasePatterns()`, derived not persisted, confidence-scored |
+| `src/lib/opponents/playing-style-aggregation.ts` | Pure opponent tactical-tendency aggregation from `OpponentEncounterObservation.playingStyleTags` (ADR-0114): confidence, recency window, "our response" outcome derivation |
+| `src/lib/opponents/playing-style-query.ts` | DB-bound `getOpponentTacticalTendencies()`/`getOpponentTendencyOutcomes()` (ADR-0114) |
+| `src/lib/evidence/post-match-learning-replay.ts` | Historical catch-up: `replayPostMatchLearningHistory()` reprocesses every eligible completed match through `runPostMatchLearning()` (ADR-0114) |
+| `src/lib/evidence/date-range-filter.ts` | `startsAtRangeFilter()` — shared `{from,to}` → one Prisma range-filter merge, used by `post-match-learning-replay.ts` and `opponent-replay.ts` |
 | `src/lib/evidence/post-match-learning.ts` | `runPostMatchLearning(ref)` — the one shared post-match learning orchestrator used by League and Event report completion |
 | `src/lib/evidence/adapters/league-evidence-adapter.ts` | Builds a League `FootballMatchRef` (`buildLeagueMatchRef`), resolving `leagueSeasonId` via the match's round |
 | `src/lib/evidence/adapters/event-evidence-adapter.ts` | Builds an Event `FootballMatchRef` (`buildEventMatchRef`), resolving `evidenceLeagueSeasonId` via football-group + date-range overlap (learning context only, never League competition membership) |
