@@ -823,6 +823,42 @@ this bundle only adds UI over what Bundle 2 already computes.
   of this — the analytical/observability surfaces stay out of live execution views, per
   PROGRAMME.md's live-mode boundary.
 
+### Reactive pre-match scenario evaluation (Evidence-Informed Match Planning, Bundle 4 — ADR-0115)
+
+The shared "what happens if I change this?" evaluator for a hypothetical (not-yet-played)
+starting line-up + planned rotation sequence. Pure and read-only — never mutates a
+`PlannedRotation`/`PlannedRotationChange` row; reactive because it is a pure function of its
+inputs, so any single-field plan edit (starter, position, incoming/outgoing player, transition
+time, batch size, or an earlier transition) recomputes the full downstream sequence on its own.
+
+- `src/lib/evidence/match-state-timeline.ts`'s `diffPlayerStates()` — extracted from Bundle 1's
+  `deriveMatchTransitions()` — is the shared structural-diff primitive (players off/on/remaining,
+  position-only changes, disruption descriptors) now used by both actual history (Bundle 1) and
+  hypothetical planning (this bundle). `line`/`lane` are optional on the shared player-state
+  shape and degrade gracefully when absent — a planned change has no resolved formation-slot
+  line/lane the way an actual `ActualPositionInterval` row does.
+- `src/lib/planned-rotation/scenario-evaluation.ts` (new) — `evaluatePlannedScenario()` builds the
+  full planned on-field sequence by calling the existing `projectPlannedLineup()` (unchanged) once
+  per planned-change boundary, diffs consecutive states via `diffPlayerStates()`, and attaches
+  per-transition combination evidence (existing) and team-season match-phase pattern evidence
+  (Bundle 2), plus opponent tactical tendency (Bundle 2) as match-level context (not
+  per-transition — no role/tactical-function suitability reasoning exists yet, that is Bundle 5+).
+  `approximateMatchSeconds` on a planned change is confirmed to already be one flat "minutes since
+  kickoff" value (not period-relative like a live-recorded event), so no period-offset conversion
+  is needed here the way Bundle 1 needed for live-recorded timestamps.
+- Signal model: two kinds only — `OBSERVED_FACT` (direct combination-evidence citation) and
+  `HISTORICAL_PATTERN` (aggregated match-phase/opponent-tendency citation, always
+  confidence-qualified). PROGRAMME.md's third tier, "planning implication", is deliberately not
+  modeled as a distinct signal kind yet — a genuine implication needs role-suitability reasoning
+  that doesn't exist until Bundle 5. This bundle shows evidence; it does not advise.
+- `checkPlannedRotationCoverageAction()` (`planned-rotation-actions.ts`) is extended, not
+  replaced: it now computes a real `totalMatchSeconds` (via `getLeaguePeriodConfig`/
+  `getTotalPeriodDurationMs`, Bundle 1 — previously hardcoded to `0`) and calls
+  `evaluatePlannedScenario()`, returning a new `scenario` field alongside the existing
+  `issues`/`partnershipEvidence`. `PlannedRotationPanel`'s new "what happens with this plan"
+  section is distinct from (and complementary to) the existing starting-XI-only "Partnership
+  evidence" section.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2689,7 +2725,8 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/lib/planned-rotation/planned-rotation.ts` | Planned rotation domain service: CRUD, structured validation (PlannedRotationValidationIssue), lineup projection, minutes projection, coverage checking (`checkPlannedRotationCoverage`) |
-| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation; `checkPlannedRotationCoverageAction` (starters read from the team's current match line-up, never fabricated from the full squad) plus its planned partnership evidence |
+| `src/app/(app)/matches/planned-rotation-actions.ts` | Server actions: create, update, delete, get, validate planned rotation; `checkPlannedRotationCoverageAction` (starters read from the team's current match line-up, never fabricated from the full squad) plus its planned partnership evidence and full scenario evaluation (ADR-0115) |
+| `src/lib/planned-rotation/scenario-evaluation.ts` | Bundle 4 (ADR-0115): `evaluatePlannedScenario()` — the shared reactive "what happens if I change this?" evaluator for a hypothetical plan, built on `projectPlannedLineup()` and the shared `diffPlayerStates()` primitive |
 | `src/app/(app)/matches/lineup-combination-evidence-actions.ts` | Server action: season partnership evidence relevant to a specific set of planned-together players — shared by the Tactics and Rotations tabs |
 | `src/components/matches/planned-partnership-evidence.tsx` | Presentational: factual season partnership evidence list, shared by the Tactics and Rotations tabs |
 | `src/app/(app)/matches/planned-rotation-live-actions.ts` | Server actions: apply (writes real actual-timeline events server-side), skip, delay, modify planned change during live match |
@@ -3010,7 +3047,7 @@ Avoid:
 | `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
 | `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
-| `src/lib/evidence/match-state-timeline.ts` | Canonical `MatchStateInterval`/`MatchTransition` reconstruction (ADR-0113): `buildMatchStateTimeline()`, pure `deriveMatchStateIntervals`/`deriveMatchTransitions`, match phase windows, and the shared `buildSegmentsFromIntervals` segment primitive (moved from `combination-topology.ts`) |
+| `src/lib/evidence/match-state-timeline.ts` | Canonical `MatchStateInterval`/`MatchTransition` reconstruction (ADR-0113): `buildMatchStateTimeline()`, pure `deriveMatchStateIntervals`/`deriveMatchTransitions`, match phase windows, the shared `buildSegmentsFromIntervals` segment primitive (moved from `combination-topology.ts`), and the shared `diffPlayerStates()` structural-diff primitive (ADR-0115, also used by `scenario-evaluation.ts`) |
 | `src/lib/evidence/match-phase-pattern-evidence.ts` | Team-season match-phase pattern aggregation (ADR-0114): `getTeamSeasonMatchPhasePatterns()`, derived not persisted, confidence-scored |
 | `src/lib/opponents/playing-style-aggregation.ts` | Pure opponent tactical-tendency aggregation from `OpponentEncounterObservation.playingStyleTags` (ADR-0114): confidence, recency window, "our response" outcome derivation |
 | `src/lib/opponents/playing-style-query.ts` | DB-bound `getOpponentTacticalTendencies()`/`getOpponentTendencyOutcomes()` (ADR-0114) |
