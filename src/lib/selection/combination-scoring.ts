@@ -1,5 +1,6 @@
 import type { ConfidenceLevel } from "@/lib/evidence/combination-topology";
 import type { CoachingIntentCategory } from "@/generated/prisma/client";
+import { capEvidenceBonus } from "@/lib/policies/evidence-guardrails";
 
 export type CombinationScoringInput = {
   playerIds: string[];
@@ -83,8 +84,10 @@ export function getCombinationScoreModifier(
     totalBonus += COMBINATION_SCORING_BONUS[evidence.confidence] ?? 0;
   }
 
-  const cappedBonus = Math.min(totalBonus, MAX_COMBINATION_BONUS);
-  return Math.round(cappedBonus * multiplier);
+  // Bundle 6 (ADR-0117): capping/rounding delegated to the shared evidence-guardrails primitive
+  // — same behaviour as before (totalBonus is already non-negative here), now reused by every
+  // future evidence-informed scoring signal instead of being reimplemented per signal.
+  return capEvidenceBonus(totalBonus, MAX_COMBINATION_BONUS, multiplier);
 }
 
 export function findPartnerCombinations(
