@@ -859,6 +859,50 @@ time, batch size, or an earlier transition) recomputes the full downstream seque
   section is distinct from (and complementary to) the existing starting-XI-only "Partnership
   evidence" section.
 
+### Outfield role suitability and tactical functions (Evidence-Informed Match Planning, Bundle 5 — ADR-0116)
+
+Makes outfield planning flexible enough to solve whole-squad problems without treating a declared
+position as a rigid queue — the "five-striker case": if five players are all configured primarily
+as Striker, automation must not solve fairness by rotating those five through one ST slot while
+every other player stays on all match. It must consider reasonable alternate outfield roles
+supported by attributes, declared secondary/tertiary positions, or demonstrated exposure — never a
+role the player has no support for, merely to equalise minutes. This bundle is infrastructure and
+observability only; nothing here changes what team-composition, Event squad generation, or draft
+selection actually produce yet (that starts at Bundle 7).
+
+- `src/domain/team-composition/outfield-role-evidence.ts` (new, pure, DB-free) —
+  `OutfieldStructuralRole = Exclude<StructuralRole, "GOALKEEPER">` enforces the goalkeeper boundary
+  (D-011) at the type level, not just by runtime discipline. `computeOutfieldRoleSuitabilityProfile()`
+  classifies each of the four outfield roles as `NATURAL` (primary declared fit) → `PLAUSIBLE`
+  (secondary/tertiary declared fit) → `DEVELOPMENTAL` (no declared fit, but demonstrated
+  realised-position exposure at `EMERGING`+ confidence) → `UNSUPPORTED` (neither). Deliberately
+  **not** built on `RoleSuitabilityProfile`/`getPositionFit()` — that function's existing
+  "a role accepting `flexible` gets at least `TERTIARY`" floor is correct for team-composition's
+  own cross-team-fill problem, but makes `NO_FIT`/`UNSUPPORTED` structurally unreachable, which
+  would defeat the five-striker case's entire point. See ADR-0116 for the full audit finding.
+- `computeTacticalFunctionFit()`/`computeTacticalFunctionProfile()` derive six tactical functions
+  (first-line press, pace in behind, hold-up/link play, central defensive continuity, ball
+  progression, width) from explicit `Player` attribute fields and the role-suitability gate above
+  — never a vague AI label. A function is `NOT_APPLICABLE` when none of its applicable roles are
+  supported for that player, or no relevant attribute is recorded. Two players in the same
+  declared position can show different fits for the same function (PROGRAMME.md's worked
+  example).
+- `src/lib/players/get-player-outfield-role-suitability.ts` (DB-bound adapter) combines the
+  player's declared position with the existing I-004 Position & Formation Exposure evidence
+  (`getPositionExposure()`, never a second exposure query), resolving the active league season via
+  the same `resolveActiveLeagueSeason()` heuristic the Rounds list page already uses.
+- `PlayerOutfieldRoleSuitabilityPanel` renders read-only on the Player Profile page
+  (`/o/{orgSlug}/players/[playerId]`), factual explanations only — never an opaque score.
+- `buildRoleSuitability()` (declared position → `RoleSuitabilityProfile`) moved from a private
+  function inside `league-team-adapter.ts` to a shared, exported owner in `position-suitability.ts`
+  — unrelated mechanical hygiene found while auditing this area, not itself part of the
+  goalkeeper-boundary/five-striker fix.
+- ARR-0040 records a separate, pre-existing residue found during this same audit: declared-position
+  fit-tier logic is independently implemented a second time in
+  `src/lib/players/player-position-resolver.ts` (used by the Event squad/lineup pipeline),
+  duplicating `position-suitability.ts`'s `getPositionFit()`. Not consolidated in this bundle —
+  touches the production-critical Event generation pipeline, out of scope here.
+
 ### Quick observations
 
 A capture-first, classify-later inbox (`src/lib/coaching/quick-observation.ts`) for a note the coach wants to record in the moment without deciding up front which existing evidence owner it belongs to. No AI classification.
@@ -2745,7 +2789,10 @@ Rules:
 | File | Purpose |
 |------|---------|
 | `src/domain/team-composition/team-composition-types.ts` | Shared contract: TeamCompositionProblem, TeamCompositionProposal, CompositionPlayer, RoleSuitabilityProfile, all scenario/metric/validation types |
-| `src/domain/team-composition/position-suitability.ts` | Position mapping, fit tiers, role-relevant strength, scarcity, deterministic sorting |
+| `src/domain/team-composition/position-suitability.ts` | Position mapping, fit tiers, role-relevant strength, scarcity, deterministic sorting; `buildRoleSuitability()` — declared-position → `RoleSuitabilityProfile`, shared by `league-team-adapter.ts` and the Bundle 5 outfield-role-evidence adapter |
+| `src/domain/team-composition/outfield-role-evidence.ts` | Evidence-Informed Match Planning, Bundle 5 (ADR-0116): evidence-aware `OutfieldRoleSuitabilityTier` (NATURAL/PLAUSIBLE/DEVELOPMENTAL/UNSUPPORTED, goalkeeper excluded at the type level) and `TacticalFunctionFit` — pure, DB-free |
+| `src/lib/players/get-player-outfield-role-suitability.ts` | DB-bound adapter: combines declared position with I-004 Position & Formation Exposure evidence, resolves the active league season |
+| `src/components/players/player-outfield-role-suitability-panel.tsx` | Player Profile UI: read-only outfield-role-suitability and tactical-function-fit panel |
 | `src/domain/team-composition/structural-requirements.ts` | Fallback formation structures per game format, slot requirements |
 | `src/domain/team-composition/scenario-catalogue.ts` | Four system scenarios (PRESERVE_AND_REPAIR, BALANCED, ONE_STRONG_REST_BALANCED, TIERED_DESCENDING) with versioned definitions |
 | `src/domain/team-composition/proposal-validation.ts` | Hard constraint validation, team metrics, proposal metrics, explanation generation, input fingerprinting |

@@ -119,6 +119,92 @@ export interface RoleStrengthProfile {
   flexible: number | null;
 }
 
+// ── Outfield role suitability and tactical functions ─────────────────
+//
+// Evidence-Informed Match Planning, Bundle 5 (ADR-0116). Goalkeeper is
+// deliberately excluded from OutfieldStructuralRole at the type level —
+// this is the compile-time half of the goalkeeper boundary invariant
+// (AGENTS.md "Goalkeeper boundary"): a generic outfield suitability
+// calculation can never even express a goalkeeper eligibility claim.
+
+export type OutfieldStructuralRole = Exclude<StructuralRole, "GOALKEEPER">;
+
+export const OUTFIELD_STRUCTURAL_ROLES: readonly OutfieldStructuralRole[] =
+  STRUCTURAL_ROLES.filter((role): role is OutfieldStructuralRole => role !== "GOALKEEPER");
+
+/**
+ * Reuses the same three-level vocabulary as combination/match-phase/opponent-tendency
+ * evidence (`ConfidenceLevel`, `src/lib/evidence/combination-topology.ts`) — declared
+ * independently here rather than imported, since `src/domain/team-composition/` must stay free
+ * of any dependency on `src/lib/evidence/` (that module imports Prisma's `db`; a type-only
+ * import would erase at build time, but the domain layer's own convention — see
+ * `league-team-adapter.ts`'s header comment — is to keep this directory decoupled from
+ * persistence-layer modules even for types). The two declarations are structurally identical
+ * and interchangeable.
+ */
+export type OutfieldEvidenceConfidence = "INSUFFICIENT" | "EMERGING" | "ESTABLISHED";
+
+export type OutfieldRoleSuitabilityTier = "NATURAL" | "PLAUSIBLE" | "DEVELOPMENTAL" | "UNSUPPORTED";
+
+export const OUTFIELD_ROLE_SUITABILITY_LABELS: Record<OutfieldRoleSuitabilityTier, string> = {
+  NATURAL: "Natural",
+  PLAUSIBLE: "Plausible",
+  DEVELOPMENTAL: "Developmental",
+  UNSUPPORTED: "Unsupported",
+};
+
+/** Demonstrated realised-position exposure, summarised by outfield role. Derived from the
+ * existing I-004 Position & Formation Exposure evidence (`getPositionExposure()`) — never a
+ * second position-exposure query. */
+export interface OutfieldPositionExposureEvidence {
+  matchCountByRole: Partial<Record<OutfieldStructuralRole, number>>;
+}
+
+export interface OutfieldRoleSuitabilityResult {
+  role: OutfieldStructuralRole;
+  tier: OutfieldRoleSuitabilityTier;
+  declaredFit: PositionFitTier;
+  exposureConfidence: OutfieldEvidenceConfidence;
+  exposureMatchCount: number;
+  /** Factual, coach-facing rationale — never an opaque score (AGENTS.md Explanation model). */
+  explanation: string;
+}
+
+export type TacticalFunctionCode =
+  | "FIRST_LINE_PRESS"
+  | "PACE_IN_BEHIND"
+  | "HOLD_UP_LINK_PLAY"
+  | "CENTRAL_DEFENSIVE_CONTINUITY"
+  | "BALL_PROGRESSION"
+  | "WIDTH";
+
+export const TACTICAL_FUNCTION_CODES: readonly TacticalFunctionCode[] = [
+  "FIRST_LINE_PRESS",
+  "PACE_IN_BEHIND",
+  "HOLD_UP_LINK_PLAY",
+  "CENTRAL_DEFENSIVE_CONTINUITY",
+  "BALL_PROGRESSION",
+  "WIDTH",
+];
+
+export const TACTICAL_FUNCTION_LABELS: Record<TacticalFunctionCode, string> = {
+  FIRST_LINE_PRESS: "First-line press",
+  PACE_IN_BEHIND: "Pace in behind",
+  HOLD_UP_LINK_PLAY: "Hold-up / link play",
+  CENTRAL_DEFENSIVE_CONTINUITY: "Central defensive continuity",
+  BALL_PROGRESSION: "Ball progression",
+  WIDTH: "Width",
+};
+
+export type TacticalFunctionFitTier = "STRONG_FIT" | "MODERATE_FIT" | "WEAK_FIT" | "NOT_APPLICABLE";
+
+export interface TacticalFunctionFit {
+  function: TacticalFunctionCode;
+  tier: TacticalFunctionFitTier;
+  /** 1-10 composite score, or null when not applicable / no supporting attributes recorded. */
+  score: number | null;
+}
+
 // ── Target teams ────────────────────────────────────────────────
 
 export interface CompositionTargetTeam {
