@@ -32,31 +32,20 @@ import type {
   TeamCompositionProblem,
   TeamCompositionProposal,
   SystemTeamScenario,
-  RoleSuitabilityProfile,
   RoleStrengthProfile,
   BroadPosition,
   StructuralSlotRequirement,
   StructuralRole,
 } from "@/domain/team-composition/team-composition-types";
 import { computeCompositeRatings, type PlayerAttributeProfile } from "@/lib/events/event-types";
-import { mapPositionCodeToBroad, getPositionFit } from "@/domain/team-composition/position-suitability";
+import { mapPositionCodeToBroad, buildRoleSuitability } from "@/domain/team-composition/position-suitability";
 import { recordDecision } from "@/domain/assistant-manager/service";
 
 // ── Position mapping ──────────────────────────────────────────────
-
-function buildRoleSuitability(player: PlayerAttributeProfile): RoleSuitabilityProfile {
-  const primary = mapPositionCodeToBroad(player.primaryPosition ?? "") as BroadPosition;
-  const secondary = player.secondaryPosition ? (mapPositionCodeToBroad(player.secondaryPosition) as BroadPosition) : undefined;
-  const tertiary = player.tertiaryPosition ? (mapPositionCodeToBroad(player.tertiaryPosition) as BroadPosition) : undefined;
-
-  return {
-    goalkeeper: getPositionFit(primary, secondary, tertiary, ["goalkeeper"]),
-    defence: getPositionFit(primary, secondary, tertiary, ["defender", "flexible"]),
-    midfield: getPositionFit(primary, secondary, tertiary, ["midfielder", "flexible"]),
-    attack: getPositionFit(primary, secondary, tertiary, ["forward", "flexible"]),
-    flexible: getPositionFit(primary, secondary, tertiary, ["defender", "midfielder", "forward", "goalkeeper", "flexible"]),
-  };
-}
+//
+// buildRoleSuitability() moved to position-suitability.ts (ADR-0116) —
+// it is the shared owner now, reused by getPlayerOutfieldRoleSuitability()
+// as well as this adapter.
 
 export function buildRoleStrength(player: PlayerAttributeProfile): RoleStrengthProfile {
   const ratings = computeCompositeRatings(player);

@@ -89,7 +89,7 @@ export function getRoleFit(
   return player.roleSuitability[roleToKey(role)];
 }
 
-function roleToKey(role: StructuralRole): keyof RoleSuitabilityProfile {
+export function roleToKey(role: StructuralRole): keyof RoleSuitabilityProfile {
   switch (role) {
     case "GOALKEEPER": return "goalkeeper";
     case "DEFENCE": return "defence";
@@ -97,6 +97,36 @@ function roleToKey(role: StructuralRole): keyof RoleSuitabilityProfile {
     case "ATTACK": return "attack";
     case "FLEXIBLE": return "flexible";
   }
+}
+
+// ── Declared-position role suitability ──────────────────────────────
+//
+// The single owner of "declared primary/secondary/tertiary position ->
+// RoleSuitabilityProfile" (Evidence-Informed Match Planning, Bundle 5,
+// ADR-0116). Previously duplicated inline inside
+// league-team-adapter.ts; moved here so both league-team composition
+// and the evidence-aware outfield-role-suitability adapter
+// (src/lib/players/get-player-outfield-role-suitability.ts) share one
+// implementation instead of two copies of the same business rule.
+
+export interface DeclaredPlayerPositions {
+  primaryPosition: string | null;
+  secondaryPosition: string | null;
+  tertiaryPosition: string | null;
+}
+
+export function buildRoleSuitability(player: DeclaredPlayerPositions): RoleSuitabilityProfile {
+  const primary = mapPositionCodeToBroad(player.primaryPosition ?? "") as BroadPosition;
+  const secondary = player.secondaryPosition ? (mapPositionCodeToBroad(player.secondaryPosition) as BroadPosition) : undefined;
+  const tertiary = player.tertiaryPosition ? (mapPositionCodeToBroad(player.tertiaryPosition) as BroadPosition) : undefined;
+
+  return {
+    goalkeeper: getPositionFit(primary, secondary, tertiary, ["goalkeeper"]),
+    defence: getPositionFit(primary, secondary, tertiary, ["defender", "flexible"]),
+    midfield: getPositionFit(primary, secondary, tertiary, ["midfielder", "flexible"]),
+    attack: getPositionFit(primary, secondary, tertiary, ["forward", "flexible"]),
+    flexible: getPositionFit(primary, secondary, tertiary, ["defender", "midfielder", "forward", "goalkeeper", "flexible"]),
+  };
 }
 
 // ── Role-relevant strength ───────────────────────────────────────
