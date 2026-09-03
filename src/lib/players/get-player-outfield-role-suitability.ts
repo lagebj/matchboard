@@ -132,7 +132,10 @@ async function resolveExposureEvidence(
   return { leagueSeasonId: activeSeason.id, leagueSeasonLabel: activeSeason.name, exposure };
 }
 
-function summarizeExposureByOutfieldRole(realisedPositions: Record<string, number>): OutfieldPositionExposureEvidence {
+/** Exported for reuse by the Bundle 8 integrated starting-lineup generator
+ * (integrated-match-plan-actions.ts), which needs the identical realised-position -> outfield-role
+ * summarisation for a whole squad at once rather than one player at a time. */
+export function summarizeExposureByOutfieldRole(realisedPositions: Record<string, number>): OutfieldPositionExposureEvidence {
   const matchCountByRole: Partial<Record<OutfieldStructuralRole, number>> = {};
   for (const [label, count] of Object.entries(realisedPositions)) {
     const broad = mapPositionCodeToBroad(label) as BroadPosition;

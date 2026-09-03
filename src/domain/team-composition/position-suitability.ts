@@ -14,11 +14,41 @@ import type {
   RoleStrengthProfile,
   CompositionPlayer,
   StructuralSlotRequirement,
+  OutfieldStructuralRole,
 } from "./team-composition-types";
 
 import {
   FIT_TIER_PRIORITY,
 } from "./team-composition-types";
+
+// ── Match line-up position-label mapping (Bundle 7/8, ADR-0118) ─────
+//
+// `position`/slot-role strings arriving from a real match line-up are raw `FormationSlotRoleType`
+// values (DEFENDER/DEFENSIVE_MIDFIELDER/MIDFIELDER/ATTACKING_MIDFIELDER/FORWARD/FREE — see
+// checkPlannedRotationCoverageAction's identical convention), not the OutfieldStructuralRole
+// vocabulary role-suitability uses (DEFENCE/MIDFIELD/ATTACK/FLEXIBLE). The one shared owner for
+// this mapping — previously duplicated as a private function inside generate-rotation-plan.ts,
+// moved here once a second caller (integrated-match-plan-actions.ts) needed the identical logic.
+// Also accepts the OutfieldStructuralRole strings directly, so a caller that already resolved a
+// broad role works unchanged. Unrecognised labels default to FLEXIBLE rather than guessing a
+// specific line.
+export function mapPositionLabelToOutfieldRole(label: string): OutfieldStructuralRole {
+  switch (label) {
+    case "DEFENCE":
+    case "DEFENDER":
+      return "DEFENCE";
+    case "MIDFIELD":
+    case "MIDFIELDER":
+    case "DEFENSIVE_MIDFIELDER":
+    case "ATTACKING_MIDFIELDER":
+      return "MIDFIELD";
+    case "ATTACK":
+    case "FORWARD":
+      return "ATTACK";
+    default:
+      return "FLEXIBLE";
+  }
+}
 
 // ── Position mapping ──────────────────────────────────────────────
 

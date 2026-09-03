@@ -306,6 +306,68 @@ describe("suggestLineupForFormation", () => {
     expect(assignment!.playerId).toBe("p1");
     expect(assignment!.confidence).toBe("high");
   });
+
+  it("behaves identically when evidenceBonusForSlot is absent (Bundle 8 backward compatibility)", () => {
+    const withoutHook = suggestLineupForFormation({
+      formationSlots: [gkSlot, defSlot, midSlot],
+      playerPool: [
+        { id: "p1", firstName: "GK", lastName: "P", primaryPosition: "GK", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "p2", firstName: "Def", lastName: "P", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "p3", firstName: "Mid", lastName: "P", primaryPosition: "CM", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+    });
+
+    expect(withoutHook.assignments.map((a) => a.playerId).sort()).toEqual(["p1", "p2", "p3"]);
+  });
+
+  it("a bounded evidence bonus can tip the choice between two otherwise-tied candidates", () => {
+    const result = suggestLineupForFormation({
+      formationSlots: [defSlot],
+      playerPool: [
+        { id: "p1", firstName: "A", lastName: "CB", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "p2", firstName: "B", lastName: "CB", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+      evidenceBonusForSlot: (playerId) =>
+        playerId === "p2" ? { score: 20, reasons: ["Behind an equal share of starts this season"] } : undefined,
+    });
+
+    const assignment = result.assignments.find((a) => a.slotId === "def1");
+    expect(assignment!.playerId).toBe("p2");
+    expect(assignment!.reasons).toContain("Behind an equal share of starts this season");
+  });
+
+  it("a bounded evidence bonus never overrides a genuine position mismatch", () => {
+    const result = suggestLineupForFormation({
+      formationSlots: [defSlot],
+      playerPool: [
+        { id: "p1", firstName: "Fit", lastName: "CB", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "p2", firstName: "NoFit", lastName: "ST", primaryPosition: "ST", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+      evidenceBonusForSlot: (playerId) =>
+        playerId === "p2" ? { score: 500, reasons: ["Huge but still bounded bonus"] } : undefined,
+    });
+
+    const assignment = result.assignments.find((a) => a.slotId === "def1");
+    expect(assignment!.playerId).toBe("p1");
+  });
+
+  it("passes already-assigned player ids so the hook can reason about combinations", () => {
+    const alreadyAssignedSeen: string[][] = [];
+    suggestLineupForFormation({
+      formationSlots: [defSlot, midSlot],
+      playerPool: [
+        { id: "p1", firstName: "Def", lastName: "P", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "p2", firstName: "Mid", lastName: "P", primaryPosition: "CM", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+      evidenceBonusForSlot: (_playerId, _slot, alreadyAssignedPlayerIds) => {
+        alreadyAssignedSeen.push(alreadyAssignedPlayerIds);
+        return undefined;
+      },
+    });
+
+    // The second slot's scoring pass should see the first slot's assignment already made.
+    expect(alreadyAssignedSeen.some((seen) => seen.includes("p1"))).toBe(true);
+  });
 });
 
 describe("preserveAssignmentsOnChange", () => {

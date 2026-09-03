@@ -193,6 +193,25 @@ export function MatchTacticsPanel({
     }
   }, [matchId, lineup, lineupSuggestion, refreshLineup]);
 
+  const handleGenerateIntegrated = useCallback(() => {
+    const formationId = lineup?.formationId;
+    if (!formationId) return;
+    startTransition(async () => {
+      try {
+        setError(null);
+        const { generateIntegratedMatchPlanAction } = await import("@/app/(app)/matches/integrated-match-plan-actions");
+        const result = await generateIntegratedMatchPlanAction(matchId, formationId);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+        await refreshLineup();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to generate the integrated match plan");
+      }
+    });
+  }, [matchId, lineup, refreshLineup]);
+
   const handleClearSuggestions = useCallback(() => {
     if (!lineup) return;
     startTransition(async () => {
@@ -504,6 +523,9 @@ export function MatchTacticsPanel({
             <>
               <Button variant="secondary" size="sm" disabled={isPending} onClick={handleSuggestLineup}>
                 Suggest lineup
+              </Button>
+              <Button variant="secondary" size="sm" disabled={isPending} onClick={handleGenerateIntegrated}>
+                Generate lineup &amp; rotation plan
               </Button>
               <Button variant="ghost" size="sm" disabled={isPending} onClick={handleUseBestLineup}>
                 <Copy className="mr-1 h-3.5 w-3.5" />

@@ -163,6 +163,14 @@ export type LineupSuggestion = {
   unfilledSlotIds: string[];
 };
 
+export type LineupEvidenceBonus = {
+  /** Already bounded/capped by the caller (Evidence-Informed Match Planning, Bundle 8,
+   * ADR-0119) — this module never computes or caps evidence itself, it only adds whatever the
+   * caller supplies to the existing position-fit score. */
+  score: number;
+  reasons: string[];
+};
+
 export type SuggestLineupInput = {
   formationSlots: FormationSlotData[];
   playerPool: {
@@ -178,10 +186,20 @@ export type SuggestLineupInput = {
     playerId: string;
     locked: boolean;
   }[];
+  /**
+   * Optional evidence-aware scoring hook (Bundle 8, ADR-0119). When supplied, adds a bounded
+   * score contribution (and factual reasons) for a specific (player, slot) pair — role
+   * suitability, fairness start-need, opponent-function fit, combination evidence, or any
+   * combination thereof, already bounded by the caller. Absent by default, so every existing
+   * caller (Event lineup suggestion, the plain "Suggest lineup" flow) is unaffected — this
+   * module never imports evidence/policy code directly to compute it itself, matching AGENTS.md's
+   * "one business operation" rule: role/fairness/evidence scoring is owned elsewhere.
+   */
+  evidenceBonusForSlot?: (playerId: string, slot: FormationSlotData, alreadyAssignedPlayerIds: string[]) => LineupEvidenceBonus | undefined;
 };
 
 export function suggestLineupForFormation(input: SuggestLineupInput): LineupSuggestion {
-  const { formationSlots, playerPool, existingAssignments = [] } = input;
+  const { formationSlots, playerPool, existingAssignments = [], evidenceBonusForSlot } = input;
 
   const assignments: LineupSuggestion["assignments"] = [];
   const warnings: string[] = [];
@@ -253,27 +271,27 @@ export function suggestLineupForFormation(input: SuggestLineupInput): LineupSugg
     type ScoredPlayer = {
       player: (typeof playerPool)[number];
       score: number;
-      reason: string;
+      reasons: string[];
     };
 
     const scored: ScoredPlayer[] = availablePlayers
       .map((player) => {
         const match = playerMatchesSlot(player.primaryPosition, player.secondaryPosition, slot.acceptedPositionIds as BroadPosition[]);
         let score = 0;
-        let reason = "";
+        const reasons: string[] = [];
 
         if (!match.match) {
           score -= 1000;
-          reason = `No position match for ${slot.label}`;
+          reasons.push(`No position match for ${slot.label}`);
         } else if (match.level === "primary") {
           score += 100;
-          reason = `Registered primary position: ${mapExistingPositionToBroadSimple(player.primaryPosition)}`;
+          reasons.push(`Registered primary position: ${mapExistingPositionToBroadSimple(player.primaryPosition)}`);
         } else if (match.level === "secondary") {
           score += 70;
-          reason = `Can play ${mapExistingPositionToBroadSimple(player.secondaryPosition ?? "")}`;
+          reasons.push(`Can play ${mapExistingPositionToBroadSimple(player.secondaryPosition ?? "")}`);
         } else if (match.level === "flexible") {
           score += 25;
-          reason = "Flexible position";
+          reasons.push("Flexible position");
         }
 
         const roleBroad = slot.roleType === "GOALKEEPER" ? "goalkeeper" :
@@ -287,7 +305,15 @@ export function suggestLineupForFormation(input: SuggestLineupInput): LineupSugg
           score += 10;
         }
 
-        return { player, score, reason };
+        if (evidenceBonusForSlot) {
+          const bonus = evidenceBonusForSlot(player.id, slot, [...assignedPlayerIds]);
+          if (bonus) {
+            score += bonus.score;
+            reasons.push(...bonus.reasons);
+          }
+        }
+
+        return { player, score, reasons };
       })
       .sort((a, b) => b.score - a.score);
 
@@ -304,7 +330,7 @@ export function suggestLineupForFormation(input: SuggestLineupInput): LineupSugg
         playerId: best.player.id,
         source: "suggested",
         locked: false,
-        reasons: [best.reason],
+        reasons: best.reasons,
         confidence,
       });
     } else {
