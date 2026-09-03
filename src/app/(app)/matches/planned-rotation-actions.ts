@@ -26,6 +26,14 @@ import {
   selectRelevantPartnerships,
   type SeasonCombinationSummary,
 } from "@/lib/evidence/combination-aggregation";
+import { getMatchPhaseWindows } from "@/lib/evidence/match-state-timeline";
+import { getLeaguePeriodConfig, getTotalPeriodDurationMs } from "@/lib/live-match/period-config";
+import { getTeamSeasonMatchPhasePatterns } from "@/lib/evidence/match-phase-pattern-evidence";
+import { getOpponentTacticalTendencies } from "@/lib/opponents/playing-style-query";
+import {
+  evaluatePlannedScenario,
+  type PlannedScenarioEvaluation,
+} from "@/lib/planned-rotation/scenario-evaluation";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: { type: string; filter: Record<string, unknown> }): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -213,8 +221,14 @@ export async function checkPlannedRotationCoverageAction(
   teamId: string,
   changes: PlannedRotationChangeData[],
 ): Promise<
-  | { success: true; hasLineup: true; issues: PlannedRotationCoverageIssue[]; partnershipEvidence: SeasonCombinationSummary[] }
-  | { success: true; hasLineup: false; issues: []; partnershipEvidence: [] }
+  | {
+      success: true;
+      hasLineup: true;
+      issues: PlannedRotationCoverageIssue[];
+      partnershipEvidence: SeasonCombinationSummary[];
+      scenario: PlannedScenarioEvaluation;
+    }
+  | { success: true; hasLineup: false; issues: []; partnershipEvidence: []; scenario: null }
   | { success: false; error: string }
 > {
   try {
@@ -223,7 +237,13 @@ export async function checkPlannedRotationCoverageAction(
 
     const match = await db.match.findFirst({
       where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true, gameFormat: true, matchRound: { select: { leagueSeasonId: true } } },
+      select: {
+        id: true,
+        gameFormat: true,
+        matchType: true,
+        opponentTeamId: true,
+        matchRound: { select: { leagueSeasonId: true } },
+      },
     });
     if (!match) return { success: false, error: "Match not found or access denied." };
 
@@ -235,7 +255,7 @@ export async function checkPlannedRotationCoverageAction(
       },
     });
     if (!lineup || lineup.assignments.length === 0) {
-      return { success: true, hasLineup: false, issues: [], partnershipEvidence: [] };
+      return { success: true, hasLineup: false, issues: [], partnershipEvidence: [], scenario: null };
     }
 
     const selections = await db.selection.findMany({
@@ -254,22 +274,42 @@ export async function checkPlannedRotationCoverageAction(
 
     const minimumOnPitch = GAME_FORMAT_PLAYERS[match.gameFormat as GameFormat] ?? starters.length;
 
+    // Total match duration in seconds (Evidence-Informed Match Planning programme, Bundle 4) --
+    // previously always 0 ("no per-change duration model exists"); the League period config
+    // (Bundle 1) already gives a real answer via its configured half lengths.
+    const periodConfig = getLeaguePeriodConfig(match.matchType);
+    const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
+    const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : null;
+
     const issues = checkPlannedRotationCoverage(starters, changes, squadPlayerIds, {
-      // Unused by the current coverage checks (no per-change duration model exists for League
-      // matches — see AGENTS.md/hasLeagueMatchPassed on why duration isn't fabricated); kept only
-      // to satisfy the function's options shape.
-      totalMatchSeconds: 0,
+      totalMatchSeconds: totalMatchSeconds ?? 0,
       minimumOnPitch,
       positions: [],
     });
 
     const seasonEvidence = await getSeasonCombinationEvidence(match.matchRound.leagueSeasonId);
+    const combinationEvidence = aggregateSeasonCombinations(seasonEvidence);
     const partnershipEvidence = selectRelevantPartnerships(
       starters.map((s) => s.playerId),
-      aggregateSeasonCombinations(seasonEvidence),
+      combinationEvidence,
     );
 
-    return { success: true, hasLineup: true, issues, partnershipEvidence };
+    const [matchPhasePatterns, opponentTendencies] = await Promise.all([
+      getTeamSeasonMatchPhasePatterns(match.matchRound.leagueSeasonId, teamId, ctx.orgFilter),
+      match.opponentTeamId ? getOpponentTacticalTendencies(match.opponentTeamId, ctx.orgFilter) : Promise.resolve([]),
+    ]);
+
+    const scenario = evaluatePlannedScenario({
+      starters,
+      changes,
+      totalMatchSeconds,
+      phaseWindows: getMatchPhaseWindows(periodConfig),
+      matchPhasePatterns,
+      combinationEvidence,
+      opponentTendencies,
+    });
+
+    return { success: true, hasLineup: true, issues, partnershipEvidence, scenario };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to check rotation coverage." };
   }

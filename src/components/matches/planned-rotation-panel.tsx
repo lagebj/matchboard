@@ -16,6 +16,7 @@ import {
 } from "@/app/(app)/matches/planned-rotation-actions";
 import type { PlannedRotationWithChanges, PlannedRotationChangeData, PlannedRotationValidationIssue, PlannedRotationCoverageIssue } from "@/lib/planned-rotation/planned-rotation";
 import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
+import type { PlannedScenarioEvaluation } from "@/lib/planned-rotation/scenario-evaluation";
 
 type PlannedRotationPanelProps = {
   matchId: string;
@@ -269,6 +270,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
   const [coverageIssues, setCoverageIssues] = useState<PlannedRotationCoverageIssue[]>([]);
   const [hasLineup, setHasLineup] = useState<boolean | null>(null);
   const [partnershipEvidence, setPartnershipEvidence] = useState<SeasonCombinationSummary[]>([]);
+  const [scenario, setScenario] = useState<PlannedScenarioEvaluation | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingChangeId, setEditingChangeId] = useState<string | null>(null);
 
@@ -292,6 +294,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
         setHasLineup(result.hasLineup);
         setCoverageIssues(result.issues);
         setPartnershipEvidence(result.partnershipEvidence);
+        setScenario(result.hasLineup ? result.scenario : null);
       }
     } catch {
       // coverage checking is advisory; don't block on failure
@@ -665,6 +668,46 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
               )}
             />
           </div>
+        </div>
+      )}
+
+      {scenario && (scenario.opponentContext.length > 0 || scenario.transitions.some((t) => t.signals.length > 0)) && (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-xs font-semibold text-[var(--text-soft)]">
+            What happens with this plan — a hypothetical projection, not a prediction
+          </p>
+
+          {scenario.opponentContext.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {scenario.opponentContext.map((signal, index) => (
+                <li key={index} className="text-xs text-[var(--text-muted)]">
+                  {signal.text}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {scenario.transitions
+            .filter((t) => t.signals.length > 0)
+            .map((transition, index) => (
+              <div
+                key={index}
+                className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2.5"
+              >
+                <p className="text-xs font-medium text-[var(--text-soft)]">
+                  At ~{formatSeconds(transition.atSeconds)}
+                  {transition.substitutionCount > 0 ? ` · ${transition.substitutionCount} change${transition.substitutionCount === 1 ? "" : "s"}` : ""}
+                  {transition.positionOnlyChanges.length > 0 ? " · position swap" : ""}
+                </p>
+                <ul className="mt-1 flex flex-col gap-1">
+                  {transition.signals.map((signal, signalIndex) => (
+                    <li key={signalIndex} className="text-xs text-[var(--text-muted)]">
+                      {signal.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
         </div>
       )}
     </Surface>

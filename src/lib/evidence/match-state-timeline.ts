@@ -368,6 +368,92 @@ export function deriveMatchStateIntervals(
   });
 }
 
+export type PlayerStateDiff = {
+  playersOff: string[];
+  playersOn: string[];
+  playersRemaining: string[];
+  positionOnlyChanges: MatchTransitionPositionChange[];
+  substitutionCount: number;
+  changedLines: string[];
+  isSimultaneousSubstitutionAndReshuffle: boolean;
+  disruptionDescriptors: TransitionDisruptionDescriptor[];
+};
+
+/**
+ * Pure diff between two consecutive on-pitch player sets — the shared structural-change
+ * primitive behind both `deriveMatchTransitions` (actual history, this file) and the
+ * Evidence-Informed Match Planning programme's Bundle 4 hypothetical-plan evaluator
+ * (`src/lib/planned-rotation/scenario-evaluation.ts`), which has no score/period/goal
+ * concept to attach and calls this directly rather than duplicating the diffing logic.
+ * `line`/`lane` are optional inputs — a planned/hypothetical player state legitimately may
+ * not have them resolved yet (no formation-slot line/lane lookup for a planned change), and
+ * every line-based descriptor below degrades gracefully (never guesses) when absent.
+ */
+export function diffPlayerStates(before: MatchStatePlayer[], after: MatchStatePlayer[]): PlayerStateDiff {
+  const beforeById = new Map(before.map((p) => [p.playerId, p]));
+  const afterById = new Map(after.map((p) => [p.playerId, p]));
+
+  const playersOff = before.filter((p) => !afterById.has(p.playerId)).map((p) => p.playerId);
+  const playersOn = after.filter((p) => !beforeById.has(p.playerId)).map((p) => p.playerId);
+  const playersRemaining = before.filter((p) => afterById.has(p.playerId)).map((p) => p.playerId);
+
+  const positionOnlyChanges: MatchTransitionPositionChange[] = [];
+  for (const playerId of playersRemaining) {
+    const from = beforeById.get(playerId)!;
+    const to = afterById.get(playerId)!;
+    if (from.position !== to.position || from.line !== to.line || from.lane !== to.lane) {
+      positionOnlyChanges.push({
+        playerId,
+        fromPosition: from.position,
+        toPosition: to.position,
+        fromLine: from.line,
+        toLine: to.line,
+      });
+    }
+  }
+
+  const changedLines = new Set<string>();
+  for (const playerId of playersOff) {
+    const line = beforeById.get(playerId)?.line;
+    if (line) changedLines.add(line);
+  }
+  for (const playerId of playersOn) {
+    const line = afterById.get(playerId)?.line;
+    if (line) changedLines.add(line);
+  }
+  for (const change of positionOnlyChanges) {
+    if (change.fromLine) changedLines.add(change.fromLine);
+    if (change.toLine) changedLines.add(change.toLine);
+  }
+
+  const substitutionCount = Math.max(playersOff.length, playersOn.length);
+  const hasSubstitution = substitutionCount > 0;
+  const hasPositionOnly = positionOnlyChanges.length > 0;
+
+  const disruptionDescriptors: TransitionDisruptionDescriptor[] = [];
+  if (hasSubstitution && hasPositionOnly) disruptionDescriptors.push("SUBSTITUTION_WITH_RESHUFFLE");
+  else if (hasSubstitution) disruptionDescriptors.push("SUBSTITUTION_ONLY");
+  else if (hasPositionOnly) disruptionDescriptors.push("POSITION_ONLY");
+
+  if (changedLines.size > 0) {
+    disruptionDescriptors.push(changedLines.size <= 1 ? "SINGLE_LINE_CHANGE" : "MULTI_LINE_CHANGE");
+  }
+  if (changedLines.has("DEF") && changedLines.has("MID")) {
+    disruptionDescriptors.push("CENTRAL_AXIS_CHANGED");
+  }
+
+  return {
+    playersOff,
+    playersOn,
+    playersRemaining,
+    positionOnlyChanges,
+    substitutionCount,
+    changedLines: [...changedLines],
+    isSimultaneousSubstitutionAndReshuffle: hasSubstitution && hasPositionOnly,
+    disruptionDescriptors,
+  };
+}
+
 /**
  * Pure derivation of canonical transitions from already-derived match-state intervals. A
  * transition exists only between two adjacent intervals — there is exactly one boundary per
@@ -381,71 +467,12 @@ export function deriveMatchTransitions(stateIntervals: MatchStateInterval[]): Ma
     const before = stateIntervals[i]!;
     const after = stateIntervals[i + 1]!;
 
-    const beforeById = new Map(before.players.map((p) => [p.playerId, p]));
-    const afterById = new Map(after.players.map((p) => [p.playerId, p]));
-
-    const playersOff = before.players.filter((p) => !afterById.has(p.playerId)).map((p) => p.playerId);
-    const playersOn = after.players.filter((p) => !beforeById.has(p.playerId)).map((p) => p.playerId);
-    const playersRemaining = before.players
-      .filter((p) => afterById.has(p.playerId))
-      .map((p) => p.playerId);
-
-    const positionOnlyChanges: MatchTransitionPositionChange[] = [];
-    for (const playerId of playersRemaining) {
-      const from = beforeById.get(playerId)!;
-      const to = afterById.get(playerId)!;
-      if (from.position !== to.position || from.line !== to.line || from.lane !== to.lane) {
-        positionOnlyChanges.push({
-          playerId,
-          fromPosition: from.position,
-          toPosition: to.position,
-          fromLine: from.line,
-          toLine: to.line,
-        });
-      }
-    }
-
-    const changedLines = new Set<string>();
-    for (const playerId of playersOff) {
-      const line = beforeById.get(playerId)?.line;
-      if (line) changedLines.add(line);
-    }
-    for (const playerId of playersOn) {
-      const line = afterById.get(playerId)?.line;
-      if (line) changedLines.add(line);
-    }
-    for (const change of positionOnlyChanges) {
-      if (change.fromLine) changedLines.add(change.fromLine);
-      if (change.toLine) changedLines.add(change.toLine);
-    }
-
-    const substitutionCount = Math.max(playersOff.length, playersOn.length);
-    const hasSubstitution = substitutionCount > 0;
-    const hasPositionOnly = positionOnlyChanges.length > 0;
-
-    const disruptionDescriptors: TransitionDisruptionDescriptor[] = [];
-    if (hasSubstitution && hasPositionOnly) disruptionDescriptors.push("SUBSTITUTION_WITH_RESHUFFLE");
-    else if (hasSubstitution) disruptionDescriptors.push("SUBSTITUTION_ONLY");
-    else if (hasPositionOnly) disruptionDescriptors.push("POSITION_ONLY");
-
-    if (changedLines.size > 0) {
-      disruptionDescriptors.push(changedLines.size <= 1 ? "SINGLE_LINE_CHANGE" : "MULTI_LINE_CHANGE");
-    }
-    if (changedLines.has("DEF") && changedLines.has("MID")) {
-      disruptionDescriptors.push("CENTRAL_AXIS_CHANGED");
-    }
+    const diff = diffPlayerStates(before.players, after.players);
 
     transitions.push({
       atMs: after.startMs,
       period: after.period ?? before.period,
-      playersOff,
-      playersOn,
-      playersRemaining,
-      positionOnlyChanges,
-      substitutionCount,
-      changedLines: [...changedLines],
-      isSimultaneousSubstitutionAndReshuffle: hasSubstitution && hasPositionOnly,
-      disruptionDescriptors,
+      ...diff,
       scoreBefore: before.scoreAtEnd,
       scoreAfter: after.scoreAtStart,
       isAtNaturalBreak: before.period !== null && after.period !== null && before.period !== after.period,
