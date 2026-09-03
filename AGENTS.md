@@ -651,7 +651,7 @@ Combination evidence describes what actually happened while a defined football r
 
 - Derived only from the actual position timeline (`ActualPositionInterval`, including its `line`/`lane` classification), never from planned assignment.
 - Confidence (`INSUFFICIENT`/`EMERGING`/`ESTABLISHED`) reflects how much evidence exists, not how good the combination is. Unknown is neutral, never negative.
-- Consumed by selection as a bounded, capped advisory signal (`src/lib/selection/combination-scoring.ts`) — cannot override eligibility, availability, hard conflicts, required coverage, or fairness rules.
+- Consumed by selection as a bounded, capped advisory signal (`src/lib/selection/combination-scoring.ts`) — cannot override eligibility, availability, hard conflicts, required coverage, or fairness rules. Its capping/rounding is delegated to the shared `capEvidenceBonus()` primitive (`src/lib/policies/evidence-guardrails.ts`, ADR-0117) — any future evidence-informed scoring signal must reuse that primitive rather than re-deriving its own capping/confidence-gating logic.
 - Intent-dependent: amplified under `CHALLENGE_EXPOSURE`/`STABILIZE_WEAKER_TEAM` coaching intent, suppressed under `CONFIDENCE_REBUILD`/`RESET_AFTER_ERROR` so unknown pairs are never structurally disadvantaged against known ones, unmodified otherwise.
 - Direct assist contribution is only available for live-recorded matches (the canonical `Assist` model carries no timestamp) — left at 0 for direct-entry reports rather than guessed.
 - Explanations are factual sentences (minutes together, match count, confidence) — never a synthesized score or percentage. See ADR-0094.
@@ -902,6 +902,49 @@ selection actually produce yet (that starts at Bundle 7).
   `src/lib/players/player-position-resolver.ts` (used by the Event squad/lineup pipeline),
   duplicating `position-suitability.ts`'s `getPositionFit()`. Not consolidated in this bundle —
   touches the production-critical Event generation pipeline, out of scope here.
+
+### Evidence guardrails (Evidence-Informed Match Planning, Bundle 6 — ADR-0117)
+
+Explicit protection against evidence-aware planning producing self-reinforcing exclusion loops,
+built ahead of Bundle 7's evidence-aware automatic rotation generation so the guardrail exists
+before the thing it guards. This bundle changes no generation output — it generalizes an
+already-correct existing pattern and locks it in with regression tests.
+
+Required precedence order for any evidence-informed scoring/preference (PROGRAMME.md — Bundle 7
+must follow this):
+
+```text
+Eligibility/domain invariants
+        -> Fairness + development obligations
+        -> Position/formation viability
+        -> Structural balance + role suitability
+        -> Evidence-informed guardrails/preferences
+        -> Opponent/context preferences
+```
+
+- `src/lib/policies/evidence-guardrails.ts` (new) — the one shared, reusable "evidence → bounded
+  scoring nudge" primitive family: `isEvidenceConfidentEnoughToInfluence()` (false for
+  `INSUFFICIENT`), `capEvidenceBonus()` (clamps to `[0, cap]`, negative raw bonuses clamp to 0 —
+  evidence bonuses never become penalties here), and `assertEvidenceDidNotExcludeCandidates()` (a
+  structural guardrail comparing a candidate-id list before/after an evidence-informed step;
+  throws if any previously-present candidate goes missing — evidence may reorder or de-prioritise,
+  never exclude).
+- `src/lib/selection/combination-scoring.ts` — the only wired-in evidence-informed scoring signal
+  today — is refactored (zero behaviour change, all existing tests pass unchanged) to call
+  `capEvidenceBonus()` for its own capping, making it the reference *consumer* of the shared
+  primitive rather than the only implementation of the pattern.
+- `src/lib/selection/__tests__/evidence-fairness-precedence.test.ts` (new) proves, against the
+  real `getRotationCandidatePriorityScore()`/`getRankedRotationCandidates()` functions (not just
+  `combination-scoring.ts` in isolation), that `selection-fairness.ts`'s existing fairness penalty
+  dominates the bounded combination bonus once real-world match-count gaps accumulate — the
+  concrete Scenario F ("Fairness protection") proof, and that `getRankedRotationCandidates()`
+  structurally never drops a candidate.
+- **Deliberately not extended in this bundle**: the OPA/Rego `SelectionPolicyInput` contract
+  (`src/lib/policies/types.ts`) carries no evidence fields, and no Rego rule or default policy
+  reacts to any evidence signal — there is no concrete consumer yet (Bundles 4/5's new evidence
+  types are not wired into any scoring/selection decision). Extending that contract with no real
+  consumer would be speculative plumbing; deferred to whichever of Bundle 7/8 first needs it. See
+  ADR-0117 for the full audit and rationale.
 
 ### Quick observations
 
@@ -3093,6 +3136,7 @@ Avoid:
 | `src/lib/selection/rotation-candidate-evaluation.ts` | Rotation candidate evaluation and scoring |
 | `src/lib/selection/rotation-candidate-ranking.ts` | Rotation candidate ranking (includes bounded combination-evidence signal) |
 | `src/lib/selection/combination-scoring.ts` | Bounded, intent-aware combination-evidence scoring signal and factual explanation strings |
+| `src/lib/policies/evidence-guardrails.ts` | Evidence-Informed Match Planning, Bundle 6 (ADR-0117): shared bounded/confidence-gated evidence scoring primitives (`capEvidenceBonus`, `isEvidenceConfidentEnoughToInfluence`) and the structural exclusion guardrail (`assertEvidenceDidNotExcludeCandidates`) |
 | `src/lib/evidence/football-match-ref.ts` | Canonical `FootballMatchRef` discriminated union identifying a match's source (League/Event) for the shared learning pipeline (ADR-0104) |
 | `src/lib/evidence/match-state-timeline.ts` | Canonical `MatchStateInterval`/`MatchTransition` reconstruction (ADR-0113): `buildMatchStateTimeline()`, pure `deriveMatchStateIntervals`/`deriveMatchTransitions`, match phase windows, the shared `buildSegmentsFromIntervals` segment primitive (moved from `combination-topology.ts`), and the shared `diffPlayerStates()` structural-diff primitive (ADR-0115, also used by `scenario-evaluation.ts`) |
 | `src/lib/evidence/match-phase-pattern-evidence.ts` | Team-season match-phase pattern aggregation (ADR-0114): `getTeamSeasonMatchPhasePatterns()`, derived not persisted, confidence-scored |
