@@ -27,15 +27,15 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
-      select: {
-        id: true,
-        opponent: true,
-        homeAway: true,
-        gameFormat: true,
-        type: true,
-        teamId: true,
-        team: { select: { id: true, name: true } },
-      },
+    select: {
+      id: true,
+      opponent: true,
+      homeAway: true,
+      gameFormat: true,
+      matchType: true,
+      teamId: true,
+      team: { select: { id: true, name: true } },
+    },
   });
 
   if (!match) {
@@ -147,7 +147,7 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
       homeAway={match.homeAway}
       playerMap={playerMap}
       squad={baselineSquad}
-      matchType={match.type}
+      matchType={match.matchType}
     />
   );
 }
