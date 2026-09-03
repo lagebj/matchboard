@@ -38,9 +38,8 @@ const { generateEmergencyRepairOptionsAction } = vi.mocked(
 function baseProps() {
   return {
     roundLabel: "Round 1",
-    roundStatus: "DRAFT" as const,
+    planningBoundaryOpen: true,
     matchRoundId: "round-1",
-    hasDraftSelections: true,
     matches: [
       {
         matchId: "m-blue",
@@ -321,5 +320,41 @@ describe("RoundBoard — phone-responsive match columns", () => {
     singleMatchProps.matches = [singleMatchProps.matches[0]];
     rerender(<RoundBoard {...singleMatchProps} />);
     expect(screen.queryByText(/swipe to see other matches/i)).toBeNull();
+  });
+});
+
+// Real production bug: a round finalized by the coach-operated "Finalize round" action that
+// existed before ADR-0109 removed it can retain a stale MatchRound.status of "FINALIZED" even
+// though none of its matches have ever actually reached their real planning boundary (kickoff
+// passed / live reporting started) -- the migration that introduced the boundary model never
+// went back and corrected historical MatchRound rows finalized early under the old model. The
+// board no longer receives the persisted MatchRound.status at all -- only the live-derived
+// `planningBoundaryOpen` prop -- so this class of staleness can no longer leak into the editing
+// gate, whatever the persisted status says.
+describe("RoundBoard — editing is gated by the live planning boundary, not a persisted status (production bug)", () => {
+  it("does not show the 'Planning closed' banner when the boundary is still open", () => {
+    const props = { ...baseProps(), planningBoundaryOpen: true };
+    render(<RoundBoard {...props} />);
+    expect(screen.queryByText(/Planning closed/i)).toBeNull();
+  });
+
+  it("shows the 'Planning closed' banner when the boundary is genuinely closed", () => {
+    const props = { ...baseProps(), planningBoundaryOpen: false };
+    render(<RoundBoard {...props} />);
+    expect(screen.getByText(/Planning closed/i)).toBeTruthy();
+  });
+
+  it("shows Regenerate/Clear when the boundary is still open", () => {
+    const props = { ...baseProps(), planningBoundaryOpen: true };
+    render(<RoundBoard {...props} />);
+    expect(screen.getByRole("button", { name: /regenerate/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /clear/i })).toBeTruthy();
+  });
+
+  it("hides Regenerate/Clear when the boundary is genuinely closed", () => {
+    const props = { ...baseProps(), planningBoundaryOpen: false };
+    render(<RoundBoard {...props} />);
+    expect(screen.queryByRole("button", { name: /regenerate/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /clear/i })).toBeNull();
   });
 });
