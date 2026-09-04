@@ -206,10 +206,21 @@ const DOCS_CONTENT_DIR = join(REPO_ROOT, "content/docs");
 const DOCS_SCREENSHOTS_DIR = join(REPO_ROOT, "public/docs/screenshots");
 
 /** Resolve a "/docs/a/b" URL path to its content/docs/**\/*.mdx source file, if any. */
+/**
+ * Resolves a "/docs/a/b" URL to its content/docs source file. Fumadocs supports two shapes for a
+ * page: a flat "b.mdx" file, or a folder ("b/") whose own "index.mdx" is that folder's page (the
+ * same pattern the root content/docs/index.mdx and content/docs/meta.json's "index" entries use
+ * for the docs home). Prefers the flat file when both would resolve; only content/docs/meta.json
+ * files decide which shape a given page actually uses.
+ */
 function resolveDocsPathToFile(docsPath) {
   const slug = docsPath.replace(/^\/docs\/?/, "");
   if (slug === "") return join(DOCS_CONTENT_DIR, "index.mdx");
-  return join(DOCS_CONTENT_DIR, `${slug}.mdx`);
+  const flatFile = join(DOCS_CONTENT_DIR, `${slug}.mdx`);
+  if (existsSync(flatFile)) return flatFile;
+  const folderIndexFile = join(DOCS_CONTENT_DIR, slug, "index.mdx");
+  if (existsSync(folderIndexFile)) return folderIndexFile;
+  return flatFile;
 }
 
 function listMdxFiles(dir) {
