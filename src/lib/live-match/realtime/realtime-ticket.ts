@@ -32,6 +32,8 @@ export interface SignRealtimeTicketInput {
   sessionId: string;
   capabilities: string[];
   ttlSeconds?: number;
+  /** See `LiveMatchRealtimeTicket.expectedEndAt`'s doc comment (`realtime-messages.ts`). */
+  expectedEndAt?: number | null;
 }
 
 function encodeSecret(secret: string): Uint8Array {
@@ -55,6 +57,7 @@ export async function signRealtimeTicket(input: SignRealtimeTicketInput, secret:
     matchId: input.matchId,
     sessionId: input.sessionId,
     capabilities: input.capabilities,
+    expectedEndAt: input.expectedEndAt ?? null,
   })
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt()
@@ -93,5 +96,6 @@ export async function verifyRealtimeTicket(token: string, secret: string): Promi
     capabilities: payload.capabilities as string[],
     iat: payload.iat ?? 0,
     exp: payload.exp ?? 0,
+    expectedEndAt: typeof payload.expectedEndAt === "number" ? payload.expectedEndAt : null,
   };
 }

@@ -91,7 +91,8 @@ import {
   evaluateEndSession,
   hasReportCapability,
   classifyPersistenceFailure,
-  computeBackoffDelayMs,
+  evaluateRetry,
+  evaluateLifecycleExpiry,
   selectDueRetries,
   nextAlarmTime,
   evaluateReconciliation,
@@ -247,7 +248,12 @@ export class MatchSessionObject extends DurableObject<Env> {
     const existingMeta = (await this.ctx.storage.get<SessionMeta>("meta")) ?? null;
     const decision = evaluateAuthenticate({
       routedMatchId,
-      ticket: { matchId: ticket.matchId, sessionId: ticket.sessionId, organisationId: ticket.organisationId },
+      ticket: {
+        matchId: ticket.matchId,
+        sessionId: ticket.sessionId,
+        organisationId: ticket.organisationId,
+        expectedEndAt: ticket.expectedEndAt,
+      },
       existingMeta,
       now: Date.now(),
     });
@@ -278,6 +284,12 @@ export class MatchSessionObject extends DurableObject<Env> {
     ws.serializeAttachment(updated);
 
     await this.broadcastPresence();
+    // Schedules this object's first finite-lifecycle check alarm even when there are zero
+    // pending persistence retries (e.g. a scoreless match, or simply no events recorded yet) —
+    // without this, a session that never records a single event would never get an alarm
+    // scheduled at all until its first persistence failure, defeating the point of an
+    // activity-independent lifecycle backstop. A no-op on a plain reconnect/"attach".
+    await this.refreshAlarm();
 
     const result: AttachResult = { authenticated: true, connectionId: attachment.connectionId };
     return rpcOk(call.id, result);
@@ -384,7 +396,13 @@ export class MatchSessionObject extends DurableObject<Env> {
       }
       case "accepted": {
         await this.putAcceptedEvent(decision.record);
-        await this.ctx.storage.put("meta", { ...meta, version: decision.record.version } satisfies SessionMeta);
+        // lastActivityAt drives evaluateLifecycleExpiry's inactivity check — deliberately only
+        // advanced by an accepted report-capability event, never by mere connection presence.
+        await this.ctx.storage.put("meta", {
+          ...meta,
+          version: decision.record.version,
+          lastActivityAt: decision.record.acceptedAt,
+        } satisfies SessionMeta);
 
         const persistRequest: InternalPersistEventRequest = {
           matchId: meta.matchId,
@@ -437,7 +455,7 @@ export class MatchSessionObject extends DurableObject<Env> {
             persistenceStatus = "failed_terminal";
             await this.markEventFailedTerminal(decision.record.clientEventId);
           } else {
-            await this.scheduleRetry(decision.record.clientEventId);
+            await this.scheduleRetry(decision.record.clientEventId, status);
           }
         }
 
@@ -506,9 +524,12 @@ export class MatchSessionObject extends DurableObject<Env> {
           { retryable: true },
         );
       case "ended": {
-        const nextMeta: SessionMeta = { ...meta, endedAt: Date.now() };
+        const nextMeta: SessionMeta = { ...meta, endedAt: Date.now(), endReason: "MANUAL" };
         await this.ctx.storage.put("meta", nextMeta);
-        this.broadcastToAll("sessionEnded", { version: nextMeta.version } satisfies SessionEndedCallback);
+        this.broadcastToAll("sessionEnded", { version: nextMeta.version, reason: "MANUAL" } satisfies SessionEndedCallback);
+        // Clears any still-armed lifecycle-check alarm now that the session has a definite,
+        // explicit end — nothing should keep waking this object afterward.
+        await this.refreshAlarm();
         const result: EndSessionResult = { ended: true };
         return rpcOk(call.id, result);
       }
@@ -551,33 +572,89 @@ export class MatchSessionObject extends DurableObject<Env> {
 
   /** SPEC.md §21 — records a retryable failure's backoff schedule and (re)arms the object's
    * single alarm slot for the earliest currently-due retry across every pending event, not
-   * just this one. */
-  private async scheduleRetry(clientEventId: string): Promise<void> {
+   * just this one. 2026-09 incident hardening: bounded by `evaluateRetry`'s attempt-count/age
+   * ceiling — once exhausted, the event moves to `"failed_exhausted"` and is permanently
+   * excluded from `selectDueRetries`/`nextAlarmTime`, so it can never keep this object alarming
+   * on its own again. `status` (the HTTP status of the failed attempt, if any response was
+   * received at all) is recorded purely for diagnosability. */
+  private async scheduleRetry(clientEventId: string, status: number | undefined): Promise<void> {
     const record = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
     if (!record) return;
-    const nextRetryAt = Date.now() + computeBackoffDelayMs(record.retryCount);
+
+    const now = Date.now();
+    const firstFailureAt = record.firstFailureAt ?? now;
+    const decision = evaluateRetry({ retryCount: record.retryCount, firstFailureAt, now });
+
+    if (decision.outcome === "exhausted") {
+      await this.ctx.storage.put(`event:${clientEventId}`, {
+        ...record,
+        persistenceStatus: "failed_exhausted",
+        nextRetryAt: undefined,
+        firstFailureAt,
+        lastFailureAt: now,
+        lastErrorStatus: status,
+        lastErrorCategory: "retryable",
+      } satisfies AcceptedEventRecord);
+      this.logStructured("error", "persistence retry ceiling reached; no longer retrying this event", {
+        clientEventId,
+        retryCount: record.retryCount,
+        retryAgeMs: now - firstFailureAt,
+        lastErrorStatus: status,
+      });
+      this.broadcastToAll("eventPersistenceChanged", {
+        clientEventId,
+        persistenceStatus: "failed_exhausted",
+      } satisfies PersistenceChangedCallback);
+      await this.refreshAlarm();
+      return;
+    }
+
     await this.ctx.storage.put(`event:${clientEventId}`, {
       ...record,
       retryCount: record.retryCount + 1,
-      nextRetryAt,
+      nextRetryAt: decision.nextRetryAt,
+      firstFailureAt,
+      lastFailureAt: now,
+      lastErrorStatus: status,
+      lastErrorCategory: "retryable",
     } satisfies AcceptedEventRecord);
     await this.refreshAlarm();
   }
 
-  /** (Re)computes the object's single alarm slot from current storage state — the earliest
-   * `nextRetryAt` across every still-pending event, or clears the alarm entirely when nothing
-   * is waiting (SPEC.md §21: "do not wake the object every second"). Cloudflare Durable
-   * Objects have exactly one alarm slot per object; calling `setAlarm` again simply replaces
-   * whatever was scheduled before, which is exactly what's wanted here — one slot serving
-   * every pending event, not one per event. */
+  /** (Re)computes the object's single alarm slot from current storage state: the earlier of (a)
+   * the earliest `nextRetryAt` across every still-pending event, and (b) the next
+   * finite-lifecycle check time for an unended session (`evaluateLifecycleExpiry`) — or clears
+   * the alarm entirely when neither applies (SPEC.md §21: "do not wake the object every
+   * second"). Cloudflare Durable Objects have exactly one alarm slot per object; calling
+   * `setAlarm` again simply replaces whatever was scheduled before, which is exactly what's
+   * wanted here — one slot serving every reason this object might need to wake, not one per
+   * concern. */
   private async refreshAlarm(): Promise<void> {
+    const meta = await this.ctx.storage.get<SessionMeta>("meta");
     const accepted = await this.listAcceptedEvents();
-    const alarmTime = nextAlarmTime(accepted);
-    if (alarmTime === null) {
+    const retryTime = nextAlarmTime(accepted);
+
+    let lifecycleTime: number | null = null;
+    if (meta && meta.endedAt === null) {
+      const decision = evaluateLifecycleExpiry({
+        startedAt: meta.startedAt,
+        expectedEndAt: meta.expectedEndAt,
+        lastActivityAt: meta.lastActivityAt,
+        now: Date.now(),
+      });
+      // "expire" here just means the deadline has already passed by the time this happened to
+      // be recomputed (e.g. right after a retry exhausted) — schedule immediately so alarm()
+      // performs the actual transition on its own next firing, rather than trying to duplicate
+      // that decision here.
+      lifecycleTime = decision.outcome === "active" ? decision.nextCheckAt : Date.now();
+    }
+
+    const candidates = [retryTime, lifecycleTime].filter((t): t is number => t !== null);
+    if (candidates.length === 0) {
       await this.ctx.storage.deleteAlarm();
       return;
     }
-    await this.ctx.storage.setAlarm(alarmTime);
+    await this.ctx.storage.setAlarm(Math.min(...candidates));
   }
 
   /**
@@ -589,8 +666,36 @@ export class MatchSessionObject extends DurableObject<Env> {
    * an event that a previous firing (or the original synchronous attempt) already resolved.
    */
   async alarm(): Promise<void> {
-    const meta = await this.ctx.storage.get<SessionMeta>("meta");
+    let meta = await this.ctx.storage.get<SessionMeta>("meta");
     if (!meta) return;
+
+    // Finite session lifecycle (2026-09 incident hardening): a session nobody explicitly ended
+    // — reporter closed the browser, a UI bug prevented the normal end-session action, or the
+    // coach simply forgot — eventually becomes dormant on its own. This ONLY sets
+    // SessionMeta.endedAt (transport bookkeeping); it never touches Postgres, never submits or
+    // finalizes a post-match report, and is independent of whether any WebSocket (including a
+    // "Follow live" viewer) happens to be connected right now.
+    if (meta.endedAt === null) {
+      const lifecycle = evaluateLifecycleExpiry({
+        startedAt: meta.startedAt,
+        expectedEndAt: meta.expectedEndAt,
+        lastActivityAt: meta.lastActivityAt,
+        now: Date.now(),
+      });
+      if (lifecycle.outcome === "expire") {
+        const nextMeta: SessionMeta = { ...meta, endedAt: Date.now(), endReason: "AUTO_EXPIRED" };
+        await this.ctx.storage.put("meta", nextMeta);
+        this.logStructured("log", "live session auto-expired: no reporting activity past expected end + grace", {
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+        });
+        this.broadcastToAll("sessionEnded", {
+          version: nextMeta.version,
+          reason: "AUTO_EXPIRED",
+        } satisfies SessionEndedCallback);
+        meta = nextMeta;
+      }
+    }
 
     const accepted = await this.listAcceptedEvents();
     const due = selectDueRetries(accepted, Date.now());
@@ -632,7 +737,7 @@ export class MatchSessionObject extends DurableObject<Env> {
             persistenceStatus: "failed_terminal",
           } satisfies PersistenceChangedCallback);
         } else {
-          await this.scheduleRetry(record.clientEventId);
+          await this.scheduleRetry(record.clientEventId, status);
         }
       }
     }

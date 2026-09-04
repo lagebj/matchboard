@@ -405,6 +405,89 @@ distinct `clientEventId`s just produces more pending records to eventually retry
 not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain` both pass
 (this stage touches no SQL and adds no dependencies).
 
+### Stage 8: incident hardening — bounded retry ceiling and finite session lifecycle
+
+Root-caused and fixed a real production incident (2026-09-04): continuous Durable Object alarm
+executions throughout the day, including periods with no active live-match use. Confirmed via
+Cloudflare GraphQL Analytics (three distinct `MatchSessionObject` instances sustaining tens of
+thousands of alarm invocations since 2026-08-25), Vercel runtime logs (100% of
+`/api/internal/live-match/events` requests over a 24h window returning HTTP 307), and a direct
+`curl` reproduction against production.
+
+**Root cause**: `src/proxy.ts`'s base authenticated-session gate (`if (!email) redirect
+("/signin")`) applies to every non-public route, and `/api/internal/**` — which authenticates via
+HMAC signature only, by design (no session cookie) — was never exempted from it. Every call from
+the Worker to the internal persistence endpoint was redirected to `/signin` (307) before
+`verifyInternalRequest()` ever ran. This is the same defect class PR #378 (2026-08-29) partially
+fixed: that PR exempted `/api/internal/**` from the adjacent *preview-allowlist* gate after
+confirming its 403 drove the same indefinite-retry behaviour against Test-slot Preview
+deployments, but left the *base* gate — which affects production, not just preview — unfixed.
+Fixed by checking `isInternalMachineRoute()` once, before both session-based gates.
+
+**Why this ran forever once triggered**: `classifyPersistenceFailure` (Stage 6) only ever treats
+exactly HTTP 422 as terminal; 307, like any other non-422 status, was classified `"retryable"`.
+`computeBackoffDelayMs` caps the backoff delay at 60s but never stops trying — there was no
+maximum attempt count or retry age. `evaluateRetry` (`workers/live-match/src/state.ts`) adds that
+bound: whichever of `MAX_RETRY_ATTEMPTS` (10) or `MAX_RETRY_AGE_MS` (24h) is reached first moves
+the event to a new `"failed_exhausted"` persistence status, permanently excluded from
+`selectDueRetries`/`nextAlarmTime`. This is deliberately independent of the specific failure
+cause — it is the backstop for "retryable forever" being wrong regardless of *why* a failure
+keeps recurring, not a fix narrowly scoped to 307. `"failed_exhausted"` does not block
+`endSession` the way `"pending"` does (`evaluateEndSession` still only counts `"pending"`) — an
+exhausted event has already reached Neon via the caller's own HTTP fallback (see Stage 5's
+`recordEvent` fallthrough below), so the Durable Object's own copy giving up must never deadlock
+a coach's ability to end their session.
+
+**No match data was ever at risk**: `createLeagueActions.recordEvent()`
+(`league-live-match-client.tsx`, Stage 5) always falls through to the pre-existing,
+session-cookie-authenticated `recordLiveEventAction()` HTTP path whenever the realtime attempt
+doesn't confirm `persistenceStatus === "persisted"` — which, given this bug, was always the case
+for every event recorded via the realtime path since Stage 4 shipped (2026-08-24). Every event
+was safely persisted via that path; the three affected Durable Objects held only a permanently-stuck
+phantom copy of an already-persisted event, not the canonical record.
+
+**Finite session lifecycle** (a second, independent gap the incident exposed rather than caused):
+nothing previously gave a `MatchSessionObject` a way to become dormant on its own if a coach
+closed their browser without calling "End session," or if a UI bug prevented that action —
+`createLeagueActions.endSession()` only calls the DO's own `endSession` RPC indirectly through
+disconnecting the WebSocket, never through the RPC itself, and `evaluateEndSession` refuses to end
+a session with any `"pending"` event regardless. `evaluateLifecycleExpiry`
+(`workers/live-match/src/state.ts`) adds an activity-independent backstop: once
+`kickoff + match duration + grace period` (`LIFECYCLE_GRACE_MS`, 30 minutes) has passed with no
+`recordEvent` activity for `LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS` (15 minutes), the object marks
+its own `SessionMeta.endedAt`/`endReason: "AUTO_EXPIRED"` and broadcasts `sessionEnded` — pure
+transport/session bookkeeping, never a canonical Postgres write, and never a post-match report
+submission. Kickoff + duration comes from a new optional `expectedEndAt` claim on the realtime
+connection ticket (`LiveMatchRealtimeTicket`, computed by the ticket-issuing route from the
+match's own `startsAt` + the same `getLeaguePeriodConfig`/`getTotalPeriodDurationMs` League
+already uses elsewhere); when unresolvable (or for a `meta` row written before this field
+existed), the object falls back to a fixed ceiling measured from session start
+(`LIFECYCLE_FALLBACK_CEILING_MS`, 4h) rather than never expiring at all. `expectedEndAt` is
+clamped to never push the deadline *later* than that same fallback ceiling — caught live by this
+PR's own CI: an E2E fixture's test-only match date (`startsAt` deliberately set far in the future
+so a test-agent-seeded match can be immediately finalized regardless of real kickoff) computed a
+`setAlarm()` time decades out, which the real Cloudflare runtime rejected, silently breaking every
+`authenticate()` call for that object. Deliberately independent of WebSocket/connection presence —
+a "Follow live" viewer connecting or disconnecting never advances `lastActivityAt` (only an
+accepted `recordEvent` does), so a viewer alone can never keep an abandoned reporting session's
+lifecycle alive.
+
+**One alarm slot, two reasons to wake.** `refreshAlarm()` now schedules the object's single alarm
+slot for the earlier of (a) the next due persistence retry and (b) the next lifecycle-check time
+— never two separate alarms, preserving Stage 6's "one alarm slot per object" property.
+
+**Existing stuck production sessions expected to self-heal without manual Durable Object surgery,
+once deployed.** Each of the three affected objects' underlying `LiveMatchSession` had already
+ended via the normal HTTP-path flow days earlier, so once the proxy fix ships, each object's very
+next alarm-driven retry should reach the now-correctly-routed internal endpoint and get a
+domain-terminal 422 from `recordEventForActor` (the session no longer exists/is inactive) —
+stopping that object's alarm traffic without any manual Durable Object storage mutation or
+administrative recovery endpoint. Re-verify with the same Cloudflare GraphQL Analytics query used
+to find the incident (`durableObjectsInvocationsAdaptiveGroups`, filtered to
+`scriptName: "noisy-snowflake-faf0"`, `type: "alarm"`) after this change deploys, and confirm no
+new objects accumulate the same pattern going forward — see the PR description for the exact
+query and the pre-deploy baseline.
+
 ## Consequences
 
 - Matchboard gains a second deployment target (Cloudflare Workers) alongside Vercel/Neon,
@@ -645,3 +728,18 @@ not more alarm slots. `npm run security:check-sql`/`security:check-supply-chain`
   Cloudflare test environment (`wrangler deploy --env test`) before running Playwright,
   closing the same deployment gap ADR-0075 closed for Vercel. Production Worker deploys remain
   gated by the main-branch workflow.
+- 2026-09-04: **Stage 8 (incident hardening).** Investigated and fixed a real, confirmed-live
+  production incident: continuous Durable Object alarm executions with no active live-match use.
+  Root cause: `/api/internal/**` was never exempted from `proxy.ts`'s *base* authenticated-session
+  redirect gate (only from the adjacent preview-allowlist gate, per the 2026-08-29 entry above) —
+  every production call from the Worker to the internal persistence endpoint was redirected to
+  `/signin` (HTTP 307), classified `"retryable"` (only 422 is terminal), and retried forever with
+  no attempt/age ceiling. Confirmed via Cloudflare GraphQL Analytics (3 Durable Objects, ~86,000
+  combined alarm invocations since 2026-08-25), Vercel runtime logs (100% of
+  `/api/internal/live-match/events` requests over 24h returning 307), and a direct `curl`
+  reproduction against production. No match data was ever lost (Stage 5's HTTP fallback always
+  ran regardless). Fixed the routing gap, added a bounded retry ceiling
+  (`evaluateRetry`/`MAX_RETRY_ATTEMPTS`/`MAX_RETRY_AGE_MS`) and a finite, activity-independent
+  session lifecycle (`evaluateLifecycleExpiry`, kickoff+duration+grace from a new optional
+  `expectedEndAt` ticket claim, falling back to inactivity-only expiry when unresolvable). See
+  the "Stage 8" section above for full detail.

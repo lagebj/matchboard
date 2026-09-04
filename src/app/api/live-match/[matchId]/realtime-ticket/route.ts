@@ -14,6 +14,7 @@ import {
   signRealtimeTicket,
   REALTIME_TICKET_DEFAULT_TTL_SECONDS,
 } from "@/lib/live-match/realtime/realtime-ticket";
+import { getLeaguePeriodConfig, getTotalPeriodDurationMs } from "@/lib/live-match/period-config";
 
 type TicketMode = "report" | "view";
 
@@ -72,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
   try {
     const match = await db.match.findUnique({
       where: { id: matchId },
-      select: { id: true, organisationId: true },
+      select: { id: true, organisationId: true, startsAt: true, matchType: true },
     });
 
     if (!match) {
@@ -100,6 +101,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
       await requireMatchGroupAccess(ctx, matchId);
     }
 
+    // Durable Object finite-lifecycle expiry (see LiveMatchRealtimeTicket.expectedEndAt's doc
+    // comment) — kickoff + this match's regulation-time duration. Deliberately the same fixed
+    // config `getLeaguePeriodConfig`/`getTotalPeriodDurationMs` already use elsewhere for League
+    // matches, not a new duration source. Guarded defensively (missing startsAt, or a null
+    // total) so a lifecycle-hardening detail can never fail ticket issuance itself — an
+    // unresolvable expectedEndAt just means the object falls back to inactivity-only expiry.
+    let expectedEndAt: number | null = null;
+    if (match.startsAt) {
+      const totalDurationMs = getTotalPeriodDurationMs(getLeaguePeriodConfig(match.matchType));
+      expectedEndAt = totalDurationMs != null ? new Date(match.startsAt).getTime() + totalDurationMs : null;
+    }
+
     const secret = getLiveMatchRealtimeSecret();
     const ticket = await signRealtimeTicket(
       {
@@ -110,6 +123,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
         // Capability drives server-side mutation enforcement in the Durable Object
         // (match-session-object.ts) — a "view" ticket must never include "report".
         capabilities: mode === "report" ? ["report"] : ["view"],
+        expectedEndAt,
       },
       secret,
     );

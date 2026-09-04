@@ -80,6 +80,12 @@ export interface LiveMatchRealtimeTicket {
   capabilities: string[];
   iat: number;
   exp: number;
+  /** Kickoff + expected match duration (ms epoch), when the issuing route could resolve it —
+   * used only for the Durable Object's own finite-lifecycle expiry (never for anything
+   * football-domain-facing). `null`/absent when unresolvable (e.g. an Event match, which has no
+   * shared duration-resolution wired here yet); the object falls back to inactivity-only
+   * expiry in that case. See `workers/live-match/src/state.ts`'s `evaluateLifecycleExpiry`. */
+  expectedEndAt?: number | null;
 }
 
 /**
@@ -147,7 +153,17 @@ export interface ApplyEventCallback {
 
 export interface PersistenceChangedCallback {
   clientEventId: string;
-  persistenceStatus: "pending" | "persisted" | "failed_terminal";
+  /** Stage 6 hardening — `"failed_exhausted"` means the persistence outbox gave up after its
+   * bounded retry ceiling (attempt count or age, `workers/live-match/src/state.ts`'s
+   * `evaluateRetry`) without ever getting a definitive terminal/success answer from the
+   * internal API (e.g. a sustained infrastructure failure). This does NOT mean the event was
+   * lost — League/Event's own HTTP recordEvent path (`recordLiveEventAction`/
+   * `recordEventForActor`) already persisted it canonically before ever calling the realtime
+   * path, or runs immediately after this path fails to confirm (see
+   * `league-live-match-client.tsx`'s `createLeagueActions.recordEvent`) — it means this
+   * object's own copy of the attempt needs no further automatic action and, if this keeps
+   * happening, is worth operator attention. */
+  persistenceStatus: "pending" | "persisted" | "failed_terminal" | "failed_exhausted";
 }
 
 export interface PresenceChangedCallback {
@@ -156,6 +172,12 @@ export interface PresenceChangedCallback {
 
 export interface SessionEndedCallback {
   version: number;
+  /** `"MANUAL"` (the coach's own "End session" action reached this object's endSession RPC) or
+   * `"AUTO_EXPIRED"` (the Durable Object's own finite-lifecycle expiry closed a session nobody
+   * explicitly ended — see `evaluateLifecycleExpiry`). Absent on older stored sessions ended
+   * before this field existed. Never triggers post-match report submission — see
+   * `match-session-object.ts`'s alarm() doc comment. */
+  reason?: "MANUAL" | "AUTO_EXPIRED";
 }
 
 export interface ForceResyncCallback {

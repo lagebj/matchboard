@@ -719,3 +719,42 @@ describe("Security audit: preview-allowlist gate never blocks HMAC-authenticated
     expect(requiresPreviewAllowlistCheck("/api/admin/audit")).toBe(true);
   });
 });
+
+describe("Security audit: base session gate never redirects HMAC-authenticated internal routes", () => {
+  // Regression test for a real, confirmed-live PRODUCTION incident (not just the Preview-slot
+  // one PR #378 fixed above): the *base* authenticated-session gate in proxy.ts
+  // (`if (!email) redirect("/signin")`) applies to every non-public route, and was redirecting
+  // every production call from the Cloudflare Worker to /api/internal/live-match/events with
+  // HTTP 307 — a machine-to-machine request has no session cookie/email by design (HMAC
+  // signature verification is its only gate). classifyPersistenceFailure()
+  // (workers/live-match/src/state.ts) only treats HTTP 422 as terminal, so affected Durable
+  // Objects retried forever with capped exponential backoff. Confirmed live via `curl` against
+  // production (POST /api/internal/live-match/events -> 307 Location: /signin), via Vercel
+  // runtime logs (100% of requests to that path returning 307 over a 24h window), and via
+  // Cloudflare GraphQL Analytics (3 distinct Durable Objects sustaining tens of thousands of
+  // alarm invocations since the route was introduced on 2026-08-24). Fixed by exempting
+  // /api/internal/** from both session-based gates in one place, before either can run.
+  it("exempts /api/internal/** from the base authenticated-session gate", async () => {
+    const { isInternalMachineRoute } = await import("@/proxy");
+    expect(isInternalMachineRoute("/api/internal/live-match/events")).toBe(true);
+    expect(isInternalMachineRoute("/api/internal/live-match/snapshot")).toBe(true);
+  });
+
+  it("still requires a session for ordinary non-public routes", async () => {
+    const { isInternalMachineRoute } = await import("@/proxy");
+    expect(isInternalMachineRoute("/api/season/export")).toBe(false);
+    expect(isInternalMachineRoute("/today")).toBe(false);
+  });
+
+  it("checks the internal-route exemption before either session-based gate in source order", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const proxyFile = fs.readFileSync(path.join(process.cwd(), "src/proxy.ts"), "utf-8");
+    const internalCheckIndex = proxyFile.indexOf("isInternalMachineRoute(path)");
+    const previewGateIndex = proxyFile.indexOf("isVercelPreview() && requiresPreviewAllowlistCheck(path)");
+    const baseGateIndex = proxyFile.indexOf('redirect(new URL("/signin"');
+    expect(internalCheckIndex).toBeGreaterThan(-1);
+    expect(internalCheckIndex).toBeLessThan(previewGateIndex);
+    expect(internalCheckIndex).toBeLessThan(baseGateIndex);
+  });
+});

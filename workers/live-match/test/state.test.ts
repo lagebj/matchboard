@@ -12,6 +12,13 @@ import {
   selectDueRetries,
   nextAlarmTime,
   evaluateReconciliation,
+  evaluateRetry,
+  MAX_RETRY_ATTEMPTS,
+  MAX_RETRY_AGE_MS,
+  evaluateLifecycleExpiry,
+  LIFECYCLE_GRACE_MS,
+  LIFECYCLE_FALLBACK_CEILING_MS,
+  LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "../src/state";
@@ -83,6 +90,9 @@ describe("evaluateAuthenticate", () => {
         version: 0,
         clockAnchor: initialClockAnchor(1000),
         endedAt: null,
+        startedAt: 1000,
+        expectedEndAt: null,
+        lastActivityAt: 1000,
       });
     }
   });
@@ -348,6 +358,153 @@ describe("computeBackoffDelayMs", () => {
   it("caps the delay rather than growing unbounded", () => {
     expect(computeBackoffDelayMs(10)).toBe(60_000);
     expect(computeBackoffDelayMs(30)).toBe(60_000);
+  });
+});
+
+describe("evaluateRetry", () => {
+  // 2026-09 incident regression: classifyPersistenceFailure only ever treats 422 as terminal —
+  // every other failure (including a structural routing problem, like the incident's own
+  // Vercel auth-gate 307) is "retryable", and computeBackoffDelayMs alone never stops trying.
+  // evaluateRetry is the backstop: a bounded ceiling that always wins eventually.
+
+  it("keeps retrying with normal backoff below both ceilings", () => {
+    const decision = evaluateRetry({ retryCount: 3, firstFailureAt: 0, now: 8_000 });
+    expect(decision).toEqual({ outcome: "retry", nextRetryAt: 8_000 + computeBackoffDelayMs(3) });
+  });
+
+  it("exhausts once the attempt-count ceiling is reached, even if the failure age is small", () => {
+    const decision = evaluateRetry({ retryCount: MAX_RETRY_ATTEMPTS, firstFailureAt: 0, now: 100 });
+    expect(decision).toEqual({ outcome: "exhausted" });
+  });
+
+  it("exhausts once the max retry age is reached, even with very few attempts", () => {
+    const decision = evaluateRetry({ retryCount: 1, firstFailureAt: 0, now: MAX_RETRY_AGE_MS + 1 });
+    expect(decision).toEqual({ outcome: "exhausted" });
+  });
+
+  it("does not exhaust on the boundary just below either ceiling", () => {
+    const decision = evaluateRetry({ retryCount: MAX_RETRY_ATTEMPTS - 1, firstFailureAt: 0, now: MAX_RETRY_AGE_MS - 1 });
+    expect(decision.outcome).toBe("retry");
+  });
+});
+
+describe("evaluateLifecycleExpiry", () => {
+  // 2026-09 incident hardening: a reporting session must eventually become dormant even if
+  // nobody explicitly ends it — reporter closes the browser, a UI bug, or simply forgetting.
+
+  it("stays active well before the expected end + grace, regardless of activity", () => {
+    const decision = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: 60 * 60 * 1000,
+      lastActivityAt: 0,
+      now: 60 * 60 * 1000 - 1,
+    });
+    expect(decision.outcome).toBe("active");
+  });
+
+  it("stays active just past the expected end while still within the grace period", () => {
+    const decision = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: 60 * 60 * 1000,
+      lastActivityAt: 0,
+      now: 60 * 60 * 1000 + 1,
+    });
+    expect(decision.outcome).toBe("active");
+  });
+
+  it("expires once past expected end + grace with no activity in the inactivity window", () => {
+    const expectedEndAt = 60 * 60 * 1000;
+    const deadline = expectedEndAt + LIFECYCLE_GRACE_MS;
+    const decision = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt,
+      lastActivityAt: 0,
+      now: deadline + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
+    });
+    expect(decision.outcome).toBe("expire");
+  });
+
+  it("stays active past the deadline if reporting activity is recent, and asks to be rechecked", () => {
+    const expectedEndAt = 60 * 60 * 1000;
+    const deadline = expectedEndAt + LIFECYCLE_GRACE_MS;
+    const now = deadline + 1;
+    const decision = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt,
+      lastActivityAt: now - 1, // just recorded an event
+      now,
+    });
+    expect(decision).toMatchObject({ outcome: "active" });
+    if (decision.outcome === "active") {
+      expect(decision.nextCheckAt).not.toBeNull();
+    }
+  });
+
+  it("clamps an implausibly distant expectedEndAt to the fallback ceiling (CI regression: a test fixture's match date decades in the future produced an unschedulable alarm time)", () => {
+    const decadesOut = 60 * 365 * 24 * 60 * 60 * 1000; // ~60 years
+    const clampedDeadline = LIFECYCLE_FALLBACK_CEILING_MS + LIFECYCLE_GRACE_MS;
+
+    const stillActive = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: decadesOut,
+      lastActivityAt: 0,
+      now: clampedDeadline - 1,
+    });
+    expect(stillActive).toEqual({ outcome: "active", nextCheckAt: clampedDeadline });
+
+    const expired = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: decadesOut,
+      lastActivityAt: 0,
+      now: clampedDeadline + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
+    });
+    expect(expired.outcome).toBe("expire");
+  });
+
+  it("still trusts an expectedEndAt that is sooner than the fallback ceiling", () => {
+    const soonExpectedEndAt = 30 * 60 * 1000; // 30 minutes — well under the 4h fallback
+    const deadline = soonExpectedEndAt + LIFECYCLE_GRACE_MS;
+    const decision = evaluateLifecycleExpiry({ startedAt: 0, expectedEndAt: soonExpectedEndAt, lastActivityAt: 0, now: deadline - 1 });
+    expect(decision).toEqual({ outcome: "active", nextCheckAt: deadline });
+  });
+
+  it("falls back to a fixed ceiling from session start when no expectedEndAt is known", () => {
+    const deadline = LIFECYCLE_FALLBACK_CEILING_MS + LIFECYCLE_GRACE_MS;
+    const stillActive = evaluateLifecycleExpiry({ startedAt: 0, expectedEndAt: null, lastActivityAt: 0, now: deadline - 1 });
+    expect(stillActive.outcome).toBe("active");
+
+    const expired = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: null,
+      lastActivityAt: 0,
+      now: deadline + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
+    });
+    expect(expired.outcome).toBe("expire");
+  });
+
+  it("never expires a pre-existing session with no startedAt/lastActivityAt (created before this field existed)", () => {
+    const decision = evaluateLifecycleExpiry({
+      startedAt: undefined,
+      expectedEndAt: null,
+      lastActivityAt: undefined,
+      now: Number.MAX_SAFE_INTEGER,
+    });
+    expect(decision).toEqual({ outcome: "active", nextCheckAt: null });
+  });
+
+  it("is independent of connection/viewer presence — only lastActivityAt (recordEvent acceptance) matters", () => {
+    // A "Follow live" viewer connecting/disconnecting must never call anything that advances
+    // lastActivityAt (only an accepted recordEvent does) — this test documents that contract at
+    // the pure-function level: presence is not even a parameter this function accepts.
+    const expectedEndAt = 60 * 60 * 1000;
+    const deadline = expectedEndAt + LIFECYCLE_GRACE_MS;
+    const decision = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt,
+      lastActivityAt: 0,
+      now: deadline + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
+    });
+    expect(decision.outcome).toBe("expire");
   });
 });
 
