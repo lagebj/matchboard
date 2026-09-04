@@ -106,3 +106,127 @@ describe("computeRoundPlanIntegrity: already-finalized matches within a DRAFT ro
     expect(squadBelowMinimum!.teamId).toBe(hvitTeamId);
   });
 });
+
+// ARR-0041: these two signals both depend on knowing a player's current availability. Before
+// the fix, that came from the round-scoped Availability model, which has no production write
+// path anywhere in the app -- every real round therefore always resolved every player to the
+// "no row" fallback (UNKNOWN), silently disabling both checks in production. The fix reads the
+// same Player.currentAvailability field the Players page's availability control and
+// generateSelection() itself already read/write, so a real coach-set status is honoured live.
+describe("computeRoundPlanIntegrity: live current-availability checks (ARR-0041)", () => {
+  let testDb: PrismaClient;
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 3 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  beforeEach(async () => {
+    await testDb.warning.deleteMany({});
+    await testDb.selection.deleteMany({});
+    await testDb.movementLedger.deleteMany({});
+    await testDb.player.updateMany({ data: { currentAvailability: "AVAILABLE" } });
+    await testDb.matchRound.update({
+      where: { id: fixtureIds.matchRoundId },
+      data: { status: "DRAFT" },
+    });
+  });
+
+  it("reports SELECTED_PLAYER_UNAVAILABLE for a DRAFT selection whose player is currently marked unavailable, without any round-scoped Availability row", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodMatchId = fixtureIds.matches["Rod"]!;
+    const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
+    const unavailablePlayer = rodPlayers[0]!;
+
+    for (const player of rodPlayers) {
+      await testDb.selection.create({
+        data: {
+          matchId: rodMatchId,
+          matchRoundId: fixtureIds.matchRoundId,
+          playerId: player.id,
+          role: "CORE",
+          status: "DRAFT",
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+    }
+    await testDb.player.update({
+      where: { id: unavailablePlayer.id },
+      data: { currentAvailability: "UNAVAILABLE" },
+    });
+
+    // Confirm no round-scoped Availability row exists — the signal must fire from
+    // Player.currentAvailability alone, matching real production data shape.
+    const roundScopedRows = await testDb.availability.count({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+    });
+    expect(roundScopedRows).toBe(0);
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    const signal = integrity.signals.find(
+      (s) => s.ruleCode === "SELECTED_PLAYER_UNAVAILABLE" && s.playerId === unavailablePlayer.id,
+    );
+    expect(signal).toBeDefined();
+    expect(signal!.kind).toBe("BLOCKED");
+    expect(signal!.matchId).toBe(rodMatchId);
+    expect(integrity.summary.blockerCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it("reports AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY as Decision required for an available, eligible, unselected player", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodMatchId = fixtureIds.matches["Rod"]!;
+    const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
+    const [selected, unselected] = rodPlayers;
+
+    await testDb.selection.create({
+      data: {
+        matchId: rodMatchId,
+        matchRoundId: fixtureIds.matchRoundId,
+        playerId: selected!.id,
+        role: "CORE",
+        status: "DRAFT",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    // unselected stays AVAILABLE (the beforeEach default) and is never assigned.
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    const signal = integrity.signals.find(
+      (s) =>
+        s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+        s.playerId === unselected!.id,
+    );
+    expect(signal).toBeDefined();
+    expect(signal!.kind).toBe("DECISION_REQUIRED");
+    expect(integrity.summary.decisionRequiredCount).toBeGreaterThanOrEqual(1);
+    expect(integrity.coverage.unassignedEligibleAvailablePlayerIds).toContain(unselected!.id);
+  });
+
+  it("does not report AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY for an unselected player who is currently unavailable", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
+    const unselected = rodPlayers[0]!;
+
+    await testDb.player.update({
+      where: { id: unselected.id },
+      data: { currentAvailability: "UNAVAILABLE" },
+    });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    const signal = integrity.signals.find(
+      (s) =>
+        s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+        s.playerId === unselected.id,
+    );
+    expect(signal).toBeUndefined();
+    expect(integrity.coverage.unassignedEligibleAvailablePlayerIds).not.toContain(unselected.id);
+  });
+});
