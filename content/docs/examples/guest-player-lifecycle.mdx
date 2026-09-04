@@ -1,0 +1,52 @@
+---
+title: "Worked example: Guest Player lifecycle"
+description: A real Guest Player added to the Fjord Cup, and exactly where their participation does and does not follow a registered player's rules.
+---
+
+This example uses a real Guest Player added to Fjordvik FK's documentation dataset. See
+[Guest Players](/docs/how-matchboard-works/guest-players) for the full reasoning before reading
+this walkthrough.
+
+## Initial conditions
+
+Fjordvik FK is entering the Fjord Cup with a competitive squad and a balanced remainder squad,
+built from the club's registered player pool. Kasper Lie, a friend of the club, is available to
+help for this event only.
+
+## What happens
+
+Kasper Lie is created as a Guest Player with just a name, a source label ("Friend of the club"),
+and a short note. He is added to the event's participant pool, marked available, and manually
+assigned directly to the Fjordvik FK Development Squad.
+
+![Fjordvik FK's Development Squad roster showing Kasper Lie labelled as a Guest alongside registered players](/docs/screenshots/events/guest-player-squad.png)
+
+## Why
+
+- A manual squad assignment for a Guest Player is respected immediately — there is no separate
+  automatic-generation step to run, and no separate lock action needed to protect it.
+- The squad's roster treats him identically to every registered player next to him for the
+  purposes of this event: he counts toward the squad total, and the same position labels and
+  squad-management controls apply.
+- The "Guest" label is the one visible difference — never hidden, so a coach reviewing the squad
+  always knows exactly who is a registered player and who is not.
+
+## What this does not do
+
+Nothing about Kasper Lie's participation touches Fjordvik FK's registered player statistics,
+development history, or league fairness calculations — those exist only for players formally
+added to the club's own player group. If Kasper Lie helps out again for a future event, the same
+Guest Player identity is reused rather than recreated, but his participation still never becomes
+part of any registered player's long-term record.
+
+## What would change the outcome
+
+If Fjordvik FK no longer expects Kasper Lie to help out, deactivating the Guest Player preserves
+this event's historical participation exactly as it happened, rather than deleting it — there is
+no delete action for a Guest Player with recorded history.
+
+## Related
+
+- [Guest Players](/docs/how-matchboard-works/guest-players)
+- [Events and League parity](/docs/how-matchboard-works/events-and-league-parity)
+- [Events](/docs/events)

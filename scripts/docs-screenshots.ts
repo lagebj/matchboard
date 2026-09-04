@@ -135,6 +135,21 @@ const SCENARIOS: Scenario[] = [
     path: (ids) => ids.eventPath,
   },
   {
+    id: "guest-player-squad",
+    output: "events/guest-player-squad.png",
+    viewport: "desktop",
+    path: (ids) => ids.eventPath,
+    // The Event detail page's tab state is not URL-driven (unlike the match-detail Rotations
+    // fix above) -- click the Squads tab directly instead of relying on a query param. The
+    // balanced squad's full roster (including the guest, listed last) needs a taller viewport
+    // than the shared "desktop" default to stay in frame without scrolling.
+    prepare: async (page) => {
+      await page.setViewportSize({ width: 1440, height: 1500 });
+      await page.getByRole("button", { name: "Squads", exact: true }).click();
+      await page.getByText("Guest", { exact: true }).first().waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+    },
+  },
+  {
     id: "round-board-plan-integrity-mobile",
     output: "planning/round-board-plan-integrity-mobile.png",
     viewport: "mobile",
