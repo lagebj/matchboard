@@ -123,6 +123,12 @@ const SCENARIOS: Scenario[] = [
     path: (ids) => ids.opponentPath,
   },
   {
+    id: "plan-versus-actual",
+    output: "matchday/plan-versus-actual.png",
+    viewport: "desktop",
+    path: (ids) => `/o/${ids.orgSlug}/insights/planned-vs-actual`,
+  },
+  {
     id: "event-squads",
     output: "events/event-squads.png",
     viewport: "desktop",

@@ -1,0 +1,92 @@
+---
+title: Match state and the actual timeline
+description: How Matchboard reconstructs who was really on the pitch, and why the plan is never quietly rewritten to match it.
+---
+
+## What
+
+The actual timeline is Matchboard's canonical record of what really happened on the pitch during
+a match — who started, every substitution, every position change, and when each happened. It is
+built from what was recorded, never from the original plan.
+
+## The plan remains the plan. The actual timeline records what really happened.
+
+This is the central idea behind everything on this page. A planned lineup and a planned rotation
+describe intent. The actual timeline describes reality. Matchboard keeps them as two distinct,
+both-true records rather than collapsing one into the other — a plan applied three minutes later
+than intended stays recorded as "planned for minute 30, applied at minute 33," not silently
+adjusted to say it always meant minute 33. See
+[Design principles](/docs/how-matchboard-works/design-principles) for why this separation is a
+stable rule across the whole product, not specific to matchday.
+
+## How the timeline is built
+
+The starting lineup is the timeline's first state. From there, every recorded substitution and
+every recorded position change — during live reporting, or entered directly if a match was not
+live-reported — extends it forward. Each recorded change carries a timestamp resolved against the
+match's own clock, including any half-time or period break, so events from different periods sort
+correctly against each other rather than by a clock that resets to zero at each new period. The
+result is a full account of on-field composition at any point in the match: who was on the pitch,
+in what position, for how long.
+
+## Live Reporting mutates it; Follow Live only reads it
+
+During a match, **Live Reporting** is where the score, clock, goals, assists, substitutions, and
+position changes actually get recorded — the one place this canonical state changes.
+**Follow Live**, a read-only view a second coach can open, loads the same canonical state and
+receives the same updates as they happen, but has no recording control of any kind — nothing it
+does can change the match record. Both surfaces read the identical underlying state; only Live
+Reporting can write to it.
+
+Refreshing the page, or opening the match again later, reconstructs the same state from the
+underlying record rather than depending on anything held only in a browser tab — the record lives
+on the server, not in transient client state.
+
+## Planned rotations meet the actual timeline
+
+A planned change is a prompt during live reporting: apply it, delay it, or skip it against what is
+actually happening. Applying it writes the real position or player change onto the actual
+timeline at the real time it happened. A skipped or delayed change is recorded as exactly that —
+never silently dropped, and never allowed to quietly become "as if it had happened on schedule."
+See [Rotation engine](/docs/how-matchboard-works/rotation-engine) for how the plan itself is
+built, and [Worked example: Why this rotation?](/docs/examples/why-this-rotation) for a real
+applied-later-than-planned change end to end.
+
+## Correcting the record after the match
+
+The post-match report is where attendance, goals, assists, and rotations are confirmed once a
+match is over — seeded directly from what live reporting recorded when a match was
+live-reported, entered by hand when it was not. Completing the report locks it. A correction after
+that goes through the report's own explicit reopen step, never a silent edit — the actual record
+stays a reliable, stable account of what happened, correctable but never quietly rewritten.
+
+## Where the gap between plan and reality shows up
+
+![Planned vs Actual insight showing a round where one match's planning has already closed but the match has not yet been played or reported, listing every planned player as awaiting a report rather than a real absence](/docs/screenshots/matchday/plan-versus-actual.png)
+
+Matchboard surfaces the difference between what was planned and what actually happened as its own
+view, at both the round level and the individual match level. A planned player with no report yet
+shows as awaiting one, not as a false absence — [Planning lifecycle](/docs/how-matchboard-works/planning-lifecycle)
+covers why a match's planning boundary closing is a separate fact from the match having actually
+been played.
+
+```text
+PLAN:    starting lineup → planned change 1 → planned change 2
+ACTUAL:  starting lineup → change applied late → unplanned swap → change skipped
+
+Evidence is always derived from ACTUAL, never from PLAN.
+```
+
+## What Matchboard does with the actual record
+
+Everything in [Evidence and learning](/docs/evidence-and-learning) — recorded minutes by
+position, player combinations, match-phase patterns — is derived from the actual timeline, never
+from what was originally planned. A plan that never happened as written contributes nothing false
+to that history; only what was actually recorded does.
+
+## Related
+
+- [Matchday](/docs/matchday)
+- [Rotation engine](/docs/how-matchboard-works/rotation-engine)
+- [Post-match](/docs/post-match)
+- [Evidence and learning](/docs/evidence-and-learning)
