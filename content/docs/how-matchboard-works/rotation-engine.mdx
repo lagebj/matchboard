@@ -1,0 +1,123 @@
+---
+title: Rotation engine
+description: How Matchboard plans a whole match's substitutions and position changes, and why the result is reasonable rather than claimed optimal.
+---
+
+## What
+
+A rotation plan is a sequence of changes across a whole match — not one isolated substitution
+decided in the moment, but a full picture of who is on the pitch at every stage, built before
+kickoff from the starting lineup onward.
+
+## Starting from the lineup, not from scratch
+
+The plan's first state is the match's own starting lineup — see
+[Lineup engine](/docs/how-matchboard-works/lineup-engine). Every later state in the plan is
+computed from the state before it, not independently: a position swap at one point in the plan
+changes what "who is on the pitch" means for every decision after it.
+
+```text
+Starting lineup
+      │
+      ▼
+Planned change 1  (who is on the pitch after this is the input to the next step)
+      │
+      ▼
+Planned change 2
+      │
+      ▼
+        ...through to full time
+```
+
+## Where changes can happen
+
+Matchboard does not consider every second of the match as a possible change point. It checks a
+small, fixed set of moments: roughly a third and two-thirds of the way through each playing
+period, plus every natural break (typically half-time). This is a deliberate, disclosed search
+boundary — a practical way to keep planning tractable, not a claim about football doctrine. A
+coach's own manually added or edited change is never restricted to these moments.
+
+## How a batch of changes is decided
+
+There is no fixed number of substitutions Matchboard always makes, and no fixed rhythm applied to
+every match. At each candidate moment, Matchboard looks at which on-pitch outfield players are
+genuinely "due" a change: they have played a meaningful stint (at least a few minutes, though a
+natural break waives this) and are meaningfully ahead of a fair-share baseline for the match so
+far. However many players meet that bar at once become one batch of changes together. A generated
+plan for one squad might make one change every ten minutes; another might hold steady and make
+several changes together at half-time. Neither pattern is treated as inherently better or riskier
+— which one fits depends on the squad and the match.
+
+## What decides who comes on
+
+When a change is due, the bench candidate who replaces the outgoing player is chosen from:
+
+- **role suitability** — see
+  [Role suitability and position experience](/docs/how-matchboard-works/role-suitability-and-position-experience).
+  A player with no support at all for the role is never excluded outright, but scores lowest;
+- **fairness under-share** — how far behind a fair share of this match's minutes the candidate
+  currently is, the same principle covered in
+  [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity);
+- a small, capped bonus when the club has established evidence that a particular opponent
+  tendency favours a specific tactical function, and a bench candidate fits it — for example,
+  preserving a fast, pressing profile against an opponent known to build patiently from the back;
+- a second small, capped bonus from position-context evidence where it exists (see
+  [Evidence and learning](/docs/evidence-and-learning)).
+
+Every one of these evidence-informed contributions is bounded and layered after role suitability
+and fairness, never before them, and after every scoring step Matchboard checks structurally that
+no previously-eligible candidate was silently excluded by an evidence signal — evidence can
+reorder or nudge a choice, never remove someone from consideration.
+
+![A match's Rotations tab showing a planned position swap at around 30 minutes, marked applied, with an evidence panel showing what has tended to happen at that point in the match across three recorded matches](/docs/screenshots/planning/planned-rotations.png)
+
+## The goalkeeper is never part of this
+
+Goalkeeper changes are never generated automatically. Who plays in goal, and for how long,
+remains a decision the coach makes directly, exactly as in the lineup engine.
+
+## Why this is not claimed to be globally optimal
+
+The engine searches a bounded, practical set of decision points and builds the plan step by step,
+committing to the best available batch at each point rather than exhaustively comparing every
+possible whole-match sequence against every other. This is disclosed deliberately: Matchboard
+does not claim its generated plan is the single best possible whole-match sequence, only that each
+step is reasonable given the state the plan has reached by that point.
+
+## Generating a lineup and rotation plan together
+
+Building a starting lineup first and asking a rotation plan to work around whatever unfairness or
+awkward structure that leaves behind is exactly what Matchboard avoids when a coach uses "Generate
+lineup & rotation plan." Both stages read from the same picture of fairness, role suitability, and
+evidence, computed once and shared — the starting eleven is chosen already aware of the same
+context the rotation plan will use, not in ignorance of it. This is not the same as searching
+every combination of starting lineup against every combination of rotation plan together; it means
+neither stage is blind to what the other already knows.
+
+## During the match
+
+A planned change is a prompt during live reporting — apply it, delay it, or skip it against what
+is actually happening. Applying it records the real position or player change on the actual match
+timeline, at the real time it happened; a delayed change stays available to apply later; the
+original plan is never silently rewritten to match reality. See
+[Rotations](/docs/rotations) and
+[Match state and the actual timeline](/docs/how-matchboard-works/design-principles#what-was-planned-and-what-actually-happened-are-two-different-both-true-records)
+for how the plan and the actual record stay distinct.
+
+## Coach control
+
+Every change a generated plan proposes can be edited, reordered, or removed exactly like one the
+coach added directly. A generated plan is a starting point to react to, never a fixed script.
+
+## Example
+
+See [Worked example: Why this rotation?](/docs/examples/why-this-rotation) for the Elias Storm
+position-swap example from the Fjordvik Rød story match end to end — the plan, the reactive
+evidence it surfaces, and the actual record afterward.
+
+## Related
+
+- [Lineup engine](/docs/how-matchboard-works/lineup-engine)
+- [Role suitability and position experience](/docs/how-matchboard-works/role-suitability-and-position-experience)
+- [Rotations](/docs/rotations)
+- [Evidence and learning](/docs/evidence-and-learning)

@@ -99,6 +99,18 @@ const SCENARIOS: Scenario[] = [
     path: (ids) => `${ids.readyMatchPath}?tab=tactics`,
   },
   {
+    id: "generated-lineup",
+    output: "planning/generated-lineup.png",
+    viewport: "desktop",
+    path: (ids) => `${ids.storyMatchPath}?tab=tactics`,
+  },
+  {
+    id: "planned-rotations",
+    output: "planning/planned-rotations.png",
+    viewport: "desktop",
+    path: (ids) => `${ids.storyMatchPath}?tab=rotations`,
+  },
+  {
     id: "post-match-report",
     output: "matchday/post-match-report.png",
     viewport: "desktop",

@@ -1,0 +1,77 @@
+---
+title: Role suitability and position experience
+description: The difference between a player's declared position and their actual recorded exposure, and how Matchboard uses both without permanent labels.
+---
+
+## What
+
+Every player has a declared primary position, and optionally a secondary and tertiary position.
+Separately, Matchboard also tracks where a player has actually played, from the real match record.
+Role suitability combines both into a factual read of how well-supported each outfield role is for
+a player — used to widen planning options sensibly, never to narrow or permanently classify a
+player.
+
+## The four tiers
+
+- **Natural** — matches the player's declared primary position.
+- **Plausible** — matches a declared secondary or tertiary position.
+- **Developmental** — no declared fit, but enough recorded match time in that role to say
+  something meaningful.
+- **Unsupported** — neither a declared fit nor meaningful recorded time. This is not a judgement;
+  it means there is nothing yet to base a role change on.
+
+This tiering exists for a specific reason: a declared position alone is not flexible enough to
+solve real squad problems sensibly. If five players are all declared primarily as Striker, sharing
+game time by rotating all five through one Striker slot while everyone else plays the whole match
+is not a sensible answer — some of those five likely have a genuinely supported alternate role
+(a declared secondary position, or real recorded minutes elsewhere), and some genuinely do not.
+Role suitability distinguishes the two rather than treating every Striker as interchangeable, or
+forcing a role change onto a player nothing supports.
+
+## Goalkeeper is never inferred this way
+
+This flexibility applies to outfield roles only. Whether a player can play in goal is never
+derived from their other attributes or from a gap that happens to need filling — it is a direct
+coach decision (`goalkeeperAbility`, an explicit setting on the player's profile), separate from
+everything described here.
+
+## Tactical function fit
+
+Where enough attribute data exists, Matchboard also shows fit for a small set of tactical
+functions, kept separate from position: first-line press, pace in behind, hold-up and link play,
+central defensive continuity, ball progression, and width. Two players who share the same
+declared position can differ here — one Striker might suit pressing the opponent's build-up,
+while another offers more running in behind the defensive line. A function shows as not
+applicable when none of the roles it depends on are supported for that player, or when the
+relevant attributes are not recorded at all.
+
+## Position experience
+
+Position experience is the underlying recorded fact this all builds on: actual minutes a player
+has spent at a given position, drawn from the real match-state record, not the original plan. It
+is descriptive, always shown alongside how much of it exists, and it is never described as a
+verdict — a player with limited recorded time at a position is unknown there, not weak there.
+
+## What this does not do
+
+Role suitability never overrides eligibility, availability, or fairness. It widens the set of
+positions Matchboard can reasonably consider a player for; it never narrows a player down to one
+role, and it never becomes a public label attached to a player's identity.
+
+## Example
+
+Fjordvik Rød's Theo Falk is declared primarily as a Winger. During the connected story match
+against Bergstad IF, a second-half position swap gave him real recorded minutes centrally, playing
+Elias Storm's role after they exchanged positions. That single match is not, on its own, enough to
+move a central role out of Unsupported for Theo Falk — Developmental status needs a run of
+recorded matches in the role, the same confidence threshold Matchboard uses everywhere it judges
+how much evidence backs a pattern (see
+[Evidence and learning](/docs/evidence-and-learning)). If the same swap happened repeatedly over
+future matches, a central role for Theo Falk would become Developmental — a contextual option a
+future plan could consider, without changing how he is declared on his profile.
+
+## Related
+
+- [Lineup engine](/docs/how-matchboard-works/lineup-engine)
+- [Rotation engine](/docs/how-matchboard-works/rotation-engine)
+- [Players](/docs/players)

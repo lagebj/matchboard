@@ -1,0 +1,76 @@
+---
+title: Lineup engine
+description: How Matchboard turns a selected squad into a starting formation — and why it is not searching for the strongest possible eleven.
+---
+
+## What
+
+Once a match's squad is settled and a formation is chosen, Matchboard can suggest a starting
+lineup — one player per formation slot. This is match-specific: it works from that match's own
+selected squad and formation, not from a team's roster in the abstract.
+
+## Inputs
+
+- the match's selected squad (core, support, and development players together);
+- the chosen formation's slots, each with a role type and a set of positions it accepts;
+- each candidate's declared primary and secondary position;
+- any slot the coach has already locked, which is always preserved;
+- where the coach uses the combined "Generate lineup & rotation plan" action (see
+  [Rotation engine](/docs/how-matchboard-works/rotation-engine)), a small set of additional
+  bounded signals — fairness under-share, a discovered role-suitability fit, opponent context,
+  and combination evidence.
+
+## Goalkeeper first, then scarcest slots first
+
+The goalkeeper slot is filled first, from players whose primary or secondary position supports
+goalkeeping — never inferred from a gap that happens to need filling, and never left to a scoring
+comparison the way outfield slots are. Every other slot is then filled in order of how few
+compatible candidates remain for it, so a position only one player can fill is decided before a
+position five players could reasonably take.
+
+## What decides who fills an outfield slot
+
+For each remaining slot, every still-available player is scored on:
+
+- **position fit** — a real, declared match for the slot heavily outweighs everything else. A
+  player with no positional fit at all for a slot is effectively never chosen for it, regardless
+  of any other factor;
+- **declared primary position matching the slot's broad role** — a smaller additional preference;
+- when generated together with a rotation plan, a small bounded contribution from fairness
+  under-share, a discovered role-suitability fit, opponent-tendency context, and season
+  combination evidence — always the last, smallest factor, layered on top of position fit rather
+  than replacing it.
+
+The highest-scoring available player fills the slot; locked slots are never touched.
+
+## What this is not
+
+This is not a search for the strongest possible eleven. There is no overall player rating fed
+into this process at all — Matchboard does not sort candidates by a skill number and take the
+best. Two players with the same genuine position fit for a slot, and similar bounded context, are
+treated as similarly reasonable choices. See
+[Design principles](/docs/how-matchboard-works/design-principles) for why "no hidden player
+ranking" is a stable rule across every engine, not just this one.
+
+A separate, distinct feature on a team's own workspace, "Recommended lineup," does use attribute
+ratings — but it answers a different question: a generated starting point for a team's own core
+roster, independent of any specific match, not part of match-day lineup suggestion.
+
+## Coach control
+
+Every suggested slot can be reassigned directly, exactly like a manually built lineup. Locking a
+slot protects it from being changed by a later suggestion or regeneration. Suggesting a lineup
+never touches a slot the coach has already locked.
+
+![Match tactics tab showing a filled 7-a-side lineup on the pitch, with the remaining squad listed alongside](/docs/screenshots/planning/generated-lineup.png)
+
+## Example
+
+See [Worked example: Why this lineup?](/docs/examples/why-this-lineup) for a real filled 7-a-side
+lineup walked through end to end.
+
+## Related
+
+- [Rotation engine](/docs/how-matchboard-works/rotation-engine)
+- [Role suitability and position experience](/docs/how-matchboard-works/role-suitability-and-position-experience)
+- [Squad planning](/docs/squad-planning)
