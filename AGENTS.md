@@ -2560,7 +2560,13 @@ Season overview rules:
 - The matrix is primary. Graphs are secondary and must be backed by drill-down data.
 - Draft and finalized data must never be mixed without visible labeling.
 - Draft selections must never look like finalized history.
-- Unavailable rounds must not count as fairness debt.
+- Unavailable rounds must not count as fairness debt. **ARR-0041 (partially resolved)**: this
+  rule still cannot function for *historical* rounds — the round-scoped `Availability` model it
+  depends on has no production write path, so no finalized round is distinguishable from "no
+  data recorded." `computeRoundPlanIntegrity()`'s own two *current-round* checks
+  (`SELECTED_PLAYER_UNAVAILABLE`, `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`) were fixed to
+  read `Player.currentAvailability` (the only field any production writer sets) directly instead
+  — see ARR-0041 for what remains open.
 - Double-load must count as extra load.
 - Support and development must be counted separately.
 - Squad repair/backfill must be counted separately or clearly explained.

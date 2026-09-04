@@ -75,16 +75,26 @@ export async function seedScenarios(ctx: SeedContext) {
 
   const allPlayerIds = Object.values(players).map((p) => p.id);
 
-  async function markAllAvailable(matchRoundId: string, unavailablePlayerIds: string[] = []) {
+  // Sets Player.currentAvailability directly -- the single field the real production
+  // availability control (setPlayerAvailabilityAction -> setPlayerAvailability(),
+  // src/lib/players/player-domain.ts) writes, and the only field generateSelection()'s
+  // own eligibility loop reads. Not the round-scoped Availability Prisma model: that model has
+  // no production write path anywhere in the app (ARR-0041) -- seeding rows into it here would
+  // model a mechanism no real coach exercises, and (confirmed while investigating ARR-0041) can
+  // trigger an unrelated default-policy signal via a separate, still-unfixed read of that same
+  // table, producing a documentation example the real product would never show a coach.
+  async function markAllAvailable(unavailablePlayerIds: string[] = []) {
     const unavailable = new Set(unavailablePlayerIds);
-    await db.availability.createMany({
-      data: allPlayerIds.map((playerId) => ({
-        organisationId: org.id,
-        playerId,
-        matchRoundId,
-        status: unavailable.has(playerId) ? "UNAVAILABLE" : "AVAILABLE",
-      })),
+    await db.player.updateMany({
+      where: { id: { in: allPlayerIds } },
+      data: { currentAvailability: "AVAILABLE" },
     });
+    if (unavailable.size > 0) {
+      await db.player.updateMany({
+        where: { id: { in: [...unavailable] } },
+        data: { currentAvailability: "UNAVAILABLE" },
+      });
+    }
   }
 
   async function createHistoricalMatch(opts: {
@@ -115,7 +125,7 @@ export async function seedScenarios(ctx: SeedContext) {
         organisationId: org.id,
       },
     });
-    await markAllAvailable(round.id);
+    await markAllAvailable();
     await generateAndPersistRound(round.id);
     // This historical round intentionally schedules only one Fjordvik FK team, so capturing this
     // match's baseline also closes the (single-match) round automatically.
@@ -218,7 +228,7 @@ export async function seedScenarios(ctx: SeedContext) {
       organisationId: org.id,
     },
   });
-  await markAllAvailable(storyRound.id);
+  await markAllAvailable();
   await generateAndPersistRound(storyRound.id);
   const storyCaptureResult = await ensureMatchPlanningBaselineCaptured(storyMatch.id, { force: true });
   if (!storyCaptureResult.captured) throw new Error("Failed to capture planning baseline for story round");
@@ -325,7 +335,7 @@ export async function seedScenarios(ctx: SeedContext) {
   // Two Fjordvik Blå players unavailable — below target but still playable (a planning note,
   // not a blocker), and enough of a gap that the active support rotation path to Blå gets used.
   const blaPlayerIds = Object.values(players).filter((p) => p.team.id === teams[1].id).map((p) => p.id);
-  await markAllAvailable(upcomingRound.id, blaPlayerIds.slice(0, 1));
+  await markAllAvailable(blaPlayerIds.slice(0, 1));
   await generateAndPersistRound(upcomingRound.id);
 
   // Close planning only for the Hvit match ("ready"/planning-closed — S2); Rød/Blå stay open
