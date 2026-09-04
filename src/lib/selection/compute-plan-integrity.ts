@@ -135,11 +135,17 @@ export async function computeRoundPlanIntegrity(
   const allSelections = round.selections;
   const selectedPlayerIds = new Set(allSelections.map((s) => s.playerId));
 
-  const playerAvailabilityMap = new Map<string, string>();
-
   const activePlayers = await db.player.findMany({
     where: { removedAt: null, coreTeam: { organisationId: round.organisationId } },
-    select: { id: true, firstName: true, lastName: true, coreTeamId: true, availabilities: true, removedAt: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      coreTeamId: true,
+      availabilities: true,
+      removedAt: true,
+      currentAvailability: true,
+    },
   });
 
   const playerActiveMap = new Map<string, boolean>();
@@ -155,19 +161,21 @@ export async function computeRoundPlanIntegrity(
     );
   }
 
-  // Bulk availability for this round — replaces per-player N+1 loop
-  const roundAvailabilities = await db.availability.findMany({
-    where: { matchRoundId },
-    select: { playerId: true, status: true },
-  });
+  // Current-round availability comes from Player.currentAvailability, not the round-scoped
+  // Availability model (ARR-0041) -- that model has no production write path anywhere in the
+  // app, so a bulk query against it always resolves every player to the "no row" fallback
+  // (UNKNOWN) in real usage, silently disabling the two live checks below. currentAvailability
+  // is the one field the Players page's availability control, and generateSelection()'s own
+  // eligibility loop, actually write/read -- reading it here is what "recomputed live from
+  // current state on every read" (AGENTS.md "Warnings and plan integrity signals") requires for
+  // a round that has not yet reached its planning boundary. Historical, per-round availability
+  // for already-finalized rounds (the "repeatedContext" check and season-fairness's own
+  // "unavailable rounds excluded from fairness debt" rule further below and in
+  // get-planning-period-fairness.ts) still depends on the same unpopulated model and remains a
+  // separate, not-yet-resolved part of ARR-0041.
   const availabilityMap = new Map<string, string>();
-  for (const a of roundAvailabilities) {
-    availabilityMap.set(a.playerId, a.status);
-  }
-
-  // Build player availability map from bulk query instead of per-player findFirst
   for (const p of activePlayers) {
-    playerAvailabilityMap.set(p.id, availabilityMap.get(p.id) ?? "UNKNOWN");
+    availabilityMap.set(p.id, p.currentAvailability);
   }
 
   // 1. SQUAD_BELOW_MINIMUM: one signal per affected match
@@ -346,11 +354,19 @@ export async function computeRoundPlanIntegrity(
 
     signals.push({
       idempotencyKey: makeIdempotencyKey("AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY", matchRoundId, null, null, player.id),
-      kind: "BLOCKED",
+      // Decision required, not Blocked (AGENTS.md "Decision required conditions") -- this
+      // signal was previously unreachable in production (ARR-0041: it depends on the same
+      // never-populated round-scoped Availability model the two live checks above were fixed
+      // to stop reading), so this mislabeling was never exercised. The Round Board's own
+      // per-chip badge already overrode it correctly via warningSeverityMap
+      // (src/app/(app)/o/[orgSlug]/rounds/[matchRoundId]/page.tsx), but the round-level
+      // blocked/decisionRequired summary counts below read `kind` directly and would have
+      // double-counted this as Blocked instead of Decision required.
+      kind: "DECISION_REQUIRED",
       ruleCode: "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY",
       matchRoundId,
       playerId: player.id,
-      title: `Blocked: ${playerName} has no planned match opportunity this round`,
+      title: `Decision required: ${playerName} has no planned match opportunity this round`,
       currentState: `${playerName} is available for this round but is not assigned to a match.`,
       consequence: "Assign the player to an eligible match or provide an override reason before finalising.",
       classificationReason: "Available eligible player without planned match opportunity",
