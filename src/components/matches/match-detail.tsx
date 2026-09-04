@@ -239,14 +239,13 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const [activeTab, setActiveTab] = useState<MatchTab | null>(null);
 
   const activeTabParam = searchParams.get("tab");
-  const currentTab: MatchTab =
-    activeTabParam === "tactics"
-      ? "tactics"
-      : activeTabParam === "after-match"
-        ? "after-match"
-        : activeTabParam === "opponent"
-          ? "opponent"
-          : "squad";
+  // Validated against `tabs` itself (not a hand-maintained list of keys) so every tab -- not
+  // just the ones present when this was first written -- is reachable via ?tab=. This previously
+  // omitted "rotations" and "review": a direct link/bookmark to either silently opened Squad
+  // instead, with no error.
+  const currentTab: MatchTab = tabs.some((t) => t.key === activeTabParam)
+    ? (activeTabParam as MatchTab)
+    : "squad";
   const selectedTab = activeTab ?? currentTab;
 
   const dateStr = formatKickoffDate(match.startsAt);
