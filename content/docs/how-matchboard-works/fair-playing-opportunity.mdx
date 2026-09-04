@@ -68,6 +68,31 @@ who carries support load over a season instead of leaning on the same available 
 repeatedly. It is a ranking preference: it never blocks a support assignment outright when no
 better candidate exists, since a resolved-but-imperfect squad is better than an unfilled one.
 
+## The full precedence order
+
+Putting every constraint covered on this page and elsewhere in this section together, the order
+Matchboard checks things in — verified against the same precedence contract the evidence-informed
+scoring layer is required to follow — is:
+
+```text
+Eligibility and hard domain rules
+  (availability, movement-path authorisation, non-rotatable exclusions)
+        ↓
+Fairness and required-support obligations
+        ↓
+Position and formation viability
+        ↓
+Structural balance and role suitability
+        ↓
+Bounded, capped evidence-informed signals
+        ↓
+Opponent and other contextual preferences
+```
+
+Nothing below a given step can override anything above it. A bounded evidence signal, for
+example, can only ever choose between options that already passed every eligibility, fairness,
+and structural check above it — never bypass one of them.
+
 ## Target, minimum, and maximum squad size
 
 Target squad size is a planning aim, not a hard cap — a team can be selected above target, up to

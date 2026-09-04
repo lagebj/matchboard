@@ -29,6 +29,24 @@ correctly against each other rather than by a clock that resets to zero at each 
 result is a full account of on-field composition at any point in the match: who was on the pitch,
 in what position, for how long.
 
+```text
+Starting lineup
+      +
+Recorded substitutions
+      +
+Recorded position changes
+      +
+Score events, resolved against absolute match time
+      =
+Canonical actual timeline
+      │
+      ├── read by Live Reporting (can also mutate it)
+      └── read by Follow Live (read-only)
+```
+
+Both Live Reporting and Follow Live read from this one reconstruction — neither maintains its own
+separate copy of match state.
+
 ## Live Reporting mutates it; Follow Live only reads it
 
 During a match, **Live Reporting** is where the score, clock, goals, assists, substitutions, and
