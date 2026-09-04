@@ -1,0 +1,138 @@
+---
+title: Squad selection engine
+description: How Matchboard turns availability, team need, and history into a round's draft squads.
+---
+
+## What
+
+Generating a round runs one orchestration across every match in it, in a fixed phase order.
+Each phase completes before the next begins, and no phase creates a second planned selection
+for a player already placed in that round.
+
+```text
+1. Per-match core selection
+2. Round-level required support resolution
+3. Cross-match conflict resolution
+4. Development routing
+5. Squad repair (repairing teams weakened by support movement)
+6. Post-pipeline validation and plan-integrity signal persistence
+7. Policy-derived warnings (additive, never blocking)
+```
+
+Generating a whole round together — rather than one match at a time — is what lets a player
+moving from one team to support another get resolved consistently: the engine sees every match's
+need at once, not one team's request in isolation.
+
+## The candidate pool
+
+Every active player in the organisation starts as a candidate for every match; the phases above
+narrow that pool down. A player is removed from consideration, with a stated reason, when any of
+these apply:
+
+- their current availability is Injured, Sick, Away, or Unknown (Unknown specifically because an
+  unconfirmed player cannot safely count toward a team's required support — see
+  [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity));
+- the coach has pinned them out of the round entirely (a "Pin out");
+- no rotation path authorises the movement role being considered (support, development, or squad
+  repair) from their core team to the match's team;
+- selecting them here would conflict with a plan they already have elsewhere in the same round.
+
+A player marked Tentative is still considered, with a warning attached asking the coach to
+confirm before relying on them.
+
+## Core selection
+
+A player whose core team matches the match's team is a straightforward core candidate, limited
+only by the team's maximum squad size.
+
+## Support before anything optional
+
+If a team needs required support to reach a viable squad, filling that need is attempted before
+optional development movement and before any fairness-driven rotation — see
+[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity) for the full
+precedence rule. Among eligible support candidates, several things shape which specific player is
+chosen: whether they fit the position still needed, how much core-team and support load they have
+carried already this league season, and whether they were sent as support in the immediately
+preceding round or two (a small, growing deprioritisation that rotates who carries support load
+over time, without ever blocking a support assignment outright when no better candidate exists).
+Where the club has enough recorded shared playing-time evidence for two specific players, that
+evidence can add a small additional preference toward keeping (or, depending on coaching intent,
+deliberately not keeping) them together — always the smallest, last-applied factor, and never
+enough to override fairness or a genuine position need.
+
+## Development movement
+
+Where a rotation path supports it, a player can be moved to another team specifically for
+development exposure — a harder or different context than their own core team currently offers.
+This is evaluated only after required support is resolved, using the same kind of ranked
+candidate list.
+
+## Squad repair
+
+When support or development movement leaves a team short, squad repair fills the gap, in this
+priority order:
+
+1. the team's own core player, moved as support, if their own match is on a different date and
+   they can genuinely play both;
+2. a player from a team connected by an active development or support rotation path, where they
+   are not marked non-rotatable;
+3. any other player with an active support or squad-repair rotation path to the team in need,
+   again excluding non-rotatable players.
+
+A non-rotatable player is never used for squad repair, at any priority level, regardless of how
+much a team needs the help. If no valid repair exists, Matchboard raises a planning note instead
+of silently leaving the team short.
+
+## Target, minimum, and maximum squad size
+
+Covered in full in [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity):
+target is an aim, minimum is a hard floor, maximum is a hard ceiling, and a squad below target but
+above minimum is a planning note rather than a blocked condition.
+
+## Plan-integrity signals
+
+After generation, Matchboard checks the whole round and raises one of three kinds of signal:
+
+- **Blocked** — the plan is not viable as it stands: a squad below its minimum accepted size, a
+  duplicate planned assignment, or a selected player whose availability contradicts the
+  selection. These need a decision before the round is in good shape.
+- **Decision required** — a meaningful exception that should be consciously accepted: most
+  commonly, an available, eligible player with no planned match opportunity this round.
+- **Planning note** — useful context that does not block anything: a squad below target but
+  playable, a preferred support level not fully met, a squad-repair below its preferred target,
+  or a permitted fallback position being used.
+
+These signals are recomputed live from current state every time the round is viewed — a stale
+signal from before a fix clears itself the next time the round is checked, rather than lingering.
+
+## Explanations
+
+Every selection carries a reason, visible by hovering (or long-pressing, on a touch device) the
+player's chip on the Round Board: which rule placed them there, and whether it was a hard rule or
+a scoring preference. This is the same information the engine used to decide, not a separate
+summary written after the fact.
+
+## Manual override
+
+A coach can adjust any generated squad by hand. Every domain rule the engine applies can be
+overridden manually with a stated reason — the override is recorded and shown alongside the
+selection, never silently applied. The two things a manual edit cannot do are change a
+match/round whose planning boundary has already closed, or reference a player, match, or
+selection that does not exist.
+
+## Example
+
+Fjordvik Blå's core roster has more players than its match against Solsiden SK needs, while
+Fjordvik Hvit's own core roster falls short of what its match against Skogheim FK needs.
+Generating the round together resolves this in one pass: two players who would otherwise sit out
+as surplus core capacity at Blå — Noah Mensah and Oliver Strand — are instead selected as support
+for Hvit, each carrying the explanation "Selected as support for Fjordvik Hvit after being
+dropped as surplus core from Fjordvik Blå." Both moves are recorded in the movement ledger, the
+authoritative record of non-core movement, not only in the selection itself.
+
+## Related
+
+- [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity)
+- [Design principles](/docs/how-matchboard-works/design-principles)
+- [Squad planning](/docs/squad-planning)
+- [Worked examples: Why this squad?](/docs/examples/why-this-squad)

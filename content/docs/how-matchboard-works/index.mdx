@@ -1,0 +1,57 @@
+---
+title: How Matchboard works
+description: The reasoning behind Matchboard's plans — what it uses, what takes priority, and what it does not claim to know.
+---
+
+The rest of this documentation shows you how to use each page. This section explains the
+reasoning underneath: what Matchboard actually uses when it proposes a squad, a starting
+lineup, or a rotation plan, what always takes priority over what, and what it explicitly does
+not know or claim.
+
+## Why this section exists
+
+Matchboard makes recommendations — a draft squad, a suggested lineup, a proposed rotation
+sequence. A recommendation is only useful if you can trust it, and you can only trust it once
+you know what went into it. "Click Generate" is not an adequate explanation for a system that
+affects which children play, and how much.
+
+Every page in this section tries to answer the same small set of questions for one mechanism:
+
+- What information did Matchboard use?
+- Which constraints took priority over which?
+- Why could this recommendation reasonably differ from another one?
+- What here is historical fact, and what is an observed pattern?
+- What can you change, and how?
+- What is Matchboard explicitly not claiming to know?
+
+## Reading order
+
+If you are new to this section, the pages build on each other in roughly this order:
+
+1. **[Design principles](/docs/how-matchboard-works/design-principles)** — the stable rules
+   every other page assumes.
+2. **[Planning lifecycle](/docs/how-matchboard-works/planning-lifecycle)** — when a plan is
+   still yours to change, and when it becomes history.
+3. **[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity)** — what
+   "fair" means in Matchboard, and what it does not mean.
+4. **[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)** — how a
+   round's draft squads get built.
+
+Later additions to this section go deeper on lineups, rotations, role suitability, the actual
+match-state record, and the evidence Matchboard builds up from completed matches — each linked
+from the coach workflow pages that use them.
+
+## What this section is not
+
+This section explains product behaviour, not source code. It does not expose internal helper
+names, database field names, or every intermediate number a scoring function happens to
+compute. Where a number materially changes what you should expect (for example, how a repeated
+support assignment is treated), it is stated plainly. Where the underlying mechanism is a
+weighted preference among several reasonable options, it is described as that — an ordered set
+of influences, not a formula to memorize.
+
+## Related
+
+- [Working with Matchboard](/docs/core-concepts/working-with-matchboard)
+- [Worked examples](/docs/examples)
+- [Glossary](/docs/glossary)

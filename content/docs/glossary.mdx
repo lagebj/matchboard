@@ -1,0 +1,195 @@
+---
+title: Glossary
+description: Definitions for the terms Matchboard uses across planning, matchday, and evidence.
+---
+
+This glossary defines terms as Matchboard actually uses them, which sometimes differs from
+everyday football usage — "rotation," in particular, means several related but distinct things
+depending on context, and this glossary calls that out explicitly.
+
+## Actual participation
+
+What really happened in a match, as recorded during live reporting or confirmed in the post-match
+report — who started, who came on, who moved position, and when. Distinct from the planned
+squad: a player can be planned and not actually play, or play unplanned real minutes that were
+never part of the plan. See [Matchday](/docs/matchday) and [Post-match](/docs/post-match).
+
+## Availability
+
+A player's current status for selection: Available, Tentative, Unavailable, Injured, Sick, Away,
+or Unknown. Set by the coach on the Players page and read live by both generation and plan
+integrity — there is no separate per-round history behind it, so a correction takes effect
+immediately for any round that has not yet passed its planning boundary. See
+[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity).
+
+## Combination evidence
+
+Factual, descriptive context about how much time two or more players have shared on the pitch
+together, and in what shape — never a compatibility score, and never a reason to permanently pair
+or separate specific players. See [Evidence and learning](/docs/evidence-and-learning).
+
+## Confidence
+
+How much recorded history backs a piece of evidence — not a judgement about whether the pattern
+is good or bad. Limited evidence and no evidence are both treated as neutral, never as a mark
+against a player, position, or combination. See [Evidence and learning](/docs/evidence-and-learning).
+
+## Core team
+
+The team a player stably belongs to for the season. Belonging to a core team is separate from
+which match a player is planned for in any given round — a player can be sent as support or moved
+for development without changing their core team. See
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine).
+
+## Development movement
+
+A player moved to another team specifically for a development opportunity — a different or
+harder context than their own core team currently offers — authorised by an active development
+rotation path. Temporary and explainable, never a permanent reclassification. See
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine).
+
+## Evidence
+
+Factual context Matchboard builds up from completed matches — recorded minutes, positions,
+combinations, opponent history, and more — that can influence later planning as a bounded
+preference. Evidence never overrides fairness, availability, or eligibility, and missing evidence
+is always treated as neutral. See [Evidence and learning](/docs/evidence-and-learning).
+
+## Event
+
+A cup, tournament, or friendly day: a self-contained occasion with its own temporary squads, kept
+separate from league round planning. An Event does not create league selections, does not affect
+league fairness history, and does not touch a finalized league match. See
+[Events](/docs/events).
+
+## Event squad
+
+A named squad within one Event, distinct from a league Team — it exists only for that Event, has
+its own target/min/max size, and does not carry season-long history the way a league core team
+does. See [Events](/docs/events).
+
+## Fairness
+
+A scoring preference that helps Matchboard choose between reasonable options based on how
+opportunity, support load, and development movement have been shared across a league season.
+Fairness is subordinate to eligibility, availability, and a team's required support — it never
+overrides them. See [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity).
+
+## Football observation
+
+A short, coach-recorded note about a player's observable behaviour in a match — for example,
+recovering position quickly, or helping a teammate after losing the ball — using a fixed set of
+observable-behaviour codes, never a numeric grade or a character judgement. See
+[Post-match](/docs/post-match).
+
+## Guest Player
+
+A reusable identity for someone taking part in a single Event or league round without becoming a
+permanent member of your player group — a friend's child, or someone from another club. A Guest
+Player behaves like a normal participant for the occasion they join, but never builds up
+season-long statistics or development history the way a registered player does. See
+[Events](/docs/events).
+
+## Lineup
+
+The starting formation and positions for one specific match, built from the match's selected
+squad. A generated lineup is a starting point the coach can reassign slot by slot — never a claim
+that it is the single strongest possible eleven.
+
+## Match state
+
+The canonical, reconstructed record of who was actually on the pitch, in what position, at any
+point during a match — derived from the starting lineup plus every recorded substitution and
+position change. Distinct from the plan: match state reflects what happened, not what was
+intended. See [Matchday](/docs/matchday).
+
+## Opponent level
+
+An estimate of how strong an opponent has looked, based on results and the squad fielded against
+them — one of several distinct kinds of evidence Matchboard keeps about an opponent, alongside
+tactical tendencies and combination evidence. See [Opponents](/docs/opponents).
+
+## Opportunity
+
+Whether a player has a planned match to play in during a given round. An available, eligible
+player without a planned opportunity is a condition Matchboard actively surfaces for a coach
+decision, not something that passes unnoticed. See
+[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity).
+
+## Plan integrity
+
+The live-recomputed set of conditions Matchboard checks against a round's current plan: Blocked
+conditions that need resolving, Decision required conditions that need a conscious choice, and
+Planning notes that are useful context without blocking anything. Recomputed fresh on every read,
+never left stale. See [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine).
+
+## Planned rotation
+
+An intended position change or substitution for one specific match, set up before kickoff as part
+of a whole-match rotation plan. Distinct from the movement described under "development movement"
+or "support movement" above — a planned rotation is about what happens *during* one match, not
+about which team a player belongs to. See [Rotations](/docs/rotations).
+
+## Planning boundary
+
+The real-world moment a match's plan becomes historical: its scheduled kickoff passing, or live
+reporting starting for it, whichever happens first. There is no separate coach-operated finalize
+action — the boundary closes automatically. See
+[Planning lifecycle](/docs/how-matchboard-works/planning-lifecycle).
+
+## Position experience
+
+A player's actual recorded playing time in a given position, as distinct from their declared
+primary, secondary, or tertiary position. Position experience can support considering a player for
+a role they were not declared for, without permanently reclassifying them. See
+[Players](/docs/players).
+
+## Position-context evidence
+
+A comparison of what has tended to happen while a specific player occupied a specific position
+against the team's other recorded time in that same position — a descriptive pattern, never a
+verdict on the player, and never on its own a reason to give a player fewer opportunities there.
+See [Evidence and learning](/docs/evidence-and-learning).
+
+## Role suitability
+
+A factual read of how well-supported a given outfield role is for a player, from Natural (matches
+declared primary position) through Plausible, Developmental, to Unsupported — never a permanent
+label, and never applied to goalkeeping, which stays a direct coach decision. See
+[Players](/docs/players).
+
+## Rotation
+
+An overloaded term Matchboard uses in three related but distinct senses. A **rotation path**
+authorises movement of players between teams (support, development, or squad repair) — see
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine). A **planned
+rotation** is an intended in-match position change or substitution — see
+[Rotations](/docs/rotations). **Consecutive support rotation** describes how support load is
+deprioritised for a player who carried it in the immediately preceding round or two, to spread it
+across the squad over time. Context in each page makes clear which sense applies.
+
+## Squad repair
+
+Filling a gap left in a team's squad after support or development movement, in a defined priority
+order that never uses a non-rotatable player. If no valid repair exists, Matchboard raises a
+planning note rather than silently leaving the team short. See
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine).
+
+## Support movement
+
+A player sent from their core team to help another team reach a viable squad — the highest
+generation priority after hard eligibility rules, resolved before any optional development
+movement or fairness-driven rotation. See
+[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity).
+
+## Target squad size
+
+A team's planning aim for squad size — distinct from its minimum accepted size (a hard floor) and
+its maximum size (a hard ceiling). A squad below target but above minimum is a planning note, not
+a blocked condition. See
+[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity).
+
+## Related
+
+- [How Matchboard works](/docs/how-matchboard-works)
+- [Worked examples](/docs/examples)

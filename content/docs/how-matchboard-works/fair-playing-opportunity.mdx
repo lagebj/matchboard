@@ -1,0 +1,109 @@
+---
+title: Fair playing opportunity
+description: What "fair" means when Matchboard plans a round, and what it deliberately does not mean.
+---
+
+## What
+
+A match round — one or more matches sharing the same week — is the unit Matchboard plans within.
+The season, or more precisely the league season, is the wider context Matchboard uses to judge
+whether opportunity has been shared reasonably over time. Fairness is a scoring preference that
+shapes which reasonable option Matchboard reaches for, not a hard rule that can override
+eligibility or a team's required support.
+
+## The planning unit versus the fairness horizon
+
+A round is planned as a whole: every match in it is generated together, so a player moving from
+one team to help another is resolved consistently rather than match by match. The league season
+is the longer window Matchboard looks back across when judging load — how often a player has
+been core, sent as support, moved for development, or missed an opportunity while available.
+
+## One planned opportunity per player per round
+
+A player belongs to at most one planned match squad per round. Moving a player between matches
+transfers that one assignment; it never duplicates it. This is enforced server-side on every
+draft-generation, manual-add, manual-move, and role-change action — not only in the interface.
+Actual double-appearances that happen for real-world reasons (an emergency backfill, for example)
+are recorded separately as post-match reality; they never mutate the finalized planned squad. See
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine) and
+[Post-match](/docs/post-match).
+
+## Availability is a hard input
+
+Only players marked Available are automatically considered without qualification. A Tentative
+player is included, with a warning to confirm before relying on them. A player marked Injured,
+Sick, Away, or with Unknown availability is automatically excluded from generation — Unknown
+specifically because an unconfirmed player cannot safely count toward a team's required support.
+None of this can be changed by a scoring preference; only a manual override with a stated reason
+can include an otherwise-excluded player.
+
+A player marked Unavailable who still ends up in a generated squad is caught by a separate,
+always-live check: plan integrity recomputes every selection's current availability on every
+read, and flags a selected-but-unavailable player as a Blocked condition that needs the coach to
+remove them or correct their availability before the plan is in good shape. Availability is
+whatever the coach most recently set for that player — there is no separate per-round history to
+track it against, so correcting a mistaken status takes effect immediately for any round not yet
+past its planning boundary.
+
+## Movement and support constraints are hard, not preferences
+
+A player may only be selected outside their own core team when an active, correctly-directed
+movement path exists for the exact role being used — support movement needs a support path,
+development movement needs a development path, and so on. No amount of fairness scoring can make
+an invalid path valid. A player marked non-rotatable is never used for generic squad repair,
+regardless of how much a team needs the help. These are hard eligibility rules; fairness only
+decides between the players who already pass them.
+
+## Team support comes before optional movement, and before fairness
+
+If a team needs required support to reach a viable squad, filling that need is attempted before
+optional development movement, before fairness-driven rotation, and before any cosmetic balancing.
+If the required support genuinely cannot be filled, Matchboard raises a plan-integrity signal
+instead of silently leaving the team short — see the plan-integrity section of
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine).
+
+Within that order, a player who has been sent as support in consecutive rounds is deprioritised
+for a further support assignment, growing with each additional consecutive round — this rotates
+who carries support load over a season instead of leaning on the same available players
+repeatedly. It is a ranking preference: it never blocks a support assignment outright when no
+better candidate exists, since a resolved-but-imperfect squad is better than an unfilled one.
+
+## Target, minimum, and maximum squad size
+
+Target squad size is a planning aim, not a hard cap — a team can be selected above target, up to
+its maximum. Minimum accepted squad size is a hard floor: going below it requires a manual
+override. Maximum squad size is a hard ceiling: going above it also requires an override. A squad
+that lands below target but above minimum is shown as a planning note, not a blocked condition —
+useful context, not something that stops the plan from being finalisable.
+
+## What fairness does not mean
+
+Matchboard does not aim for equal minutes, an identical role rotation, or artificially flattened
+squads. The goal is a useful squad each round, not manufactured equality — a stronger player can
+still be used for support without being permanently redefined by it, and a developing player can
+still receive a genuine challenge where effort and readiness support it. Fairness is one input
+among several, always subordinate to eligibility, availability, and a team's required support.
+
+## Manual changes and integrity
+
+A coach can always adjust a generated squad by hand. Every domain rule above can be overridden
+manually with a stated reason — same-round conflicts, movement-path restrictions, availability,
+squad-size limits — except the two hard, non-overridable boundaries: the match or round's planning
+boundary has already closed, or the player, match, or selection genuinely does not exist. Manual
+changes recalculate plan-integrity signals, fairness impact, and the movement record immediately,
+so the board never shows a stale picture after an edit.
+
+## Example
+
+Fjordvik Blå is short one player for its match against Havørn FK — a Blocked condition on the
+Round Board, because the squad is below its minimum accepted size. **Repair options** on a player
+chip shows a ranked list of eligible replacements drawn only from teams with an active support
+path to Fjordvik Blå — not simply the strongest available players league-wide — and applying one
+resolves the shortfall and clears the Blocked condition.
+
+## Related
+
+- [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)
+- [Design principles](/docs/how-matchboard-works/design-principles)
+- [Squad planning](/docs/squad-planning)
+- [Glossary](/docs/glossary)

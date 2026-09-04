@@ -1,0 +1,74 @@
+---
+title: "Worked example: Why this squad?"
+description: A real generated round from Fjordvik FK, showing why two players ended up as support rather than core.
+---
+
+This example uses Fjordvik FK's real seeded data and the real squad selection engine — see
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine) for how the mechanism
+itself works before reading this walkthrough.
+
+## Initial conditions
+
+Fjordvik FK fields three teams from one player pool. Going into this round:
+
+- **Fjordvik Blå** has 10 players on its core roster, but a target squad size of 9.
+- **Fjordvik Hvit** has 8 players on its core roster, also with a target squad size of 9 — one
+  short of its own target before any movement happens.
+- **Fjordvik Rød** has 8 players on its core roster as well.
+- An active support rotation path runs from Fjordvik Blå to Fjordvik Hvit.
+- All three teams have matches in the same round, generated together in one pass.
+
+## What Matchboard generated
+
+Fjordvik Blå's own match squad ends up with 8 players from its 10-player roster — near its
+target, not the full roster. Two Blå players, Noah Mensah and Oliver Strand, are instead selected
+as support for Fjordvik Hvit's match, each carrying the explanation "Selected as support for
+Fjordvik Hvit after being dropped as surplus core from Fjordvik Blå." Fjordvik Hvit's squad ends
+up with 10 players — 8 of its own core players plus the two support players — which is one above
+its own target of 9.
+
+## Why
+
+- Fjordvik Hvit genuinely needed help to reach a reasonable squad: its own roster alone falls
+  short of target.
+- Fjordvik Blå had more core players than its own match needed to hit target, so treating all 10
+  as required for its own match would have left two players without a clear purpose while a
+  teammate club genuinely needed them.
+- The active Blå → Hvit support rotation path is exactly what makes this movement valid — without
+  it, no amount of Hvit's need could pull a Blå player into Hvit's squad automatically.
+- Generating the whole round together, rather than one match at a time, is what let Matchboard see
+  both facts — Blå's spare capacity and Hvit's shortfall — in the same pass and resolve them
+  against each other.
+
+## What would change the outcome
+
+If Fjordvik Blå's own match needed all 10 players (a larger target size, or more players marked
+unavailable elsewhere), fewer or none would be available to move. If the Blå → Hvit support path
+were inactive, or either player were marked non-rotatable, this specific movement could not
+happen automatically, and Hvit's shortfall would instead show as a plan-integrity condition for
+the coach to resolve — see [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine#squad-repair)
+for what happens next in that case.
+
+## What this does not prove
+
+Noah Mensah and Oliver Strand are not "extra" or less valued at Fjordvik Blå. Nothing about being
+sent as support reflects on their ability or their standing on their own team — it reflects that,
+in this specific round, their own team's target was already covered and a teammate club had a
+genuine, real need an active path could meet. The same two players could just as easily be core
+for Blå in a different round if Blå's own numbers were tighter.
+
+## What still needs a decision
+
+Generating this round also surfaced something separate: one Fjordvik Blå player is currently
+marked Unavailable but still appears in Blå's generated squad. Because availability is checked
+live against the current plan, this shows as a Blocked condition — "selected but unavailable" —
+until the coach either removes that player or corrects their availability. This is unrelated to
+the support movement above; it is a reminder that a generated squad is a starting point, not a
+final answer, and that Matchboard actively flags this kind of condition rather than leaving it
+for the coach to spot by eye.
+
+## Related
+
+- [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)
+- [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity)
+- [Squad planning](/docs/squad-planning)

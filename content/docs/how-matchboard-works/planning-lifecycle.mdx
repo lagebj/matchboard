@@ -1,0 +1,98 @@
+---
+title: Planning lifecycle
+description: When a plan is still yours to change, when it becomes history, and the one narrow way to reopen it.
+---
+
+## What
+
+A round or a match moves through one lifecycle: editable while planning is still open, then
+historical once its real-world planning boundary closes. There is no separate "Finalize" action
+a coach clicks — the transition happens automatically, driven by real-world facts.
+
+## Why a boundary, not a button
+
+Earlier versions of Matchboard had a manual finalize step. It was removed because the fact it
+recorded — "this plan is now the historical record" — is already true the moment a match's
+kickoff passes or live reporting begins for it, whichever happens first. A manual finalize button
+duplicated that fact and could fall out of sync with it: a coach could forget to click it, or
+click it too early. Matchboard now derives the same fact from what actually happened, so there is
+one source of truth instead of two.
+
+## The boundary itself
+
+A match's planning boundary closes at whichever of these happens first:
+
+- its scheduled kickoff time passes, or
+- live match reporting starts for it.
+
+Closing the boundary captures the plan as it stood at that moment as the historical baseline —
+draft selections become finalized, and the round's own status updates once every match in it has
+closed. This capture is automatic and idempotent: it happens the next time anything checks
+whether the match is still editable (opening the Round Board, starting live reporting), not on a
+background schedule, and checking twice never captures twice.
+
+```text
+Draft (editable)
+     │
+     │  kickoff passes, or live reporting starts
+     ▼
+Historical baseline captured
+     │
+     │  match is played and reported
+     ▼
+Completed history
+```
+
+Nothing about the plan itself needs to be "ready" for the boundary to close. A round with unresolved
+plan-integrity issues still becomes historical automatically at kickoff — Matchboard does not hold
+a match open indefinitely waiting for a decision. If a coach wants to consciously accept an
+issue before the boundary closes, that happens through a manual edit's own override reason (see
+[Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)), which is captured as
+part of the plan — not through a separate finalization-time prompt.
+
+## Draft and historical are not visually interchangeable
+
+While a round or match is still editable, the Round Board shows it as a draft: fully editable,
+plan-integrity signals recalculated live on every change. Once the boundary closes, the same
+match shows a read-only "Planning closed" indicator instead of an edit surface — normal draft
+actions (add, remove, regenerate, clear) are refused, since the data-integrity boundary described
+in [Design principles](/docs/how-matchboard-works/design-principles) has been reached.
+
+Becoming historical is not the same fact as being played. A match whose boundary closed at
+kickoff but that has not yet been reported shows a distinct "Planning closed" state, not "Done" —
+completing the post-match report is a separate later step. See [Post-match](/docs/post-match) for
+that step.
+
+## Reopening planning after a genuine reschedule
+
+If a match's kickoff time turns out to be wrong and it genuinely has not started yet, editing the
+match's date/time forward into the future reopens its planning automatically as part of that same
+reschedule — there is no separate "un-finalize" action. This is refused, with a stated reason,
+when the match already has recorded live activity or a completed post-match report: a reschedule
+corrects a scheduling mistake, it does not retroactively pretend a played match did not happen.
+
+Reopening one match's planning does not reopen any other match in the same round that has already
+closed on its own terms.
+
+## What this is not
+
+This is not a way to edit history. A completed post-match report is corrected through its own
+explicit reopen step (see [Post-match](/docs/post-match)), not by reopening the plan. A finalized
+round's captured selections and movement history remain readable in
+[Reports](/docs/reports) exactly as they were captured, whether or not the match was ever
+rescheduled afterward.
+
+## Example
+
+Fjordvik Rød's match against Bergstad IF kicks off at 18:00. At 17:59 the Round Board still shows
+it as an editable draft. At 18:01, without anyone taking any action, it shows "Planning closed" —
+the plan that existed one minute earlier is now the historical baseline. If the match had
+actually been postponed to the following week and the coach corrects the date in Matchboard
+before 18:00 on the new date, planning reopens automatically as part of saving that correction.
+
+## Related
+
+- [Design principles](/docs/how-matchboard-works/design-principles)
+- [Fixtures and rounds](/docs/fixtures-and-rounds)
+- [Post-match](/docs/post-match)
+- [Reports](/docs/reports)

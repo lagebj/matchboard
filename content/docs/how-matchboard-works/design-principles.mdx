@@ -1,0 +1,94 @@
+---
+title: Design principles
+description: The stable rules that every Matchboard engine follows, and that every other deep page in this section assumes.
+---
+
+These principles hold across every planning surface in Matchboard — squad selection, lineups,
+rotations, and the evidence that informs later planning. If a specific engine page and this page
+ever seem to disagree, the specific page is describing an implementation detail; these
+principles describe the intent that detail has to satisfy.
+
+## Matchboard is decision support, not automatic authority
+
+Every generated squad, lineup, and rotation plan is a proposal the coach reviews, not an
+instruction that executes itself. Draft selections stay editable, a generated lineup is a
+starting point you can reassign slot by slot, and a generated rotation plan is a sequence you
+can edit, reorder, or remove change by change. Nothing Matchboard proposes requires the coach's
+agreement to exist, but nothing it proposes takes effect on the pitch without the coach choosing
+to run with it.
+
+## The plan becomes history because of what actually happened, not because a coach clicked "Finalize"
+
+A round or a match becomes a historical record automatically, the moment its real-world planning
+boundary closes — a match's scheduled kickoff passing, or live reporting starting for it,
+whichever happens first. There is no separate lock or confirm step. See
+[Planning lifecycle](/docs/how-matchboard-works/planning-lifecycle) for the full detail,
+including the narrow, explicit way a genuine reschedule can reopen planning.
+
+## Fair opportunity comes before optimisation
+
+Whether a player gets a meaningful opportunity this round takes priority over building the
+strongest-looking squad or lineup. A team's required support need is resolved before optional
+development movement, and before any scoring preference. See
+[Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity) for what this
+means in practice, and [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)
+for how it plays out in one round.
+
+## Historical evidence is bounded context, not an authority
+
+Once matches are completed, Matchboard builds up evidence — recorded minutes by position, player
+combinations that have shared the pitch, opponent history, and more. That evidence can help
+choose between two otherwise reasonable options. It cannot create an opportunity out of nothing,
+bypass an eligibility rule, or override fairness. Every evidence-informed adjustment in
+Matchboard is deliberately capped, and a structural check on the underlying scoring runs after
+every evidence-informed step to confirm that evidence never removed a candidate who was
+otherwise eligible — it can reorder or add a small preference, never exclude.
+
+## What was planned and what actually happened are two different, both-true records
+
+A plan says what was intended. The actual match record says what really happened — who started,
+who came on, who moved position, and when. Matchboard keeps these separate on purpose: recording
+that a planned change happened three minutes later than intended, or that a substitution
+happened that no plan anticipated, is more useful than quietly rewriting the plan to match
+reality. Evidence is always built from the actual record, never from the original plan. A
+dedicated "match state and the actual timeline" page in this section covers the mechanism in
+full; see [Rotations](/docs/rotations) for how this shows up during a match in the meantime.
+
+## No hidden player ranking
+
+Matchboard does not compute or expose an overall player score, a "best XI," or a ranking of
+players against each other. A generated lineup or rotation plan is built from position and role
+fit, fairness, and bounded evidence — never from sorting players by a single number and taking
+the top names. Two players can be equally reasonable choices for the same role at the same
+moment, and Matchboard says so rather than pretending one was objectively better.
+
+## Missing evidence is neutral, not a mark against a player
+
+A player with little or no recorded history at a position, or with little shared time alongside
+a particular teammate, is treated as unknown — not as a risk to avoid. A new player, a new
+position, or a new opponent starts on equal footing with everything Matchboard has more history
+about. [Evidence and learning](/docs/evidence-and-learning) covers how this plays out for each
+specific kind of evidence, with a dedicated confidence-and-unknowns page planned for this section.
+
+## Coach judgement stays authoritative, and overrides are accountable
+
+A coach can override almost any rule manually — a same-round conflict, a rotation-path
+restriction, availability, squad-size limits — by providing a reason. The override is recorded
+and shown alongside the selection, not hidden. The only things a coach cannot override through a
+normal draft edit are data-integrity boundaries: a match or round whose planning boundary has
+already closed, or a player, match, or selection that does not exist.
+
+## Evidence describes correlation, not causation
+
+When Matchboard says a team's matches have tended to go a particular way while a player occupied
+a role, or that an opponent has repeatedly shown a tactical tendency, that is a description of
+what has been recorded — not a claim that the player or the tendency caused the outcome. A
+handful of matches is a small, uncertain sample, and Matchboard is explicit about how much
+history backs any pattern it shows.
+
+## Related
+
+- [Planning lifecycle](/docs/how-matchboard-works/planning-lifecycle)
+- [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity)
+- [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)
+- [Glossary](/docs/glossary)
