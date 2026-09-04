@@ -1,0 +1,69 @@
+---
+title: Events and League parity
+description: Which planning and evidence concepts Events genuinely share with league rounds, and which remain deliberately different.
+---
+
+## What
+
+Events — cups, tournaments, friendly days — and league round planning are separate systems that
+share as much of their underlying reasoning as genuinely makes sense, without pretending to be
+identical where they are not. This page states plainly what is shared and what is not, rather than
+implying complete parity.
+
+## What is shared
+
+**The post-match learning pipeline.** Once a League match or an Event match is completed, both
+feed the same underlying evidence pipeline: the actual timeline is rebuilt, opponent evidence is
+recorded, player evidence is computed, and combination evidence is rebuilt — one shared
+orchestrator, not two separate copies. See [Evidence and learning](/docs/evidence-and-learning)
+and [What evidence means](/docs/how-matchboard-works/evidence) for what that pipeline actually
+produces.
+
+**Role suitability and position experience.** The same [role suitability](/docs/how-matchboard-works/role-suitability-and-position-experience)
+reasoning applies to a player considered for an Event squad slot as it does for a League lineup
+slot.
+
+**Fairness within an Event.** An Event still avoids obviously unbalanced squads and respects a
+player's own manual assignment as protected — but see "What is deliberately different" below for
+how Event fairness differs in scope from league season fairness.
+
+## What is deliberately different
+
+**Events do not touch league selection at all.** Generating or adjusting an Event squad never
+creates a `Selection` row, never affects league fairness history, and never touches a finalized
+League match. Assigning a player to an Event squad and assigning them to a league round match are
+two entirely separate facts about that player.
+
+**Event fairness is construction feasibility, not longitudinal load balancing.** League fairness
+looks back across a season's worth of rounds. Event squad generation is only concerned with
+building a sensible squad or squads for one occasion — it does not weigh an Event assignment
+against a player's league-season load, and it does not apply the season fairness scoring League
+generation uses.
+
+**No manual lock step for an individual Event assignment.** Once a player is manually assigned to
+an Event squad, that assignment is already protected from automatic re-assignment — there is no
+separate action to lock it, unlike some other manual-override patterns elsewhere in Matchboard.
+
+**Opponent evidence has one asymmetry.** League matches carry a sporting-fit observation
+(`Match.matchFit`) that can automatically exclude an unusually one-sided result from an opponent's
+sporting-level estimate. Event matches have no equivalent field today, so this specific exclusion
+does not apply to Event-derived opponent evidence — a real, disclosed gap, not an oversight to
+paper over.
+
+**No pre-match rotation planning for Event matches.** League matches have a dedicated whole-match
+rotation-planning feature (see [Rotation engine](/docs/how-matchboard-works/rotation-engine)).
+Events do not have an equivalent yet — an Event match's starting lineup is its only pre-match
+planning surface.
+
+## Example
+
+Fjordvik FK enters the Fjord Cup with two squads: one competitive squad built around the
+strongest available line-up for the occasion, and a balanced remainder squad. Neither squad
+creates or affects any Fjordvik Rød, Blå, or Hvit league selection — a player assigned to the Cup
+squad remains exactly where they already were for their own team's next league round.
+
+## Related
+
+- [Events](/docs/events)
+- [Guest Players](/docs/how-matchboard-works/guest-players)
+- [Evidence and learning](/docs/evidence-and-learning)

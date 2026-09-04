@@ -482,5 +482,37 @@ export async function seedScenarios(ctx: SeedContext) {
     },
   });
 
-  console.log("Scenarios seeded: S1 (upcoming round), S2 (ready match), S3 (recordable match), S4 (completed + reflection), S5 (opponent history), S6 (event), S7 (historical immutable state).");
+  // ============ S8: Guest Player at the Fjord Cup ============
+  console.log("Seeding a Guest Player for the Fjord Cup...");
+  const { createGuestPlayer } = await import("../src/lib/guest-players/guest-player");
+  const guestResult = await createGuestPlayer({
+    organisationId: org.id,
+    footballGroupId: ctx.group.id,
+    name: "Kasper Lie",
+    sourceLabel: "Friend of the club",
+    note: "Helping out for the Fjord Cup only.",
+  });
+  if (!guestResult.success) throw new Error(`Failed to create guest player: ${guestResult.error}`);
+  const guestPlayer = guestResult.guestPlayer;
+  await db.eventPlayerAvailability.create({
+    data: { organisationId: org.id, eventId: event.id, guestPlayerId: guestPlayer.id, status: "AVAILABLE" },
+  });
+  // Manual squad assignment -- a Guest Player is always manually assigned, never part of
+  // automatic event-squad generation (AGENTS.md "Event planning parity", "Explicitly not yet
+  // integrated"). Assigned to the balanced/development squad, bringing it from 9 to 10 --
+  // deliberately above its own target of 9, the same "target is an aim, not a cap" behaviour
+  // documented in Fair playing opportunity, not a fabricated shortfall.
+  await db.eventSquadPlayer.create({
+    data: {
+      organisationId: org.id,
+      eventId: event.id,
+      eventSquadId: balancedSquad.id,
+      guestPlayerId: guestPlayer.id,
+      source: "MANUAL",
+      locked: false,
+      selectionReason: { note: "Manually added as a guest for this event." },
+    },
+  });
+
+  console.log("Scenarios seeded: S1 (upcoming round), S2 (ready match), S3 (recordable match), S4 (completed + reflection), S5 (opponent history), S6 (event), S7 (historical immutable state), S8 (guest player).");
 }
