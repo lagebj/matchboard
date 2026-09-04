@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { signRealtimeTicket } from "../../../src/lib/live-match/realtime/realtime-ticket";
+import { LIFECYCLE_FALLBACK_CEILING_MS, MAX_RETRY_ATTEMPTS, LIFECYCLE_GRACE_MS, LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS } from "../src/state";
 
 /**
  * Class-level orchestration tests for `MatchSessionObject` — specifically the Stage 6 pieces
@@ -257,7 +258,13 @@ describe("MatchSessionObject — persistence outbox (SPEC.md §21, Stage 6)", ()
 
     const result = ws.sent.find((m) => (m as { id?: string }).id === "rec-1") as { result: { persistenceStatus: string } };
     expect(result.result.persistenceStatus).toBe("failed_terminal");
-    expect(await ctx.storage.getAlarm()).toBeNull();
+    // No *retry* alarm remains for this event (it's terminal, never retried) — but the session
+    // itself is still active with an unknown expectedEndAt, so a far-future lifecycle-check
+    // alarm legitimately remains armed (2026-09 incident hardening). It must not be scheduled
+    // anywhere near "soon" the way a retry would be.
+    const alarmTime = await ctx.storage.getAlarm();
+    expect(alarmTime).not.toBeNull();
+    expect(alarmTime!).toBeGreaterThan(Date.now() + LIFECYCLE_FALLBACK_CEILING_MS);
 
     const stored = (await ctx.storage.get("event:evt-1")) as { persistenceStatus: string };
     expect(stored.persistenceStatus).toBe("failed_terminal");
@@ -284,7 +291,11 @@ describe("MatchSessionObject — persistence outbox (SPEC.md §21, Stage 6)", ()
     const stored = (await ctx.storage.get("event:evt-1")) as { persistenceStatus: string; canonicalEventId: string };
     expect(stored.persistenceStatus).toBe("persisted");
     expect(stored.canonicalEventId).toBe("canonical-1");
-    expect(await ctx.storage.getAlarm()).toBeNull();
+    // No *retry* alarm remains (the event persisted) — but a far-future lifecycle-check alarm
+    // legitimately remains armed for the still-active session (2026-09 incident hardening).
+    const alarmTime = await ctx.storage.getAlarm();
+    expect(alarmTime).not.toBeNull();
+    expect(alarmTime!).toBeGreaterThan(Date.now() + LIFECYCLE_FALLBACK_CEILING_MS);
 
     const broadcast = ws.sent.find((m) => (m as { method?: string }).method === "eventPersistenceChanged" && (m as { params: { persistenceStatus: string } }).params.persistenceStatus === "persisted");
     expect(broadcast).toBeDefined();
@@ -344,6 +355,176 @@ describe("MatchSessionObject — persistence outbox (SPEC.md §21, Stage 6)", ()
     expect(mockPersistEvent).toHaveBeenCalledTimes(2);
 
     void ctx;
+  });
+
+  it("gives up after the bounded retry ceiling instead of retrying forever (2026-09 production incident regression)", async () => {
+    // Regression test for the actual root cause: every persistence attempt returning a
+    // non-terminal status (the incident's own HTTP 307, a Vercel auth-gate redirect) forever,
+    // because classifyPersistenceFailure only treats 422 as terminal and computeBackoffDelayMs
+    // alone never stops trying. evaluateRetry's bounded ceiling is what actually guarantees this
+    // object's alarm traffic is finite regardless of the specific failure cause, current or
+    // future.
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockRejectedValue(new TestPersistEventError("Redirected by auth gate", 307));
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+
+    // One synchronous attempt already happened; drive exactly MAX_RETRY_ATTEMPTS alarm-driven
+    // retries (each one still failing the same way) to reach the ceiling.
+    for (let i = 0; i < MAX_RETRY_ATTEMPTS; i++) {
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.now() + 120_000);
+      await instance.alarm();
+    }
+
+    const stored = (await ctx.storage.get("event:evt-1")) as {
+      persistenceStatus: string;
+      retryCount: number;
+      nextRetryAt?: number;
+      lastErrorStatus?: number;
+    };
+    expect(stored.persistenceStatus).toBe("failed_exhausted");
+    expect(stored.nextRetryAt).toBeUndefined();
+    expect(stored.lastErrorStatus).toBe(307);
+
+    const broadcast = ws.sent.find(
+      (m) => (m as { method?: string }).method === "eventPersistenceChanged" &&
+        (m as { params: { persistenceStatus: string } }).params.persistenceStatus === "failed_exhausted",
+    );
+    expect(broadcast).toBeDefined();
+
+    // The event is permanently excluded from selectDueRetries/nextAlarmTime from here on — no
+    // further attempts, no matter how many more times alarm() fires or time advances.
+    const callsSoFar = mockPersistEvent.mock.calls.length;
+    vi.setSystemTime(Date.now() + 10 * 60 * 60 * 1000);
+    await instance.alarm();
+    expect(mockPersistEvent).toHaveBeenCalledTimes(callsSoFar);
+  });
+});
+
+describe("MatchSessionObject — finite session lifecycle (2026-09 incident hardening)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockFetchSnapshot.mockResolvedValue({ session: { sessionId: "session-1", matchId: "match-1", status: "ACTIVE" }, events: [] });
+  });
+
+  it("auto-expires a session with no reporting activity past its expected end + grace, without ever calling the persistence/report APIs", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    const expectedEndAt = Date.now() + 60 * 60 * 1000; // kickoff + 1h, as a stand-in duration
+    const ticket = await signRealtimeTicket(
+      { userId: "user-1", organisationId: "org-1", matchId: "match-1", sessionId: "session-1", capabilities: ["report"], expectedEndAt },
+      REALTIME_SECRET,
+    );
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      JSON.stringify({ protocol: 1, kind: "call", id: "auth-1", method: "authenticate", params: { ticket, clientId: "client-1" } }),
+    );
+
+    // Simulate the browser going away without ever calling endSession — no recordEvent ever
+    // happens, so lastActivityAt never advances past session start.
+    vi.useFakeTimers();
+    vi.setSystemTime(expectedEndAt + LIFECYCLE_GRACE_MS + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS);
+    await instance.alarm();
+
+    const meta = (await ctx.storage.get("meta")) as { endedAt: number | null; endReason?: string };
+    expect(meta.endedAt).not.toBeNull();
+    expect(meta.endReason).toBe("AUTO_EXPIRED");
+
+    // This must be pure transport/session bookkeeping — never a canonical persistence or
+    // report-related call of any kind.
+    expect(mockPersistEvent).not.toHaveBeenCalled();
+
+    const broadcast = ws.sent.find((m) => (m as { method?: string }).method === "sessionEnded");
+    expect((broadcast as { params: { reason?: string } }).params.reason).toBe("AUTO_EXPIRED");
+
+    // No further alarm activity continues for an ended session.
+    expect(await ctx.storage.getAlarm()).toBeNull();
+  });
+
+  it("does not expire while reporting activity continues past the expected end (e.g. a match running long)", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    const expectedEndAt = Date.now() + 60 * 60 * 1000;
+    const ticket = await signRealtimeTicket(
+      { userId: "user-1", organisationId: "org-1", matchId: "match-1", sessionId: "session-1", capabilities: ["report"], expectedEndAt },
+      REALTIME_SECRET,
+    );
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      JSON.stringify({ protocol: 1, kind: "call", id: "auth-1", method: "authenticate", params: { ticket, clientId: "client-1" } }),
+    );
+
+    mockPersistEvent.mockResolvedValue({ id: "canonical-1", clientEventId: "evt-1", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(expectedEndAt + LIFECYCLE_GRACE_MS + 1);
+    // A recordEvent right at the deadline is genuine, recent reporting activity.
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+
+    vi.setSystemTime(Date.now() + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS - 1_000);
+    await instance.alarm();
+
+    const meta = (await ctx.storage.get("meta")) as { endedAt: number | null };
+    expect(meta.endedAt).toBeNull();
+  });
+
+  it("a Follow Live (view-only) connection's presence never keeps an abandoned reporting session alive", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    const expectedEndAt = Date.now() + 60 * 60 * 1000;
+    const reportTicket = await signRealtimeTicket(
+      { userId: "user-1", organisationId: "org-1", matchId: "match-1", sessionId: "session-1", capabilities: ["report"], expectedEndAt },
+      REALTIME_SECRET,
+    );
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      JSON.stringify({ protocol: 1, kind: "call", id: "auth-1", method: "authenticate", params: { ticket: reportTicket, clientId: "client-1" } }),
+    );
+
+    // A second, view-only ("Follow live") connection stays attached the whole time. Its mere
+    // presence must not advance lastActivityAt or otherwise block expiry.
+    const viewerWs = new FakeWebSocket();
+    const viewTicket = await signRealtimeTicket(
+      { userId: "user-2", organisationId: "org-1", matchId: "match-1", sessionId: "session-1", capabilities: ["view"], expectedEndAt },
+      REALTIME_SECRET,
+    );
+    await instance.webSocketMessage(
+      viewerWs as unknown as WebSocket,
+      JSON.stringify({ protocol: 1, kind: "call", id: "auth-2", method: "authenticate", params: { ticket: viewTicket, clientId: "client-2" } }),
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(expectedEndAt + LIFECYCLE_GRACE_MS + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS);
+    await instance.alarm();
+
+    const meta = (await ctx.storage.get("meta")) as { endedAt: number | null; endReason?: string };
+    expect(meta.endedAt).not.toBeNull();
+    expect(meta.endReason).toBe("AUTO_EXPIRED");
+  });
+
+  it("never auto-expires a session created before startedAt/lastActivityAt existed (defensive backward compatibility)", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    // Simulate a meta row written by a pre-hardening deploy: no startedAt/expectedEndAt/
+    // lastActivityAt at all.
+    const meta = (await ctx.storage.get("meta")) as Record<string, unknown>;
+    delete meta.startedAt;
+    delete meta.expectedEndAt;
+    delete meta.lastActivityAt;
+    await ctx.storage.put("meta", meta);
+
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 365 * 24 * 60 * 60 * 1000); // one year later
+    await instance.alarm();
+
+    const stored = (await ctx.storage.get("meta")) as { endedAt: number | null };
+    expect(stored.endedAt).toBeNull();
   });
 });
 

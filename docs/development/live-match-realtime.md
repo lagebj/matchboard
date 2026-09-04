@@ -68,8 +68,10 @@ maintainer-directed addition beyond the original stage plan. As of this document
   backoff (`computeBackoffDelayMs`, 1s base doubling to a 60s cap) and (re)arms the Durable
   Object's single alarm slot for the earliest still-due retry (`nextAlarmTime`) — one alarm
   firing sweeps every currently-due event, never one alarm per event. A terminal
-  domain-validation failure (4xx — `LiveMatchDomainError`, `live-match-event-store.ts`) is
-  classified separately (`classifyPersistenceFailure`) and marked `"failed_terminal"`
+  domain-validation failure (exactly HTTP 422 — `LiveMatchDomainError`,
+  `live-match-event-store.ts`; every other status, including other 4xx, is retryable — see
+  Stage 8 below for why that matters) is classified separately (`classifyPersistenceFailure`)
+  and marked `"failed_terminal"`
   immediately, with no retry ever scheduled; `RecordEventResult`/`PersistenceChangedCallback`
   both now carry `"failed_terminal"` as a real outcome, not just `"pending"`/`"persisted"`.
   `handleAuthenticate`'s `"initialize"` outcome now reconciles against the internal snapshot
@@ -88,6 +90,21 @@ maintainer-directed addition beyond the original stage plan. As of this document
   payloads), and the internal Vercel routes log `latencyMs`/`errorCode` alongside the existing
   correlation ids. This document's "Architecture walkthrough" section below is §42's required
   documentation deliverable.
+- **Shipped**: Stage 8 — incident hardening (2026-09-04). Root-caused and fixed a real production
+  incident: `/api/internal/**` was redirected (HTTP 307) by `proxy.ts`'s base authenticated-session
+  gate, which had never been exempted the way the adjacent preview-allowlist gate was (Stage 6
+  History). Every canonical persistence attempt from the Worker failed this way, was classified
+  `"retryable"` (only 422 is terminal), and retried forever at the 60s backoff cap with no ceiling
+  — three production Durable Objects sustained tens of thousands of alarm invocations over several
+  days before this was found. No match data was ever lost (Stage 5's HTTP fallback always ran
+  regardless). Two independent hardening mechanisms were added: a bounded retry ceiling
+  (`evaluateRetry`, `MAX_RETRY_ATTEMPTS`=10 / `MAX_RETRY_AGE_MS`=24h, moving an exhausted event to
+  a new `"failed_exhausted"` status that never blocks `endSession`), and a finite,
+  activity-independent session lifecycle (`evaluateLifecycleExpiry`: kickoff + match duration +
+  a 30-minute grace period, then 15 minutes of no `recordEvent` activity, auto-marks
+  `SessionMeta.endedAt`/`endReason: "AUTO_EXPIRED"` — never a canonical Postgres write or report
+  submission, and never affected by a "Follow live" viewer's connection presence). See
+  ADR-0086's "Stage 8" section for full root-cause detail and production evidence.
 - **Explicitly out of scope**: PWA push notifications (service worker, Web Push) — discussed
   and deferred; "Follow live" is in-browser only for now, per `AGENTS.md`'s PWA section's
   existing v1 scope boundary.
@@ -372,13 +389,15 @@ idempotency key that survives this reset (it's what Neon's own dedup keys on); r
 |---|---|
 | WebSocket unavailable | HTTP fallback handles everything; realtime never re-enters (SPEC.md §22 Case A) |
 | Durable Object accepts, Vercel/Neon down | Event stays `"pending"`; Stage 6 alarm retries with backoff; client-side immediate HTTP write also attempts it (§22 Case B) |
-| Domain-validation failure (4xx) | `"failed_terminal"` immediately, never retried, clients notified via `eventPersistenceChanged` |
+| Domain-validation failure (exactly HTTP 422) | `"failed_terminal"` immediately, never retried, clients notified via `eventPersistenceChanged` |
 | Entire network down | IndexedDB records locally; replays on reconnect (§22 Case C/D) |
 | Duplicate delivery (HTTP + realtime both eventually try the same event) | `clientEventId` dedup guarantees exactly one canonical row (§22 Case E) |
 | Reconnect after being offline | Fresh ticket, reconnect, authenticate (reconciles if a new session), `getSnapshot`, replay unsynced local events (§27) |
 | Protocol version mismatch | `PROTOCOL_UNSUPPORTED`; browser falls through to HTTP exactly like any other RPC rejection |
 | Oversized message | Rejected before JSON parsing (`MESSAGE_TOO_LARGE`, 64 KiB limit, Stage 1) |
 | Match ends with pending events | Blocked (`PERSISTENCE_UNAVAILABLE`) until they resolve — never silently discarded (§29) |
+| Sustained non-422 failure (e.g. a routing/auth-gate problem — the Stage 8 incident) | Retries until `evaluateRetry`'s bounded ceiling (10 attempts or 24h) is reached, then `"failed_exhausted"` — no infinite retry, event's own HTTP-fallback copy is unaffected |
+| Reporter closes browser without ending the session | `evaluateLifecycleExpiry` auto-marks the session `endedAt`/`"AUTO_EXPIRED"` once kickoff + duration + grace + inactivity has elapsed — transport bookkeeping only, never a report submission |
 
 See "Local development" and "Deployed environments" above for the operational
 configuration side of this walkthrough.

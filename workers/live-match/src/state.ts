@@ -42,7 +42,12 @@ export function classifyEventType(eventType: string): EventClassification {
   return STATE_SENSITIVE_EVENT_TYPES.has(eventType) ? "state-sensitive" : "append-safe";
 }
 
-/** SPEC.md §15 "meta". */
+/** SPEC.md §15 "meta". `startedAt`/`expectedEndAt`/`lastActivityAt` (added for the finite
+ * session-lifecycle expiry below) are optional so a `meta` row written before this field
+ * existed still deserializes safely — `evaluateLifecycleExpiry` treats a missing `startedAt`/
+ * `lastActivityAt` as "no reliable basis to judge expiry" and never expires that session
+ * automatically, leaving it to the bounded-retry/manual-end paths instead. Every *new* session
+ * (the `"initialize"` outcome below) always populates all three. */
 export interface SessionMeta {
   matchId: string;
   sessionId: string;
@@ -50,6 +55,17 @@ export interface SessionMeta {
   version: number;
   clockAnchor: ClockAnchor;
   endedAt: number | null;
+  endReason?: "MANUAL" | "AUTO_EXPIRED";
+  startedAt?: number;
+  /** Kickoff + expected match duration (ms epoch) from the issuing ticket, or `null` when the
+   * issuing route couldn't resolve one (e.g. no shared duration source yet) — see
+   * `evaluateLifecycleExpiry`. */
+  expectedEndAt?: number | null;
+  /** Last time an authenticated `"report"`-capability connection had an event *accepted*
+   * (`evaluateRecordEvent`'s `"accepted"` outcome) — deliberately not connection presence
+   * (SPEC.md's own guidance: a "Follow live" viewer's connect/disconnect must never affect a
+   * reporting session's lifecycle). */
+  lastActivityAt?: number;
 }
 
 /** SPEC.md §15 "accepted_events" row. `persistenceStatus` transitions "pending" ->
@@ -66,7 +82,17 @@ export interface SessionMeta {
  * request, not a stripped-down eventType-only one. Optional because reconciled records
  * (`evaluateReconciliation`) are already `"persisted"` and never need to be replayed — they
  * came from the internal snapshot endpoint, which only returns canonical id/type/timestamp,
- * never the original submitted fields. */
+ * never the original submitted fields.
+ *
+ * `"failed_exhausted"` (added alongside `evaluateRetry` below) is a *bounded-retry* terminal
+ * state, distinct from `"failed_terminal"`'s *domain* terminal state: it means the outbox gave
+ * up after its own retry ceiling without ever getting a definitive answer (e.g. a sustained
+ * infrastructure failure returning a status that isn't the one true domain-terminal code), not
+ * that the event is known-invalid. It deliberately does NOT count toward `endSession`'s
+ * `pendingCount` block (`evaluateEndSession` below only counts `"pending"`) — an exhausted
+ * event has already been safely persisted via the caller's own HTTP fallback path (see
+ * `league-live-match-client.tsx`'s `createLeagueActions.recordEvent`), so this object's own
+ * copy giving up must never deadlock a coach's ability to end their session. */
 export interface AcceptedEventRecord {
   clientEventId: string;
   version: number;
@@ -74,10 +100,15 @@ export interface AcceptedEventRecord {
   acceptedAt: number;
   eventType: string;
   eventFields?: Record<string, unknown>;
-  persistenceStatus: "pending" | "persisted" | "failed_terminal";
+  persistenceStatus: "pending" | "persisted" | "failed_terminal" | "failed_exhausted";
   canonicalEventId?: string;
   retryCount: number;
   nextRetryAt?: number;
+  /** Set on the first failed attempt for this event; drives `evaluateRetry`'s max-age check. */
+  firstFailureAt?: number;
+  lastFailureAt?: number;
+  lastErrorStatus?: number;
+  lastErrorCategory?: "terminal" | "retryable";
 }
 
 export function initialClockAnchor(now: number): ClockAnchor {
@@ -109,6 +140,8 @@ export interface AuthenticateTicketClaims {
   matchId: string;
   sessionId: string;
   organisationId: string;
+  /** See `SessionMeta.expectedEndAt`'s doc comment. */
+  expectedEndAt?: number | null;
 }
 
 export type AuthenticateDecision =
@@ -150,6 +183,9 @@ export function evaluateAuthenticate(params: {
         version: 0,
         clockAnchor: initialClockAnchor(params.now),
         endedAt: null,
+        startedAt: params.now,
+        expectedEndAt: params.ticket.expectedEndAt ?? null,
+        lastActivityAt: params.now,
       },
     };
   }
@@ -314,6 +350,87 @@ const RETRY_CAP_MS = 60_000;
 export function computeBackoffDelayMs(retryCount: number): number {
   const delay = RETRY_BASE_MS * 2 ** retryCount;
   return Math.min(delay, RETRY_CAP_MS);
+}
+
+/**
+ * Root-cause hardening (2026-09 incident): `classifyPersistenceFailure` above only ever
+ * classifies exactly one status (422) as terminal — every other failure, including a
+ * structural/routing problem that will never resolve on its own (the incident: every call was
+ * redirected 307 by a Vercel auth gate that didn't exempt this internal route), was retried
+ * forever at the 60s backoff cap with no ceiling. `evaluateRetry` adds that ceiling: whichever
+ * of a maximum attempt count or a maximum age is reached first stops the retry loop for good.
+ * This is deliberately independent of *why* the failure is retryable — it is the backstop for
+ * "retryable forever" being wrong regardless of the specific cause, current or future.
+ */
+export const MAX_RETRY_ATTEMPTS = 10;
+export const MAX_RETRY_AGE_MS = 24 * 60 * 60 * 1000;
+
+export type RetryDecision = { outcome: "retry"; nextRetryAt: number } | { outcome: "exhausted" };
+
+export function evaluateRetry(params: { retryCount: number; firstFailureAt: number; now: number }): RetryDecision {
+  const ageMs = params.now - params.firstFailureAt;
+  if (params.retryCount >= MAX_RETRY_ATTEMPTS || ageMs >= MAX_RETRY_AGE_MS) {
+    return { outcome: "exhausted" };
+  }
+  return { outcome: "retry", nextRetryAt: params.now + computeBackoffDelayMs(params.retryCount) };
+}
+
+// ---------------------------------------------------------------------------------------
+// finite session lifecycle (2026-09 incident hardening)
+// ---------------------------------------------------------------------------------------
+
+/** Grace period after the expected match end (kickoff + duration) before lifecycle expiry is
+ * even considered — covers stoppage time, a delayed kickoff the ticket's `expectedEndAt` can't
+ * see, and ordinary reporting wrap-up. */
+export const LIFECYCLE_GRACE_MS = 30 * 60 * 1000;
+/** Deadline basis for a session whose ticket never carried an `expectedEndAt` (no shared
+ * duration source yet — see `LiveMatchRealtimeTicket.expectedEndAt`'s doc comment) — measured
+ * from session start, not kickoff, since kickoff itself is unknown here. */
+export const LIFECYCLE_FALLBACK_CEILING_MS = 4 * 60 * 60 * 1000;
+/** Once past the deadline, how long *reporting* must have been silent before treating the
+ * session as abandoned. Deliberately independent of connection/WebSocket presence — a "Follow
+ * live" viewer connecting or disconnecting must never affect this (SPEC.md; `lastActivityAt`
+ * only advances on an accepted `recordEvent`, never on `authenticate`/`getSnapshot`). */
+export const LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS = 15 * 60 * 1000;
+/** How often to re-check once past the deadline but still seeing recent reporting activity
+ * (e.g. a match legitimately running long) — avoids scheduling a lifecycle-check alarm more
+ * often than this even though the object is not yet ready to decide. */
+export const LIFECYCLE_RECHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+export type LifecycleDecision =
+  | { outcome: "active"; nextCheckAt: number | null }
+  | { outcome: "expire" };
+
+/**
+ * Decides whether an unended session should be auto-expired. Deliberately conservative: a
+ * session created before `startedAt`/`lastActivityAt` existed (an already-running object at
+ * deploy time) always reads `"active"` with no further check scheduled from here — there is no
+ * reliable basis to judge it, and the bounded-retry ceiling above already guarantees its alarm
+ * traffic (if any) is itself bounded, and a coach's own "End session" action always remains
+ * available regardless. Auto-expiry only ever sets `SessionMeta.endedAt` (transport/session
+ * bookkeeping) — it must never submit or finalize a post-match report; that stays a fact about
+ * canonical Postgres state the browser/server-action layer owns, entirely untouched here.
+ */
+export function evaluateLifecycleExpiry(params: {
+  startedAt: number | undefined;
+  expectedEndAt: number | null | undefined;
+  lastActivityAt: number | undefined;
+  now: number;
+}): LifecycleDecision {
+  if (params.startedAt === undefined || params.lastActivityAt === undefined) {
+    return { outcome: "active", nextCheckAt: null };
+  }
+
+  const deadline = (params.expectedEndAt ?? params.startedAt + LIFECYCLE_FALLBACK_CEILING_MS) + LIFECYCLE_GRACE_MS;
+  if (params.now < deadline) {
+    return { outcome: "active", nextCheckAt: deadline };
+  }
+
+  const inactivityMs = params.now - params.lastActivityAt;
+  if (inactivityMs >= LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS) {
+    return { outcome: "expire" };
+  }
+  return { outcome: "active", nextCheckAt: params.now + LIFECYCLE_RECHECK_INTERVAL_MS };
 }
 
 /** Which currently-pending events are due for a retry attempt right now. An event with no
