@@ -1,4 +1,10 @@
 {
   "title": "Worked examples",
-  "pages": ["index", "why-this-squad", "why-this-lineup", "why-this-rotation"]
+  "pages": [
+    "index",
+    "why-this-squad",
+    "why-this-lineup",
+    "why-this-rotation",
+    "one-match-from-plan-to-actual"
+  ]
 }

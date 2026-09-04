@@ -8,6 +8,7 @@
     "squad-selection-engine",
     "lineup-engine",
     "rotation-engine",
-    "role-suitability-and-position-experience"
+    "role-suitability-and-position-experience",
+    "match-state-and-actual-timeline"
   ]
 }
