@@ -440,6 +440,34 @@ describe("evaluateLifecycleExpiry", () => {
     }
   });
 
+  it("clamps an implausibly distant expectedEndAt to the fallback ceiling (CI regression: a test fixture's match date decades in the future produced an unschedulable alarm time)", () => {
+    const decadesOut = 60 * 365 * 24 * 60 * 60 * 1000; // ~60 years
+    const clampedDeadline = LIFECYCLE_FALLBACK_CEILING_MS + LIFECYCLE_GRACE_MS;
+
+    const stillActive = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: decadesOut,
+      lastActivityAt: 0,
+      now: clampedDeadline - 1,
+    });
+    expect(stillActive).toEqual({ outcome: "active", nextCheckAt: clampedDeadline });
+
+    const expired = evaluateLifecycleExpiry({
+      startedAt: 0,
+      expectedEndAt: decadesOut,
+      lastActivityAt: 0,
+      now: clampedDeadline + LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
+    });
+    expect(expired.outcome).toBe("expire");
+  });
+
+  it("still trusts an expectedEndAt that is sooner than the fallback ceiling", () => {
+    const soonExpectedEndAt = 30 * 60 * 1000; // 30 minutes — well under the 4h fallback
+    const deadline = soonExpectedEndAt + LIFECYCLE_GRACE_MS;
+    const decision = evaluateLifecycleExpiry({ startedAt: 0, expectedEndAt: soonExpectedEndAt, lastActivityAt: 0, now: deadline - 1 });
+    expect(decision).toEqual({ outcome: "active", nextCheckAt: deadline });
+  });
+
   it("falls back to a fixed ceiling from session start when no expectedEndAt is known", () => {
     const deadline = LIFECYCLE_FALLBACK_CEILING_MS + LIFECYCLE_GRACE_MS;
     const stillActive = evaluateLifecycleExpiry({ startedAt: 0, expectedEndAt: null, lastActivityAt: 0, now: deadline - 1 });

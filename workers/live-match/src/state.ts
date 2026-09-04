@@ -421,7 +421,15 @@ export function evaluateLifecycleExpiry(params: {
     return { outcome: "active", nextCheckAt: null };
   }
 
-  const deadline = (params.expectedEndAt ?? params.startedAt + LIFECYCLE_FALLBACK_CEILING_MS) + LIFECYCLE_GRACE_MS;
+  // Clamp: an implausible expectedEndAt (bad/stale ticket data, a match scheduled absurdly far
+  // in the future — confirmed live via a CI regression where an E2E fixture's test-only match
+  // date landed decades out, computing a `setAlarm()` time the real Cloudflare runtime rejected
+  // and silently broke every authenticate() call) must never push the lifecycle deadline LATER
+  // than our own safety ceiling. Trust expectedEndAt only when it's sooner than the fallback,
+  // never later — every realistic match duration is well under this ceiling regardless.
+  const fallbackDeadline = params.startedAt + LIFECYCLE_FALLBACK_CEILING_MS;
+  const basisDeadline = params.expectedEndAt != null ? Math.min(params.expectedEndAt, fallbackDeadline) : fallbackDeadline;
+  const deadline = basisDeadline + LIFECYCLE_GRACE_MS;
   if (params.now < deadline) {
     return { outcome: "active", nextCheckAt: deadline };
   }

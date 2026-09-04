@@ -462,10 +462,15 @@ connection ticket (`LiveMatchRealtimeTicket`, computed by the ticket-issuing rou
 match's own `startsAt` + the same `getLeaguePeriodConfig`/`getTotalPeriodDurationMs` League
 already uses elsewhere); when unresolvable (or for a `meta` row written before this field
 existed), the object falls back to a fixed ceiling measured from session start
-(`LIFECYCLE_FALLBACK_CEILING_MS`, 4h) rather than never expiring at all. Deliberately independent
-of WebSocket/connection presence — a "Follow live" viewer connecting or disconnecting never
-advances `lastActivityAt` (only an accepted `recordEvent` does), so a viewer alone can never keep
-an abandoned reporting session's lifecycle alive.
+(`LIFECYCLE_FALLBACK_CEILING_MS`, 4h) rather than never expiring at all. `expectedEndAt` is
+clamped to never push the deadline *later* than that same fallback ceiling — caught live by this
+PR's own CI: an E2E fixture's test-only match date (`startsAt` deliberately set far in the future
+so a test-agent-seeded match can be immediately finalized regardless of real kickoff) computed a
+`setAlarm()` time decades out, which the real Cloudflare runtime rejected, silently breaking every
+`authenticate()` call for that object. Deliberately independent of WebSocket/connection presence —
+a "Follow live" viewer connecting or disconnecting never advances `lastActivityAt` (only an
+accepted `recordEvent` does), so a viewer alone can never keep an abandoned reporting session's
+lifecycle alive.
 
 **One alarm slot, two reasons to wake.** `refreshAlarm()` now schedules the object's single alarm
 slot for the earlier of (a) the next due persistence retry and (b) the next lifecycle-check time
