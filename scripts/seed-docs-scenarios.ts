@@ -255,9 +255,43 @@ export async function seedScenarios(ctx: SeedContext) {
   await db.matchLineupAssignment.createMany({ data: slotAssignments });
 
   // The planned/actual position-only rotation the connected story describes (Working with
-  // Matchboard, Rotations): Elias Storm and Theo Falk swap positions in the second half.
+  // Matchboard, Rotations; How Matchboard works/Rotation engine): Elias Storm was planned to
+  // swap with Theo Falk at 30 minutes; the coach applied it three minutes later than planned.
+  // Both halves of the story are real, seeded records -- a PlannedRotation/PlannedRotationChange
+  // (the pre-match plan) and a MatchRotation with source LIVE (what actually happened) -- not
+  // only the actual event, so "Rotations" and "Rotation engine"'s plan-vs-actual claims have a
+  // genuine PlannedRotation behind them, not just prose.
   const eliasFormationSlot = formation.slots.find((s: { id: string }) => s.id === eliasSlot.slotId)!;
   const theoFormationSlot = formation.slots.find((s: { id: string }) => s.id === theoSlot.slotId)!;
+
+  const { createPlannedRotation } = await import("../src/lib/planned-rotation/planned-rotation");
+  const orgFilter = {
+    type: "org" as const,
+    filter: { organisationId: org.id },
+    filterNullable: { organisationId: org.id },
+    organisationId: org.id,
+  };
+  const plannedRotationResult = await createPlannedRotation(
+    {
+      matchId: storyMatch.id,
+      teamId: teams[0].id,
+      notes: "Move Elias wide once Bergstad settle into their shape; Theo covers centrally.",
+      changes: [
+        {
+          outPlayerId: eliasStorm.id,
+          inPlayerId: theoFalk.id,
+          outPosition: eliasFormationSlot.label,
+          inPosition: theoFormationSlot.label,
+          positionOnly: true,
+          approximateMatchSeconds: 30 * 60,
+          notes: null,
+        },
+      ],
+    },
+    orgFilter,
+  );
+  if (!plannedRotationResult.success) throw new Error(`Failed to seed planned rotation: ${plannedRotationResult.error}`);
+
   await db.matchRotation.create({
     data: {
       organisationId: org.id,
@@ -271,6 +305,13 @@ export async function seedScenarios(ctx: SeedContext) {
       matchSeconds: 33 * 60,
       source: "LIVE",
     },
+  });
+
+  // Records the plan as applied -- three minutes later than intended -- matching the actual
+  // MatchRotation just created, rather than leaving the plan looking un-acted-on.
+  await db.plannedRotationChange.updateMany({
+    where: { plannedRotationId: plannedRotationResult.rotation.id },
+    data: { status: "APPLIED", actualMatchSeconds: 33 * 60 },
   });
 
   await rebuildActualTimeline(storyMatch.id);

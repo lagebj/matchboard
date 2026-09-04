@@ -1,0 +1,55 @@
+---
+title: "Worked example: Why this lineup?"
+description: A real filled 7-a-side lineup from Fjordvik FK, and why it is not a claim of the strongest possible eleven.
+---
+
+This example uses a real generated lineup from Fjordvik FK's documentation dataset. See
+[Lineup engine](/docs/how-matchboard-works/lineup-engine) for how the mechanism works before
+reading this walkthrough.
+
+## Initial conditions
+
+Fjordvik Rød's squad for its match against Bergstad IF has 8 selected players, playing 7-a-side —
+one bench spot. The `GK + 2-3-1` formation is chosen, with 7 slots: goalkeeper, two defensive
+slots, three central slots, and one forward slot.
+
+## What Matchboard generated
+
+![Match tactics tab showing a filled 7-a-side lineup on the pitch, with the remaining squad listed alongside](/docs/screenshots/planning/generated-lineup.png)
+
+Every slot is filled from the 8-player squad, goalkeeper first. Aksel Nord — the squad's only
+goalkeeper-capable player — takes the goalkeeper slot without any comparison to anyone else. The
+six outfield slots are then filled in order of how few compatible players remained for each one,
+so a slot only one or two players could reasonably fill is decided before a slot several players
+could take.
+
+## Why
+
+- Position fit dominates every other factor. A player with no declared or demonstrated fit for a
+  slot is effectively never chosen for it.
+- Scarcest slots are decided first specifically so a player who is the *only* reasonable fit for
+  one slot is not accidentally used to fill a different slot that other players could equally
+  well have taken.
+- No attribute rating enters this decision at all. Two players who are both reasonable fits for a
+  slot are treated as similarly reasonable, not ranked against each other by a skill number.
+
+## What would change the outcome
+
+A different formation would create a different set of slots and a different scarcity order. A
+player marked unavailable, or one already locked into a different slot by the coach, would be
+removed from consideration for the rest. Locking a slot directly — before or after this
+suggestion runs — protects that specific placement from ever being reassigned by a later
+suggestion.
+
+## What this does not prove
+
+This lineup is not a claim that it is the single strongest possible arrangement of these 8
+players. It is one reasonable arrangement, built from position fit — a different formation, or a
+coach's own manual reassignment, can produce an equally valid lineup. The player left on the
+bench is not "worse" than the seven selected; a 7-a-side match only has seven starting places.
+
+## Related
+
+- [Lineup engine](/docs/how-matchboard-works/lineup-engine)
+- [Rotation engine](/docs/how-matchboard-works/rotation-engine)
+- [Worked example: Why this rotation?](/docs/examples/why-this-rotation)

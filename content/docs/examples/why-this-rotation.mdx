@@ -1,0 +1,62 @@
+---
+title: "Worked example: Why this rotation?"
+description: A real planned position swap from Fjordvik FK, what it implies before kickoff, and how the actual record differs from the plan.
+---
+
+This example uses a real planned rotation from Fjordvik FK's documentation dataset. See
+[Rotation engine](/docs/how-matchboard-works/rotation-engine) for the full mechanism before
+reading this walkthrough. It shows a single planned change end to end — the plan, its reactive
+context, and what actually happened — rather than a full multi-batch whole-match plan; a richer
+example with several batches of changes across a match is a natural next addition to this
+documentation.
+
+## Initial conditions
+
+Fjordvik Rød's match against Bergstad IF has a starting lineup with Elias Storm centrally and
+Theo Falk on the wing. Before kickoff, the coach plans one change: swap their positions around
+the 30-minute mark, once Bergstad IF have settled into their own shape.
+
+## What the plan shows before kickoff
+
+![Rotations tab showing a planned position swap at around 30 minutes, with an evidence panel showing what has tended to happen at that point in the match across three recorded matches](/docs/screenshots/planning/planned-rotations.png)
+
+Building this change into the plan surfaces relevant context automatically: across three
+recorded matches, Fjordvik Rød has scored twice and conceded nothing in this phase of the match —
+shown with exactly how many matches that pattern is based on, at emerging (not yet established)
+confidence. This is descriptive context attached to the moment in the plan, not a prediction that
+the same thing will happen again.
+
+## What actually happened
+
+The coach applied the change at minute 33 — three minutes later than planned. The actual record
+reflects that honestly: the plan still shows the change was planned for around 30 minutes, marked
+applied, next to the real time it happened. Neither number was adjusted to match the other.
+
+## Why
+
+- The reactive context shown here comes from the club's own recorded match-phase history, not
+  from this specific plan or this specific opponent.
+- Applying later than planned is normal — matches do not run to a schedule, and Matchboard does
+  not treat a delay as an error to correct.
+- The plan and the actual record are shown together but kept structurally distinct: the plan says
+  what was intended, the actual record says what happened.
+
+## What would change the outcome
+
+Moving the same change five minutes earlier or later could surface a different recorded pattern —
+an earlier moment in the match may have its own history, distinct from the closing stages. A
+delayed or skipped change instead of an applied one would show that outcome plainly, not be
+silently dropped from the plan.
+
+## What this does not prove
+
+The recorded pattern behind this plan does not predict that Fjordvik Rød will score in this
+window against Bergstad IF specifically, or that swapping these two players causes anything. It
+is a description of what has tended to happen, based on three matches — a real but limited
+sample, shown as exactly that.
+
+## Related
+
+- [Rotation engine](/docs/how-matchboard-works/rotation-engine)
+- [Worked example: Why this lineup?](/docs/examples/why-this-lineup)
+- [Rotations](/docs/rotations)
