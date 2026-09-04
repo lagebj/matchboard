@@ -15,6 +15,13 @@
  * Requires a running local Matchboard instance (default http://localhost:3333) seeded with
  * `npm run db:seed:docs`, and TEST_AGENT_AUTH_SECRET matching that instance's environment.
  * Refuses to run against any non-local base URL.
+ *
+ * The seed script and the running instance must point at the same database: export
+ * DATABASE_URL="$TEST_DATABASE_URL" before both `npm run db:seed:docs` and starting the app
+ * (`MATCHBOARD_ENV=test TEST_AGENT_AUTH_ENABLED=true npm run dev`). src/lib/db.ts's application
+ * singleton reads DATABASE_URL only -- it does not fall back to TEST_DATABASE_URL -- so a mismatch
+ * here seeds one database while the running app (and this script, via HTTP) reads another,
+ * unseeded one.
  */
 
 import "dotenv/config";

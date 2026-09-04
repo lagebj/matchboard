@@ -15,10 +15,17 @@
  * scripts/seed-test-dataset.ts creates its own foundational data.
  *
  * Usage:
- *   MATCHBOARD_ENV=test npx tsx scripts/seed-docs-dataset.ts
+ *   DATABASE_URL="$TEST_DATABASE_URL" MATCHBOARD_ENV=test npx tsx scripts/seed-docs-dataset.ts
  *
  * Refuses to run when MATCHBOARD_ENV is not "test". Safely repeatable: cleans any prior
  * fjordvik-fk organisation before reseeding.
+ *
+ * This script's own row creation reads TEST_DATABASE_URL (falling back to DATABASE_URL), but the
+ * generation/reporting/evidence domain operations it calls (generateMatchRound, completeReport,
+ * etc., via seed-docs-scenarios.ts) go through src/lib/db.ts's application singleton, which reads
+ * DATABASE_URL only. Export DATABASE_URL="$TEST_DATABASE_URL" for this whole session (seed, `npm
+ * run dev`, and `npm run docs:screenshots` alike) or the two halves of this script will silently
+ * operate on two different databases.
  */
 
 import "dotenv/config";

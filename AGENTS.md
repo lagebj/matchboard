@@ -3906,6 +3906,17 @@ introduced by the `user-documentation-experience` programme (ADR-0103).
   `public/docs/screenshots/**`. These are documentation content assets
   (`page.screenshot()`), never `expect(page).toHaveScreenshot()` visual-regression baselines —
   do not add exact pixel/byte comparison to `npm run validate` for them.
+- **Running the full local pipeline** (seed + a running instance + screenshots) requires
+  `DATABASE_URL` to point at the *same* database for all three steps — `src/lib/db.ts`'s
+  application singleton (used by the seed script's own domain-operation calls, and by the running
+  `next dev`/`next start` instance the screenshot runner drives) reads `DATABASE_URL` directly, it
+  does not fall back to `TEST_DATABASE_URL`. Export `DATABASE_URL="$TEST_DATABASE_URL"` (or
+  equivalent) for the whole session before running `npm run db:seed:docs`, starting the app with
+  `MATCHBOARD_ENV=test TEST_AGENT_AUTH_ENABLED=true npm run dev`, and running
+  `npm run docs:screenshots` — a mismatch here does not fail loudly; the seed succeeds against one
+  database while the running app (and therefore the screenshot runner) reads a different, unseeded
+  one, and generation-time domain calls in the seed script (`generateMatchRound` et al., which read
+  through the app's own `@/lib/db` singleton) fail with a confusing "not found" error instead.
 
 ### User documentation files
 
@@ -3948,6 +3959,22 @@ supporting documentation, not optional.
 - New authenticated route or feature shell that deserves a contextual Help entry → add a
   `HelpContextId` and route-prefix mapping in `src/lib/help/help-context.ts`, not inline string
   matching elsewhere.
+- **A change to selection, fairness, lineup, rotation, role-suitability, evidence, opponent, or
+  planning-lifecycle semantics must also review the corresponding deep page(s) under
+  `content/docs/how-matchboard-works/**`** (not only the concise task page under `content/docs/`
+  that links to it) — these pages exist specifically to explain the engine reasoning behind the
+  task, verified against the canonical implementation and its tests at the time they were written
+  (public-documentation-expansion programme). A behaviour change that shifts precedence, adds or
+  removes a hard constraint, changes confidence/volume thresholds, or changes what evidence can
+  and cannot influence makes the deep page stale in exactly the way `check-docs.mjs` cannot detect
+  automatically.
+- A worked example under `content/docs/examples/**` is a truthfulness claim about current engine
+  output, not illustrative copy — if a change to the scenario builder
+  (`scripts/seed-docs-scenarios.ts`) or to engine behaviour would change what the example shows,
+  update the example text and its screenshot together, or the example becomes false documentation.
+- The public glossary (`content/docs/glossary.mdx`) must stay aligned with current
+  coach-facing/product terminology used elsewhere in this file — a term rename anywhere in this
+  file's domain-language tables is also a glossary update.
 
 ## Standing engineering policy
 

@@ -478,8 +478,8 @@ Runs on `http://localhost:3333`.
 | `npm run db:migrate` | Apply schema migrations (production) |
 | `npm run db:migrate:dev` | Create and apply a new migration |
 | `npm run db:seed:demo` | Seed fake demo data |
-| `npm run db:seed:docs` | Seed the Fjordvik FK documentation dataset (requires `MATCHBOARD_ENV=test`) |
-| `npm run docs:screenshots` | Regenerate documentation screenshots (`-- --id <scenario-id>` for one scenario) |
+| `npm run db:seed:docs` | Seed the Fjordvik FK documentation dataset (requires `MATCHBOARD_ENV=test`; export `DATABASE_URL="$TEST_DATABASE_URL"` first — see AGENTS.md "User documentation") |
+| `npm run docs:screenshots` | Regenerate documentation screenshots (`-- --id <scenario-id>` for one scenario; run against a `dev`/`start` instance started with the same `DATABASE_URL`, plus `MATCHBOARD_ENV=test TEST_AGENT_AUTH_ENABLED=true`) |
 | `npm run security:tools` | Verify security tools and versions |
 | `npm run security:review` | Run non-destructive security review |
 | `npm run security:static` | Run static security scanners |
