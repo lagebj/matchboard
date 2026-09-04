@@ -1,0 +1,90 @@
+---
+title: What evidence means
+description: The full loop from a completed match to a later planning decision, and the vocabulary this documentation uses precisely.
+---
+
+[Evidence and learning](/docs/evidence-and-learning) introduces what Matchboard remembers from
+completed matches. This section goes deeper: exactly what each kind of evidence is built from,
+how much of it is needed before it means anything, and precisely what it can and cannot influence.
+
+## The loop
+
+```text
+plan
+  ↓
+play the match
+  ↓
+record/reconstruct the actual match (see Match state and the actual timeline)
+  ↓
+complete the post-match report
+  ↓
+derive evidence from the actual record
+  ↓
+accumulate history across matches
+  ↓
+use bounded evidence in later planning
+```
+
+Nothing in this loop rewrites an earlier step. A completed report is locked; the actual timeline
+it produced is the one thing every evidence type below is derived from. Evidence never reaches
+back and changes a historical plan or a locked report — it only ever informs a plan that has not
+happened yet.
+
+## Four different things, kept distinct
+
+Evidence pages in this documentation are careful to separate four different kinds of claim,
+because collapsing them into one sentence is where overstatement creeps in:
+
+**Fact** — a player played 24 minutes at central midfield in a specific match. This is simply what
+was recorded; there is nothing to weigh here.
+
+**Observed pattern** — across several recorded periods, a team's matches have tended to go a
+particular way while a player occupied a role, or while two players shared the pitch. This
+describes what has actually happened, repeatedly, in the data.
+
+**Uncertainty** — the pattern does not prove the player, the pairing, or the role caused the
+outcome. A small number of matches is a small, uncertain sample, and every evidence page in this
+documentation says explicitly how much history backs a given pattern.
+
+**Planning use** — a pattern strong enough to matter can become one small, bounded, additive
+signal among many the next plan considers — never an instruction, and never something that can
+create an opportunity, override fairness, or exclude an eligible player on its own.
+
+## Where each evidence type comes from
+
+```text
+Actual match timeline
+        │
+        ├── Position-context evidence   (one player, one position, vs. team's other time there)
+        │
+        ├── Combination evidence        (shared time between two or more players)
+        │
+        ├── Match-phase evidence        (how matches tend to unfold in a phase, team-wide)
+        │
+        └── Opponent evidence           (sporting level, tactical tendency, combination —
+                                          all scoped to one recurring opponent)
+                │
+                ▼
+   Bounded, capped, confidence-gated planning signals
+   (see Confidence and guardrails, and How evidence enters planning)
+```
+
+## What this section covers
+
+- [Evidence sources](/docs/how-matchboard-works/evidence/evidence-sources) — position-context
+  evidence, combination evidence, and match-phase (tactical/match-state) evidence: what creates
+  each, how much is needed, and what each one does and does not describe.
+- [Opponent evidence](/docs/how-matchboard-works/evidence/opponent-evidence) — estimated sporting
+  level, tactical tendencies, and combination evidence specific to one opponent.
+- [Confidence and guardrails](/docs/how-matchboard-works/evidence/confidence-and-guardrails) — how
+  much evidence is enough, why unknown is always neutral, and the explicit limits every
+  evidence-informed signal in Matchboard is built to respect.
+- [How evidence enters planning](/docs/how-matchboard-works/evidence/how-evidence-enters-planning) —
+  exactly where each evidence type is actually used today, and where it is deliberately not used
+  yet.
+
+## Related
+
+- [Evidence and learning](/docs/evidence-and-learning)
+- [Design principles](/docs/how-matchboard-works/design-principles)
+- [Match state and the actual timeline](/docs/how-matchboard-works/match-state-and-actual-timeline)

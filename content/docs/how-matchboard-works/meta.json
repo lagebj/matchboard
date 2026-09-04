@@ -9,6 +9,7 @@
     "lineup-engine",
     "rotation-engine",
     "role-suitability-and-position-experience",
-    "match-state-and-actual-timeline"
+    "match-state-and-actual-timeline",
+    "evidence"
   ]
 }

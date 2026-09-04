@@ -1,0 +1,58 @@
+---
+title: How evidence enters planning
+description: Exactly where each kind of evidence is actually used in generation today, and where it is deliberately shown but not yet used as a scoring input.
+---
+
+Evidence being computed and evidence actually changing a generated plan are two different facts.
+This page is specific about which is true for each evidence type and each generation surface,
+rather than implying every kind of evidence influences every decision.
+
+## Squad selection
+
+When [squad selection](/docs/how-matchboard-works/squad-selection-engine) ranks candidates for
+support or development movement, combination evidence can add a small, intent-scaled preference —
+after eligibility, fairness, and position fit, never before them. No other evidence type
+influences this step today.
+
+## Suggesting a starting lineup and rotation plan together
+
+Generating a starting lineup and rotation plan together (see
+[Lineup engine](/docs/how-matchboard-works/lineup-engine) and
+[Rotation engine](/docs/how-matchboard-works/rotation-engine)) is the one place all four
+evidence-informed contributions are blended, loaded once and shared between both stages:
+
+- fairness under-share for this match;
+- a discovered role-suitability fit beyond a player's declared position;
+- a capped bonus when the club has an established opponent tactical tendency that favours a
+  specific tactical function;
+- a capped bonus from position-context evidence.
+
+## Generating a rotation plan on its own
+
+When a rotation plan is generated without also generating the starting lineup, bench-candidate
+scoring uses role suitability, fairness under-share, the same opponent-tendency bonus, and
+position-context evidence — but not combination evidence. Combination evidence is currently wired
+into starting-lineup selection and squad-level support/development ranking, not into standalone
+rotation bench selection.
+
+## Shown, but not yet a scoring input
+
+Match-phase pattern evidence and transition-structure evidence (how a batch of changes tends to
+correlate with what happens shortly after) are both real, computed evidence — visible as context
+while building a rotation plan, and as part of a bench candidate's explanation — but neither
+currently changes which candidate a generation pass actually chooses. This is a disclosed,
+deliberate scope boundary, not an oversight: showing evidence is a smaller, safer step than
+using it to decide, and Matchboard has kept the two separate here.
+
+## Why this precision matters
+
+Overstating where evidence is used would make a coach trust a signal that is not actually
+influencing what they are looking at, or distrust a generated plan for a reason that had nothing
+to do with how it was actually built. This page exists so the answer to "did evidence affect
+this?" is always specific to the surface being asked about, not a blanket yes or no.
+
+## Related
+
+- [Confidence and guardrails](/docs/how-matchboard-works/evidence/confidence-and-guardrails)
+- [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine)
+- [Rotation engine](/docs/how-matchboard-works/rotation-engine)

@@ -1,0 +1,90 @@
+---
+title: Evidence sources
+description: What creates position-context, combination, and match-phase evidence, how much is needed, and what each one does and does not describe.
+---
+
+Three families of evidence are derived from the [actual match timeline](/docs/how-matchboard-works/match-state-and-actual-timeline)
+once a match is complete. Each answers a different question, and each has its own rule for how
+much history counts as enough to say anything.
+
+## Position-context evidence
+
+**What creates it.** For a player who occupied a specific outfield position during recorded
+intervals, Matchboard compares what tended to happen during those intervals against the team's
+other recorded time at that same position, this season.
+
+**How much is needed.** A handful of recorded matches at a position is not enough — the same
+confidence levels used throughout this documentation apply here, and a pattern below the
+threshold for meaningful confidence is not shown as a pattern at all.
+
+**What it says.** The comparison is described as more favorable, similar, or less favorable than
+the team's other recorded time at that position — never as good or bad, and never as a verdict on
+the player. Before attributing a pattern to an individual player at all, Matchboard checks for a
+broader structural explanation first — most notably, a recurring teammate combination during the
+same recorded time — and surfaces that instead when the evidence supports it. A less favorable
+recorded pattern is never, on its own, a reason to give a player fewer opportunities at that
+position; it is a prompt to notice that a different role or surrounding structure might be worth
+trying, decided by the coach.
+
+**Scope.** Team-season scoped — one league season, not carried across seasons the way a player's
+own position and combination history is (see [Evidence and learning](/docs/evidence-and-learning)
+for why team-level and player-level evidence have different horizons).
+
+## Combination evidence
+
+**What creates it.** Two or more players sharing the pitch, in a defined football relationship —
+a partnership, a triangle, a line, a corridor, a functional unit, or a full configuration —
+derived entirely from the actual position record, never from what was planned.
+
+**How much is needed.** Confidence for a combination depends on more than one recorded match
+existing — it needs a genuine amount of shared time, across more than one match, ideally against
+more than one opponent, before it counts as more than a first data point. A single shared match is
+not enough on its own.
+
+**What it says.** How much time two or more players have spent together, and in what shape — never
+a compatibility score, and never framed as a good pairing or a bad one. Players are never
+permanently paired or separated because of this evidence.
+
+**Intent-dependent use.** When this evidence is used in planning, how much it counts depends on
+the coach's own stated intent for the match: a deliberately safer, more exploratory context (for
+example, rebuilding a player's confidence) suppresses the positive bonus entirely, so an unproven
+pairing is never structurally disadvantaged against a known one; a deliberately harder or
+higher-stakes context can lean on it more; anything else treats it as a small, moderate
+preference. See [How evidence enters planning](/docs/how-matchboard-works/evidence/how-evidence-enters-planning)
+for exactly where this is used.
+
+In Fjordvik FK's own data, Elias Storm and Theo Falk shared the pitch for part of one match so
+far — real, recorded time, but short of what this evidence type needs before it counts as more
+than a first data point. That combination is genuinely unknown right now, not a weak or
+unproven pairing — the same neutral treatment [Confidence and guardrails](/docs/how-matchboard-works/evidence/confidence-and-guardrails)
+describes for every evidence type in this documentation.
+
+## Match-phase (tactical/match-state) evidence
+
+**What creates it.** How a team's matches have tended to unfold within specific phases — the
+opening minutes, immediately after a restart, the closing stretch of a period — aggregated as
+goals scored and conceded within those windows across a team's completed matches in one league
+season.
+
+**How much is needed.** The same three-tier confidence Matchboard uses throughout this
+documentation: too few matches to say anything, an emerging pattern worth noting, or an
+established one backed by a genuine run of matches — always shown with exactly how many matches
+it is based on.
+
+**What it says.** A factual record of what has happened in that phase of matches so far — never a
+prediction that the same thing will happen again. Across eight recorded matches a team might have
+conceded seven goals in the opening ten minutes: worth noticing, never a claim that the next match
+will open the same way.
+
+## What none of these three say
+
+None of these evidence types measure a player's ability, rank players against each other, or
+predict what will happen in a specific upcoming match. They describe what has actually been
+recorded, with an honest account of how much of it exists.
+
+## Related
+
+- [What evidence means](/docs/how-matchboard-works/evidence)
+- [Opponent evidence](/docs/how-matchboard-works/evidence/opponent-evidence)
+- [Confidence and guardrails](/docs/how-matchboard-works/evidence/confidence-and-guardrails)
+- [Evidence and learning](/docs/evidence-and-learning)
