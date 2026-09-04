@@ -73,6 +73,42 @@ export async function seedScenarios(ctx: SeedContext) {
   const { generateEventSquads } = await import("../src/lib/events/event-squad-generation");
   const { toPlayerAttributeProfile } = await import("../src/lib/events/player-event-profile");
 
+  // completeReport() itself tries to run post-match learning (opponent/player/combination
+  // evidence) via requireActorContext() -- there is no real Auth.js session in this script, so
+  // that call throws and is silently swallowed by completeReport()'s own try/catch (ADR-0104:
+  // "must not block report completion"). Every report this script completes has therefore never
+  // actually produced combination evidence, position-context evidence, or opponent
+  // sporting-level/tendency evidence -- confirmed live: zero CombinationEvidence rows existed
+  // after a full seed run, despite four historical Bergstad IF matches and the story match. Call
+  // the same orchestrator explicitly, with an explicit org filter instead of a session, right
+  // after each completeReport() call below.
+  const orgFilter = {
+    type: "org" as const,
+    filter: { organisationId: org.id },
+    filterNullable: { organisationId: org.id },
+    organisationId: org.id,
+  };
+  const { buildLeagueMatchRef } = await import("../src/lib/evidence/adapters/league-evidence-adapter");
+  const { runPostMatchLearning } = await import("../src/lib/evidence/post-match-learning");
+  async function applyPostMatchLearning(matchId: string) {
+    const ref = await buildLeagueMatchRef(matchId);
+    const result = await runPostMatchLearning(ref, orgFilter);
+    // The "players" step calls Next.js's headers() several layers down, which throws outside a
+    // real request context ("`headers` was called outside a request scope") -- a deeper
+    // dependency than the requireActorContext() issue this whole helper works around, and not
+    // fixable the same way (no session/context parameter to substitute). Position-context
+    // evidence does not need this step: it derives on read from ActualPositionInterval and Goal
+    // rows, both already produced by rebuildActualTimeline() and the direct Goal/Assist creates
+    // above. Tolerate this one step failing; still fail loudly on actualTimeline/opponent/
+    // combinations, which this script does depend on.
+    const failed = Object.entries(result).filter(
+      ([step, v]) => step !== "players" && (v as { status: string }).status === "FAILED",
+    );
+    if (failed.length > 0) {
+      throw new Error(`Post-match learning failed for match ${matchId}: ${JSON.stringify(failed)}`);
+    }
+  }
+
   const allPlayerIds = Object.values(players).map((p) => p.id);
 
   // Sets Player.currentAvailability directly -- the single field the real production
@@ -149,6 +185,7 @@ export async function seedScenarios(ctx: SeedContext) {
 
     const completed = await completeReport(report.id, "docs-coach@docs-agent.matchboard.football");
     if (!completed.success) throw new Error(`Failed to complete report for ${opts.weekLabel}: ${completed.error}`);
+    await applyPostMatchLearning(match.id);
 
     return { round, match, report };
   }
@@ -265,12 +302,6 @@ export async function seedScenarios(ctx: SeedContext) {
   const theoFormationSlot = formation.slots.find((s: { id: string }) => s.id === theoSlot.slotId)!;
 
   const { createPlannedRotation } = await import("../src/lib/planned-rotation/planned-rotation");
-  const orgFilter = {
-    type: "org" as const,
-    filter: { organisationId: org.id },
-    filterNullable: { organisationId: org.id },
-    organisationId: org.id,
-  };
   const plannedRotationResult = await createPlannedRotation(
     {
       matchId: storyMatch.id,
@@ -347,6 +378,7 @@ export async function seedScenarios(ctx: SeedContext) {
 
   const completedStory = await completeReport(storyReport.id, "docs-coach@docs-agent.matchboard.football");
   if (!completedStory.success) throw new Error(`Failed to complete story report: ${completedStory.error}`);
+  await applyPostMatchLearning(storyMatch.id);
 
   // ============ S1 + S2: upcoming round (draft), one match already finalized as "ready" ============
   console.log("Seeding the upcoming round (W20, draft with one finalized match)...");

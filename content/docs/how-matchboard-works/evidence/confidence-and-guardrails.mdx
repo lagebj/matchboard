@@ -1,0 +1,79 @@
+---
+title: Confidence and guardrails
+description: How much evidence is enough, why unknown is always neutral, and the explicit limits every evidence-informed signal is built to respect.
+---
+
+## The confidence ladder
+
+Every evidence type in Matchboard uses some version of the same idea: no evidence yet, a first
+sign of a pattern, or a pattern backed by a genuine run of history. The exact scale differs by
+evidence type (see [Evidence sources](/docs/how-matchboard-works/evidence/evidence-sources) and
+[Opponent evidence](/docs/how-matchboard-works/evidence/opponent-evidence) for which scale each
+one uses), but the shape is always the same three steps:
+
+- **No meaningful evidence yet.** Below the threshold for that evidence type. Shown as unknown,
+  never as a mark against a player, position, opponent, or combination.
+- **An emerging pattern.** Enough to be worth noting, always shown alongside how much it is based
+  on, not yet enough to lean on heavily.
+- **An established pattern.** Backed by a genuine run of recorded history — still a pattern, never
+  a certainty.
+
+## Unknown is always neutral, never a penalty
+
+A new player, a new position for an existing player, a new pairing, or a new opponent starts on
+equal footing with everything Matchboard has more history about. This is enforced structurally,
+not just written as a style guideline: the shared scoring primitive every evidence-informed signal
+in Matchboard is built on clamps a raw bonus to zero or higher before applying it — evidence can
+add a small preference, it cannot subtract one. There is no code path in Matchboard today where
+recorded evidence turns into a negative score against a player.
+
+## Evidence cannot exclude an eligible player
+
+After every evidence-informed scoring step, Matchboard checks structurally that the set of
+candidates under consideration did not shrink because of it — the same list of eligible players
+that existed before the evidence-informed step ran must still all be present afterward. Evidence
+can reorder who looks most attractive; it cannot be the reason a genuinely eligible player
+disappears from consideration. If that check ever failed, it is treated as a bug to fail loudly
+on, not a plan to quietly ship.
+
+## Evidence cannot bypass a hard rule
+
+Availability, eligibility, movement-path authorisation, squad-size limits, and every other hard
+rule described in [Fair playing opportunity](/docs/how-matchboard-works/fair-playing-opportunity)
+and [Squad selection engine](/docs/how-matchboard-works/squad-selection-engine) are checked before
+any evidence is considered at all. Evidence only ever chooses between options that already passed
+every hard rule — it never creates an option a hard rule would otherwise block.
+
+## Evidence-informed adjustments are always capped
+
+Wherever recorded evidence contributes to a scoring decision, the contribution is deliberately
+small and bounded — enough to break a near-tie between otherwise similar options, never enough to
+override a genuine difference in fairness, position fit, or eligibility. This is a shared,
+consistently-applied rule across every evidence-informed signal in Matchboard, not a
+case-by-case judgement call.
+
+## Evidence describes correlation, not causation
+
+A recorded pattern — a team's results tending to go a certain way while a player occupied a role,
+or an opponent's tendency correlating with certain outcomes — is a description of what has been
+recorded, never a claim that one thing caused the other. Matchboard does not present a "because"
+between two recorded facts unless a coach's own recorded reasoning supplies it.
+
+## Coach judgement stays authoritative
+
+Every generated squad, lineup, and rotation plan built using evidence remains a proposal. A coach
+can override, reassign, reorder, or remove anything evidence contributed to, through the same
+manual controls used for everything else — see [Design principles](/docs/how-matchboard-works/design-principles)
+for why this is a stable rule, not specific to evidence.
+
+## What "guardrail" means here
+
+These are not aspirational statements about how Matchboard should behave — they describe
+structural checks built into the shared scoring primitives every evidence-informed signal reuses,
+rather than being re-implemented, and potentially re-broken, separately by each one.
+
+## Related
+
+- [What evidence means](/docs/how-matchboard-works/evidence)
+- [Design principles](/docs/how-matchboard-works/design-principles)
+- [How evidence enters planning](/docs/how-matchboard-works/evidence/how-evidence-enters-planning)
