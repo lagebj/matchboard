@@ -217,6 +217,7 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
         matchId,
         teamId: match.teamId,
         status: { in: ["CONFIRMED", "DRAFT"] },
+        organisationId: ctx.organisationId,
       },
       select: {
         id: true,

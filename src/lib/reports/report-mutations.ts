@@ -162,8 +162,12 @@ export async function seedReportFromLiveSession(
   matchId: string,
   organisationId: string,
 ): Promise<SeedReportFromLiveSessionResult> {
-  const existingReport = await db.postMatchReport.findUnique({
-    where: { matchId },
+  // Every read below is explicitly scoped by the caller-verified `organisationId` parameter
+  // (not just whatever tenant context happens to be ambient via AsyncLocalStorage) — the same
+  // defense-in-depth convention ADR-0087 documents (getExplicitOrgId()), matching the equivalent
+  // hardening applied to Event's seedEventReportFromLiveSession().
+  const existingReport = await db.postMatchReport.findFirst({
+    where: { matchId, organisationId },
     select: { id: true, status: true },
   });
 
@@ -178,7 +182,7 @@ export async function seedReportFromLiveSession(
   }
 
   const selections = await db.selection.findMany({
-    where: { matchId, status: "FINALIZED" },
+    where: { matchId, status: "FINALIZED", organisationId },
     select: { playerId: true },
   });
 
@@ -188,7 +192,7 @@ export async function seedReportFromLiveSession(
   // defensive only — a player can never be both a FINALIZED Selection and a helper for the
   // same match (assertLeagueMatchHelperEligible already rejects that combination).
   const helperAssignments = await db.matchHelperAssignment.findMany({
-    where: { matchId },
+    where: { matchId, organisationId },
     select: { playerId: true },
   });
   const plannedPlayerIds = new Set(selections.map((s) => s.playerId));
@@ -199,6 +203,7 @@ export async function seedReportFromLiveSession(
   const liveEvents = await db.liveMatchEvent.findMany({
     where: {
       matchId,
+      organisationId,
       OR: [
         { correctionType: null },
         { correctionType: "CORRECTION" },
@@ -217,8 +222,8 @@ export async function seedReportFromLiveSession(
     orderBy: { createdAt: "asc" },
   });
 
-  const match = await db.match.findUnique({
-    where: { id: matchId },
+  const match = await db.match.findFirst({
+    where: { id: matchId, organisationId },
     select: { homeAway: true },
   });
 
