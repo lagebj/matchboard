@@ -11,20 +11,32 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { getUnavailableParticipantIdsForMatch } from "@/lib/events/event-match-availability";
 
-async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string; orgFilter: OrgFilterMode }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
+// Takes an already-resolved `orgFilter` (established once, at the top of each exported action
+// below via requirePageActorContext()/setTenantOrganisationId()) rather than resolving its own
+// actor context — matching the convention every other events action file uses (see
+// event-match-actions.ts's requireMatchOrgAccess, event-match-availability-actions.ts's
+// requireEventMatchOrgAccess). The previous version of this helper called requirePageActorContext()
+// and setTenantOrganisationId() internally: that mutation only ever scoped this helper's OWN
+// query, never the caller's subsequent ones (AsyncLocalStorage's enterWith() cannot make a
+// mutation made after an internal await visible to whoever awaits the function it happened in —
+// see ARR-0029 "Bug 3" and src/lib/db.ts's own comment on getExplicitOrgId()). That silently left
+// every later query in a caller like getEventLiveMatchPreMatchPackageAction unscoped, which
+// src/lib/db.ts's fail-closed tenantRLS extension (ADR-0087) correctly refused to run.
+async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
   const match = await db.eventMatch.findFirst({
-    where: { id: eventMatchId, event: ctx.orgFilter.filter },
+    where: { id: eventMatchId, organisationId: orgFilter.organisationId },
     select: { eventId: true },
   });
   if (!match) throw new Error("Event match not found or access denied.");
-  return { eventId: match.eventId, orgFilter: ctx.orgFilter };
+  return { eventId: match.eventId };
 }
 
 export async function startEventLiveSessionAction(eventMatchId: string) {
   try {
-    const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    requireMutationRole(ctx);
+    const { eventId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
     const session = await startEventLiveSession(eventMatchId);
     revalidatePath(`/events/${eventId}`);
     revalidatePath(`/events/${eventId}/matches/${eventMatchId}/live`);
@@ -36,7 +48,9 @@ export async function startEventLiveSessionAction(eventMatchId: string) {
 
 export async function getEventActiveSessionAction(eventMatchId: string) {
   try {
-    await requireEventMatchOrgAccess(eventMatchId);
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
     const session = await getEventActiveSession(eventMatchId);
     return { success: true as const, data: session };
   } catch (error) {
@@ -50,12 +64,12 @@ export async function endEventLiveSessionAction(sessionId: string) {
     setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
     const session = await db.eventLiveMatchSession.findFirst({
-      where: { id: sessionId, eventMatch: { event: ctx.orgFilter.filter } },
+      where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
       select: { eventMatchId: true },
     });
     if (!session) throw new Error("Live session not found or access denied.");
     const ended = await endEventLiveSession(sessionId);
-    const { eventId } = await requireEventMatchOrgAccess(ended.eventMatchId);
+    const { eventId } = await requireEventMatchOrgAccess(ended.eventMatchId, ctx.orgFilter);
     revalidatePath(`/events/${eventId}`);
     revalidatePath(`/events/${eventId}/matches/${ended.eventMatchId}/live`);
     return { success: true as const, data: ended };
@@ -70,7 +84,7 @@ export async function heartbeatEventAction(sessionId: string) {
     setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
     const session = await db.eventLiveMatchSession.findFirst({
-      where: { id: sessionId, eventMatch: { event: ctx.orgFilter.filter } },
+      where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
       select: { id: true },
     });
     if (!session) throw new Error("Live session not found or access denied.");
@@ -98,7 +112,7 @@ export async function recordEventLiveEventAction(input: {
     const ctx = await requirePageActorContext();
     setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
-    await requireEventMatchOrgAccess(input.eventMatchId);
+    const { eventId } = await requireEventMatchOrgAccess(input.eventMatchId, ctx.orgFilter);
     const typedInput: EventLiveEventInput = {
       eventMatchId: input.eventMatchId,
       sessionId: input.sessionId,
@@ -114,7 +128,7 @@ export async function recordEventLiveEventAction(input: {
     };
 
     const result = await recordEventEvent(typedInput);
-    revalidatePath(`/events/${(await requireEventMatchOrgAccess(input.eventMatchId)).eventId}/matches/${input.eventMatchId}/live`);
+    revalidatePath(`/events/${eventId}/matches/${input.eventMatchId}/live`);
     return { success: true as const, data: result };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Failed to record event." };
@@ -123,7 +137,9 @@ export async function recordEventLiveEventAction(input: {
 
 export async function getEventMatchEventsAction(eventMatchId: string) {
   try {
-    await requireEventMatchOrgAccess(eventMatchId);
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
     const events = await getEventMatchEvents(eventMatchId);
     return { success: true as const, data: events };
   } catch (error) {
@@ -133,7 +149,9 @@ export async function getEventMatchEventsAction(eventMatchId: string) {
 
 export async function getRecentEventEventsAction(eventMatchId: string, limit?: number) {
   try {
-    await requireEventMatchOrgAccess(eventMatchId);
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
     const events = await getRecentEventEvents(eventMatchId, limit);
     return { success: true as const, data: events };
   } catch (error) {
@@ -143,10 +161,17 @@ export async function getRecentEventEventsAction(eventMatchId: string, limit?: n
 
 export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: string) {
   try {
-    const { eventId, orgFilter } = await requireEventMatchOrgAccess(eventMatchId);
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    const orgFilter = ctx.orgFilter;
+    const { eventId } = await requireEventMatchOrgAccess(eventMatchId, orgFilter);
 
-    const match = await db.eventMatch.findUnique({
-      where: { id: eventMatchId },
+    // Explicit organisationId filter on every query below (not just relying on the
+    // setTenantOrganisationId() call above) — the same defense-in-depth convention every other
+    // events action file uses, and the only way to be certain these RLS-scoped queries stay
+    // correctly scoped regardless of how many awaits separate them from the call above.
+    const match = await db.eventMatch.findFirst({
+      where: { id: eventMatchId, organisationId: orgFilter.organisationId },
       select: {
         id: true,
         opponentName: true,
@@ -194,8 +219,8 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
       return { success: false as const, error: "Event match not found." };
     }
 
-    const lineup = await db.eventMatchLineup.findUnique({
-      where: { eventMatchId },
+    const lineup = await db.eventMatchLineup.findFirst({
+      where: { eventMatchId, organisationId: orgFilter.organisationId },
       select: {
         id: true,
         status: true,

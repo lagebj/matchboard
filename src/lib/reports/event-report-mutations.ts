@@ -21,8 +21,13 @@ export async function seedEventReportFromLiveSession(
   eventMatchId: string,
   organisationId: string,
 ): Promise<SeedEventReportFromLiveSessionResult> {
-  const existingReport = await db.eventPostMatchReport.findUnique({
-    where: { eventMatchId },
+  // Every read below is explicitly scoped by the caller-verified `organisationId` parameter
+  // (not just whatever tenant context happens to be ambient via AsyncLocalStorage) — the
+  // same defense-in-depth convention ADR-0087 documents (getExplicitOrgId()), and the only
+  // way to be certain these RLS-scoped queries stay correctly scoped regardless of how many
+  // awaits separate this call from wherever its caller last established context.
+  const existingReport = await db.eventPostMatchReport.findFirst({
+    where: { eventMatchId, organisationId },
     select: { id: true, status: true },
   });
 
@@ -36,8 +41,8 @@ export async function seedEventReportFromLiveSession(
     };
   }
 
-  const eventMatch = await db.eventMatch.findUnique({
-    where: { id: eventMatchId },
+  const eventMatch = await db.eventMatch.findFirst({
+    where: { id: eventMatchId, organisationId },
     select: {
       eventId: true,
       eventSquadId: true,
@@ -62,7 +67,7 @@ export async function seedEventReportFromLiveSession(
   }
 
   const supportAssignments = await db.eventMatchSupportAssignment.findMany({
-    where: { eventMatchId },
+    where: { eventMatchId, organisationId },
     select: { playerId: true, plannedRole: true },
   });
 
@@ -89,6 +94,7 @@ export async function seedEventReportFromLiveSession(
   const liveEvents = await db.eventLiveMatchEvent.findMany({
     where: {
       eventMatchId,
+      organisationId,
       OR: [
         { correctionType: null },
         { correctionType: "CORRECTION" },

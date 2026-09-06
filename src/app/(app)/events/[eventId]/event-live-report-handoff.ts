@@ -6,12 +6,14 @@ import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-c
 import { endEventLiveSession } from "@/lib/live-match/event-live-match-session";
 import { seedEventReportFromLiveSession } from "@/lib/reports/event-report-mutations";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
-async function requireEventMatchOrgAccess(eventMatchId: string): Promise<{ eventId: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
+// Takes an already-resolved `orgFilter` rather than resolving its own actor context — see
+// event-live-actions.ts's requireEventMatchOrgAccess for why a helper resolving its own context
+// internally is unsafe for a caller that queries again afterward (ARR-0029 "Bug 3", ADR-0087).
+async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
   const match = await db.eventMatch.findFirst({
-    where: { id: eventMatchId, event: ctx.orgFilter.filter },
+    where: { id: eventMatchId, organisationId: orgFilter.organisationId },
     select: { eventId: true },
   });
   if (!match) throw new Error("Event match not found or access denied.");
@@ -31,8 +33,8 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
     setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
 
-    const session = await db.eventLiveMatchSession.findUnique({
-      where: { id: sessionId },
+    const session = await db.eventLiveMatchSession.findFirst({
+      where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
       select: { id: true, eventMatchId: true, status: true, organisationId: true },
     });
 
@@ -59,7 +61,7 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
       return { success: false as const, error: result.error };
     }
 
-    const { eventId } = await requireEventMatchOrgAccess(eventMatchId);
+    const { eventId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
     revalidatePath(`/events/${eventId}`);
     revalidatePath(`/events/${eventId}/matches/${eventMatchId}/live`);
 
