@@ -117,12 +117,17 @@ describe("event-finalization-actions", () => {
       expect(result.error).toBeDefined();
     });
 
-    it("fails for event with no squads", async () => {
+    it("finalizes an event with no squads — composition is never a finalization gate (ADR-0122)", async () => {
       const event = await createEvent(db);
       try {
         const result = await finalizeEventAction(event.id);
-        expect(result.success).toBe(false);
-        expect(result.error).toContain("blocking issues");
+        expect(result.success).toBe(true);
+        // The shortfall is still surfaced, just not as a blocker.
+        expect(result.issues?.some((i) => i.code === "no_squads" && i.severity === "warning")).toBe(true);
+        expect(result.issues?.some((i) => i.severity === "blocking")).toBe(false);
+
+        const updated = await db.event.findUnique({ where: { id: event.id } });
+        expect(updated?.status).toBe("FINALIZED");
       } finally {
         await cleanEventTables(db);
       }
@@ -157,22 +162,36 @@ describe("event-finalization-actions", () => {
       }
     });
 
-    it("fails for event with unavailable player in squad", async () => {
+    it("finalizes despite squad-composition warnings (no goalkeeper, unavailable player) — ADR-0122", async () => {
       const event = await createEvent(db);
-      const { player } = await createPlayer(db, { goalkeeperAbility: "NO" });
+      // No goalkeeper-marked player, and an unavailable player still sitting in the squad.
+      const { player: keeperless } = await createPlayer(db, { goalkeeperAbility: "NO", primaryPosition: "MID" });
+      const { player: awayPlayer } = await createPlayer(db, { goalkeeperAbility: "NO" });
       const squad = await db.eventSquad.create({
         data: { name: "Squad 1", intent: "BALANCED", targetSize: 5, eventId: event.id, generationOrder: 0, organisationId: testOrgId },
       });
-      await db.eventPlayerAvailability.create({
-        data: { eventId: event.id, playerId: player.id, status: "UNAVAILABLE", organisationId: testOrgId },
+      await db.eventPlayerAvailability.createMany({
+        data: [
+          { eventId: event.id, playerId: keeperless.id, status: "AVAILABLE", organisationId: testOrgId },
+          { eventId: event.id, playerId: awayPlayer.id, status: "UNAVAILABLE", organisationId: testOrgId },
+        ],
       });
-      await db.eventSquadPlayer.create({
-        data: { eventId: event.id, eventSquadId: squad.id, playerId: player.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+      await db.eventSquadPlayer.createMany({
+        data: [
+          { eventId: event.id, eventSquadId: squad.id, playerId: keeperless.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+          { eventId: event.id, eventSquadId: squad.id, playerId: awayPlayer.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+        ],
       });
 
       try {
         const result = await finalizeEventAction(event.id);
-        expect(result.success).toBe(false);
+        expect(result.success).toBe(true);
+        expect(result.issues?.some((i) => i.code === "no_goalkeeper_coverage" && i.severity === "warning")).toBe(true);
+        expect(result.issues?.some((i) => i.code === "unavailable_player_in_squad" && i.severity === "warning")).toBe(true);
+        expect(result.issues?.some((i) => i.severity === "blocking")).toBe(false);
+
+        const updated = await db.event.findUnique({ where: { id: event.id } });
+        expect(updated?.status).toBe("FINALIZED");
       } finally {
         await cleanEventTables(db);
       }

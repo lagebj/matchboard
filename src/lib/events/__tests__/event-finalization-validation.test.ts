@@ -112,12 +112,13 @@ describe("event-finalization-validation", () => {
       }
     });
 
-    it("returns blocking issue for event with no squads", async () => {
+    it("surfaces 'no squads' as a non-blocking warning, not a finalization blocker (ADR-0122)", async () => {
       const event = await createEvent(db);
       try {
         const result = await validateEventForFinalization(event.id, auth.orgFilter);
-        expect(result.valid).toBe(false);
-        expect(result.issues.some((i) => i.code === "no_squads")).toBe(true);
+        expect(result.valid).toBe(true);
+        expect(result.issues.some((i) => i.code === "no_squads" && i.severity === "warning")).toBe(true);
+        expect(result.issues.some((i) => i.severity === "blocking")).toBe(false);
       } finally {
         await cleanEventTables(db);
       }
@@ -148,8 +149,9 @@ describe("event-finalization-validation", () => {
 
       try {
         const result = await validateEventForFinalization(event.id, auth.orgFilter);
-        expect(result.valid).toBe(false);
-        expect(result.issues.some((i) => i.code === "unavailable_player_in_squad")).toBe(true);
+        // ADR-0122: composition context, surfaced but non-blocking.
+        expect(result.valid).toBe(true);
+        expect(result.issues.some((i) => i.code === "unavailable_player_in_squad" && i.severity === "warning")).toBe(true);
       } finally {
         await cleanEventTables(db);
       }
@@ -211,7 +213,7 @@ describe("event-finalization-validation", () => {
       }
     });
 
-    it("returns blocking issue for squad below minimum size", async () => {
+    it("surfaces 'squad below minimum' as a non-blocking warning (ADR-0122)", async () => {
       const event = await createEvent(db);
       const { player } = await createPlayer(db, { goalkeeperAbility: "YES", primaryPosition: "GK" });
       const squad = await db.eventSquad.create({
@@ -226,8 +228,32 @@ describe("event-finalization-validation", () => {
 
       try {
         const result = await validateEventForFinalization(event.id, auth.orgFilter);
-        expect(result.valid).toBe(false);
-        expect(result.issues.some((i) => i.code === "squad_below_minimum")).toBe(true);
+        expect(result.valid).toBe(true);
+        expect(result.issues.some((i) => i.code === "squad_below_minimum" && i.severity === "warning")).toBe(true);
+        expect(result.issues.some((i) => i.severity === "blocking")).toBe(false);
+      } finally {
+        await cleanEventTables(db);
+      }
+    });
+
+    it("does not block finalization when a squad has no goalkeeper-marked player (ADR-0122)", async () => {
+      const event = await createEvent(db);
+      const { player } = await createPlayer(db, { goalkeeperAbility: "NO", primaryPosition: "MID" });
+      const squad = await db.eventSquad.create({
+        data: { name: "Squad 1", intent: "BALANCED", targetSize: 5, eventId: event.id, generationOrder: 0, organisationId: testOrgId },
+      });
+      await db.eventPlayerAvailability.create({
+        data: { eventId: event.id, playerId: player.id, status: "AVAILABLE", organisationId: testOrgId },
+      });
+      await db.eventSquadPlayer.create({
+        data: { eventId: event.id, eventSquadId: squad.id, playerId: player.id, source: "MANUAL", selectionReason: "Test", organisationId: testOrgId },
+      });
+
+      try {
+        const result = await validateEventForFinalization(event.id, auth.orgFilter);
+        expect(result.valid).toBe(true);
+        expect(result.issues.some((i) => i.code === "no_goalkeeper_coverage" && i.severity === "warning")).toBe(true);
+        expect(result.issues.some((i) => i.severity === "blocking")).toBe(false);
       } finally {
         await cleanEventTables(db);
       }

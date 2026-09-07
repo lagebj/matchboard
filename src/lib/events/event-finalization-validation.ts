@@ -15,6 +15,25 @@ export type EventFinalizationValidationResult = {
   issues: EventFinalizationIssue[];
 };
 
+/**
+ * Event finalization (`Event.status` DRAFT -> FINALIZED, ADR-0109 §7) is a whole-container
+ * "this event is over" assertion that a coach makes *after* the matches have been played. It is
+ * NOT a pre-match planning gate. Squad-composition quality — goalkeeper coverage, squad size,
+ * a pool player still marked unavailable, an empty squad, even zero squads — describes how the
+ * event was *planned*, not whether it is *finished*, and must never block finalization
+ * (ADR-0122). Whoever actually played in goal on the day is a real-world fact recorded in the
+ * post-match report, not something this check can or should second-guess.
+ *
+ * Only genuine data-integrity impossibilities block: the event does not exist, it is already
+ * finalized, or the same player is somehow assigned to two squads of the same event (DB-unique
+ * on `[eventId, playerId]`, so effectively unreachable — kept as defense-in-depth corruption
+ * detection, not a planning preference). Everything else is surfaced as a non-blocking
+ * warning/info so the coach still sees it without being stopped.
+ *
+ * The separate pre-match squad-set lock (`confirmEventSquadsAction` and its inline validation in
+ * `event-squad-commit-actions.ts`) DOES still block on composition — that one is a planning gate
+ * and is deliberately unchanged.
+ */
 export async function validateEventForFinalization(
   eventId: string,
   orgFilter: OrgFilterMode,
@@ -60,12 +79,13 @@ export async function validateEventForFinalization(
   });
 
   if (squads.length === 0) {
+    // Non-blocking (ADR-0122): an event with no squads can still be a legitimate "done" state
+    // (e.g. it was only ever used to record match results). Surface it, do not stop finalization.
     issues.push({
       code: "no_squads",
-      severity: "blocking",
-      message: "Event has no squads. Create at least one squad before finalizing.",
+      severity: "warning",
+      message: "Event has no squads.",
     });
-    return { valid: false, issues };
   }
 
   const unavailablePlayers = await db.eventPlayerAvailability.findMany({
@@ -107,9 +127,11 @@ export async function validateEventForFinalization(
       allAssignedPlayerIds.add(sp.playerId);
 
       if (unavailablePlayerIds.has(sp.playerId)) {
+        // Non-blocking (ADR-0122): post-match, the player may well have played anyway, or the
+        // availability flag was simply never updated. It is context, not a finalization blocker.
         issues.push({
           code: "unavailable_player_in_squad",
-          severity: "blocking",
+          severity: "warning",
           message: `${sp.player.firstName} ${sp.player.lastName ?? ""} is marked unavailable but is assigned to squad "${squad.name}".`,
           squadId: squad.id,
           playerId: sp.playerId,
@@ -117,17 +139,19 @@ export async function validateEventForFinalization(
       }
     }
 
+    // Squad-size shortfalls describe the plan, not whether the event is finished — non-blocking
+    // (ADR-0122).
     if (playerCount === 0) {
       issues.push({
         code: "empty_squad",
-        severity: "blocking",
+        severity: "warning",
         message: `Squad "${squad.name}" has no players assigned.`,
         squadId: squad.id,
       });
     } else if (squad.minSize && playerCount < squad.minSize) {
       issues.push({
         code: "squad_below_minimum",
-        severity: "blocking",
+        severity: "warning",
         message: `Squad "${squad.name}" has ${playerCount} players but minimum is ${squad.minSize}.`,
         squadId: squad.id,
       });
@@ -149,12 +173,14 @@ export async function validateEventForFinalization(
       (sp) => ["YES", "EMERGENCY"].includes(sp.player.goalkeeperAbility) || sp.player.primaryPosition === "GK",
     ).length;
 
+    // Goalkeeper coverage is a planning signal, never a finalization blocker (ADR-0122): the
+    // match has been played, and whoever actually kept goal is recorded in the post-match report.
     if (playerCount > 0 && gkYes === 0) {
       if (anyGK === 0) {
         issues.push({
           code: "no_goalkeeper_coverage",
-          severity: "blocking",
-          message: `Squad "${squad.name}" has no goalkeeper coverage at all.`,
+          severity: "warning",
+          message: `Squad "${squad.name}" has no goalkeeper-marked player.`,
           squadId: squad.id,
         });
       } else {
