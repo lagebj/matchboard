@@ -342,6 +342,34 @@ describe("getWeeklyCoachingContext", () => {
     }
   });
 
+  it("gives a player with no usable name a non-blank fallback label rather than a bare separator", async () => {
+    // Reproduces the "just dots" symptom: a Player row whose firstName/lastName are both empty
+    // still resolves to a real, clickable label, and is still counted (not silently dropped).
+    const namelessPlayer = fixture.players.find((p) => p.coreTeamId === fixture.teams.Bla)!;
+    await testDb.player.update({
+      where: { id: namelessPlayer.id },
+      data: { firstName: "", lastName: null },
+    });
+    try {
+      const result = await getWeeklyCoachingContext(orgFilterFor(fixture.organisationId), {
+        leagueSeasonId: fixture.leagueSeasonId,
+        weekKey: WEEK_KEY,
+      });
+
+      const ids = result.context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds;
+      expect(ids).toContain(namelessPlayer.id);
+      expect(ids.length).toBe(fixture.players.length);
+      for (const id of ids) {
+        expect(result.playerDisplayById[id]?.displayName.trim().length).toBeGreaterThan(0);
+      }
+    } finally {
+      await testDb.player.update({
+        where: { id: namelessPlayer.id },
+        data: { firstName: namelessPlayer.firstName, lastName: namelessPlayer.lastName },
+      });
+    }
+  });
+
   it("excludes available players whose core team has no match that week from the opportunity list", async () => {
     await testDb.match.update({
       where: { id: fixture.matches.Hvit! },

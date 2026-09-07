@@ -19,7 +19,12 @@ function toReportStatus(status: string | undefined): "NONE" | "DRAFT" | "REPORTE
 }
 
 function playerDisplay(player: { firstName: string; lastName: string | null }): string {
-  return `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`;
+  const name = `${player.firstName ?? ""}${player.lastName ? ` ${player.lastName}` : ""}`.trim();
+  // A player row with no usable name must still render as a real, clickable label rather than a
+  // bare "·" separator with nothing beside it (the symptom that made this list read as "just
+  // dots"). The count stays honest — the player is still surfaced so the coach can open the
+  // profile and fix the record — instead of being silently dropped as "unresolvable".
+  return name.length > 0 ? name : "Unknown player";
 }
 
 function emptyContext(weekKey: string, leagueSeasonId: string | null): WeeklyCoachingContext {
