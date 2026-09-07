@@ -131,7 +131,7 @@
     "prisma": "^7.10.0",
     "tailwindcss": "^4",
     "typescript": "^6",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "wrangler": "^4.127.1"
   }
 }
