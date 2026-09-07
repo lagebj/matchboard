@@ -20,7 +20,12 @@ export function WeeklyCarryForwardPanel({ result }: { result: WeeklyCoachingCont
 
   const facts: { icon: typeof ClipboardList; text: string }[] = [];
 
-  const opportunityCount = context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds.length;
+  // Count only players that resolve to a display name, so the fact text and the name preview
+  // below always describe the same set (and no bare "·" can render for a missing name).
+  const opportunityIds = context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds.filter(
+    (id) => playerDisplayById[id],
+  );
+  const opportunityCount = opportunityIds.length;
   if (opportunityCount > 0) {
     facts.push({
       icon: ClipboardList,
@@ -57,10 +62,12 @@ export function WeeklyCarryForwardPanel({ result }: { result: WeeklyCoachingCont
 
   const namedPlayerIds = [
     ...new Set([
-      ...context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds,
+      ...opportunityIds,
       ...context.planActual.plannedButAbsent.map((p) => p.playerId),
     ]),
-  ].slice(0, 4);
+  ]
+    .filter((id) => playerDisplayById[id])
+    .slice(0, 4);
 
   return (
     <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4 flex flex-col gap-2">

@@ -323,6 +323,52 @@ describe("getWeeklyCoachingContext", () => {
     expect(result.context.planActual.plannedButAbsent.map((p) => p.playerId)).toContain(player.id);
   });
 
+  it("resolves a display name for every available-without-planned-opportunity player id", async () => {
+    // No selections created (beforeEach clears them) -> every available player in a team that
+    // plays this week is a missing-opportunity signal. Each id must resolve to a real display
+    // name, and the count the UI shows must equal the size of that resolved collection.
+    const result = await getWeeklyCoachingContext(orgFilterFor(fixture.organisationId), {
+      leagueSeasonId: fixture.leagueSeasonId,
+      weekKey: WEEK_KEY,
+    });
+
+    const ids = result.context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds;
+    expect(ids.length).toBe(fixture.players.length); // 3 teams x 3 players, all playing, none selected
+    for (const id of ids) {
+      const display = result.playerDisplayById[id];
+      expect(display).toBeDefined();
+      expect(display!.displayName.trim().length).toBeGreaterThan(0);
+      expect(display!.href).toBe(`/players/${id}`);
+    }
+  });
+
+  it("excludes available players whose core team has no match that week from the opportunity list", async () => {
+    await testDb.match.update({
+      where: { id: fixture.matches.Hvit! },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledReason: "Test" },
+    });
+
+    const result = await getWeeklyCoachingContext(orgFilterFor(fixture.organisationId), {
+      leagueSeasonId: fixture.leagueSeasonId,
+      weekKey: WEEK_KEY,
+    });
+
+    const hvitPlayerIds = new Set(
+      fixture.players.filter((p) => p.coreTeamId === fixture.teams.Hvit).map((p) => p.id),
+    );
+    const ids = result.context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds;
+    expect(ids.length).toBe(fixture.players.length - hvitPlayerIds.size);
+    for (const id of ids) {
+      expect(hvitPlayerIds.has(id)).toBe(false);
+      expect(result.playerDisplayById[id]).toBeDefined();
+    }
+
+    await testDb.match.update({
+      where: { id: fixture.matches.Hvit! },
+      data: { status: "SCHEDULED", cancelledAt: null, cancelledReason: null },
+    });
+  });
+
   it("scopes strictly by organisation -- another organisation's matches never appear", async () => {
     const otherOrgFixture = await seedTestFixture(testDb, {
       playersPerTeam: 1,

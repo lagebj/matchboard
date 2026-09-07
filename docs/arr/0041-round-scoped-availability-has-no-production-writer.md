@@ -156,6 +156,20 @@ model:
   tests) all pass with no regressions — confirming this code path was previously never exercised
   by any existing test with real availability data.
 
+**Follow-up (2026-09-07), separate defect in the now-reachable code path**: once
+`AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` actually started firing in production, it fired for
+*every* available, unassigned, active player in the organisation — including players whose core
+team has no match in the round at all — because section 4's candidate set was the whole
+organisation roster, not the players whose core team is actually playing. `compute-plan-integrity.ts`
+now gates that candidate set on `Player.coreTeamId` being one of the round's non-cancelled match
+teams (Round Board visibility is a planning pool, not an obligation — AGENTS.md "Decision required
+conditions"). The Weekly Coaching Context loader (`get-weekly-coaching-context.ts`) also now
+resolves a display name for each such `playerId` (the signal carries only the id) and drops any
+that do not resolve, fixing a broken "· · · +N more" render on Today's "Carries into next round"
+and the Round Board carry-forward panel. Regression tests: `compute-plan-integrity.test.ts`'s new
+"missing opportunity requires a core-team fixture" block, `get-weekly-coaching-context.test.ts`'s
+two new opportunity-resolution tests, and `weekly-coaching-context-section.test.tsx`.
+
 **Not fixed, still open**: the *historical* half of this finding. `get-planning-period-fairness.ts`'s
 "unavailable rounds excluded from fairness debt" rule, the `repeatedContext`
 ("Repeated missed planned opportunity") enrichment inside `compute-plan-integrity.ts` itself, and

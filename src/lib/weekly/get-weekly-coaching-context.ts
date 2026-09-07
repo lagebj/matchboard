@@ -256,7 +256,13 @@ export async function getWeeklyCoachingContext(
   });
 
   // --- Opportunity (reuses computeRoundPlanIntegrity()'s signals verbatim) --------------------
-  const opportunityPlayerIds = integrity
+  // computeRoundPlanIntegrity() returns only a playerId per signal (the name is baked into its
+  // `title` string). Every other fact above resolves its players through `rememberPlayer` off a
+  // row that already carried the player relation; this one has to resolve the names itself, or
+  // the UI receives ids with no display entry and renders separators/"+N more" around blank
+  // names. Only ids that resolve to a real, non-removed player are carried forward, so the
+  // headline count the UI shows always equals the size of the list it can actually render.
+  const rawOpportunityPlayerIds = integrity
     ? [
         ...new Set(
           integrity.signals
@@ -265,6 +271,18 @@ export async function getWeeklyCoachingContext(
         ),
       ]
     : [];
+
+  if (rawOpportunityPlayerIds.length > 0) {
+    const opportunityPlayers = await db.player.findMany({
+      where: { id: { in: rawOpportunityPlayerIds }, removedAt: null },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    for (const p of opportunityPlayers) {
+      rememberPlayer(p.id, { firstName: p.firstName, lastName: p.lastName });
+    }
+  }
+
+  const opportunityPlayerIds = rawOpportunityPlayerIds.filter((id) => playerDisplayById[id]);
 
   // --- No recorded appearance (only meaningful once status is COMPLETE) -----------------------
   // League: candidate pool is players who were finalized-planned for a week match; the gap is a

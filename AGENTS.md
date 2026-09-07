@@ -1757,6 +1757,12 @@ Planned same-round double load is prohibited. Additional actual participation is
 ### Decision required conditions
 
 - Available eligible player without planned match opportunity (`AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`)
+  - This condition only arises when the player's **core team** has at least one non-cancelled
+    match in the round. A player whose core team is not playing this round (no fixture, or its
+    only fixture cancelled) is still visible and selectable on the Round Board as an optional
+    helper for another team, but that visibility never creates a fairness obligation or a coach
+    decision. Core team is read from the authoritative `Player.coreTeamId`, never inferred from
+    Round Board placement or draft-squad membership.
 - Repeated missed planned opportunity adds explanatory context to the same issue
 
 ### Planning notes (not prominent unresolved issues)

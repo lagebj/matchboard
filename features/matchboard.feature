@@ -1066,6 +1066,20 @@ Feature: Matchboard football operations workspace
        Then one Blocked signal must state that "p1" has no planned match opportunity
        And finalisation must require assignment or a recorded permitted override reason
 
+     Scenario: A player whose core team has no match in the round is not a missing-opportunity decision
+       Given player "p1" is active and confirmed available for editable round "R1"
+       And the core team of "p1" has no non-cancelled match in "R1"
+       And "p1" is assigned to no planned match in "R1"
+       When current plan integrity is computed
+       Then no plan-integrity signal must state that "p1" has no planned match opportunity
+       And "p1" remains selectable on the Round Board as an optional helper for another team
+
+     Scenario: A cancelled fixture does not create missing-opportunity decisions for that team
+       Given the only match of the core team of "p1" in round "R1" is cancelled
+       And "p1" is active, confirmed available and assigned to no planned match in "R1"
+       When current plan integrity is computed
+       Then no plan-integrity signal must state that "p1" has no planned match opportunity
+
      Scenario: Repeated omission enriches one current blocked condition
        Given "p1" currently has no planned match opportunity in "R1"
        And "p1" was confirmed available without planned opportunity in an earlier round in the same league season

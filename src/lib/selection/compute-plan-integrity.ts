@@ -278,7 +278,23 @@ export async function computeRoundPlanIntegrity(
     select: { id: true },
   });
 
-  const eligibleActivePlayers = activePlayers.filter((p) => p.removedAt === null);
+  // The normal expectation that an available player receives a planned opportunity only exists
+  // when the player's *core team* actually has a playable fixture in this round. A player whose
+  // core team has no match this round (or whose core team's only match is cancelled -- cancelled
+  // matches are already excluded from `round.matches` by the query above) is still visible and
+  // selectable on the Round Board as an optional helper for another team, but that visibility
+  // never creates a fairness obligation or a coach decision (AGENTS.md "Coaching/domain model":
+  // the Round Board is a planning pool; Example B/D in the round-attention rules). Infer core
+  // team only from the authoritative `Player.coreTeamId`, never from Round Board placement or
+  // draft-squad membership.
+  const teamsWithPlayableFixtureThisRound = new Set(round.matches.map((m) => m.teamId));
+
+  const eligibleActivePlayers = activePlayers.filter(
+    (p) =>
+      p.removedAt === null &&
+      p.coreTeamId != null &&
+      teamsWithPlayableFixtureThisRound.has(p.coreTeamId),
+  );
 
   const unassignedEligibleAvailable: string[] = [];
   for (const player of eligibleActivePlayers) {

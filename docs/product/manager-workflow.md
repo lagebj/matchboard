@@ -35,7 +35,7 @@ The Assistant page must always show the next action based on workflow state. The
 
 Active prominent signals are restricted to:
 1. **Blocked** — Squad below minimum accepted size, selected unavailable player, duplicate planned assignment
-2. **Decision required** — Available eligible player without planned match opportunity
+2. **Decision required** — Available eligible player without planned match opportunity, when that player's core team has a non-cancelled match in the round (Round Board visibility alone never creates the obligation)
 
 Planning notes are informational only and do not create Assistant work items.
 
