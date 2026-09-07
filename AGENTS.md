@@ -2954,6 +2954,11 @@ Event squads have a status field: DRAFT or LOCKED.
   `event_already_finalized`, and `duplicate_player_across_squads` (DB-unique-impossible corruption
   check) block finalization. The `event-detail.tsx` finalize handler renders the returned
   `issues[]` rather than only alerting the generic error string.
+- A **FINALIZED** event is history and surfaces **no** Today/Assistant work items of any kind
+  (lineup needed, report needed, report incomplete, support players needed, setup missing) —
+  `getEventWorkItems()` filters `status: { not: "FINALIZED" }`, the same way a FINALIZED round or
+  league season is skipped elsewhere in the assistant. Finalizing an event is how a coach clears
+  it from their attention surface.
 
 ### Policy decision types
 

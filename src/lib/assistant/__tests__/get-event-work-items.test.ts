@@ -598,4 +598,50 @@ describe("getEventWorkItems", () => {
 
     await cleanEventTables(db);
   });
+
+  it("returns no work items for a FINALIZED event — it is history (ADR-0109 §7)", async () => {
+    const event = await db.event.create({
+      data: {
+        name: "Skrim Kiwi Bama Cup 2026",
+        eventType: "CUP",
+        startsAt: new Date("2020-03-01T09:00:00Z"),
+        endsAt: new Date("2020-03-01T17:00:00Z"),
+        gameFormat: "SEVEN_A_SIDE",
+        matchDurationMinutes: 20,
+        organisationId: testOrgId,
+        footballGroupId: testGroupId,
+        // The state the user hit: event locked, but a match still looks "needs helpers /
+        // needs a report" to the raw checks.
+        status: "FINALIZED",
+        finalizedAt: new Date("2020-03-02T00:00:00Z"),
+        finalizedBy: "test-user",
+      },
+    });
+    const squad = await db.eventSquad.create({
+      data: {
+        eventId: event.id,
+        name: "Under-strength squad",
+        intent: "BALANCED",
+        targetSize: 10, // deliberately unmet -> would trigger event_helpers_missing
+        organisationId: testOrgId,
+      },
+    });
+    const match = await db.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        category: "CUP",
+        opponentName: "Some Opponent",
+        opponentTeamId: opponentTeamId,
+        startsAt: new Date("2020-03-01T10:00:00Z"), // past, no lineup, no report
+        organisationId: testOrgId,
+      },
+    });
+    expect(match.id).toBeTruthy();
+
+    const items = await getEventWorkItems();
+    expect(items.filter((i) => i.eventId === event.id)).toEqual([]);
+
+    await cleanEventTables(db);
+  });
 });
