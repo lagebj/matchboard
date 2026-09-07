@@ -9,7 +9,8 @@ import {
   isReportLocked,
   hasUnknownAttendance,
 } from "./report-domain";
-import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
 import { deriveInitialAttendance } from "@/lib/matches/attendance-derivation";
 
 export type ReportTransitionResult =
@@ -676,9 +677,16 @@ export async function updatePlayerStatsInReport(
   return { success: true, matchId: report.matchId };
 }
 
-export async function completeReport(reportId: string, coachEmail: string): Promise<ReportTransitionResult> {
-  const report = await db.postMatchReport.findUnique({
-    where: { id: reportId },
+export async function completeReport(
+  reportId: string,
+  coachEmail: string,
+  orgFilter?: OrgFilterMode,
+): Promise<ReportTransitionResult> {
+  // Optional caller-supplied orgFilter narrows this lookup the same way reopenReport()'s does
+  // (defense-in-depth, not the sole enforcement — the report's own organisationId, loaded next,
+  // is what every subsequent read/write is actually scoped by).
+  const report = await db.postMatchReport.findFirst({
+    where: { id: reportId, ...(orgFilter ? orgFilter.filter : {}) },
     include: { playerActuals: true },
   });
   if (!report) return { success: false, error: "Report not found." };
@@ -695,33 +703,46 @@ export async function completeReport(reportId: string, coachEmail: string): Prom
     };
   }
 
-  await db.postMatchReport.update({
-    where: { id: reportId },
-    data: {
-      status: "LOCKED" as MatchReportStatus,
-      completedBy: coachEmail,
-      completedAt: new Date(),
-    },
+  // Everything from here on is scoped by the report's own already-loaded, trusted
+  // organisationId (ADR-0087) — not whatever tenant context the caller happened to establish,
+  // and not a re-derived actor context from a live request/cookie session (the previous
+  // implementation called requireActorContext() here, which silently no-ops the post-match
+  // learning step in a catch-all if this function is ever invoked outside a browser request).
+  // report.organisationId is exactly as trustworthy as an actor-resolved organisationId would
+  // be — it came from the row this function just fetched, narrowed by the caller's own
+  // orgFilter when one is supplied.
+  return runWithTenantOrganisationId(report.organisationId, async () => {
+    await db.postMatchReport.update({
+      where: { id: reportId, organisationId: report.organisationId },
+      data: {
+        status: "LOCKED" as MatchReportStatus,
+        completedBy: coachEmail,
+        completedAt: new Date(),
+      },
+    });
+
+    const { resolveOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
+    await resolveOpponentOnReportCompletion(report.matchId);
+
+    try {
+      const learningOrgFilter: OrgFilterMode = {
+        type: "org",
+        filter: organisationFilter(report.organisationId),
+        filterNullable: organisationFilterNullable(report.organisationId),
+        organisationId: report.organisationId,
+      };
+      const { buildLeagueMatchRef } = await import("@/lib/evidence/adapters/league-evidence-adapter");
+      const { runPostMatchLearning } = await import("@/lib/evidence/post-match-learning");
+      const ref = await buildLeagueMatchRef(report.matchId);
+      await runPostMatchLearning(ref, learningOrgFilter);
+    } catch {
+      // Post-match learning (opponent/player/combination evidence) must not block report
+      // completion — see ADR-0104. Failures are surfaced via runPostMatchLearning's own
+      // structured result to callers that want it, not by throwing here.
+    }
+
+    return { success: true, matchId: report.matchId };
   });
-
-  const { resolveOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
-  await resolveOpponentOnReportCompletion(report.matchId);
-
-  try {
-    const { requireActorContext } = await import("@/lib/auth/actor-context");
-    const ctx = await requireActorContext();
-    setTenantOrganisationId(ctx.organisationId);
-    const { buildLeagueMatchRef } = await import("@/lib/evidence/adapters/league-evidence-adapter");
-    const { runPostMatchLearning } = await import("@/lib/evidence/post-match-learning");
-    const ref = await buildLeagueMatchRef(report.matchId);
-    await runPostMatchLearning(ref, ctx.orgFilter);
-  } catch {
-    // Post-match learning (opponent/player/combination evidence) must not block report
-    // completion — see ADR-0104. Failures are surfaced via runPostMatchLearning's own
-    // structured result to callers that want it, not by throwing here.
-  }
-
-  return { success: true, matchId: report.matchId };
 }
 
 export async function reopenReport(

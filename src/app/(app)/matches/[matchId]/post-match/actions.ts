@@ -453,7 +453,7 @@ export async function completeMatchReport(reportId: string): Promise<{ success: 
 
 
   try {
-    const result = await completeReport(reportId, ctx.email || "unknown");
+    const result = await completeReport(reportId, ctx.email || "unknown", ctx.orgFilter);
     if (!result.success) {
       logReportComplete(ctx.email || "unknown", reportId, "failure", result.error);
       return { success: false, error: result.error };
