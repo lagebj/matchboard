@@ -8,8 +8,11 @@ export async function getEventWorkItems(orgFilter?: OrgFilterMode): Promise<Assi
   const now = new Date();
   const items: AssistantWorkItem[] = [];
 
+  // A FINALIZED event is history — a whole-container "this event is over" assertion (ADR-0109
+  // §7). It must not surface any coach work item (lineup/report/helpers/setup), the same way a
+  // FINALIZED round or league season is skipped elsewhere in the assistant.
   const events = await db.event.findMany({
-    where: { ...orgWhere },
+    where: { ...orgWhere, status: { not: "FINALIZED" } },
     orderBy: { startsAt: "asc" },
   });
 
