@@ -170,7 +170,7 @@ export async function updateThread(
   }
 
   const thread = await db.developmentThread.update({
-    where: { id: threadId },
+    where: { id: threadId, ...orgWhere(orgFilter) },
     data,
     include: { observations: { orderBy: { createdAt: "asc" } } },
   });
@@ -246,7 +246,7 @@ export async function updateObservation(
   if (input.context !== undefined) data.context = input.context?.trim() || null;
 
   const observation = await db.developmentThreadObservation.update({
-    where: { id: observationId },
+    where: { id: observationId, ...orgWhereObs(orgFilter) },
     data,
   });
 
@@ -270,7 +270,7 @@ export async function removeObservation(
     throw new Error("Observations can only be removed from active threads.");
   }
 
-  await db.developmentThreadObservation.delete({ where: { id: observationId } });
+  await db.developmentThreadObservation.delete({ where: { id: observationId, ...orgWhereObs(orgFilter) } });
 }
 
 export async function getThread(
@@ -357,7 +357,7 @@ export async function reopenThread(
   }
 
   return db.developmentThread.update({
-    where: { id: threadId },
+    where: { id: threadId, ...orgWhere(orgFilter) },
     data: {
       status: "ACTIVE",
       completedAt: null,

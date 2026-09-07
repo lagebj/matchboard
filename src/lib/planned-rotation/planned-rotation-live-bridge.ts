@@ -77,7 +77,7 @@ export async function applyPlannedChange(
   }
 
   const updatedChange = await db.plannedRotationChange.update({
-    where: { id: changeId },
+    where: { id: changeId, organisationId: orgId },
     data: {
       status: "APPLIED" as PlannedChangeStatus,
       liveEventId: liveEventIds.outEventId,
@@ -90,7 +90,7 @@ export async function applyPlannedChange(
 
   if (!anyPending && rotation.status === "DRAFT") {
     await db.plannedRotation.update({
-      where: { id: rotationId },
+      where: { id: rotationId, organisationId: orgId },
       data: { status: "APPLIED" },
     });
   }
@@ -128,7 +128,7 @@ export async function skipPlannedChange(
   }
 
   await db.plannedRotationChange.update({
-    where: { id: changeId },
+    where: { id: changeId, organisationId: orgId },
     data: { status: "SKIPPED" as PlannedChangeStatus },
   });
 
@@ -166,7 +166,7 @@ export async function delayPlannedChange(
   }
 
   await db.plannedRotationChange.update({
-    where: { id: changeId },
+    where: { id: changeId, organisationId: orgId },
     data: { status: "DELAYED" as PlannedChangeStatus },
   });
 
@@ -229,7 +229,7 @@ export async function modifyPlannedChange(
   if (modification.liveEventId !== undefined) updateData.liveEventId = modification.liveEventId;
 
   const updatedChange = await db.plannedRotationChange.update({
-    where: { id: changeId },
+    where: { id: changeId, organisationId: orgId },
     data: updateData,
     include: {
       outPlayer: { select: { id: true, firstName: true, lastName: true } },
