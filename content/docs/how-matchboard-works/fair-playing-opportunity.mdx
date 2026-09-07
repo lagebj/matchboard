@@ -38,12 +38,15 @@ None of this can be changed by a scoring preference; only a manual override with
 can include an otherwise-excluded player.
 
 A player marked Unavailable who still ends up in a generated squad is caught by a separate,
-always-live check: plan integrity recomputes every selection's current availability on every
-read, and flags a selected-but-unavailable player as a Blocked condition that needs the coach to
-remove them or correct their availability before the plan is in good shape. Availability is
-whatever the coach most recently set for that player — there is no separate per-round history to
-track it against, so correcting a mistaken status takes effect immediately for any round not yet
-past its planning boundary.
+always-live check: plan integrity recomputes every selection's availability on every read, and
+flags a selected-but-unavailable player as a Blocked condition that needs the coach to remove
+them or correct their availability before the plan is in good shape. While a round's planning is
+still open, availability is whatever the coach most recently set for that player, so correcting a
+mistaken status takes effect immediately. When the round's planning boundary closes, Matchboard
+freezes each relevant player's availability as it stood at that moment; from then on the round is
+reviewed against that frozen record, not a value the coach may have changed since for a later
+round. Rounds finalised before this record existed simply carry no availability history, and
+Matchboard makes no assumption about them either way.
 
 ## Movement and support constraints are hard, not preferences
 

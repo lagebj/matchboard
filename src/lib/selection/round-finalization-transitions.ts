@@ -76,10 +76,88 @@ export async function unfinalizeSelectionsForScope(
 }
 
 /**
+ * Freezes each relevant player's current availability into round-scoped `Availability` rows as
+ * the round's planning boundary closes (ADR-0121, resolving the historical half of ARR-0041).
+ * This is the ONE production writer of the `Availability` model: historical readers
+ * (`compute-plan-integrity.ts`'s availability checks and its `repeatedContext` enrichment,
+ * `get-planning-period-fairness.ts`'s "unavailable rounds excluded from fairness debt", and the
+ * Insights `opportunity-*`/`load-timeline` readers) have always queried this model but, with no
+ * writer, every real finalized round resolved to "no row" and the historical availability
+ * question was silently unanswerable.
+ *
+ * Population: players with a selection in the round, plus active players whose core team has a
+ * non-cancelled match in it — the same population `computeRoundPlanIntegrity()`'s
+ * missing-opportunity check evaluates, so a queried player with no captured row genuinely had no
+ * round obligation (a player whose core team was not playing is not "unknown", they were simply
+ * out of scope).
+ *
+ * Idempotent (`skipDuplicates`) and immutable once written — the value is frozen at boundary
+ * close and a later edit to `Player.currentAvailability` (for a future round) never rewrites it.
+ * Cleared by `clearRoundAvailabilitySnapshot()` only on a genuine reschedule-reopen.
+ */
+async function captureRoundAvailabilitySnapshot(
+  tx: TransactionClient,
+  matchRoundId: string,
+): Promise<void> {
+  const playableTeamIds = (
+    await tx.match.findMany({
+      where: { matchRoundId, status: { not: "CANCELLED" } },
+      select: { teamId: true },
+    })
+  ).map((m) => m.teamId);
+
+  const selectedPlayerIds = (
+    await tx.selection.findMany({
+      where: { matchRoundId },
+      select: { playerId: true },
+      distinct: ["playerId"],
+    })
+  ).map((s) => s.playerId);
+
+  if (playableTeamIds.length === 0 && selectedPlayerIds.length === 0) return;
+
+  const players = await tx.player.findMany({
+    where: {
+      removedAt: null,
+      OR: [
+        playableTeamIds.length > 0 ? { coreTeamId: { in: playableTeamIds } } : undefined,
+        selectedPlayerIds.length > 0 ? { id: { in: selectedPlayerIds } } : undefined,
+      ].filter((c): c is NonNullable<typeof c> => c != null),
+    },
+    select: { id: true, currentAvailability: true, organisationId: true },
+  });
+
+  if (players.length === 0) return;
+
+  await tx.availability.createMany({
+    data: players.map((p) => ({
+      playerId: p.id,
+      matchRoundId,
+      status: p.currentAvailability,
+      organisationId: p.organisationId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+/** Reverse of `captureRoundAvailabilitySnapshot()` — used only when a genuine reschedule reopens
+ * a round's planning (`reopenMatchPlanningForReschedule()`). The round becomes DRAFT again and
+ * its availability is live-editable, so the frozen snapshot must not linger and must not make the
+ * reopened round read as "captured" (ADR-0121). Safe because this snapshot is the only writer of
+ * `Availability` rows for a League round. */
+async function clearRoundAvailabilitySnapshot(
+  client: TransactionClient | typeof db,
+  matchRoundId: string,
+): Promise<void> {
+  await client.availability.deleteMany({ where: { matchRoundId } });
+}
+
+/**
  * The literal "this round record becomes FINALIZED" write, plus the rule-config version bump
- * that always accompanies it. Round-level finalize calls this unconditionally after finalizing
- * its selections; per-match finalize calls it only when the match it just finalized was the
- * round's last remaining DRAFT match (auto-finalizing the round as a side effect).
+ * that always accompanies it, plus the availability snapshot (ADR-0121). Round-level finalize
+ * calls this unconditionally after finalizing its selections; per-match finalize calls it only
+ * when the match it just finalized was the round's last remaining DRAFT match (auto-finalizing
+ * the round as a side effect).
  */
 export async function finalizeRoundRecord(
   tx: TransactionClient,
@@ -87,6 +165,8 @@ export async function finalizeRoundRecord(
   rulesId: string,
   currentRuleConfigVersion: number,
 ): Promise<void> {
+  await captureRoundAvailabilitySnapshot(tx, matchRoundId);
+
   await tx.matchRound.update({
     where: { id: matchRoundId },
     data: { status: "FINALIZED" },
@@ -108,6 +188,8 @@ export async function unfinalizeRoundRecord(
   client: TransactionClient | typeof db,
   matchRoundId: string,
 ): Promise<void> {
+  await clearRoundAvailabilitySnapshot(client, matchRoundId);
+
   await client.matchRound.update({
     where: { id: matchRoundId },
     data: { status: "DRAFT" },

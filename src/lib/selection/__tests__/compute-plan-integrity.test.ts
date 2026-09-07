@@ -375,3 +375,96 @@ describe("computeRoundPlanIntegrity: missing opportunity requires a core-team fi
     ).toBe(false);
   });
 });
+
+// ADR-0121: once a round is FINALIZED, availability checks read the immutable per-round snapshot
+// frozen at boundary close -- not the player's since-changed current value. A round finalized
+// before ADR-0121 (no snapshot) asserts nothing rather than guessing.
+describe("computeRoundPlanIntegrity: historical availability for a FINALIZED round (ADR-0121)", () => {
+  let testDb: PrismaClient;
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 3 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  beforeEach(async () => {
+    await testDb.warning.deleteMany({});
+    await testDb.availability.deleteMany({});
+    await testDb.selection.deleteMany({});
+    await testDb.movementLedger.deleteMany({});
+    await testDb.player.updateMany({ data: { currentAvailability: "AVAILABLE" } });
+    await testDb.matchRound.update({
+      where: { id: fixtureIds.matchRoundId },
+      data: { status: "DRAFT" },
+    });
+  });
+
+  it("uses the captured snapshot, not the current (since-changed) availability value", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodMatchId = fixtureIds.matches["Rod"]!;
+    const [selected, capturedUnavailable, capturedAvailable] = fixtureIds.players.filter(
+      (p) => p.coreTeamId === rodTeamId,
+    );
+
+    await testDb.selection.create({
+      data: {
+        matchId: rodMatchId,
+        matchRoundId: fixtureIds.matchRoundId,
+        playerId: selected!.id,
+        role: "CORE",
+        status: "FINALIZED",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    // Snapshot frozen at boundary close: one player was out, one was available-and-unassigned.
+    await testDb.availability.createMany({
+      data: [
+        { playerId: selected!.id, matchRoundId: fixtureIds.matchRoundId, status: "AVAILABLE", organisationId: fixtureIds.organisationId },
+        { playerId: capturedUnavailable!.id, matchRoundId: fixtureIds.matchRoundId, status: "UNAVAILABLE", organisationId: fixtureIds.organisationId },
+        { playerId: capturedAvailable!.id, matchRoundId: fixtureIds.matchRoundId, status: "AVAILABLE", organisationId: fixtureIds.organisationId },
+      ],
+    });
+    await testDb.matchRound.update({ where: { id: fixtureIds.matchRoundId }, data: { status: "FINALIZED" } });
+
+    // Every player's CURRENT availability now disagrees with the snapshot.
+    await testDb.player.updateMany({ data: { currentAvailability: "UNAVAILABLE" } });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    const missingFor = (playerId: string) =>
+      integrity.signals.some(
+        (s) => s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" && s.playerId === playerId,
+      );
+
+    // Captured-available + unassigned -> still a decision, despite the current UNAVAILABLE value.
+    expect(missingFor(capturedAvailable!.id)).toBe(true);
+    // Captured-unavailable -> not a missing opportunity.
+    expect(missingFor(capturedUnavailable!.id)).toBe(false);
+    // Selected -> never a missing opportunity.
+    expect(missingFor(selected!.id)).toBe(false);
+  });
+
+  it("asserts no availability-derived signal for a FINALIZED round with no snapshot (pre-ADR-0121)", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
+
+    // Round is FINALIZED but has zero Availability rows (closed before the feature existed).
+    await testDb.matchRound.update({ where: { id: fixtureIds.matchRoundId }, data: { status: "FINALIZED" } });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    for (const p of rodPlayers) {
+      expect(
+        integrity.signals.some(
+          (s) => s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" && s.playerId === p.id,
+        ),
+      ).toBe(false);
+    }
+  });
+});

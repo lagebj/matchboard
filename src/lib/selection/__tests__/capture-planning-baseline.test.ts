@@ -47,6 +47,7 @@ describe("ensureMatchPlanningBaselineCaptured (ADR-0109 — planning boundary se
 
   beforeEach(async () => {
     await testDb.warning.deleteMany({});
+    await testDb.availability.deleteMany({});
     await testDb.selection.deleteMany({});
     await testDb.movementLedger.deleteMany({});
     await testDb.matchRound.update({
@@ -141,6 +142,46 @@ describe("ensureMatchPlanningBaselineCaptured (ADR-0109 — planning boundary se
     const round = await testDb.matchRound.findUniqueOrThrow({ where: { id: fixtureIds.matchRoundId } });
     expect(round.status).toBe("FINALIZED");
   });
+
+  it("freezes a per-round availability snapshot when the round finalizes (ADR-0121)", async () => {
+    const matches = await createDraftSelections(testDb, fixtureIds);
+
+    // One player is currently marked unavailable at boundary-close time.
+    const targetTeamId = matches[0]!.teamId;
+    const targetPlayer = fixtureIds.players.find((p) => p.coreTeamId === targetTeamId)!;
+    await testDb.player.update({
+      where: { id: targetPlayer.id },
+      data: { currentAvailability: "INJURED" },
+    });
+
+    // No snapshot rows exist until the round finalizes.
+    expect(await testDb.availability.count({ where: { matchRoundId: fixtureIds.matchRoundId } })).toBe(0);
+
+    for (const match of matches) {
+      await ensureMatchPlanningBaselineCaptured(match.id);
+    }
+
+    const rows = await testDb.availability.findMany({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { playerId: true, status: true },
+    });
+    // Every player whose core team played this round is captured.
+    const playingTeamIds = new Set(matches.map((m) => m.teamId));
+    const expectedPlayers = fixtureIds.players.filter((p) => playingTeamIds.has(p.coreTeamId));
+    expect(rows.length).toBe(expectedPlayers.length);
+    expect(rows.find((r) => r.playerId === targetPlayer.id)?.status).toBe("INJURED");
+
+    // The snapshot is immutable: a later change to currentAvailability does not rewrite it.
+    await testDb.player.update({
+      where: { id: targetPlayer.id },
+      data: { currentAvailability: "AVAILABLE" },
+    });
+    const after = await testDb.availability.findFirst({
+      where: { matchRoundId: fixtureIds.matchRoundId, playerId: targetPlayer.id },
+      select: { status: true },
+    });
+    expect(after?.status).toBe("INJURED");
+  });
 });
 
 describe("reopenMatchPlanningForReschedule (ADR-0109 §4 — a real reschedule reopens planning, this is not un-finalize)", () => {
@@ -157,6 +198,7 @@ describe("reopenMatchPlanningForReschedule (ADR-0109 §4 — a real reschedule r
 
   beforeEach(async () => {
     await testDb.warning.deleteMany({});
+    await testDb.availability.deleteMany({});
     await testDb.selection.deleteMany({});
     await testDb.movementLedger.deleteMany({});
     await testDb.postMatchReport.deleteMany({});
@@ -187,6 +229,32 @@ describe("reopenMatchPlanningForReschedule (ADR-0109 §4 — a real reschedule r
       expect(s.status).toBe("DRAFT");
       expect(s.ruleConfigVersion).toBeNull();
     }
+  });
+
+  it("clears the round availability snapshot when a reschedule reopens the round (ADR-0121)", async () => {
+    const matches = await createDraftSelections(testDb, fixtureIds);
+
+    // Close every match so the round finalizes and writes its snapshot.
+    for (const match of matches) {
+      await ensureMatchPlanningBaselineCaptured(match.id);
+    }
+    expect(
+      await testDb.availability.count({ where: { matchRoundId: fixtureIds.matchRoundId } }),
+    ).toBeGreaterThan(0);
+    expect(
+      (await testDb.matchRound.findUniqueOrThrow({ where: { id: fixtureIds.matchRoundId } })).status,
+    ).toBe("FINALIZED");
+
+    const result = await reopenMatchPlanningForReschedule(matches[0]!.id);
+    expect(result.reopened).toBe(true);
+
+    // Round is DRAFT again and the frozen snapshot is gone (availability is live-editable again).
+    expect(
+      (await testDb.matchRound.findUniqueOrThrow({ where: { id: fixtureIds.matchRoundId } })).status,
+    ).toBe("DRAFT");
+    expect(
+      await testDb.availability.count({ where: { matchRoundId: fixtureIds.matchRoundId } }),
+    ).toBe(0);
   });
 
   it("refuses to reopen a match that has a completed post-match report", async () => {
