@@ -2944,6 +2944,16 @@ Event squads have a status field: DRAFT or LOCKED.
 - The Assistant does not surface `event_squads_draft` work items — draft squad status is not an actionable coach decision (removed per ADR-0109, same programme that removed round/match finalize ceremony). Squad-set locking remains a deliberate whole-Event assertion, but the coach takes that action directly on the Squads tab, not via an Assistant work item.
 - Aggregate status (DRAFT/LOCKED/MIXED) is available via `getEventSquadsStatusAction`
 - Review is optional and advisory via `ReviewRequest` — locking does not require review
+- This squad-set **lock** (`confirmEventSquadsAction`) is a pre-match planning gate and still
+  blocks on squad composition. Whole-`Event.status` **finalization**
+  (`finalizeEventAction`/`validateEventForFinalization`) is a different, post-match "this event is
+  over" assertion and must **not** block on composition (ADR-0122): no goalkeeper-marked player,
+  empty/below-minimum squad, a pool player still flagged unavailable, or even zero squads are all
+  returned as non-blocking `warning`s, never a blocker. Whoever actually kept goal is a fact in
+  the post-match report, not something finalization second-guesses. Only `event_not_found`,
+  `event_already_finalized`, and `duplicate_player_across_squads` (DB-unique-impossible corruption
+  check) block finalization. The `event-detail.tsx` finalize handler renders the returned
+  `issues[]` rather than only alerting the generic error string.
 
 ### Policy decision types
 

@@ -22,6 +22,7 @@ import {
   updateEventBreakDurationAction,
 } from '../actions';
 import { finalizeEventAction, unfinalizeEventAction } from '../event-finalization-actions';
+import type { EventFinalizationIssue } from '@/lib/events/event-finalization-validation';
 import { moveGuestPlayerBetweenSquadsAction } from '../event-guest-player-actions';
 import type { EventPlayerStatus } from '@/generated/prisma/client';
 import { FIT_TIER_LABELS } from '@/lib/events/event-types';
@@ -263,6 +264,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const [localBreak, setLocalBreak] = useState<number | null | undefined>(undefined);
   const [editingSquadTargetSize, setEditingSquadTargetSize] = useState<string | null>(null);
   const [editingSquadTargetSizeValue, setEditingSquadTargetSizeValue] = useState('');
+  const [finalizeIssues, setFinalizeIssues] = useState<EventFinalizationIssue[]>([]);
 
   const isFinalized = data.status === 'FINALIZED';
 
@@ -331,7 +333,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     startTransition(async () => {
       const result = await finalizeEventAction(data.id);
       if (!result.success) {
-        alert(result.error ?? 'Finalisation failed.');
+        const issues = result.issues ?? [];
+        setFinalizeIssues(issues);
+        if (issues.length === 0) {
+          alert(result.error ?? 'Finalisation failed.');
+        }
+      } else {
+        setFinalizeIssues([]);
       }
       router.refresh();
     });
@@ -459,6 +467,40 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           title="Event is finalised"
           description={`This event is finalised and locked for changes. Unfinalise to edit squads, matches, or player assignments.${data.finalizedAt ? ` Finalised on ${formatKickoffDate(new Date(data.finalizedAt))}.` : ''}`}
         />
+      )}
+
+      {!isFinalized && finalizeIssues.length > 0 && (
+        <div className="space-y-2">
+          <DecisionBanner
+            variant="blocked"
+            title="Cannot finalise this event yet"
+            description={
+              finalizeIssues.some((i) => i.severity === 'blocking')
+                ? 'Resolve the blocking issues below, then try again. Warnings and notes do not prevent finalisation.'
+                : 'Review the items below.'
+            }
+          />
+          {finalizeIssues.map((issue, i) => (
+            <DecisionBanner
+              key={`fi-${i}-${issue.code}`}
+              variant={
+                issue.severity === 'blocking'
+                  ? 'blocked'
+                  : issue.severity === 'warning'
+                    ? 'decision'
+                    : 'note'
+              }
+              title={
+                issue.severity === 'blocking'
+                  ? 'Blocking'
+                  : issue.severity === 'warning'
+                    ? 'Warning'
+                    : 'Note'
+              }
+              description={issue.message}
+            />
+          ))}
+        </div>
       )}
 
       {data.squads.length === 0 ? (
