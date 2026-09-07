@@ -389,6 +389,27 @@ Feature: Matchboard football operations workspace
       And the app must preserve enough information to explain the historical plan later
       And no coach action is required to trigger this capture
 
+    Scenario: A finalized round is reviewed against captured availability, not the current value
+      Given match round "R1" is FINALIZED and its availability snapshot was captured at boundary close
+      And player "p1" was captured as available and received no planned match opportunity in "R1"
+      And player "p2" was captured as unavailable in "R1"
+      And the coach has since changed both players' current availability
+      When plan integrity is computed for "R1"
+      Then the missing-opportunity signal for "p1" must be based on the captured availability, not the current value
+      And "p2" must not be reported as a missing opportunity, because they were captured as unavailable
+
+    Scenario: A round finalized before availability capture existed asserts nothing about availability
+      Given match round "R1" is FINALIZED and has no availability snapshot
+      When plan integrity is computed for "R1"
+      Then no availability-derived signal must be produced for any player in "R1"
+      And no such round may count for or against a player's fairness debt on availability grounds
+
+    Scenario: Reopening a round for a genuine reschedule discards its availability snapshot
+      Given match round "R1" is FINALIZED with a captured availability snapshot
+      When a genuine reschedule reopens planning for "R1"
+      Then the captured availability snapshot for "R1" must be removed
+      And the round's availability becomes live-editable again
+
     Scenario: One match's boundary closing does not close the whole round
       Given match round "R1" contains matches "M1" and "M2"
       And match "M1" has draft selections
@@ -1065,6 +1086,20 @@ Feature: Matchboard football operations workspace
        When current plan integrity is computed
        Then one Blocked signal must state that "p1" has no planned match opportunity
        And finalisation must require assignment or a recorded permitted override reason
+
+     Scenario: A player whose core team has no match in the round is not a missing-opportunity decision
+       Given player "p1" is active and confirmed available for editable round "R1"
+       And the core team of "p1" has no non-cancelled match in "R1"
+       And "p1" is assigned to no planned match in "R1"
+       When current plan integrity is computed
+       Then no plan-integrity signal must state that "p1" has no planned match opportunity
+       And "p1" remains selectable on the Round Board as an optional helper for another team
+
+     Scenario: A cancelled fixture does not create missing-opportunity decisions for that team
+       Given the only match of the core team of "p1" in round "R1" is cancelled
+       And "p1" is active, confirmed available and assigned to no planned match in "R1"
+       When current plan integrity is computed
+       Then no plan-integrity signal must state that "p1" has no planned match opportunity
 
      Scenario: Repeated omission enriches one current blocked condition
        Given "p1" currently has no planned match opportunity in "R1"

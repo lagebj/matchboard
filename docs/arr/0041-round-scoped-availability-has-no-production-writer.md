@@ -156,20 +156,35 @@ model:
   tests) all pass with no regressions — confirming this code path was previously never exercised
   by any existing test with real availability data.
 
-**Not fixed, still open**: the *historical* half of this finding. `get-planning-period-fairness.ts`'s
-"unavailable rounds excluded from fairness debt" rule, the `repeatedContext`
-("Repeated missed planned opportunity") enrichment inside `compute-plan-integrity.ts` itself, and
-the Insights readers (`opportunity-gap.ts`, `opportunity-matrix.ts`, `load-timeline.ts`) all still
-depend on the same unpopulated round-scoped `Availability` model for *already-finalized* rounds,
-where `Player.currentAvailability`'s single current value cannot substitute (it has moved on by
-the time a season is reviewed). Fixing this needs a genuine historical-snapshot mechanism — the
-natural fit is extending `ensureMatchPlanningBaselineCaptured()` (`capture-planning-baseline.ts`,
-ADR-0109) to snapshot each relevant player's availability into the round-scoped model at the
-moment a match's planning boundary closes, mirroring how it already captures selections and
-movement-ledger state as the historical baseline — but that is a distinct, larger design decision
-(what to snapshot, whether to backfill already-finalized historical rounds) not undertaken here.
-The generation-engine eligibility gap (plain `UNAVAILABLE` not excluded) and the policy layer's
-own unfiltered `p.availabilities` read are also both still open, as noted above.
+**Follow-up (2026-09-07), separate defect in the now-reachable code path**: once
+`AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` actually started firing in production, it fired for
+*every* available, unassigned, active player in the organisation — including players whose core
+team has no match in the round at all — because section 4's candidate set was the whole
+organisation roster, not the players whose core team is actually playing. `compute-plan-integrity.ts`
+now gates that candidate set on `Player.coreTeamId` being one of the round's non-cancelled match
+teams (Round Board visibility is a planning pool, not an obligation — AGENTS.md "Decision required
+conditions"). The Weekly Coaching Context loader (`get-weekly-coaching-context.ts`) also now
+resolves a display name for each such `playerId` (the signal carries only the id) and drops any
+that do not resolve, fixing a broken "· · · +N more" render on Today's "Carries into next round"
+and the Round Board carry-forward panel. Regression tests: `compute-plan-integrity.test.ts`'s new
+"missing opportunity requires a core-team fixture" block, `get-weekly-coaching-context.test.ts`'s
+two new opportunity-resolution tests, and `weekly-coaching-context-section.test.tsx`.
+
+**Historical half — resolved by ADR-0121 (2026-09-07).** The design anticipated here (extend
+`ensureMatchPlanningBaselineCaptured()` / `finalizeRoundRecord()` to snapshot each relevant
+player's availability into the round-scoped `Availability` model at boundary-closure time) was
+implemented: `captureRoundAvailabilitySnapshot()` in `round-finalization-transitions.ts` writes
+the frozen rows, `getRoundAvailabilityResolver()` (`src/lib/selection/round-availability.ts`)
+reads snapshot-for-FINALIZED / live-for-open / `NO_HISTORICAL_DATA`-for-pre-feature, and
+`compute-plan-integrity.ts` §2/§4 resolve through it. `get-planning-period-fairness.ts`,
+`repeatedContext`, and the Insights readers (`opportunity-gap.ts`, `opportunity-matrix.ts`,
+`load-timeline.ts`) needed no code change — they already queried the model and simply begin
+receiving real data. `scripts/backfill-round-availability.ts` (opt-in) recovers the provable
+subset for rounds finalized before ADR-0121.
+
+**Still open**: the generation-engine eligibility gap (plain `UNAVAILABLE` not excluded by
+`selection-eligibility.ts`) and the policy layer's own unfiltered `p.availabilities` read — both
+distinct smaller findings, not covered by ADR-0121.
 
 ## Containment
 
@@ -177,25 +192,47 @@ The public "Fair playing opportunity" and "Squad selection engine" deep pages
 (`content/docs/how-matchboard-works/`) describe only the verified, currently-functioning
 mechanism as of the fix above.
 
-## Resolution criteria (remaining, historical half only)
+## Resolution criteria (met by ADR-0121)
 
-Resolved when one of the following is true, confirmed by a passing regression test:
+The first option below was taken. Confirmed by regression tests in
+`src/lib/selection/__tests__/round-availability.test.ts`,
+`src/lib/selection/__tests__/capture-planning-baseline.test.ts` (snapshot written on round
+finalize, immutable, cleared on reschedule-reopen), and
+`src/lib/selection/__tests__/compute-plan-integrity.test.ts` (a FINALIZED round is judged
+against the captured value, not a since-changed current one; a pre-ADR-0121 FINALIZED round
+asserts nothing).
 
-- A real production write path for round-scoped `Availability` exists for finalized rounds (e.g.,
-  `ensureMatchPlanningBaselineCaptured()` snapshots each relevant player's `currentAvailability`
-  into a per-round `Availability` row at boundary-closure time), and
-  `get-planning-period-fairness.ts`'s "unavailable rounds excluded from fairness debt" rule is
-  verified to actually exclude a round for a player with a real historical `UNAVAILABLE` row;
-  **or**
-- The round-scoped `Availability` model and its dependent "unavailable rounds excluded from
-  fairness debt"/`repeatedContext` claims are deliberately retired, with AGENTS.md's "Season
-  overview rules" and every affected reader updated to match, and the `Availability` Prisma
-  model's fate (kept for historical/test use vs. removed) decided explicitly.
+- ✅ A real production write path for round-scoped `Availability` exists for finalized rounds
+  (`finalizeRoundRecord()` snapshots each relevant player's `currentAvailability` at
+  boundary-closure time), and `get-planning-period-fairness.ts`'s "unavailable rounds excluded
+  from fairness debt" rule now operates on real historical rows.
+- (Not taken) retiring the model.
+
+## Remaining open findings (own scoping decisions, not this ARR)
+
+- Generation-engine eligibility gap: `selection-eligibility.ts` does not exclude a plain
+  `UNAVAILABLE` player.
+- Policy layer reads `p.availabilities` unfiltered in `compute-plan-integrity.ts`'s policy block.
 
 ## Disposition
 
-Partially resolved. The current-round live-check half was fixed, tested, and verified in this
-session per the repository owner's explicit direction once this finding was raised. The
-historical/season-fairness half, the generation-engine eligibility gap for plain `UNAVAILABLE`,
-and the policy layer's own separate read of this model remain open, each requiring its own
-explicit scoping decision rather than being folded into this fix.
+Substantially resolved.
+
+- **Current-round live-check half** — fixed, tested, verified (2026-09-04); see the "Fixed"
+  section above.
+- **Historical / season-fairness half** — resolved by **ADR-0121** (2026-09-07): the round-scoped
+  `Availability` model now has a real production writer. `finalizeRoundRecord()`
+  (`round-finalization-transitions.ts`) freezes a per-round availability snapshot when a round's
+  planning boundary closes; `getRoundAvailabilityResolver()` (`src/lib/selection/round-availability.ts`)
+  reads the frozen snapshot for a `FINALIZED` round and the live `Player.currentAvailability` for
+  an open one; a round finalized before ADR-0121 (no snapshot) resolves `NO_HISTORICAL_DATA` and
+  every reader asserts nothing rather than guessing. `compute-plan-integrity.ts` §2/§4 and its
+  `repeatedContext` enrichment, `get-planning-period-fairness.ts`, and the Insights
+  `opportunity-*`/`load-timeline` readers all now receive correct historical availability (the
+  latter needed no code change — they already queried the model). `scripts/backfill-round-availability.ts`
+  (`npm run backfill:round-availability`, opt-in) recovers the provable subset for pre-ADR-0121
+  finalized rounds.
+- **Still open** — the generation-engine eligibility gap for plain `UNAVAILABLE` (not excluded by
+  `selection-eligibility.ts`), and the policy layer's own separate unfiltered `p.availabilities`
+  read. Each is a distinct, smaller finding with its own scoping decision, not folded into
+  ADR-0121.

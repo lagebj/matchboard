@@ -48,10 +48,14 @@ function PlayerList({
   playerDisplayById: WeeklyCoachingContextResult["playerDisplayById"];
 }) {
   const orgUrl = useOrgUrl();
-  if (playerIds.length === 0) return null;
+  // Only ever work with ids that resolve to a real display name. The loader already guarantees
+  // this for every list it produces; filtering here as well means a stale/unresolvable id can
+  // never leave a bare "·" separator or inflate the "+N more" count (defence in depth).
+  const resolvedIds = playerIds.filter((id) => playerDisplayById[id]);
+  if (resolvedIds.length === 0) return null;
   const VISIBLE = 3;
-  const visible = playerIds.slice(0, VISIBLE);
-  const rest = playerIds.slice(VISIBLE);
+  const visible = resolvedIds.slice(0, VISIBLE);
+  const rest = resolvedIds.slice(VISIBLE);
 
   const renderPlayer = (playerId: string) => {
     const display = playerDisplayById[playerId];
@@ -155,8 +159,15 @@ export function WeeklyCoachingContextSection({
 
   const rows: ReactNode[] = [];
 
-  if (context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds.length > 0) {
-    const ids = context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds;
+  // Every player row is built from ids that resolve to a display name, so the headline count and
+  // the rendered preview always describe the same collection (never "13 said, 10 shown").
+  const resolvable = (ids: string[]) => ids.filter((id) => playerDisplayById[id]);
+
+  const opportunityIds = resolvable(
+    context.opportunity.availableWithoutPlannedLeagueOpportunityPlayerIds,
+  );
+  if (opportunityIds.length > 0) {
+    const ids = opportunityIds;
     rows.push(
       <WeeklyFactRow
         key="opportunity"
@@ -169,60 +180,68 @@ export function WeeklyCoachingContextSection({
     );
   }
 
-  if (context.planActual.plannedButAbsent.length > 0) {
-    const ids = [...new Set(context.planActual.plannedButAbsent.map((p) => p.playerId))];
-    rows.push(
-      <WeeklyFactRow
-        key="planned-absent"
-        icon={UserRoundX}
-        label="Planned but absent"
-        detail={`${ids.length} player${ids.length === 1 ? "" : "s"} planned but did not play`}
-        playerIds={ids}
-        playerDisplayById={playerDisplayById}
-      />,
-    );
+  {
+    const ids = resolvable([...new Set(context.planActual.plannedButAbsent.map((p) => p.playerId))]);
+    if (ids.length > 0) {
+      rows.push(
+        <WeeklyFactRow
+          key="planned-absent"
+          icon={UserRoundX}
+          label="Planned but absent"
+          detail={`${ids.length} player${ids.length === 1 ? "" : "s"} planned but did not play`}
+          playerIds={ids}
+          playerDisplayById={playerDisplayById}
+        />,
+      );
+    }
   }
 
-  if (context.planActual.unplannedAppearances.length > 0) {
-    const ids = [...new Set(context.planActual.unplannedAppearances.map((p) => p.playerId))];
-    rows.push(
-      <WeeklyFactRow
-        key="unplanned"
-        icon={ArrowLeftRight}
-        label="Unplanned appearances"
-        detail={`${ids.length} player${ids.length === 1 ? "" : "s"} played without a planned selection`}
-        playerIds={ids}
-        playerDisplayById={playerDisplayById}
-      />,
-    );
+  {
+    const ids = resolvable([...new Set(context.planActual.unplannedAppearances.map((p) => p.playerId))]);
+    if (ids.length > 0) {
+      rows.push(
+        <WeeklyFactRow
+          key="unplanned"
+          icon={ArrowLeftRight}
+          label="Unplanned appearances"
+          detail={`${ids.length} player${ids.length === 1 ? "" : "s"} played without a planned selection`}
+          playerIds={ids}
+          playerDisplayById={playerDisplayById}
+        />,
+      );
+    }
   }
 
-  if (context.movement.supportAppearances.length > 0) {
-    const ids = [...new Set(context.movement.supportAppearances.map((p) => p.playerId))];
-    rows.push(
-      <WeeklyFactRow
-        key="movement"
-        icon={ArrowLeftRight}
-        label="Movement"
-        detail={`${ids.length} player${ids.length === 1 ? "" : "s"} moved as support`}
-        playerIds={ids}
-        playerDisplayById={playerDisplayById}
-      />,
-    );
+  {
+    const ids = resolvable([...new Set(context.movement.supportAppearances.map((p) => p.playerId))]);
+    if (ids.length > 0) {
+      rows.push(
+        <WeeklyFactRow
+          key="movement"
+          icon={ArrowLeftRight}
+          label="Movement"
+          detail={`${ids.length} player${ids.length === 1 ? "" : "s"} moved as support`}
+          playerIds={ids}
+          playerDisplayById={playerDisplayById}
+        />,
+      );
+    }
   }
 
   if (context.noRecordedAppearance && context.noRecordedAppearance.playerIds.length > 0) {
-    const ids = context.noRecordedAppearance.playerIds;
-    rows.push(
-      <WeeklyFactRow
-        key="no-appearance"
-        icon={CalendarCheck}
-        label="No recorded appearance"
-        detail={`${ids.length} player${ids.length === 1 ? "" : "s"} on a team that played had no recorded appearance`}
-        playerIds={ids}
-        playerDisplayById={playerDisplayById}
-      />,
-    );
+    const ids = resolvable(context.noRecordedAppearance.playerIds);
+    if (ids.length > 0) {
+      rows.push(
+        <WeeklyFactRow
+          key="no-appearance"
+          icon={CalendarCheck}
+          label="No recorded appearance"
+          detail={`${ids.length} player${ids.length === 1 ? "" : "s"} on a team that played had no recorded appearance`}
+          playerIds={ids}
+          playerDisplayById={playerDisplayById}
+        />,
+      );
+    }
   }
 
   const incompleteCount =

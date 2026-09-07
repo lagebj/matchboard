@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { buildPolicyInput } from "@/lib/policies/build-policy-input";
 import { evaluateSelectionPolicy } from "@/lib/policies/policy-evaluation";
 import { policyBlockedToSignals, policyWarningsToSignals, mergePolicySignals } from "@/lib/policies/policy-signal-mapper";
+import { getRoundAvailabilityResolver } from "@/lib/selection/round-availability";
 
 export type PlanIntegritySignalKind = "BLOCKED" | "DECISION_REQUIRED";
 
@@ -161,22 +162,26 @@ export async function computeRoundPlanIntegrity(
     );
   }
 
-  // Current-round availability comes from Player.currentAvailability, not the round-scoped
-  // Availability model (ARR-0041) -- that model has no production write path anywhere in the
-  // app, so a bulk query against it always resolves every player to the "no row" fallback
-  // (UNKNOWN) in real usage, silently disabling the two live checks below. currentAvailability
-  // is the one field the Players page's availability control, and generateSelection()'s own
-  // eligibility loop, actually write/read -- reading it here is what "recomputed live from
-  // current state on every read" (AGENTS.md "Warnings and plan integrity signals") requires for
-  // a round that has not yet reached its planning boundary. Historical, per-round availability
-  // for already-finalized rounds (the "repeatedContext" check and season-fairness's own
-  // "unavailable rounds excluded from fairness debt" rule further below and in
-  // get-planning-period-fairness.ts) still depends on the same unpopulated model and remains a
-  // separate, not-yet-resolved part of ARR-0041.
-  const availabilityMap = new Map<string, string>();
+  // Availability resolution goes through getRoundAvailabilityResolver (ADR-0121): while the
+  // round's planning boundary is still open it reads the live, mutable Player.currentAvailability
+  // (the field the Players page's availability control and generateSelection()'s eligibility loop
+  // actually write/read); once the round is FINALIZED it reads the immutable per-round snapshot
+  // frozen by finalizeRoundRecord() at boundary close, so a historical round is judged against
+  // the availability that actually applied then rather than a since-changed current value. A
+  // round finalized before ADR-0121 shipped has no snapshot -> every player resolves UNKNOWN and
+  // no availability-derived signal fires for it (honest "we don't know", never "was available").
+  const liveAvailabilityMap = new Map<string, string>();
   for (const p of activePlayers) {
-    availabilityMap.set(p.id, p.currentAvailability);
+    liveAvailabilityMap.set(p.id, p.currentAvailability);
   }
+  const roundAvailability = await getRoundAvailabilityResolver(
+    matchRoundId,
+    round.status,
+    liveAvailabilityMap,
+  );
+  const availabilityMap = {
+    get: (playerId: string) => roundAvailability.resolve(playerId).status,
+  };
 
   // 1. SQUAD_BELOW_MINIMUM: one signal per affected match
   for (const match of round.matches) {
@@ -278,7 +283,23 @@ export async function computeRoundPlanIntegrity(
     select: { id: true },
   });
 
-  const eligibleActivePlayers = activePlayers.filter((p) => p.removedAt === null);
+  // The normal expectation that an available player receives a planned opportunity only exists
+  // when the player's *core team* actually has a playable fixture in this round. A player whose
+  // core team has no match this round (or whose core team's only match is cancelled -- cancelled
+  // matches are already excluded from `round.matches` by the query above) is still visible and
+  // selectable on the Round Board as an optional helper for another team, but that visibility
+  // never creates a fairness obligation or a coach decision (AGENTS.md "Coaching/domain model":
+  // the Round Board is a planning pool; Example B/D in the round-attention rules). Infer core
+  // team only from the authoritative `Player.coreTeamId`, never from Round Board placement or
+  // draft-squad membership.
+  const teamsWithPlayableFixtureThisRound = new Set(round.matches.map((m) => m.teamId));
+
+  const eligibleActivePlayers = activePlayers.filter(
+    (p) =>
+      p.removedAt === null &&
+      p.coreTeamId != null &&
+      teamsWithPlayableFixtureThisRound.has(p.coreTeamId),
+  );
 
   const unassignedEligibleAvailable: string[] = [];
   for (const player of eligibleActivePlayers) {

@@ -97,7 +97,10 @@ After generation, Matchboard checks the whole round and raises one of three kind
   duplicate planned assignment, or a selected player whose availability contradicts the
   selection. These need a decision before the round is in good shape.
 - **Decision required** — a meaningful exception that should be consciously accepted: most
-  commonly, an available, eligible player with no planned match opportunity this round.
+  commonly, an available, eligible player whose core team is playing this round but who has no
+  planned match opportunity in it. A player whose core team has no match this round (or whose
+  only fixture was cancelled) is not raised here — they can still be borrowed as an optional
+  helper for another team, but nothing obliges the coach to place them.
 - **Planning note** — useful context that does not block anything: a squad below target but
   playable, a preferred support level not fully met, a squad-repair below its preferred target,
   or a permitted fallback position being used.

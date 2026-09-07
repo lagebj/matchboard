@@ -1757,6 +1757,12 @@ Planned same-round double load is prohibited. Additional actual participation is
 ### Decision required conditions
 
 - Available eligible player without planned match opportunity (`AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`)
+  - This condition only arises when the player's **core team** has at least one non-cancelled
+    match in the round. A player whose core team is not playing this round (no fixture, or its
+    only fixture cancelled) is still visible and selectable on the Round Board as an optional
+    helper for another team, but that visibility never creates a fairness obligation or a coach
+    decision. Core team is read from the authoritative `Player.coreTeamId`, never inferred from
+    Round Board placement or draft-squad membership.
 - Repeated missed planned opportunity adds explanatory context to the same issue
 
 ### Planning notes (not prominent unresolved issues)
@@ -1931,15 +1937,33 @@ regardless of kickoff). It is idempotent and race-safe (an atomic `updateMany` c
 - Locks all DRAFT selections for that match as FINALIZED (no override reason — there is no coach
   decision point at automatic capture time; whatever plan exists becomes the historical baseline,
   imperfect or not, per PRINCIPLES.md #15/#17).
-- When it was the round's last remaining open match, also flips `MatchRound.status` to FINALIZED
-  and bumps the rule-config version (identical side effect to the old finalize action, only the
-  trigger changed).
+- When it was the round's last remaining open match, also flips `MatchRound.status` to FINALIZED,
+  bumps the rule-config version (identical side effect to the old finalize action, only the
+  trigger changed), and **freezes a per-round player-availability snapshot** into the round-scoped
+  `Availability` model (ADR-0121). Population: players selected in the round ∪ active players whose
+  core team has a non-cancelled match in it. This is the only production writer of that model;
+  historical readers (`compute-plan-integrity.ts`'s availability checks and `repeatedContext`,
+  `get-planning-period-fairness.ts`'s "unavailable rounds excluded from fairness debt", the
+  Insights `opportunity-*`/`load-timeline` surfaces) resolve a `FINALIZED` round's availability
+  from this snapshot, an open round's from live `Player.currentAvailability`, via
+  `getRoundAvailabilityResolver()` (`src/lib/selection/round-availability.ts`). A round finalized
+  before ADR-0121 has no snapshot → those readers see `NO_HISTORICAL_DATA` and assert nothing.
 - A match whose round is already FINALIZED cannot be captured again (idempotent no-op).
+- A genuine reschedule that reopens the round (`reopenMatchPlanningForReschedule()`) deletes the
+  availability snapshot along with reverting selections/ledger to DRAFT — availability is
+  live-editable again.
 
 A one-time backfill script (`scripts/backfill-match-planning-baseline.ts`,
 `npm run backfill:planning-baseline`) captures the baseline for any pre-existing match whose
 kickoff already passed before this mechanism existed, so fairness/evidence queries filtering on
 `Selection.status === "FINALIZED"` don't wait on a lazy revisit that might never happen.
+
+A second opt-in backfill (`scripts/backfill-round-availability.ts`,
+`npm run backfill:round-availability`, `--dry-run` supported — ADR-0121) writes `AVAILABLE`
+availability rows for players who held a FINALIZED selection in a round finalized before ADR-0121
+(a finalized selection is provable evidence the player was available). Non-selected players are
+left with no row (unrecoverable). Not run automatically by any deploy/migration; run it when
+ready to accept the retroactive change to historical fairness/Insights output.
 
 ### Reopening planning after a genuine reschedule
 
@@ -2560,13 +2584,14 @@ Season overview rules:
 - The matrix is primary. Graphs are secondary and must be backed by drill-down data.
 - Draft and finalized data must never be mixed without visible labeling.
 - Draft selections must never look like finalized history.
-- Unavailable rounds must not count as fairness debt. **ARR-0041 (partially resolved)**: this
-  rule still cannot function for *historical* rounds — the round-scoped `Availability` model it
-  depends on has no production write path, so no finalized round is distinguishable from "no
-  data recorded." `computeRoundPlanIntegrity()`'s own two *current-round* checks
-  (`SELECTED_PLAYER_UNAVAILABLE`, `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`) were fixed to
-  read `Player.currentAvailability` (the only field any production writer sets) directly instead
-  — see ARR-0041 for what remains open.
+- Unavailable rounds must not count as fairness debt. This now works for historical rounds
+  (ADR-0121, resolving the historical half of ARR-0041): `finalizeRoundRecord()` freezes a
+  per-round `Availability` snapshot when a round's planning boundary closes, and every reader
+  resolves availability through `getRoundAvailabilityResolver()` — the frozen snapshot for a
+  `FINALIZED` round, live `Player.currentAvailability` for an open one. A round finalized before
+  ADR-0121 (no snapshot) resolves `NO_HISTORICAL_DATA` and contributes no "unavailable" exclusion
+  either way; `npm run backfill:round-availability` recovers the provable subset. Still open in
+  ARR-0041: the generation-engine eligibility gap for plain `UNAVAILABLE`.
 - Double-load must count as extra load.
 - Support and development must be counted separately.
 - Squad repair/backfill must be counted separately or clearly explained.
@@ -3395,8 +3420,9 @@ Avoid:
 | `src/lib/selection/migrate-double-load-roles.ts` | Migration: merge standalone DOUBLE_LOAD rows into base role rows with controlledDoubleLoad=true |
 | `src/lib/selection/migrate-squad-repair-roles.ts` | Migration: role=CORE with "squad repair" explanation → role=BACKFILL |
 | `src/lib/selection/backfill-movement-ledger.ts` | Normalization: create MovementLedger entries for existing non-core selections without ledger entries |
-| `src/lib/selection/round-finalization-transitions.ts` | Owning writes for the planning-boundary-capture transition (ADR-0088; trigger moved from coach-operated finalize/un-finalize to automatic boundary closure by ADR-0109): shared selection/movement-ledger/round-record writes, scoped by `{ matchRoundId }` or `{ matchId }` |
+| `src/lib/selection/round-finalization-transitions.ts` | Owning writes for the planning-boundary-capture transition (ADR-0088; trigger moved from coach-operated finalize/un-finalize to automatic boundary closure by ADR-0109): shared selection/movement-ledger/round-record writes, scoped by `{ matchRoundId }` or `{ matchId }`; also the per-round `Availability` snapshot on round finalize and its removal on reschedule-reopen (ADR-0121) |
 | `src/lib/selection/capture-planning-baseline.ts` | `ensureMatchPlanningBaselineCaptured()` — the one owner of automatic boundary-closure capture (called from `planning-boundary.ts` and live-session start); `reopenMatchPlanningForReschedule()` — genuine reschedule-before-start correction (ADR-0109) |
+| `src/lib/selection/round-availability.ts` | `getRoundAvailabilityResolver()` — resolves a round's per-player availability from the frozen snapshot (FINALIZED) or live `Player.currentAvailability` (open), `NO_HISTORICAL_DATA` for a pre-ADR-0121 finalized round (ADR-0121) |
 | `src/lib/selection/availability-impact.ts` | Availability change impact analysis (affected rounds, whether the round's planning boundary has already closed and a reschedule would be needed to reopen it) |
 | `src/lib/selection/edit-impact-preview.ts` | Manual edit consequence preview (dry-run add/remove, plan integrity diff) |
 | `src/app/(app)/matches/emergency-repair-actions.ts` | Server actions: availability impact, manual edit preview, emergency repair options |

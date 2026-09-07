@@ -230,3 +230,241 @@ describe("computeRoundPlanIntegrity: live current-availability checks (ARR-0041)
     expect(integrity.coverage.unassignedEligibleAvailablePlayerIds).not.toContain(unselected.id);
   });
 });
+
+// AGENTS.md "Coaching/domain model" / round-attention Examples B & D: the normal expectation
+// that an available player receives a planned opportunity only exists when the player's *core
+// team* has a playable fixture in the round. Round Board visibility/availability alone must
+// never create a fairness obligation or a coach decision -- a player whose core team is not
+// playing this round is only an optional helper for another team.
+describe("computeRoundPlanIntegrity: missing opportunity requires a core-team fixture", () => {
+  let testDb: PrismaClient;
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 3 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  beforeEach(async () => {
+    await testDb.warning.deleteMany({});
+    await testDb.selection.deleteMany({});
+    await testDb.movementLedger.deleteMany({});
+    await testDb.player.updateMany({ data: { currentAvailability: "AVAILABLE" } });
+    await testDb.match.updateMany({ data: { status: "SCHEDULED", cancelledAt: null, cancelledReason: null } });
+    await testDb.matchRound.update({
+      where: { id: fixtureIds.matchRoundId },
+      data: { status: "DRAFT" },
+    });
+  });
+
+  it("flags an available, unselected player whose core team HAS a match this round (Example A)", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    for (const player of rodPlayers) {
+      const signal = integrity.signals.find(
+        (s) =>
+          s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+          s.playerId === player.id,
+      );
+      expect(signal).toBeDefined();
+      expect(signal!.kind).toBe("DECISION_REQUIRED");
+    }
+  });
+
+  it("does NOT flag players whose core team has no non-cancelled match this round (Example B/D)", async () => {
+    const hvitTeamId = fixtureIds.teams["Hvit"]!;
+    const hvitPlayers = fixtureIds.players.filter((p) => p.coreTeamId === hvitTeamId);
+
+    // Cancel Hvit's only fixture -> Hvit has no playable match this round.
+    await testDb.match.update({
+      where: { id: fixtureIds.matches["Hvit"]! },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledReason: "Test" },
+    });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    for (const player of hvitPlayers) {
+      const signal = integrity.signals.find(
+        (s) =>
+          s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+          s.playerId === player.id,
+      );
+      expect(signal).toBeUndefined();
+      expect(integrity.coverage.unassignedEligibleAvailablePlayerIds).not.toContain(player.id);
+    }
+
+    // A team that still has a fixture is unaffected.
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodPlayer = fixtureIds.players.find((p) => p.coreTeamId === rodTeamId)!;
+    expect(
+      integrity.signals.some(
+        (s) =>
+          s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+          s.playerId === rodPlayer.id,
+      ),
+    ).toBe(true);
+  });
+
+  it("does not flag a player selected as a helper for another team, and no prior obligation existed (Example C)", async () => {
+    const hvitTeamId = fixtureIds.teams["Hvit"]!;
+    const rodMatchId = fixtureIds.matches["Rod"]!;
+    const hvitPlayers = fixtureIds.players.filter((p) => p.coreTeamId === hvitTeamId);
+
+    // Hvit has no fixture; one Hvit player helps Rod.
+    await testDb.match.update({
+      where: { id: fixtureIds.matches["Hvit"]! },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledReason: "Test" },
+    });
+    const helper = hvitPlayers[0]!;
+    await testDb.selection.create({
+      data: {
+        matchId: rodMatchId,
+        matchRoundId: fixtureIds.matchRoundId,
+        playerId: helper.id,
+        role: "SUPPORT",
+        status: "DRAFT",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    // No Hvit player -- helper or not -- is a missing-opportunity decision.
+    for (const player of hvitPlayers) {
+      expect(
+        integrity.signals.some(
+          (s) =>
+            s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+            s.playerId === player.id,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("does not flag a player planned for at least one of their core team's matches (Example E)", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodMatchId = fixtureIds.matches["Rod"]!;
+    const rodPlayer = fixtureIds.players.find((p) => p.coreTeamId === rodTeamId)!;
+
+    await testDb.selection.create({
+      data: {
+        matchId: rodMatchId,
+        matchRoundId: fixtureIds.matchRoundId,
+        playerId: rodPlayer.id,
+        role: "CORE",
+        status: "DRAFT",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    expect(
+      integrity.signals.some(
+        (s) =>
+          s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" &&
+          s.playerId === rodPlayer.id,
+      ),
+    ).toBe(false);
+  });
+});
+
+// ADR-0121: once a round is FINALIZED, availability checks read the immutable per-round snapshot
+// frozen at boundary close -- not the player's since-changed current value. A round finalized
+// before ADR-0121 (no snapshot) asserts nothing rather than guessing.
+describe("computeRoundPlanIntegrity: historical availability for a FINALIZED round (ADR-0121)", () => {
+  let testDb: PrismaClient;
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 3 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  beforeEach(async () => {
+    await testDb.warning.deleteMany({});
+    await testDb.availability.deleteMany({});
+    await testDb.selection.deleteMany({});
+    await testDb.movementLedger.deleteMany({});
+    await testDb.player.updateMany({ data: { currentAvailability: "AVAILABLE" } });
+    await testDb.matchRound.update({
+      where: { id: fixtureIds.matchRoundId },
+      data: { status: "DRAFT" },
+    });
+  });
+
+  it("uses the captured snapshot, not the current (since-changed) availability value", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodMatchId = fixtureIds.matches["Rod"]!;
+    const [selected, capturedUnavailable, capturedAvailable] = fixtureIds.players.filter(
+      (p) => p.coreTeamId === rodTeamId,
+    );
+
+    await testDb.selection.create({
+      data: {
+        matchId: rodMatchId,
+        matchRoundId: fixtureIds.matchRoundId,
+        playerId: selected!.id,
+        role: "CORE",
+        status: "FINALIZED",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    // Snapshot frozen at boundary close: one player was out, one was available-and-unassigned.
+    await testDb.availability.createMany({
+      data: [
+        { playerId: selected!.id, matchRoundId: fixtureIds.matchRoundId, status: "AVAILABLE", organisationId: fixtureIds.organisationId },
+        { playerId: capturedUnavailable!.id, matchRoundId: fixtureIds.matchRoundId, status: "UNAVAILABLE", organisationId: fixtureIds.organisationId },
+        { playerId: capturedAvailable!.id, matchRoundId: fixtureIds.matchRoundId, status: "AVAILABLE", organisationId: fixtureIds.organisationId },
+      ],
+    });
+    await testDb.matchRound.update({ where: { id: fixtureIds.matchRoundId }, data: { status: "FINALIZED" } });
+
+    // Every player's CURRENT availability now disagrees with the snapshot.
+    await testDb.player.updateMany({ data: { currentAvailability: "UNAVAILABLE" } });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    const missingFor = (playerId: string) =>
+      integrity.signals.some(
+        (s) => s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" && s.playerId === playerId,
+      );
+
+    // Captured-available + unassigned -> still a decision, despite the current UNAVAILABLE value.
+    expect(missingFor(capturedAvailable!.id)).toBe(true);
+    // Captured-unavailable -> not a missing opportunity.
+    expect(missingFor(capturedUnavailable!.id)).toBe(false);
+    // Selected -> never a missing opportunity.
+    expect(missingFor(selected!.id)).toBe(false);
+  });
+
+  it("asserts no availability-derived signal for a FINALIZED round with no snapshot (pre-ADR-0121)", async () => {
+    const rodTeamId = fixtureIds.teams["Rod"]!;
+    const rodPlayers = fixtureIds.players.filter((p) => p.coreTeamId === rodTeamId);
+
+    // Round is FINALIZED but has zero Availability rows (closed before the feature existed).
+    await testDb.matchRound.update({ where: { id: fixtureIds.matchRoundId }, data: { status: "FINALIZED" } });
+
+    const integrity = await computeRoundPlanIntegrity(fixtureIds.matchRoundId);
+
+    for (const p of rodPlayers) {
+      expect(
+        integrity.signals.some(
+          (s) => s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY" && s.playerId === p.id,
+        ),
+      ).toBe(false);
+    }
+  });
+});
