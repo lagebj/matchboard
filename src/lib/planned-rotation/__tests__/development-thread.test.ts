@@ -215,7 +215,7 @@ describe("removeObservation", () => {
     mockObsDelete.mockResolvedValue({ id: "obs-1" });
 
     await removeObservation("obs-1", orgFilter);
-    expect(mockObsDelete).toHaveBeenCalledWith({ where: { id: "obs-1" } });
+    expect(mockObsDelete).toHaveBeenCalledWith({ where: { id: "obs-1", organisationId: "org-1" } });
   });
 
   it("rejects removing observation from a non-active thread", async () => {

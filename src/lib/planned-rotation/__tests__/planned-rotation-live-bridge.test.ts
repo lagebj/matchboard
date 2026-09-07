@@ -142,7 +142,7 @@ describe("applyPlannedChange", () => {
 
     expect(result.success).toBe(true);
     expect(db.plannedRotation.update).toHaveBeenCalledWith({
-      where: { id: "rotation-1" },
+      where: { id: "rotation-1", organisationId: "org-1" },
       data: { status: "APPLIED" },
     });
   });
@@ -226,7 +226,7 @@ describe("applyPlannedChange", () => {
     );
 
     expect(db.plannedRotationChange.update).toHaveBeenCalledWith({
-      where: { id: "change-1" },
+      where: { id: "change-1", organisationId: "org-1" },
       data: {
         status: "APPLIED",
         liveEventId: "event-out-1",
@@ -288,7 +288,7 @@ describe("delayPlannedChange", () => {
 
     expect(result.success).toBe(true);
     expect(db.plannedRotationChange.update).toHaveBeenCalledWith({
-      where: { id: "change-1" },
+      where: { id: "change-1", organisationId: "org-1" },
       data: { status: "DELAYED" },
     });
   });
@@ -372,7 +372,7 @@ describe("getNextPlannedChange", () => {
   });
 
   it("returns null when no rotation exists", async () => {
-    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(null);
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(null);
 
     const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
     expect(result).toBeNull();
@@ -386,7 +386,7 @@ describe("getNextPlannedChange", () => {
         { ...MOCK_PENDING_CHANGE, id: "change-2", sequence: 2, status: "PENDING" },
       ],
     };
-    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(rotationWithMultipleChanges as any);
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(rotationWithMultipleChanges as any);
 
     const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
     expect(result).not.toBeNull();
@@ -400,7 +400,7 @@ describe("getNextPlannedChange", () => {
         { ...MOCK_PENDING_CHANGE, id: "change-1", sequence: 1, status: "APPLIED" },
       ],
     };
-    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(rotationWithResolvedChanges as any);
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(rotationWithResolvedChanges as any);
 
     const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
     expect(result).toBeNull();
@@ -411,7 +411,7 @@ describe("getNextPlannedChange", () => {
       ...MOCK_DRAFT_ROTATION,
       changes: [{ ...MOCK_PENDING_CHANGE, id: "change-1", sequence: 1, status: "DELAYED" }],
     };
-    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(rotationWithDelayedChange as any);
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(rotationWithDelayedChange as any);
 
     const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
     expect(result).not.toBeNull();
@@ -426,7 +426,7 @@ describe("getNextPlannedChange", () => {
         { ...MOCK_PENDING_CHANGE, id: "change-2", sequence: 2, status: "PENDING" },
       ],
     };
-    vi.mocked(db.plannedRotation.findUnique).mockResolvedValue(rotationWithMixedChanges as any);
+    vi.mocked(db.plannedRotation.findFirst).mockResolvedValue(rotationWithMixedChanges as any);
 
     const result = await getNextPlannedChange("match-1", "team-1", ORG_FILTER);
     expect(result!.id).toBe("change-2");

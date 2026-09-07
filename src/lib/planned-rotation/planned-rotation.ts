@@ -135,8 +135,15 @@ export async function getPlannedRotation(
   teamId: string,
   orgFilter: OrgFilterMode,
 ): Promise<PlannedRotationWithChanges | null> {
-  const rotation = await db.plannedRotation.findUnique({
-    where: { matchId_teamId: { matchId, teamId } },
+  const orgId = orgFilter.filter.organisationId;
+  if (!orgId) return null;
+
+  // Explicit organisationId filter (not a fetch-then-check afterward) — the same
+  // defense-in-depth convention every other query in this file already uses, and the only way
+  // to be certain this RLS-scoped query stays correctly scoped regardless of ambient
+  // AsyncLocalStorage state (ADR-0087).
+  const rotation = await db.plannedRotation.findFirst({
+    where: { matchId, teamId, organisationId: orgId },
     include: {
       changes: {
         orderBy: { sequence: 'asc' },
@@ -149,10 +156,6 @@ export async function getPlannedRotation(
   });
 
   if (!rotation) return null;
-
-  if (!orgFilter.filter.organisationId || rotation.organisationId !== orgFilter.filter.organisationId) {
-    return null;
-  }
 
   return {
     id: rotation.id,
@@ -197,8 +200,8 @@ export async function createPlannedRotation(
     return { success: false, error: 'Cannot create rotation plan for a cancelled match' };
   }
 
-  const existing = await db.plannedRotation.findUnique({
-    where: { matchId_teamId: { matchId: input.matchId, teamId: input.teamId } },
+  const existing = await db.plannedRotation.findFirst({
+    where: { matchId: input.matchId, teamId: input.teamId, organisationId: orgId },
   });
   if (existing) {
     return { success: false, error: 'Rotation plan already exists for this match and team' };
@@ -268,7 +271,7 @@ export async function updatePlannedRotation(
     }
 
     const rotation = await db.plannedRotation.update({
-      where: { id: rotationId },
+      where: { id: rotationId, organisationId: orgId },
       data: {
         notes: input.notes ?? undefined,
         changes: {
@@ -302,7 +305,7 @@ export async function updatePlannedRotation(
   }
 
   const rotation = await db.plannedRotation.update({
-    where: { id: rotationId },
+    where: { id: rotationId, organisationId: orgId },
     data: { notes: input.notes ?? undefined },
     include: {
       changes: {
@@ -334,7 +337,7 @@ export async function deletePlannedRotation(
     return { success: false, error: 'Only DRAFT rotation plans can be deleted' };
   }
 
-  await db.plannedRotation.delete({ where: { id: rotationId } });
+  await db.plannedRotation.delete({ where: { id: rotationId, organisationId: orgId } });
   return { success: true };
 }
 
