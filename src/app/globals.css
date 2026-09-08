@@ -78,6 +78,26 @@
   --transition-fast: 140ms ease;
   --transition-smooth: 200ms ease-out;
   --transition-lift: 180ms ease-out;
+
+  /* Adaptive typography scale (ADR-0124 §8 / docs/product/adaptive-interaction-design.md §5).
+     Reduce information density, not font size. Never use routine sub-11px UI text. */
+  --text-value: 1.75rem;       /* 28px — primary score/value (24–32 range) */
+  --text-value-sm: 1.375rem;   /* 22px — compact primary value */
+  --text-title: 1.375rem;      /* 22px — page title (20–24 range) */
+  --text-row-title: 1rem;      /* 16px — object/row title (15–17 range) */
+  --text-body: 0.9375rem;      /* 15px — body */
+  --text-meta: 0.8125rem;      /* 13px — secondary/meta (12–13 range) */
+  --text-micro: 0.6875rem;     /* 11px — exceptional micro-label floor */
+
+  /* Clearance for content/sticky actions above the fixed compact bottom nav +
+     the device safe-area inset. Zero at medium+ where the bottom nav is gone. */
+  --nav-clearance: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 600px) {
+  :root {
+    --nav-clearance: 0px;
+  }
 }
 
 /* Adaptive shell breakpoints (PROGRAMME.md §10) — distinct from Tailwind's default
@@ -201,17 +221,89 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
-/* Typography rhythm utilities */
+/* Typography rhythm utilities (ADR-0124 §8) */
 .app-eyebrow {
-  font-size: 0.625rem;
+  font-size: var(--text-micro); /* 11px — short orientation/status metadata only */
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 .app-meta {
-  font-size: 0.6875rem;
+  font-size: var(--text-meta);
   color: var(--text-muted);
+}
+.app-title {
+  font-size: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.app-row-title {
+  font-size: var(--text-row-title);
+  font-weight: 550;
+  color: var(--foreground);
+}
+.app-value {
+  font-size: var(--text-value);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+/* Tabular numerals for score/time/minutes columns */
+.app-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact contextual row — keeps season/team/round/event context recoverable
+   on narrow viewports (ADR-0124 §3). e.g. "Autumn 2026 · Round 7". */
+.app-context-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+  min-height: 2rem;
+}
+.app-context-strip > * {
+  min-width: 0;
+}
+
+/* Sticky primary-action pattern. On compact the action bar floats above the
+   fixed bottom nav and the safe-area inset; from medium up it is static.
+   Pages using this must add padding-bottom of at least the bar height so the
+   bar never covers content (see .app-sticky-actions-spacer). */
+.app-sticky-actions {
+  position: sticky;
+  bottom: var(--nav-clearance);
+  z-index: 30;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  margin-inline: -1rem;
+  border-top: 1px solid var(--border-soft);
+  background: rgba(10, 13, 19, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+@media (min-width: 600px) {
+  .app-sticky-actions {
+    position: static;
+    margin-inline: 0;
+    padding: 0;
+    border-top: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Minimum comfortable touch target (~44x44 CSS px) for compact interactive
+   controls that would otherwise render smaller. */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Legacy helpers — prefer <Surface /> in new code */

@@ -20,7 +20,7 @@ import { headers } from "next/headers";
  */
 function TestEnvironmentBadge() {
   return (
-    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--warning)]">
+    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--warning)]">
       Test
     </span>
   );
@@ -93,7 +93,7 @@ export default async function AppLayout({
               <UserNav />
             </div>
           </header>
-          <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] medium:pb-0">
+          <main className="flex-1 pb-[var(--nav-clearance)]">
             <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
               {children}
             </div>
