@@ -685,63 +685,23 @@ export function AssistantCommandCentrePage({
         )}
       </div>
 
+      {/*
+       * Compact composition order (ADR-0124 §10 / docs/product/adaptive-interaction-design.md §7):
+       *   1. title/context (above)
+       *   2. matchday "now" anchor
+       *   3. dominant Next Action
+       *   4. operational timeline — near-term readiness, today's matches, grouped work
+       *   5. objective totals (demoted below the next action — never leads the page)
+       *   6. secondary coaching context (weekly)
+       *   7. distant/upcoming
+       *   8. non-operational (PWA install)
+       */}
+
       {projection && (
         <MatchdayContextBanner projection={projection} todayMatches={commandCentre.todayMatches} orgUrl={orgUrl} />
       )}
 
-      {projection && (
-        <NextRoundReadinessSection
-          situation={projection.situation}
-          roundPlanIntegrities={commandCentre.roundPlanIntegrities}
-          todayMatches={commandCentre.todayMatches}
-          orgUrl={orgUrl}
-        />
-      )}
-
-      {projection && (
-        <WeeklyCoachingContextSection
-          result={weeklyContext ?? null}
-          primarySituation={projection.situation.primarySituation}
-        />
-      )}
-
-      <InstallPwaCard dismissible />
-
-      {/* Metric strip */}
-      <div className="grid grid-cols-2 gap-3 medium:grid-cols-3 expanded:grid-cols-5">
-        <MetricTile
-          label="Blocked"
-          value={blockedCount}
-          tone={blockedCount > 0 ? "danger" : "neutral"}
-          icon={<OctagonAlert className="h-4 w-4" />}
-        />
-        <MetricTile
-          label="Decisions"
-          value={decisionCount}
-          tone={decisionCount > 0 ? "warning" : "neutral"}
-          icon={<AlertTriangle className="h-4 w-4" />}
-        />
-        <MetricTile
-          label="Reviews"
-          value={reviewCount}
-          tone={reviewCount > 0 ? "warning" : "neutral"}
-          icon={<Eye className="h-4 w-4" />}
-        />
-        <MetricTile
-          label="Reports"
-          value={reportCount}
-          tone={reportCount > 0 ? "info" : "neutral"}
-          icon={<CalendarRange className="h-4 w-4" />}
-        />
-        <MetricTile
-          label="Upcoming"
-          value={upcomingCount}
-          tone="neutral"
-          icon={<ShieldAlert className="h-4 w-4" />}
-        />
-      </div>
-
-      {/* Next action hero */}
+      {/* Next action hero — dominant, before any detached metrics */}
       {nextAction ? (
         <NextActionCard item={nextAction} status={projection?.status} />
       ) : (
@@ -760,6 +720,15 @@ export function AssistantCommandCentrePage({
               Open Fixtures
             </Button>
           }
+        />
+      )}
+
+      {projection && (
+        <NextRoundReadinessSection
+          situation={projection.situation}
+          roundPlanIntegrities={commandCentre.roundPlanIntegrities}
+          todayMatches={commandCentre.todayMatches}
+          orgUrl={orgUrl}
         />
       )}
 
@@ -794,6 +763,51 @@ export function AssistantCommandCentrePage({
         return <StandardGroup key={group.key} group={group} items={filtered} deferredIds={deferredWorkItemIds} />;
       })}
 
+      {/* Objective totals — a deliberate unfiltered summary (see situational-decision-support
+          notes in AGENTS.md), demoted below the next action so it never leads the page. */}
+      <div>
+        <p className="app-eyebrow mb-2">At a glance</p>
+        <div className="grid grid-cols-2 gap-3 medium:grid-cols-3 expanded:grid-cols-5">
+          <MetricTile
+            label="Blocked"
+            value={blockedCount}
+            tone={blockedCount > 0 ? "danger" : "neutral"}
+            icon={<OctagonAlert className="h-4 w-4" />}
+          />
+          <MetricTile
+            label="Decisions"
+            value={decisionCount}
+            tone={decisionCount > 0 ? "warning" : "neutral"}
+            icon={<AlertTriangle className="h-4 w-4" />}
+          />
+          <MetricTile
+            label="Reviews"
+            value={reviewCount}
+            tone={reviewCount > 0 ? "warning" : "neutral"}
+            icon={<Eye className="h-4 w-4" />}
+          />
+          <MetricTile
+            label="Reports"
+            value={reportCount}
+            tone={reportCount > 0 ? "info" : "neutral"}
+            icon={<CalendarRange className="h-4 w-4" />}
+          />
+          <MetricTile
+            label="Upcoming"
+            value={upcomingCount}
+            tone="neutral"
+            icon={<ShieldAlert className="h-4 w-4" />}
+          />
+        </div>
+      </div>
+
+      {projection && (
+        <WeeklyCoachingContextSection
+          result={weeklyContext ?? null}
+          primarySituation={projection.situation.primarySituation}
+        />
+      )}
+
       {upcoming.length > 0 && (
         <Surface padding="md" className="flex flex-col gap-3">
           <SectionHeader
@@ -808,6 +822,8 @@ export function AssistantCommandCentrePage({
           </ul>
         </Surface>
       )}
+
+      <InstallPwaCard dismissible />
     </div>
   );
 }
