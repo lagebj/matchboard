@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatKickoffDate } from "@/lib/date-utils";
+import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 import type {
   FixturesOverview,
   FixturePeriod,
@@ -20,8 +20,7 @@ import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
 import { StatusRail } from "@/components/ui/status-rail";
 import { MetricTile } from "@/components/ui/metric-tile";
-import { MatchTicket } from "@/components/ui/match-ticket";
-import type { ScoreCapsuleResult } from "@/components/ui/score-capsule";
+import { MatchTicket, type MatchTicketResult } from "@/components/ui/match-ticket";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarRange, OctagonAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 
@@ -45,7 +44,7 @@ function roundPrimaryAction(
     case "BLOCKED":
       return { label: "Resolve blockers", href: `/rounds/${round.id}` };
     case "READY":
-      return { label: "Finalise in board", href: `/rounds/${round.id}` };
+      return { label: "Review board", href: `/rounds/${round.id}` };
     case "FINALIZED":
       return { label: "View finalised board", href: `/rounds/${round.id}` };
     default:
@@ -81,7 +80,7 @@ function MatchRow({ match }: { match: FixtureMatch }) {
     ? match.reportState.result
     : undefined;
 
-  const result: ScoreCapsuleResult | undefined = completedResult
+  const result: MatchTicketResult = completedResult
     ? completedResult.outcome === "WON"
       ? "win"
       : completedResult.outcome === "LOST"
@@ -89,23 +88,43 @@ function MatchRow({ match }: { match: FixtureMatch }) {
         : completedResult.outcome === "DRAWN"
           ? "draw"
           : "unknown"
-    : undefined;
+    : "unknown";
+
+  const startsAt = match.startsAt ? new Date(match.startsAt) : undefined;
+  const blockerCount = match.blockerCount ?? 0;
+  const decisionRequiredCount = match.decisionRequiredCount ?? 0;
+  const condition =
+    blockerCount > 0
+      ? { label: `${blockerCount} blocked`, tone: "danger" as const }
+      : decisionRequiredCount > 0
+        ? {
+            label: `${decisionRequiredCount} decision${decisionRequiredCount === 1 ? "" : "s"}`,
+            tone: "warning" as const,
+          }
+        : match.reportState.state === "DRAFT_REPORT_INCOMPLETE"
+          ? { label: "Report incomplete", tone: "warning" as const }
+          : null;
 
   return (
-    <div className={isCancelled ? "opacity-60" : ""}>
+    <div>
       <MatchTicket
         teamName={match.teamName}
         opponentName={match.opponent}
-        dateLabel={match.startsAt ? formatKickoffDate(new Date(match.startsAt)) : undefined}
+        isHome={match.venue === "Home"}
+        dateLabel={startsAt ? formatKickoffDate(startsAt) : undefined}
+        kickoffTimeLabel={startsAt ? formatKickoffTime(startsAt) : undefined}
         lifecycleStatus={isCancelled ? "cancelled" : match.lifecycleStatus}
         homeScore={isCancelled ? undefined : completedResult?.goalsFor}
         awayScore={isCancelled ? undefined : completedResult?.goalsAgainst}
-        result={isCancelled ? "unknown" : (result ?? "unknown")}
+        result={isCancelled ? "unknown" : result}
+        outcomeLabel={completedResult ? completedResult.outcome : undefined}
+        conditionLabel={condition?.label}
+        conditionTone={condition?.tone}
         href={`/matches/${match.id}`}
       />
       {isCancelled && match.cancelledReason && (
         <div className="mt-1 flex items-center gap-1.5 px-1">
-          <span className="text-[10px] text-[var(--text-muted)] truncate max-w-48">{match.cancelledReason}</span>
+          <span className="text-[11px] text-[var(--text-muted)] truncate max-w-48">{match.cancelledReason}</span>
         </div>
       )}
     </div>
