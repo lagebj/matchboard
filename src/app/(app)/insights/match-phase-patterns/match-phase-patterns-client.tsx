@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock } from "lucide-react";
 import type { MatchPhasePatternRow } from "@/lib/evidence/match-phase-pattern-evidence";
+import { PeriodBars } from "@/components/viz";
 
 type LeagueSeasonOption = { id: string; name: string; startDate: string; endDate: string };
 type TeamOption = { id: string; name: string };
@@ -133,36 +134,81 @@ export function MatchPhasePatternsClient({
         <p className="text-sm text-zinc-400">No completed matches yet for this team and league season.</p>
       )}
 
-      {patterns && patterns.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-zinc-800">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/50 text-left text-xs text-zinc-500">
-                <th className="px-3 py-2">Period</th>
-                <th className="px-3 py-2">Window</th>
-                <th className="px-3 py-2">Matches</th>
-                <th className="px-3 py-2">Exposure (min)</th>
-                <th className="px-3 py-2">Goals for</th>
-                <th className="px-3 py-2">Goals against</th>
-                <th className="px-3 py-2">Confidence</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {patterns.map((row) => (
-                <tr key={`${row.period}:${row.phase}`} className="text-zinc-200">
-                  <td className="px-3 py-2 whitespace-nowrap">{PERIOD_LABELS[row.period] ?? row.period}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{PHASE_LABELS[row.phase] ?? row.phase}</td>
-                  <td className="px-3 py-2">{row.matches}</td>
-                  <td className="px-3 py-2">{row.exposureMinutes}</td>
-                  <td className="px-3 py-2">{row.goalsFor}</td>
-                  <td className="px-3 py-2">{row.goalsAgainst}</td>
-                  <td className="px-3 py-2">{CONFIDENCE_LABELS[row.confidence] ?? row.confidence}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {patterns && patterns.length > 0 && (() => {
+        const teamName = teams.find((t) => t.id === selectedTeamId)?.name ?? "the team";
+        const byPeriod = new Map<string, MatchPhasePatternRow[]>();
+        for (const row of patterns) {
+          const list = byPeriod.get(row.period) ?? [];
+          list.push(row);
+          byPeriod.set(row.period, list);
+        }
+        return (
+          <div className="flex flex-col gap-5">
+            {Array.from(byPeriod.entries()).map(([period, rows]) => {
+              const matches = rows.reduce((m, r) => Math.max(m, r.matches), 0);
+              const confidences = Array.from(
+                new Set(rows.map((r) => (CONFIDENCE_LABELS[r.confidence] ?? r.confidence).toLowerCase())),
+              );
+              const periodLabel = PERIOD_LABELS[period] ?? period;
+              const sampleContext = `${matches} match${matches === 1 ? "" : "es"} · confidence: ${confidences.join(" / ")}`;
+              return (
+                <section
+                  key={period}
+                  className="flex flex-col gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] p-3.5"
+                >
+                  <h2 className="app-row-title">{periodLabel}</h2>
+                  <div className="grid gap-4 medium:grid-cols-2">
+                    <PeriodBars
+                      question={`When does ${teamName} concede in the ${periodLabel.toLowerCase()}?`}
+                      bars={rows.map((r) => ({ label: PHASE_LABELS[r.phase] ?? r.phase, value: r.goalsAgainst }))}
+                      sampleContext={`Goals conceded · ${sampleContext}`}
+                    />
+                    <PeriodBars
+                      question={`When does ${teamName} score in the ${periodLabel.toLowerCase()}?`}
+                      bars={rows.map((r) => ({ label: PHASE_LABELS[r.phase] ?? r.phase, value: r.goalsFor }))}
+                      sampleContext={`Goals scored · ${sampleContext}`}
+                    />
+                  </div>
+                </section>
+              );
+            })}
+
+            <details className="text-sm">
+              <summary className="cursor-pointer text-[var(--text-muted)] hover:text-zinc-100 transition-colors">
+                Full data table
+              </summary>
+              <div className="mt-2 overflow-x-auto rounded-xl border border-zinc-800">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-900/50 text-left text-xs text-zinc-500">
+                      <th className="px-3 py-2">Period</th>
+                      <th className="px-3 py-2">Window</th>
+                      <th className="px-3 py-2">Matches</th>
+                      <th className="px-3 py-2">Exposure (min)</th>
+                      <th className="px-3 py-2">Goals for</th>
+                      <th className="px-3 py-2">Goals against</th>
+                      <th className="px-3 py-2">Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {patterns.map((row) => (
+                      <tr key={`${row.period}:${row.phase}`} className="text-zinc-200">
+                        <td className="px-3 py-2 whitespace-nowrap">{PERIOD_LABELS[row.period] ?? row.period}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{PHASE_LABELS[row.phase] ?? row.phase}</td>
+                        <td className="px-3 py-2">{row.matches}</td>
+                        <td className="px-3 py-2">{row.exposureMinutes}</td>
+                        <td className="px-3 py-2">{row.goalsFor}</td>
+                        <td className="px-3 py-2">{row.goalsAgainst}</td>
+                        <td className="px-3 py-2">{CONFIDENCE_LABELS[row.confidence] ?? row.confidence}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        );
+      })()}
     </div>
   );
 }
