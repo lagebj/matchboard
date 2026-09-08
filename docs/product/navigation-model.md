@@ -1,6 +1,8 @@
 # Navigation Model
 
-> **Status:** This document is a historical product framing reference. The canonical navigation model is defined in `AGENTS.md`.
+> **Status:** This document is a historical product framing reference. The canonical navigation
+> model is defined in `AGENTS.md`. Adaptive/compact composition rules are in
+> `docs/product/adaptive-interaction-design.md` and **ADR-0124**.
 
 ## Primary navigation
 
@@ -43,7 +45,15 @@ These remain accessible through contextually appropriate links, buttons, tabs, o
 
 ## League
 
-League (at `/o/{orgSlug}/fixtures`) provides the league-season and round hierarchy. Primary actions: populate all, generate round, finalize. Each level shows readiness state, plan integrity signal counts, selected player counts. Actions cascade.
+League (at `/o/{orgSlug}/fixtures`) provides the league-season and round hierarchy. Primary
+actions: populate all, generate round. There is **no** coach-operated finalize action (ADR-0109)
+— a round/match becomes historical automatically once its planning boundary closes. Each level
+shows readiness state, plan integrity signal counts, selected player counts. Actions cascade.
+
+Compact League groups by round/date: past rounds are compact and result-oriented, current and
+upcoming rounds are more open and planning-oriented, and unresolved conditions attach to the
+affected match/round. Scheduled / live / final / report-incomplete / cancelled states are
+distinguishable without opening match detail. See `docs/product/adaptive-interaction-design.md` §8.
 
 ## Players
 
@@ -52,7 +62,13 @@ The Players page has three internal modes:
 2. **Current round attention** — canonical live plan-integrity state for a selected round
 3. **Manage base groups** — stable core-team assignment and player registry administration
 
-Players is not a drag-and-drop board. It is a table-first registry with actionable empty states.
+Players is not a drag-and-drop board. On expanded/desktop it may present a comparison table with
+actionable empty states where comparison is useful. On compact (`<600px`) it renders a
+purpose-built player summary per player (name, core-team/base-group context, attention state,
+concise recent participation, role/position only where canonical data exists, clear entry to
+detail) — never a generic card containing every desktop column. Omitted detail stays reachable
+on player detail. No player score, ranking, or invented judgement logic. See
+`docs/product/adaptive-interaction-design.md` §11.
 
 ## Teams (League teams)
 
@@ -79,4 +95,13 @@ More (`/o/{orgSlug}/more`) is a hub page: a grid of link cards grouped into Anal
 
 ## Status vocabulary
 
-The app uses exactly these visible status labels: Not generated, Draft, Blocked, Ready, Finalized. No alternative visible status terms for the same state may be introduced.
+**Not generated, Draft, Blocked, Ready, Finalized** are the internal/secondary
+selection-planning-completeness vocabulary (round-level plan integrity, override requirements),
+and the `RoundStatus` enum is unchanged. Since ADR-0101 they are **not** the primary label for a
+single match. The primary, football-action-oriented per-match label is one of: **Planning open,
+Planning closed, Live, Played, Report incomplete, Done, Cancelled**
+(`deriveMatchLifecycleStatus()`). Report status wins over round-finalization status — a
+finalized-but-unplayed match shows "Planning closed", never "Done". This is the one presentation
+of match lifecycle used by the canonical match visual grammar across every surface
+(`docs/product/adaptive-interaction-design.md` §6). No alternative visible status terms for the
+same state may be introduced.

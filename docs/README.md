@@ -9,7 +9,7 @@
 | `development/` | Developer workflow documents (coding-agent sessions, contribution rules). | Active |
 | `domain/` | Canonical domain concepts: source-of-truth register, selection explainability, terminology. These documents define what the system *is*, not how to build it. | Active |
 | `policies/` | Selection policy system documentation: architecture, rule migration inventory, Rego/Wasm pipeline, configuration. `README.md` is the primary policy reference. | Active |
-| `product/` | Product-level framing: navigation model, manager workflow. These define user-facing concepts, not implementation details. | Active |
+| `product/` | Product-level framing: navigation model, manager workflow, adaptive interaction design. These define user-facing concepts, not implementation details. | Active |
 
 ## Source authority (what wins when documents disagree)
 
@@ -17,7 +17,10 @@
 2. **Feature file** (`features/matchboard.feature`) — the behavioral source of truth for selection rules, domain behavior, and expected outcomes.
 3. **Domain docs** (`docs/domain/`) — canonical definitions of domain concepts (source-of-truth register, explainability, terminology).
 4. **ADRs** (`docs/adr/`) — architectural decisions that are binding until superseded by a newer ADR.
-5. **Product docs** (`docs/product/`) — user-facing framing. Overridden by AGENTS.md and feature file if they disagree.
+5. **Product docs** (`docs/product/`) — user-facing framing, including
+   `adaptive-interaction-design.md` (the canonical detailed interaction-design reference for
+   adaptive/compact composition, governed by ADR-0124). Overridden by AGENTS.md and feature file
+   if they disagree.
 6. **Policy docs** (`docs/policies/`) — policy system reference. Overridden by ADRs and implementation if they disagree.
 7. **Admin docs** (`docs/admin/`) — operational guides. Overridden by policy docs and ADRs if they disagree.
 8. **Development docs** (`docs/development/`) — workflow rules. Never override domain or product authority.

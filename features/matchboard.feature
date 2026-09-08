@@ -2930,28 +2930,27 @@ Feature: Matchboard football operations workspace
       Then the page must provide a way to move to previous and next match round without returning to overview
 
 
-  Rule: Football Manager style shell is mandatory
+  Rule: Football operations shell is mandatory
 
     The app must feel like a football operations cockpit.
     It must not feel like a generic admin system.
+    (Navigation-area framing updated by ADR-0124: the canonical primary navigation is the
+    five-item Today/League/Events/Players/More model; see "Canonical navigation and route model".)
 
     Scenario: App uses persistent football operations shell
       Given the coach is using the app
       When any primary workflow route is open
-      Then the app must show a persistent left navigation
+      Then the app must show persistent primary navigation for the five canonical destinations
       And a top context bar
       And an object header for the current football object where relevant
 
-    Scenario: Left navigation uses football operations areas
+    Scenario: Primary navigation adapts composition to the viewport
       Given the coach is using the app
-      When the main navigation is visible
-      Then the navigation must include grouped areas:
-        | area            |
-        | Manager         |
-        | Match Week      |
-        | Squad           |
-        | System          |
-      And the navigation must not be organized primarily around database entities only
+      When the primary navigation is visible
+      Then a compact viewport below 600px must show fixed bottom navigation
+      And a medium viewport from 600 to 839px must show a navigation rail
+      And an expanded viewport of 840px or wider must show the sidebar
+      And all three must render the same five primary destinations with the same active-state logic
 
     Scenario: Top context bar shows current operational context
       Given a season, league season, and match round exist
@@ -2959,7 +2958,7 @@ Feature: Matchboard football operations workspace
       Then the top context bar must show current season
       And current league season
       And current match round
-      And match round status
+      And the match's derived lifecycle status
       And quick search or quick navigation
 
     Scenario: Object header shows current football object
@@ -4507,6 +4506,80 @@ Feature: Matchboard football operations workspace
       And no navigation state must appear unselected or misleading
 
 
+  Rule: Adaptive contextual UI composition (ADR-0124)
+
+    Matchboard is one adaptive application. The same canonical domain state is true at every
+    viewport; only the composition — amount of information, order, density, interaction method,
+    supporting context — changes. Compact UI is not the desktop layout stacked vertically.
+    Detailed reference: docs/product/adaptive-interaction-design.md.
+
+    Scenario: The five primary destinations are stable across every viewport
+      Given the coach is using the app
+      When the primary navigation renders on a compact, medium, or expanded viewport
+      Then it must contain exactly Today, League, Events, Players, and More in that order
+      And no viewport may add, remove, or rename a primary destination
+
+    Scenario: Compact Today exposes the next action before secondary metrics
+      Given the coach opens Today on a compact viewport
+      Then the dominant next action object must appear in the first useful viewport
+      And it must appear before any secondary coaching context
+      And Today must not lead with a grid of detached metrics
+      And a count such as "2 decisions" must be attached to the round, match, or event it belongs to
+
+    Scenario: Operational items on compact Today are chronological
+      Given the coach opens Today on a compact viewport
+      Then operational work items must be ordered as now, then next, then later
+      And distant or upcoming context must appear after the current operational flow
+
+    Scenario: One canonical match representation is used everywhere a match is shown
+      Given a match is displayed on Today, League, Events, match detail entry, Follow Live entry, or history
+      Then it must use the one canonical match grammar
+      And a scheduled match must lead with teams and kick-off time and its lifecycle state
+      And a live match must lead with teams and score and a LIVE marker with the match clock
+      And a final match must lead with teams and the final score and an FT or result state
+      And a placeholder value must never be shown as if it were a final score
+      And a match whose planning boundary has closed but which has not been played must not read as Done
+
+    Scenario: Compact Round Board selects one match and moves a player without drag
+      Given a match round with more than one match
+      And the coach opens the Round Board on a compact viewport
+      Then exactly one match is shown at a time
+      And a keyboard-accessible, touch-safe compact match selector is available
+      And the selected match is reflected in the URL and survives refresh and back navigation
+      When the coach moves a player using the tap path Player then Move then target match
+      Then the move must call the existing canonical selection mutation and validation
+      And no client-side reimplementation of domain validation is used
+      And the resulting plan-integrity impact is shown
+      And Blocked and Decision required conditions remain prominent
+
+    Scenario: Compact Events are presented as a temporal flow
+      Given the coach opens Events on a compact viewport
+      Then events must be listed chronologically, grouped by month or date
+      And the list must not lead with count columns
+      When the coach opens an event detail on a compact viewport
+      Then it must present the event-day match timeline using the canonical match grammar
+
+    Scenario: Compact Players uses a purpose-built summary, not a column dump
+      Given the coach opens Players on a compact viewport
+      Then each player must be shown as a purpose-built compact summary
+      And the compact view must not render a card containing every desktop table column
+      And detail omitted from the compact summary must remain reachable on player detail
+      And no player score, ranking, or new judgement metric may be introduced
+
+    Scenario: Follow Live remains read-only on every viewport
+      Given a match has an active live reporting session
+      When a second coach opens Follow Live on any viewport
+      Then Follow Live must expose no reporting controls
+      And refreshing Follow Live must not change any recorded match truth
+
+    Scenario: Compact layouts preserve access to omitted detail and context
+      Given the coach is on any primary surface on a compact viewport
+      Then there must be no page-level horizontal scrolling between 360 and 430px
+      And the team, season, round, or event context must remain visible or recoverable
+      And the primary action must not be hidden behind the fixed bottom navigation or the safe-area inset
+      And every data visualization must have a text equivalent and visible sample context
+
+
   Rule: Operational workflow hierarchy
 
     The visible daily workflow follows a clear hierarchy.
@@ -4524,11 +4597,13 @@ Feature: Matchboard football operations workspace
     Scenario: Round Board is the primary squad decision surface
       Given the coach opens a match round
       Then the Round Board must be the primary surface for squad review and changes
-      And actions must include Generate, Resolve blockers, Finalise, and View finalised plan
+      And actions must include Generate, Regenerate, Resolve blockers, and View finalised plan
+      And there must be no coach-operated Finalise round or Finalise match action
 
     Scenario: Match detail handles match-specific preparation and reporting
       Given the coach opens a match
-      Then the page must support match-specific preparation, finalisation, and post-match reporting
+      Then the page must support match-specific preparation and post-match reporting
+      And the plan becomes historical automatically when the match's planning boundary closes
 
     Scenario: Team and Player pages provide supporting context
       Given the coach opens a team or player

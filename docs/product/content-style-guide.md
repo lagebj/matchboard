@@ -5,7 +5,7 @@
 ## UI language rules
 
 - Nouns name objects. Verbs describe actions. Do not blur the two (e.g. a button reads "Move player," not "Player move").
-- Use active voice: "Finalise the round," not "The round will be finalised."
+- Use active voice: "Generate the round," not "The round will be generated."
 - Use present tense: "Generates draft selections," not "Will generate draft selections."
 - Prefer concrete football/product vocabulary over abstract or generic wording.
 - Avoid technical/internal terminology in visible copy (enum names, internal field names, database concepts) — see `docs/product/glossary.md`'s "Internal identifiers" cross-references and `docs/domain/terminology.md`'s "Internal identifiers" section for what stays internal-only.
@@ -16,9 +16,13 @@ Good:
 
 - Create lineup
 - Move player
-- Finalise round
+- Generate round
 - Add match
 - Invite coach
+
+There is no coach-operated "Finalise round" / "Finalise match" action (ADR-0109) — the plan
+becomes historical automatically when a match's planning boundary closes. Do not add finalise
+wording to buttons or copy.
 
 Avoid vague actions:
 
@@ -79,7 +83,11 @@ The following domain-specific "use / never use" tables already exist in `AGENTS.
 - **Coach-facing vs. parent-facing language** (what may/must never appear in parent exports: no "low readiness," "support burden," "confidence rebuild," etc.) — `AGENTS.md` § "Coach-facing vs parent-facing language."
 - **Event product language** (Event squad vs. Temporary team, Competitive squad vs. A team, Not rated vs. Unrated, etc.) — `AGENTS.md` § "Event squad planning" → "Product language."
 - **Prohibited navigation/product copy** (command center, decision inbox, workspace, entity, etc.) — `AGENTS.md` § "Prohibited copy."
-- **Status vocabulary** (exactly: Not generated, Draft, Blocked, Ready, Finalized/Finalised) — `AGENTS.md` § "Status vocabulary."
+- **Status vocabulary** — `AGENTS.md` § "Status vocabulary model". Not generated / Draft /
+  Blocked / Ready / Finalized are internal/secondary planning-completeness labels; the primary
+  per-match label is the derived lifecycle (Planning open / Planning closed / Live / Played /
+  Report incomplete / Done / Cancelled — ADR-0101). Planning completeness is separate from match
+  lifecycle: "Finalized" / "Planning closed" never means the match has been played or reported.
 - **Feedback language** (never: lazy, selfish, bad attitude, weak player, etc.) — `AGENTS.md` § "Post-match reflection and feedback."
 
 When writing new copy, check both this guide's general rules above and the relevant domain-specific table linked here before shipping visible text.

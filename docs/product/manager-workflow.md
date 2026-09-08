@@ -1,6 +1,8 @@
 # Manager Workflow
 
-> **Status:** This document is a historical product framing reference. The canonical workflow is defined in `AGENTS.md` and `features/matchboard.feature`.
+> **Status:** This document is a historical product framing reference. The canonical workflow is
+> defined in `AGENTS.md` and `features/matchboard.feature`. Adaptive/compact composition rules
+> are in `docs/product/adaptive-interaction-design.md` and **ADR-0124**.
 
 ## Product framing
 
@@ -17,19 +19,31 @@ The canonical primary workflow (from AGENTS.md):
 3. **Populate all** — Generate draft selections for all rounds in the active league season. Each round uses round-level orchestration. No round is finalized.
 4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
-6. **Finalize** — Lock one round at a time, or lock individual matches within a round. Finalized rounds and matches become history and cannot be silently mutated.
+6. **Finalize (derived, not a coach action — ADR-0109)** — There is no "Finalize round" /
+   "Finalize match" button. The plan becomes historical automatically the moment a match's
+   real-world planning boundary closes (scheduled kickoff passes, or live reporting starts,
+   whichever is first). Finalized rounds and matches become history and cannot be silently
+   mutated. A genuine reschedule that proves a match hasn't started can reopen its planning.
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
 ## Central operating flow
 
-`Assistant → Fixtures → Round Board → Match reporting → Season/History review`
+`Today → League → Round Board → Match reporting → Season/History review`
 
-## Assistant page
+The operational sequence each primary surface optimises for is Scan → Understand → Decide → Act
+→ Confirm (`docs/product/adaptive-interaction-design.md` §1).
 
-The Assistant page shows the next action based on workflow state. It derives work items from live database state using `getAssistantCommandCentre()`, not from persisted `AssistantIssue` rows.
+## Today page
 
-The Assistant page must always show the next action based on workflow state. The CoachingIntentSelector must not appear on the Assistant page — intent belongs on Fixtures and Round Board.
+Today (`/o/{orgSlug}/today`) shows the next action based on workflow state. It derives work items
+from live database state using `getAssistantCommandCentre()`, not from persisted `AssistantIssue`
+rows. `/assistant` remains a valid deep-link alias.
+
+Today must always show the next action. On compact it leads with the dominant Next Action object,
+then a chronological now/next/later flow, then quieter secondary coaching context — never a
+detached metric grid ahead of the Next Action. The CoachingIntentSelector must not appear on
+Today — intent belongs on Fixtures and Round Board.
 
 ## Plan integrity signal model
 
