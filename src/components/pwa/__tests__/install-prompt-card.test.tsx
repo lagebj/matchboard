@@ -54,6 +54,22 @@ describe("InstallPwaCard (UX-2.10-01)", () => {
     expect(screen.getByText(/add to home screen/i)).toBeTruthy();
   });
 
+  it("does NOT preventDefault() on beforeinstallprompt — the browser stays free to offer its own install control", () => {
+    mockMatchMedia(() => false);
+    setUserAgent("Mozilla/5.0 (Linux; Android 13) Chrome/120");
+    render(<InstallPwaCard />);
+
+    const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+      prompt: vi.fn(),
+      userChoice: Promise.resolve({ outcome: "dismissed" as const }),
+    });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+    fireEvent(window, event);
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it("shows an Install button after beforeinstallprompt fires, and calls prompt() on click", async () => {
     mockMatchMedia(() => false);
     setUserAgent("Mozilla/5.0 (Linux; Android 13) Chrome/120");

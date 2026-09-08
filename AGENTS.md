@@ -2744,54 +2744,68 @@ Cancelled match rules:
 - Reopening a cancelled match clears the cancelledAt timestamp and cancelledReason, restoring SCHEDULED status
 - The SelectionRole enum retains BACKFILL for backward compatibility; new generation never produces BACKFILL as a user-facing role (squad repair uses role=SUPPORT with an explanation code)
 
-### PWA (installable app)
+### PWA (installable app) — ADR-0123
 
-Matchboard is installable as a Progressive Web App. Scope is deliberately v1-only:
+Matchboard is an **installable application shell with normal network semantics** — not an
+offline-first app. The browser owns installation; Matchboard must never gate or suppress it, and
+must not introduce a service worker / offline caching to become installable (modern Chromium does
+not require one).
 
-- `src/app/manifest.ts` — dynamic manifest (Next.js `MetadataRoute.Manifest`), branches on
-  request hostname (`test.` prefix vs. everything else), not on a Vercel project-ID env var.
-  Produces a visually distinct `name`/`short_name` ("Matchboard Test" vs. "Matchboard") so the
-  installed Test app is never mistaken for Production. `start_url` is `/today` (the canonical
-  landing route). Shortcuts: Today, League, Events (max 3). Supersedes the old static
-  `public/brand/site.webmanifest`, which has been removed — do not reintroduce a static manifest
-  reference in root `layout.tsx`'s metadata; it would compete with the dynamic route.
-- An in-app "Test" badge renders in the top header on any `test.` hostname
-  (`(app)/layout.tsx`'s `TestEnvironmentBadge`) — a second, code-level safeguard against
-  mistaking installed Test for Production, independent of the home-screen icon.
-- "Install Matchboard" (`src/components/pwa/install-prompt-card.tsx`, `InstallPwaCard`) is
-  visible to any authenticated coach (not gated to Owner/Admin, unlike Settings) in two places:
-  - **More page** (`src/app/(app)/o/[orgSlug]/more/page.tsx`) — always present, non-dismissible.
-  - **Today page** (`AssistantCommandCentrePage`, the canonical `/today` landing surface) —
-    rendered with `dismissible` so it surfaces the install path from the first visit (the
-    intended signup → visit → install flow) without permanently occupying the primary daily
-    landing page. Dismissal is a client-only `localStorage` preference
-    (`matchboard:pwa-install-dismissed`), not a server-side/per-user setting — no schema change.
-    The More instance is unaffected by dismissal; it's a separate, always-present entry point.
-  - Platform-aware, and — as of 2026-08-22 — never renders nothing: captures
-    `beforeinstallprompt` for Android/Chromium when the browser's own engagement heuristic allows
-    it (there is no API to force this early; that heuristic is a hard browser-vendor policy, not
-    something the app can bypass); shows static "tap Share → Add to Home Screen" instructions on
-    iOS (no programmatic install API exists there); shows an "installed" state when already
-    running in standalone mode (More instance only — the dismissible Today instance renders
-    nothing once installed, since there's nothing actionable left for a daily-landing banner);
-    and — new — shows generic "open your browser menu → Install app / Add to Home screen"
-    instructions for every other case (desktop Chromium, or Android/Chromium before the
-    engagement heuristic has allowed the native prompt), rather than the previous silent gap.
+- **The manifest and icons are public, unauthenticated routes.** `PUBLIC_ROUTES` (`src/lib/env.ts`)
+  includes `/manifest.webmanifest`, `/brand/`, `/icon.png`, `/apple-icon.png`. This is the core
+  fix (ADR-0123): `src/proxy.ts` otherwise `307`-redirects every non-public path to `/signin`, and
+  on **production** Next fetches `<link rel="manifest">` without credentials
+  (`crossOrigin="use-credentials"` is added only on Vercel `preview`), so an auth-gated manifest is
+  never installable in any Chromium — logged in or not. Do not re-gate these paths. They carry no
+  tenant/player/match/user data. Regression-guarded in `src/lib/__tests__/env.test.ts` and
+  `src/test/security-audit.test.ts`.
+- `src/app/manifest.ts` — dynamic manifest (Next.js `MetadataRoute.Manifest`), branches on request
+  hostname (`test.` prefix vs. everything else). Distinct `name`/`short_name` ("Matchboard Test"
+  vs. "Matchboard"). `id`/`start_url` `/today`, `scope` `/`, `display: standalone`, `lang`,
+  `background_color`/`theme_color` `#0a0d13`, shortcuts Today/League/Events (max 3). Do not
+  reintroduce a static `public/brand/site.webmanifest` or a `manifest:` key in root
+  `layout.tsx` metadata — the file convention auto-links the dynamic route.
+- **Icons** (`scripts/generate-pwa-icons.sh` — ImageMagick, reproducibility only, not wired into
+  the build; the committed PNGs are the deliverable):
+  - `android-chrome-{192,512}.png` — `purpose: "any"`, unchanged (opaque brand-green field,
+    white mark).
+  - `public/brand/maskable-{192,512}.png` — `purpose: "maskable"`, dedicated assets with the mark
+    inside the centre-80% mask-safe area. Do **not** point `maskable` back at the full-bleed
+    `android-chrome-*` art — its mark runs to the edges and clips on circular Android masks.
+  - `src/app/apple-icon.png` (180) / `src/app/icon.png` (32) — **opaque** brand-green + white
+    mark. iOS composites home-screen icons onto black, so a transparent icon renders as
+    black-on-black. Keep them opaque.
+  - Regenerating from a *new* mark or brand colour is an owner-approved brand decision
+    (`docs/product/brand-strategy.md`); corrective repackaging of the existing mark is not.
+- `src/app/layout.tsx` — `export const viewport` (`themeColor` `#0a0d13`, `viewportFit: "cover"`),
+  `metadata.applicationName`, `metadata.appleWebApp` (`capable`, `title`, `statusBarStyle:
+  "default"`), and an explicit `apple-mobile-web-app-capable` for iOS < 16.4. The app shell adds
+  `env(safe-area-inset-bottom)` padding to the fixed `MobileNav` and the main scroll area.
+- **`InstallPwaCard`** (`src/components/pwa/install-prompt-card.tsx`) is a **discovery helper, not
+  an installer**. It does **not** call `preventDefault()` on `beforeinstallprompt` — the browser
+  stays free to show its own install control. Its copy points at the browser-native path
+  (address-bar install icon / browser menu). Where the browser hands over a deferred prompt it
+  still offers a one-tap shortcut; iOS gets Share → Add to Home Screen; standalone mode shows a
+  confirmation (More) or nothing (dismissible Today instance). Rendered on the More page
+  (non-dismissible) and Today (`dismissible`, client-only `localStorage`
+  `matchboard:pwa-install-dismissed`, no schema change).
+- An in-app "Test" badge (`(app)/layout.tsx`'s `TestEnvironmentBadge`) renders on any `test.`
+  hostname — a code-level non-masquerade safeguard alongside the distinct manifest name.
+- **Automated regression**: `e2e/pwa-installability.spec.ts` (Playwright + Chrome DevTools
+  Protocol) — manifest reachable unauthenticated, parses with no critical errors
+  (`Page.getAppManifest`), every icon loads at its declared size, no blocking
+  `Page.getInstallabilityErrors`, `start_url` resolves same-origin, display mode `standalone`.
+  `src/app/__tests__/manifest.test.ts` (the TS object) is a different layer, kept.
+- **Manual device acceptance**: `docs/development/pwa-manual-verification.md` — Windows
+  Edge/Chrome, Android Chrome/Edge, iPhone Safari. The automated suite proves installability and
+  non-interference; it cannot prove OS-level install/launch.
 
-Explicitly out of scope for v1 — do not add without a new decision:
-- Service worker / offline caching.
-- Custom Web Push.
+Explicitly out of scope — do not add without a new decision:
+- Service worker / offline caching (would risk stale authenticated / live-match state).
+- Custom Web Push (see also ADR-0086).
 - App-store packaging of any kind.
-
-Maintainer decisions on the two v1 open items (2026-08-22):
-- **Maskable icon**: the existing `android-chrome-192x192.png`/`512x512.png` are declared
-  `purpose: "maskable"` in the manifest, reusing the existing asset rather than commissioning a
-  new safe-zoned variant — their full-bleed background already has the right structural shape.
-  No new asset was created.
-- **Test-marker home-screen icon**: deliberately not added for v1. The manifest's distinct
-  `name`/`short_name` ("Matchboard Test") plus the in-app Test badge are the distinguishing
-  signals instead. Revisit only if a real design need surfaces later — this is not tracked as
-  outstanding work.
+- A custom Test-marker home-screen icon — the "Matchboard Test" name plus the in-app Test badge
+  remain the non-masquerade signals; not tracked as outstanding work.
 
 ## Event squad planning
 

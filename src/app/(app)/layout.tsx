@@ -52,7 +52,7 @@ export default async function AppLayout({
             <UserNav />
           </div>
         </header>
-        <main className="flex-1 pb-20 lg:pb-0">
+        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
             {children}
           </div>
@@ -93,7 +93,7 @@ export default async function AppLayout({
               <UserNav />
             </div>
           </header>
-          <main className="flex-1 pb-20 medium:pb-0">
+          <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] medium:pb-0">
             <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
               {children}
             </div>

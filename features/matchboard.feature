@@ -7763,3 +7763,87 @@ Feature: Matchboard football operations workspace
         And a planned rotation change for that match is still in the delayed state
         When the coach views Today
         Then a work item must prompt the coach to resolve the delayed change
+
+  # --- Progressive Web App installation (ADR-0123) ---
+
+  Feature: Progressive Web App installation
+
+    Matchboard is an installable web application shell with normal network semantics. The browser owns installation; Matchboard must not gate or suppress it, and must not introduce offline caching. Invariants are stated in terms of what Matchboard controls — installability and non-interference — not in terms of where a given browser chooses to paint an install icon.
+
+    Rule: The web app manifest is retrievable without authentication
+
+      Scenario: An unauthenticated request for the manifest returns the manifest
+        Given a browser with no Matchboard session
+        When it requests the web app manifest
+        Then the response is the manifest document, not a redirect to sign-in
+        And its content type identifies it as a web app manifest
+
+      Scenario: Manifest icons are retrievable without authentication
+        Given a browser with no Matchboard session
+        When it requests any icon referenced by the manifest
+        Then the icon is returned as an image, not a redirect to sign-in
+
+      Scenario: The manifest carries no tenant, player, match, or user data
+        When the manifest is generated
+        Then it contains only application identity, launch, icon, and colour information
+
+    Rule: Matchboard does not suppress browser-native installation
+
+      Scenario: The install-prompt event is not cancelled
+        Given the browser offers Matchboard a deferred install prompt
+        When Matchboard handles that event
+        Then Matchboard does not cancel it
+        And the browser remains free to present its own install affordance
+
+      Scenario: A browser that reports the app installable is not blocked from installing it
+        Given a browser evaluates Matchboard against its installability criteria
+        Then Matchboard satisfies those criteria without an unexplained error
+        And nothing in Matchboard prevents the browser from completing installation
+
+    Rule: Installed Matchboard behaves as a standalone application
+
+      Scenario: The installed app launches at the canonical Today route in standalone presentation
+        Given Matchboard has been installed
+        When the coach opens it from its installed icon
+        Then it launches at the canonical Today route
+        And it is presented as a standalone application, not a browser tab
+
+      Scenario: The launch route stays within the application origin
+        Given an unauthenticated launch of the installed app
+        When the start route is resolved
+        Then the coach is taken to the Matchboard sign-in page on the same origin
+        And no redirect leaves the application origin
+
+    Rule: iOS uses the platform Add to Home Screen path
+
+      Scenario: iOS gets Add to Home Screen guidance
+        Given a coach on iOS who has not installed Matchboard
+        When they view the install guidance
+        Then it explains the Share then Add to Home Screen steps
+
+      Scenario: The installed iOS icon is a correct, opaque Matchboard icon
+        Given a coach adds Matchboard to their iOS Home Screen
+        Then the Home Screen icon is the Matchboard mark on an opaque background
+        And it visually belongs to the same application as the Android and desktop icon
+
+    Rule: Install guidance stops once the app is installed
+
+      Scenario: The install card disappears in standalone mode
+        Given Matchboard is running in standalone display mode
+        When the coach views a surface that would otherwise show install guidance
+        Then no install prompt or install instruction is shown
+
+    Rule: Installation introduces no offline caching
+
+      Scenario: Dynamic state always comes from the server
+        Given Matchboard has been installed
+        When the installed app loads authenticated or live-match state
+        Then that state is fetched from the server, not served from an offline cache
+        And no service worker is registered
+
+    Rule: Test and Production installs are distinguishable
+
+      Scenario: A Test install cannot be mistaken for Production
+        Given Matchboard is installed from the Test environment
+        Then its application name identifies it as Test
+        And the running application shows a Test marker

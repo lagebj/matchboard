@@ -63,13 +63,29 @@ describe("manifest (PWA, UX-2.10-01)", () => {
     expect(sizes).toContain("512x512");
   });
 
-  it("declares maskable purpose for both sizes, reusing the existing icon files", async () => {
+  it("declares an `any` and a `maskable` icon for each of 192/512", async () => {
+    withHost("app.matchboard.football");
+    const result = await manifest();
+    const icons = result.icons ?? [];
+    for (const size of ["192x192", "512x512"]) {
+      expect(icons.some((i) => i.sizes === size && i.purpose === "any")).toBe(true);
+      expect(icons.some((i) => i.sizes === size && i.purpose === "maskable")).toBe(true);
+    }
+  });
+
+  it("points maskable icons at the dedicated safe-zone assets, not the full-bleed android-chrome art", async () => {
     withHost("app.matchboard.football");
     const result = await manifest();
     const maskable = result.icons?.filter((i) => i.purpose === "maskable") ?? [];
     expect(maskable.map((i) => i.sizes).sort()).toEqual(["192x192", "512x512"]);
     for (const icon of maskable) {
-      expect(icon.src).toMatch(/^\/brand\/android-chrome-\d+x\d+\.png$/);
+      expect(icon.src).toMatch(/^\/brand\/maskable-\d+\.png$/);
     }
+  });
+
+  it("declares a language", async () => {
+    withHost("app.matchboard.football");
+    const result = await manifest();
+    expect(result.lang).toBe("en");
   });
 });
