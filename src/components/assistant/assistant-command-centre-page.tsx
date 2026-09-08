@@ -1,8 +1,16 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatKickoffTime } from "@/lib/date-utils";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
+import { MatchScoreRow } from "@/components/ui/match-presentation";
+import {
+  OperationalTimeline,
+  TimelineItem,
+  type TimelineNodeState,
+} from "@/components/ui/operational-timeline";
 import type {
   CoachSituationProjection,
   CoachSituationProjectionStatus,
@@ -18,7 +26,6 @@ import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
-import { MatchLifecycleBadge } from "@/components/ui/status-badge";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
 import { BrandIllustration } from "@/components/ui/brand-illustration";
@@ -527,67 +534,128 @@ function GroupedReports({
   );
 }
 
-function TodayMatchRow({ match, orgUrl }: { match: TodayMatch; orgUrl: (path: string) => string }) {
-  const homeAway = match.homeAway === "HOME" ? "vs" : "@";
-  const timeStr = match.startsAt
-    ? formatKickoffTime(new Date(match.startsAt))
-    : "";
-  const squadHref = match.squadStatus === "not_generated"
-    ? orgUrl(`/fixtures`)
-    : orgUrl(`/matches/${match.matchId}`);
-  const needsReport = match.lifecycleStatus === "played" || match.lifecycleStatus === "report_incomplete";
-
-  return (
-    <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm font-medium text-zinc-100 truncate">
-          {match.teamName} {homeAway} {match.opponent}
-        </span>
-        <span className="text-xs text-[var(--text-muted)]">
-          {match.matchRoundName}
-          {timeStr ? ` · ${timeStr}` : ""}
-        </span>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <MatchLifecycleBadge status={match.lifecycleStatus} size="sm" />
-        <Button as={Link} href={squadHref} variant="ghost" size="sm">
-          View
-        </Button>
-        {match.hasActiveLiveSession && (
-          <Button as={Link} href={orgUrl(`/matches/${match.matchId}/live/follow`)} variant="primary" size="sm">
-            Follow live
-          </Button>
-        )}
-        {needsReport && !match.hasActiveLiveSession && (
-          <Button as={Link} href={orgUrl(`/matches/${match.matchId}`)} variant="ghost" size="sm" trailingIcon={<FileText className="h-3 w-3" aria-hidden="true" />}>
-            Report
-          </Button>
-        )}
-      </div>
-    </li>
-  );
+/** Build the canonical match presentation for a Today timeline row. `TodayMatch`
+ * carries no score, so live/played rows show state + time, not a scoreline. */
+function todayMatchPresentation(match: TodayMatch, href: string) {
+  return buildMatchPresentation({
+    id: match.matchId,
+    href,
+    teamName: match.teamName,
+    opponentName: match.opponent,
+    isHome: match.homeAway === "HOME",
+    kickoffAt: match.startsAt,
+    lifecycleStatus: match.lifecycleStatus,
+  });
 }
 
-function TodayMatchesSection({ matches, orgUrl }: { matches: TodayMatch[]; orgUrl: (path: string) => string }) {
-  if (matches.length === 0) return null;
+/**
+ * Today's operational timeline (ADR-0125). One chronological rail: today's
+ * matches as `MatchScoreRow` items with now/next/later treatment. A match that
+ * has been played but still needs its report becomes an `attention` node with an
+ * inline "Complete report" action — it is never quietened while the follow-up is
+ * open. Reports for older matches stay in the grouped "Post-match reports"
+ * section rather than being duplicated here.
+ */
+function TodayOperationalTimeline({
+  matches,
+  orgUrl,
+}: {
+  matches: TodayMatch[];
+  orgUrl: (path: string) => string;
+}) {
+  const sorted = [...matches].sort((a, b) => {
+    const av = a.startsAt ? Date.parse(a.startsAt) : Number.MAX_SAFE_INTEGER;
+    const bv = b.startsAt ? Date.parse(b.startsAt) : Number.MAX_SAFE_INTEGER;
+    return av - bv;
+  });
+
+  if (sorted.length === 0) return null;
+
+  // First still-upcoming (not live, not played) match is NEXT; the rest LATER.
+  const firstUpcomingId = sorted.find(
+    (m) => m.lifecycleStatus === "planning_open" || m.lifecycleStatus === "planning_closed",
+  )?.matchId;
+
+  const liveCount = matches.filter((m) => m.hasActiveLiveSession).length;
+  const rows: ReactNode[] = [];
+  const lastIndex = sorted.length - 1;
+
+  sorted.forEach((match, idx) => {
+    const needsReport =
+      match.lifecycleStatus === "played" || match.lifecycleStatus === "report_incomplete";
+    const state: TimelineNodeState =
+      match.lifecycleStatus === "live"
+        ? "current"
+        : needsReport
+          ? "attention"
+          : match.lifecycleStatus === "done"
+            ? "done"
+            : match.matchId === firstUpcomingId
+              ? "next"
+              : "later";
+    const kicker =
+      state === "current"
+        ? "LIVE"
+        : state === "attention"
+          ? "FOLLOW-UP"
+          : state === "next"
+            ? "NEXT"
+            : state === "done"
+              ? null
+              : "LATER";
+    const href =
+      match.squadStatus === "not_generated"
+        ? orgUrl(`/fixtures`)
+        : orgUrl(`/matches/${match.matchId}`);
+
+    rows.push(
+      <TimelineItem
+        key={match.matchId}
+        timeLabel={match.startsAt ? formatKickoffTime(new Date(match.startsAt)) : null}
+        state={state}
+        kicker={kicker}
+        isLast={idx === lastIndex}
+      >
+        <MatchScoreRow presentation={todayMatchPresentation(match, href)} />
+        {match.hasActiveLiveSession ? (
+          <Button
+            as={Link}
+            href={orgUrl(`/matches/${match.matchId}/live/follow`)}
+            variant="primary"
+            size="sm"
+            className="mt-1"
+          >
+            Follow live
+          </Button>
+        ) : needsReport ? (
+          <Button
+            as={Link}
+            href={orgUrl(`/matches/${match.matchId}`)}
+            variant="ghost"
+            size="sm"
+            className="mt-1"
+            trailingIcon={<FileText className="h-3 w-3" aria-hidden="true" />}
+          >
+            Complete report
+          </Button>
+        ) : null}
+      </TimelineItem>,
+    );
+  });
 
   return (
     <Surface padding="md" className="flex flex-col gap-3">
       <SectionHeader
-        title="Today's matches"
-        description={`${matches.length} match${matches.length === 1 ? "" : "es"} today.`}
-        eyebrow={`${matches.filter((m) => m.hasActiveLiveSession).length} live`}
+        title="Matchday"
+        description="Today's football, in order."
+        eyebrow={liveCount > 0 ? `${liveCount} live` : undefined}
         actions={
           <StatusPill variant="info" size="sm" icon={CalendarDays}>
             {matches.length}
           </StatusPill>
         }
       />
-      <ul className="flex flex-col">
-        {matches.map((match) => (
-          <TodayMatchRow key={match.matchId} match={match} orgUrl={orgUrl} />
-        ))}
-      </ul>
+      <OperationalTimeline aria-label="Today's operational timeline">{rows}</OperationalTimeline>
     </Surface>
   );
 }
@@ -686,15 +754,16 @@ export function AssistantCommandCentrePage({
       </div>
 
       {/*
-       * Compact composition order (ADR-0124 §10 / docs/product/adaptive-interaction-design.md §7):
+       * Compact composition order (ADR-0124 §6 / ADR-0125 / adaptive-interaction-design.md §7):
        *   1. title/context (above)
        *   2. matchday "now" anchor
        *   3. dominant Next Action
-       *   4. operational timeline — near-term readiness, today's matches, grouped work
-       *   5. objective totals (demoted below the next action — never leads the page)
-       *   6. secondary coaching context (weekly)
-       *   7. distant/upcoming
-       *   8. non-operational (PWA install)
+       *   4. OperationalTimeline — today's matches on one chronological rail
+       *   5. next-round readiness + grouped work
+       *   6. objective totals (demoted below the operational flow — never leads the page)
+       *   7. secondary coaching context (weekly)
+       *   8. distant/upcoming
+       *   9. non-operational (PWA install)
        */}
 
       {projection && (
@@ -723,6 +792,9 @@ export function AssistantCommandCentrePage({
         />
       )}
 
+      {/* Operational timeline — today's football in order, directly after Next Action */}
+      <TodayOperationalTimeline matches={commandCentre.todayMatches} orgUrl={orgUrl} />
+
       {projection && (
         <NextRoundReadinessSection
           situation={projection.situation}
@@ -731,9 +803,6 @@ export function AssistantCommandCentrePage({
           orgUrl={orgUrl}
         />
       )}
-
-      {/* Today's matches */}
-      <TodayMatchesSection matches={commandCentre.todayMatches} orgUrl={orgUrl} />
 
       {/* Review/attention link */}
       {reviewCount > 0 && (
