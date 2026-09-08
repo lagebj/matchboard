@@ -28,6 +28,12 @@ export interface PlayerOutfieldRoleSuitabilitySummary {
   leagueSeasonLabel: string | null;
   outfieldRoles: OutfieldRoleSuitabilityResult[];
   tacticalFunctions: TacticalFunctionFit[];
+  /** Raw realised-position → match-count distribution for this player in the resolved season
+   * (canonical I-004 evidence), for the position-exposure evidence story (ADR-0125). Empty when
+   * no evidence season resolves. `null` position labels are omitted. */
+  realisedPositionCounts: Record<string, number>;
+  /** How many realised appearances the exposure distribution is drawn from. */
+  exposureSampleSize: number;
 }
 
 /**
@@ -77,11 +83,8 @@ export async function getPlayerOutfieldRoleSuitability(
     tertiary: player.tertiaryPosition ? (mapPositionCodeToBroad(player.tertiaryPosition) as BroadPosition) : undefined,
   };
 
-  const { leagueSeasonId, leagueSeasonLabel, exposure } = await resolveExposureEvidence(
-    playerId,
-    player.coreTeam?.footballGroupId ?? null,
-    orgId,
-  );
+  const { leagueSeasonId, leagueSeasonLabel, exposure, realisedPositionCounts, exposureSampleSize } =
+    await resolveExposureEvidence(playerId, player.coreTeam?.footballGroupId ?? null, orgId);
 
   const outfieldRoles = computeOutfieldRoleSuitabilityProfile(declaredPositions, exposure);
   const tacticalFunctions = computeTacticalFunctionProfile(
@@ -102,23 +105,44 @@ export async function getPlayerOutfieldRoleSuitability(
     outfieldRoles,
   );
 
-  return { playerId, leagueSeasonId, leagueSeasonLabel, outfieldRoles, tacticalFunctions };
+  return {
+    playerId,
+    leagueSeasonId,
+    leagueSeasonLabel,
+    outfieldRoles,
+    tacticalFunctions,
+    realisedPositionCounts,
+    exposureSampleSize,
+  };
 }
 
 async function resolveExposureEvidence(
   playerId: string,
   footballGroupId: string | null,
   organisationId: string,
-): Promise<{ leagueSeasonId: string | null; leagueSeasonLabel: string | null; exposure: OutfieldPositionExposureEvidence }> {
+): Promise<{
+  leagueSeasonId: string | null;
+  leagueSeasonLabel: string | null;
+  exposure: OutfieldPositionExposureEvidence;
+  realisedPositionCounts: Record<string, number>;
+  exposureSampleSize: number;
+}> {
   const noEvidence: OutfieldPositionExposureEvidence = { matchCountByRole: {} };
-  if (!footballGroupId) return { leagueSeasonId: null, leagueSeasonLabel: null, exposure: noEvidence };
+  const empty = {
+    leagueSeasonId: null,
+    leagueSeasonLabel: null,
+    exposure: noEvidence,
+    realisedPositionCounts: {} as Record<string, number>,
+    exposureSampleSize: 0,
+  };
+  if (!footballGroupId) return empty;
 
   const seasons = await db.leagueSeason.findMany({
     where: { footballGroupId, organisationId },
     select: { id: true, name: true, startDate: true, endDate: true },
   });
   const activeSeason = resolveActiveLeagueSeason(seasons, new Date());
-  if (!activeSeason) return { leagueSeasonId: null, leagueSeasonLabel: null, exposure: noEvidence };
+  if (!activeSeason) return empty;
 
   const rows = await getPositionExposure({
     leagueSeasonId: activeSeason.id,
@@ -129,7 +153,13 @@ async function resolveExposureEvidence(
   const row = rows.find((r) => r.playerId === playerId);
   const exposure = row ? summarizeExposureByOutfieldRole(row.realisedPositions) : noEvidence;
 
-  return { leagueSeasonId: activeSeason.id, leagueSeasonLabel: activeSeason.name, exposure };
+  return {
+    leagueSeasonId: activeSeason.id,
+    leagueSeasonLabel: activeSeason.name,
+    exposure,
+    realisedPositionCounts: row?.realisedPositions ?? {},
+    exposureSampleSize: row?.sampleSize ?? 0,
+  };
 }
 
 /** Exported for reuse by the Bundle 8 integrated starting-lineup generator

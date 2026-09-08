@@ -5,6 +5,7 @@ import { getPlayerCategoryStats } from "@/lib/stats/player-category-stats";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerSelectionInvolvement } from "@/lib/players/get-player-selection-involvement";
 import { getPlayerOutfieldRoleSuitability } from "@/lib/players/get-player-outfield-role-suitability";
+import { getPlayerRecentOpportunity } from "@/lib/players/get-player-recent-opportunity";
 import { TACTICAL_FUNCTION_LABELS } from "@/domain/team-composition/team-composition-types";
 import { availabilityOptions, playerPositionOptions, optionalPlayerPositionOptions, preferredFootOptions, secondaryFootOptions, bestSideOptions, goalkeeperAbilityOptions } from "@/lib/player-form-options";
 
@@ -22,6 +23,7 @@ import { PlayerQuickObservationsPanel } from "@/components/players/player-quick-
 import { PlayerReportSummaryPanel } from "@/components/players/player-report-summary-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 import { PlayerCurrentInvolvementPanel } from "@/components/players/player-current-involvement-panel";
+import { PlayerEvidenceStoriesPanel } from "@/components/players/player-evidence-stories-panel";
 import { PlayerStatsSummaryTable } from "@/components/players/player-stats-summary-table";
 import { PlayerOutfieldRoleSuitabilityPanel } from "@/components/players/player-outfield-role-suitability-panel";
 
@@ -87,7 +89,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
   if (!player) notFound();
 
-  const [rotationPaths, movementCandidates, readinessSignals, developmentThreads, quickObservations, outfieldRoleSuitability] = await Promise.all([
+  const [rotationPaths, movementCandidates, readinessSignals, developmentThreads, quickObservations, outfieldRoleSuitability, recentOpportunity] = await Promise.all([
     db.rotationPath.findMany({
       where: {
         OR: [
@@ -130,6 +132,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       orderBy: { createdAt: "desc" },
     }),
     getPlayerOutfieldRoleSuitability(playerId),
+    getPlayerRecentOpportunity(playerId),
   ]);
 
   const playerQuickObservations = quickObservations.filter((o) =>
@@ -195,6 +198,15 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
       <PlayerProfileLayout
         left={
           <div className="flex flex-col gap-2">
+            <PlayerEvidenceStoriesPanel
+              playerName={player.firstName}
+              recentOpportunity={recentOpportunity}
+              realisedPositionCounts={outfieldRoleSuitability?.realisedPositionCounts ?? {}}
+              exposureSampleSize={outfieldRoleSuitability?.exposureSampleSize ?? 0}
+              leagueSeasonLabel={outfieldRoleSuitability?.leagueSeasonLabel ?? null}
+              opportunityDetailHref={`/o/${orgSlug}/insights/player-pathways`}
+              exposureDetailHref={`/o/${orgSlug}/insights/position-exposure`}
+            />
             <PlayerPositionProfile
               player={player}
               positionOptions={playerPositionOptions}
