@@ -534,17 +534,35 @@ function GroupedReports({
   );
 }
 
-/** Build the canonical match presentation for a Today timeline row. `TodayMatch`
- * carries no score, so live/played rows show state + time, not a scoreline. */
+/** Build the canonical match presentation for a Today timeline row. A played
+ * match with a post-match report shows its scoreline + W/D/L; a live match with
+ * no report row yet shows state + time (its "Follow live" action is the value). */
 function todayMatchPresentation(match: TodayMatch, href: string) {
+  const isHome = match.homeAway === "HOME";
+  const hasScore = match.homeScore != null && match.awayScore != null;
+  // TodayMatch scores are home/away oriented; buildMatchPresentation wants them
+  // our-team-relative and re-orients with isHome.
+  const ownGoals = !hasScore ? null : isHome ? match.homeScore : match.awayScore;
+  const opponentGoals = !hasScore ? null : isHome ? match.awayScore : match.homeScore;
+  const outcome =
+    ownGoals == null || opponentGoals == null
+      ? null
+      : ownGoals > opponentGoals
+        ? "WON"
+        : ownGoals < opponentGoals
+          ? "LOST"
+          : "DRAWN";
   return buildMatchPresentation({
     id: match.matchId,
     href,
     teamName: match.teamName,
     opponentName: match.opponent,
-    isHome: match.homeAway === "HOME",
+    isHome,
     kickoffAt: match.startsAt,
     lifecycleStatus: match.lifecycleStatus,
+    ownGoals,
+    opponentGoals,
+    outcome,
   });
 }
 

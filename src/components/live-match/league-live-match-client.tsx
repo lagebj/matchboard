@@ -290,6 +290,7 @@ export function LeagueLiveMatchClient({ matchId, matchInfo }: LiveMatchClientPro
       contextLabel={matchInfo.roundName}
       periodConfig={getLeaguePeriodConfig(matchInfo.matchType)}
       actions={leagueActions}
+      isHome={matchInfo.homeAway === "HOME"}
     />
   );
 }

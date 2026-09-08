@@ -6,7 +6,6 @@ import { useState, useTransition } from "react";
 import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
 import type { SelectionRole } from "@/generated/prisma/client";
 import {
-  Calendar,
   MapPin,
   Trophy,
   Users,
@@ -20,8 +19,9 @@ import {
   Radio,
   Tv,
 } from "lucide-react";
-import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { MatchHeader } from "@/components/ui/match-presentation";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { AbsenceControl } from "@/components/matches/absence-control";
@@ -34,17 +34,14 @@ import { PreviousEncountersDisplay } from "@/components/opponents/previous-encou
 import { PLAYING_STYLE_TAG_LABELS, type PlayingStyleTag } from "@/lib/opponents/playing-style-tags";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 import { formatWarningCode } from "@/lib/match-utils";
-import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
-import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
-import { MatchLifecycleBadge, type MatchLifecycleStatus } from "@/components/ui/status-badge";
+import type { MatchLifecycleStatus } from "@/components/ui/status-badge";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
-import { TeamShield } from "@/components/ui/team-shield";
 import { IntentCard } from "@/components/ui/intent-card";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { COACHING_INTENT_LABELS, type CoachingIntentCategory } from "@/lib/coaching/types";
@@ -99,6 +96,9 @@ type MatchData = {
   cancelledAt: Date | null;
   cancelledReason: string | null;
   postMatchStatus?: string;
+  /** Home/away-oriented score from the post-match report, or null when no report row exists. */
+  homeScore?: number | null;
+  awayScore?: number | null;
   /** The primary, football-action-oriented match status (ADR-0101) — computed server-side via
    * deriveMatchLifecycleStatus(). Supersedes matchRoundStatus/postMatchStatus as the label shown
    * to the coach; those remain available above for internal/legacy consumers. */
@@ -179,20 +179,6 @@ function formatMatchFit(fit: string): string {
   return map[fit] ?? fit;
 }
 
-const STATUS_PILL_CONFIG: Record<string, { label: string; variant: StatusPillVariant }> = {
-  NOT_GENERATED: { label: "Not generated", variant: "neutral" },
-  DRAFT: { label: "Draft", variant: "warning" },
-  BLOCKED: { label: "Blocked", variant: "danger" },
-  READY: { label: "Ready", variant: "success" },
-  FINALIZED: { label: "Finalised", variant: "finalized" },
-};
-
-const POST_MATCH_PILL: Record<string, { label: string; variant: StatusPillVariant }> = {
-  DRAFT: { label: "Draft report", variant: "warning" },
-  REPORTED: { label: "Reported", variant: "info" },
-  LOCKED: { label: "Report complete", variant: "finalized" },
-};
-
 function isMatchFinalized(selections: SelectionRow[]): boolean {
   if (selections.length === 0) return false;
   return selections.every((s) => s.status === "FINALIZED");
@@ -248,8 +234,28 @@ export function MatchDetail({ match }: { match: MatchData }) {
     : "squad";
   const selectedTab = activeTab ?? currentTab;
 
-  const dateStr = formatKickoffDate(match.startsAt);
-  const timeStr = formatKickoffTime(match.startsAt);
+  // Header score/outcome — MatchData.homeScore/awayScore are home/away oriented;
+  // buildMatchPresentation wants them our-team-relative.
+  const headerIsHome = match.homeAway === "HOME";
+  const headerHasScore = match.homeScore != null && match.awayScore != null;
+  const headerOwnGoals = !headerHasScore
+    ? null
+    : headerIsHome
+      ? match.homeScore ?? null
+      : match.awayScore ?? null;
+  const headerOpponentGoals = !headerHasScore
+    ? null
+    : headerIsHome
+      ? match.awayScore ?? null
+      : match.homeScore ?? null;
+  const headerOutcome =
+    headerOwnGoals == null || headerOpponentGoals == null
+      ? null
+      : headerOwnGoals > headerOpponentGoals
+        ? "WON"
+        : headerOwnGoals < headerOpponentGoals
+          ? "LOST"
+          : "DRAWN";
 
   const grouped = roleOrder
     .map((role) => ({ role, players: match.selections.filter((s) => s.role === role) }))
@@ -269,11 +275,6 @@ export function MatchDetail({ match }: { match: MatchData }) {
   const intentLabel = match.coachingIntent
     ? COACHING_INTENT_LABELS[match.coachingIntent as CoachingIntentCategory] ??
       match.coachingIntent
-    : null;
-
-  const statusPill = STATUS_PILL_CONFIG[match.matchRoundStatus];
-  const postMatchPill = match.postMatchStatus && match.postMatchStatus !== "NOT_STARTED"
-    ? POST_MATCH_PILL[match.postMatchStatus]
     : null;
 
   const isCancelled = match.matchStatus === "CANCELLED";
@@ -312,61 +313,49 @@ export function MatchDetail({ match }: { match: MatchData }) {
           }
         />
       )}
-      <div>
-         <Link
-           href={orgUrl("/fixtures")}
-           className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-zinc-100 transition-colors"
-         >
-           <Calendar className="h-3.5 w-3.5" />
-           Fixtures
-        </Link>
-      </div>
-
-      <PageHeader
-        title={`${match.teamName} vs ${match.opponent}`}
-        description={`${dateStr} at ${timeStr}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <TeamShield teamName={match.teamName} size="sm" />
-            {match.lifecycleStatus ? (
-              <MatchLifecycleBadge status={match.lifecycleStatus} />
-            ) : (
-              <>
-                {statusPill && (
-                  <StatusPill variant={statusPill.variant}>{statusPill.label}</StatusPill>
-                )}
-                {isCancelled && (
-                  <StatusPill variant="danger">Cancelled</StatusPill>
-                )}
-                {postMatchPill && !isCancelled && (
-                  <StatusPill variant={postMatchPill.variant}>{postMatchPill.label}</StatusPill>
-                )}
-              </>
-            )}
-            {matchFinalized && !isCancelled && (
-              <Button as={Link} href={orgUrl(`/matches/${match.id}/live`)} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
-                Live reporting
-              </Button>
-            )}
-            {match.isLive && match.canFollowLive && (
-              <Button as={Link} href={orgUrl(`/matches/${match.id}/live/follow`)} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
-                Follow live
-              </Button>
-            )}
-          </div>
-        }
-        context={
-          <span>
-            Round:{" "}
-            <Link
-              href={orgUrl(`/rounds/${match.matchRoundId}`)}
-              className="text-[var(--accent-strong)] hover:underline"
-            >
-              {match.matchRoundName}
-            </Link>
-          </span>
-        }
+      {/* Canonical match-header grammar (ADR-0125) — the match identity reads
+          before the page controls. Round link + live-reporting entry points sit
+          in a slim row below it. */}
+      <MatchHeader
+        presentation={buildMatchPresentation({
+          id: match.id,
+          teamName: match.teamName,
+          opponentName: match.opponent,
+          isHome: match.homeAway === "HOME",
+          kickoffAt: match.startsAt,
+          lifecycleStatus: match.lifecycleStatus ?? "planning_open",
+          ownGoals: headerOwnGoals,
+          opponentGoals: headerOpponentGoals,
+          outcome: headerOutcome,
+          cancelledReason: isCancelled ? match.cancelledReason : null,
+        })}
+        backHref={orgUrl("/fixtures")}
+        backLabel="Fixtures"
       />
+
+      <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--text-muted)]">
+        <span>
+          Round:{" "}
+          <Link
+            href={orgUrl(`/rounds/${match.matchRoundId}`)}
+            className="text-[var(--accent-strong)] hover:underline"
+          >
+            {match.matchRoundName}
+          </Link>
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          {matchFinalized && !isCancelled && (
+            <Button as={Link} href={orgUrl(`/matches/${match.id}/live`)} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
+              Live reporting
+            </Button>
+          )}
+          {match.isLive && match.canFollowLive && (
+            <Button as={Link} href={orgUrl(`/matches/${match.id}/live/follow`)} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
+              Follow live
+            </Button>
+          )}
+        </span>
+      </div>
 
       <TacticalSurface variant="hero" padding="lg">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

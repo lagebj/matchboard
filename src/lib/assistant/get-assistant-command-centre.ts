@@ -398,11 +398,14 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
 
   const matchReports = await db.postMatchReport.findMany({
     where: { matchId: { in: todayMatchIds } },
-    select: { matchId: true, status: true },
+    select: { matchId: true, status: true, homeGoals: true, awayGoals: true },
   });
-  const matchReportMap = new Map<string, string>();
+  const matchReportMap = new Map<
+    string,
+    { status: string; homeGoals: number | null; awayGoals: number | null }
+  >();
   for (const r of matchReports) {
-    matchReportMap.set(r.matchId, r.status);
+    matchReportMap.set(r.matchId, { status: r.status, homeGoals: r.homeGoals, awayGoals: r.awayGoals });
   }
 
   const finalizedSquadCounts = await db.selection.groupBy({
@@ -442,7 +445,8 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       squadStatus = "draft";
     }
 
-    const reportStatus = matchReportMap.get(match.id);
+    const report = matchReportMap.get(match.id);
+    const reportStatus = report?.status;
     const isLive = matchesWithSession.has(match.id);
 
     return {
@@ -456,6 +460,11 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
       squadStatus,
       hasActiveLiveSession: isLive,
       reportStatus: (reportStatus?.toLowerCase() as TodayMatch["reportStatus"]) ?? null,
+      // Home/away oriented score from the post-match report, when one exists. There is no
+      // server-side live-score aggregation, so a live match with no report row yet has no
+      // score here — its "Follow live" action is the value on the timeline instead.
+      homeScore: report?.homeGoals ?? null,
+      awayScore: report?.awayGoals ?? null,
       // Primary, football-action-oriented status (ADR-0101). The league Match model has no
       // duration field to compute an exact end time, so hasLeagueMatchPassed's day-boundary
       // comparison is the most precise signal available — a same-day match that has already

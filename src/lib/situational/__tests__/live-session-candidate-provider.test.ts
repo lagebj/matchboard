@@ -34,6 +34,8 @@ function makeTodayMatch(overrides: Partial<TodayMatch> = {}): TodayMatch {
     squadStatus: "finalized",
     hasActiveLiveSession: true,
     reportStatus: null,
+    homeScore: null,
+    awayScore: null,
     lifecycleStatus: "live",
     ...overrides,
   };

@@ -73,6 +73,8 @@ function makeTodayMatch(overrides: Partial<TodayMatch> & Pick<TodayMatch, "match
     squadStatus: "finalized",
     hasActiveLiveSession: false,
     reportStatus: null,
+    homeScore: null,
+    awayScore: null,
     lifecycleStatus: "planning_closed",
     ...overrides,
   };

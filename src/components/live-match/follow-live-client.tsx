@@ -35,6 +35,8 @@ import type {
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
 import { StatusPill } from "@/components/ui/status-pill";
+import { MatchHeader } from "@/components/ui/match-presentation";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import {
   projectCanonicalLiveState,
   clockProjectionToClockState,
@@ -256,8 +258,8 @@ export function FollowLiveClient({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={`${teamName} vs ${opponentName}`}
-        description={`Following live · ${homeAway === "HOME" ? "Home" : "Away"}`}
+        title="Follow live"
+        description={`Read-only · ${homeAway === "HOME" ? "Home" : "Away"}`}
         actions={
           <div className="flex items-center gap-2">
             <StatusPill variant={connectionState === "connected" ? "success" : "neutral"}>
@@ -282,25 +284,22 @@ export function FollowLiveClient({
         </Surface>
       )}
 
-      {/* Scoreboard — derived from projection */}
+      {/* Scoreboard — canonical match-header grammar, derived from the projection.
+          Read-only: no mutation controls, matching Live Reporting's header shape. */}
       {projection && (
         <Surface className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 min-w-0 text-center">
-              <div className="text-xs font-medium text-zinc-400 truncate">{teamName}</div>
-              <div className="text-4xl font-bold text-emerald-400 tabular-nums leading-tight">{projection.score.goalsFor}</div>
-            </div>
-            <div className="shrink-0">
-              <div className="text-center px-2 min-w-0">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">{periodLabel}</div>
-                <div className="text-xl font-mono font-semibold text-zinc-200 tabular-nums">{formatElapsedMs(elapsedMs)}</div>
-              </div>
-            </div>
-            <div className="flex-1 min-w-0 text-center">
-              <div className="text-xs font-medium text-zinc-400 truncate">{opponentName}</div>
-              <div className="text-4xl font-bold text-zinc-300 tabular-nums leading-tight">{projection.score.goalsAgainst}</div>
-            </div>
-          </div>
+          <MatchHeader
+            presentation={buildMatchPresentation({
+              id: matchId,
+              teamName,
+              opponentName,
+              isHome: homeAway === "HOME",
+              lifecycleStatus: "live",
+              ownGoals: projection.score.goalsFor,
+              opponentGoals: projection.score.goalsAgainst,
+              liveClockLabel: `${periodLabel} · ${formatElapsedMs(elapsedMs)}`,
+            })}
+          />
         </Surface>
       )}
 
