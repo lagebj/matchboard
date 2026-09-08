@@ -245,4 +245,7 @@ textarea:disabled {
   background: rgba(10, 13, 19, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  /* Standalone PWA on notched phones: keep the nav row above the home
+     indicator (viewport-fit=cover is set in src/app/layout.tsx). */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

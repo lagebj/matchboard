@@ -758,3 +758,45 @@ describe("Security audit: base session gate never redirects HMAC-authenticated i
     expect(internalCheckIndex).toBeLessThan(baseGateIndex);
   });
 });
+
+describe("Security audit: PWA installation assets are public but tenant-data-free (ADR-0123)", () => {
+  // The web app manifest and its icons MUST be fetchable without a session:
+  // install-before-sign-in is the normal flow, and on production Next fetches
+  // `<link rel="manifest">` without credentials (use-credentials is added only
+  // on Vercel `preview`), so an auth-gated manifest is never installable in any
+  // Chromium. These paths are safe to expose — the manifest is only
+  // name/start_url/icons/colours, and /brand/** is public branding artwork.
+  it("routes the manifest and icon paths through isPublicRoute", async () => {
+    const { isPublicRoute } = await import("@/lib/env");
+    for (const p of [
+      "/manifest.webmanifest",
+      "/icon.png",
+      "/apple-icon.png",
+      "/brand/android-chrome-512x512.png",
+      "/brand/maskable-192.png",
+    ]) {
+      expect(isPublicRoute(p)).toBe(true);
+    }
+  });
+
+  it("does not make any tenant-scoped route public as a side effect", async () => {
+    const { isPublicRoute } = await import("@/lib/env");
+    for (const p of [
+      "/today",
+      "/o/acme/today",
+      "/o/acme/players",
+      "/api/season/export",
+      "/api/admin/audit",
+    ]) {
+      expect(isPublicRoute(p)).toBe(false);
+    }
+  });
+
+  it("manifest route builds no tenant/player/match query", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const manifestSrc = fs.readFileSync(path.join(process.cwd(), "src/app/manifest.ts"), "utf-8");
+    // The only request-time input it may read is the Host header (Test vs Prod naming).
+    expect(manifestSrc).not.toMatch(/@\/lib\/db|prisma|requireActorContext|getServerSession|cookies\(/);
+  });
+});

@@ -51,6 +51,21 @@ describe("env: isPublicRoute", () => {
     expect(isPublicRoute("/api/season/export")).toBe(false);
     expect(isPublicRoute("/organisations")).toBe(false);
     expect(isPublicRoute("/")).toBe(false);
+    expect(isPublicRoute("/today")).toBe(false);
+    expect(isPublicRoute("/o/my-org/more")).toBe(false);
+  });
+
+  it("treats PWA installation assets as public (ADR-0123)", () => {
+    // The browser must be able to fetch the manifest and its icons before the
+    // coach signs in, and on production Next fetches the manifest <link>
+    // without credentials — an auth-gated manifest is never installable.
+    expect(isPublicRoute("/manifest.webmanifest")).toBe(true);
+    expect(isPublicRoute("/icon.png")).toBe(true);
+    expect(isPublicRoute("/apple-icon.png")).toBe(true);
+    expect(isPublicRoute("/brand")).toBe(true);
+    expect(isPublicRoute("/brand/android-chrome-192x192.png")).toBe(true);
+    expect(isPublicRoute("/brand/maskable-512.png")).toBe(true);
+    expect(isPublicRoute("/brand/logo.svg")).toBe(true);
   });
 });
 

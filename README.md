@@ -340,6 +340,23 @@ The season overview (`/season`) is the fairness control surface for the league s
 - PostgreSQL (local via Docker Compose or Neon)
 - Auth.js (Google OAuth, email allowlist)
 
+## Installing Matchboard (PWA)
+
+Matchboard is an installable Progressive Web App — an installable application shell with normal
+network semantics, not an offline app. Installation is the browser's own feature; Matchboard
+publishes a standards-compliant web app manifest and icons and does not interfere with it
+(ADR-0123).
+
+- **Windows / macOS — Edge or Chrome**: use the install icon in the address bar, or the browser
+  menu → "Install Matchboard" / "Install app".
+- **Android — Chrome or Edge**: browser menu → "Install app" / "Add to Home screen".
+- **iPhone / iPad — Safari**: Share → "Add to Home Screen".
+
+Once installed, Matchboard launches in its own window at the Today page and Google sign-in works
+from the installed app. There is **no offline mode** — authenticated and live-match data always
+comes from the server, so nothing goes stale in a cache. The Test environment installs as
+"Matchboard Test" and shows a Test marker in the app so it can't be confused with Production.
+
 ## Access model
 
 Matchboard is a **private coaching app**. Access is restricted to authenticated coaches on an organisation basis. Internal planning notes, readiness signals, feedback, and selection reasoning remain private coach-facing data by default.

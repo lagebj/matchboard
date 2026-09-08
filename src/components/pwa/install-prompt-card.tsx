@@ -55,13 +55,18 @@ type InstallPwaCardProps = {
 };
 
 /**
- * InstallPwaCard — platform-aware "Install Matchboard" entry (PROGRAMME.md
- * §42). Android/Chromium gets a real `beforeinstallprompt` trigger when the
- * browser's own engagement heuristics allow it; that heuristic cannot be
- * bypassed by the app (no API exists to force it), so every other case
- * (iOS, and any browser/timing where the prompt hasn't fired yet) gets
- * static manual instructions instead of rendering nothing — the coach
- * should always have *something* actionable here, never a silent gap.
+ * InstallPwaCard — a *discovery helper* for installing Matchboard as a PWA
+ * (ADR-0123). The browser owns installation: Matchboard's manifest and icons
+ * are public and standards-compliant, so Edge/Chrome desktop show their
+ * address-bar install control and Android/Chromium offer "Install app" on
+ * their own. This card never suppresses that — it does NOT call
+ * `preventDefault()` on `beforeinstallprompt`; it only points the coach at
+ * the browser-native path and, where the browser handed us a deferred
+ * prompt, offers a one-tap shortcut to it.
+ *
+ * iOS has no `beforeinstallprompt` and no programmatic install, so it always
+ * gets the Share → Add to Home Screen instructions. Every non-installed state
+ * renders *something* actionable — never a silent gap.
  */
 export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
@@ -74,8 +79,11 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
     setIos(isIOS());
     if (dismissible) setDismissed(readDismissed());
 
+    // Capture the deferred prompt so we can offer a one-tap shortcut — but do
+    // NOT preventDefault(): the browser stays free to surface its own install
+    // affordance (address-bar icon, menu entry, mini-infobar). Matchboard does
+    // not own or gate installation.
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
       setInstallEvent(e as BeforeInstallPromptEvent);
     };
     const handleAppInstalled = () => {
@@ -134,7 +142,8 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
         <div>
           <p className="text-sm font-semibold text-zinc-100">Install Matchboard</p>
           <p className="text-xs text-[var(--text-muted)]">
-            Add Matchboard to your home screen for quick access.
+            Use your browser&apos;s install control, or tap Install here — Matchboard opens as its
+            own app.
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -174,10 +183,9 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
     );
   }
 
-  // Neither installed, iOS, nor a captured beforeinstallprompt — most likely Android/desktop
-  // Chromium before the browser's own engagement heuristic has allowed the native prompt, or a
-  // browser without install-prompt support at all. Either way, the browser's own menu is always
-  // a valid manual path, so show that rather than nothing.
+  // Not installed, not iOS, no deferred prompt captured (yet): desktop Edge/Chrome, or
+  // Android/Chromium before its engagement heuristic has offered the prompt. The browser owns the
+  // install control here — point at it rather than showing a button we can't back.
   return (
     <Surface variant="subtle" padding="md" className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-3">
@@ -185,7 +193,9 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
         <div>
           <p className="text-sm font-semibold text-zinc-100">Install Matchboard</p>
           <p className="text-xs text-[var(--text-muted)]">
-            Open your browser menu and look for &quot;Install app&quot; or &quot;Add to Home screen&quot;.
+            Install from your browser — an install icon in the address bar, or &quot;Install
+            app&quot; / &quot;Add to Home screen&quot; in the browser menu. Matchboard then opens as
+            its own app.
           </p>
         </div>
       </div>

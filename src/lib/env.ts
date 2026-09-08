@@ -176,6 +176,17 @@ export const PUBLIC_ROUTES = [
   // data. Do not widen this pair to cover unrelated routes.
   "/docs",
   "/api/search",
+  // PWA installation assets (ADR-0123). The web app manifest and its icons must be
+  // fetchable by the browser BEFORE authentication — install-before-sign-in is the
+  // normal flow, and on production Next.js fetches `<link rel="manifest">` without
+  // credentials (crossOrigin="use-credentials" is added only on Vercel `preview`),
+  // so an auth-gated manifest is never installable in any Chromium. These paths
+  // carry no tenant/player/match/user data: the manifest is name/start_url/icons/
+  // colours, and /brand/** is public branding artwork. Do not widen beyond this set.
+  "/manifest.webmanifest",
+  "/brand/",
+  "/icon.png",
+  "/apple-icon.png",
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];
