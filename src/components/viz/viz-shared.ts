@@ -1,5 +1,5 @@
 /**
- * Shared helpers for the Matchboard evidence-visualization primitives (ADR-0124 §16,
+ * Shared helpers for the Matchboard evidence-visualization primitives (ADR-0124 §7, ADR-0125,
  * docs/product/adaptive-interaction-design.md §13).
  *
  * Rules these primitives all follow:

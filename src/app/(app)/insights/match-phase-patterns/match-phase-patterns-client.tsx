@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock } from "lucide-react";
 import type { MatchPhasePatternRow } from "@/lib/evidence/match-phase-pattern-evidence";
-import { PeriodBars } from "@/components/viz";
+import { PeriodBars, MetricStory } from "@/components/viz";
 
 type LeagueSeasonOption = { id: string; name: string; startDate: string; endDate: string };
 type TeamOption = { id: string; name: string };
@@ -151,22 +151,66 @@ export function MatchPhasePatternsClient({
               );
               const periodLabel = PERIOD_LABELS[period] ?? period;
               const sampleContext = `${matches} match${matches === 1 ? "" : "es"} · confidence: ${confidences.join(" / ")}`;
+
+              const phaseStory = (
+                direction: "against" | "for",
+              ): { value: number; total: number; topLabel: string | null; interpretation: string } => {
+                const bars = rows.map((r) => ({
+                  label: PHASE_LABELS[r.phase] ?? r.phase,
+                  value: direction === "against" ? r.goalsAgainst : r.goalsFor,
+                }));
+                const total = bars.reduce((s, b) => s + b.value, 0);
+                const top = bars.reduce<{ label: string; value: number } | null>(
+                  (best, b) => (best && best.value >= b.value ? best : b),
+                  null,
+                );
+                const verb = direction === "against" ? "against" : "for";
+                const interpretation =
+                  total === 0
+                    ? `No goals ${verb} recorded in the ${periodLabel.toLowerCase()} in this sample.`
+                    : top && top.value > 0 && top.value * 2 > total
+                      ? `Goals ${verb} have appeared more often in the ${top.label.toLowerCase()} in this sample.`
+                      : `Goals ${verb} in the ${periodLabel.toLowerCase()} are spread across phases in this sample.`;
+                return { value: top?.value ?? 0, total, topLabel: top?.label ?? null, interpretation };
+              };
+
+              const against = phaseStory("against");
+              const forStory = phaseStory("for");
+
               return (
                 <section
                   key={period}
-                  className="flex flex-col gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] p-3.5"
+                  className="flex flex-col gap-4 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4"
                 >
                   <h2 className="app-row-title">{periodLabel}</h2>
-                  <div className="grid gap-4 medium:grid-cols-2">
-                    <PeriodBars
+                  <div className="grid gap-6 medium:grid-cols-2">
+                    <MetricStory
                       question={`When does ${teamName} concede in the ${periodLabel.toLowerCase()}?`}
-                      bars={rows.map((r) => ({ label: PHASE_LABELS[r.phase] ?? r.phase, value: r.goalsAgainst }))}
-                      sampleContext={`Goals conceded · ${sampleContext}`}
+                      label="Goals conceded by phase"
+                      value={against.value}
+                      comparator={against.topLabel ? `of ${against.total} in the ${against.topLabel.toLowerCase()}` : `${against.total} total`}
+                      visual={
+                        <PeriodBars
+                          question={`When does ${teamName} concede in the ${periodLabel.toLowerCase()}?`}
+                          bars={rows.map((r) => ({ label: PHASE_LABELS[r.phase] ?? r.phase, value: r.goalsAgainst }))}
+                        />
+                      }
+                      interpretation={against.interpretation}
+                      sampleContext={sampleContext}
                     />
-                    <PeriodBars
+                    <MetricStory
                       question={`When does ${teamName} score in the ${periodLabel.toLowerCase()}?`}
-                      bars={rows.map((r) => ({ label: PHASE_LABELS[r.phase] ?? r.phase, value: r.goalsFor }))}
-                      sampleContext={`Goals scored · ${sampleContext}`}
+                      label="Goals scored by phase"
+                      value={forStory.value}
+                      comparator={forStory.topLabel ? `of ${forStory.total} in the ${forStory.topLabel.toLowerCase()}` : `${forStory.total} total`}
+                      visual={
+                        <PeriodBars
+                          question={`When does ${teamName} score in the ${periodLabel.toLowerCase()}?`}
+                          bars={rows.map((r) => ({ label: PHASE_LABELS[r.phase] ?? r.phase, value: r.goalsFor }))}
+                        />
+                      }
+                      interpretation={forStory.interpretation}
+                      sampleContext={sampleContext}
                     />
                   </div>
                 </section>

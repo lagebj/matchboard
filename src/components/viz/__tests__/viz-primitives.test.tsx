@@ -4,6 +4,7 @@ import {
   TrendSpark,
   DistributionBar,
   PeriodBars,
+  PairedOutcomeBar,
   RangeBand,
   DeltaMetric,
   MetricStory,
@@ -56,6 +57,35 @@ describe("viz primitives — every primitive carries a text equivalent and no co
       />,
     );
     expect(screen.getByText(/Opening 10: 1; Final 10: 3/)).toBeInTheDocument();
+  });
+
+  it("PairedOutcomeBar: names both outcome measures and their values, no good/bad wording", () => {
+    render(
+      <PairedOutcomeBar
+        question="What happened while this combination was on the field?"
+        rows={[
+          { label: "Goals for", value: 5 },
+          { label: "Goals against", value: 2 },
+        ]}
+        sampleContext="Observed in 6 matches"
+      />,
+    );
+    const group = screen.getByRole("group", { name: /this combination was on the field/i });
+    expect(within(group).getByText(/Goals for: 5; Goals against: 2/)).toBeInTheDocument();
+    expect(within(group).queryByText(/good|bad|better|worse|strong|weak/i)).not.toBeInTheDocument();
+  });
+
+  it("PairedOutcomeBar: shows an explicit insufficient-evidence state", () => {
+    render(
+      <PairedOutcomeBar
+        question="What happened together?"
+        rows={[
+          { label: "Goals for", value: 0 },
+          { label: "Goals against", value: 0 },
+        ]}
+      />,
+    );
+    expect(screen.getAllByText(/Not enough evidence yet/).length).toBeGreaterThan(0);
   });
 
   it("RangeBand: states position relative to a supplied range, using neutral wording", () => {
