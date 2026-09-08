@@ -82,19 +82,25 @@ const resultTint: Record<MatchTicketResult, string> = {
 function TeamSide({
   name,
   align,
+  emphasis = "normal",
 }: {
   name: string;
   align: "start" | "end";
+  /** "won" / "lost" give a non-colour structural winner cue for a decided final result. */
+  emphasis?: "normal" | "won" | "lost";
 }) {
   return (
     <div
       className={cn(
         "flex min-w-0 flex-1 items-center gap-2",
         align === "end" && "flex-row-reverse text-right",
+        emphasis === "lost" && "opacity-55",
       )}
     >
       <TeamShield teamName={name} size="md" />
-      <span className="app-row-title truncate">{name}</span>
+      <span className={cn("app-row-title truncate", emphasis === "won" && "font-semibold")}>
+        {name}
+      </span>
     </div>
   );
 }
@@ -124,6 +130,20 @@ export function MatchTicket({
   // Left side is home, right side is away.
   const leftName = isHome ? teamName : opponent;
   const rightName = isHome ? opponent : teamName;
+
+  // Non-colour winner cue for a decided final result (accessibility: the score tint and the
+  // W/D/L word must not be the only signals of who won).
+  const decided = phase === "final" && hasScore && homeScore !== awayScore;
+  const homeEmphasis: "normal" | "won" | "lost" = !decided
+    ? "normal"
+    : homeScore! > awayScore!
+      ? "won"
+      : "lost";
+  const awayEmphasis: "normal" | "won" | "lost" = !decided
+    ? "normal"
+    : awayScore! > homeScore!
+      ? "won"
+      : "lost";
 
   const centre =
     phase === "live" || phase === "final" ? (
@@ -177,9 +197,9 @@ export function MatchTicket({
     >
       {/* Scoreboard row */}
       <div className="flex items-center gap-2">
-        <TeamSide name={leftName} align="start" />
+        <TeamSide name={leftName} align="start" emphasis={homeEmphasis} />
         {centre}
-        <TeamSide name={rightName} align="end" />
+        <TeamSide name={rightName} align="end" emphasis={awayEmphasis} />
       </div>
 
       {/* Status / orientation row */}

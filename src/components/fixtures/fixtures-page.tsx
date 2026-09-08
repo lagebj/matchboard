@@ -89,6 +89,24 @@ function MatchRow({ match }: { match: FixtureMatch }) {
     : "unknown";
 
   const startsAt = match.startsAt ? new Date(match.startsAt) : undefined;
+
+  // completedResult.goalsFor / goalsAgainst are our-team-relative. MatchTicket renders home on
+  // the left and away on the right, so the score must be oriented to home/away or an away win
+  // reads as if the home side won (bigger number under the wrong name).
+  const isHomeGame = match.venue === "Home";
+  const homeScore =
+    isCancelled || !completedResult
+      ? undefined
+      : isHomeGame
+        ? completedResult.goalsFor
+        : completedResult.goalsAgainst;
+  const awayScore =
+    isCancelled || !completedResult
+      ? undefined
+      : isHomeGame
+        ? completedResult.goalsAgainst
+        : completedResult.goalsFor;
+
   const blockerCount = match.blockerCount ?? 0;
   const decisionRequiredCount = match.decisionRequiredCount ?? 0;
   const condition =
@@ -108,12 +126,12 @@ function MatchRow({ match }: { match: FixtureMatch }) {
       <MatchTicket
         teamName={match.teamName}
         opponentName={match.opponent}
-        isHome={match.venue === "Home"}
+        isHome={isHomeGame}
         dateLabel={startsAt ? formatKickoffDate(startsAt) : undefined}
         kickoffTimeLabel={startsAt ? formatKickoffTime(startsAt) : undefined}
         lifecycleStatus={isCancelled ? "cancelled" : match.lifecycleStatus}
-        homeScore={isCancelled ? undefined : completedResult?.goalsFor}
-        awayScore={isCancelled ? undefined : completedResult?.goalsAgainst}
+        homeScore={homeScore}
+        awayScore={awayScore}
         result={isCancelled ? "unknown" : result}
         outcomeLabel={completedResult ? completedResult.outcome : undefined}
         conditionLabel={condition?.label}
