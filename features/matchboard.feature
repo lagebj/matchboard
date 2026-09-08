@@ -2360,15 +2360,23 @@ Feature: Matchboard football operations workspace
       Then the app must show no active work
 
 
-  Rule: Setup registries are table-first
+  Rule: Setup registries are table-first on desktop, purpose-built summaries on compact
 
-    Teams, Players, and Matches are setup registries — dense, table-first data views for efficient data entry.
-    Round selection remains workflow-first.
+    Teams, Players, and Matches are setup registries — dense, table-first data views for efficient
+    data entry on expanded/desktop viewports. Round selection remains workflow-first.
     Setup registries prioritize fast data entry, inline editing, and actionable empty states.
     Each registry has a dedicated create route that reliably opens a form.
+    On compact viewports (below 600px) a registry renders a purpose-built per-row summary, not a
+    card containing every desktop column (ADR-0124).
+
+    Scenario: Compact registry rows are purpose-built summaries, not column dumps
+      Given the coach opens a setup registry on a compact viewport
+      Then each row must be shown as a purpose-built summary with a clear link to the detail page
+      And the compact view must not render a card containing every desktop table column
+      And detail omitted from the compact summary must remain reachable on the detail page
 
     Scenario: Teams registry is table-first
-      Given the coach opens the Teams page
+      Given the coach opens the Teams page on an expanded viewport
       When teams exist
       Then the primary view must be a dense table of all teams
       And each table row must link to the team detail page

@@ -566,7 +566,7 @@ Rules:
 
 ## Setup registries
 
-Teams, Players, and Matches are setup registries — dense, table-first data views for efficient entry. Each registry has a dedicated create route, prominent Create actions, and actionable empty states. Create buttons must never be dead links.
+Teams, Players, and Matches are setup registries — dense, table-first data views for efficient entry on expanded/desktop viewports. On compact (`<600px`) a registry renders a purpose-built per-row summary rather than a card of every desktop column, with omitted detail reachable on the detail page (ADR-0124). Each registry has a dedicated create route, prominent Create actions, and actionable empty states. Create buttons must never be dead links.
 
 - **Teams** (`/teams`): dense table with core player count, squad limits, support priority. Create at `/teams/new`.
 - **Players** (`/players`): dense table with name, core team, position, availability. Create at `/players/new`. Requires at least one team.

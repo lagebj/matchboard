@@ -2407,7 +2407,16 @@ Operational workflow hierarchy:
 
 ### Setup registries are table-first
 
-Teams, Players, and Matches are setup registries. They serve data-entry efficiency, not football operations workflow. Each registry page is a dense table with prominent Create actions and actionable empty states. Create buttons must never be dead links. Empty states must link directly to creation.
+Teams, Players, and Matches are setup registries. They serve data-entry efficiency, not football
+operations workflow. On expanded/desktop each registry page is a dense table with prominent
+Create actions and actionable empty states. Create buttons must never be dead links. Empty states
+must link directly to creation.
+
+"Table-first" is the expanded/desktop rule. On compact (`<600px`), per ADR-0124 §11 and
+`docs/product/adaptive-interaction-design.md`, a registry renders a purpose-built per-row summary
+(via `ResponsiveTable`'s `renderCard`), not a card that dumps every desktop column; omitted
+detail stays reachable on the detail page. This is adaptive composition of the same registry, not
+a second view.
 
 - Teams (`/teams`): dense table of teams with core player count, squad limits, support priority. Links to `/teams/new` for creation. Links to `/teams/[teamId]` for detail. Empty state: "No teams yet. Create a team." with direct link to `/teams/new`.
 - Players (`/players`): three-mode surface — Season overview (actual participation and recorded match statistics for a selected league season), Current round attention (canonical live plan-integrity state for a selected round), Manage base groups (stable core-team assignment and player registry administration). Links to `/players/new` for creation. Links to `/players/[playerId]` for full profile. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Add a player." with direct link to `/players/new`.
