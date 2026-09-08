@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { getEvents } from '@/app/(app)/events/actions';
-import { formatKickoffDate } from '@/lib/date-utils';
+import { formatKickoffTime } from '@/lib/date-utils';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BrandedSurface } from '@/components/ui/branded-surface';
 import { formatGameFormat } from "@/lib/formatters/game-format";
@@ -28,9 +28,17 @@ function groupByMonth(events: EventListItem[]): Array<{ month: string; events: E
 function EventRow({ event, orgSlug }: { event: EventListItem; orgSlug: string }) {
   const available = event.players.filter((p) => p.status === 'AVAILABLE').length;
   const isDone = event.status === 'FINALIZED';
+  const start = new Date(event.startsAt);
+  const end = event.endsAt ? new Date(event.endsAt) : null;
+  // Date is an orientation column, not a metadata chip buried in a card (05 §4).
+  const dayLabel = start
+    .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })
+    .toUpperCase();
+  const timeRange = end
+    ? `${formatKickoffTime(start)}–${formatKickoffTime(end)}`
+    : formatKickoffTime(start);
   const meta = [
     formatEventType(event.eventType),
-    formatKickoffDate(new Date(event.startsAt)),
     formatGameFormat(event.gameFormat),
     `${event.squads.length} squad${event.squads.length === 1 ? '' : 's'}`,
     `${available} available`,
@@ -39,10 +47,14 @@ function EventRow({ event, orgSlug }: { event: EventListItem; orgSlug: string })
   return (
     <Link
       href={`/o/${orgSlug}/events/${event.id}`}
-      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3.5 py-3 transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+      className="flex items-start gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3.5 py-3 transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
     >
-      <div className="min-w-0">
+      <span className="w-[3.25rem] shrink-0 pt-0.5 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
+        {dayLabel}
+      </span>
+      <div className="min-w-0 flex-1">
         <p className="app-row-title truncate">{event.name}</p>
+        <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{timeRange}</p>
         <p className="mt-0.5 text-[13px] text-[var(--text-muted)] truncate">{meta}</p>
       </div>
       {isDone && (

@@ -354,7 +354,13 @@ describe("getAssistantCommandCentre", () => {
       },
     });
     await db.postMatchReport.create({
-      data: { matchId: todayMatch.id, status: "LOCKED", organisationId: fixture.organisationId },
+      data: {
+        matchId: todayMatch.id,
+        status: "LOCKED",
+        homeGoals: 3,
+        awayGoals: 1,
+        organisationId: fixture.organisationId,
+      },
     });
 
     try {
@@ -366,6 +372,9 @@ describe("getAssistantCommandCentre", () => {
       // The raw Prisma enum is uppercase ("LOCKED") — this must be lower-cased to match
       // TodayMatch.reportStatus's typed union, not passed through raw.
       expect(todayMatchEntry!.reportStatus).toBe("locked");
+      // Home/away-oriented score from the report passes through for the Today timeline.
+      expect(todayMatchEntry!.homeScore).toBe(3);
+      expect(todayMatchEntry!.awayScore).toBe(1);
     } finally {
       await db.postMatchReport.deleteMany({ where: { matchId: todayMatch.id } });
       await db.match.delete({ where: { id: todayMatch.id } });

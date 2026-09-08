@@ -88,6 +88,7 @@ export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eve
       contextLabel={eventName}
       periodConfig={getEventPeriodConfig(matchDurationMinutes, numberOfHalves, breakDurationMinutes ?? null)}
       actions={eventActions}
+      markOwnTeam={false}
     />
   );
 }

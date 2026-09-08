@@ -42,9 +42,12 @@ compact `<600`, medium `600–839`, expanded `840–1199`, large `1200–1599`, 
 (bottom nav → navigation rail → sidebar). Compact shows one primary object/task at a time, keeps
 team/season/round context recoverable, never requires drag or hover, respects safe areas and
 installed-PWA standalone display, and keeps the primary action clear of the fixed bottom nav. A
-single canonical match visual grammar (scheduled / live / final) is used across Today, League,
-Events, match detail, Follow Live, and history. See `docs/product/adaptive-interaction-design.md`
-and ADR-0124.
+single canonical match visual grammar — one `MatchPresentation` projection rendered through
+three variants (score row / card / header), scheduled / live / final / cancelled — is used
+across Today, League, Events, match detail, Follow Live, and history. Today and event detail
+lead with a chronological operational timeline; evidence surfaces present small factual data
+stories (a fixed set of seven native visualization primitives) rather than raw metric grids.
+See `docs/product/adaptive-interaction-design.md`, ADR-0124, and ADR-0125.
 
 ## User documentation
 

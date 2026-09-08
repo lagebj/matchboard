@@ -53,6 +53,10 @@ export type TodayMatch = {
   squadStatus: TodayMatchStatus;
   hasActiveLiveSession: boolean;
   reportStatus: "none" | "draft" | "reported" | "locked" | null;
+  /** Home/away-oriented final/interim score from the post-match report, or null when no report
+   * row exists yet (there is no server-side live-score aggregation). */
+  homeScore: number | null;
+  awayScore: number | null;
   /** The primary, football-action-oriented match status (ADR-0101). Supersedes squadStatus/
    * reportStatus/hasActiveLiveSession as the label shown to the coach; those remain available
    * above since hasActiveLiveSession also gates the separate "Follow live" action. */

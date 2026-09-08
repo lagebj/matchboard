@@ -111,6 +111,12 @@ export interface LiveMatchClientProps {
   contextLabel: string | null;
   periodConfig: PeriodConfig[];
   actions: LiveMatchActions;
+  /** True when our team plays at home — the scoreboard follows football home→away order
+   * (ADR-0125). Default true. Events have no home/away; pass `markOwnTeam={false}` there. */
+  isHome?: boolean;
+  /** Whether to subtly accent our team's name in the scoreboard. Default true; false for
+   * events (no home/away distinction to orient against). */
+  markOwnTeam?: boolean;
 }
 
 const FAIR_PLAY_POSITIVE_CATEGORIES = [
@@ -155,6 +161,22 @@ function LiveClock({ clock, periodConfig }: { clock: MatchClockState; periodConf
     <div className="text-center px-2 min-w-0">
       <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">{label}</div>
       <div className="text-xl font-mono font-semibold text-zinc-200 tabular-nums">{formatElapsedMs(elapsedMs)}</div>
+    </div>
+  );
+}
+
+function ScoreboardSide({ name, goals, own }: { name: string; goals: number; own: boolean }) {
+  return (
+    <div className="flex flex-1 min-w-0 flex-col items-center text-center">
+      <div className={`text-xs font-medium truncate ${own ? "text-[var(--accent)]" : "text-zinc-400"}`}>
+        {name}
+      </div>
+      <div
+        data-testid={own ? "live-score-us" : "live-score-them"}
+        className="text-4xl font-bold text-zinc-100 tabular-nums leading-tight"
+      >
+        {goals}
+      </div>
     </div>
   );
 }
@@ -259,7 +281,7 @@ function SyncStatusIndicator({ status, pendingCount }: { status: SyncStatus; pen
 }
 
 // --- Main Component ---
-export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions }: LiveMatchClientProps) {
+export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true }: LiveMatchClientProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -787,20 +809,25 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   return (
     <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-      {/* Scoreboard */}
+      {/* Scoreboard — canonical football home→away order (ADR-0125). Deliberately a
+          compact operational-focus density (one row, sticky) rather than the full
+          MatchHeader: the live action buttons must stay above the fold. Our team is
+          marked only by a subtle name accent, never by a score colour. */}
       <div className="sticky top-0 z-30 bg-zinc-900 border-b border-zinc-800">
         <div className="flex items-center px-3 py-2" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}>
-          <div className="flex-1 min-w-0 text-center">
-            <div className="text-xs font-medium text-zinc-400 truncate">{teamName}</div>
-            <div className="text-4xl font-bold text-emerald-400 tabular-nums leading-tight">{goalsFor}</div>
-          </div>
+          <ScoreboardSide
+            name={isHome ? teamName : opponentName}
+            goals={isHome ? goalsFor : goalsAgainst}
+            own={isHome && markOwnTeam}
+          />
           <div className="shrink-0">
             <LiveClock clock={clock} periodConfig={periodConfig} />
           </div>
-          <div className="flex-1 min-w-0 text-center">
-            <div className="text-xs font-medium text-zinc-400 truncate">{opponentName}</div>
-            <div className="text-4xl font-bold text-zinc-300 tabular-nums leading-tight">{goalsAgainst}</div>
-          </div>
+          <ScoreboardSide
+            name={isHome ? opponentName : teamName}
+            goals={isHome ? goalsAgainst : goalsFor}
+            own={!isHome && markOwnTeam}
+          />
         </div>
         <SyncStatusIndicator status={syncStatus} pendingCount={unsyncedCount} />
       </div>

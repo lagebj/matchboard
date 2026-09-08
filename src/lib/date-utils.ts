@@ -203,6 +203,14 @@ export function formatKickoffTime(startsAt: Date): string {
   return `${h}:${min}`;
 }
 
+/** Short uppercase calendar orientation label for a match, e.g. "SAT 12 SEP".
+ * Used as the subordinate date label in the canonical match presentation (ADR-0125). */
+export function formatMatchDateShort(startsAt: Date): string {
+  return startsAt
+    .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+    .toUpperCase();
+}
+
 /** Format a kickoff date+time for display (e.g. "Mon 15 Sep, 17:30"). */
 export function formatKickoffDateTime(startsAt: Date): string {
   return startsAt.toLocaleDateString("en-GB", {

@@ -2252,10 +2252,13 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
-### Adaptive interaction design (ADR-0124)
+### Adaptive interaction design (ADR-0124, ADR-0125)
 
 Canonical detail: `docs/product/adaptive-interaction-design.md`. This section is the concise
 normative rule; if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
+ADR-0125 (reference-convergence precision pass) sharpens the match grammar into a projection +
+three variants, makes the Operational Timeline a required structural element, and adds a seventh
+evidence primitive.
 
 - **Governing principle: same domain state, different composition for the user's context.**
   Compact UI is a purpose-built composition of the same canonical state, never the desktop
@@ -2278,41 +2281,74 @@ normative rule; if the two ever diverge that is a defect to fix, with `AGENTS.md
   Status never depends on colour alone. Dark appearance retained; no light mode in this
   programme. Compact typography scale: primary value 24–32, page title 20–24, row title 15–17,
   body/input 14–16 (mobile input ≥16 to avoid iOS zoom), meta 12–13, micro-label ≥11.
-- **One canonical match visual grammar** across Today, League/Fixtures, Events, match-detail
-  entry points, Follow Live entry points, history/results, and player-participation contexts —
-  evolve the existing canonical component, never competing per-surface match components.
-  Scheduled: teams/opponent → kick-off time/date → lifecycle → planning condition/action. Live:
-  teams → score → `LIVE` + clock → action/read-only state. Final: teams → final score → `FT` /
-  result → W/D/L. Never show a placeholder as a final score; **planning closed is not Done**;
+- **One canonical match visual grammar (ADR-0125)** across Today, League/Fixtures, Events,
+  match-detail entry points, Follow Live entry points, history/results, and player-participation
+  contexts. `MatchPresentation` (`src/lib/matches/match-presentation.ts`, built via
+  `buildMatchPresentation()`) is the one normalized display projection; surfaces render it
+  through **exactly three variants** in `src/components/ui/match-presentation.tsx` —
+  `MatchScoreRow` (dense divider-based scan row, no card border — League, timelines, history),
+  `MatchCard` (match as primary object, one bordered card + one dominant action — Today hero,
+  Round Board / event selected match), `MatchHeader` (match-page identity). Never build a
+  competing per-surface match component; never render a match row that does not come from
+  `MatchPresentation`. Football order is always home then away — never reorder to put the own
+  team first; mark the own team only subtly (accent on its name); no team logo. Score and
+  kickoff time share one stable right-aligned tabular value lane. Scheduled: teams → kick-off
+  time (value lane) / date subordinate → lifecycle → planning attention on the status line.
+  Live: teams → score → `LIVE` + clock → no list-row mutation controls. Final: teams → final
+  score → `FT` + optional W/D/L, or `FT · Report incomplete`. Cancelled: em dash, `CANCELLED`,
+  never `0-0`. Never show a placeholder as a final score; **planning closed is not Done**;
   finalized planning is not match completion; cancelled stays visibly cancelled; lifecycle from
   `deriveMatchLifecycleStatus()`; result colour is secondary reinforcement only.
-- **Today** leads with the dominant Next Action object, then a chronological now/next/later
-  flow, then quieter secondary coaching context, then distant/upcoming — never a detached metric
-  grid ahead of the Next Action. Counts like `2 decisions` attach to the round/match/event that
-  contains them. Preserve `getAssistantCommandCentre()` domain truth.
+- **Operational Timeline (ADR-0125)**: one canonical timeline system —
+  `src/components/ui/operational-timeline.tsx` (`OperationalTimeline` + `TimelineItem`) — used on
+  Today and Event detail. A structural time column + 2px rail + nodes, not a calendar/task
+  product. Match items render `MatchScoreRow`; the timeline owns time position. Current/live item
+  strongest with a filled node and its action available (no perpetual pulse); `NEXT` hollow node;
+  `LATER` quieter; earlier completed items muted and collapsible (compact Today shows ≤2 inline,
+  rest behind `Earlier today (N)`); an incomplete required follow-up (e.g. missing post-match
+  report) is never auto-collapsed. Untimed work never gets a fake clock time and never inserts
+  `--:--` — attach it under its owning object or a `Needs attention` block before `LATER`. No
+  empty rail: when nothing is scheduled show a short `Nothing scheduled today` + the next dated
+  item.
+- **Today** leads with the dominant Next Action object (a `MatchCard` when the next action is a
+  match), then the `OperationalTimeline` (now/next/later/earlier, one rail), then quieter
+  secondary coaching context, then distant/upcoming — never a detached metric grid ahead of the
+  Next Action; the "At a glance" tile row stays below the operational flow. Counts like
+  `2 decisions` attach to the round/match/event that contains them. Preserve
+  `getAssistantCommandCentre()` domain truth.
 - **Round Board**: expanded/large keeps the multi-match workbench. Compact shows one match at a
   time with a keyboard-accessible, touch-safe compact match selector; the selected match is
   URL-backed (`?match=<id>`) and survives refresh/back. Player movement has a tap path
   (`Player → Move → target match`); desktop drag may remain but is never required. All mutations
   call existing canonical server/domain operations — no client-only validation shortcut. Blocked
   / Decision required stay prominent.
-- **Events** are temporal: compact list chronological, grouped by month/date; event detail
-  presents an event-day match timeline using the canonical match grammar. Squad/evidence
-  semantics unchanged.
+- **Events** are temporal: compact list chronological, grouped by month/date; event detail leads
+  with an event-day match timeline (`OperationalTimeline` + `MatchScoreRow`) above squad/helper
+  administration. Squad/evidence semantics unchanged.
 - **Players**: desktop may keep a comparison table; compact renders a purpose-built player
   summary (name, core-team/base-group context, attention state, concise recent participation,
   role/position only where canonical data exists, clear entry to detail) — never a dump of every
-  desktop column. Omitted detail stays reachable on player detail. No player score, ranking, or
-  invented judgement logic.
+  desktop column. Player detail compact leads identity → availability/attention →
+  recent-opportunity `MetricStory` → position-exposure `MetricStory` → recent matches →
+  observations → secondary attributes; it does not lead with an overall rating. Omitted detail
+  stays reachable on player detail. No player score, ranking, or invented judgement logic.
 - **Evidence visualization**: the primitive set lives in `src/components/viz/` (`index.ts`
-  barrel) — `TrendSpark`, `DistributionBar`, `PeriodBars`, `RangeBand` (only with a real
-  canonical baseline + a `sampleContext` naming its source), `DeltaMetric`, `MetricStory`, plus
-  `viz-shared.ts` (categorical hues, direction/range helpers). Native SVG/CSS/React only. Every
-  primitive takes a required `question` prop, renders a visually-hidden text equivalent, exposes
-  an accessible name, works at 360px, and never relies on colour alone. No radar charts, no
-  overall player score, no rankings, no red/green good-bad scales, no causal wording from
-  correlation. Do not add a large chart dependency or a seventh primitive without amending
-  ADR-0124.
+  barrel) — **seven** primitives: `TrendSpark`, `DistributionBar`, `PeriodBars`,
+  `PairedOutcomeBar` (ADR-0125 — two factual outcome rows on one scale, neutral tokens, no
+  ranking, no red/green), `RangeBand` (only with a real canonical baseline + a `sampleContext`
+  naming its source), `DeltaMetric`, `MetricStory`, plus `viz-shared.ts` (categorical hues,
+  direction/range helpers). Native SVG/CSS/React only. Every primitive takes a required
+  `question` prop, renders a visually-hidden text equivalent, exposes an accessible name, works
+  at 360px, never relies on colour alone, and has an explicit insufficient-evidence state driven
+  by the engine's own confidence/sample rules. Fixed evidence-story → primitive mappings
+  (ADR-0125, do not substitute): recent opportunity → `MetricStory`+`TrendSpark`; position
+  exposure → `MetricStory`+`DistributionBar`; team match-phase → `MetricStory`+`PeriodBars`;
+  on-field combination → `MetricStory`+`PairedOutcomeBar`; planned rotation → `MetricStory`
+  (+`DeltaMetric` only when a comparator exists); position-pattern → `MetricStory` + a supported
+  small visual. Interpretation stays correlational (`appeared`/`observed`/`more frequent in this
+  sample`). No radar charts, no overall player score, no rankings, no red/green good-bad scales,
+  no causal wording from correlation, no wall of equal raw-metric cards. Do not add a large chart
+  dependency or an eighth primitive without amending ADR-0125.
 - **Documentation replacement rule**: when mutable guidance conflicts with this model, replace
   the old rule — do not leave both active, append a vague exception, or keep stale wording
   because it is older. ADRs are append-only; supersede via a new ADR.

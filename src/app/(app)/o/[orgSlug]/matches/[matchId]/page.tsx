@@ -53,7 +53,7 @@ export default async function MatchDetailPage({
 
   const postMatchReport = await db.postMatchReport.findUnique({
     where: { matchId, ...orgWhere },
-    select: { status: true },
+    select: { status: true, homeGoals: true, awayGoals: true },
   });
 
   const liveSession = await db.liveMatchSession.findUnique({
@@ -227,6 +227,8 @@ export default async function MatchDetailPage({
           cancelledAt: match.cancelledAt,
           cancelledReason: match.cancelledReason,
           postMatchStatus: postMatchReport?.status ?? undefined,
+          homeScore: postMatchReport?.homeGoals ?? null,
+          awayScore: postMatchReport?.awayGoals ?? null,
           lifecycleStatus,
           selections: [...selectionData, ...helperSelectionData],
           warnings: warningData,

@@ -44,6 +44,7 @@ import { BrandIllustration } from '@/components/ui/brand-illustration';
 import { RatingBadge } from '@/components/ratings/rating-badge';
 import { EventGuestPlayerPoolPanel } from '@/components/events/event-guest-player-pool-panel';
 import { EventMatchAvailabilityPanel } from '@/components/events/event-match-availability-panel';
+import { EventDayTimeline } from '@/components/events/event-day-timeline';
 
 type FormationSlotDisplay = { id: string; roleType: FormationSlotRoleType; label: string; shortLabel: string; acceptedPositionIds: string[]; gridX: number; gridY: number; sortOrder: number };
 
@@ -573,6 +574,12 @@ export function EventDetail({ data }: { data: EventDetailData }) {
 
       {activeTab === 'overview' && (
         <div className="space-y-4">
+          {/* Event day leads the overview — matches in chronological order,
+              canonical match grammar, above squad/pool administration (ADR-0125). */}
+          <EventDayTimeline
+            eventId={data.id}
+            squadNames={Object.fromEntries(data.squads.map((s) => [s.id, s.name]))}
+          />
           <Surface variant="default" padding="md">
             <SectionHeader title="Event details" />
             <div className="mt-3 grid gap-3 medium:grid-cols-2">

@@ -7,6 +7,7 @@ import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { PlannedPartnershipEvidenceList } from "@/components/matches/planned-partnership-evidence";
+import { MetricStory } from "@/components/viz";
 import {
   createPlannedRotationAction,
   updatePlannedRotationAction,
@@ -693,11 +694,28 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
         </div>
       )}
 
-      {scenario && (scenario.opponentContext.length > 0 || scenario.transitions.some((t) => t.signals.length > 0)) && (
+      {scenario && (scenario.opponentContext.length > 0 || scenario.transitions.some((t) => t.signals.length > 0)) && (() => {
+        // Evidence-story framing (ADR-0125): planned rotation evidence →
+        // MetricStory (no chart — the engine supplies no numeric comparator).
+        const historicalSignals = [
+          ...scenario.opponentContext,
+          ...scenario.transitions.flatMap((t) => t.signals),
+          ...scenario.startingLineupSignals.map((s) => s.signal),
+        ].filter((s) => s.kind === "HISTORICAL_PATTERN");
+        return (
         <div className="mt-3 flex flex-col gap-2">
-          <p className="text-xs font-semibold text-[var(--text-soft)]">
-            What happens with this plan — a hypothetical projection, not a prediction
-          </p>
+          {historicalSignals.length > 0 ? (
+            <MetricStory
+              question="Does this rotation plan resemble a historical pattern worth checking?"
+              label="Rotation pattern to review"
+              value={`${historicalSignals.length} relevant historical observation${historicalSignals.length === 1 ? "" : "s"}`}
+              interpretation={historicalSignals[0].text}
+            />
+          ) : (
+            <p className="text-xs font-semibold text-[var(--text-soft)]">
+              What happens with this plan — a hypothetical projection, not a prediction
+            </p>
+          )}
 
           {scenario.opponentContext.length > 0 && (
             <ul className="flex flex-col gap-1">
@@ -731,7 +749,8 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
               </div>
             ))}
         </div>
-      )}
+        );
+      })()}
     </Surface>
   );
 }

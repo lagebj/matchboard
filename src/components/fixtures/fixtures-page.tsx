@@ -3,7 +3,6 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 import type {
   FixturesOverview,
   FixturePeriod,
@@ -20,7 +19,8 @@ import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusRail } from "@/components/ui/status-rail";
-import { MatchTicket, type MatchTicketResult } from "@/components/ui/match-ticket";
+import { MatchScoreRow } from "@/components/ui/match-presentation";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { EmptyState } from "@/components/ui/empty-state";
 
 /**
@@ -72,45 +72,13 @@ function IntegritySummary({
 }
 
 function MatchRow({ match }: { match: FixtureMatch }) {
-  const isCompleted = match.reportState.state === "COMPLETED";
   const isCancelled = match.matchStatus === "CANCELLED";
-
-  const completedResult = isCompleted && match.reportState.state === "COMPLETED"
-    ? match.reportState.result
-    : undefined;
-
-  const result: MatchTicketResult = completedResult
-    ? completedResult.outcome === "WON"
-      ? "win"
-      : completedResult.outcome === "LOST"
-        ? "loss"
-        : completedResult.outcome === "DRAWN"
-          ? "draw"
-          : "unknown"
-    : "unknown";
-
-  const startsAt = match.startsAt ? new Date(match.startsAt) : undefined;
-
-  // completedResult.goalsFor / goalsAgainst are our-team-relative. MatchTicket renders home on
-  // the left and away on the right, so the score must be oriented to home/away or an away win
-  // reads as if the home side won (bigger number under the wrong name).
-  const isHomeGame = match.venue === "Home";
-  const homeScore =
-    isCancelled || !completedResult
-      ? undefined
-      : isHomeGame
-        ? completedResult.goalsFor
-        : completedResult.goalsAgainst;
-  const awayScore =
-    isCancelled || !completedResult
-      ? undefined
-      : isHomeGame
-        ? completedResult.goalsAgainst
-        : completedResult.goalsFor;
+  const completedResult =
+    match.reportState.state === "COMPLETED" ? match.reportState.result : undefined;
 
   const blockerCount = match.blockerCount ?? 0;
   const decisionRequiredCount = match.decisionRequiredCount ?? 0;
-  const condition =
+  const planningAttention =
     blockerCount > 0
       ? { label: `${blockerCount} blocked`, tone: "danger" as const }
       : decisionRequiredCount > 0
@@ -118,34 +86,30 @@ function MatchRow({ match }: { match: FixtureMatch }) {
             label: `${decisionRequiredCount} decision${decisionRequiredCount === 1 ? "" : "s"}`,
             tone: "warning" as const,
           }
-        : match.reportState.state === "DRAFT_REPORT_INCOMPLETE"
-          ? { label: "Report incomplete", tone: "warning" as const }
-          : null;
+        : null;
+  const reportAttention =
+    match.reportState.state === "DRAFT_REPORT_INCOMPLETE"
+      ? { label: "Report incomplete", tone: "warning" as const }
+      : null;
 
-  return (
-    <div>
-      <MatchTicket
-        teamName={match.teamName}
-        opponentName={match.opponent}
-        isHome={isHomeGame}
-        dateLabel={startsAt ? formatKickoffDate(startsAt) : undefined}
-        kickoffTimeLabel={startsAt ? formatKickoffTime(startsAt) : undefined}
-        lifecycleStatus={isCancelled ? "cancelled" : match.lifecycleStatus}
-        homeScore={homeScore}
-        awayScore={awayScore}
-        result={isCancelled ? "unknown" : result}
-        outcomeLabel={completedResult ? completedResult.outcome : undefined}
-        conditionLabel={condition?.label}
-        conditionTone={condition?.tone}
-        href={`/matches/${match.id}`}
-      />
-      {isCancelled && match.cancelledReason && (
-        <div className="mt-1 flex items-center gap-1.5 px-1">
-          <span className="text-[11px] text-[var(--text-muted)] truncate max-w-48">{match.cancelledReason}</span>
-        </div>
-      )}
-    </div>
-  );
+  const presentation = buildMatchPresentation({
+    id: match.id,
+    href: `/matches/${match.id}`,
+    teamName: match.teamName,
+    opponentName: match.opponent,
+    isHome: match.venue === "Home",
+    kickoffAt: match.startsAt ?? null,
+    lifecycleStatus: isCancelled ? "cancelled" : match.lifecycleStatus,
+    // completedResult goals are our-team-relative; the builder re-orients them.
+    ownGoals: completedResult ? completedResult.goalsFor : null,
+    opponentGoals: completedResult ? completedResult.goalsAgainst : null,
+    outcome: completedResult ? completedResult.outcome : null,
+    planningAttention,
+    reportAttention,
+    cancelledReason: isCancelled ? (match.cancelledReason ?? null) : null,
+  });
+
+  return <MatchScoreRow presentation={presentation} />;
 }
 
 function RoundSection({ round }: { round: FixtureRound }) {
@@ -200,7 +164,7 @@ function RoundSection({ round }: { round: FixtureRound }) {
             No matches in this round.
           </p>
         ) : (
-          <div className="divide-y divide-[var(--border-soft)]">
+          <div className="divide-y divide-[var(--border-soft)] px-3.5">
             {round.matches.map((match) => (
               <MatchRow key={match.id} match={match} />
             ))}
@@ -307,7 +271,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
 
       {/* Reduced card chrome (ADR-0124 §7): the header count line above is the
           single period-level summary. Unresolved conditions attach to the round
-          (IntegritySummary) and the match (MatchTicket conditionLabel). */}
+          (IntegritySummary) and the match (MatchScoreRow attention). */}
 
       <div className="flex flex-col gap-3">
         {period.rounds.length === 0 ? (
