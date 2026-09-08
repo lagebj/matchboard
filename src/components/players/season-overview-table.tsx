@@ -320,16 +320,28 @@ export function SeasonOverviewTable({
             )}
             renderCard={(row) => {
               const isExpanded = expandedPlayer === row.playerId;
+              // Purpose-built compact summary (ADR-0124 §11): identity + one concise
+              // participation line + role mix, not a dump of every desktop column. Full
+              // per-round movement stays behind the disclosure; full detail on the profile.
+              const roleMix = [
+                row.coreAppearances > 0 ? `Core ${row.coreAppearances}` : null,
+                row.supportAppearances > 0 ? `Support ${row.supportAppearances}` : null,
+                row.developmentAppearances > 0 ? `Dev ${row.developmentAppearances}` : null,
+              ].filter(Boolean);
+              const loadNotes = [
+                row.matchdayAdditions > 0 ? `+${row.matchdayAdditions} matchday` : null,
+                row.plannedButAbsent > 0 ? `${row.plannedButAbsent} planned absent` : null,
+              ].filter(Boolean);
               return (
                 <div className="rounded-xl border app-hairline bg-[rgba(12,15,20,0.45)] p-3">
                   {/* A <button> cannot contain the player-name <a> — nested interactive
                       controls fail WCAG 4.1.2 (axe: nested-interactive). The chevron is its
                       own real toggle button; the link is a sibling, not a descendant. */}
                   <div className="flex w-full items-center justify-between gap-2 text-left">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 min-w-0">
                       <button
                         type="button"
-                        className="text-[10px] text-zinc-600"
+                        className="text-[11px] text-zinc-500"
                         onClick={() => setExpandedPlayer(isExpanded ? null : row.playerId)}
                         aria-expanded={isExpanded}
                         aria-label={isExpanded ? "Collapse player details" : "Expand player details"}
@@ -338,32 +350,26 @@ export function SeasonOverviewTable({
                       </button>
                       <Link
                         href={`/players/${row.playerId}`}
-                        className="font-medium text-zinc-200 hover:text-zinc-50"
+                        className="app-row-title truncate text-zinc-200 hover:text-zinc-50"
                       >
                         {row.displayName}
                       </Link>
                     </span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="shrink-0 text-xs text-zinc-500">
                       {row.coreTeam?.name ?? "Unassigned"}
                     </span>
                   </div>
-                  <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-xs">
-                    {[
-                      ["Played", row.actualAppearances],
-                      ["Goals", row.goals],
-                      ["Assists", row.assists],
-                      ["Core", row.coreAppearances],
-                      ["Support", row.supportAppearances],
-                      ["Development", row.developmentAppearances],
-                      ["Matchday add.", numCell(row.matchdayAdditions)],
-                      ["Planned absent", numCell(row.plannedButAbsent)],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex flex-col">
-                        <dt className="app-copy-muted uppercase tracking-[0.1em] text-[9px]">{label}</dt>
-                        <dd className="app-copy-soft tabular-nums">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <p className="mt-1.5 text-[13px] text-[var(--text-soft)] tabular-nums">
+                    {row.actualAppearances} played
+                    {row.goals > 0 && <span> · {row.goals} G</span>}
+                    {row.assists > 0 && <span> · {row.assists} A</span>}
+                  </p>
+                  {roleMix.length > 0 && (
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)] tabular-nums">{roleMix.join(" · ")}</p>
+                  )}
+                  {loadNotes.length > 0 && (
+                    <p className="mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">{loadNotes.join(" · ")}</p>
+                  )}
                   {isExpanded && <div className="mt-2.5 border-t app-hairline pt-2.5">{renderMovement(row)}</div>}
                 </div>
               );
