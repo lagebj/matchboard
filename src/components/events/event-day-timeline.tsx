@@ -111,7 +111,7 @@ export function EventDayTimeline({ eventId, squadNames }: Props) {
               kicker={kicker}
               isLast={idx === lastIndex}
             >
-              <MatchScoreRow presentation={presentation} />
+              <MatchScoreRow presentation={presentation} inTimeline />
             </TimelineItem>
           );
         })}

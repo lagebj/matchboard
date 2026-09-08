@@ -103,6 +103,13 @@ describe("MatchScoreRow", () => {
     expect(screen.getAllByText("—").length).toBe(2);
     expect(screen.getByText("Pitch frozen")).toBeTruthy();
   });
+
+  it("inTimeline: a scheduled row does not repeat the kickoff time (the rail owns it)", () => {
+    render(<MatchScoreRow presentation={scheduled} inTimeline />);
+    expect(screen.queryByText("17:30")).toBeNull();
+    // The planning attention still reads on the status line.
+    expect(screen.getByText("2 decisions")).toBeTruthy();
+  });
 });
 
 describe("MatchCard", () => {

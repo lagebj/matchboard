@@ -77,22 +77,43 @@ type MatchScoreRowProps = {
   /** Falls back to `presentation.href`. */
   href?: string;
   onClick?: () => void;
+  /**
+   * Suppress the scheduled-phase kickoff time / date in the value lane — used
+   * when the row sits inside an `OperationalTimeline` that already owns the time
+   * position (02 §3.1: do not duplicate the time in both places).
+   */
+  inTimeline?: boolean;
   className?: string;
 };
 
-export function MatchScoreRow({ presentation: p, href, onClick, className }: MatchScoreRowProps) {
+export function MatchScoreRow({
+  presentation: p,
+  href,
+  onClick,
+  inTimeline = false,
+  className,
+}: MatchScoreRowProps) {
   const phase = matchPresentationPhase(p);
   const attention = primaryAttention(p);
   const target = href ?? p.href ?? undefined;
+  const suppressScheduledTime = inTimeline && phase === "scheduled";
 
   const homeValue =
-    phase === "scheduled" ? (p.kickoffTime ?? "—") : phase === "cancelled" ? "—" : (p.score?.home ?? "—");
-  const awayValueIsDate = phase === "scheduled";
+    phase === "scheduled"
+      ? suppressScheduledTime
+        ? ""
+        : (p.kickoffTime ?? "—")
+      : phase === "cancelled"
+        ? "—"
+        : (p.score?.home ?? "—");
+  const awayValueIsDate = phase === "scheduled" && !suppressScheduledTime;
   const awayValue = awayValueIsDate
     ? (p.kickoffDate ?? "")
-    : phase === "cancelled"
-      ? "—"
-      : (p.score?.away ?? "—");
+    : phase === "scheduled"
+      ? ""
+      : phase === "cancelled"
+        ? "—"
+        : (p.score?.away ?? "—");
 
   const valueTint = phase === "final" ? outcomeTint[p.resultOutcomeForOwnTeam] : "text-zinc-50";
 

@@ -616,7 +616,7 @@ function TodayOperationalTimeline({
         kicker={kicker}
         isLast={idx === lastIndex}
       >
-        <MatchScoreRow presentation={todayMatchPresentation(match, href)} />
+        <MatchScoreRow presentation={todayMatchPresentation(match, href)} inTimeline />
         {match.hasActiveLiveSession ? (
           <Button
             as={Link}
