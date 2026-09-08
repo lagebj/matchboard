@@ -304,6 +304,16 @@ canonical match grammar, typography, safe-area, and touch rules. Preserve: live 
 mutable, Follow Live is read-only, score/clock/on-field state derives from canonical live state,
 refresh does not change truth. Do not merge read-only and mutating interaction patterns.
 
+- **Follow Live** and **League match detail** use the full `MatchHeader` variant for the match
+  identity.
+- **Live Reporting** keeps a compact **one-row** sticky scoreboard — a deliberate
+  operational-focus density exception so the live action buttons stay above the fold — but it
+  follows canonical football home→away order and marks the own team by a subtle name accent, not
+  a score colour.
+- The Today operational timeline shows a scoreline + W/D/L for a played match once a post-match
+  report exists; a live match with no report row shows state + the "Follow live" action (there
+  is no server-side live-score aggregation to read here).
+
 ## 13. Data-visualization grammar
 
 Do not start by choosing a chart library. Every visualization answers a concrete question. Model:

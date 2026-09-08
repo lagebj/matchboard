@@ -148,7 +148,13 @@ reduced motion. Existing Matchboard colour tokens only — no reference-app colo
 
 - One match projection and three variants replace per-surface match rows (Fixtures
   `MatchTicket`, Today's bespoke `TodayMatchRow`, Events' bespoke `EventMatchCard`),
-  reducing drift and screenshot churn.
+  reducing drift and screenshot churn. `MatchHeader` is used on League match detail and
+  Follow Live; Live Reporting keeps a compact one-row sticky scoreboard (an explicit
+  operational-focus density exception) that still follows football home→away order.
+- `TodayMatch` gains `homeScore`/`awayScore` (home/away oriented, from the post-match
+  report) so the Today timeline shows a scoreline + W/D/L for a played match. There is no
+  server-side live-score aggregation, so a live match with no report row shows state + the
+  "Follow live" action instead.
 - `docs/product/adaptive-interaction-design.md` gains the precise timeline anatomy, the
   three match variants, the seven-primitive set, the fixed story mappings, and the visual
   grammar values. `AGENTS.md`'s "Adaptive interaction design" section is updated to match.
