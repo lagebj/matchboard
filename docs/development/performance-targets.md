@@ -64,7 +64,7 @@ or synthetic Lighthouse run as a substitute for real-user field data.
   Revisit if Speed Insights ever flags real-world image transfer size as a problem on pages
   using it.
 - No bundle-size analysis has been run. `motion` (used by `player-magnet.tsx`,
-  `match-ticket.tsx`) ships on the Fixtures route's bundle; whether its tree-shaken size is
+  `match-presentation.tsx`) ships on the Fixtures route's bundle; whether its tree-shaken size is
   actually a problem is unmeasured. Do not guess at further changes here without evidence —
   fix what Speed Insights/a real bundle analyzer actually shows once there's enough
   traffic/signal to act on, not what seems plausible in the abstract.

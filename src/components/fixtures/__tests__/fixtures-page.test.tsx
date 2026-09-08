@@ -231,7 +231,7 @@ describe("FixturesPage", () => {
     });
   });
 
-  it("shows cancelled badge for cancelled matches", async () => {
+  it("shows a cancelled state and reason for cancelled matches", async () => {
     fetchFixturesOverview.mockResolvedValue({
       periods: [makePeriod({
         rounds: [makeRound({
@@ -252,7 +252,8 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Cancelled")).toBeInTheDocument();
+      expect(screen.getByText("CANCELLED")).toBeInTheDocument();
     });
+    expect(screen.getByText("Weather")).toBeInTheDocument();
   });
 });
