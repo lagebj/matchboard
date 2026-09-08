@@ -56,7 +56,7 @@ Each entry gives: definition, scope, deprecated synonyms (never use in visible p
 - **Scope:** A Squad is a selection state, not a persistent entity — contrast with Team, which persists across rounds.
 - **Deprecated synonyms:** Roster.
 - **Singular / Plural:** Squad / Squads.
-- **Related actions:** Generate, Review, Adjust, Finalise.
+- **Related actions:** Generate, Review, Adjust.
 
 ### Lineup
 - **Definition:** The assignment of selected players to specific match positions within a formation, for one match.
@@ -72,14 +72,18 @@ Each entry gives: definition, scope, deprecated synonyms (never use in visible p
 - **Scope:** League planning only; Events do not use Rounds.
 - **Deprecated synonyms:** Week, Planning period (see `docs/domain/terminology.md`).
 - **Singular / Plural:** Round / Rounds.
-- **Related actions:** Generate, Review, Finalise, Un-finalise, Clear, Regenerate.
+- **Related actions:** Generate, Review, Clear, Regenerate. (A round becomes Finalised
+  automatically when every constituent match's planning boundary closes — ADR-0109 — not via a
+  coach action.)
 
 ### Match
 - **Definition:** A single played or playable football contest, belonging to a Round (league) or an Event.
 - **Scope:** The atomic unit of squad planning and post-match reporting.
 - **Deprecated synonyms:** Game (see `docs/domain/terminology.md`), Fixture (a Fixture is a scheduled Match, not a synonym — see Domain boundaries in that document).
 - **Singular / Plural:** Match / Matches.
-- **Related actions:** Add, Edit, Cancel, Reopen, Finalise, Start live match, Open post-match report.
+- **Related actions:** Add, Edit, Cancel, Reopen, Start live match, Open post-match report. (A
+  match's plan becomes historical automatically at its planning boundary — ADR-0109 — not via a
+  Finalise action.)
 
 ### Event
 - **Definition:** A cup, tournament, or friendly-day container, independent of League seasons, with its own squads and matches.
@@ -162,9 +166,13 @@ These four are also fully defined behaviourally in `AGENTS.md` ("Round status mo
 ### Finalised
 - **Definition:** Locked history. Selections/lineups/reports that cannot be silently mutated once in this state. UK spelling "Finalised" in all visible product language (see `docs/domain/terminology.md`).
 - **Scope:** Applies to Rounds, Matches, Event squads (as "Locked" — see Event squad's own Draft/Locked lifecycle, a parallel but distinct vocabulary), reports.
+- **How it is reached (ADR-0109):** for League Rounds/Matches, automatically when the match's
+  real-world planning boundary closes (kickoff passes, or live reporting starts) — there is no
+  coach "Finalise" action. Reversed only by a genuine reschedule that proves the match had not
+  started (`reopenMatchPlanningForReschedule()`), never a standalone "Un-finalise".
 - **Deprecated synonyms:** Finalized (US spelling), Completed (see next entry — different concept), Locked (Locked is the Event-squad-specific term; Finalised is the League round/match term).
 - **Singular / Plural:** n/a — a state.
-- **Related actions:** Finalise, Un-finalise.
+- **Related actions:** (none coach-operated) — a reschedule can reopen planning.
 
 ### Completed
 - **Definition:** A post-match report that has been fully filled in and locked (the LOCKED report status, reached via the single visible "Complete report" action — see `AGENTS.md`'s "Direct post-match workflow").
@@ -206,11 +214,21 @@ These four are also fully defined behaviourally in `AGENTS.md` ("Round status mo
 - **Deprecated synonyms:** OK, Submit.
 - **Related actions:** Confirm lineup, Confirm event squads.
 
-### Finalise
-- **Definition:** The specific action that locks League round/match selections into history, requiring an override reason if Blocked/Decision-required conditions exist.
-- **Scope:** League rounds and matches only — see `AGENTS.md`'s "Per-match and round finalization".
-- **Deprecated synonyms:** Finalize (US spelling), Submit, Confirm (Confirm is the generic verb; Finalise is the specific domain action), Lock (Lock is the Event-squad equivalent verb).
-- **Related actions:** Finalise round, Finalise match, Un-finalise.
+### Finalise (derived, not a coach action — ADR-0109)
+- **Definition:** A League round/match's plan becoming historical. This is **not** a coach-operated
+  action — it happens automatically the moment the match's real-world planning boundary closes
+  (scheduled kickoff passes, or live reporting starts, whichever is first). `Selection.status`
+  FINALIZED and `MatchRound.status` FINALIZED keep their exact meaning for every reader
+  (evidence, fairness, exports, history); only the write trigger changed.
+- **Scope:** League rounds and matches. See `AGENTS.md`'s "Derived coach workflow lifecycle
+  (ADR-0109)" and "Planning baseline capture".
+- **No such button:** there is no "Finalise round" / "Finalise match" / "Un-finalise" control,
+  no `finalizeRoundAction`, no `/api/finalize-round`. A coach who wants to consciously accept a
+  Blocked / Decision-required condition before the boundary closes does so via a manual edit's
+  own override reason. A genuine reschedule that proves a match hasn't started reopens its
+  planning (`reopenMatchPlanningForReschedule()`) — this is not "un-finalise".
+- **Deprecated synonyms / stale terms:** Finalize (US spelling), Submit, Confirm, Lock (Lock is
+  the still-current Event-squad-set verb), "Finalise round", "Finalise match", "Un-finalise".
 
 ## Player evaluation
 

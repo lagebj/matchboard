@@ -1,11 +1,11 @@
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 
-// Additive to, never a replacement for, the mandatory round status vocabulary (AGENTS.md
-// "Status vocabulary": "The app uses exactly these visible status labels: Not generated, Draft,
-// Blocked, Ready, Finalized"). That vocabulary describes selection-planning completeness. Round
-// progress describes a different axis — has the round actually been played and reported yet —
-// per DECISIONS.md's target lifecycle vocabulary (Planning/Partially played/All matches
-// played/Reporting/Complete). Surface both, side by side; never substitute one for the other.
+// Additive to, never a replacement for, the round-level selection-planning-completeness
+// vocabulary (Not generated / Draft / Blocked / Ready / Finalized — AGENTS.md "Round status
+// model"). Since ADR-0101 that vocabulary is internal/secondary for a single match; the primary
+// per-match label is the derived lifecycle status. Round progress describes yet another axis —
+// has the round actually been played and reported yet (Planning / Partially played / All matches
+// played / Reporting / Complete). Surface these side by side; never substitute one for another.
 export type RoundProgressStage = "PLANNING" | "PARTIALLY_PLAYED" | "ALL_PLAYED" | "REPORTING" | "COMPLETE";
 
 export type RoundProgressMatchInput = {
