@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   addPlayerToMatchAction,
   removePlayerFromMatchAction,
@@ -259,9 +259,12 @@ function MatchColumnComponent({
   onTouchStartPlayer,
   isTouchHighlight,
   touchDragPlayerId,
+  fullWidth = false,
 }: {
   match: MatchColumn;
   isPending: boolean;
+  /** Compact one-match view: fill the row instead of the fixed scroll-snap width. */
+  fullWidth?: boolean;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
   onDragStart: (
@@ -314,7 +317,9 @@ function MatchColumnComponent({
       data-drop-match={match.matchId}
       className={[
         "flex flex-col rounded-xl border transition-colors",
-        "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
+        fullWidth
+          ? "w-full"
+          : "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
         highlightActive
           ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
           : "border-[var(--border-soft)] bg-[var(--surface-base)]",
@@ -430,9 +435,25 @@ export function RoundBoard({
   fairnessMetrics,
 }: RoundBoardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason] = useState("");
+
+  // Compact one-match view (ADR-0124 §12): the selected match is URL-backed (`?match=<id>`) so
+  // it survives refresh and back navigation. Falls back to the first match; an unknown id is
+  // ignored. Expanded/large keeps the full multi-match workbench below.
+  const rawSelectedMatch = searchParams.get("match");
+  const selectedMatchId =
+    matches.find((m) => m.matchId === rawSelectedMatch)?.matchId ?? matches[0]?.matchId ?? null;
+  const setSelectedMatch = useCallback(
+    (matchId: string) => {
+      const params = new URLSearchParams(Array.from(searchParams.entries()));
+      params.set("match", matchId);
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   // Non-drag "Move to..." alternative (PROGRAMME.md §50). Desktop/expanded
   // viewports get a Dialog-based list (no dropdown/menu primitive exists
@@ -843,18 +864,50 @@ export function RoundBoard({
         </details>
       )}
 
-      {matches.length > 1 && (
-        <p className="text-[11px] text-[var(--text-muted)] expanded:hidden">
-          Swipe to see other matches →
-        </p>
+      {/* Compact one-match selector (ADR-0124 §12). Expanded shows every match at once below. */}
+      {isCompactViewport && matches.length > 1 && (
+        <div
+          role="tablist"
+          aria-label="Select match"
+          className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1 expanded:hidden"
+        >
+          {matches.map((m) => {
+            const active = m.matchId === selectedMatchId;
+            return (
+              <button
+                key={m.matchId}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSelectedMatch(m.matchId)}
+                className={[
+                  "shrink-0 rounded-lg border px-3 py-2 text-left transition-colors min-h-[44px]",
+                  active
+                    ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)] text-zinc-50"
+                    : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)]",
+                ].join(" ")}
+              >
+                <span className="block text-[13px] font-medium truncate max-w-[9rem]">{m.teamName}</span>
+                <span className="block text-[11px] text-[var(--text-muted)] truncate max-w-[9rem]">
+                  vs {m.opponent}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {/* Below `expanded` (840px), fixed-width match columns don't fit — a phone or a
           medium-tier tablet needs horizontal scroll-snap instead of a squeezed grid.
+          On compact only the URL-selected match column renders (one match at a time);
           `gridTemplateColumns` only takes effect once `display: grid` is active
           (expanded:grid below), so it's harmless to set unconditionally. */}
       <div
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 expanded:mx-0 expanded:px-0 expanded:grid expanded:overflow-visible expanded:snap-none expanded:pb-0"
+        className={
+          isCompactViewport
+            ? "flex flex-col gap-4"
+            : "flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 expanded:mx-0 expanded:px-0 expanded:grid expanded:overflow-visible expanded:snap-none expanded:pb-0"
+        }
         style={{
           gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))`,
         }}
@@ -890,7 +943,9 @@ export function RoundBoard({
           data-drop-available
           className={[
             "flex flex-col rounded-xl border transition-colors",
-            "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
+            isCompactViewport
+              ? "w-full"
+              : "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
             availableDragOver || touchDropTarget === "available"
               ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
               : "border-[var(--border-soft)] bg-[var(--surface-base)]",
@@ -954,11 +1009,15 @@ export function RoundBoard({
           </div>
         </div>
 
-        {matches.map((match) => (
+        {(isCompactViewport && selectedMatchId
+          ? matches.filter((m) => m.matchId === selectedMatchId)
+          : matches
+        ).map((match) => (
           <MatchColumnComponent
             key={match.matchId}
             match={match}
             isPending={isPending}
+            fullWidth={isCompactViewport}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleDropOnMatch(match.matchId, e)}
             onDragStart={(e, playerId, _fromMatchId, currentRole) =>

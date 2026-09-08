@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RoundBoard } from "../round-board";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/app/(app)/rounds/[matchRoundId]/draft-selection-actions", () => ({
@@ -312,14 +313,36 @@ describe("RoundBoard — phone-responsive match columns", () => {
     }
   });
 
-  it("shows a swipe hint only when there is more than one match", () => {
-    const { rerender } = render(<RoundBoard {...baseProps()} />);
-    expect(screen.getByText(/swipe to see other matches/i)).toBeTruthy();
+  it("non-compact viewport: no one-match selector, every match column renders", () => {
+    const { container } = render(<RoundBoard {...baseProps()} />);
+    expect(screen.queryByRole("tablist", { name: /select match/i })).toBeNull();
+    expect(container.querySelector('[data-drop-match="m-blue"]')).toBeTruthy();
+    expect(container.querySelector('[data-drop-match="m-white"]')).toBeTruthy();
+  });
 
-    const singleMatchProps = baseProps();
-    singleMatchProps.matches = [singleMatchProps.matches[0]];
-    rerender(<RoundBoard {...singleMatchProps} />);
-    expect(screen.queryByText(/swipe to see other matches/i)).toBeNull();
+  it("compact viewport: renders a one-match selector and only the URL-selected match column (ADR-0124 §12)", () => {
+    const orig = window.matchMedia;
+    window.matchMedia = ((q: string) => ({
+      matches: true,
+      media: q,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const { container } = render(<RoundBoard {...baseProps()} />);
+      const tablist = screen.getByRole("tablist", { name: /select match/i });
+      expect(within(tablist).getByRole("tab", { name: /Blue/ })).toBeTruthy();
+      expect(within(tablist).getByRole("tab", { name: /White/ })).toBeTruthy();
+      // One match at a time: only the first (default-selected) match column is mounted.
+      expect(container.querySelector('[data-drop-match="m-blue"]')).toBeTruthy();
+      expect(container.querySelector('[data-drop-match="m-white"]')).toBeNull();
+    } finally {
+      window.matchMedia = orig;
+    }
   });
 });
 
