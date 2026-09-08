@@ -44,15 +44,15 @@ export function MobileNav({ orgSlug }: { orgSlug: string }) {
             <Link
               key={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-2 transition-colors ${
+              className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-1 rounded-lg px-3 py-1.5 transition-colors ${
                 active
                   ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
                   : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/40 hover:text-zinc-100"
               }`}
               href={item.href}
             >
-              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-              <span className="text-[9px] font-semibold uppercase tracking-[0.12em]">{t(item.labelKey)}</span>
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              <span className="text-[11px] font-semibold tracking-[0.02em]">{t(item.labelKey)}</span>
             </Link>
           );
         })}

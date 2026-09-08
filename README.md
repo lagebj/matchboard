@@ -32,6 +32,20 @@ The canonical primary navigation is: Today, League, Events, Players, More.
 - Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
 - More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Reviews.
 
+## Adaptive interaction design
+
+Matchboard is one adaptive application, not a desktop app with a stacked mobile fallback. The
+governing rule is **same domain state, different composition for the user's context**: the same
+canonical facts are true at every viewport, and what adapts is the amount of visible
+information, its order, density, interaction method, and supporting context. Breakpoints are
+compact `<600`, medium `600–839`, expanded `840–1199`, large `1200–1599`, xlarge `≥1600`
+(bottom nav → navigation rail → sidebar). Compact shows one primary object/task at a time, keeps
+team/season/round context recoverable, never requires drag or hover, respects safe areas and
+installed-PWA standalone display, and keeps the primary action clear of the fixed bottom nav. A
+single canonical match visual grammar (scheduled / live / final) is used across Today, League,
+Events, match detail, Follow Live, and history. See `docs/product/adaptive-interaction-design.md`
+and ADR-0124.
+
 ## User documentation
 
 Matchboard has a public documentation site at `/docs` (no login required) and a matching

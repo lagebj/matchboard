@@ -69,7 +69,7 @@ export function NavigationRail({ orgSlug }: { orgSlug: string }) {
                   className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}`}
                   aria-hidden="true"
                 />
-                <span className="w-full truncate text-[9px] font-semibold uppercase tracking-[0.08em]">
+                <span className="w-full truncate text-[11px] font-semibold tracking-[0.01em]">
                   {t(item.labelKey)}
                 </span>
               </Link>

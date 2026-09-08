@@ -89,7 +89,7 @@ export function SidebarNav({ orgSlug }: { orgSlug: string }) {
 
       {/* Pitch-line subtle texture hint at bottom */}
       <div className="border-t border-[var(--border-soft)] px-4 py-3">
-        <p className="text-[9px] uppercase tracking-[0.18em] text-[var(--text-disabled)]">v{APP_VERSION}</p>
+        <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-disabled)]">v{APP_VERSION}</p>
       </div>
     </nav>
   );

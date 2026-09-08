@@ -2252,6 +2252,68 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
+### Adaptive interaction design (ADR-0124)
+
+Canonical detail: `docs/product/adaptive-interaction-design.md`. This section is the concise
+normative rule; if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
+
+- **Governing principle: same domain state, different composition for the user's context.**
+  Compact UI is a purpose-built composition of the same canonical state, never the desktop
+  layout stacked vertically. What adapts across viewports: amount of visible information, order,
+  density, interaction method, supporting context. The facts never change. Every primary surface
+  optimises for Scan → Understand → Decide → Act → Confirm.
+- **Breakpoints are retained and load-bearing** (`globals.css` `@theme`): compact `<600`,
+  medium `600–839`, expanded `840–1199`, large `1200–1599`, xlarge `≥1600`. Do not replace with
+  framework defaults. Compact → bottom nav; medium → navigation rail; expanded+ → sidebar.
+- **Compact (`<600px`) rules**: one primary object/task at a time; single-column primary
+  content; no page-level horizontal scroll 360–430px; team/season/round/event context stays
+  visible or recoverable (compact context strip, e.g. `Autumn 2026 · Round 7`) — not hidden
+  because width is small; no hover-only action; no drag-only workflow; touch targets ~44×44 CSS
+  px where practical; no routine 9px primary UI text (reduce density, not font size); content
+  and sticky actions clear the fixed bottom nav and `env(safe-area-inset-*)`; the primary
+  action can never be hidden by fixed nav; preserve installed-PWA standalone display (ADR-0123).
+- **Reduced card chrome**: a card is a coherent interactive object (match, event, next action,
+  decision, evidence story) — not every metric or text fragment. Prefer whitespace, spacing,
+  typography, alignment, thin dividers, grouped rows. One visually dominant action per context.
+  Status never depends on colour alone. Dark appearance retained; no light mode in this
+  programme. Compact typography scale: primary value 24–32, page title 20–24, row title 15–17,
+  body/input 14–16 (mobile input ≥16 to avoid iOS zoom), meta 12–13, micro-label ≥11.
+- **One canonical match visual grammar** across Today, League/Fixtures, Events, match-detail
+  entry points, Follow Live entry points, history/results, and player-participation contexts —
+  evolve the existing canonical component, never competing per-surface match components.
+  Scheduled: teams/opponent → kick-off time/date → lifecycle → planning condition/action. Live:
+  teams → score → `LIVE` + clock → action/read-only state. Final: teams → final score → `FT` /
+  result → W/D/L. Never show a placeholder as a final score; **planning closed is not Done**;
+  finalized planning is not match completion; cancelled stays visibly cancelled; lifecycle from
+  `deriveMatchLifecycleStatus()`; result colour is secondary reinforcement only.
+- **Today** leads with the dominant Next Action object, then a chronological now/next/later
+  flow, then quieter secondary coaching context, then distant/upcoming — never a detached metric
+  grid ahead of the Next Action. Counts like `2 decisions` attach to the round/match/event that
+  contains them. Preserve `getAssistantCommandCentre()` domain truth.
+- **Round Board**: expanded/large keeps the multi-match workbench. Compact shows one match at a
+  time with a keyboard-accessible, touch-safe compact match selector; the selected match is
+  URL-backed (`?match=<id>`) and survives refresh/back. Player movement has a tap path
+  (`Player → Move → target match`); desktop drag may remain but is never required. All mutations
+  call existing canonical server/domain operations — no client-only validation shortcut. Blocked
+  / Decision required stay prominent.
+- **Events** are temporal: compact list chronological, grouped by month/date; event detail
+  presents an event-day match timeline using the canonical match grammar. Squad/evidence
+  semantics unchanged.
+- **Players**: desktop may keep a comparison table; compact renders a purpose-built player
+  summary (name, core-team/base-group context, attention state, concise recent participation,
+  role/position only where canonical data exists, clear entry to detail) — never a dump of every
+  desktop column. Omitted detail stays reachable on player detail. No player score, ranking, or
+  invented judgement logic.
+- **Evidence visualization**: small native SVG/CSS/React primitive set only — `TrendSpark`,
+  `DistributionBar`, `PeriodBars`, `RangeBand` (only with a real canonical baseline),
+  `DeltaMetric`, `MetricStory`. Every visualization has a concrete question, a text equivalent,
+  visible sample/evidence context, works at 360px, exposes accessible names. No radar charts, no
+  overall player score, no rankings, no red/green good-bad scales, no causal wording from
+  correlation. Do not add a large chart dependency for this work.
+- **Documentation replacement rule**: when mutable guidance conflicts with this model, replace
+  the old rule — do not leave both active, append a vague exception, or keep stale wording
+  because it is older. ADRs are append-only; supersede via a new ADR.
+
  ### Canonical routes
  
 Primary navigation (5 items, in this order) — the Today/League/Events/Players/More
