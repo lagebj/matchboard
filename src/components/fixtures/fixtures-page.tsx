@@ -19,10 +19,8 @@ import { Surface } from "@/components/ui/surface";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
 import { StatusRail } from "@/components/ui/status-rail";
-import { MetricTile } from "@/components/ui/metric-tile";
 import { MatchTicket, type MatchTicketResult } from "@/components/ui/match-ticket";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarRange, OctagonAlert, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 /**
  * FixturesPage — per ADR 0007 the fixtures view reads as a timeline: past
@@ -288,39 +286,9 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
         )}
       </div>
 
-      {/* Metric strip */}
-      <div className="grid grid-cols-2 gap-2 medium:grid-cols-4">
-        <MetricTile
-          label="Rounds"
-          value={period.rounds.length}
-          tone="neutral"
-          icon={<CalendarRange className="h-4 w-4" />}
-        />
-        {totalBlockers > 0 && (
-          <MetricTile
-            label="Blocked"
-            value={totalBlockers}
-            tone="danger"
-            icon={<OctagonAlert className="h-4 w-4" />}
-          />
-        )}
-        {totalDecisions > 0 && (
-          <MetricTile
-            label="Decisions"
-            value={totalDecisions}
-            tone="warning"
-            icon={<AlertTriangle className="h-4 w-4" />}
-          />
-        )}
-        {counts.finalized > 0 && (
-          <MetricTile
-            label="Finalised"
-            value={counts.finalized}
-            tone="success"
-            icon={<CheckCircle2 className="h-4 w-4" />}
-          />
-        )}
-      </div>
+      {/* Reduced card chrome (ADR-0124 §7): the header count line above is the
+          single period-level summary. Unresolved conditions attach to the round
+          (IntegritySummary) and the match (MatchTicket conditionLabel). */}
 
       <div className="flex flex-col gap-3">
         {period.rounds.length === 0 ? (
@@ -375,15 +343,15 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
       />
 
       {data && data.periods.length > 1 && (
-        <div className="flex items-center gap-3">
-          <label htmlFor="league-season-select" className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="league-season-select" className="app-eyebrow">
             League season
           </label>
           <select
             id="league-season-select"
             value={selectedPeriodId ?? ""}
             onChange={(e) => setSelectedPeriodId(e.target.value)}
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="min-h-[44px] rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-1.5 text-base text-zinc-100 focus:outline-none focus:border-[var(--accent)] medium:text-sm"
           >
             {data.periods.map((period) => (
               <option key={period.id} value={period.id}>
@@ -401,7 +369,7 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
       )}
 
       {data && data.periods.length === 1 && (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <a
             href={`/o/${orgSlug}/matches/new`}
             className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
