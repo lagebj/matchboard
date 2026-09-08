@@ -4,8 +4,55 @@ import { getEvents } from '@/app/(app)/events/actions';
 import { formatKickoffDate } from '@/lib/date-utils';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BrandedSurface } from '@/components/ui/branded-surface';
-
 import { formatGameFormat } from "@/lib/formatters/game-format";
+import { formatEventType } from "@/lib/formatters/event-labels";
+
+type EventListItem = Awaited<ReturnType<typeof getEvents>>[number];
+
+function monthKey(d: Date): string {
+  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+/** Chronological month groups (ADR-0124 §13): upcoming ascending first, then past descending. */
+function groupByMonth(events: EventListItem[]): Array<{ month: string; events: EventListItem[] }> {
+  const groups: Array<{ month: string; events: EventListItem[] }> = [];
+  for (const event of events) {
+    const key = monthKey(new Date(event.startsAt));
+    const last = groups[groups.length - 1];
+    if (last && last.month === key) last.events.push(event);
+    else groups.push({ month: key, events: [event] });
+  }
+  return groups;
+}
+
+function EventRow({ event, orgSlug }: { event: EventListItem; orgSlug: string }) {
+  const available = event.players.filter((p) => p.status === 'AVAILABLE').length;
+  const isDone = event.status === 'FINALIZED';
+  const meta = [
+    formatEventType(event.eventType),
+    formatKickoffDate(new Date(event.startsAt)),
+    formatGameFormat(event.gameFormat),
+    `${event.squads.length} squad${event.squads.length === 1 ? '' : 's'}`,
+    `${available} available`,
+  ].join(' · ');
+
+  return (
+    <Link
+      href={`/o/${orgSlug}/events/${event.id}`}
+      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3.5 py-3 transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+    >
+      <div className="min-w-0">
+        <p className="app-row-title truncate">{event.name}</p>
+        <p className="mt-0.5 text-[13px] text-[var(--text-muted)] truncate">{meta}</p>
+      </div>
+      {isDone && (
+        <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+          Done
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export const metadata = { title: 'Events' };
 
@@ -13,6 +60,19 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
   const { orgSlug } = await params;
   await requirePageActorContext(orgSlug);
   const events = await getEvents();
+
+  // getEvents() returns newest-first. Present chronologically: upcoming ascending, then past
+  // descending, each grouped by month (ADR-0124 §13).
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const upcoming = events
+    .filter((e) => new Date(e.startsAt) >= startOfToday)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  const past = events
+    .filter((e) => new Date(e.startsAt) < startOfToday)
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  const upcomingGroups = groupByMonth(upcoming);
+  const pastGroups = groupByMonth(past);
 
   return (
     <div className="space-y-6">
@@ -52,45 +112,35 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
           }
         />
       ) : (
-        <div className="grid gap-4">
-          {events.map((event) => {
-            const totalSquadPlayers = event.squads.reduce(
-              (sum, s) => sum + s.players.length,
-              0,
-            );
+        <div className="flex flex-col gap-6">
+          {upcomingGroups.map((group) => (
+            <section key={`up-${group.month}`} className="flex flex-col gap-2">
+              <h2 className="app-eyebrow">{group.month}</h2>
+              <div className="flex flex-col gap-2">
+                {group.events.map((event) => (
+                  <EventRow key={event.id} event={event} orgSlug={orgSlug} />
+                ))}
+              </div>
+            </section>
+          ))}
 
-            return (
-              <Link
-                key={event.id}
-                href={`/o/${orgSlug}/events/${event.id}`}
-                className="block rounded-lg border p-4 hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="font-semibold text-lg">{event.name}</h2>
-                    <div className="flex gap-3 mt-1 text-sm text-[var(--text-muted)]">
-                      <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
-                        {event.eventType}
-                      </span>
-                      <span>
-                        {formatKickoffDate(new Date(event.startsAt))}
-                      </span>
-                      <span>
-                        {formatGameFormat(event.gameFormat)}
-                      </span>
-                    </div>
+          {pastGroups.length > 0 && (
+            <div className="flex flex-col gap-6">
+              <p className="app-eyebrow border-t border-[var(--border-soft)] pt-4 text-[var(--text-disabled)]">
+                Past events
+              </p>
+              {pastGroups.map((group) => (
+                <section key={`past-${group.month}`} className="flex flex-col gap-2">
+                  <h2 className="app-eyebrow">{group.month}</h2>
+                  <div className="flex flex-col gap-2 opacity-80">
+                    {group.events.map((event) => (
+                      <EventRow key={event.id} event={event} orgSlug={orgSlug} />
+                    ))}
                   </div>
-                  <div className="text-right text-sm text-[var(--text-muted)]">
-                    <div>{event.squads.length} squad{event.squads.length !== 1 ? 's' : ''}</div>
-                    <div>{event.players.filter((p) => p.status === 'AVAILABLE').length} available player{event.players.filter((p) => p.status === 'AVAILABLE').length !== 1 ? 's' : ''}</div>
-                    {totalSquadPlayers > 0 && (
-                      <div>{totalSquadPlayers} assigned</div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+                </section>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
