@@ -17,6 +17,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusRail } from "@/components/ui/status-rail";
 import { MatchTicket, type MatchTicketResult } from "@/components/ui/match-ticket";
@@ -398,9 +399,7 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
       )}
 
       {isPending && !data ? (
-        <Surface padding="md">
-          <p className="text-sm text-[var(--text-muted)]">Loading fixtures…</p>
-        </Surface>
+        <PageSkeleton rows={4} />
       ) : !data || data.periods.length === 0 ? (
         <EmptyState
           title="No league seasons found."
