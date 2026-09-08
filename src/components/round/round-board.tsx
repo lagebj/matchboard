@@ -43,7 +43,7 @@ import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Dialog } from "@/components/ui/dialog";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { formatKickoffDate } from "@/lib/date-utils";
+import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 
 type SelectionRole = UISelectionRole;
 
@@ -354,7 +354,7 @@ function MatchColumnComponent({
             />
           )}
           {match.isFinalized && match.coachingIntentCategory && (
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-[11px] text-[var(--text-muted)]">
               {COACHING_INTENT_LABELS[
                 match.coachingIntentCategory as keyof typeof COACHING_INTENT_LABELS
               ] ?? match.coachingIntentCategory}
@@ -887,8 +887,13 @@ export function RoundBoard({
                     : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)]",
                 ].join(" ")}
               >
-                <span className="block text-[13px] font-medium truncate max-w-[9rem]">{m.teamName}</span>
-                <span className="block text-[11px] text-[var(--text-muted)] truncate max-w-[9rem]">
+                <span className="flex items-baseline gap-1.5 max-w-[10rem]">
+                  <span className="block flex-1 truncate text-[13px] font-medium">{m.teamName}</span>
+                  <span className="shrink-0 text-[11px] tabular-nums text-[var(--text-muted)]">
+                    {formatKickoffTime(m.matchDate)}
+                  </span>
+                </span>
+                <span className="block text-[11px] text-[var(--text-muted)] truncate max-w-[10rem]">
                   vs {m.opponent}
                 </span>
               </button>
