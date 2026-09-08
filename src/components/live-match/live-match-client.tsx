@@ -171,7 +171,12 @@ function ScoreboardSide({ name, goals, own }: { name: string; goals: number; own
       <div className={`text-xs font-medium truncate ${own ? "text-[var(--accent)]" : "text-zinc-400"}`}>
         {name}
       </div>
-      <div className="text-4xl font-bold text-zinc-100 tabular-nums leading-tight">{goals}</div>
+      <div
+        data-testid={own ? "live-score-us" : "live-score-them"}
+        className="text-4xl font-bold text-zinc-100 tabular-nums leading-tight"
+      >
+        {goals}
+      </div>
     </div>
   );
 }

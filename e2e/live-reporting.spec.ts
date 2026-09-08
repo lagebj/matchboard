@@ -26,8 +26,9 @@ test("start live reporting, record a goal, verify the score updates, then finish
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Goal for us" }).click();
-  // The scoreboard's "for us" figure is the only large emerald number on the page.
-  await expect(page.locator(".text-emerald-400")).toHaveText("1", { timeout: 10_000 });
+  // The scoreboard's "for us" figure (canonical grammar marks the own team by a name
+  // accent, not a score colour — ADR-0125).
+  await expect(page.getByTestId("live-score-us")).toHaveText("1", { timeout: 10_000 });
   // Goal recording opens a "Who scored?" bottom sheet (auto-dismisses after
   // GOAL_DETAIL_INACTIVITY_TIMEOUT_MS, but that's slow and not what this test is about) —
   // dismiss it explicitly so it doesn't intercept the next click.

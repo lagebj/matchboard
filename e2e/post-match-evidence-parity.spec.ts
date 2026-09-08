@@ -25,7 +25,7 @@ test("completing a League post-match report via the real UI runs post-match lear
   await page.getByRole("button", { name: "Start live reporting" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Goal for us" }).click();
-  await expect(page.locator(".text-emerald-400")).toHaveText("1", { timeout: 10_000 });
+  await expect(page.getByTestId("live-score-us")).toHaveText("1", { timeout: 10_000 });
   await page.getByRole("button", { name: "Skip" }).click();
   await waitForEventsToSync(page);
 
