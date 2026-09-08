@@ -3,175 +3,204 @@
 import { cn } from "@/lib/cn";
 import { motion } from "motion/react";
 import { TeamShield } from "@/components/ui/team-shield";
-import { ScoreCapsule, type ScoreCapsuleResult } from "@/components/ui/score-capsule";
-import { StatusRail } from "@/components/ui/status-rail";
 import { MatchLifecycleBadge, type MatchLifecycleStatus } from "@/components/ui/status-badge";
-import { IntentCard } from "@/components/ui/intent-card";
-import {
-  Home,
-  MapPin,
-  Trophy,
-  Calendar,
-  User,
-} from "lucide-react";
 
 /**
- * MatchTicket — replace plain fixture/match rows.
+ * MatchTicket — the one canonical match visual grammar (ADR-0124 §5,
+ * docs/product/adaptive-interaction-design.md §6).
  *
- * Uses TeamShield, ScoreCapsule, compact icon metadata.
- * Subtle hover lift. Keyboard accessible if actionable.
+ * A match reads as football before it reads as a database record: symmetric
+ * teams, a score/time centre, one derived lifecycle badge. Used everywhere a
+ * match is shown (Today, League, Events, match-detail entry, Follow Live entry,
+ * history, player participation). Do not create competing match components —
+ * evolve this one.
+ *
+ *   Scheduled:  home — kickoff time — away        · lifecycle · date
+ *   Live:       home —   score      — away        · LIVE · clock
+ *   Final:      home —   score      — away        · FT · WON
  */
+type MatchTicketPhase = "scheduled" | "live" | "final" | "cancelled";
+
+export type MatchTicketResult = "win" | "loss" | "draw" | "unknown";
+
 type MatchTicketProps = {
+  /** Our team. */
   teamName: string;
+  /** The opposing side (opponent display name). */
   opponentName?: string | null;
+  /** True when our team plays at home — controls left/right ordering. Default true. */
+  isHome?: boolean;
+  /** Short calendar orientation, e.g. "SAT 12 SEP". */
   dateLabel?: string | null;
-  homeAway?: string | null;
-  matchType?: string | null;
-  format?: string | null;
-  status?: string | null;
-  reportStatus?: string | null;
-  /** Primary, football-action-oriented status (ADR-0101). When provided, this replaces the
-   * legacy selection/report StatusRail pair as the badge shown on the ticket — the legacy
-   * `status`/`reportStatus` props remain for callers that have not migrated. */
+  /** Kick-off time for a scheduled match, e.g. "17:30". */
+  kickoffTimeLabel?: string | null;
+  /** Match clock for a live match, e.g. "37′". */
+  liveClockLabel?: string | null;
+  /** Derived lifecycle status (ADR-0101). Drives which phase grammar is shown. */
   lifecycleStatus?: MatchLifecycleStatus;
   homeScore?: number | null;
   awayScore?: number | null;
-  result?: ScoreCapsuleResult;
-  intentTitle?: string | null;
+  result?: MatchTicketResult;
+  /** Short W/D/L text for a final match, e.g. "WON". */
+  outcomeLabel?: string | null;
+  /**
+   * A single quiet planning condition attached to this match — e.g. "2 decisions",
+   * "1 blocked", "Report incomplete". Attaching the count to the object it belongs
+   * to is required by the Today composition rule (ADR-0124 §6).
+   */
+  conditionLabel?: string | null;
+  conditionTone?: "danger" | "warning" | "muted";
   href?: string;
   onClick?: () => void;
   className?: string;
 };
 
-function statusToRail(status?: string | null): "draft" | "finalized" | "locked" | "blocked" | "decision" | "neutral" {
-  if (!status) return "neutral";
-  const s = status.toLowerCase();
-  if (s.includes("finalized")) return "finalized";
-  if (s.includes("blocked")) return "blocked";
-  if (s.includes("decision") || s.includes("requires")) return "decision";
-  if (s.includes("locked") || s.includes("complete")) return "locked";
-  if (s.includes("draft") || s.includes("ready")) return "draft";
-  return "neutral";
+function phaseFor(
+  lifecycleStatus: MatchLifecycleStatus | undefined,
+  hasScore: boolean,
+): MatchTicketPhase {
+  if (lifecycleStatus === "cancelled") return "cancelled";
+  if (lifecycleStatus === "live") return "live";
+  if (
+    lifecycleStatus === "done" ||
+    lifecycleStatus === "played" ||
+    lifecycleStatus === "report_incomplete" ||
+    (!lifecycleStatus && hasScore)
+  ) {
+    return "final";
+  }
+  return "scheduled";
 }
 
-function reportStatusToRail(rs?: string | null): "complete" | "missingReport" | "neutral" {
-  if (!rs) return "neutral";
-  const s = rs.toLowerCase();
-  if (s.includes("locked") || s.includes("complete") || s.includes("reported")) return "complete";
-  if (s.includes("draft") || s.includes("missing") || s.includes("incomplete")) return "missingReport";
-  return "neutral";
+const resultTint: Record<MatchTicketResult, string> = {
+  win: "text-[var(--success)]",
+  loss: "text-[var(--danger)]",
+  draw: "text-[var(--text-soft)]",
+  unknown: "text-zinc-100",
+};
+
+function TeamSide({
+  name,
+  align,
+}: {
+  name: string;
+  align: "start" | "end";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 items-center gap-2",
+        align === "end" && "flex-row-reverse text-right",
+      )}
+    >
+      <TeamShield teamName={name} size="md" />
+      <span className="app-row-title truncate">{name}</span>
+    </div>
+  );
 }
 
 export function MatchTicket({
   teamName,
   opponentName,
+  isHome = true,
   dateLabel,
-  homeAway,
-  matchType,
-  format,
-  status,
-  reportStatus,
+  kickoffTimeLabel,
+  liveClockLabel,
   lifecycleStatus,
   homeScore,
   awayScore,
   result = "unknown",
-  intentTitle,
+  outcomeLabel,
+  conditionLabel,
+  conditionTone = "muted",
   href,
   onClick,
   className,
 }: MatchTicketProps) {
-  const hasResult = homeScore != null && awayScore != null;
-  const isHome = homeAway === "HOME";
+  const opponent = opponentName ?? "Opponent";
+  const hasScore = homeScore != null && awayScore != null;
+  const phase = phaseFor(lifecycleStatus, hasScore);
+
+  // Left side is home, right side is away.
+  const leftName = isHome ? teamName : opponent;
+  const rightName = isHome ? opponent : teamName;
+
+  const centre =
+    phase === "live" || phase === "final" ? (
+      <span
+        className={cn(
+          "app-value px-2",
+          phase === "final" ? resultTint[result] : "text-zinc-50",
+        )}
+      >
+        {hasScore ? `${homeScore} : ${awayScore}` : "—"}
+      </span>
+    ) : (
+      <span className="app-value app-nums px-2 text-zinc-100">
+        {kickoffTimeLabel ?? "—"}
+      </span>
+    );
+
+  const statusLine = (() => {
+    if (phase === "live") {
+      return (
+        <span className="flex items-center gap-1.5 text-[var(--danger)]">
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--danger)]" aria-hidden="true" />
+          LIVE{liveClockLabel ? ` · ${liveClockLabel}` : ""}
+        </span>
+      );
+    }
+    if (phase === "final") {
+      return <span className="text-[var(--text-muted)]">FT{outcomeLabel ? ` · ${outcomeLabel}` : ""}</span>;
+    }
+    // Cancelled is fully carried by the lifecycle badge — no second label.
+    if (phase === "cancelled") return null;
+    return dateLabel ? <span className="text-[var(--text-muted)]">{dateLabel}</span> : null;
+  })();
+
+  const conditionClass =
+    conditionTone === "danger"
+      ? "text-[var(--danger)]"
+      : conditionTone === "warning"
+        ? "text-[var(--warning)]"
+        : "text-[var(--text-muted)]";
 
   const content = (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border bg-[var(--surface-base)] p-4",
-        "border-[var(--border-soft)]",
-        (href || onClick) && "cursor-pointer hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)]",
+        "flex flex-col gap-2.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-3.5 py-3",
+        phase === "cancelled" && "opacity-60",
+        (href || onClick) &&
+          "hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]",
         className,
       )}
     >
-      {/* Header: status + date */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Scoreboard row */}
+      <div className="flex items-center gap-2">
+        <TeamSide name={leftName} align="start" />
+        {centre}
+        <TeamSide name={rightName} align="end" />
+      </div>
+
+      {/* Status / orientation row */}
+      <div className="flex items-center justify-between gap-2 text-[var(--text-meta)] text-[13px]">
         <div className="flex items-center gap-2">
-          {lifecycleStatus ? (
-            <MatchLifecycleBadge status={lifecycleStatus} size="sm" />
-          ) : (
-            <>
-              <StatusRail status={statusToRail(status)} />
-              <StatusRail status={reportStatusToRail(reportStatus)} />
-            </>
-          )}
+          {lifecycleStatus && <MatchLifecycleBadge status={lifecycleStatus} size="sm" />}
+          {statusLine}
         </div>
-        {dateLabel && (
-          <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-            <Calendar className="h-3 w-3" aria-hidden="true" />
-            {dateLabel}
-          </span>
-        )}
+        {conditionLabel ? (
+          <span className={cn("shrink-0 font-medium", conditionClass)}>{conditionLabel}</span>
+        ) : phase !== "scheduled" && dateLabel ? (
+          <span className="shrink-0 text-[var(--text-muted)]">{dateLabel}</span>
+        ) : null}
       </div>
-
-      {/* Body: teams + score */}
-      <div className="flex items-center gap-3">
-        <TeamShield teamName={teamName} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-zinc-100 truncate">{teamName}</p>
-          {opponentName && (
-            <p className="text-xs text-[var(--text-soft)] truncate">vs {opponentName}</p>
-          )}
-        </div>
-        {hasResult && (
-          <ScoreCapsule
-            homeScore={homeScore}
-            awayScore={awayScore}
-            result={result}
-            size="sm"
-          />
-        )}
-      </div>
-
-      {/* Metadata row */}
-      <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-muted)]">
-        {isHome && (
-          <span className="flex items-center gap-0.5">
-            <Home className="h-3 w-3" aria-hidden="true" />
-            Home
-          </span>
-        )}
-        {homeAway === "AWAY" && (
-          <span className="flex items-center gap-0.5">
-            <MapPin className="h-3 w-3" aria-hidden="true" />
-            Away
-          </span>
-        )}
-        {matchType && (
-          <span className="flex items-center gap-0.5">
-            <Trophy className="h-3 w-3" aria-hidden="true" />
-            {matchType}
-          </span>
-        )}
-        {format && (
-          <span className="flex items-center gap-0.5">
-            <User className="h-3 w-3" aria-hidden="true" />
-            {format}
-          </span>
-        )}
-      </div>
-
-      {/* Intent */}
-      {intentTitle && (
-        <IntentCard title={intentTitle} compact />
-      )}
     </div>
   );
 
   if (href) {
     return (
       <a href={href} className="block no-underline">
-        <motion.div
-          whileHover={{ y: -1, transition: { duration: 0.15, ease: "easeOut" } }}
-        >
+        <motion.div whileHover={{ y: -1, transition: { duration: 0.15, ease: "easeOut" } }}>
           {content}
         </motion.div>
       </a>

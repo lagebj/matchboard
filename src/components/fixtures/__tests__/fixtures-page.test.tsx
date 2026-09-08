@@ -186,7 +186,7 @@ describe("FixturesPage", () => {
     });
   });
 
-  it("shows finalize action for ready rounds", async () => {
+  it("shows a review-board action for ready rounds (no coach-operated finalise — ADR-0109)", async () => {
     fetchFixturesOverview.mockResolvedValue({
       periods: [makePeriod({
         rounds: [makeRound({
@@ -205,7 +205,8 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Finalise in board")).toBeInTheDocument();
+      expect(screen.getByText("Review board")).toBeInTheDocument();
+      expect(screen.queryByText("Finalise in board")).not.toBeInTheDocument();
     });
   });
 
