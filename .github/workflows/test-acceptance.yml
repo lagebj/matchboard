@@ -153,7 +153,7 @@ jobs:
         run: printf '%s' "$LIVE_MATCH_INTERNAL_SECRET_TEST" | npx wrangler secret put LIVE_MATCH_INTERNAL_SECRET --config workers/live-match/wrangler.jsonc --env test
       - name: Install Playwright browser
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
       - name: Functional acceptance (Playwright, against the aliased Test slot)
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npm run test:e2e

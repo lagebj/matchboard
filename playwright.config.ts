@@ -49,8 +49,9 @@ export default defineConfig({
       dependencies: ["setup"],
       // authz-failure.spec.ts asserts what a restricted VIEWER-role persona is denied — running
       // it under the full-access coach persona would make its "denied" assertions false. It runs
-      // only under the "chromium-viewer" project below (ADR-0078).
-      testIgnore: /authz-failure\.spec\.ts/,
+      // only under the "chromium-viewer" project below (ADR-0078). mobile-critical.spec.ts is a
+      // compact-viewport-only contract — it runs under the two mobile-critical-* projects below.
+      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/],
     },
     {
       name: "chromium-viewer",
@@ -95,6 +96,32 @@ export default defineConfig({
       },
       dependencies: ["setup"],
       testMatch: /accessibility\.spec\.ts/,
+    },
+    // Bounded compact-viewport critical-flow suite (ADR-0124 §8). Two engines only:
+    // Chromium at 390×844, and WebKit at an iPhone-like compact viewport — the one place this
+    // repo's CI installs WebKit, scoped to just this spec (see
+    // docs/development/browser-acceptance-testing.md). Nothing else runs on WebKit.
+    {
+      name: "mobile-critical-chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        storageState: "e2e/.auth/coach.json",
+      },
+      dependencies: ["setup"],
+      testMatch: /mobile-critical\.spec\.ts/,
+    },
+    {
+      name: "mobile-critical-webkit",
+      use: {
+        // iPhone 13 preset → WebKit engine + 390×664 compact viewport + touch/mobile flags.
+        ...devices["iPhone 13"],
+        storageState: "e2e/.auth/coach.json",
+      },
+      dependencies: ["setup"],
+      testMatch: /mobile-critical\.spec\.ts/,
     },
   ],
 });

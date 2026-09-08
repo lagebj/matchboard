@@ -15,13 +15,22 @@ Smoke, accessibility, one mutation/persistence flow, and expected-authorization-
 (see ADR-0078 for the mutation/authz-failure design):
 
 - `e2e/smoke.spec.ts` — unauthenticated redirect to `/signin`, authenticated landing resolves to
-  the Assistant page, one core navigation (Fixtures), no console errors.
+  the Today page, one core navigation (League), no console errors.
 - `e2e/accessibility.spec.ts` — `@axe-core/playwright` (WCAG 2.2 AA, superset of 2.1 A/AA) against
   Today, League, Players, Opponents, and Round Board. Runs under three Playwright projects
   (`chromium` desktop, `accessibility-phone` at 390×844, `accessibility-tablet` at 768×1024) —
-  this is currently the entire phone/tablet viewport matrix, scoped to this one spec rather than
-  every spec (Phase 2.18: the goal is catching responsive-layout a11y issues at real device
-  sizes, not redundantly re-running mutation/business-logic specs across viewports).
+  the phone/tablet viewport matrix, scoped to this one spec rather than every spec (Phase 2.18:
+  the goal is catching responsive-layout a11y issues at real device sizes, not redundantly
+  re-running mutation/business-logic specs across viewports).
+- `e2e/mobile-critical.spec.ts` — bounded compact-viewport critical-flow suite (ADR-0124 §8):
+  fixed bottom nav + the five primary destinations, no page-level horizontal scroll on the
+  primary surfaces, Today → next action, League → round board, compact Round Board one-match
+  selector + URL-backed `?match=`, Players → player detail. Runs under **two** projects —
+  `mobile-critical-chromium` (390×844) and `mobile-critical-webkit` (iPhone-13 preset, **WebKit**
+  engine, 390×664). This is the **only** WebKit coverage in the repo, and CI installs the WebKit
+  binary (`npx playwright install --with-deps chromium webkit`) solely for it. Navigation/layout
+  focused and defensive — data-dependent assertions `test.skip()` when the shared Test slot lacks
+  the precondition, to stay low-flake.
 - `e2e/round-mutation.spec.ts` — regenerates real draft selections for a round, verifies they
   persisted (a player chip on the Round Board), then clears them back to an empty draft.
   Deliberately self-cleaning, safe to run repeatedly against the shared Test slot.
@@ -162,10 +171,11 @@ swamp --no-telemetry model method run verify-browser-acceptance execute \
   --input env.TEST_AGENT_AUTH_SECRET='<secret>'
 ```
 
-First run downloads the Chromium browser binary if not already cached:
+First run downloads the browser binaries if not already cached (WebKit is needed only for
+`e2e/mobile-critical.spec.ts`):
 
 ```bash
-npx playwright install --with-deps chromium
+npx playwright install --with-deps chromium webkit
 ```
 
 ## Debugging a failing run
