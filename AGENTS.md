@@ -2304,12 +2304,15 @@ normative rule; if the two ever diverge that is a defect to fix, with `AGENTS.md
   role/position only where canonical data exists, clear entry to detail) — never a dump of every
   desktop column. Omitted detail stays reachable on player detail. No player score, ranking, or
   invented judgement logic.
-- **Evidence visualization**: small native SVG/CSS/React primitive set only — `TrendSpark`,
-  `DistributionBar`, `PeriodBars`, `RangeBand` (only with a real canonical baseline),
-  `DeltaMetric`, `MetricStory`. Every visualization has a concrete question, a text equivalent,
-  visible sample/evidence context, works at 360px, exposes accessible names. No radar charts, no
+- **Evidence visualization**: the primitive set lives in `src/components/viz/` (`index.ts`
+  barrel) — `TrendSpark`, `DistributionBar`, `PeriodBars`, `RangeBand` (only with a real
+  canonical baseline + a `sampleContext` naming its source), `DeltaMetric`, `MetricStory`, plus
+  `viz-shared.ts` (categorical hues, direction/range helpers). Native SVG/CSS/React only. Every
+  primitive takes a required `question` prop, renders a visually-hidden text equivalent, exposes
+  an accessible name, works at 360px, and never relies on colour alone. No radar charts, no
   overall player score, no rankings, no red/green good-bad scales, no causal wording from
-  correlation. Do not add a large chart dependency for this work.
+  correlation. Do not add a large chart dependency or a seventh primitive without amending
+  ADR-0124.
 - **Documentation replacement rule**: when mutable guidance conflicts with this model, replace
   the old rule — do not leave both active, append a vague exception, or keep stale wording
   because it is older. ADRs are append-only; supersede via a new ADR.
