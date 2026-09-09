@@ -1207,6 +1207,81 @@ If required support cannot be fulfilled, generate a Blocked or Decision required
 
 Fairness must not override required support. Fairness is a scoring preference, not a hard rule.
 
+## Exact positional semantics and automatic-planning safety (ADR-0129)
+
+Automatic lineup, rotation, squad-repair and formation-coverage planning must be
+**football-safe**: a left/right midfielder is not a central midfielder, a winger is not a
+central midfielder, and broad `midfielder`/`MIDFIELD` equivalence is **not** valid exact-role
+eligibility authority.
+
+**One exact-position domain owner.** `src/domain/positions/` (barrel `@/domain/positions`) is
+the single owner of exact positional semantics for automatic planning: the twelve exact target
+roles (`GK, LB, CB, RB, DM, CM, AM, LM, RM, LW, RW, ST`), exact alias normalization of declared
+position strings, the directed suitability matrix
+(`src/domain/positions/position-suitability-matrix.json` — a normative product-owner artifact,
+never re-tuned/re-typed/symmetrized in code), suitability tiers + the automatic-eligibility
+threshold, the `bestSide` modifier, formation-slot → exact target-role derivation, player →
+target-role suitability, and neutral fit labels. Exact-planning callers import from here and
+must not re-implement any of it. Broad `BroadPosition` / `StructuralRole` /
+`OutfieldStructuralRole` helpers (`src/domain/team-composition/`, `src/lib/formations/`) remain
+valid **only** for genuinely broad questions (reporting buckets, team-composition's cross-team
+distribution, squad composition without exact formation context) and are never exact
+automatic-eligibility authority.
+
+- **Alias normalization is exact** — trim + upper-case, then table lookup: `CDM→DM`, `CAM→AM`,
+  `CF→ST`, `LCB→CB`+source-side `LEFT`, `RCB→CB`+source-side `RIGHT`, `SS`→special source `SS`,
+  `W`→unsided winger source `W`; canonical roles pass through. Any other string (including
+  broad legacy strings like `"Midfielder"`, `"MID"`, `"Forward"`, `"NONE"`) resolves to
+  `UNKNOWN` and creates **no** automatic exact-role eligibility for any target. Never
+  substring-fuzzy-match. Unknown declared strings are never destructively rewritten in storage.
+- **Slot → exact target role from `roleType` + canonical lane from `gridX`**
+  (`laneFromGridX`: `0–1 LEFT`, `2 CENTRE`, `3–4 RIGHT`), per the fixed table
+  (`DEFENDER→LB/CB/RB`, `MIDFIELDER→LM/CM/RM`, `ATTACKING_MIDFIELDER→LW/AM/RW`,
+  `FORWARD→LW/ST/RW`, `DEFENSIVE_MIDFIELDER→DM`, `GOALKEEPER→GK`). Free-form `label` strings
+  are never parsed. `FREE` slots derive **no** automatic target role — manual-only for
+  automatic assignment. `FormationSlot.acceptedPositionIds` may stay for compatibility but is
+  no longer exact automatic-eligibility authority.
+- **Directed, asymmetric suitability.** Each declared source is scored independently
+  (primary ×1.00, secondary ×0.95, tertiary ×0.90) against the directed matrix, with a
+  `bestSide` ±4 modifier applied **only** to unsided sources (`CB, DM, CM, AM, ST, SS, W`) for
+  left/right targets; effective suitability is the maximum across declarations. Tiers:
+  `NATURAL 90–100`, `STRONG 70–<90`, `PLAUSIBLE 50–<70`, `DEVELOPMENTAL 30–<50`,
+  `UNSUPPORTED 0–<30`. **Automatic eligibility is `NATURAL`/`STRONG`/`PLAUSIBLE` only.**
+  Normative, regression-locked: `CM→LW/RW` is `DEVELOPMENTAL` (never an automatic winger
+  candidate); `ST→LW/RW` and same-side `LB/RB→winger` are `STRONG`; opposite-side full-back →
+  winger is `PLAUSIBLE` and still outranks `CM`; `LM→LW`/`RM→RW` are `NATURAL`; a *secondary*
+  exact-winger declaration outranks a player whose winger suitability is only `ST`-derived.
+- **Positional eligibility precedes optimization.** Fixed precedence: hard domain constraints →
+  target slot identity → positional eligibility → maximum safe positional coverage → fairness →
+  coaching intent / tactical function → evidence-informed preference → deterministic tie-break.
+  Automatic candidate ordering is **lexicographic** over
+  `(tier, fairness need, exact suitability, tactical/intent fit, evidence preference,
+  stable tie-break)` — never one unbounded additive score across position fit + fairness +
+  evidence. **Fairness, evidence, opponent context, tactical attributes and strength cannot
+  create or upgrade eligibility.** Evidence can only rank already-eligible candidates and can
+  never infer an undeclared role.
+- **Unsafe invention is forbidden.** If no automatically eligible player can fill a required
+  exact role: lineup generation leaves the slot unresolved and reports
+  `No safe automatic fit for <ROLE>`; rotation generation skips the unsafe replacement, keeps
+  the unmatched due player on, and records a diagnostic (`No safe replacement for <ROLE> at
+  <n> min`); plan integrity shows the gap. Never `DEVELOPMENTAL`/`UNSUPPORTED` to satisfy a
+  substitution batch size. Repair suggestions use the same exact target role and the same
+  eligibility threshold. Automatic lineup/rotation matching is deterministic bounded bipartite
+  matching (maximize eligible-filled slots → `NATURAL` count → `STRONG` count → fairness →
+  exact suitability → tactical/evidence preference → tie-break), not greedy UI-order fill.
+- **Manual coach override remains, graduated.** `NATURAL`/`STRONG`/`PLAUSIBLE`: assign
+  normally. `DEVELOPMENTAL`: assign with a small neutral annotation, no modal. `UNSUPPORTED`:
+  assign only after one explicit confirmation (`Use outside automatic positional fit?` /
+  `Assign anyway`). Neutral labels only — `Natural fit`, `Strong fit`, `Plausible fit`,
+  `Developmental positional fit`, `Outside automatic fit`; never player-value language.
+- **Exact formation-context resolution** (for exact coverage / exact lineup + rotation
+  generation): existing match lineup formation → explicitly selected match formation → team
+  Best Lineup formation → otherwise no exact context. The first system formation is never
+  silently chosen. Without exact context, broad composition may remain but the UI must not
+  claim exact formation coverage and exact lineup/rotation generation requires a formation.
+- **Migration:** declared position strings normalize at read time; no destructive rewrite of
+  `Player.*Position` or historical position snapshots; no schema change.
+
 ## Derived coach workflow lifecycle (ADR-0109)
 
 Matchboard removed manual finalize/confirm/lock ceremony wherever the same fact can be derived
@@ -3614,6 +3689,7 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
+| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels. Sole authority for automatic-planning positional eligibility. |
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator (includes Phase 7: policy evaluation) |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
 | `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |

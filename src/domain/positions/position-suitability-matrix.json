@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "status": "NORMATIVE",
+  "description": "Directed source-position to exact target-slot suitability. Do not symmetrize. Scores are before declaration weighting and best-side modifier.",
+  "targets": [
+    "GK",
+    "LB",
+    "CB",
+    "RB",
+    "DM",
+    "CM",
+    "AM",
+    "LM",
+    "RM",
+    "LW",
+    "RW",
+    "ST"
+  ],
+  "aliases": {
+    "CDM": {
+      "source": "DM"
+    },
+    "CAM": {
+      "source": "AM"
+    },
+    "CF": {
+      "source": "ST"
+    },
+    "LCB": {
+      "source": "CB",
+      "sourceSide": "LEFT"
+    },
+    "RCB": {
+      "source": "CB",
+      "sourceSide": "RIGHT"
+    }
+  },
+  "specialSources": [
+    "SS",
+    "W"
+  ],
+  "declarationMultipliers": {
+    "primary": 1.0,
+    "secondary": 0.95,
+    "tertiary": 0.9
+  },
+  "bestSideModifier": {
+    "same": 4,
+    "opposite": -4,
+    "center": 0,
+    "applyOnlyWhenSourceIsUnsided": [
+      "CB",
+      "DM",
+      "CM",
+      "AM",
+      "ST",
+      "SS",
+      "W"
+    ]
+  },
+  "tiers": [
+    {
+      "name": "NATURAL",
+      "min": 90,
+      "max": 100,
+      "automaticEligible": true
+    },
+    {
+      "name": "STRONG",
+      "min": 70,
+      "maxExclusive": 90,
+      "automaticEligible": true
+    },
+    {
+      "name": "PLAUSIBLE",
+      "min": 50,
+      "maxExclusive": 70,
+      "automaticEligible": true
+    },
+    {
+      "name": "DEVELOPMENTAL",
+      "min": 30,
+      "maxExclusive": 50,
+      "automaticEligible": false
+    },
+    {
+      "name": "UNSUPPORTED",
+      "min": 0,
+      "maxExclusive": 30,
+      "automaticEligible": false
+    }
+  ],
+  "matrix": {
+    "GK": {
+      "GK": 100,
+      "LB": 0,
+      "CB": 0,
+      "RB": 0,
+      "DM": 0,
+      "CM": 0,
+      "AM": 0,
+      "LM": 0,
+      "RM": 0,
+      "LW": 0,
+      "RW": 0,
+      "ST": 0
+    },
+    "LB": {
+      "GK": 0,
+      "LB": 100,
+      "CB": 72,
+      "RB": 55,
+      "DM": 65,
+      "CM": 50,
+      "AM": 35,
+      "LM": 84,
+      "RM": 52,
+      "LW": 76,
+      "RW": 52,
+      "ST": 30
+    },
+    "CB": {
+      "GK": 0,
+      "LB": 72,
+      "CB": 100,
+      "RB": 72,
+      "DM": 82,
+      "CM": 55,
+      "AM": 30,
+      "LM": 35,
+      "RM": 35,
+      "LW": 25,
+      "RW": 25,
+      "ST": 20
+    },
+    "RB": {
+      "GK": 0,
+      "LB": 55,
+      "CB": 72,
+      "RB": 100,
+      "DM": 65,
+      "CM": 50,
+      "AM": 35,
+      "LM": 52,
+      "RM": 84,
+      "LW": 52,
+      "RW": 76,
+      "ST": 30
+    },
+    "DM": {
+      "GK": 0,
+      "LB": 62,
+      "CB": 82,
+      "RB": 62,
+      "DM": 100,
+      "CM": 88,
+      "AM": 60,
+      "LM": 50,
+      "RM": 50,
+      "LW": 35,
+      "RW": 35,
+      "ST": 30
+    },
+    "CM": {
+      "GK": 0,
+      "LB": 45,
+      "CB": 50,
+      "RB": 45,
+      "DM": 85,
+      "CM": 100,
+      "AM": 85,
+      "LM": 58,
+      "RM": 58,
+      "LW": 40,
+      "RW": 40,
+      "ST": 45
+    },
+    "AM": {
+      "GK": 0,
+      "LB": 30,
+      "CB": 25,
+      "RB": 30,
+      "DM": 58,
+      "CM": 85,
+      "AM": 100,
+      "LM": 70,
+      "RM": 70,
+      "LW": 68,
+      "RW": 68,
+      "ST": 78
+    },
+    "LM": {
+      "GK": 0,
+      "LB": 85,
+      "CB": 35,
+      "RB": 45,
+      "DM": 50,
+      "CM": 65,
+      "AM": 72,
+      "LM": 100,
+      "RM": 60,
+      "LW": 92,
+      "RW": 62,
+      "ST": 60
+    },
+    "RM": {
+      "GK": 0,
+      "LB": 45,
+      "CB": 35,
+      "RB": 85,
+      "DM": 50,
+      "CM": 65,
+      "AM": 72,
+      "LM": 60,
+      "RM": 100,
+      "LW": 62,
+      "RW": 92,
+      "ST": 60
+    },
+    "LW": {
+      "GK": 0,
+      "LB": 72,
+      "CB": 25,
+      "RB": 42,
+      "DM": 35,
+      "CM": 48,
+      "AM": 75,
+      "LM": 92,
+      "RM": 62,
+      "LW": 100,
+      "RW": 72,
+      "ST": 84
+    },
+    "RW": {
+      "GK": 0,
+      "LB": 42,
+      "CB": 25,
+      "RB": 72,
+      "DM": 35,
+      "CM": 48,
+      "AM": 75,
+      "LM": 62,
+      "RM": 92,
+      "LW": 72,
+      "RW": 100,
+      "ST": 84
+    },
+    "ST": {
+      "GK": 0,
+      "LB": 35,
+      "CB": 20,
+      "RB": 35,
+      "DM": 30,
+      "CM": 45,
+      "AM": 78,
+      "LM": 65,
+      "RM": 65,
+      "LW": 80,
+      "RW": 80,
+      "ST": 100
+    },
+    "SS": {
+      "GK": 0,
+      "LB": 30,
+      "CB": 20,
+      "RB": 30,
+      "DM": 35,
+      "CM": 55,
+      "AM": 88,
+      "LM": 68,
+      "RM": 68,
+      "LW": 82,
+      "RW": 82,
+      "ST": 92
+    },
+    "W": {
+      "GK": 0,
+      "LB": 60,
+      "CB": 25,
+      "RB": 60,
+      "DM": 35,
+      "CM": 50,
+      "AM": 72,
+      "LM": 85,
+      "RM": 85,
+      "LW": 95,
+      "RW": 95,
+      "ST": 75
+    }
+  },
+  "requiredRegressions": [
+    "CM->LW and CM->RW are DEVELOPMENTAL and not automatic candidates.",
+    "ST->LW and ST->RW are STRONG.",
+    "LB->LW and RB->RW are STRONG.",
+    "RB->LW and LB->RW are PLAUSIBLE and still outrank CM.",
+    "LM->LW and RM->RW are NATURAL.",
+    "Fairness/evidence must not create an edge below automatic threshold."
+  ]
+}
