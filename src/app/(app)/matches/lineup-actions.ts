@@ -197,6 +197,7 @@ export async function updateLineupNotes(lineupId: string, notes: string) {
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
+  await requirePlanningEditable(matchId);
 
   const updated = await db.matchLineup.update({
     where: { id: lineupId },
@@ -213,6 +214,7 @@ export async function updateBenchPlayers(lineupId: string, benchPlayerIds: strin
   const orgFilter = ctx.orgFilter;
   const { matchId } = await requireLineupOrgAccess(lineupId, orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
+  await requirePlanningEditable(matchId);
 
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...orgFilter.filter },

@@ -21,7 +21,13 @@ import { generateIntegratedMatchPlanAction } from "../integrated-match-plan-acti
 describe("generateIntegratedMatchPlanAction (Evidence-Informed Match Planning, Bundle 8)", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
-    fixture = await seedTestFixture(testDb, { playersPerTeam: 6 });
+    // applySuggestedLineup (used by the integrated generator) now requires an open planning
+    // boundary (ADR-0109 / F1) — the fixture matches must be genuinely in the future.
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    fixture = await seedTestFixture(testDb, {
+      playersPerTeam: 6,
+      matchDates: { Bla: future, Hvit: future, Rod: future },
+    });
     auth.updateOrganisationId(fixture.organisationId);
   });
 

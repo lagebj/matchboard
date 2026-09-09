@@ -28,7 +28,12 @@ async function cleanup() {
 describe("Coaching Intent Actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
-    fixture = await seedTestFixture(testDb);
+    // Matchday-responsibility edits now require an open planning boundary (ADR-0109 / F1) —
+    // the fixture matches must be genuinely in the future.
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    fixture = await seedTestFixture(testDb, {
+      matchDates: { Bla: future, Hvit: future, Rod: future },
+    });
     auth.updateOrganisationId(fixture.organisationId);
   });
 
@@ -125,7 +130,12 @@ describe("Coaching Intent Actions", () => {
 describe("Matchday Responsibility Actions", () => {
   beforeAll(async () => {
     testDb = await setupTestDb();
-    fixture = await seedTestFixture(testDb);
+    // Matchday-responsibility edits now require an open planning boundary (ADR-0109 / F1) —
+    // the fixture matches must be genuinely in the future.
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    fixture = await seedTestFixture(testDb, {
+      matchDates: { Bla: future, Hvit: future, Rod: future },
+    });
     auth.updateOrganisationId(fixture.organisationId);
   });
 
@@ -183,16 +193,18 @@ describe("Matchday Responsibility Actions", () => {
       expect(result.error).toContain("Invalid matchday responsibility");
     });
 
-    it("rejects modification of finalized selection", async () => {
-      const matchId = Object.values(fixture.matches)[0]!;
+    it("rejects modification once the match planning boundary has closed", async () => {
+      // ADR-0109 / F1: editability follows the match's real planning boundary, not Selection.status.
+      const matchId = Object.values(fixture.matches)[1]!;
       const playerId = fixture.players[3]!.id;
       const selection = await testDb.selection.create({
-        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "FINALIZED", explanation: {} , organisationId: fixture.organisationId},
+        data: { matchId, matchRoundId: fixture.matchRoundId, playerId, role: "CORE", status: "DRAFT", explanation: {} , organisationId: fixture.organisationId},
       });
+      await testDb.match.update({ where: { id: matchId }, data: { planningClosedAt: new Date() } });
 
       const result = await setMatchdayResponsibilityAction(selection.id, "STABILIZER");
       expect(result.success).toBe(false);
-      expect(result.error).toContain("finalised");
+      expect(result.error).toMatch(/planning is closed/i);
     });
   });
 

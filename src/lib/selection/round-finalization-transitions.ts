@@ -195,3 +195,48 @@ export async function unfinalizeRoundRecord(
     data: { status: "DRAFT" },
   });
 }
+
+/**
+ * Self-heals a `MatchRound.status = "FINALIZED"` that is no longer valid because one or more of
+ * its non-cancelled matches never actually reached its planning boundary (`planningClosedAt IS
+ * NULL`) — a round is only validly FINALIZED once every constituent match has closed (ADR-0109).
+ *
+ * This is exactly the detection/correction `scripts/backfill-stale-round-finalization.ts` runs in
+ * bulk, extracted so it can also run inline: whenever a match is created into, or rescheduled
+ * into, a round whose status is a stale early-finalization (from the pre-ADR-0109 coach-operated
+ * "Finalize round" action, or from a still-future match being attached to a finalized week), the
+ * round reverts to DRAFT and any never-closed match's selections/ledger revert with it. A
+ * genuinely, fully-closed round (every match has `planningClosedAt`) is left untouched.
+ *
+ * Idempotent no-op when the round is not FINALIZED or has no never-closed match.
+ * Returns `true` when it corrected something.
+ */
+export async function reconcileStaleRoundFinalization(matchRoundId: string): Promise<boolean> {
+  const round = await db.matchRound.findFirst({
+    where: { id: matchRoundId, status: "FINALIZED" },
+    select: {
+      id: true,
+      matches: {
+        where: { status: { not: "CANCELLED" } },
+        select: { id: true, planningClosedAt: true },
+      },
+    },
+  });
+
+  if (!round) return false;
+
+  const neverClosedMatchIds = round.matches
+    .filter((m) => m.planningClosedAt === null)
+    .map((m) => m.id);
+
+  if (neverClosedMatchIds.length === 0) return false;
+
+  await db.$transaction(async (tx) => {
+    for (const matchId of neverClosedMatchIds) {
+      await unfinalizeSelectionsForScope(tx, { matchId });
+    }
+    await unfinalizeRoundRecord(tx, matchRoundId);
+  });
+
+  return true;
+}

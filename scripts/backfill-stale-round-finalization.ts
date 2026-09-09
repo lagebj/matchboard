@@ -38,7 +38,7 @@
 import "dotenv/config";
 import { db } from "@/lib/db";
 import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
-import { unfinalizeSelectionsForScope, unfinalizeRoundRecord } from "@/lib/selection/round-finalization-transitions";
+import { reconcileStaleRoundFinalization } from "@/lib/selection/round-finalization-transitions";
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
@@ -77,12 +77,8 @@ async function main() {
 
         if (dryRun) continue;
 
-        await db.$transaction(async (tx) => {
-          for (const match of neverClosedMatches) {
-            await unfinalizeSelectionsForScope(tx, { matchId: match.id });
-          }
-          await unfinalizeRoundRecord(tx, round.id);
-        });
+        // Shared with the inline self-heal now run at match create/reschedule (F1).
+        await reconcileStaleRoundFinalization(round.id);
       }
     });
   }

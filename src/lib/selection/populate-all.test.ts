@@ -124,6 +124,10 @@ describe("Warning persistence", () => {
 
 describe("Populate all workflow", () => {
   let fixtureIds: TestFixtureIds;
+  // populateAllDrafts now skips a round whose real planning boundary has closed (ADR-0109 / F1),
+  // not one with a stale MatchRound.status — so the fixture's matches must be genuinely in the
+  // future for the round to be "open".
+  const FUTURE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   beforeAll(async () => {
     testDb = await setupTestDb();
@@ -133,6 +137,7 @@ describe("Populate all workflow", () => {
         { name: "TeamB", targetSquadSize: 12, minCorePlayers: 7, targetSupportCount: 4, maxSupportCount: 5, minSupportPlayers: 4, supportPriority: 1, developmentSlots: 0, minAcceptedSquadSize: 10, maxSquadSize: 14 },
       ],
       playersPerTeam: 12,
+      matchDates: { TeamA: FUTURE, TeamB: FUTURE },
       rotationPaths: [
         { from: "TeamA", to: "TeamB", role: "SUPPORT" },
         { from: "TeamA", to: "TeamB", role: "BACKFILL" },
@@ -174,7 +179,7 @@ describe("Populate all workflow", () => {
           teamId,
           opponent: opponentName,
           opponentTeamId,
-          startsAt: new Date("2025-05-05T10:00:00Z"),
+          startsAt: FUTURE,
           homeAway: "HOME",
           squadSize: 11,
           matchType: "FRIENDLY",
@@ -193,19 +198,24 @@ describe("Populate all workflow", () => {
     expect(result.results.every((r) => r.success)).toBe(true);
   });
 
-  it("skips finalized rounds", async () => {
-    await testDb.matchRound.update({
-      where: { id: fixtureIds.matchRoundId },
-      data: { status: "FINALIZED" },
+  it("skips rounds whose planning boundary has closed", async () => {
+    // ADR-0109 / F1: the skip follows the real boundary, not MatchRound.status.
+    await testDb.match.updateMany({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      data: { planningClosedAt: new Date() },
     });
 
     const result = await populateAllDrafts(fixtureIds.leagueSeasonId);
 
-    expect(result.skippedCount).toBe(1);
     expect(result.skippedRoundIds).toContain(fixtureIds.matchRoundId);
   });
 
   it("does not finalize rounds after generation", async () => {
+    // Reopen the fixture round's matches closed by the previous test.
+    await testDb.match.updateMany({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      data: { planningClosedAt: null },
+    });
     await testDb.matchRound.update({
       where: { id: fixtureIds.matchRoundId },
       data: { status: "DRAFT" },

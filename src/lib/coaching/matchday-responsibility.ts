@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
 import {
   type MatchdayResponsibilityType,
   MATCHDAY_RESPONSIBILITIES,
@@ -21,15 +22,17 @@ export async function setMatchdayResponsibility(
 
   const selection = await db.selection.findFirst({
     where: { id: selectionId, ...orgFilter.filter },
-    select: { status: true },
+    select: { matchId: true },
   });
 
   if (!selection) {
     throw new Error(`Selection not found: ${selectionId}`);
   }
 
-  if (selection.status === "FINALIZED") {
-    throw new Error("Cannot modify matchday responsibility on a finalised selection");
+  // Editable while the match's planning boundary is open (ADR-0109 / F1), not by Selection.status.
+  const boundary = await isMatchPlanningEditable(selection.matchId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? "Planning is closed for this match.");
   }
 
   return db.selection.update({

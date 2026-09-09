@@ -66,7 +66,6 @@ export async function addPlayerToDraftMatch(
   const match = await db.match.findFirst({
     where: { id: matchId },
     include: {
-      matchRound: { select: { id: true, status: true } },
       team: { select: { id: true, name: true, maxSquadSize: true } },
       selections: { where: { status: SelectionStatus.DRAFT }, include: { player: true } },
     },
@@ -76,9 +75,8 @@ export async function addPlayerToDraftMatch(
     return { success: false, errors: ["Match not found."], warnings };
   }
 
-  if (match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot edit a match in a finalised round."], warnings };
-  }
+  // Editability is decided solely by isMatchPlanningEditable() above (ADR-0109 / F1). A stale
+  // MatchRound.status = "FINALIZED" must not independently block an otherwise-open match.
 
   const organisationId = match.organisationId;
 
@@ -262,22 +260,13 @@ export async function removePlayerFromDraftMatch(
       playerId,
       status: SelectionStatus.DRAFT,
     },
-    include: {
-      match: {
-        include: {
-          matchRound: { select: { id: true, status: true } },
-        },
-      },
-    },
   });
 
   if (!selection) {
     return { success: false, errors: ["Draft selection not found for this player in this match."], warnings };
   }
 
-  if (selection.match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot remove a player from a match in a finalised round."], warnings };
-  }
+  // Editability is decided solely by isMatchPlanningEditable() above (ADR-0109 / F1).
 
   await db.selection.delete({
     where: { id: selection.id },
@@ -323,7 +312,7 @@ export async function changeDraftPlayerRole(
           id: true,
           organisationId: true,
           teamId: true,
-          matchRound: { select: { id: true, status: true } },
+          matchRound: { select: { id: true } },
           team: { select: { id: true, name: true } },
         },
       },
@@ -337,9 +326,7 @@ export async function changeDraftPlayerRole(
     return { success: false, errors: ["Draft selection not found."], warnings };
   }
 
-  if (selection.match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot change role in a finalised round."], warnings };
-  }
+  // Editability is decided solely by isMatchPlanningEditable() above (ADR-0109 / F1).
 
   if (selection.role === newRole) {
     return { success: true, errors, warnings };
