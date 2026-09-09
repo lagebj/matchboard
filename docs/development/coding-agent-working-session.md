@@ -91,10 +91,22 @@ Run the project's real commands from package.json.
 
 ### Current validation commands
 
+**`npm run validate` is the canonical local quality gate** (`scripts/run-validate.mjs`): it runs
+every step, does not abort on the first failure (so nothing is masked), and prints a summary.
+CI runs the same steps as individual jobs. `npm run validate -- --fast` skips `test` + `build`.
+
+Individually:
+
 - `npm run lint` — ESLint across src, prisma config, next config, eslint config, seed
 - `npm run typecheck` — TypeScript type checking (`tsc --noEmit`)
 - `npm test` — Vitest node tests + component tests
 - `npm run build` — Next.js production build
+- `npm run policy:verify` — compiled-policy Wasm verification. **Its rebuild-hash comparison is
+  advisory (not a failure) on a non-amd64 host** — `opa build -t wasm` is not byte-reproducible
+  across CPU architectures and the committed artifact is amd64-canonical (ARR-0037). CI's
+  `policy-verify` job runs it `--strict` on `ubuntu-24.04`. Do not run `policy:sync` /
+  `policy:build*` on a non-amd64 machine to "fix" a `DRIFT` — those scripts refuse without
+  `--force` for exactly this reason.
 - `npx prisma generate` — Generate Prisma client from schema
 
 If schema changed, also run:

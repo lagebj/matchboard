@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, rmSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { resolveOpaPath, REPO_ROOT } from "./policy-utils.mjs";
+import { resolveOpaPath, assertCanonicalArchForArtifactRegen, REPO_ROOT } from "./policy-utils.mjs";
 import { buildEntrypointArgs, listEntrypointNames } from "./policy-metadata-utils.mjs";
 
 const args = process.argv.slice(2);
@@ -21,6 +21,8 @@ for (let i = 0; i < args.length; i++) {
 const LEGACY_REGO_DIR = join(REPO_ROOT, "policies", "rego");
 const LEGACY_COMPILED_DIR = join(REPO_ROOT, "policies", "compiled");
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
+
+assertCanonicalArchForArtifactRegen("policy:build");
 
 function listPackIds() {
   if (!existsSync(PACKS_DIR)) return [];

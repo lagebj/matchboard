@@ -2,7 +2,11 @@
 
 ## State
 
-Confirmed
+Resolved — Consolidation Programme C7 (F7), 2026-09-09. The cross-architecture non-reproducibility
+of `opa build -t wasm` is upstream and unchanged, but it is no longer a *contract ambiguity*: the
+canonical architecture (amd64) is now explicit in code and docs, `policy:verify` is
+architecture-aware, and the scripts that would commit a wrong-arch artifact refuse to. See
+"Resolution".
 
 ## Identified
 
@@ -100,14 +104,41 @@ Full resolution (removing this ARR) requires one of:
   CI workflow, never locally" rule, or a containerized build step pinned to amd64 available to
   every contributor), making the architecture question moot rather than merely contained.
 
-Until then, this ARR stays `Confirmed`/contained rather than `Resolved` — the immediate incident
-(wrong-architecture artifact already committed) is fixed, but the underlying cross-architecture
-risk is not eliminated, only documented and worked around procedurally.
+## Resolution
+
+Consolidation Programme C7 took the "documented single canonical build path" option (the second
+bullet above), plus made the check itself architecture-aware so it is no longer a false failure
+off amd64:
+
+- **`scripts/policy-verify.mjs`** — the deterministic stored-hash check and `opa build` success
+  still hard-fail on every host. The *rebuild-hash comparison* only hard-fails when
+  `process.arch === "x64"` (the canonical arch = CI) or `--strict` / a matching
+  `MATCHBOARD_POLICY_CANONICAL_ARCH` is passed. On any other host a `DRIFT` is printed as an
+  explicit advisory (`DRIFT (expected off canonical arch)`) and `policy:verify` exits 0. CI's
+  `policy-verify` job now runs `npm run policy:verify -- --strict`.
+- **`scripts/policy-sync.mjs` / `scripts/build-opa-policy.mjs`** — via
+  `assertCanonicalArchForArtifactRegen()` in `policy-utils.mjs`, both refuse to run on a non-x64
+  host (unless `--force` / `CI`), because they mutate the committed `.wasm` + `wasmHash` and
+  would produce a wrong-architecture artifact. This closes the ARR-0037 trap where the failing
+  check's own hint ("Run `npm run policy:sync`") led an arm64 developer straight into it.
+- **`npm run validate`** is now `scripts/run-validate.mjs` — it runs every step and reports a
+  summary instead of aborting the `&&` chain, so a `policy:verify` result (advisory or not) can
+  never mask the checks after it.
+- **Documented** in `AGENTS.md` ("Quality checks must pass" + the policy section),
+  `docs/development/coding-agent-working-session.md`, `README.md`, and
+  `docs/development/swamp-workflows.md` — the amd64-canonical rule and the advisory-off-amd64
+  behaviour are stated in the validation contract itself, not tribal knowledge or a personal
+  memory file.
+
+The residual upstream fact (OPA's Wasm-target compiler is not byte-reproducible across host
+architectures) is unchanged and outside this repo's control; if OPA ever fixes it, the
+architecture-awareness here becomes a harmless no-op.
 
 ## Disposition
 
-Contained. The immediate incident is fixed (see History) using the containment procedure above
-as its own first real application. The general cross-architecture risk remains open.
+Resolved. The contract ambiguity F7 named is gone: the canonical architecture is explicit in
+code and every place the validation contract is documented, `policy:verify` no longer produces a
+false failure off amd64, and the artifact-regen scripts refuse to create the wrong-arch artifact.
 
 ## Related decisions
 

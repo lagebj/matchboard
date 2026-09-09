@@ -32,7 +32,7 @@ swamp --no-telemetry model method run <name> execute --input env.KEY=value  # wi
 
 | Model | What it wraps | Status |
 |---|---|---|
-| `verify-repository` | `npm run validate` | Implemented |
+| `verify-repository` | `npm run validate` (runs every check, does not stop on first failure, prints a summary — `scripts/run-validate.mjs`) | Implemented. On a non-amd64 host `policy:verify`'s rebuild-hash comparison is an expected advisory `DRIFT`, not a failure (ARR-0037) — the run still passes. |
 | `verify-security` | `bash scripts/security-review.sh` | Implemented |
 | `verify-database-change` | `bash scripts/verify-migration-from-zero.sh` — migration chain against an EMPTY database | Implemented |
 | `verify-migration-upgrade` | `bash scripts/verify-migration-upgrade.sh` — pending migrations against a POPULATED database (ARR-0026, ADR-0090) | Implemented, requires `NEON_API_KEY`/`NEON_PROJECT_ID` — takes `--input env.NEON_API_KEY=<key>`, `--input env.NEON_PROJECT_ID=<id>` |

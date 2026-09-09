@@ -85,7 +85,7 @@ jobs:
       - run: node scripts/bootstrap-opa.mjs
       - run: npm run policy:test
       - run: npm run policy:validate
-      - run: npm run policy:verify
+      - run: npm run policy:verify -- --strict  # ARR-0037: force the rebuild-hash check even though ubuntu-24.04 is already x64
       # Diagnostic aid for a verify failure: `opa build -t wasm` output is not guaranteed
       # byte-identical across host CPU architectures (confirmed live: a Wasm artifact built and
       # committed from an arm64 devcontainer failed this job's own amd64 rebuild-and-compare on
