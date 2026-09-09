@@ -1241,6 +1241,18 @@ Standing rules for all future work in this area:
 - **Pin validity follows the planning boundary, not round-FINALIZED status.** A Pin (`PlayerLock`)
   can no longer affect generation once planning has closed for its round — `createPlayerLock()`
   checks `isMatchRoundPlanningEditable()`, not `MatchRound.status === "FINALIZED"` directly.
+- **`MatchRound.status` / `Selection.status` / `MovementLedger.isDraft` / `MatchLineup.status`
+  are read-only projections downstream of the planning boundary — never an independent behaviour
+  gate (Consolidation Programme C1 / F1).** Every editability/regeneration decision — manual draft
+  edit, `move-planned-selection`, `refreshDraftSelection`/`refreshDraftRound`, `populateAllDrafts`,
+  matchday responsibility, and every lineup mutation including `suggest-actions.ts`
+  (`applySuggestedLineup`/`clearSuggestedAssignments`/`fillEmptySlots`) — asks
+  `isMatchPlanningEditable()` / `isMatchRoundPlanningEditable()`. A `=== "FINALIZED"` /
+  `=== "CONFIRMED"` check that sits *alongside* a passing boundary call can only contradict it and
+  must be deleted, not added. A `MatchRound.status = "FINALIZED"` that becomes invalid because a
+  still-open match is created into, or rescheduled into, the round self-heals via
+  `reconcileStaleRoundFinalization()` (called from `createMatchAction`/`updateMatchAction`; the
+  same detection `scripts/backfill-stale-round-finalization.ts` runs in bulk).
 - **Explicitly out of scope, unchanged by this doctrine:** whole-`Event.status` finalize
   (`finalizeEventAction`/`unfinalizeEventAction`), whole-`LeagueSeason.status` finalize, and the
   whole-Event-squad-set lock described above — each is a genuine semantic assertion about an

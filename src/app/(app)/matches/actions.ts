@@ -21,6 +21,7 @@ import {
 } from "@/lib/seasons/league-season";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { reopenMatchPlanningForReschedule } from "@/lib/selection/capture-planning-baseline";
+import { reconcileStaleRoundFinalization } from "@/lib/selection/round-finalization-transitions";
 import {
   cancelMatchDomain,
   reopenMatchDomain,
@@ -180,6 +181,9 @@ export async function createMatchCore(
       organisationId: orgId,
     });
     matchRoundId = resolved.roundId;
+    // A new match attaching to a round whose FINALIZED status is stale (no match ever actually
+    // closed) reopens that round — it is not validly finalized while it has an open match (F1).
+    await reconcileStaleRoundFinalization(matchRoundId);
   } else {
     matchRoundId = await createFullHierarchy(startsAt, orgId);
   }
@@ -394,6 +398,10 @@ export async function updateMatchAction(
     });
 
     const targetRoundId = resolved.roundId;
+
+    // If the destination round's FINALIZED status is stale (no match ever actually closed),
+    // reopen it before moving an editable match into it (F1 / ADR-0109).
+    await reconcileStaleRoundFinalization(targetRoundId);
 
     await db.$transaction(async (tx) => {
       await tx.match.update({

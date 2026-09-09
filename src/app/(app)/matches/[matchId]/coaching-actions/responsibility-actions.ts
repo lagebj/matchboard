@@ -11,6 +11,7 @@ import {
 } from "@/lib/coaching/types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
+import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
 
 async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
   const selection = await db.selection.findFirst({
@@ -45,12 +46,16 @@ export async function setMatchdayResponsibilityAction(
   try {
     const selection = await db.selection.findFirst({
       where: { id: selectionId, ...ctx.orgFilter.filter },
-      select: { id: true, matchId: true, status: true, matchdayResponsibility: true, playerId: true },
+      select: { id: true, matchId: true, matchdayResponsibility: true, playerId: true },
     });
 
     if (!selection) return { success: false, error: "Selection not found." };
-    if (selection.status === "FINALIZED") {
-      return { success: false, error: "Cannot modify matchday responsibility on a finalised selection." };
+
+    // Matchday responsibility is pre-match coaching setup — editable while planning is open
+    // (ADR-0109 / F1), decided by the match boundary, not a possibly-stale Selection.status.
+    const boundary = await isMatchPlanningEditable(selection.matchId);
+    if (!boundary.editable) {
+      return { success: false, error: boundary.reason ?? "Planning is closed for this match." };
     }
 
     await requirePlayerGroupAccess(ctx, selection.playerId);

@@ -8,6 +8,7 @@ import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
 import { reconcileRoundAfterDraftMutation } from "@/lib/selection/reconcile-integrity";
 import { requireOpenLeagueSeasonForMatch } from "@/lib/seasons/require-open-league-season";
+import { isMatchPlanningEditable, isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 
 type SelectionRow = { manuallyAdded: boolean; manuallyRemoved: boolean; explanation: Prisma.JsonValue };
 
@@ -99,18 +100,8 @@ export async function refreshDraftSelection(matchId: string) {
   await requireOpenLeagueSeasonForMatch(matchId);
 
   const match = await db.match.findFirst({
-    where: {
-      id: matchId,
-    },
-    include: {
-      selections: {
-        select: {
-          status: true,
-        },
-        orderBy: [{ createdAt: "desc" }],
-        take: 1,
-      },
-    },
+    where: { id: matchId },
+    select: { id: true, status: true },
   });
 
   if (!match) {
@@ -121,10 +112,12 @@ export async function refreshDraftSelection(matchId: string) {
     throw new Error("Cancelled matches cannot be regenerated. Reopen the match first.");
   }
 
-  const latestSelection = match.selections[0] ?? null;
-
-  if (latestSelection?.status === SelectionStatus.FINALIZED) {
-    throw new Error("Finalised matches cannot be recalculated.");
+  // The planning boundary is the sole "can this still be recalculated" authority (ADR-0109 / F1)
+  // — not the latest Selection.status. It also lazily captures the historical baseline if the
+  // boundary has in fact closed.
+  const boundary = await isMatchPlanningEditable(matchId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? "Planning is closed for this match; it cannot be recalculated.");
   }
 
   const allDraftSelections = await db.selection.findMany({
@@ -177,35 +170,12 @@ export async function refreshDraftSelections(matchIds: string[]) {
 }
 
 export async function refreshDraftRound(matchRoundId: string) {
-  const matchRound = await db.matchRound.findFirst({
-    where: { id: matchRoundId },
-    include: {
-      matches: {
-        select: {
-          id: true,
-          selections: {
-            select: {
-              explanation: true,
-              status: true,
-            },
-            orderBy: [{ createdAt: "desc" }],
-            take: 1,
-          },
-        },
-      },
-    },
-  });
-
-  if (!matchRound) {
-    throw new Error("Match round not found.");
-  }
-
-  const hasFinalizedMatch = matchRound.matches.some(
-    (match) => match.selections[0]?.status === SelectionStatus.FINALIZED,
-  );
-
-  if (hasFinalizedMatch) {
-    throw new Error("Finalised matches cannot be recalculated.");
+  // The round planning boundary is the sole "can this still be recalculated" authority
+  // (ADR-0109 / F1) — not per-match Selection.status. It also handles a missing round and
+  // lazily captures the baseline for any match whose boundary has in fact closed.
+  const boundary = await isMatchRoundPlanningEditable(matchRoundId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? "Planning is closed for this round; it cannot be recalculated.");
   }
 
   const allDraftSelections = await db.selection.findMany({

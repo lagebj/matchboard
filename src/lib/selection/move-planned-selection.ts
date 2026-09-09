@@ -30,22 +30,12 @@ export async function movePlannedSelectionWithinRound(input: {
     return { success: false, errors: ["Source and target match are the same. No move needed."] };
   }
 
+  // isMatchRoundPlanningEditable() is the sole editability authority (ADR-0109 / F1): it also
+  // returns not-editable for a missing round, and a stale MatchRound.status = "FINALIZED" must
+  // not independently block an otherwise-open round.
   const planningBoundary = await isMatchRoundPlanningEditable(matchRoundId);
   if (!planningBoundary.editable) {
     return { success: false, errors: [planningBoundary.reason ?? "Planning is closed for this round."] };
-  }
-
-  const round = await db.matchRound.findFirst({
-    where: { id: matchRoundId },
-    select: { id: true, status: true },
-  });
-
-  if (!round) {
-    return { success: false, errors: ["Round not found."] };
-  }
-
-  if (round.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot move a player in a finalised round."] };
   }
 
   const sourceSelection = await db.selection.findFirst({
@@ -58,7 +48,6 @@ export async function movePlannedSelectionWithinRound(input: {
       match: {
         include: {
           team: { select: { id: true, name: true } },
-          matchRound: { select: { id: true, status: true } },
         },
       },
       player: {
@@ -69,10 +58,6 @@ export async function movePlannedSelectionWithinRound(input: {
 
   if (!sourceSelection) {
     return { success: false, errors: ["Player is not assigned to the source match in this round."] };
-  }
-
-  if (sourceSelection.match.matchRound.status === "FINALIZED") {
-    return { success: false, errors: ["Cannot move a player in a finalised round."] };
   }
 
   const targetMatch = await db.match.findFirst({

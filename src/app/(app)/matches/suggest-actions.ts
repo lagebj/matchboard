@@ -9,6 +9,19 @@ import { createFormationSnapshot } from "@/lib/formations/snapshot";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
+
+/**
+ * The sole lineup-editability gate (ADR-0109 / F1): the real planning boundary, not the legacy
+ * `MatchLineup.status === "CONFIRMED"` (nothing writes CONFIRMED any more — that check was dead
+ * and, being status-based, could also wrongly block an open match).
+ */
+async function requirePlanningEditable(matchId: string): Promise<void> {
+  const boundary = await isMatchPlanningEditable(matchId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? "Planning is closed for this match.");
+  }
+}
 
 export type PlayerPoolEntry = {
   id: string;
@@ -174,7 +187,7 @@ export async function getSuggestFormationData(matchId: string) {
       include: { slots: { orderBy: { sortOrder: "asc" } } },
     }),
     db.matchLineup.findFirst({
-      where: { teamId: match.teamId, status: "CONFIRMED", ...ctx.orgFilter.filter },
+      where: { teamId: match.teamId, ...ctx.orgFilter.filter },
       orderBy: { createdAt: "desc" },
       select: { formationId: true },
     }),
@@ -317,6 +330,7 @@ export async function applySuggestedLineup(
   requireMutationRole(ctx);
   await requireMatchOrgAccess(matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
+  await requirePlanningEditable(matchId);
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
@@ -335,10 +349,6 @@ export async function applySuggestedLineup(
   });
 
   if (existing) {
-    if (existing.status === "CONFIRMED") {
-      throw new Error("Cannot modify a confirmed lineup");
-    }
-
     const snapshot = createFormationSnapshot(
       formation.id,
       formation.name,
@@ -431,6 +441,7 @@ export async function clearSuggestedAssignments(lineupId: string) {
   requireMutationRole(ctx);
   const { matchId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
+  await requirePlanningEditable(matchId);
 
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...ctx.orgFilter.filter },
@@ -438,9 +449,6 @@ export async function clearSuggestedAssignments(lineupId: string) {
   });
 
   if (!lineup) throw new Error("Lineup not found");
-  if (lineup.status === "CONFIRMED") {
-    throw new Error("Cannot modify a confirmed lineup");
-  }
 
   await db.matchLineupAssignment.updateMany({
     where: {
@@ -461,6 +469,7 @@ export async function fillEmptySlots(lineupId: string) {
   requireMutationRole(ctx);
   const { matchId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, matchId);
+  await requirePlanningEditable(matchId);
 
   const lineup = await db.matchLineup.findFirst({
     where: { id: lineupId, ...ctx.orgFilter.filter },
@@ -472,9 +481,6 @@ export async function fillEmptySlots(lineupId: string) {
 
   if (!lineup) throw new Error("Lineup not found");
   if (!lineup.formation) throw new Error("Formation not found on lineup");
-  if (lineup.status === "CONFIRMED") {
-    throw new Error("Cannot modify a confirmed lineup");
-  }
 
   const match = await db.match.findFirst({
     where: { id: lineup.matchId, ...ctx.orgFilter.filter },

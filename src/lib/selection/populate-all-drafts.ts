@@ -5,6 +5,7 @@ import { buildPersistableWarnings, persistRoundWarnings } from "@/lib/selection/
 import { persistRoundExplanations } from "@/lib/selection/persist-explanations";
 import { enrichSelectionsWithIntent } from "@/lib/selection/explanation-enrichment";
 import { requireOpenLeagueSeason } from "@/lib/seasons/require-open-league-season";
+import { isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 
 export type PopulateAllResult = {
   leagueSeasonId: string;
@@ -61,7 +62,10 @@ export async function populateAllDrafts(
   const skippedRoundIds: string[] = [];
 
   for (const matchRound of sortedRounds) {
-    if (matchRound.status === "FINALIZED") {
+    // Skip a round only when its real planning boundary has closed (ADR-0109 / F1) — not on a
+    // possibly-stale MatchRound.status. This also lazily captures the baseline for a round that
+    // has actually closed but was never captured.
+    if (!(await isMatchRoundPlanningEditable(matchRound.id)).editable) {
       skippedRoundIds.push(matchRound.id);
       continue;
     }
