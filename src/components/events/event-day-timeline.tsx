@@ -5,7 +5,7 @@ import { listEventMatchesAction } from "@/app/(app)/events/event-match-actions";
 import type { EventMatchWithReport } from "@/lib/stats/event-match-stats";
 import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
-import { MatchScoreRow } from "@/components/ui/match-presentation";
+import { MatchRow } from "@/components/ui/match-presentation";
 import { OperationalTimeline, TimelineItem, type TimelineNodeState } from "@/components/ui/operational-timeline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
@@ -13,7 +13,7 @@ import { formatKickoffTime } from "@/lib/date-utils";
 
 /**
  * Event-day match timeline (ADR-0125). Event detail leads with the day's football
- * in chronological order — one `OperationalTimeline` of `MatchScoreRow` items —
+ * in chronological order — one `OperationalTimeline` of `MatchRow` items —
  * above squad/helper administration. Fetches its own matches (mirrors
  * `EventMatchesTab`) so the big page loader is untouched.
  */
@@ -111,7 +111,7 @@ export function EventDayTimeline({ eventId, squadNames }: Props) {
               kicker={kicker}
               isLast={idx === lastIndex}
             >
-              <MatchScoreRow presentation={presentation} inTimeline />
+              <MatchRow presentation={presentation} inTimeline />
             </TimelineItem>
           );
         })}

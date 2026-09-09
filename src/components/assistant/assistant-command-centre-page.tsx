@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatKickoffTime } from "@/lib/date-utils";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
-import { MatchScoreRow } from "@/components/ui/match-presentation";
+import { MatchRow } from "@/components/ui/match-presentation";
 import {
   OperationalTimeline,
   TimelineItem,
@@ -634,7 +634,7 @@ function TodayOperationalTimeline({
         kicker={kicker}
         isLast={idx === lastIndex}
       >
-        <MatchScoreRow presentation={todayMatchPresentation(match, href)} inTimeline />
+        <MatchRow presentation={todayMatchPresentation(match, href)} inTimeline />
         {match.hasActiveLiveSession ? (
           <Button
             as={Link}
@@ -853,7 +853,7 @@ export function AssistantCommandCentrePage({
       {/* Objective totals — a deliberate unfiltered summary (see situational-decision-support
           notes in AGENTS.md), demoted below the next action so it never leads the page. */}
       <div>
-        <p className="app-eyebrow mb-2">At a glance</p>
+        <p className="mb-2 text-[var(--text-meta)] font-medium text-[var(--text-muted)]">At a glance</p>
         <div className="grid grid-cols-2 gap-3 medium:grid-cols-3 expanded:grid-cols-5">
           <MetricTile
             label="Blocked"

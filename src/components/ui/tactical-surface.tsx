@@ -62,8 +62,8 @@ export function TacticalSurface<As extends ElementType = "div">(
     as,
     variant = "default",
     padding = "none",
-    pitch = false,
-    glow = false,
+    pitch: _pitch = false,
+    glow: _glow = false,
     className,
     children,
     ...rest
@@ -76,10 +76,8 @@ export function TacticalSurface<As extends ElementType = "div">(
         "rounded-xl",
         variantClasses[variant],
         paddingClasses[padding],
-        pitch &&
-          "relative overflow-hidden before:absolute before:inset-0 before:pointer-events-none before:bg-[repeating-linear-gradient(180deg,transparent_0px,transparent_39px,rgba(140,167,146,0.025)_39px,rgba(140,167,146,0.025)_40px)]",
-        glow &&
-          "absolute -inset-px before:pointer-events-none before:rounded-xl before:bg-[radial-gradient(ellipse_at_50%_0%,rgba(140,167,146,0.03),transparent_60%)]",
+        // `pitch` / `glow` are deprecated no-ops under Product Surface 1.0 (ADR-0130 §04:
+        // solid canvas, no repeating pitch-line texture, no glows). Kept for API compatibility.
         className,
       )}
       {...rest}
