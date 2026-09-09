@@ -199,7 +199,7 @@ Every branch must run lint, typecheck, tests, build, and schema validation where
 
 ## Workflow
 
-Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews plan integrity signals by round, fixes issues per match, may manually adjust draft squads, and finalizes one round at a time. Season/league-season history is used to keep load, support, drops, development exposure, and fairness balanced over time.
+Matchboard is set up by adding teams, players, and matches. The coach can then populate all draft squads. Populate all groups matches by round and generates draft selections per round. The coach reviews plan integrity signals by round, fixes issues per match, and may manually adjust draft squads. Each round's plan becomes historical automatically as its matches' planning boundaries close (kickoff, or live reporting starting) — there is no coach-operated finalise step (ADR-0109). Season/league-season history is used to keep load, support, drops, development exposure, and fairness balanced over time.
 
 The primary coach workflow is:
 

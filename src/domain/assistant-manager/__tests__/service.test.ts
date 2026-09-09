@@ -23,7 +23,7 @@ describe("Assistant Manager Service (DB)", () => {
       const review = await getRoundReview("nonexistent-round");
       expect(review.roundId).toBe("nonexistent-round");
       expect(review.blockedConditionCount).toBe(0);
-      expect(review.finalizeable).toBe(true);
+      expect(review.decisionRequiredCount).toBe(0);
     });
   });
 
@@ -88,17 +88,17 @@ describe("Assistant Manager Service (DB)", () => {
         decisionType: "ROUND_REVIEW",
         entityType: "ROUND",
         entityId: "round-test",
-        action: "FINALIZE",
+        action: "OVERRIDE_BLOCKER",
         organisationId: testOrgId,
       });
 
       expect(decision.id).toBeDefined();
-      expect(decision.action).toBe("FINALIZE");
+      expect(decision.action).toBe("OVERRIDE_BLOCKER");
       expect(decision.createdBy).toBe("coach");
 
       const dbRecord = await testDb.decisionRecord.findUnique({ where: { id: decision.id } });
       expect(dbRecord).not.toBeNull();
-      expect(dbRecord!.action).toBe("FINALIZE");
+      expect(dbRecord!.action).toBe("OVERRIDE_BLOCKER");
     });
 
     it("stores reason when provided", async () => {

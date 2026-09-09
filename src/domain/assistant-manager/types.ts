@@ -26,7 +26,9 @@ export type DecisionAction =
   | "OVERRIDE_BLOCKER"
   | "APPROVE_DRAFT"
   | "REJECT_DRAFT"
-  | "FINALIZE"
+  // "FINALIZE" removed (ADR-0109: round/match finalization is not a coach action; the Round
+  // Review page's no-op "Finalise round" panel was removed — ARR-0042). Historical
+  // `DecisionRecord.action` rows may still carry it; the column is a plain string.
   | "MARK_STALE"
   | "DISMISS"
   | "MARK_MATCH_COMPLETE"
@@ -159,6 +161,5 @@ export interface RoundReview {
   openIssueIds: string[];
   blockedConditionCount: number;
   decisionRequiredCount: number;
-  finalizeable: boolean;
 }
 

@@ -6,7 +6,6 @@ import type { RoundReview } from "@/domain/assistant-manager/types";
 import { fetchRoundReview, fetchRoundPlanIntegrity } from "@/domain/assistant-manager/actions";
 import { getReadinessClasses } from "@/domain/assistant-manager/utils/issue-grouping";
 import { TeamReadinessCard } from "./team-readiness-card";
-import { DecisionPanel } from "./decision-panel";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 
 type SignalKind = "BLOCKED" | "DECISION_REQUIRED" | "PLANNING_NOTE";
@@ -40,8 +39,6 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
   const orgUrl = useOrgUrl();
   const [review, setReview] = useState<RoundReview | null>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
-  const [overrideReason, setOverrideReason] = useState("");
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [_isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -81,10 +78,18 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
           </div>
         </div>
         <p className="text-[11px] text-zinc-400 mt-1">
-          {review.finalizeable
-            ? "This round is ready to finalise."
-            : "Finalisation requires override reason for unresolved conditions."}
+          {review.blockedConditionCount === 0 && review.decisionRequiredCount === 0
+            ? "No unresolved conditions. This round becomes historical automatically as each match's planning boundary closes (scheduled kickoff, or live reporting starting) — there is no finalise step."
+            : `${review.blockedConditionCount} Blocked / ${review.decisionRequiredCount} Decision required condition${review.blockedConditionCount + review.decisionRequiredCount === 1 ? "" : "s"} to resolve on the Round Board before the planning boundary closes.`}
         </p>
+        {(review.blockedConditionCount > 0 || review.decisionRequiredCount > 0) && (
+          <Link
+            href={orgUrl(`/rounds/${review.roundId}`)}
+            className="mt-2 inline-block text-[11px] font-medium text-[var(--accent)] hover:underline"
+          >
+            Open the Round Board →
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -111,89 +116,6 @@ export function RoundReviewPage({ roundId }: { roundId: string }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-      {review.finalizeable ? (
-        <DecisionPanel
-          decisionType="ROUND_REVIEW"
-          entityType="ROUND"
-          entityId={review.roundId}
-          action="FINALIZE"
-          actionLabel="Finalise round"
-          reasonRequired={false}
-        />
-      ) : (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            disabled
-            className="h-7 rounded border border-zinc-700/40 bg-zinc-800/30 px-3 text-xs font-medium text-zinc-600 cursor-not-allowed"
-          >
-            Finalize (conditions require review)
-          </button>
-            <button
-              type="button"
-              onClick={() => setShowOverrideModal(true)}
-              className="h-7 rounded border border-red-700/40 bg-red-900/20 px-3 text-xs font-semibold text-red-300 hover:bg-red-900/30"
-            >
-              Override and finalize with reason
-            </button>
-          </div>
-        )}
-      </div>
-
-      {showOverrideModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOverrideModal(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
-            <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Override and finalize</h3>
-              <p className="text-sm text-zinc-300">
-                This round has {review.blockedConditionCount} Blocked {review.blockedConditionCount !== 1 ? "conditions" : "condition"}. Overriding requires a reason.
-              </p>
-              <textarea
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="Reason for overriding Blocked conditions..."
-                className="rounded-md border border-zinc-700/40 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
-                rows={3}
-              />
-              {!overrideReason.trim() && (
-                <p className="text-xs text-red-400">A reason is required for this decision.</p>
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
-              <button
-                type="button"
-                onClick={() => setShowOverrideModal(false)}
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!overrideReason.trim()}
-                onClick={() => {
-                  startTransition(async () => {
-                    const { createDecision } = await import("@/domain/assistant-manager/actions");
-                    await createDecision({
-                      decisionType: "ROUND_REVIEW",
-                      entityType: "ROUND",
-                      entityId: review.roundId,
-                      action: "OVERRIDE_BLOCKER",
-                      reason: overrideReason.trim(),
-                    });
-                    setShowOverrideModal(false);
-                    setOverrideReason("");
-                  });
-                }}
-                className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 disabled:opacity-50"
-              >
-                Override and finalize
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
