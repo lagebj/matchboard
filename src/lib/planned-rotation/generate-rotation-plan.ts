@@ -52,6 +52,8 @@ import {
 } from "@/lib/planned-rotation/opponent-function-preference";
 import { computePositionContextBonus, type PlayerPositionContextEvidence } from "@/lib/evidence/position-context-evidence";
 import type { MatchPeriod } from "@/generated/prisma/client";
+import { buildReason, type RecommendationReason } from "@/lib/explanations/recommendation-reason";
+import { renderReason } from "@/lib/formatters/recommendation-reason-text";
 
 export type { OpponentFunctionTendency };
 
@@ -90,6 +92,9 @@ export interface GenerateRotationPlanInput {
 }
 
 export interface GeneratedRotationChange extends PlannedRotationChangeData {
+  /** Structured material reasons (C6 / F6). The single source; `explanation` is derived from it. */
+  reasons: RecommendationReason[];
+  /** Coach-facing prose, derived from `reasons` via the one formatter — never hand-built here. */
   explanation: string;
 }
 
@@ -234,6 +239,15 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
         (row) => row.period === point.period && row.batchSizeBucket === disruptionBucket && row.isAtNaturalBreak === point.isNaturalBreak,
       );
 
+      const reasons = buildRotationReasons({
+        roleResult: chosen.roleResult,
+        underShareSeconds: chosen.candidate.underShare,
+        evidenceBonus: chosen.evidenceBonus > 0,
+        positionContextBonus: chosen.positionContextBonus > 0,
+        preferred,
+        isNaturalBreak: point.isNaturalBreak,
+        transitionEvidence,
+      });
       changesAtThisPoint.push({
         outPlayerId: out.playerId,
         inPlayerId: chosen.candidate.playerId,
@@ -242,15 +256,8 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
         positionOnly: false,
         approximateMatchSeconds: point.atSeconds,
         notes: null,
-        explanation: buildExplanation({
-          roleResult: chosen.roleResult,
-          underShareSeconds: chosen.candidate.underShare,
-          evidenceBonus: chosen.evidenceBonus > 0,
-          positionContextBonus: chosen.positionContextBonus > 0,
-          preferred,
-          isNaturalBreak: point.isNaturalBreak,
-          transitionEvidence,
-        }),
+        reasons,
+        explanation: reasons.map(renderReason).join("; ") + ".",
       });
     }
 
@@ -267,7 +274,14 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
   return { changes };
 }
 
-function buildExplanation(args: {
+/**
+ * Structured material reasons for one generated rotation change (C6 / F6). The engine builds
+ * `RecommendationReason[]`; prose is the formatter's job. NOTE: the transition-structure signal
+ * used to leak `goalsAgainstInWindow / occurrences` arithmetic into coach-facing text — it now
+ * only carries the occurrence count and confidence (a bounded contextual note, not a number the
+ * coach must interpret).
+ */
+function buildRotationReasons(args: {
   roleResult: OutfieldRoleSuitabilityResult | undefined;
   underShareSeconds: number;
   evidenceBonus: boolean;
@@ -275,34 +289,50 @@ function buildExplanation(args: {
   preferred: { code: TacticalFunctionCode; confidence: "EMERGING" | "ESTABLISHED" } | null;
   isNaturalBreak: boolean;
   transitionEvidence: TransitionStructureEvidenceRow | undefined;
-}): string {
-  const parts: string[] = [];
+}): RecommendationReason[] {
+  const reasons: RecommendationReason[] = [];
 
-  const minutesBehind = Math.round(args.underShareSeconds / 60);
-  parts.push(`${minutesBehind} min behind an equal share of game time`);
+  reasons.push(
+    buildReason("FAIRNESS_UNDER_SHARE", {
+      params: { minutesBehind: Math.round(args.underShareSeconds / 60) },
+      material: true,
+    }),
+  );
 
   if (args.roleResult && args.roleResult.tier !== "UNSUPPORTED") {
-    parts.push(`${args.roleResult.tier.toLowerCase()} fit for the vacated role`);
+    reasons.push(
+      buildReason("ROLE_EXPOSURE_SUPPORTS", {
+        params: { tier: args.roleResult.tier },
+        material: true,
+      }),
+    );
   }
 
   if (args.evidenceBonus && args.preferred) {
-    parts.push(`helps preserve a useful function against a recorded opponent tendency`);
+    reasons.push(
+      buildReason("OPPONENT_FUNCTION_CONTINUITY", {
+        confidence: args.preferred.confidence,
+      }),
+    );
   }
 
   if (args.positionContextBonus) {
-    parts.push(`recorded outcomes at this position have historically been more favorable for this player`);
+    reasons.push(buildReason("POSITION_CONTEXT_HISTORY", { confidence: "EMERGING" }));
   }
 
   if (args.isNaturalBreak) {
-    parts.push("at a natural break");
+    reasons.push(buildReason("NATURAL_BREAK"));
   }
 
   if (args.transitionEvidence && args.transitionEvidence.confidence !== "INSUFFICIENT") {
-    const perOccurrence = args.transitionEvidence.occurrences > 0
-      ? (args.transitionEvidence.goalsAgainstInWindow / args.transitionEvidence.occurrences).toFixed(1)
-      : "0";
-    parts.push(`similar changes have ${perOccurrence} goals conceded shortly after on average across ${args.transitionEvidence.occurrences} prior instances`);
+    reasons.push(
+      buildReason("TRANSITION_STRUCTURE_CONTEXT", {
+        confidence: args.transitionEvidence.confidence,
+        params: { occurrences: args.transitionEvidence.occurrences },
+        polarity: "CAUTION",
+      }),
+    );
   }
 
-  return parts.join("; ") + ".";
+  return reasons;
 }

@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderReason — the one prose owner for RecommendationReason (C6) > snapshot of the canonical rendering for every code (stable coach-facing text) 1`] = `
+{
+  "AVAILABILITY": "Player availability was considered",
+  "COMBINATION_EVIDENCE": "Recorded on-field combination evidence for this grouping (emerging confidence)",
+  "CONSECUTIVE_SUPPORT_ROTATION": "Rotating support so it is not carried by the same players every round",
+  "COVERAGE_RISK": "Keeps the rest of the plan covered",
+  "DEVELOPMENT_ROUTING": "A development movement opportunity",
+  "ELIGIBILITY_ROTATION_PATH": "An active rotation path allows this movement",
+  "FAIRNESS_UNDER_SHARE": "About 6 minutes behind an equal share of playing time",
+  "GOALKEEPER_BOUNDARY": "Goalkeeper slots are filled separately from outfield planning",
+  "MISSED_CORE_OPPORTUNITY": "Has missed recent core match opportunities",
+  "NATURAL_BREAK": "Timed to a natural break in play",
+  "NON_ROTATABLE": "This player stays with their core team by configuration",
+  "OPPONENT_FUNCTION_CONTINUITY": "Helps preserve a useful team function against a recorded opponent tendency (emerging confidence)",
+  "PARTNERSHIP_EVIDENCE": "Recorded partnership: 200 minutes together across 3 matches (emerging confidence)",
+  "PATH_COOLDOWN": "The rotation path is within its cooldown window",
+  "PINNED_IN": "Pinned into this round by the coach",
+  "PINNED_OUT": "Pinned out of this round by the coach",
+  "POSITION_CONTEXT_HISTORY": "Recorded outcomes at this position have historically been more favourable for this player in this sample (emerging confidence)",
+  "POSITION_FALLBACK_FIT": "A permitted fallback position for this role",
+  "POSITION_NO_FIT": "No registered position match for this role",
+  "POSITION_PRIMARY_FIT": "Fits this role as a registered primary position",
+  "POSITION_SECONDARY_FIT": "Fits this role as a registered secondary position",
+  "RECENT_LOAD": "Recent match load was considered",
+  "ROLE_EXPOSURE_SUPPORTS": "Recorded exposure supports this role (natural)",
+  "SQUAD_REPAIR": "Repairs a squad left short by support movement",
+  "SUPPORT_REQUIREMENT": "The receiving team needs support this round",
+  "TRANSITION_STRUCTURE_CONTEXT": "Similar changes have been recorded 4 times before in this sample (emerging confidence)",
+}
+`;

@@ -82,7 +82,7 @@ export function MatchTacticsPanel({
   const [lineup, setLineup] = useState<LineupData | null>(null);
   const [formations, setFormations] = useState<{ id: string; name: string; source: string; slots: { id: string; gridX: number; gridY: number; label: string; shortLabel: string; roleType: string; acceptedPositionIds: string[]; sortOrder: number }[] }[]>([]);
   const [selectedFormationId, setSelectedFormationId] = useState<string | null>(null);
-  const [suggestion, setSuggestion] = useState<{ formationId: string; formationName: string; score: number; confidence: string; reasons: string[]; warnings: string[] } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ formationId: string; formationName: string; confidence: string; reasons: string[]; warnings: string[] } | null>(null);
   const [lineupSuggestion, setLineupSuggestion] = useState<{ assignments: { slotId: string; playerId: string; source: string; locked: boolean; reasons: string[]; confidence: string }[]; benchPlayerIds: string[]; warnings: string[]; unfilledSlotIds: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -124,7 +124,6 @@ export function MatchTacticsPanel({
         setSuggestion(data.suggestion ? {
           formationId: data.suggestion.formationId,
           formationName: data.suggestion.formationName,
-          score: data.suggestion.score,
           confidence: data.suggestion.confidence,
           reasons: data.suggestion.reasons,
           warnings: data.suggestion.warnings,
@@ -431,7 +430,7 @@ export function MatchTacticsPanel({
             <p className="text-xs text-[var(--text-soft)]">
               Suggested formation: <strong className="text-zinc-100">{suggestion.formationName}</strong>
               <span className="ml-2 text-[var(--text-muted)]">
-                ({suggestion.confidence} confidence · score {suggestion.score})
+                ({suggestion.confidence} confidence)
               </span>
             </p>
             {suggestion.reasons.length > 0 && (
