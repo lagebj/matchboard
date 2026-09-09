@@ -181,3 +181,61 @@ const LEGACY_CODE_TO_CATEGORY: Record<string, ReasonCategory> = {
 export function classifyExplanationCode(code: string): ReasonCategory | null {
   return LEGACY_CODE_TO_CATEGORY[code] ?? null;
 }
+
+/**
+ * Finer map: a legacy squad-selection `ExplanationRecord.code` → a `ReasonCode`. Lets the
+ * generation engine attach a structured `RecommendationReason` to every explanation it already
+ * emits (C6 staging, ADR-0128) without rewriting its prose. `undefined` when a code has no
+ * clean 1:1 (the caller keeps just the prose).
+ */
+const LEGACY_CODE_TO_REASON_CODE: Record<string, ReasonCode> = {
+  availability_rule: "AVAILABILITY",
+  unknown_availability: "AVAILABILITY",
+  inactive_player: "AVAILABILITY",
+  rotation_path_allowed: "ELIGIBILITY_ROTATION_PATH",
+  target_team_eligibility: "ELIGIBILITY_ROTATION_PATH",
+  path_cooldown_active: "PATH_COOLDOWN",
+  player_locked_in: "PINNED_IN",
+  player_locked_out: "PINNED_OUT",
+  registered_match_fairness: "FAIRNESS_UNDER_SHARE",
+  same_week_missed_core_priority: "MISSED_CORE_OPPORTUNITY",
+  development_not_ready: "DEVELOPMENT_ROUTING",
+  development_priority_over_core: "DEVELOPMENT_ROUTING",
+  development_routing: "DEVELOPMENT_ROUTING",
+  position_secondary_match: "POSITION_SECONDARY_FIT",
+  position_tertiary_match: "POSITION_FALLBACK_FIT",
+  position_mismatch: "POSITION_NO_FIT",
+  support_avoid_suitability: "POSITION_NO_FIT",
+  combination_evidence: "COMBINATION_EVIDENCE",
+  team_support_requirement: "SUPPORT_REQUIREMENT",
+  team_support_slots_reserved: "SUPPORT_REQUIREMENT",
+  support_priority_over_core: "SUPPORT_REQUIREMENT",
+  support_development_then_core_priority: "SUPPORT_REQUIREMENT",
+  support_priority_order: "SUPPORT_REQUIREMENT",
+  round_support_resolution: "SUPPORT_REQUIREMENT",
+  indirect_support_backfill: "SUPPORT_REQUIREMENT",
+  team_development_slots_reserved: "DEVELOPMENT_ROUTING",
+  core_match_drop_for_support: "SQUAD_REPAIR",
+  core_match_drop_routed: "SQUAD_REPAIR",
+  squad_repair_priority_1_own_support: "SQUAD_REPAIR",
+  squad_repair_priority_2_path_player: "SQUAD_REPAIR",
+  squad_repair_priority_3_other: "SQUAD_REPAIR",
+  self_squad_repair: "SQUAD_REPAIR",
+};
+
+/**
+ * Build a structured reason from a legacy `ExplanationRecord`. Returns `undefined` for a code
+ * that has no `ReasonCode` mapping yet (e.g. `eligible_core_player`, `registered_match_conflict`)
+ * — the caller keeps the record's own prose.
+ */
+export function reasonFromLegacyExplanation(
+  code: string,
+  hardRule?: boolean,
+): RecommendationReason | undefined {
+  const reasonCode = LEGACY_CODE_TO_REASON_CODE[code];
+  if (!reasonCode) return undefined;
+  return buildReason(reasonCode, {
+    polarity: hardRule ? "CONSTRAINT" : "SUPPORTING",
+    material: true,
+  });
+}

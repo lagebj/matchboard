@@ -17,6 +17,7 @@ import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-opt
 import { RoundStatusStrip } from "@/components/round/round-status-strip";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-automatic-role";
+import { renderReason } from "@/lib/formatters/recommendation-reason-text";
 import {
   clearRoundDraftAction,
   regenerateRoundAction,
@@ -64,7 +65,12 @@ type PlayerInColumn = {
   negativeReadinessSignals?: string[];
   /** Why this selection — see AGENTS.md "Explanation model" (ARR-0033). Surfaced via the chip's tooltip, not a badge. */
   selectionReason?: string;
-  explanations?: Array<{ code: string; summary: string; hardRule?: boolean }>;
+  explanations?: Array<{
+    code: string;
+    summary: string;
+    hardRule?: boolean;
+    reason?: import("@/lib/explanations/recommendation-reason").RecommendationReason;
+  }>;
 };
 
 type MatchColumn = {
@@ -161,10 +167,13 @@ function explanationTooltipFor(player: PlayerInColumn): string {
   if (player.selectionReason) {
     lines.push(player.selectionReason);
   }
+  // Soft signals a coach could not otherwise see. Prefer the neutral, contract-shaped reason
+  // text (C6 / ADR-0128) when present, falling back to the record's own summary.
   const softNotes = (player.explanations ?? [])
-    .filter((e) => !e.hardRule && e.summary && e.summary !== player.selectionReason)
-    .map((e) => e.summary);
-  lines.push(...softNotes);
+    .filter((e) => !e.hardRule)
+    .map((e) => (e.reason ? renderReason(e.reason) : e.summary))
+    .filter((text): text is string => !!text && text !== player.selectionReason);
+  lines.push(...[...new Set(softNotes)]);
   return lines.join("\n");
 }
 

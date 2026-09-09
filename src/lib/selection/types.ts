@@ -8,6 +8,12 @@ export type ExplanationRecord = {
   summary: string;
   details?: string;
   hardRule?: boolean;
+  /**
+   * Structured, neutral-language classification of this explanation (C6 / ADR-0128). Present
+   * when `code` maps to a `ReasonCode`; rendered coach-facing via `renderReason()`. Additive —
+   * `summary` remains the display fallback.
+   */
+  reason?: import("@/lib/explanations/recommendation-reason").RecommendationReason;
 };
 
 export type SelectionWarning = {

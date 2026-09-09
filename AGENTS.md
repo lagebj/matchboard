@@ -571,11 +571,14 @@ squad selection, lineup generation, and rotation generation alike — uses
 Prose is produced in exactly one place: `renderReason()`
 (`src/lib/formatters/recommendation-reason-text.ts`), neutral language only, no ranking, no
 leaked numbers, correlational wording for evidence. Engines must not build explanation sentences
-themselves. `classifyExplanationCode()` bridges the legacy squad-selection snake_case codes into
-the shared categories. Wired end-to-end in the rotation generator so far; squad-selection
-`buildExplanation` and `suggestLineupForFormation` migration onto the contract, and the
-player-name-in-stored-explanations cleanup (ARR-0043), are staged follow-ups against this stable
-contract.
+themselves. Wired: the **rotation generator** (`generate-rotation-plan.ts` — `reasons` is the
+single source, prose derived) and **squad selection** — `ExplanationRecord` carries an additive
+`reason?` attached by `buildExplanation` via `reasonFromLegacyExplanation(code, hardRule)` for
+every mapped code, persisted alongside the (name-free, team-name/count-bearing) `summary` and
+rendered on the **Round Board** tooltip via `renderReason()` when present. Still staged:
+`suggestLineupForFormation()`'s per-assignment `reasons: string[]` — structuring + persisting
+them needs a nullable `MatchLineupAssignment.reasons Json?` column and there is no structured
+lineup-reason reader yet (do not build the column ahead of one).
 
 ### Manual draft change impact analysis
 
