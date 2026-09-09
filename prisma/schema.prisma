@@ -2417,6 +2417,7 @@ model Organisation {
   profileSuggestions            PlayerProfileSuggestion[]
   ruleConfigs                   RuleConfig[]
   reviewRequests                ReviewRequest[]
+  decisionReviews               DecisionReview[]
   workOwnerships                WorkOwnership[]
   footballGroups                FootballGroup[]
   groupMovementPaths            GroupMovementPath[]
@@ -2889,6 +2890,50 @@ model ReviewRequest {
   @@index([targetType, targetId, status])
   @@index([reviewerMembershipId, status])
   @@index([requestedByMembershipId])
+  @@index([organisationId])
+}
+
+// Decision review (ADR-0131 / ADR-0132) — reconsider a durable coaching decision after
+// time/context changes. Distinct from ReviewRequest (Peer review): not an approval, no reviewer,
+// longer loop. Initial target types only.
+enum DecisionReviewTargetType {
+  DEVELOPMENT_THREAD
+  TEAM_FOCUS
+}
+
+enum DecisionReviewStatus {
+  PENDING
+  COMPLETED
+  SUPERSEDED
+}
+
+enum DecisionReviewOutcome {
+  KEEP
+  CHANGE
+  COMPLETE
+}
+
+model DecisionReview {
+  id             String                   @id @default(cuid())
+  organisationId String
+  targetType     DecisionReviewTargetType
+  targetId       String
+  /** Material-fields fingerprint of the target when this review was scheduled. */
+  targetRevision String
+  dueAt          DateTime
+  status         DecisionReviewStatus     @default(PENDING)
+  outcome        DecisionReviewOutcome?
+  reviewNote     String?
+  createdBy      String?
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId, status])
+  @@index([status, dueAt])
   @@index([organisationId])
 }
 

@@ -206,7 +206,7 @@ The primary coach workflow is:
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Define intent** — Set match purpose, team risk, desired football behavior, support need, development focus.
 3. **Populate all** — Generate draft selections for all rounds in the active league season. Each round is generated via round-level orchestration (not match-by-match). No round is finalized by populate all.
-4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
+4. **Check** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed. ("Check" is the fixed product word for plan inspection since ADR-0131 — not "Review", which now means one of the four distinct concepts under "Review vocabulary" below.)
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
 6. **Finalize (derived, not a coach action — ADR-0109)** — There is no coach-operated "Finalize round"/"Finalize match" action. The plan becomes historical automatically the moment the real-world planning boundary closes for a match: scheduled kickoff passes, or live match reporting starts, whichever happens first. Finalized rounds and matches become history and cannot be silently mutated. A genuine reschedule that proves a match did not actually start can reopen its planning — see "Real-world planning boundary" below. This is not "un-finalize."
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
@@ -214,7 +214,25 @@ The primary coach workflow is:
 
 The Assistant page (presented at the canonical `/today` route since Phase 2.4 — see "Canonical routes") must always show the next action based on this workflow state. The Assistant page derives work items from live database state using `getAssistantCommandCentre()`, not from persisted AssistantIssue rows.
 
-The assistant must not skip steps or suggest finalization before draft review. Planning notes, scoring preferences, opponent observations, and seasonal context never appear as Assistant work items. The CoachingIntentSelector must not appear on the Assistant page — intent belongs on Fixtures and Round Board.
+The assistant must not skip steps or suggest finalization before the coach has checked the draft. Planning notes, scoring preferences, opponent observations, and seasonal context never appear as Assistant work items. The CoachingIntentSelector must not appear on the Assistant page — intent belongs on Fixtures and Round Board.
+
+### Review vocabulary (ADR-0131 / ADR-0132)
+
+"Review" is not one concept. Five distinct concepts, each with fixed product language:
+
+- **Check** — inspect generated work before acting on it. The workflow step (`Populate → Check → Adjust`). Not a status; the round/match state model is unchanged.
+- **Attention** — current reality that needs action now ("Needs attention"): unavailable selected player, uncovered opportunity, incomplete report, no safe fit, helper required, **due Decision review**. Never styled as an error; never a blocker.
+- **Reflect** — record what happened / was observed after play: team reflection, player observation, quick observation. Unchanged mechanisms.
+- **Peer review** — one coach asks another to look at a concrete lineup / event squad. Maps to the existing `ReviewRequest` model and `/reviews` route **unchanged**. Product title "Peer reviews"; action "Request peer review". Domain semantics/statuses untouched.
+- **Decision review** — reconsider a durable coaching decision after time/context changes. New `DecisionReview` persistence. Not an approval, no reviewer. Targets `DevelopmentThread` and `TeamFocus` only initially.
+
+**Decision review cadence** (`src/lib/review/decision-review.ts`, ADR-0132):
+- On `DevelopmentThread` / `TeamFocus` creation a review is prefilled **42 days** out (`DECISION_REVIEW_CADENCE_DAYS`) — a product cadence, not an evidence threshold. The coach may change the date or choose "No scheduled review" (`dueAt: null` → nothing created).
+- `targetRevision` fingerprints **material** fields only: `focus + category + rationale` (DevelopmentThread), `statement + context` (TeamFocus). Metadata-only edits do not reset the cadence.
+- Material change before resolution → pending review `SUPERSEDED`, fresh `PENDING` review 42 days from the change. Target close/complete outside a review → pending review `SUPERSEDED`, **no** replacement.
+- Resolution (owning coach, no reviewer): **Keep** (`COMPLETED`/`KEEP`, next review +42d), **Change** (edit target; material save resolves `CHANGE` + schedules next), **Complete** (`COMPLETED`/`COMPLETE`, closes target, **stops** cadence), **Later** (`dueAt += 7d`, `DECISION_REVIEW_DEFER_DAYS`, stays `PENDING`). Nothing auto-resolves.
+- Best-effort hooks in `createThread`/`updateThread` (`development-thread.ts`) and `createTeamFocus`/`updateTeamFocus`/`reopenTeamFocus` (`team-focus.ts`) — a scheduling failure never fails the coaching write.
+- Surfaced under "Needs attention" on Today (after immediate live/matchday items) and on the target's Player/Team detail, labels `Development focus ready to revisit` / `Team focus ready to revisit`, plus a compact date/outcome/note/resolver history (`getDecisionReviewHistoryForTarget()`) — no leaderboard, no count judgement, no invented success score.
 
 ## Stack
 
@@ -3934,8 +3952,9 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
-| `src/lib/review/review-service.ts` | `createReviewRequest()`, `resolveReviewRequest()`, `supersedePendingReviews()`, `getPendingReviewsForReviewer()`, `getReviewHistory()` |
-| `src/app/(app)/reviews/actions.ts` | Review server actions: request, resolve, cancel, get pending, get history |
+| `src/lib/review/review-service.ts` | Peer review (`ReviewRequest`): `createReviewRequest()`, `resolveReviewRequest()`, `supersedePendingReviews()`, `getPendingReviewsForReviewer()`, `getReviewHistory()` |
+| `src/lib/review/decision-review.ts` | Decision review (`DecisionReview`, ADR-0131/0132): `scheduleDecisionReview()`, `supersedeDecisionReviewsForChange()`, `supersedeDecisionReviewsOnClose()`, `resolveDecisionReview()`, `deferDecisionReview()`, `getDueDecisionReviews()`, `getDecisionReviewHistoryForTarget()`, `developmentThreadRevision()`/`teamFocusRevision()` |
+| `src/app/(app)/reviews/actions.ts` | Peer review server actions: request, resolve, cancel, get pending, get history |
 | `src/lib/attention/get-attention-entries.ts` | `getAttentionEntries()` — attention projection from live domain state |
 | `src/app/(app)/o/[orgSlug]/attention/page.tsx` | Attention page (server) |
 | `src/app/(app)/o/[orgSlug]/attention/attention-client.tsx` | Attention page client component |

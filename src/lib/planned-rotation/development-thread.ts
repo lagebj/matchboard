@@ -1,6 +1,12 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { DEVELOPMENT_FOCUS_CATEGORIES, type DevelopmentFocusCategory } from "@/lib/coaching/development-thread-categories";
+import {
+  scheduleDecisionReview,
+  supersedeDecisionReviewsForChange,
+  supersedeDecisionReviewsOnClose,
+  developmentThreadRevision,
+} from "@/lib/review/decision-review";
 
 export type { DevelopmentFocusCategory };
 export { DEVELOPMENT_FOCUS_CATEGORIES };
@@ -13,6 +19,8 @@ export interface CreateThreadInput {
   rationale?: string;
   category?: DevelopmentFocusCategory;
   recordedBy?: string;
+  /** Decision-review due date. Omit for the 42-day default; `null` for "No scheduled review". */
+  reviewDueAt?: Date | null;
 }
 
 export interface UpdateThreadInput {
@@ -136,6 +144,24 @@ export async function createThread(
     include: { observations: { orderBy: { createdAt: "asc" } } },
   });
 
+  // Prefill a decision review 42 days out (ADR-0131 / ADR-0132). Best-effort — a review
+  // scheduling failure must never fail thread creation. `input.reviewDueAt === null` is the
+  // coach's explicit "No scheduled review" choice.
+  try {
+    await scheduleDecisionReview(
+      {
+        targetType: "DEVELOPMENT_THREAD",
+        targetId: thread.id,
+        targetRevision: developmentThreadRevision(thread),
+        dueAt: input.reviewDueAt,
+        createdBy: input.recordedBy || null,
+      },
+      orgFilter,
+    );
+  } catch {
+    // ignored
+  }
+
   return thread as DevelopmentThreadWithObservations;
 }
 
@@ -174,6 +200,24 @@ export async function updateThread(
     data,
     include: { observations: { orderBy: { createdAt: "asc" } } },
   });
+
+  // Decision-review cadence (ADR-0131). Best-effort. A close/complete supersedes the pending
+  // review with no replacement; a material change (focus / category / rationale) supersedes it
+  // and schedules a fresh one — a metadata-only save is a no-op inside the helper.
+  try {
+    if (input.status === "COMPLETED" || input.status === "CLOSED") {
+      await supersedeDecisionReviewsOnClose("DEVELOPMENT_THREAD", thread.id, orgFilter);
+    } else if (input.focus !== undefined || input.category !== undefined || input.rationale !== undefined) {
+      await supersedeDecisionReviewsForChange(
+        "DEVELOPMENT_THREAD",
+        thread.id,
+        developmentThreadRevision(thread),
+        orgFilter,
+      );
+    }
+  } catch {
+    // ignored
+  }
 
   return thread as DevelopmentThreadWithObservations;
 }

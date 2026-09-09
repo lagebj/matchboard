@@ -1,5 +1,11 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import {
+  scheduleDecisionReview,
+  supersedeDecisionReviewsForChange,
+  supersedeDecisionReviewsOnClose,
+  teamFocusRevision,
+} from "@/lib/review/decision-review";
 
 export type TeamFocusStatus = "ACTIVE" | "COMPLETED" | "CLOSED";
 
@@ -9,6 +15,8 @@ export interface CreateTeamFocusInput {
   context?: string;
   linkedIntentId?: string;
   recordedBy?: string;
+  /** Decision-review due date. Omit for the 42-day default; `null` for "No scheduled review". */
+  reviewDueAt?: Date | null;
 }
 
 export interface UpdateTeamFocusInput {
@@ -92,6 +100,24 @@ export async function createTeamFocus(
     },
   });
 
+  // Prefill a decision review 42 days out (ADR-0131 / ADR-0132). Best-effort — a review
+  // scheduling failure must never fail focus creation. `input.reviewDueAt === null` is the
+  // coach's explicit "No scheduled review" choice.
+  try {
+    await scheduleDecisionReview(
+      {
+        targetType: "TEAM_FOCUS",
+        targetId: focus.id,
+        targetRevision: teamFocusRevision(focus),
+        dueAt: input.reviewDueAt,
+        createdBy: input.recordedBy || null,
+      },
+      orgFilter,
+    );
+  } catch {
+    // ignored
+  }
+
   return focus as TeamFocusRow;
 }
 
@@ -141,6 +167,24 @@ export async function updateTeamFocus(
     data,
   });
 
+  // Decision-review cadence (ADR-0131). Best-effort. A close/complete supersedes the pending
+  // review with no replacement; a material change (statement / context) supersedes it and
+  // schedules a fresh one — a metadata-only save is a no-op inside the helper.
+  try {
+    if (input.status === "COMPLETED" || input.status === "CLOSED") {
+      await supersedeDecisionReviewsOnClose("TEAM_FOCUS", focus.id, orgFilter);
+    } else if (input.statement !== undefined || input.context !== undefined) {
+      await supersedeDecisionReviewsForChange(
+        "TEAM_FOCUS",
+        focus.id,
+        teamFocusRevision(focus),
+        orgFilter,
+      );
+    }
+  } catch {
+    // ignored
+  }
+
   return focus as TeamFocusRow;
 }
 
@@ -177,6 +221,20 @@ export async function reopenTeamFocus(focusId: string, orgFilter: OrgFilterMode)
     where: { id: focusId },
     data: { status: "ACTIVE", completedAt: null, closedAt: null },
   });
+
+  // Reopening a focus restarts its decision-review cadence (ADR-0131). Best-effort.
+  try {
+    await scheduleDecisionReview(
+      {
+        targetType: "TEAM_FOCUS",
+        targetId: focus.id,
+        targetRevision: teamFocusRevision(focus),
+      },
+      orgFilter,
+    );
+  } catch {
+    // ignored
+  }
 
   return focus as TeamFocusRow;
 }
