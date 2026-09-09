@@ -3779,6 +3779,112 @@ Feature: Matchboard football operations workspace
       And list the warnings grouped by team, player, and rule
 
 
+  Rule: Review vocabulary distinguishes Check, Attention, Reflect, Peer review, and Decision review (ADR-0131)
+
+    "Review" previously meant four different activities. The vocabulary is now fixed:
+    Check is inspecting generated work before acting; Attention is current reality that
+    needs action; Reflect is recording what happened after play; Peer review is one coach
+    asking another to look at a concrete lineup or squad; Decision review is reconsidering
+    a durable coaching decision after time has passed.
+
+    Scenario: The planning workflow step is named Check
+      Given the coach has populated draft selections
+      When the coach inspects the generated plan before adjusting it
+      Then the workflow step must be presented as "Check"
+      And the coach workflow must read "Populate then Check then Adjust"
+      And the plan-inspection step must not be labelled "Review"
+
+    Scenario: ReviewRequest is presented as Peer review
+      Given the coach opens the peer collaboration surface at "/reviews"
+      Then it must be titled "Peer reviews"
+      And the action to ask another coach to look at a lineup must be "Request peer review"
+      And the underlying ReviewRequest statuses and semantics must be unchanged
+
+    Scenario: Peer review and Decision review do not share persistence
+      Given a Decision review exists for a development thread
+      And a Peer review request exists for a match lineup
+      Then the Decision review must be stored as a DecisionReview record
+      And the Peer review must be stored as a ReviewRequest record
+      And a Decision review must have no reviewer and no approval step
+
+
+  Rule: Decision review reconsiders a durable coaching decision on a 42-day cadence (ADR-0132)
+
+    On creating a DevelopmentThread or a TeamFocus, a Decision review is prefilled 42 days
+    out. 42 days is a product cadence, not an evidence threshold. The coach can change the
+    date or choose no scheduled review. Decision review targets only DevelopmentThread and
+    TeamFocus initially. Nothing auto-resolves.
+
+    Scenario: Creating a development focus schedules a Decision review 42 days out
+      Given the coach records a new development focus for player "p1"
+      Then one pending Decision review must be created for that development thread
+      And its due date must be 42 days after creation
+      And the coach must be able to change the date or choose "No scheduled review"
+
+    Scenario: Choosing no scheduled review creates nothing
+      Given the coach records a new team focus for team "t1"
+      And the coach chooses "No scheduled review"
+      Then no Decision review must be created for that team focus
+
+    Scenario: A due Decision review appears on Today as attention, not error
+      Given a pending Decision review for a development thread is due
+      When the coach opens Today
+      Then it must appear under "Needs attention" after immediate live and matchday items
+      And it must be labelled "Development focus ready to revisit"
+      And it must not be styled as an error or a blocker
+      And it must also appear on that player's detail context
+
+    Scenario: Keep resolves the review and schedules the next one
+      Given a pending Decision review for a team focus is due
+      When the coach chooses "Keep" with an optional note
+      Then the review outcome must be recorded as KEEP
+      And a new pending Decision review must be scheduled 42 days from now
+      And the team focus must remain active
+
+    Scenario: Change edits the target and schedules the next review
+      Given a pending Decision review for a development thread is due
+      When the coach chooses "Change" and materially edits the development focus
+      Then the pending review must be superseded
+      And a new pending Decision review must be scheduled 42 days from the change
+      And the resolved review outcome must be recorded as CHANGE
+
+    Scenario: Complete closes the target and stops the cadence
+      Given a pending Decision review for a development thread is due
+      When the coach chooses "Complete"
+      Then the review outcome must be recorded as COMPLETE
+      And the development thread must be closed
+      And no further Decision review must be scheduled for it
+
+    Scenario: Later moves the due date out by seven days
+      Given a pending Decision review is due
+      When the coach chooses "Later"
+      Then its due date must move seven days later
+      And it must remain pending
+
+    Scenario: A material change supersedes the pending review and schedules a fresh one
+      Given a pending Decision review exists for a development thread
+      When the coach materially changes the focus, category, or rationale
+      Then the pending review must be superseded
+      And a new pending Decision review must be scheduled 42 days from the change
+
+    Scenario: A metadata-only edit does not reset the review
+      Given a pending Decision review exists for a team focus
+      When the coach saves the team focus without changing its statement or context
+      Then the pending review must be unchanged
+
+    Scenario: Completing the target outside a review supersedes the pending review with no replacement
+      Given a pending Decision review exists for a development thread
+      When the development thread is completed or closed without opening the review
+      Then the pending review must become superseded
+      And no new Decision review must be scheduled
+
+    Scenario: Target detail shows a compact Decision review history
+      Given a development thread has had two resolved Decision reviews
+      When the coach opens that development thread
+      Then it must show each review's date, outcome, note, and resolver
+      And it must not show a leaderboard, a count judgement, or an invented success score
+
+
   Rule: Table-only implementation is not acceptable
 
     A table-only implementation does not satisfy Matchboard UX requirements.

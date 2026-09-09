@@ -143,6 +143,8 @@ export const RLS_TABLES = new Set([
   "developmentThread",
   "developmentThreadObservation",
   "teamFocus",
+  // ADR-0131 / ADR-0132: Decision review.
+  "decisionReview",
   // ADR-0106: GuestPlayer and shared match participant model.
   "guestPlayer",
   "eventMatchAvailability",
