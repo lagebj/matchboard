@@ -3676,6 +3676,15 @@ Feature: Matchboard football operations workspace
       Then the higher-rated player fills the slot
       But a higher rating never places a player in a slot they are not eligible for
 
+    Scenario: The formation editor shows each slot's derived exact automatic-planning role
+      Given the coach edits a formation slot whose role type and lane resolve to an exact role
+      Then the slot editor must show the exact role automatic planning targets for that slot
+      And the exact role must be derived from role type and grid lane only, never from the slot label
+
+    Scenario: A Free formation slot is marked manual-only in the editor
+      Given the coach edits a Free formation slot
+      Then the slot editor must display "Manual-only for automatic planning"
+
 
   Rule: Round checks are part of Round Board workflow
 

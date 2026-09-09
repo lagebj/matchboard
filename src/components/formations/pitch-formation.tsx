@@ -2,6 +2,7 @@
 
 import { WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
+import { deriveExactTargetRole } from "@/domain/positions/slot-target";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
@@ -147,38 +148,51 @@ export function SlotEditDialog({ isOpen, onClose, slot, gameFormat: _gameFormat,
     >
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-400">Label</label>
+          <label className="text-xs font-medium text-[var(--text-muted)]">Label</label>
           <input
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100"
+            className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-[var(--foreground)]"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-400">Short label</label>
+          <label className="text-xs font-medium text-[var(--text-muted)]">Short label</label>
           <input
             type="text"
             value={shortLabel}
             onChange={(e) => setShortLabel(e.target.value)}
             maxLength={4}
-            className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100"
+            className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-[var(--foreground)]"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-400">Role type</label>
+          <label className="text-xs font-medium text-[var(--text-muted)]">Role type</label>
           <select
             value={roleType}
             onChange={(e) => setRoleType(e.target.value)}
-            className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100"
+            className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-[var(--foreground)]"
           >
             {ROLE_TYPE_OPTIONS.map((rt) => (
               <option key={rt} value={rt}>{ROLE_TYPE_LABELS[rt]}</option>
             ))}
           </select>
+          {/* ADR-0129 §4: the exact role automatic lineup/rotation planning derives from
+              roleType + lane. A FREE slot derives none — it is manual-only for automatic
+              planning. Free-form label strings are never parsed. */}
+          {(() => {
+            const exact = deriveExactTargetRole(roleType as FormationSlotRoleType, slot.gridX);
+            return (
+              <p className="text-[var(--text-micro)] text-[var(--text-muted)]">
+                {exact
+                  ? `Automatic planning targets ${exact} (${WIDTH_LANE_LABELS[slot.gridX]}).`
+                  : "Manual-only for automatic planning"}
+              </p>
+            );
+          })()}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-zinc-400">Accepted positions</label>
+          <label className="text-xs font-medium text-[var(--text-muted)]">Accepted positions</label>
           <div className="flex flex-wrap gap-2">
             {POSITION_OPTIONS.map((pos) => (
               <button
@@ -188,7 +202,7 @@ export function SlotEditDialog({ isOpen, onClose, slot, gameFormat: _gameFormat,
                 className={cn(
                   "rounded-md border px-2 py-1 text-xs transition-colors",
                   positions.includes(pos.value)
-                    ? "border-[var(--accent)] bg-[var(--accent)]/20 text-zinc-100"
+                    ? "border-[var(--accent)] bg-[var(--accent)]/20 text-[var(--foreground)]"
                     : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-muted)] hover:border-[var(--border-strong)]"
                 )}
               >
