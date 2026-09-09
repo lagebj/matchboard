@@ -1,10 +1,10 @@
 import { db } from '@/lib/db';
 import { getPlayerOverallRating, NEUTRAL_UNRATED_RATING } from '@/lib/ratings/player-rating';
-import { getPlayerSlotCompatibility, type PlayerPositionInfo } from '@/lib/formations/lineup-compatibility';
 import { createFormationSnapshot } from '@/lib/formations/snapshot';
-import type { FormationSlotData, FormationSlotRoleType } from '@/lib/formations/types';
+import type { FormationSlotRoleType } from '@/lib/formations/types';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import { Prisma, type GameFormat } from '@/generated/prisma/client';
+import { selectBestLineupAssignments, type BestLineupCandidate } from './select-best-lineup';
 
 export type BestLineupSlot = {
   slotId: string;
@@ -43,40 +43,8 @@ type FormationSlotRow = {
   sortOrder: number;
 };
 
-type PlayerRow = {
-  id: string;
-  firstName: string;
-  lastName: string | null;
-  primaryPosition: string;
-  secondaryPosition: string | null;
-  tertiaryPosition: string | null;
-  goalkeeperAbility: string;
-  ballControl: number | null;
-  passing: number | null;
-  firstTouch: number | null;
-  oneVOneAttacking: number | null;
-  positioning: number | null;
-  oneVOneDefending: number | null;
-  decisionMaking: number | null;
-  effort: number | null;
-  teamplay: number | null;
-  concentration: number | null;
-  speed: number | null;
-  strength: number | null;
-  shirtNumber: number | null;
-  coreTeamId: string | null;
-};
-
 function slotAcceptedPositionIds(slot: FormationSlotRow): string[] {
   return Array.isArray(slot.acceptedPositionIds) ? slot.acceptedPositionIds as string[] : [];
-}
-
-function toPlayerPositionInfo(p: PlayerRow): PlayerPositionInfo {
-  return {
-    playerId: p.id,
-    primaryPosition: p.primaryPosition,
-    secondaryPositions: [p.secondaryPosition, p.tertiaryPosition].filter((s): s is string => s !== null),
-  };
 }
 
 function toSlotData(slot: FormationSlotRow) {
@@ -176,6 +144,7 @@ export async function autoSelectBestLineup(teamId: string, orgFilter: OrgFilterM
       primaryPosition: true,
       secondaryPosition: true,
       tertiaryPosition: true,
+      bestSide: true,
       goalkeeperAbility: true,
       ballControl: true,
       passing: true,
@@ -221,64 +190,24 @@ export async function autoSelectBestLineup(teamId: string, orgFilter: OrgFilterM
     }
   }
 
-  const assignedPlayerIds = new Set<string>();
-  const slotAssignments = new Map<string, string>();
+  // Exact positional eligibility + deterministic bounded matching (ADR-0129). Overall rating is
+  // a within-tier preference only. `unrated` uses the neutral fallback so it never sorts below a
+  // genuine low rating (Phase 9 audit §63).
+  const candidates: BestLineupCandidate[] = players.map((p) => ({
+    id: p.id,
+    primaryPosition: p.primaryPosition,
+    secondaryPosition: p.secondaryPosition,
+    tertiaryPosition: p.tertiaryPosition,
+    bestSide: p.bestSide as BestLineupCandidate['bestSide'],
+    rating: getPlayerOverallRating(p).value ?? NEUTRAL_UNRATED_RATING,
+  }));
 
-  for (const [slotId, playerId] of lockedAssignments) {
-    if (players.some((p) => p.id === playerId)) {
-      slotAssignments.set(slotId, playerId);
-      assignedPlayerIds.add(playerId);
-    }
-  }
-
-  const gkSlots = formationSlots.filter((s) => s.roleType === 'GOALKEEPER');
-  const otherSlots = formationSlots.filter((s) => s.roleType !== 'GOALKEEPER');
-
-  const sortedOtherSlots = [...otherSlots].sort((a, b) => {
-    const aCompat = countCompatiblePlayers(players, a, assignedPlayerIds);
-    const bCompat = countCompatiblePlayers(players, b, assignedPlayerIds);
-    return aCompat - bCompat;
-  });
-
-  const orderedSlots = [...gkSlots, ...sortedOtherSlots];
-
-  for (const slot of orderedSlots) {
-    if (slotAssignments.has(slot.id)) continue;
-
-    const available = players.filter((p) => !assignedPlayerIds.has(p.id));
-    if (available.length === 0) continue;
-
-    const slotData: FormationSlotData = {
-      id: slot.id,
-      gridX: slot.gridX,
-      gridY: slot.gridY,
-      label: slot.label,
-      shortLabel: slot.shortLabel,
-      roleType: slot.roleType as FormationSlotRoleType,
-      acceptedPositionIds: slotAcceptedPositionIds(slot),
-      sortOrder: slot.sortOrder,
-    };
-    const compatPlayers = available
-      .map((p) => {
-        const posInfo = toPlayerPositionInfo(p);
-        const compat = getPlayerSlotCompatibility(posInfo, slotData);
-        const rating = getPlayerOverallRating(p);
-        // Phase 9 audit (§63): unrated must not sort below a genuine low rating.
-        return { player: p, isCompatible: compat.isCompatible, reason: compat.compatibilityReason, rating: rating.value ?? NEUTRAL_UNRATED_RATING };
-      })
-      .filter((item) => item.isCompatible)
-      .sort((a, b) => {
-        const aIsPrimary = a.reason?.includes('Registered as') ? 0 : 1;
-        const bIsPrimary = b.reason?.includes('Registered as') ? 0 : 1;
-        if (aIsPrimary !== bIsPrimary) return aIsPrimary - bIsPrimary;
-        return b.rating - a.rating;
-      });
-
-    if (compatPlayers.length > 0) {
-      slotAssignments.set(slot.id, compatPlayers[0].player.id);
-      assignedPlayerIds.add(compatPlayers[0].player.id);
-    }
-  }
+  const slotAssignments = selectBestLineupAssignments(
+    formationSlots.map((s) => ({ slotId: s.id, roleType: s.roleType as FormationSlotRoleType, gridX: s.gridX })),
+    candidates,
+    lockedAssignments,
+    `${teamId}:${formation.id}`,
+  );
 
   const snapshot = createFormationSnapshot(
     formation.id,
@@ -305,27 +234,6 @@ export async function autoSelectBestLineup(teamId: string, orgFilter: OrgFilterM
   await syncAssignments(lineup.id, formationSlots, slotAssignments, lockedAssignments, team.organisationId);
 
   return getBestLineup(teamId, orgFilter) as Promise<BestLineupData>;
-}
-
-function countCompatiblePlayers(
-  players: PlayerRow[],
-  slot: FormationSlotRow,
-  exclude: Set<string>,
-): number {
-  const slotData: FormationSlotData = {
-    id: slot.id,
-    gridX: slot.gridX,
-    gridY: slot.gridY,
-    label: slot.label,
-    shortLabel: slot.shortLabel,
-    roleType: slot.roleType as FormationSlotRoleType,
-    acceptedPositionIds: slotAcceptedPositionIds(slot),
-    sortOrder: slot.sortOrder,
-  };
-  return players.filter((p) => {
-    if (exclude.has(p.id)) return false;
-    return getPlayerSlotCompatibility(toPlayerPositionInfo(p), slotData).isCompatible;
-  }).length;
 }
 
 async function syncAssignments(
