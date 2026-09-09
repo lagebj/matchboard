@@ -159,8 +159,8 @@ function LiveClock({ clock, periodConfig }: { clock: MatchClockState; periodConf
 
   return (
     <div className="text-center px-2 min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">{label}</div>
-      <div className="text-xl font-mono font-semibold text-zinc-200 tabular-nums">{formatElapsedMs(elapsedMs)}</div>
+      <div className="text-[var(--text-micro)] uppercase tracking-wider text-[var(--text-muted)] font-medium">{label}</div>
+      <div className="text-xl font-mono font-semibold text-[var(--text-soft)] tabular-nums">{formatElapsedMs(elapsedMs)}</div>
     </div>
   );
 }
@@ -168,12 +168,12 @@ function LiveClock({ clock, periodConfig }: { clock: MatchClockState; periodConf
 function ScoreboardSide({ name, goals, own }: { name: string; goals: number; own: boolean }) {
   return (
     <div className="flex flex-1 min-w-0 flex-col items-center text-center">
-      <div className={`text-xs font-medium truncate ${own ? "text-[var(--accent)]" : "text-zinc-400"}`}>
+      <div className={`text-xs font-medium truncate ${own ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>
         {name}
       </div>
       <div
         data-testid={own ? "live-score-us" : "live-score-them"}
-        className="text-4xl font-bold text-zinc-100 tabular-nums leading-tight"
+        className="text-4xl font-bold text-[var(--foreground)] tabular-nums leading-tight"
       >
         {goals}
       </div>
@@ -199,12 +199,12 @@ function BottomSheet({ open, onClose, title, children }: { open: boolean; onClos
     <div className="fixed inset-0 bg-black/60" onClick={onClose} aria-hidden />
     <div
         ref={sheetRef}
-        className="relative z-10 bg-zinc-900 rounded-t-2xl border-t border-zinc-700 max-h-[75dvh] flex flex-col"
+        className="relative z-10 bg-[var(--surface-base)] rounded-t-2xl border-t border-[var(--border-strong)] max-h-[75dvh] flex flex-col"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-zinc-800 shrink-0">
-          <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 text-sm font-medium px-2 py-1 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Close">Close</button>
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--border-soft)] shrink-0">
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">{title}</h3>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-soft)] text-sm font-medium px-2 py-1 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Close">Close</button>
         </div>
         <div className="overflow-y-auto flex-1 px-4 py-3">
           {children}
@@ -231,8 +231,8 @@ function PlayerButton({
     : variant === "highlight"
       ? "bg-emerald-800/60 text-emerald-100"
       : onField
-        ? "bg-zinc-800 text-zinc-200"
-        : "bg-zinc-800/60 text-zinc-400";
+        ? "bg-[var(--surface-hover)] text-[var(--text-soft)]"
+        : "bg-[var(--surface-hover)]/60 text-[var(--text-muted)]";
   return (
     <button
       onClick={onClick}
@@ -240,7 +240,7 @@ function PlayerButton({
     >
       {player.shirtNumber != null && <span className="text-sm font-bold opacity-70 w-6 text-right shrink-0">{player.shirtNumber}</span>}
       <span className="text-sm font-medium truncate">{player.playerName}</span>
-      {onField && <span className="ml-auto text-[10px] text-emerald-400 uppercase tracking-wide shrink-0">On field</span>}
+      {onField && <span className="ml-auto text-[var(--text-micro)] text-[var(--success)] uppercase tracking-wide shrink-0">On field</span>}
     </button>
   );
 }
@@ -251,11 +251,11 @@ function ConfirmDialog({ open, onConfirm, onCancel, title, children }: { open: b
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center" role="alertdialog" aria-modal="true" aria-label={title}>
       <div className="fixed inset-0 bg-black/70" onClick={onCancel} aria-hidden />
-      <div className="relative z-10 bg-zinc-900 rounded-2xl border border-zinc-700 p-5 mx-4 max-w-sm w-full" style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}>
-        <h3 className="text-base font-semibold text-zinc-100 mb-2">{title}</h3>
-        <div className="text-sm text-zinc-300 mb-4">{children}</div>
+      <div className="relative z-10 bg-[var(--surface-base)] rounded-2xl border border-[var(--border-strong)] p-5 mx-4 max-w-sm w-full" style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}>
+        <h3 className="text-base font-semibold text-[var(--foreground)] mb-2">{title}</h3>
+        <div className="text-sm text-[var(--text-soft)] mb-4">{children}</div>
         <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 py-3 px-4 rounded-lg bg-zinc-800 text-zinc-300 font-medium min-h-[48px]">Cancel</button>
+          <button onClick={onCancel} className="flex-1 py-3 px-4 rounded-lg bg-[var(--surface-hover)] text-[var(--text-soft)] font-medium min-h-[48px]">Cancel</button>
           <button onClick={onConfirm} className="flex-1 py-3 px-4 rounded-lg bg-red-600 text-white font-medium min-h-[48px]">Confirm</button>
         </div>
       </div>
@@ -276,8 +276,8 @@ function SyncStatusIndicator({ status, pendingCount }: { status: SyncStatus; pen
         ? "Sync issue — data saved locally"
         : null;
   if (!label) return null;
-  const color = status === "offline" ? "text-amber-400" : status === "error" ? "text-red-400" : "text-zinc-400";
-  return <div className={`text-[10px] ${color} text-center py-0.5`}>{label}</div>;
+  const color = status === "offline" ? "text-amber-400" : status === "error" ? "text-red-400" : "text-[var(--text-muted)]";
+  return <div className={`text-[var(--text-micro)] ${color} text-center py-0.5`}>{label}</div>;
 }
 
 // --- Main Component ---
@@ -782,19 +782,19 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // --- Render ---
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-zinc-950">
-        <p className="text-zinc-400">Loading match data...</p>
+      <div className="flex items-center justify-center min-h-[100dvh] bg-[var(--background)]">
+        <p className="text-[var(--text-muted)]">Loading match data...</p>
       </div>
     );
   }
 
   if (!sessionActive) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-zinc-950 p-6 space-y-6" style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
+      <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-[var(--background)] p-6 space-y-6" style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-zinc-100">{teamName}</h1>
-          <p className="text-zinc-400 mt-1 text-lg">vs {opponentName}</p>
-          {contextLabel && <p className="text-sm text-zinc-500 mt-1">{contextLabel}</p>}
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{teamName}</h1>
+          <p className="text-[var(--text-muted)] mt-1 text-lg">vs {opponentName}</p>
+          {contextLabel && <p className="text-sm text-[var(--text-muted)] mt-1">{contextLabel}</p>}
         </div>
         <button
           onClick={handleStartSession}
@@ -808,12 +808,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }
 
   return (
-    <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       {/* Scoreboard — canonical football home→away order (ADR-0125). Deliberately a
           compact operational-focus density (one row, sticky) rather than the full
           MatchHeader: the live action buttons must stay above the fold. Our team is
           marked only by a subtle name accent, never by a score colour. */}
-      <div className="sticky top-0 z-30 bg-zinc-900 border-b border-zinc-800">
+      <div className="sticky top-0 z-30 bg-[var(--surface-base)] border-b border-[var(--border-soft)]">
         <div className="flex items-center px-3 py-2" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}>
           <ScoreboardSide
             name={isHome ? teamName : opponentName}
@@ -833,16 +833,16 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       </div>
 
       {/* Period control */}
-      <div className="px-3 py-2 border-b border-zinc-800">
+      <div className="px-3 py-2 border-b border-[var(--border-soft)]">
         <button
           onClick={() => handlePeriodAdvance()}
           disabled={isOver}
           className={`w-full py-3 px-4 rounded-lg text-sm font-semibold min-h-[48px] transition-colors ${
             isOver
-              ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+              ? "bg-[var(--surface-hover)] text-[var(--text-muted)] cursor-not-allowed"
               : isPlayingPeriod(clock.period, periodConfig)
                 ? "bg-amber-900/60 text-amber-200 hover:bg-amber-800/60 active:bg-amber-900/80"
-                : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 active:bg-zinc-800"
+                : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)]"
           }`}
         >
           {periodActionLabel}
@@ -874,7 +874,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </button>
         <button
           onClick={handleGoalAgainst}
-          className="flex-1 py-4 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 text-zinc-200 rounded-xl font-bold text-base min-h-[64px] transition-colors"
+          className="flex-1 py-4 bg-[var(--surface-strong)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-xl font-bold text-base min-h-[64px] transition-colors"
         >
           Goal for them
         </button>
@@ -885,7 +885,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         <button
           onClick={handleStartRotation}
           className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors ${
-            rotationMode ? "bg-blue-800/80 text-blue-200" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+            rotationMode ? "bg-blue-800/80 text-blue-200" : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)]"
           }`}
         >
           Rotation
@@ -898,7 +898,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </button>
         <button
           onClick={handleMomentMarked}
-          className="flex-1 py-2.5 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Mark moment
         </button>
@@ -918,12 +918,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {onFieldPlayers.length > 0 && (
         <div className="px-3 pt-2 pb-1">
           <div className="flex items-center justify-between mb-1">
-            <h3 className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">On field ({onFieldPlayers.length})</h3>
-            <span className="text-[10px] text-zinc-500">{benchPlayers.length} bench</span>
+            <h3 className="text-[var(--text-micro)] font-semibold text-[var(--success)] uppercase tracking-wider">On field ({onFieldPlayers.length})</h3>
+            <span className="text-[var(--text-micro)] text-[var(--text-muted)]">{benchPlayers.length} bench</span>
           </div>
           <div className="flex flex-wrap gap-1">
             {onFieldPlayers.map((p) => (
-              <span key={p.playerId} className="inline-flex items-center px-1.5 py-0.5 text-[11px] bg-emerald-900/40 text-emerald-200 rounded">
+              <span key={p.playerId} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-emerald-900/40 text-emerald-200 rounded">
                 {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
                 {p.playerName}
               </span>
@@ -934,9 +934,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
       {/* Recent events with undo */}
       <div className="flex-1 px-3 py-2 overflow-y-auto">
-        <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Recent events</h3>
+        <h3 className="text-[var(--text-micro)] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">Recent events</h3>
         {mergedEvents.length === 0 ? (
-          <p className="text-xs text-zinc-600">No events recorded yet.</p>
+          <p className="text-xs text-[var(--text-disabled)]">No events recorded yet.</p>
         ) : (
           <div className="space-y-1">
             {mergedEvents.map((event) => {
@@ -950,19 +950,19 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
                 displayText = `${label} — ${playerName}`;
               }
               return (
-                <div key={event.id} className="flex items-center justify-between py-1.5 px-2 bg-zinc-900/80 rounded text-xs">
+                <div key={event.id} className="flex items-center justify-between py-1.5 px-2 bg-[var(--surface-base)]/80 rounded text-xs">
                   <div className="min-w-0 flex items-baseline gap-1.5">
                     {event.matchSeconds != null && (
-                      <span className="text-[10px] font-mono text-zinc-500 shrink-0">{formatElapsedMs(event.matchSeconds * 1000)}</span>
+                      <span className="text-[var(--text-micro)] font-mono text-[var(--text-muted)] shrink-0">{formatElapsedMs(event.matchSeconds * 1000)}</span>
                     )}
-                    <span className="text-zinc-300">{displayText}</span>
-                    {event.isReversed && <span className="text-red-400 ml-1 text-[10px]">reversed</span>}
-                    {event.isCorrected && <span className="text-amber-400 ml-1 text-[10px]">corrected</span>}
+                    <span className="text-[var(--text-soft)]">{displayText}</span>
+                    {event.isReversed && <span className="text-red-400 ml-1 text-[var(--text-micro)]">reversed</span>}
+                    {event.isCorrected && <span className="text-amber-400 ml-1 text-[var(--text-micro)]">corrected</span>}
                   </div>
                   {!event.isReversed && LIVE_EVENT_TYPES_THAT_ARE_CORRECTABLE.has(event.eventType) && (
                     <button
                       onClick={() => handleUndo(event.id)}
-                      className="text-[10px] text-zinc-500 hover:text-zinc-300 shrink-0 ml-2 min-h-[36px] px-1"
+                      className="text-[var(--text-micro)] text-[var(--text-muted)] hover:text-[var(--text-soft)] shrink-0 ml-2 min-h-[36px] px-1"
                     >
                       Undo
                     </button>
@@ -975,10 +975,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       </div>
 
       {/* Finish button */}
-      <div className="px-3 py-3 border-t border-zinc-800" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
+      <div className="px-3 py-3 border-t border-[var(--border-soft)]" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
         <button
           onClick={() => setConfirmDialog({ type: "end" })}
-          className="w-full py-3 text-sm text-zinc-400 hover:text-zinc-200 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg min-h-[48px] transition-colors"
+          className="w-full py-3 text-sm text-[var(--text-muted)] hover:text-[var(--text-soft)] bg-[var(--surface-hover)]/50 hover:bg-[var(--surface-hover)] rounded-lg min-h-[48px] transition-colors"
         >
           Finish live reporting
         </button>
@@ -997,7 +997,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Scorer selection */}
       <BottomSheet open={goalFlow === "scorer_select" && sheet === "scorer"} onClose={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); }} title="Who scored?">
         <div className="space-y-1.5">
-          <button onClick={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} className="w-full py-2.5 px-4 bg-zinc-800 text-zinc-300 rounded-lg text-sm font-medium min-h-[48px]">
+          <button onClick={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} className="w-full py-2.5 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px]">
             Skip
           </button>
           {sortedPlayersForScorer.map((p) => (
@@ -1009,7 +1009,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Assist selection */}
       <BottomSheet open={goalFlow === "assist_select" && sheet === "assist"} onClose={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} title="Assist?">
         <div className="space-y-1.5">
-          <button onClick={() => handleAssistSelect(null)} className="w-full py-2.5 px-4 bg-zinc-800 text-zinc-300 rounded-lg text-sm font-medium min-h-[48px]">
+          <button onClick={() => handleAssistSelect(null)} className="w-full py-2.5 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px]">
             No assist
           </button>
           {sortedPlayersForScorer.filter((p) => p.playerId !== goalFlowPlayerId).map((p) => (
@@ -1041,7 +1041,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Fair play player selection */}
       <BottomSheet open={fairPlayFlow === "player_select" && sheet === "fair_play_player"} onClose={() => { setFairPlayFlow("idle"); setFairPlayPlayerId(null); setSheet(null); }} title={isPositive ? "Which player? (positive)" : "Which player? (concern)"}>
         <div className="space-y-1.5">
-          <button onClick={() => handleFairPlayPlayer(null)} className="w-full py-2.5 px-4 bg-zinc-800 text-zinc-300 rounded-lg text-sm font-medium min-h-[48px]">
+          <button onClick={() => handleFairPlayPlayer(null)} className="w-full py-2.5 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px]">
             No specific player
           </button>
           {sortedPlayersForScorer.map((p) => (

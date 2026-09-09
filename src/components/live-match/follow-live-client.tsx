@@ -274,11 +274,11 @@ export function FollowLiveClient({
       />
 
       {sessionEnded && (
-        <Surface className="p-4 text-sm text-zinc-300">This live session has ended.</Surface>
+        <Surface className="p-4 text-sm text-[var(--text-soft)]">This live session has ended.</Surface>
       )}
 
       {connectionState === "error" && (
-        <Surface className="flex items-center gap-2 p-4 text-sm text-zinc-400">
+        <Surface className="flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
           <WifiOff className="h-4 w-4" aria-hidden="true" />
           Live following isn&apos;t available right now.
         </Surface>
@@ -306,13 +306,13 @@ export function FollowLiveClient({
       {/* On-field players — derived from projection */}
       {onFieldPlayers.length > 0 && (
         <Surface className="p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-100">
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
             <Users className="h-4 w-4" aria-hidden="true" />
             On field ({onFieldPlayers.length})
           </div>
           <div className="flex flex-wrap gap-1">
             {onFieldPlayers.map((p) => (
-              <span key={p.id} className="inline-flex items-center px-1.5 py-0.5 text-[11px] bg-emerald-900/40 text-emerald-200 rounded">
+              <span key={p.id} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-[var(--success-subtle)] text-[var(--success)] rounded">
                 {p.name}
               </span>
             ))}
@@ -322,7 +322,7 @@ export function FollowLiveClient({
 
       {/* Recent activity — derived from projection */}
       <Surface className="p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-100">
+        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
           <Tv className="h-4 w-4" aria-hidden="true" />
           Recent activity
         </div>
@@ -333,13 +333,13 @@ export function FollowLiveClient({
         ) : (
           <ul className="flex flex-col gap-2">
             {eventSummaries.map((summary) => (
-              <li key={summary.id} className="text-sm text-zinc-300 flex items-baseline gap-2">
+              <li key={summary.id} className="text-sm text-[var(--text-soft)] flex items-baseline gap-2">
                 {summary.matchClock && (
-                  <span className="text-[10px] font-mono text-zinc-500 shrink-0">{summary.matchClock}</span>
+                  <span className="text-[var(--text-micro)] font-mono text-[var(--text-muted)] shrink-0">{summary.matchClock}</span>
                 )}
                 <span>{summary.text}</span>
                 {summary.period && !summary.matchClock && (
-                  <span className="text-[10px] text-zinc-500 shrink-0">{summary.period}</span>
+                  <span className="text-[var(--text-micro)] text-[var(--text-muted)] shrink-0">{summary.period}</span>
                 )}
               </li>
             ))}
