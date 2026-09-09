@@ -139,11 +139,11 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
       </div>
       {/* Identity badge */}
       <div className="relative flex flex-col items-center justify-center shrink-0">
-        <div className={`flex items-center justify-center w-12 h-12 rounded-lg text-base font-bold ${isGK ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-[var(--surface-muted)] text-zinc-100 border border-[var(--border-soft)]"}`}>
+        <div className={`flex items-center justify-center w-12 h-12 rounded-lg text-base font-bold ${isGK ? "bg-amber-500/20 text-[var(--warning)] border border-amber-500/30" : "bg-[var(--surface-muted)] text-zinc-100 border border-[var(--border-soft)]"}`}>
           {initials}
         </div>
         {player.shirtNumber != null && (
-          <div className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-[var(--accent)] text-[9px] font-bold text-white leading-none">
+          <div className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-[var(--accent)] text-[var(--text-micro)] font-bold text-white leading-none">
             {player.shirtNumber}
           </div>
         )}
@@ -181,33 +181,33 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
           {positions.map((pos, i) => (
             <span
               key={pos}
-              className={`inline-flex items-center rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wider ${
+              className={`inline-flex items-center rounded px-1 py-px text-[var(--text-micro)] font-semibold uppercase tracking-wider ${
                 i === 0
                   ? "bg-[var(--accent)]/15 text-[var(--accent)]"
                   : i === 1
-                    ? "bg-zinc-700/50 text-zinc-400"
-                    : "bg-zinc-800/50 text-zinc-500"
+                    ? "bg-zinc-700/50 text-[var(--text-muted)]"
+                    : "bg-zinc-800/50 text-[var(--text-muted)]"
               }`}
             >
               {POSITION_SHORT[pos] ?? pos}
             </span>
           ))}
           {gkLabel && (
-            <span className="inline-flex items-center rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300">
+            <span className="inline-flex items-center rounded px-1 py-px text-[var(--text-micro)] font-semibold uppercase tracking-wider bg-[var(--warning-subtle)] text-[var(--warning)]">
               {gkLabel}
             </span>
           )}
           {hasRatings && (
             <span className="inline-flex items-center gap-0.5 ml-0.5">
               <StarRating overallValue={averages.overall} className="text-xs" />
-              <span className="text-[10px] text-zinc-400 tabular-nums ml-0.5">{averages.overall!.toFixed(1)}</span>
+              <span className="text-[var(--text-micro)] text-[var(--text-muted)] tabular-nums ml-0.5">{averages.overall!.toFixed(1)}</span>
             </span>
           )}
         </div>
         {planningFlags.length > 0 && (
           <div className="mt-0.5 flex items-center gap-1">
             {planningFlags.map((f) => (
-              <span key={f} className="text-[9px] text-amber-400/70 font-medium">{f}</span>
+              <span key={f} className="text-[var(--text-micro)] text-amber-400/70 font-medium">{f}</span>
             ))}
           </div>
         )}
@@ -218,7 +218,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
         {previousPlayerId && (
           <Link
             href={`/players/${previousPlayerId}`}
-            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[10px] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
           >
             ‹
           </Link>
@@ -226,14 +226,14 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
         {nextPlayerId && (
           <Link
             href={`/players/${nextPlayerId}`}
-            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[10px] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
           >
             ›
           </Link>
         )}
         <Link
           href={orgUrl("/players")}
-          className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[10px] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+          className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
         >
           All
         </Link>
@@ -266,7 +266,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
                   type="button"
                   onClick={handleRestore}
                   disabled={isPending}
-                  className="rounded px-2 py-1 text-[11px] text-emerald-400 hover:bg-emerald-950/30 transition-colors text-left disabled:opacity-50"
+                  className="rounded px-2 py-1 text-[11px] text-[var(--success)] hover:bg-emerald-950/30 transition-colors text-left disabled:opacity-50"
                 >
                   Restore player
                 </button>

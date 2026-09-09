@@ -48,7 +48,7 @@ function TextField({
     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
       <input
-        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
+        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
         defaultValue={defaultValue}
         name={name}
         placeholder={placeholder}
@@ -71,7 +71,7 @@ function RatingField({
     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
       {label}
       <input
-        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
+        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
         defaultValue={defaultValue ?? ""}
         min={1}
         max={10}
@@ -135,7 +135,7 @@ export function PlayerEditorForm({
         <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
           Shirt Number
           <input
-            className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
+            className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
             defaultValue={player?.shirtNumber ?? ""}
             name="shirtNumber"
             placeholder="Optional"
@@ -299,7 +299,7 @@ export function PlayerEditorForm({
       <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
         Notes
         <textarea
-          className="min-h-28 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 py-2 font-normal text-zinc-100 outline-none placeholder:text-zinc-500"
+          className="min-h-28 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 py-2 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
           defaultValue={player?.notes ?? ""}
           name="notes"
           placeholder="Optional notes about the player."

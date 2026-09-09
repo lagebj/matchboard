@@ -81,8 +81,8 @@ export function PlayerAttributesPanel({ player, updateFieldAction }: PlayerAttri
           return (
             <div key={cat.label}>
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
-                <span className="text-[10px] tabular-nums text-zinc-500">{formatAvg(catAvg as number | null)}</span>
+                <span className="text-[var(--text-micro)] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
+                <span className="text-[var(--text-micro)] tabular-nums text-[var(--text-muted)]">{formatAvg(catAvg as number | null)}</span>
               </div>
               <div className="flex flex-col gap-px">
                 {cat.keys.map((key) => (

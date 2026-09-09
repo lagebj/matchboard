@@ -73,11 +73,11 @@ export function PlayerReportSummaryPanel({ player }: PlayerReportSummaryPanelPro
           <div className="grid grid-cols-4 gap-2">
             {summaries.map((cat) => (
               <div key={cat.label} className="flex flex-col items-center gap-px">
-                <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
+                <span className="text-[var(--text-micro)] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
                 <span className="text-base font-semibold tabular-nums text-zinc-100 leading-tight">
                   {cat.average !== null ? cat.average.toFixed(1) : "—"}
                 </span>
-                <span className="text-[9px] text-zinc-500">{cat.ratedCount}/{cat.totalKeys.length}</span>
+                <span className="text-[var(--text-micro)] text-[var(--text-muted)]">{cat.ratedCount}/{cat.totalKeys.length}</span>
               </div>
             ))}
           </div>
@@ -85,7 +85,7 @@ export function PlayerReportSummaryPanel({ player }: PlayerReportSummaryPanelPro
             {strongest && (
               <div className="flex items-center gap-1">
                 <span className="text-[var(--text-muted)]">Strongest</span>
-                <span className="text-emerald-400 font-medium">{strongest}</span>
+                <span className="text-[var(--success)] font-medium">{strongest}</span>
               </div>
             )}
             {weakest && weakest !== strongest && (

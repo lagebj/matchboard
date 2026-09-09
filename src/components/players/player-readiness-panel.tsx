@@ -119,7 +119,7 @@ export function PlayerReadinessPanel({ playerId, signals: initialSignals }: Play
               <div key={type} className="flex items-center justify-between gap-3 py-1.5 px-2 rounded hover:bg-[var(--surface-muted)]/30">
                 <div className="flex min-w-0 flex-col">
                   <span className="text-xs font-medium text-zinc-200">{label}</span>
-                  {existing.note && <span className="text-[10px] text-[var(--text-muted)] line-clamp-1">{existing.note}</span>}
+                  {existing.note && <span className="text-[var(--text-micro)] text-[var(--text-muted)] line-clamp-1">{existing.note}</span>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className={`text-xs font-semibold ${colorClass}`}>

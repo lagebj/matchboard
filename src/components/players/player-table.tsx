@@ -236,22 +236,22 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {player.nonRotatable && (
-                          <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--warning)]">
+                          <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-2 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.14em] text-[var(--warning)]">
                             Non-rot
                           </span>
                         )}
                         {player.reducedMatchLoadAllowed && (
-                          <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[#b28cdb]">
+                          <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-2 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.14em] text-[#b28cdb]">
                             RML
                           </span>
                         )}
                         {player.supportSuitability && player.supportSuitability !== "neutral" && (
-                          <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                          <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.14em] app-copy-muted">
                             Sup {player.supportSuitability}
                           </span>
                         )}
                         {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
-                          <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] app-copy-muted">
+                          <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.14em] app-copy-muted">
                             Dev {player.developmentReadiness}
                           </span>
                         )}
@@ -302,7 +302,7 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
                 label: "Availability",
                 value: (
                   <span
-                    className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] ${getAvailabilityPillClassName(player.currentAvailability)}`}
+                    className={`inline-flex rounded-full border px-2 py-0.5 text-[var(--text-micro)] font-medium uppercase tracking-[0.14em] ${getAvailabilityPillClassName(player.currentAvailability)}`}
                   >
                     {formatAvailabilityStatus(player.currentAvailability)}
                   </span>
@@ -324,22 +324,22 @@ export function PlayerTable({ players }: { players: PlayerRow[] }) {
                       value: (
                         <div className="flex flex-wrap gap-1">
                           {player.nonRotatable && (
-                            <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[var(--warning)]">
+                            <span className="rounded-full border border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] px-1.5 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.12em] text-[var(--warning)]">
                               Non-rot
                             </span>
                           )}
                           {player.reducedMatchLoadAllowed && (
-                            <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-[#b28cdb]">
+                            <span className="rounded-full border border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] px-1.5 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.12em] text-[#b28cdb]">
                               RML
                             </span>
                           )}
                           {player.supportSuitability && player.supportSuitability !== "neutral" && (
-                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] app-copy-muted">
+                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.12em] app-copy-muted">
                               Sup {player.supportSuitability}
                             </span>
                           )}
                           {player.developmentReadiness && player.developmentReadiness !== "neutral" && (
-                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] app-copy-muted">
+                            <span className="rounded-full border app-hairline bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[var(--text-micro)] uppercase tracking-[0.12em] app-copy-muted">
                               Dev {player.developmentReadiness}
                             </span>
                           )}
