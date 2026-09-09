@@ -204,14 +204,14 @@ export function buildRepeatRotationBlockReason(
   const recentTargetTeamName = mostRecentAppearance.match.team.name;
 
   if (candidateCategory === "SUPPORT") {
-    return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before ${playerName} can take another support slot.`;
+    return `Excluded because this player already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before they can take another support slot.`;
   }
 
   if (candidateCategory === "DEVELOPMENT") {
-    return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before ${playerName} can take another development slot.`;
+    return `Excluded because this player already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before they can take another development slot.`;
   }
 
-  return `Excluded because ${playerName} already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before ${playerName} can rotate again.`;
+  return `Excluded because this player already has a ${recentStatus} ${recentRole} appearance for ${recentTargetTeamName} on ${recentMatchDate}. ${player.coreTeam?.name ?? "Unassigned"} must get an own core-team match before they can rotate again.`;
 }
 
 export function buildRegisteredMatchConflict(
@@ -225,7 +225,7 @@ export function buildRegisteredMatchConflict(
       return {
         code: "registered_match_conflict",
         reason:
-          `Excluded because ${playerName} already appears in a ${formatSelectionStatus(registeredPlan.status)} selection for ${registeredPlan.match.team.name} on ${formatShortDate(registeredPlan.match.startsAt)}.`,
+          `Excluded because this player already appears in a ${formatSelectionStatus(registeredPlan.status)} selection for ${registeredPlan.match.team.name} on ${formatShortDate(registeredPlan.match.startsAt)}.`,
       };
     }
 
@@ -238,7 +238,7 @@ export function buildRegisteredMatchConflict(
       return {
         code: "registered_minimum_match_spacing",
         reason:
-          `Excluded because ${playerName} already appears in a ${formatSelectionStatus(registeredPlan.status)} selection on ${formatShortDate(registeredPlan.match.startsAt)} and the rules require at least ${rules.minDaysBetweenAnyMatches} days between matches.`,
+          `Excluded because this player already appears in a ${formatSelectionStatus(registeredPlan.status)} selection on ${formatShortDate(registeredPlan.match.startsAt)} and the rules require at least ${rules.minDaysBetweenAnyMatches} days between matches.`,
       };
     }
   }

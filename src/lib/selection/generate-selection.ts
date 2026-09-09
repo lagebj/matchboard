@@ -565,7 +565,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         warnings.push({
           severity: "WARNING",
           code: "unknown_availability_support",
-          message: `${playerName} has unknown availability and cannot count toward required support for ${currentMatchRecord.team.name}. Confirm availability before relying on this player.`,
+          message: `A selected player has unknown availability and cannot count toward required support for ${currentMatchRecord.team.name}. Confirm availability before relying on this player.`,
           playerId: player.id,
         });
       }
@@ -646,7 +646,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       warnings.push({
         severity: "WARNING",
         code: "tentative_availability",
-        message: `${playerName} is tentative. Selection includes this player but the coach should confirm availability before finalizing.`,
+        message: `A selected player is tentative. Selection includes them but the coach should confirm availability before finalizing.`,
         playerId: player.id,
       });
     }
@@ -732,8 +732,8 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     for (const { candidate, dropType } of allDroppableCandidates.slice(0, overflowCount)) {
       const isReducedLoadDrop = dropType === "REDUCED_MATCH_LOAD_DROP";
       const dropReason = isReducedLoadDrop
-        ? `${candidate.playerName} was excluded because the player is marked for reduced match load and this slot is being used as that drop.`
-        : `${candidate.playerName} was excluded as a surplus core player available for core match drop.`;
+        ? `Excluded because this player is marked for reduced match load and this slot is being used as that drop.`
+        : `Excluded as a surplus core player available for core match drop.`;
       const dropCode = isReducedLoadDrop ? "reduced_match_load_drop_rule" : "core_match_drop_rule";
 
       excludedPlayers.push({
@@ -794,7 +794,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         eligibility: true,
         explanations: [
           buildExplanation("rotation_path_allowed", eligibilityExplanation, true),
-          buildExplanation("development_not_ready", `Excluded because ${playerName} is marked as development readiness "not_ready" and cannot be automatically selected for development rotation.`, true),
+          buildExplanation("development_not_ready", `Excluded because this player is marked as development readiness "not_ready" and cannot be automatically selected for development rotation.`, true),
         ],
         finalSelected: false,
         manualOverride: false,
@@ -805,7 +805,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         priorityScore: null,
         selectionCategory: "EXCLUDED",
         automaticSelectionCategory: "DEVELOPMENT",
-        exclusionReason: `Excluded because ${playerName} is marked as development readiness "not_ready".`,
+        exclusionReason: `Excluded because this player is marked as development readiness "not_ready".`,
       });
       continue;
     }
@@ -1065,7 +1065,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       explanations.push(
         buildExplanation(
           "indirect_support_backfill",
-          `${candidate.playerName} was selected as extra support because ${currentMatchRecord.team.name} is preserving core players for higher-priority support work in ${preservedSupportTargetTeams}.`,
+          `Selected as extra support because ${currentMatchRecord.team.name} is preserving core players for higher-priority support work in ${preservedSupportTargetTeams}.`,
           true,
         ),
       );
@@ -1075,7 +1075,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       explanations.push(
         buildExplanation(
           "support_priority_over_core",
-          `${candidate.playerName} was prioritized because ${candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown"} is configured as a support source team for ${currentMatchRecord.team.name}.`,
+          `Prioritised because ${candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown"} is configured as a support source team for ${currentMatchRecord.team.name}.`,
           true,
         ),
       );
@@ -1086,8 +1086,8 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         buildExplanation(
           "development_priority_over_core",
           fillsReservedDevelopmentSlot
-            ? `${candidate.playerName} was prioritized to fill one of ${reservedDevelopmentPlayers} reserved development slot(s) for ${currentMatchRecord.team.name}.`
-            : `${candidate.playerName} was prioritized as a development player because ${candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown"} is configured as a development source team for ${currentMatchRecord.team.name}.`,
+            ? `Prioritised to fill one of ${reservedDevelopmentPlayers} reserved development slot(s) for ${currentMatchRecord.team.name}.`
+            : `Prioritised as a development player because ${candidate.player.coreTeam?.name ?? candidate.player.coreTeamId ?? "Unknown"} is configured as a development source team for ${currentMatchRecord.team.name}.`,
           true,
         ),
       );
@@ -1097,7 +1097,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       explanations.push(
         buildExplanation(
           "same_week_missed_core_priority",
-          `${candidate.playerName} was prioritized because the player missed a saved core-team selection earlier in the same week and should be prioritized for a rotation opportunity.`,
+          `Prioritised because this player missed a saved core-team selection earlier in the same week and should be prioritised for a rotation opportunity.`,
           true,
         ),
       );
@@ -1106,7 +1106,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     explanations.push(
       buildExplanation(
         "registered_match_fairness",
-        `Total planned match load was considered across every other saved draft or finalized match. ${candidate.playerName} currently has ${candidate.registeredAppearanceCount} other saved involvement(s).`,
+        `Total planned match load was considered across every other saved draft or finalized match. This player currently has ${candidate.registeredAppearanceCount} other saved involvement(s).`,
         true,
       ),
     );
@@ -1115,7 +1115,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       explanations.push(
         buildExplanation(
           "position_secondary_match",
-          `${candidate.playerName} does not have ${currentMatchRecord.team.name}'s needed position as primary but matches on secondary position.`,
+          `Does not have ${currentMatchRecord.team.name}'s needed position as primary but matches on secondary position.`,
           false,
         ),
       );
@@ -1125,7 +1125,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       explanations.push(
         buildExplanation(
           "position_tertiary_match",
-          `${candidate.playerName} matches the needed position only on tertiary position, which is a weak positional fit.`,
+          `Matches the needed position only on tertiary position, a limited positional fit.`,
           false,
         ),
       );
@@ -1135,13 +1135,13 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       warnings.push({
         severity: "WARNING",
         code: "position_mismatch",
-        message: `${candidate.playerName} was selected for ${currentMatchRecord.team.name} but does not match any of the needed positions on primary, secondary, or tertiary. This may weaken the team's positional coverage.`,
+        message: `A selected player does not match any of ${currentMatchRecord.team.name}'s needed positions on primary, secondary, or tertiary. This may reduce the team's positional coverage.`,
         playerId: candidate.player.id,
       });
       explanations.push(
         buildExplanation(
           "position_mismatch",
-          `${candidate.playerName} does not match any of the needed positions for ${currentMatchRecord.team.name}. This is a last-resort selection that may affect team performance.`,
+          `Does not match any of the needed positions for ${currentMatchRecord.team.name}. This is a last-resort selection that may affect team performance.`,
           false,
         ),
       );
@@ -1151,13 +1151,13 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       warnings.push({
         severity: "WARNING",
         code: "support_avoid_suitability",
-        message: `${candidate.playerName} has support suitability "avoid" but was selected as support because no better alternative was available. Confirm this selection.`,
+        message: `A player with support suitability "avoid" was selected as support because no better alternative was available. Confirm this selection.`,
         playerId: candidate.player.id,
       });
       explanations.push(
         buildExplanation(
           "support_avoid_suitability",
-          `${candidate.playerName} is marked as support suitability "avoid" but was selected as a last resort. Coach confirmation is recommended.`,
+          `Marked as support suitability "avoid" but selected as a last resort. Coach confirmation is recommended.`,
           false,
         ),
       );
@@ -1167,7 +1167,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       warnings.push({
         severity: "WARNING",
         code: "support_no_show_history",
-        message: `${candidate.playerName} has ${candidate.player.supportNoShowCount} recorded no-show(s) for support. Confirm availability before finalizing.`,
+        message: `A selected support player has ${candidate.player.supportNoShowCount} recorded no-show(s) for support. Confirm availability before finalizing.`,
         playerId: candidate.player.id,
       });
     }
@@ -1253,7 +1253,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       buildExplanation("eligible_core_player", selectionReason, true),
       buildExplanation(
         "support_development_then_core_priority",
-        `Selected after support and development reservations were applied because ${playerName} still fit the remaining core-team capacity for ${match.team.name}.`,
+        `Selected after support and development reservations were applied — this player still fit the remaining core-team capacity for ${match.team.name}.`,
         true,
       ),
     ];
@@ -1281,7 +1281,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     explanations.push(
       buildExplanation(
         "registered_match_fairness",
-        `Total planned match load was considered across every other saved draft or finalized match. ${playerName} currently has ${registeredAppearanceCount} other saved involvement(s).`,
+        `Total planned match load was considered across every other saved draft or finalized match. This player currently has ${registeredAppearanceCount} other saved involvement(s).`,
         true,
       ),
     );
@@ -1308,11 +1308,11 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
   for (const candidate of selectedCorePlayers.slice(coreSelectionLimit)) {
     const overflowExplanation = candidate.higherPriorityOpportunity
       ? candidate.higherPriorityOpportunity.kind === "support"
-        ? `${candidate.playerName} was held out of ${match.team.name} because ${candidate.higherPriorityOpportunity.match.team.name} has a higher-priority support need in close date proximity.`
-        : `${candidate.playerName} was held out of ${match.team.name} because ${candidate.higherPriorityOpportunity.match.team.name} has a higher-priority development opportunity in close date proximity.`
+        ? `Held out of ${match.team.name} because ${candidate.higherPriorityOpportunity.match.team.name} has a higher-priority support need in close date proximity.`
+        : `Held out of ${match.team.name} because ${candidate.higherPriorityOpportunity.match.team.name} has a higher-priority development opportunity in close date proximity.`
       : candidate.player.reducedMatchLoadAllowed && reservedSupportPlayers > 0
-        ? `${candidate.playerName} was left out because support coverage was prioritized ahead of reduced-match-load core players.`
-      : `${candidate.playerName} was left out because the number of eligible core players exceeded the available core-team slots.`;
+        ? `Left out because support coverage was prioritised ahead of reduced-match-load core players.`
+      : `Left out because the number of eligible core players exceeded the available core-team slots.`;
 
     excludedPlayers.push({
       autoSelected: false,
@@ -1441,7 +1441,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
         warnings.push({
           severity: "WARNING",
           code: "player_locked_in_blocked",
-          message: `${getPlayerName(playerRecord)} is pinned in but was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
+          message: `A pinned-in player was blocked by a hard rule: ${excludedEntry.exclusionReason}`,
           playerId,
         });
         continue;
@@ -1460,7 +1460,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       coreTeamName: playerRecord.coreTeam?.name ?? "Unknown",
       eligibility: eligibility.allowed,
       explanations: [
-        buildExplanation("player_locked_in", `${playerName} was included because the coach pinned this player in for this match round.`, true),
+        buildExplanation("player_locked_in", `Included because the coach pinned this player in for this match round.`, true),
       ],
       finalSelected: false,
       manualOverride: false,
@@ -1470,7 +1470,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       playerPosition: playerRecord.primaryPosition,
       priorityScore: 200,
       selectionCategory,
-      selectionReason: `Selected because the coach pinned ${playerName} in for this match round.`,
+      selectionReason: `Selected because the coach pinned this player in for this match round.`,
     });
 
     const excludedIndex = excludedPlayers.findIndex((p) => p.playerId === playerId);
@@ -1523,7 +1523,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
     warnings.push({
       severity: "WARNING",
       code: "core_player_unselected",
-      message: `${excludedPlayer.playerName} is a ${match.team.name} core player and was not selected. Reason: ${excludedPlayer.exclusionReason}`,
+      message: `A ${match.team.name} core player was not selected. Reason: ${excludedPlayer.exclusionReason}`,
       playerId: excludedPlayer.playerId,
     });
   }
@@ -1540,7 +1540,7 @@ export async function generateSelection(matchId: string, options?: GenerateSelec
       warnings.push({
         severity: "SCORING_PREFERENCE",
         code: `readiness_${signal.signalType.toLowerCase()}`,
-        message: `${sel.playerName}: ${signalLabel} — may affect selection preference.`,
+        message: `${signalLabel} — may affect selection preference.`,
         playerId: sel.playerId,
       });
     }
