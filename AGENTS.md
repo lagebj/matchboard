@@ -977,13 +977,29 @@ Eligibility/domain invariants
   consumer would be speculative plumbing; deferred to whichever of Bundle 7/8 first needs it. See
   ADR-0117 for the full audit and rationale.
 
-### Evidence-aware automatic rotation generation (Evidence-Informed Match Planning, Bundle 7 — ADR-0118)
+### Evidence-aware automatic rotation generation (Evidence-Informed Match Planning, Bundle 7 — ADR-0118, amended by ADR-0129)
 
 Generates a complete match rotation plan — a sequence of evolving on-field states, not
 independent substitutions — from role suitability, fairness, and recorded evidence. The first
 automatic rotation-sequence generator in the codebase (round-level selection decides who is in a
 squad; Best Lineup fills a formation once; neither previously generated a timed in-match
 sequence).
+
+**ADR-0129 amendment (exact positional safety).** Bench-candidate eligibility is now gated on
+**exact** target-role suitability (`src/domain/positions/`), not the broad
+`OutfieldStructuralRole` profile. `RotationPlanStarter` carries `gridX`; the vacated slot's
+exact role is derived from `roleType` + grid lane and exact slot occupancy is tracked over
+time. Per decision point, the due-out slots and the eligible bench are matched by one
+deterministic bounded matching (`matchSlotsToCandidates`) — **not** the old additive
+per-`dueOut` score. If four are due but only three safe (`NATURAL`/`STRONG`/`PLAUSIBLE`)
+replacements exist, three rotate and the fourth **stays on**; `GenerateRotationPlanResult` gains
+`diagnostics: string[]` carrying `No safe replacement for <ROLE> at <n> min`. An
+`UNSUPPORTED`/`DEVELOPMENTAL` bench player is never substituted in to satisfy batch size —
+superseding this bundle's original "UNSUPPORTED scores 0 but is never excluded" / "never
+structurally blocked" behaviour. Evidence signals (opponent-function continuity,
+position-context, transition-structure) are unchanged and apply only as within-tier
+preferences. The prose below describes the original Bundle 7 design; where it conflicts with
+this amendment, the amendment wins.
 
 - `src/lib/planned-rotation/generate-rotation-plan.ts` (new, pure, deterministic) —
   `generateRotationPlan()`. Search strategy, fully disclosed (PROGRAMME.md requires this):
@@ -3695,7 +3711,7 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
-| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup) and `selectBestLineupAssignments` / `autoSelectBestLineup` (Recommended lineup — rating is a within-tier preference only); rotation / repair / exact-coverage wiring follows. |
+| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup), `selectBestLineupAssignments` / `autoSelectBestLineup` (Recommended lineup — rating is a within-tier preference only), and `generateRotationPlan` (per-tick due-slot × eligible-bench matching; a due player with no safe replacement stays on with a diagnostic, never rotated to a DEVELOPMENTAL/UNSUPPORTED option — ADR-0129 §11, superseding ADR-0118's "never structurally blocked"); repair / exact-coverage wiring follows. |
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator (includes Phase 7: policy evaluation) |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
 | `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |

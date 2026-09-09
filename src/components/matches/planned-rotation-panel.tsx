@@ -268,6 +268,7 @@ function formDataToChangeData(form: ChangeFormData): PlannedRotationChangeData {
 export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, readOnly = false }: PlannedRotationPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [generationDiagnostics, setGenerationDiagnostics] = useState<string[]>([]);
   const [validationIssues, setValidationIssues] = useState<PlannedRotationValidationIssue[]>([]);
   const [coverageIssues, setCoverageIssues] = useState<PlannedRotationCoverageIssue[]>([]);
   const [hasLineup, setHasLineup] = useState<boolean | null>(null);
@@ -346,10 +347,13 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
 
   function handleGenerate() {
     setError(null);
+    setGenerationDiagnostics([]);
     startTransition(async () => {
       const result = await generateRotationPlanAction(matchId, teamId);
       if (!result.success) {
         setError(result.error);
+      } else {
+        setGenerationDiagnostics(result.diagnostics);
       }
     });
   }
@@ -664,6 +668,24 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
         <p className="mt-3 text-xs text-[var(--text-muted)]">
           Set a starting line-up in the Tactics tab to see coverage checks (goalkeeper, minimum players on pitch) for this plan.
         </p>
+      )}
+
+      {generationDiagnostics.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-soft)]">
+            <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+            Generation notes
+          </div>
+          {generationDiagnostics.map((note, index) => (
+            <p key={index} className="text-sm text-[var(--warning)]">
+              {note}
+            </p>
+          ))}
+          <p className="text-xs text-[var(--text-muted)]">
+            No automatically eligible replacement was available for these positions, so the
+            player was kept on. Make a manual change if you want to rotate anyway.
+          </p>
+        </div>
       )}
 
       {coverageIssues.length > 0 && (
