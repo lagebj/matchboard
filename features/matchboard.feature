@@ -7818,6 +7818,13 @@ Feature: Matchboard football operations workspace
         And each option must show its plan-integrity consequences
         And no option must be applied automatically
 
+      Scenario: Repair options use exact positional eligibility and rank by fit tier (ADR-0129)
+        Given the unavailable player's declared position is an exact role
+        When the coach requests repair options for that match
+        Then only players who are Natural fit, Strong fit or Plausible fit for that exact role must be offered
+        And options must be ordered Natural fit, then Strong fit, then Plausible fit, before other consequences
+        And a player who is Developmental positional fit or Outside automatic fit for that role must not be offered
+
       Scenario: Generating repair options does not change the draft
         Given the coach requests repair options for a match
         When the options are generated

@@ -236,7 +236,7 @@ describe("RoundBoard — emergency repair options (Phase 9)", () => {
           coreTeamName: "White",
           role: "SUPPORT",
           isOwnTeam: false,
-          positionMatch: true,
+          positionFit: "STRONG",
           combinationNotes: [],
           newBlockedSignals: [],
           newDecisionRequiredSignals: [],

@@ -1140,8 +1140,10 @@ export function RoundBoard({
                     {!option.isOwnTeam && option.coreTeamName && (
                       <span className="text-[10px] text-[var(--text-muted)]">from {option.coreTeamName}</span>
                     )}
-                    {option.positionMatch && (
-                      <span className="text-[10px] text-[var(--accent-strong)]">Position match</span>
+                    {option.positionFit && (
+                      <span className="text-[10px] text-[var(--accent-strong)]">
+                        {option.positionFit === "NATURAL" ? "Natural fit" : option.positionFit === "STRONG" ? "Strong fit" : "Plausible fit"}
+                      </span>
                     )}
                   </div>
                   <Button
