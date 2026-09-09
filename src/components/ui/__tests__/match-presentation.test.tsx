@@ -122,7 +122,7 @@ describe("MatchCard", () => {
       />,
     );
     expect(screen.getByText(/12 SEP.* · 17:30/)).toBeTruthy();
-    expect(screen.getByText("PLANNING OPEN")).toBeTruthy();
+    expect(screen.getByText("Planning open")).toBeTruthy();
     expect(screen.getByText("2 decisions need attention")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open Round Board" })).toBeTruthy();
   });

@@ -2461,14 +2461,16 @@ if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
   Status never depends on colour alone. Dark appearance retained; no light mode in this
   programme. Compact typography scale: primary value 24–32, page title 20–24, row title 15–17,
   body/input 14–16 (mobile input ≥16 to avoid iOS zoom), meta 12–13, micro-label ≥11.
-- **One canonical match visual grammar (ADR-0125)** across Today, League/Fixtures, Events,
-  match-detail entry points, Follow Live entry points, history/results, and player-participation
-  contexts. `MatchPresentation` (`src/lib/matches/match-presentation.ts`, built via
-  `buildMatchPresentation()`) is the one normalized display projection; surfaces render it
-  through **exactly three variants** in `src/components/ui/match-presentation.tsx` —
-  `MatchScoreRow` (dense divider-based scan row, no card border — League, timelines, history),
-  `MatchCard` (match as primary object, one bordered card + one dominant action — Today hero,
-  Round Board / event selected match), `MatchHeader` (match-page identity). Never build a
+- **One canonical match visual grammar (ADR-0125, variant set widened by ADR-0130)** across
+  Today, League, Events, match-detail entry points, Follow Live entry points, history/results,
+  and player-participation contexts. `MatchPresentation` (`src/lib/matches/match-presentation.ts`,
+  built via `buildMatchPresentation()`) is the one normalized display projection; surfaces
+  render it through the **four variants** in `src/components/ui/match-presentation.tsx` —
+  `MatchRow` (dense divider-based scan row, no card border — League, timelines, history;
+  `MatchScoreRow` is a deprecated alias), `MatchCard` (match as primary object, one bordered
+  card + one dominant action — Today hero, Round Board / event selected match), `MatchHeader`
+  (match-page identity), and `MatchLiveStrip` (minimal score/clock/status strip — **Live
+  Reporting only**, never on Follow Live, no list-row mutation controls). Never build a
   competing per-surface match component; never render a match row that does not come from
   `MatchPresentation`. Football order is always home then away — never reorder to put the own
   team first; mark the own team only subtly (accent on its name); no team logo. Score and
@@ -2810,12 +2812,17 @@ Post-match feedback eligibility:
 - Players recorded as "Did not play", removed from actual participation, or with UNKNOWN attendance must not appear.
 - When a coach removes a player from actual participation who has draft feedback, the app must either require confirmation or remove the feedback transactionally. Feedback must not remain attached to a non-participant.
 
-Fixture result styling:
+Fixture result styling (ADR-0130 — supersedes the earlier "soft green / soft red" treatment):
 
-- Completed fixtures may use soft colour treatment to support rapid scanning: soft green for Won, soft neutral/slate for Drawn, soft red for Lost.
-- Outcome text ("Won", "Drawn", "Lost") must always be visible. Colour is secondary reinforcement only, never the sole signal.
-- No styling must be applied to upcoming matches, DRAFT reports, or report-incomplete tasks.
-- Use existing design tokens or conventional Tailwind semantic classes. Avoid saturated colours.
+- A completed final score is **neutral**. A loss is not an error and never uses `--danger`
+  (danger is destructive/error/blocking only); a win is not a workflow success and never fills
+  the row green (`--success` is workflow success only). Only the live indicator uses `--live`.
+- The winning score may carry slightly stronger weight and the losing score slightly softer
+  weight (`outcomeTint` in `src/components/ui/match-presentation.tsx`); weight, not colour, is
+  the only visual outcome cue.
+- Outcome text ("Win", "Draw", "Loss") is secondary metadata on the status line
+  (`FT · Win`), always visible.
+- No result styling on upcoming matches, DRAFT reports, or report-incomplete tasks.
 
 Navigation shell branding:
 
@@ -2825,11 +2832,11 @@ Navigation shell branding:
 - "Matchboard" and "Squad planning" text remain as the accessible product labels.
 
 Fixtures result display rules:
-- /fixtures shows completed final score and W/D/L outcome directly in fixture rows/cards.
+- The League page (`/fixtures`) shows completed final score and Win/Draw/Loss outcome directly in the dense `MatchRow`s.
 - A DRAFT post-match report is incomplete work and never a final displayed result.
 - Final score and outcome are shown for REPORTED and LOCKED post-match reports only.
-- Completed fixtures show FT marker, final score, and Won/Drawn/Lost outcome from the Matchboard team's perspective.
-- Completed Won fixtures may use soft green visual treatment. Completed Drawn fixtures may use soft neutral/slate treatment. Completed Lost fixtures may use soft red treatment. Outcome text must remain visible. Colour is secondary reinforcement only.
+- Completed fixtures show an `FT` marker, the final score (neutral colour — see "Fixture result styling" above), and the Win/Draw/Loss outcome from the Matchboard team's perspective as secondary status-line text.
+- A round is a **section**, not a card (ADR-0130 §05): a header line (`W34 2026   Final · 3 matches`) with the plan state as muted text and one `Board` action (accessible name `Open <round> round board`), then divider-based `MatchRow`s directly on the canvas.
 - Past matches with DRAFT reports show "Report incomplete" with an action to complete the report rather than a draft score.
 - Future matches without completed reports retain planning-state presentation with no result placeholders.
 - Planning state (Not generated, Draft, Blocked, Ready, Finalized) and result state are not confused. "Finalized" does not mean the match has been played or reported.
