@@ -195,6 +195,10 @@ async function loadCompositionData(
       roleSuitability,
       primaryBroadPosition: primaryBroad,
       roleStrength,
+      declaredPrimaryPosition: p.primaryPosition ?? null,
+      declaredSecondaryPosition: p.secondaryPosition ?? null,
+      declaredTertiaryPosition: p.tertiaryPosition ?? null,
+      bestSide: p.bestSide ?? null,
     };
   });
 
@@ -429,6 +433,8 @@ async function resolveFormationStructure(
     source: "FORMATION" as const,
     formationId: formation.id,
     formationName: formation.name,
+    // Individual real slots with grid geometry for exact coverage matching (ADR-0129 §12).
+    exactSlots: formation.slots.map((slot) => ({ slotId: slot.id, roleType: slot.roleType, gridX: slot.gridX })),
   };
 }
 

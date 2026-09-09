@@ -17,6 +17,8 @@ import type {
 } from "./team-composition-types";
 
 import { isGoalkeeperCapable, getGkCoverageTier, computeRoleStrength } from "./position-suitability";
+import { computeExactFormationCoverage } from "@/domain/positions/formation-coverage";
+import type { FormationSlotRoleType } from "@/lib/formations/types";
 
 // ── Proposal validation ──────────────────────────────────────────
 
@@ -205,6 +207,7 @@ export function computeTeamMetrics(
   teamName: string,
   teamAssignments: ProposedTeamAssignment[],
   players: CompositionPlayer[],
+  structure?: TeamStructuralRequirements,
 ): ProposedTeamMetrics {
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const teamPlayers = teamAssignments.map((a) => ({ ...a, player: playerMap.get(a.playerId)! }));
@@ -251,16 +254,46 @@ export function computeTeamMetrics(
   const hasDef = defenders.length > 0;
   const hasMid = midfielders.length > 0;
   const hasAtt = attackers.length > 0;
-  const formationViability: "viable" | "degraded" | "broken" =
-    hasGk && hasDef && hasMid && hasAtt ? "viable" :
-    (!hasGk && squadSize > 2) || (!hasDef && !hasAtt) ? "broken" : "degraded";
 
   const structuralWarnings: string[] = [];
   if (goalkeeperCoverage === "emergency") structuralWarnings.push("Uses emergency goalkeeper coverage");
   if (goalkeeperCoverage === "none") structuralWarnings.push("No goalkeeper-capable player");
-  if (!hasDef) structuralWarnings.push("No defensive coverage");
-  if (!hasMid) structuralWarnings.push("No midfield coverage");
-  if (!hasAtt) structuralWarnings.push("No attacking coverage");
+
+  // Exact simultaneous coverage (ADR-0129 §12): when the structure carries real slot geometry,
+  // test the squad's assigned players against every exact target role via maximum matching —
+  // a broad "has some defender / midfielder / attacker" check cannot fabricate coverage that is
+  // not actually simultaneously achievable (e.g. one player counted for two wide roles).
+  let formationViability: "viable" | "degraded" | "broken";
+  if (structure?.exactSlots && structure.exactSlots.length > 0) {
+    const coverage = computeExactFormationCoverage(
+      structure.exactSlots.map((s) => ({ slotId: s.slotId, roleType: s.roleType as FormationSlotRoleType, gridX: s.gridX })),
+      teamPlayers
+        .filter((p) => p.player)
+        .map((p) => ({
+          id: p.player.id,
+          primaryPosition: p.player.declaredPrimaryPosition,
+          secondaryPosition: p.player.declaredSecondaryPosition,
+          tertiaryPosition: p.player.declaredTertiaryPosition,
+          bestSide: p.player.bestSide as never,
+        })),
+    );
+    for (const role of new Set(coverage.unfilledRoles)) {
+      structuralWarnings.push(`No safe automatic fit for ${role}`);
+    }
+    formationViability = coverage.covered
+      ? "viable"
+      : coverage.filledExactSlots >= coverage.requiredExactSlots - 1 || coverage.unfilledRoles.every((r) => r === "GK")
+        ? "degraded"
+        : "broken";
+  } else {
+    formationViability =
+      hasGk && hasDef && hasMid && hasAtt ? "viable" :
+      (!hasGk && squadSize > 2) || (!hasDef && !hasAtt) ? "broken" : "degraded";
+    if (!hasDef) structuralWarnings.push("No defensive coverage");
+    if (!hasMid) structuralWarnings.push("No midfield coverage");
+    if (!hasAtt) structuralWarnings.push("No attacking coverage");
+  }
+
   if (noFitCount > 0) structuralWarnings.push(`${noFitCount} player(s) with no positional fit`);
 
   return {

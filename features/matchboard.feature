@@ -3640,6 +3640,20 @@ Feature: Matchboard football operations workspace
       Then the app must ask the coach to confirm using a player outside automatic positional fit
       And the assignment is allowed once confirmed
 
+    Scenario: Squad coverage against a real formation uses exact roles and simultaneous matching
+      Given a real formation with left-back, right-back and two central slots
+      And a squad has only one player who is eligible for a wide full-back slot
+      When the app checks whether the squad covers the formation
+      Then the coverage check must use maximum matching over the exact target roles
+      And it must report one wide full-back slot as uncovered
+      And it must not count the one eligible player as covering both wide slots
+
+    Scenario: Coverage is not claimed as exact when no real formation is resolved
+      Given squad generation runs without a resolved formation
+      When the app reports squad coverage
+      Then it must use broad role coverage only
+      And it must not present the coverage as exact formation coverage
+
     Scenario: Recommended lineup generation uses the same exact eligibility and safe matching
       Given a team formation has a left-wing slot and a central-midfield slot
       And the core roster has one left winger and one central midfielder
