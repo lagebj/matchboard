@@ -59,6 +59,11 @@ model — suspension is not deletion). Same gap as above: no self-service or adm
   results (this is the intended purpose of a parent-facing roster/results export, not a leak).
 - **Audit logs** (`src/lib/security/audit-log.ts`): log actor emails and resource IDs, not
   full player/session records — "Audit logs exclude sensitive payloads" (AGENTS.md).
+- **Selection explanations / warnings / reasons** (`Selection.explanation`,
+  `Selection.selectionReason`, `SelectionExplanation`, `Warning.message`,
+  `computeRoundPlanIntegrity` signals): store player **IDs only**, never names — names are
+  resolved for display at the surface. Enforced by
+  `src/lib/selection/__tests__/no-player-names-in-explanations.test.ts` (ARR-0043).
 
 ## Known gaps (not yet resolved)
 

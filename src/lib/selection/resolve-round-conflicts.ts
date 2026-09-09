@@ -69,7 +69,7 @@ export function resolveRoundConflicts(
 
       conflictWarnings.push({
         code: "round_player_conflict",
-        message: `${loser.player.playerName} was removed from ${matchResults[loser.matchIndex]!.teamName} because the player was also assigned to ${matchResults[winningAssignment.matchIndex]!.teamName} with a higher-priority role (${winningAssignment.player.selectionCategory} over ${loser.player.selectionCategory}).`,
+        message: `A player was removed from ${matchResults[loser.matchIndex]!.teamName} because they were also assigned to ${matchResults[winningAssignment.matchIndex]!.teamName} with a higher-priority role (${winningAssignment.player.selectionCategory} over ${loser.player.selectionCategory}).`,
         playerId,
       });
     }
@@ -119,7 +119,7 @@ export function resolveRoundConflicts(
         ...result.warnings,
         ...removedPlayers.map((p) => ({
           code: "round_player_conflict_removed",
-          message: `${p.playerName} was removed from this match due to a round-level conflict with a higher-priority assignment on another team.`,
+          message: `A player was removed from this match due to a round-level conflict with a higher-priority assignment on another team.`,
           playerId: p.playerId,
         })),
       ],

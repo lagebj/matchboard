@@ -203,7 +203,7 @@ export async function generateMatchRound(matchRoundId: string): Promise<Generate
         if (otherPlayerIds.has(player.playerId)) {
           roundWarnings.push({
             code: "player_in_multiple_matches",
-            message: `${player.playerName} appears in both ${result.teamName} and ${otherResult.teamName} in the same match round. This is a hard rule violation.`,
+            message: `A player appears in both ${result.teamName} and ${otherResult.teamName} in the same match round. This is a hard rule violation.`,
             playerId: player.playerId,
           });
         }

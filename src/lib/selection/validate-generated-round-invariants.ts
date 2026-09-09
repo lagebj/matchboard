@@ -34,7 +34,7 @@ export function validateGeneratedRoundInvariants(
       if (playerIds.has(player.playerId)) {
         violations.push({
           code: "invariant_duplicate_player_in_match",
-          message: `Player ${player.playerName} appears more than once in match ${selection.matchId}`,
+          message: `A player appears more than once in match ${selection.matchId}`,
           matchId: selection.matchId,
           playerId: player.playerId,
           severity: "HARD_BLOCK",
@@ -63,7 +63,7 @@ export function validateGeneratedRoundInvariants(
       if (!result.valid) {
         violations.push({
           code: "invariant_invalid_non_core_selection",
-          message: `Player ${player.playerName} (${player.coreTeamName}) selected as ${role} for target team, but ${result.explanation}`,
+          message: `A ${player.coreTeamName} player selected as ${role} for the target team, but ${result.explanation}`,
           matchId: selection.matchId,
           playerId: player.playerId,
           playerCoreTeamId: player.coreTeamId,

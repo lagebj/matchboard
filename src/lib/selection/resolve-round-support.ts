@@ -37,7 +37,7 @@ function buildSupportExplanations(
   supportPriority: number,
 ): Array<{ code: string; summary: string; hardRule?: boolean }> {
   return [
-    { code: "round_support_resolution", summary: `${playerName} was moved from ${donorTeamName} core to ${receiverTeamName} support during round-level support resolution.`, hardRule: false },
+    { code: "round_support_resolution", summary: `Moved from ${donorTeamName} core to ${receiverTeamName} support during round-level support resolution.`, hardRule: false },
     { code: "support_priority_order", summary: `${receiverTeamName} has support priority ${supportPriority}, which was considered during round-level resolution.`, hardRule: false },
   ];
 }
@@ -48,7 +48,7 @@ function buildDonorDropExplanation(
   receiverTeamName: string,
 ): Array<{ code: string; summary: string; hardRule?: boolean }> {
   return [
-    { code: "core_match_drop_for_support", summary: `${playerName} was dropped from ${donorTeamName} core to provide support for ${receiverTeamName}. The donor team had surplus core players above target squad size.`, hardRule: false },
+    { code: "core_match_drop_for_support", summary: `Dropped from ${donorTeamName} core to provide support for ${receiverTeamName}. The donor team had surplus core players above target squad size.`, hardRule: false },
   ];
 }
 
@@ -570,7 +570,7 @@ async function resolveSquadRepairInner(
         coreTeamName: candidate.coreTeamName,
         eligibility: true,
         explanations: [
-          { code: "squad_repair_priority_1_own_support", summary: `${candidate.playerName} was selected as squad repair priority 1 for ${match.team.name}: own core team player sent as support who can play both matches.`, hardRule: false },
+          { code: "squad_repair_priority_1_own_support", summary: `Selected as squad repair priority 1 for ${match.team.name}: own core team player sent as support who can play both matches.`, hardRule: false },
         ],
         finalSelected: false,
         manualOverride: false,
@@ -629,7 +629,7 @@ async function resolveSquadRepairInner(
           coreTeamName: candidate.coreTeam?.name ?? "Unassigned",
           eligibility: true,
           explanations: [
-            { code: "squad_repair_priority_2_path_player", summary: `${playerName} was selected as squad repair priority 2 for ${match.team.name}: player from team with active rotation path.`, hardRule: false },
+            { code: "squad_repair_priority_2_path_player", summary: `Selected as squad repair priority 2 for ${match.team.name}: player from team with active rotation path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -685,7 +685,7 @@ async function resolveSquadRepairInner(
           coreTeamName: candidate.coreTeam?.name ?? "Unassigned",
           eligibility: true,
           explanations: [
-            { code: "squad_repair_priority_3_other", summary: `${playerName} was selected as squad repair priority 3 for ${match.team.name}: rotatable player from another team with a configured rotation path.`, hardRule: false },
+            { code: "squad_repair_priority_3_other", summary: `Selected as squad repair priority 3 for ${match.team.name}: rotatable player from another team with a configured rotation path.`, hardRule: false },
           ],
           finalSelected: false,
           manualOverride: false,
@@ -761,7 +761,7 @@ export function selfSquadRepairBelowTarget(
       eligibility: p.eligibility,
       explanations: [
         ...p.explanations,
-        { code: "self_squad_repair", summary: `${p.playerName} was re-included in ${result.teamName} because the squad was below target after round-level support resolution.`, hardRule: false },
+        { code: "self_squad_repair", summary: `Re-included in ${result.teamName} because the squad was below target after round-level support resolution.`, hardRule: false },
       ],
       finalSelected: false,
       manualOverride: p.manualOverride,

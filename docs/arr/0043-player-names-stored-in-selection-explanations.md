@@ -2,9 +2,9 @@
 
 ## State
 
-Open. Recorded during Consolidation Programme C6 (F6, recommendation-explanation work), not
-resolved there — the fix is a dedicated selection-engine PII pass, out of scope for the
-explanation-contract change.
+Resolved — 2026-09-09 (Consolidation Programme C6 follow-up). Every `${playerName}` /
+`${candidate.playerName}` / `${getPlayerName(...)}` interpolation was removed from persisted
+selection-engine strings; a regression test enforces it. See "Resolution".
 
 ## Identified
 
@@ -86,6 +86,36 @@ audited line-by-line here; they must be checked in the same pass.
   fixture player's name.
 - `docs/domain/pii-inventory.md` updated if it currently implies these rows are name-free.
 
+## Resolution
+
+Every player-name interpolation was removed from persisted / surfaced selection-engine strings —
+wider than the criteria's three files, since the same violation existed in adjacent modules:
+
+- `generate-selection.ts` — ~25 `buildExplanation` summaries, warning `message:`s, `selectionReason:`s
+  and `exclusionReason:`s. Player-scoped explanations now read "This player …" / restructured
+  (the explanation already attaches to one player); warning messages read "A selected player …"
+  (each warning object carries `playerId`, so the surface resolves the name). `"weak positional
+  fit"` / `"may weaken the team's positional coverage"` → `"limited positional fit"` / `"may
+  reduce the team's positional coverage"`.
+- `resolve-round-support.ts` — 6 squad-repair / support-resolution explanation summaries.
+- `generate-round.ts` — the duplicate-in-two-teams hard-rule-violation message.
+- `resolve-round-conflicts.ts` — 2 round-conflict removal messages.
+- `validate-generated-round-invariants.ts` — 2 invariant-violation messages.
+- `compute-plan-integrity.ts` — 6 `title` / `currentState` strings on `SELECTED_PLAYER_UNAVAILABLE`,
+  `DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE`, `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`
+  signals (all carry `playerId`).
+- `rotation-candidate-evaluation.ts` — 4 `Excluded because …` reason strings.
+
+Team names, counts, dates, and role labels are kept (all allowed in coach-facing explanations).
+`getPlayerName()` / the transient in-memory `SelectedPlayer.playerName` field are unchanged —
+they are never persisted.
+
+Regression test: `src/lib/selection/__tests__/no-player-names-in-explanations.test.ts` runs the
+full generation + persistence pipeline for the fixture round and asserts no fixture player's
+`firstName` or `"firstName lastName"` appears in any `Selection.selectionReason`,
+`Selection.explanation` JSON, `SelectionExplanation` row (all Json columns), or `Warning.message`.
+`docs/domain/pii-inventory.md` gained a positive entry.
+
 ## Related decisions / records
 
 - ARR-0002 (selection explanation dual storage — same rows)
@@ -105,3 +135,9 @@ found (`score {n}` in the Tactics panel, `goalsAgainst / occurrences` arithmetic
 generator) and shipped the name-free `RecommendationReason` contract, but the systemic
 player-name interpolation across `generate-selection.ts`'s ~20 stored-string sites is a separate
 dedicated pass.
+
+### 2026-09-09 (same day)
+
+Resolved. The dedicated PII pass removed every player-name interpolation across seven
+selection-engine modules (see Resolution), fixed the `weak`/`weaken` wording, added the
+regression test, and updated the PII inventory.
