@@ -29,7 +29,7 @@ function makeEvidence(overrides: Record<string, unknown> = {}): OpponentSporting
   } as OpponentSportingEvidence;
 }
 
-describe("Sporting level query integration", () => {
+describe("Sporting level aggregation integration", () => {
   it("excluded evidence is filtered out by aggregation", () => {
     const active = makeEvidence({ id: "e1", excludedAt: null, estimate: new Prisma.Decimal("7.00") });
     const excluded = makeEvidence({

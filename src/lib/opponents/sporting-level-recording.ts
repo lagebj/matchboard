@@ -337,18 +337,6 @@ export async function recordOpponentSportingEvidenceForRef(
   return { recorded: true, evidenceId: evidence.id };
 }
 
-/**
- * League-only convenience wrapper, kept for existing call sites (e.g. the historical
- * "Populate opponent levels" replay tool). New code should call
- * `recordOpponentSportingEvidenceForRef` directly with a `FootballMatchRef`.
- */
-export async function recordOpponentSportingEvidence(
-  matchId: string,
-  orgFilter: OrgFilterMode,
-): Promise<RecordOpponentSportingEvidenceResult> {
-  return recordOpponentSportingEvidenceForRef({ kind: "LEAGUE_MATCH", matchId, leagueSeasonId: null }, orgFilter);
-}
-
 export async function excludeOpponentSportingEvidence(
   evidenceId: string,
   reason: string,
