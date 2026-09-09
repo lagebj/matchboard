@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved — ADR-0126 (Consolidation Programme C2), 2026-09-09. See "Resolution" below.
 
 ## Identified
 
@@ -82,11 +82,32 @@ mutations have no boundary check calling into anything analogous.
 
 ## Disposition
 
-Pending — not resolved in the coach-workflow-simplification programme. Building a full
-Event-match planning-boundary equivalent (a new concept, since `EventMatch` has no
-`planningClosedAt` and Event's live-session/report timing model differs in shape from League's)
-was judged out of the safely-achievable scope of that programme's line-up-confirmation cleanup;
-recorded here rather than left as a silent gap.
+Resolved (ADR-0126, Consolidation Programme C2).
+
+## Resolution
+
+The shared-predicate option from "Containment" above was taken. `isPlanningBoundaryClosed()`
+(`src/lib/selection/planning-boundary.ts`) is now the one pure definition of a closed pre-match
+planning boundary. `isMatchPlanningEditable()` (League) is a thin `Match`-loading adapter over it
+with its lazy baseline-capture side effect unchanged; `isEventMatchLineupEditable()`
+(`src/lib/events/event-planning-boundary.ts`) is the `EventMatch` adapter, passing
+`planningClosedAt: null` (Event has nothing to freeze) and an explicit `reportStatus` check.
+
+- `event-lineup-actions.ts`'s seven mutation functions (`createEventMatchLineup`,
+  `assignPlayerToLineupSlot`, `removePlayerFromLineupSlot`, `clearEventMatchLineup`,
+  `deleteEventMatchLineup`, `changeEventMatchLineupFormation`, `autoFillEventMatchLineup`) call
+  `requireEventLineupEditable()` — an Event match line-up mutation is rejected once kickoff has
+  passed, live reporting has started, or a post-match report exists.
+- `event-match-lineup-panel.tsx` fetches `getEventMatchLineupEditableAction()` on load, renders
+  its controls read-only and shows a "Planning closed" badge when the boundary has closed.
+- Regression tests: `src/lib/events/__tests__/event-planning-boundary.test.ts` (shared predicate
+  + Event adapter, incl. a League/Event parity assertion);
+  `src/app/(app)/events/[eventId]/__tests__/event-lineup-actions.test.ts` fixture dates moved to
+  the future now that the boundary is enforced.
+
+`EventMatchLineup.status` (`DRAFT`/`CONFIRMED`/`ARCHIVED`) is retained in the schema for
+historical rows only — no code reads it for editability, nothing writes `CONFIRMED` (contract
+residue, not this ARR's concern).
 
 ## Related decisions
 

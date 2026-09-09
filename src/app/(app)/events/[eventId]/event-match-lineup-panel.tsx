@@ -11,6 +11,7 @@ import {
   changeEventMatchLineupFormation,
   getAvailableFormations,
   getEligibleEventMatchPlayersAction,
+  getEventMatchLineupEditableAction,
 } from './event-lineup-actions';
 import type { EligibleEventMatchPlayer } from '@/lib/events/event-match-eligibility';
 
@@ -94,6 +95,10 @@ export function EventMatchLineupPanel({
   const [eligiblePlayers, setEligiblePlayers] = useState<EligibleEventMatchPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Planning-boundary editability (ARR-0038 / C2). Server actions enforce it independently; this
+  // just drives the read-only UI hint.
+  const [editable, setEditable] = useState(true);
+  const [editableReason, setEditableReason] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [pickerState, setPickerState] = useState<{
     assignmentId: string | null;
@@ -107,16 +112,19 @@ export function EventMatchLineupPanel({
       try {
         setLoading(true);
         setError(null);
-        const [lineupData, formationsData, eligible] = await Promise.all([
+        const [lineupData, formationsData, eligible, boundary] = await Promise.all([
           getEventMatchLineup(eventMatchId),
           getAvailableFormations(gameFormat),
           getEligibleEventMatchPlayersAction(eventMatchId),
+          getEventMatchLineupEditableAction(eventMatchId),
         ]);
         if (lineupData) {
           setLineup(lineupData as LineupData);
         }
         setFormations(formationsData as unknown as Formation[]);
         setEligiblePlayers(eligible);
+        setEditable(boundary.editable);
+        setEditableReason(boundary.editable ? null : boundary.reason ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load lineup');
       } finally {
@@ -311,6 +319,9 @@ export function EventMatchLineupPanel({
     );
   }, [lineup, eligiblePlayers]);
 
+  // Read-only while a mutation is in flight OR the match's planning boundary has closed.
+  const readOnly = isPending || !editable;
+
   if (loading) {
     return (
       <Surface variant="default" padding="md">
@@ -350,7 +361,7 @@ export function EventMatchLineupPanel({
                 ? effectiveFormationId
                 : formations[0]?.id,
             )}
-            disabled={isPending || formations.length === 0}
+            disabled={readOnly || formations.length === 0}
             className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
             title="Uses the squad's own formation, or the Event default, when set"
           >
@@ -370,7 +381,7 @@ export function EventMatchLineupPanel({
             </label>
             <select
               onChange={(e) => { if (e.target.value) handleCreate(e.target.value); }}
-              disabled={isPending}
+              disabled={readOnly}
               className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
               defaultValue=""
             >
@@ -391,6 +402,11 @@ export function EventMatchLineupPanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+            {!editable && (
+              <span className="rounded bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]" title={editableReason ?? undefined}>
+                Planning closed
+              </span>
+            )}
             {lineupRating && lineupRating.totalSlots > 0 && (
               <span className="text-xs text-[var(--text-muted)]">
                 {lineupRating.averageRating !== null
@@ -403,14 +419,14 @@ export function EventMatchLineupPanel({
           <div className="flex gap-2">
             <button
               onClick={handleAutoFill}
-              disabled={isPending}
+              disabled={readOnly}
               className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
             >
               Auto-fill
             </button>
             <button
               onClick={handleClear}
-              disabled={isPending}
+              disabled={readOnly}
               className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)] disabled:opacity-50"
             >
               Clear
@@ -427,7 +443,7 @@ export function EventMatchLineupPanel({
           <select
             value={lineup.formationId ?? ''}
             onChange={(e) => { if (e.target.value) handleChangeFormation(e.target.value); }}
-            disabled={isPending}
+            disabled={readOnly}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
           >
             <option value="">No formation</option>
@@ -444,7 +460,7 @@ export function EventMatchLineupPanel({
             assignments={pitchAssignments}
             players={pitchPlayers}
             onSlotClick={handleSlotClick}
-            readOnly={isPending}
+            readOnly={readOnly}
             orientation="horizontal"
           />
         ) : (

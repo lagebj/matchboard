@@ -17,6 +17,10 @@ vi.mock("next/cache", () => ({
 let testDb: PrismaClient;
 let fixture: TestFixtureIds;
 
+// Event lineup mutations now require an open planning boundary (ARR-0038 / C2) — the event
+// match must be genuinely in the future.
+const FUTURE_EVENT_DATE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
 import { assignPlayerToLineupSlot, removePlayerFromLineupSlot, getEligibleEventMatchPlayersAction } from "../event-lineup-actions";
 
 // Platform-integrity-programme Phase 16 (A-007/A-009 remainder): assignPlayerToLineupSlot
@@ -48,7 +52,7 @@ describe("assignPlayerToLineupSlot eligibility enforcement (A-007/A-009)", () =>
       data: {
         name: "Lineup Eligibility Test Cup",
         eventType: "CUP",
-        startsAt: new Date("2026-07-01T10:00:00Z"),
+        startsAt: FUTURE_EVENT_DATE,
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 40,
         organisationId: fixture.organisationId,
@@ -92,7 +96,7 @@ describe("assignPlayerToLineupSlot eligibility enforcement (A-007/A-009)", () =>
         eventSquadId: squad1.id,
         category: "CUP",
         opponentName: "Opponent",
-        startsAt: new Date("2026-07-01T10:00:00Z"),
+        startsAt: FUTURE_EVENT_DATE,
         organisationId: fixture.organisationId,
       },
     });
@@ -170,7 +174,7 @@ describe("assignPlayerToLineupSlot with GuestPlayer participants (ADR-0106 plann
       data: {
         name: "Guest Lineup Parity Cup",
         eventType: "CUP",
-        startsAt: new Date("2026-07-01T10:00:00Z"),
+        startsAt: FUTURE_EVENT_DATE,
         gameFormat: "SEVEN_A_SIDE",
         matchDurationMinutes: 40,
         organisationId: fixture.organisationId,
@@ -204,7 +208,7 @@ describe("assignPlayerToLineupSlot with GuestPlayer participants (ADR-0106 plann
         eventSquadId: squad.id,
         category: "CUP",
         opponentName: "Opponent",
-        startsAt: new Date("2026-07-01T10:00:00Z"),
+        startsAt: FUTURE_EVENT_DATE,
         organisationId: fixture.organisationId,
       },
     });

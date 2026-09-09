@@ -1257,10 +1257,16 @@ Standing rules for all future work in this area:
   (`finalizeEventAction`/`unfinalizeEventAction`), whole-`LeagueSeason.status` finalize, and the
   whole-Event-squad-set lock described above — each is a genuine semantic assertion about an
   entire container closing out, not per-round/per-match planning ceremony, and none has a
-  real-world temporal boundary to derive from. See ADR-0109 §7/§7a for the reasoning. ARR-0038
-  records one verified, pre-existing (not introduced by this programme) residue: Event match
-  line-ups have no real planning-boundary editability gate at all yet — resolving it requires a
-  new `EventMatch`-shaped boundary concept, deferred.
+  real-world temporal boundary to derive from. See ADR-0109 §7/§7a for the reasoning.
+- **League and Event match line-up editability share one boundary predicate (ADR-0126, resolving
+  ARR-0038).** `isPlanningBoundaryClosed()` (`src/lib/selection/planning-boundary.ts`) is the one
+  pure definition; `isMatchPlanningEditable()` (League) and `isEventMatchLineupEditable()`
+  (`src/lib/events/event-planning-boundary.ts`, gating all seven `event-lineup-actions.ts`
+  mutations via `requireEventLineupEditable()`) are thin adapters over it. Event has no
+  `planningClosedAt` marker and nothing to freeze, so its adapter derives editability purely from
+  kickoff / live-session / post-match-report state — a reschedule moving `startsAt` forward
+  re-opens editing with no separate action. Do not add a second Event-specific boundary
+  implementation; extend the shared predicate.
 
 ## RotationPath authority
 
