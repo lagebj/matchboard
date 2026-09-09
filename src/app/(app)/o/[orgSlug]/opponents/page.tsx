@@ -54,7 +54,7 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
+                    <tr className="border-b border-[var(--border-soft)] text-left text-xs font-medium text-[var(--text-muted)]">
                       <th className="px-4 py-3 pr-4">Opponent team</th>
                       <th className="px-4 py-3 pr-4">League matches</th>
                       <th className="px-4 py-3">Event matches</th>
