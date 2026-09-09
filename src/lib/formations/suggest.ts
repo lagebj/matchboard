@@ -1,5 +1,9 @@
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotData, BroadPosition } from "./types";
+import { deriveExactTargetRole } from "@/domain/positions/slot-target";
+import { matchSlotsToCandidates, type SafeMatchCandidate, type SafeMatchSlot } from "@/domain/positions/matching";
+import { fitLabel } from "@/domain/positions/labels";
+import type { SideInput } from "@/domain/positions/roles";
 
 export type FormationSuggestion = {
   formationId: string;
@@ -171,32 +175,47 @@ export type LineupEvidenceBonus = {
   reasons: string[];
 };
 
+export type SuggestLineupPlayer = {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  primaryPosition: string;
+  secondaryPosition: string | null;
+  /** Declared tertiary position, consumed by exact positional eligibility (ADR-0129). */
+  tertiaryPosition?: string | null;
+  /** `Player.bestSide` — a ±4 modifier for unsided sources → left/right targets (ADR-0129 §6). */
+  bestSide?: SideInput;
+  coreTeamId: string | null;
+};
+
 export type SuggestLineupInput = {
   formationSlots: FormationSlotData[];
-  playerPool: {
-    id: string;
-    firstName: string;
-    lastName: string | null;
-    primaryPosition: string;
-    secondaryPosition: string | null;
-    coreTeamId: string | null;
-  }[];
+  playerPool: SuggestLineupPlayer[];
   existingAssignments?: {
     slotId: string;
     playerId: string;
     locked: boolean;
   }[];
+  /** Deterministic tie-break seed for the matcher. Defaults to a stable hash of the input. */
+  seed?: string;
   /**
-   * Optional evidence-aware scoring hook (Bundle 8, ADR-0119). When supplied, adds a bounded
-   * score contribution (and factual reasons) for a specific (player, slot) pair — role
-   * suitability, fairness start-need, opponent-function fit, combination evidence, or any
-   * combination thereof, already bounded by the caller. Absent by default, so every existing
-   * caller (Event lineup suggestion, the plain "Suggest lineup" flow) is unaffected — this
-   * module never imports evidence/policy code directly to compute it itself, matching AGENTS.md's
-   * "one business operation" rule: role/fairness/evidence scoring is owned elsewhere.
+   * Optional evidence-aware WITHIN-TIER preference hook (ADR-0129 §9 objective 6). Contributes a
+   * bounded, non-negative preference score (and factual reasons) for a (player, slot) pair —
+   * combination evidence, opponent-function fit, position-context evidence, etc., already
+   * bounded by the caller. It can only re-order candidates that are ALREADY automatically
+   * eligible for the slot's exact target role; it can never widen eligibility or beat a higher
+   * fit tier (ADR-0129 §5).
+   *
+   * `alreadyAssignedPlayerIds` contains only the assignments known BEFORE matching — locked
+   * slots and the goalkeeper — not an incremental running set: exact assignment is one
+   * deterministic bounded matching, not a sequential greedy fill (ADR-0129 §10).
    */
   evidenceBonusForSlot?: (playerId: string, slot: FormationSlotData, alreadyAssignedPlayerIds: string[]) => LineupEvidenceBonus | undefined;
 };
+
+function slotKey(slot: FormationSlotData): string {
+  return slot.id ?? `${slot.gridX}-${slot.gridY}`;
+}
 
 export function suggestLineupForFormation(input: SuggestLineupInput): LineupSuggestion {
   const { formationSlots, playerPool, existingAssignments = [], evidenceBonusForSlot } = input;
@@ -249,95 +268,83 @@ export function suggestLineupForFormation(input: SuggestLineupInput): LineupSugg
     }
   }
 
-  const remainingSlots = formationSlots
-    .filter((s) => {
-      const slotId = s.id ?? `${s.gridX}-${s.gridY}`;
-      return !assignedSlotIds.has(slotId);
-    })
-    .sort((a, b) => {
-      const aCompatCount = playerPool.filter(
-        (p) => !assignedPlayerIds.has(p.id) && playerMatchesSlot(p.primaryPosition, p.secondaryPosition, a.acceptedPositionIds as BroadPosition[]).match,
-      ).length;
-      const bCompatCount = playerPool.filter(
-        (p) => !assignedPlayerIds.has(p.id) && playerMatchesSlot(p.primaryPosition, p.secondaryPosition, b.acceptedPositionIds as BroadPosition[]).match,
-      ).length;
-      return aCompatCount - bCompatCount;
-    });
+  // Remaining slots (non-GK, not locked). Exact automatic assignment is one deterministic
+  // bounded bipartite matching over exact target roles (ADR-0129 §10) — never a greedy per-slot
+  // fill. FREE slots derive no automatic target role and are left for manual assignment.
+  const remainingSlots = formationSlots.filter((s) => !assignedSlotIds.has(slotKey(s)));
 
+  const matchableSlots: SafeMatchSlot[] = [];
+  const slotBySlotId = new Map<string, FormationSlotData>();
   for (const slot of remainingSlots) {
-    const slotId = slot.id ?? `${slot.gridX}-${slot.gridY}`;
-    const availablePlayers = playerPool.filter((p) => !assignedPlayerIds.has(p.id));
-
-    type ScoredPlayer = {
-      player: (typeof playerPool)[number];
-      score: number;
-      reasons: string[];
-    };
-
-    const scored: ScoredPlayer[] = availablePlayers
-      .map((player) => {
-        const match = playerMatchesSlot(player.primaryPosition, player.secondaryPosition, slot.acceptedPositionIds as BroadPosition[]);
-        let score = 0;
-        const reasons: string[] = [];
-
-        if (!match.match) {
-          score -= 1000;
-          reasons.push(`No position match for ${slot.label}`);
-        } else if (match.level === "primary") {
-          score += 100;
-          reasons.push(`Registered primary position: ${mapExistingPositionToBroadSimple(player.primaryPosition)}`);
-        } else if (match.level === "secondary") {
-          score += 70;
-          reasons.push(`Can play ${mapExistingPositionToBroadSimple(player.secondaryPosition ?? "")}`);
-        } else if (match.level === "flexible") {
-          score += 25;
-          reasons.push("Flexible position");
-        }
-
-        const roleBroad = slot.roleType === "GOALKEEPER" ? "goalkeeper" :
-          slot.roleType === "DEFENDER" ? "defender" :
-          slot.roleType === "DEFENSIVE_MIDFIELDER" ? "midfielder" :
-          slot.roleType === "MIDFIELDER" ? "midfielder" :
-          slot.roleType === "ATTACKING_MIDFIELDER" ? "midfielder" :
-          slot.roleType === "FORWARD" ? "forward" : "flexible";
-
-        if (mapExistingPositionToBroadSimple(player.primaryPosition) === roleBroad) {
-          score += 10;
-        }
-
-        if (evidenceBonusForSlot) {
-          const bonus = evidenceBonusForSlot(player.id, slot, [...assignedPlayerIds]);
-          if (bonus) {
-            score += bonus.score;
-            reasons.push(...bonus.reasons);
-          }
-        }
-
-        return { player, score, reasons };
-      })
-      .sort((a, b) => b.score - a.score);
-
-    if (scored.length > 0) {
-      const best = scored[0];
-      assignedPlayerIds.add(best.player.id);
-      assignedSlotIds.add(slotId);
-      let confidence: "high" | "medium" | "low" = "low";
-      if (best.score >= 100) confidence = "high";
-      else if (best.score >= 0) confidence = "medium";
-
-      assignments.push({
-        slotId,
-        playerId: best.player.id,
-        source: "suggested",
-        locked: false,
-        reasons: best.reasons,
-        confidence,
-      });
-    } else {
-      unfilledSlotIds.push(slotId);
-      assignedSlotIds.add(slotId);
-      warnings.push(`No available player for ${slot.label}`);
+    const key = slotKey(slot);
+    if (slot.roleType === "FREE") {
+      unfilledSlotIds.push(key);
+      assignedSlotIds.add(key);
+      warnings.push(`${slot.label} is a Free slot — assign manually`);
+      continue;
     }
+    const targetRole = deriveExactTargetRole(slot.roleType, slot.gridX);
+    if (!targetRole) {
+      unfilledSlotIds.push(key);
+      assignedSlotIds.add(key);
+      warnings.push(`${slot.label} — no automatic target role for this slot`);
+      continue;
+    }
+    matchableSlots.push({ slotId: key, targetRole });
+    slotBySlotId.set(key, slot);
+  }
+
+  const candidatePool = playerPool.filter((p) => !assignedPlayerIds.has(p.id));
+  const candidates: SafeMatchCandidate[] = candidatePool.map((p) => ({
+    candidateId: p.id,
+    declaredPositions: {
+      primaryPosition: p.primaryPosition,
+      secondaryPosition: p.secondaryPosition,
+      tertiaryPosition: p.tertiaryPosition ?? null,
+      bestSide: p.bestSide,
+    },
+  }));
+
+  // Preference (objective 6) is the caller's bounded evidence hook, applied WITHIN a tier only.
+  const knownAssignedIds = [...assignedPlayerIds];
+  const evidenceReasonsByPair = new Map<string, string[]>();
+  const preference = evidenceBonusForSlot
+    ? (candidateId: string, slotId: string): number => {
+        const slot = slotBySlotId.get(slotId);
+        if (!slot) return 0;
+        const bonus = evidenceBonusForSlot(candidateId, slot, knownAssignedIds);
+        if (!bonus) return 0;
+        if (bonus.reasons.length > 0) evidenceReasonsByPair.set(`${candidateId}:${slotId}`, bonus.reasons);
+        return bonus.score;
+      }
+    : undefined;
+
+  const seed =
+    input.seed ??
+    `${matchableSlots.map((s) => s.slotId).join(",")}|${[...candidatePool.map((p) => p.id)].sort().join(",")}`;
+
+  const matchResult = matchSlotsToCandidates(matchableSlots, candidates, { seed, preference });
+
+  for (const a of matchResult.assignments) {
+    assignedPlayerIds.add(a.candidateId);
+    assignedSlotIds.add(a.slotId);
+    const reasons = [`${fitLabel(a.tier)} for ${a.role}`];
+    const evidenceReasons = evidenceReasonsByPair.get(`${a.candidateId}:${a.slotId}`);
+    if (evidenceReasons) reasons.push(...evidenceReasons);
+    assignments.push({
+      slotId: a.slotId,
+      playerId: a.candidateId,
+      source: "suggested",
+      locked: false,
+      reasons,
+      confidence: a.tier === "PLAUSIBLE" ? "medium" : "high",
+    });
+  }
+
+  for (const gap of matchResult.unfilledSlots) {
+    unfilledSlotIds.push(gap.slotId);
+    assignedSlotIds.add(gap.slotId);
+    warnings.push(`No safe automatic fit for ${gap.role}`);
   }
 
   for (const player of playerPool) {

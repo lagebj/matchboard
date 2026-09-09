@@ -6,7 +6,7 @@ import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess }
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { suggestFormationForMatch, suggestLineupForFormation, type SuggestFormationInput, type SuggestLineupInput } from "@/lib/formations/suggest";
 import { createFormationSnapshot } from "@/lib/formations/snapshot";
-import type { GameFormat } from "@/generated/prisma/client";
+import type { GameFormat, BestSide } from "@/generated/prisma/client";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
@@ -32,10 +32,12 @@ export type PlayerPoolEntry = {
   coreTeamId: string | null;
   coreTeamName?: string;
   isHelper?: boolean;
-  // Additive fields (Evidence-Informed Match Planning, Bundle 8, ADR-0119) — optional so every
-  // existing caller of this pool (the plain "Suggest lineup" flow, Event equivalents) is
-  // unaffected. Populated for the new evidence-aware integrated generation flow only.
+  // Declared tertiary position + best side — consumed by exact positional eligibility (ADR-0129).
   tertiaryPosition?: string | null;
+  bestSide?: BestSide | null;
+  // Additive attribute fields (Evidence-Informed Match Planning, Bundle 8, ADR-0119) — optional
+  // so every existing caller of this pool is unaffected. Populated for the evidence-aware
+  // integrated generation flow only.
   ballControl?: number | null;
   passing?: number | null;
   firstTouch?: number | null;
@@ -82,6 +84,7 @@ export async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgF
             lastName: true,
             primaryPosition: true,
             secondaryPosition: true,
+            bestSide: true,
             coreTeamId: true,
             coreTeam: { select: { id: true, name: true } },
             ...PLAYER_EVIDENCE_ATTRIBUTE_SELECT,
@@ -100,6 +103,7 @@ export async function getPlayerPoolWithHelpers(matchId: string, _orgFilter: OrgF
             lastName: true,
             primaryPosition: true,
             secondaryPosition: true,
+            bestSide: true,
             coreTeamId: true,
             coreTeam: { select: { id: true, name: true } },
             ...PLAYER_EVIDENCE_ATTRIBUTE_SELECT,
@@ -519,6 +523,8 @@ export async function fillEmptySlots(lineupId: string) {
       lastName: p.lastName ?? "",
       primaryPosition: p.primaryPosition,
       secondaryPosition: p.secondaryPosition,
+      tertiaryPosition: p.tertiaryPosition ?? null,
+      bestSide: p.bestSide ?? null,
       coreTeamId: p.coreTeamId,
     })),
     existingAssignments: lineup.assignments
