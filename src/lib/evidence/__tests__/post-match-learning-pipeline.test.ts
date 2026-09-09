@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 import { rebuildActualTimeline, rebuildEventActualTimeline, rebuildActualTimelineForRef } from "@/lib/evidence/actual-timeline";
-import { runPostMatchLearning } from "@/lib/evidence/post-match-learning";
+import { runPostMatchLearning, summariseLearningOutcome } from "@/lib/evidence/post-match-learning";
 import { recordOpponentSportingEvidenceForRef } from "@/lib/opponents/sporting-level-recording";
 import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
 import { buildMatchStateTimeline } from "@/lib/evidence/match-state-timeline";
@@ -478,10 +478,22 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
 
     const result = await runPostMatchLearning(ref, orgFilter);
 
-    expect(result.actualTimeline.status).not.toBe("FAILED");
-    expect(result.opponent.status).not.toBe("FAILED");
-    expect(result.players.status).not.toBe("FAILED");
-    expect(result.combinations.status).not.toBe("FAILED");
+    // Every step reaches a real, non-FAILED conclusion for this well-formed fixture.
+    for (const step of Object.values(result)) {
+      expect(["APPLIED", "SKIPPED"]).toContain(step.status);
+    }
+    expect(result.actualTimeline.status).toBe("APPLIED");
+
+    // ADR-0127: the run is recorded, observable, and its overall outcome is authoritative.
+    const run = await testDb.postMatchLearningRun.findFirst({
+      where: { matchId },
+      orderBy: { runAt: "desc" },
+    });
+    expect(run).not.toBeNull();
+    expect(run!.trigger).toBe("REPORT_COMPLETION");
+    expect(run!.eventMatchId).toBeNull();
+    expect(run!.overallOutcome).toBe(summariseLearningOutcome(result));
+    expect(run!.steps).toEqual(result);
   });
 
   it("runPostMatchLearning distinguishes NO_FOOTBALL_OBSERVATIONS from INSUFFICIENT_DISTINCT_MATCHES (found via manual browser verification, Event Evidence Parity programme)", async () => {

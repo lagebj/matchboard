@@ -2,7 +2,11 @@ import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
 import { buildEventMatchRef } from "@/lib/evidence/adapters/event-evidence-adapter";
-import { runPostMatchLearning, type PostMatchLearningResult } from "@/lib/evidence/post-match-learning";
+import {
+  runPostMatchLearning,
+  summariseLearningOutcome,
+  type PostMatchLearningResult,
+} from "@/lib/evidence/post-match-learning";
 import { footballMatchRefSourceId, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import { startsAtRangeFilter } from "@/lib/evidence/date-range-filter";
 
@@ -95,22 +99,62 @@ async function getEligibleCompletedMatchRefs(
   return [...leagueRefs, ...eventRefs];
 }
 
-function outcomeFromResult(result: PostMatchLearningResult): PostMatchLearningReplayOutcome {
-  const steps = Object.values(result);
-  if (steps.some((s) => s.status === "FAILED")) return "FAILED";
-  if (steps.some((s) => s.status === "APPLIED")) return "APPLIED";
-  return "SKIPPED";
+const outcomeFromResult = summariseLearningOutcome;
+
+export type ReplayPostMatchLearningOptions = {
+  from?: Date;
+  to?: Date;
+  /** Reprocess just this one League match. */
+  matchId?: string;
+  /** Reprocess just this one Event match. */
+  eventMatchId?: string;
+  /**
+   * Only reprocess matches whose latest `PostMatchLearningRun` is `FAILED` or missing — the
+   * retry-the-broken-ones mode (ADR-0127). Ignored when `matchId`/`eventMatchId` is given.
+   */
+  failedOnly?: boolean;
+};
+
+async function filterToFailedOrMissing(
+  organisationId: string,
+  refs: FootballMatchRef[],
+): Promise<FootballMatchRef[]> {
+  const latestRuns = await db.postMatchLearningRun.findMany({
+    where: { organisationId },
+    orderBy: { runAt: "desc" },
+    select: { matchId: true, eventMatchId: true, overallOutcome: true },
+  });
+  // First (newest) run seen per source id wins.
+  const latestBySource = new Map<string, string>();
+  for (const r of latestRuns) {
+    const key = r.matchId ?? r.eventMatchId;
+    if (key && !latestBySource.has(key)) latestBySource.set(key, r.overallOutcome);
+  }
+  return refs.filter((ref) => {
+    const outcome = latestBySource.get(footballMatchRefSourceId(ref));
+    return outcome === undefined || outcome === "FAILED";
+  });
 }
 
 /**
- * Reprocesses every eligible completed match for an organisation. Never mutates the report
- * itself and never aborts the batch on one match's failure (MIGRATION.md).
+ * Reprocesses every eligible completed match for an organisation (or a filtered subset — see
+ * `ReplayPostMatchLearningOptions`). Never mutates the report itself and never aborts the batch
+ * on one match's failure (MIGRATION.md). Each run writes an observable `PostMatchLearningRun`
+ * with `trigger: "REPLAY"` (ADR-0127).
  */
 export async function replayPostMatchLearningHistory(
   organisationId: string,
-  options?: { from?: Date; to?: Date },
+  options?: ReplayPostMatchLearningOptions,
 ): Promise<PostMatchLearningReplaySummary> {
-  const refs = await getEligibleCompletedMatchRefs(organisationId, options);
+  let refs = await getEligibleCompletedMatchRefs(organisationId, options);
+
+  if (options?.matchId) {
+    refs = refs.filter((r) => r.kind === "LEAGUE_MATCH" && r.matchId === options.matchId);
+  } else if (options?.eventMatchId) {
+    refs = refs.filter((r) => r.kind === "EVENT_MATCH" && r.eventMatchId === options.eventMatchId);
+  } else if (options?.failedOnly) {
+    refs = await filterToFailedOrMissing(organisationId, refs);
+  }
   const orgFilter: OrgFilterMode = {
     type: "org",
     organisationId,
@@ -133,7 +177,7 @@ export async function replayPostMatchLearningHistory(
     bucket.total++;
 
     try {
-      const result = await runPostMatchLearning(ref, orgFilter);
+      const result = await runPostMatchLearning(ref, orgFilter, "REPLAY");
       const outcome = outcomeFromResult(result);
 
       if (outcome === "APPLIED") {

@@ -192,6 +192,7 @@ model Match {
   threadObservations          DevelopmentThreadObservation[]
   actualPositionIntervals     ActualPositionInterval[]
   combinationEvidences        CombinationEvidence[]
+  postMatchLearningRuns       PostMatchLearningRun[]
   quickObservations           QuickObservation[]
   guestAssignments            LeagueMatchGuestAssignment[]
 
@@ -1485,6 +1486,7 @@ model EventMatch {
   actualPositionIntervals  ActualPositionInterval[]
   opponentSportingEvidence OpponentSportingEvidence?
   combinationEvidence      CombinationEvidence[]
+  postMatchLearningRuns    PostMatchLearningRun[]
   developmentObservations  PlayerDevelopmentObservation[]
   matchAvailabilities      EventMatchAvailability[]
 
@@ -2429,6 +2431,7 @@ model Organisation {
   teamFocuses                   TeamFocus[]
   actualPositionIntervals       ActualPositionInterval[]
   combinationEvidences          CombinationEvidence[]
+  postMatchLearningRuns         PostMatchLearningRun[]
   quickObservations             QuickObservation[]
   guestPlayers                  GuestPlayer[]
   eventMatchAvailabilities      EventMatchAvailability[]
@@ -3197,4 +3200,42 @@ model TeamBestLineupAssignment {
   @@index([bestLineupId])
   @@index([playerId])
   @@index([organisationId])
+}
+
+/// Authoritative, observable record of one post-match learning run (ADR-0104 pipeline).
+/// Post-match learning is derived, best-effort work that must never block report completion
+/// (ADR-0127) — but its success/failure must be inspectable and retryable. One row per run;
+/// the newest row for a match is its current learning state. Dual nullable FK + discriminator,
+/// matching ActualPositionInterval / CombinationEvidence / OpponentSportingEvidence (ADR-0104);
+/// a CHECK constraint (hand-added in the migration) enforces exactly one of matchId/eventMatchId.
+model PostMatchLearningRun {
+  id             String                   @id @default(cuid())
+  organisationId String
+  matchId        String?
+  eventMatchId   String?
+  trigger        PostMatchLearningTrigger
+  runAt          DateTime                 @default(now())
+  overallOutcome LearningRunOutcome
+  /// Per-step { status: APPLIED|SKIPPED|FAILED, reason?: string } — the PostMatchLearningResult shape.
+  steps          Json
+
+  match        Match?        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch   EventMatch?   @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, runAt])
+  @@index([eventMatchId, runAt])
+  @@index([organisationId, overallOutcome])
+}
+
+enum PostMatchLearningTrigger {
+  REPORT_COMPLETION
+  REPLAY
+  RECONCILE
+}
+
+enum LearningRunOutcome {
+  APPLIED
+  SKIPPED
+  FAILED
 }

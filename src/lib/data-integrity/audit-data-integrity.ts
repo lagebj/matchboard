@@ -648,6 +648,64 @@ async function getCompletedMatchIds(db: Dbc, leagueSeasonId?: string): Promise<s
   return [...new Set(reports.map((r) => r.matchId))];
 }
 
+/**
+ * A LOCKED report whose latest post-match learning run FAILED, or has no run row at all
+ * (ADR-0127). Learning is non-blocking derived work — this is not corrupt data, it's a retry
+ * signal: `replayPostMatchLearningHistory(orgId, { failedOnly: true })` re-runs exactly these.
+ */
+async function checkPostMatchLearningRunFailedOrMissing(
+  db: Dbc,
+  scope: { leagueSeasonId?: string; matchId?: string },
+  findings: IntegrityFinding[],
+): Promise<void> {
+  const lockedLeague = await db.postMatchReport.findMany({
+    where: {
+      status: "LOCKED",
+      ...(scope.matchId ? { matchId: scope.matchId } : {}),
+      ...(scope.leagueSeasonId ? { match: { matchRound: { leagueSeasonId: scope.leagueSeasonId } } } : {}),
+    },
+    select: { matchId: true, organisationId: true },
+  });
+  // Event matches are not League-season scoped; only include them for an unscoped audit.
+  const lockedEvent =
+    scope.matchId || scope.leagueSeasonId
+      ? []
+      : await db.eventPostMatchReport.findMany({
+          where: { status: "LOCKED" },
+          select: { eventMatchId: true, organisationId: true },
+        });
+
+  for (const { id, organisationId, kind } of [
+    ...lockedLeague.map((r) => ({ id: r.matchId, organisationId: r.organisationId, kind: "LEAGUE" as const })),
+    ...lockedEvent.map((r) => ({ id: r.eventMatchId, organisationId: r.organisationId, kind: "EVENT" as const })),
+  ]) {
+    const latest = await db.postMatchLearningRun.findFirst({
+      where: kind === "LEAGUE" ? { matchId: id } : { eventMatchId: id },
+      orderBy: { runAt: "desc" },
+      select: { id: true, overallOutcome: true, steps: true, runAt: true },
+    });
+
+    if (latest && latest.overallOutcome !== "FAILED") continue;
+
+    findings.push({
+      code: latest ? "POST_MATCH_LEARNING_RUN_FAILED" : "POST_MATCH_LEARNING_RUN_MISSING",
+      severity: "REVIEW" as IntegritySeverity,
+      domain: "POST_MATCH_LEARNING" as IntegrityDomain,
+      entityType: kind === "LEAGUE" ? "Match" : "EventMatch",
+      entityId: id,
+      matchId: kind === "LEAGUE" ? id : undefined,
+      message: latest
+        ? `Latest post-match learning run for this ${kind === "LEAGUE" ? "match" : "event match"} FAILED`
+        : `No post-match learning run recorded for this completed ${kind === "LEAGUE" ? "match" : "event match"}`,
+      canonicalValue: latest?.steps ?? null,
+      repairability: "AUTO_SAFE",
+      recommendedAction:
+        "Re-run learning for this organisation with replayPostMatchLearningHistory({ failedOnly: true }) (idempotent). Report completion is unaffected.",
+    });
+    void organisationId;
+  }
+}
+
 export async function auditDataIntegrity(input?: IntegrityAuditInput, dbClient?: PrismaClient): Promise<IntegrityAuditResult> {
   const db = dbClient ?? defaultDb;
   const scope = {
@@ -669,6 +727,7 @@ export async function auditDataIntegrity(input?: IntegrityAuditInput, dbClient?:
   await checkCandidateSupportNoShowCounterDrift(db, scope, findings);
   await checkCandidateDoubleLoadLegacyRemnants(db, scope, findings);
   await checkCandidateWarningProjectionDrift(db, scope, findings);
+  await checkPostMatchLearningRunFailedOrMissing(db, scope, findings);
 
   const countsByDomain: Partial<Record<IntegrityDomain, number>> = {};
   const countsBySeverity: Partial<Record<IntegritySeverity, number>> = {};

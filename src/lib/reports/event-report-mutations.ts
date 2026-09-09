@@ -157,7 +157,12 @@ export async function seedEventReportFromLiveSession(
 }
 
 export type CompleteEventReportResult =
-  | { success: true; eventMatchId: string }
+  | {
+      success: true;
+      eventMatchId: string;
+      /** Non-blocking post-match learning outcome (ADR-0127); `undefined` if it was not run. */
+      learning?: import("@/lib/evidence/post-match-learning").PostMatchLearningResult;
+    }
   | { success: false; error: string };
 
 /**
@@ -204,15 +209,16 @@ export async function completeEventReport(
   const { resolveEventOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
   await resolveEventOpponentOnReportCompletion(report.eventMatchId);
 
+  let learning: import("@/lib/evidence/post-match-learning").PostMatchLearningResult | undefined;
   try {
     const { buildEventMatchRef } = await import("@/lib/evidence/adapters/event-evidence-adapter");
     const { runPostMatchLearning } = await import("@/lib/evidence/post-match-learning");
     const ref = await buildEventMatchRef(report.eventMatchId);
-    await runPostMatchLearning(ref, orgFilter);
+    learning = await runPostMatchLearning(ref, orgFilter, "REPORT_COMPLETION");
   } catch {
-    // Post-match learning (opponent/player/combination evidence) must not block report
-    // completion -- see ADR-0104, mirrors League's completeReport().
+    // Post-match learning must not block report completion -- ADR-0104/ADR-0127, mirrors
+    // League's completeReport(). Authoritative outcome is the PostMatchLearningRun row.
   }
 
-  return { success: true, eventMatchId: report.eventMatchId };
+  return { success: true, eventMatchId: report.eventMatchId, learning };
 }

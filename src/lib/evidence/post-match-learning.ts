@@ -1,3 +1,5 @@
+import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import type { FootballMatchRef } from "./football-match-ref";
 import { footballMatchRefEvidenceLeagueSeasonId, footballMatchRefSourceId } from "./football-match-ref";
@@ -17,6 +19,23 @@ export type PostMatchLearningResult = {
   combinations: LearningStepResult;
 };
 
+/** What kicked off a learning run — for the observable `PostMatchLearningRun` record (ADR-0127). */
+export type PostMatchLearningTrigger = "REPORT_COMPLETION" | "REPLAY" | "RECONCILE";
+
+export type LearningRunOutcome = "APPLIED" | "SKIPPED" | "FAILED";
+
+/**
+ * FAILED if any step failed; else APPLIED if any step applied; else SKIPPED. This is the
+ * single fact an operator / integrity audit / retry tool checks — "did learning succeed for
+ * this match?".
+ */
+export function summariseLearningOutcome(result: PostMatchLearningResult): LearningRunOutcome {
+  const steps = Object.values(result);
+  if (steps.some((s) => s.status === "FAILED")) return "FAILED";
+  if (steps.some((s) => s.status === "APPLIED")) return "APPLIED";
+  return "SKIPPED";
+}
+
 function failureReason(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
 }
@@ -31,6 +50,7 @@ function failureReason(error: unknown): string {
 export async function runPostMatchLearning(
   ref: FootballMatchRef,
   orgFilter: OrgFilterMode,
+  trigger: PostMatchLearningTrigger = "REPORT_COMPLETION",
 ): Promise<PostMatchLearningResult> {
   const result: PostMatchLearningResult = {
     actualTimeline: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
@@ -95,16 +115,36 @@ export async function runPostMatchLearning(
     }
   }
 
-  const failedSteps = Object.entries(result).filter(([, r]) => r.status === "FAILED");
-  logger[failedSteps.length > 0 ? "warn" : "info"](
-    {
-      matchRefKind: ref.kind,
-      sourceId: footballMatchRefSourceId(ref),
-      organisationId: orgFilter.type === "org" ? orgFilter.organisationId : undefined,
-      result,
-    },
+  const overallOutcome = summariseLearningOutcome(result);
+  const organisationId = orgFilter.type === "org" ? orgFilter.organisationId : undefined;
+
+  logger[overallOutcome === "FAILED" ? "warn" : "info"](
+    { matchRefKind: ref.kind, sourceId: footballMatchRefSourceId(ref), organisationId, trigger, overallOutcome, result },
     "[PostMatchLearning] runPostMatchLearning completed",
   );
+
+  // Authoritative, observable record of this run (ADR-0127). Best-effort: a persistence failure
+  // here must never turn a swallowed learning failure into a completion failure, so it is
+  // logged and dropped — the report is already LOCKED by the time this runs.
+  if (organisationId) {
+    try {
+      await db.postMatchLearningRun.create({
+        data: {
+          organisationId,
+          matchId: ref.kind === "LEAGUE_MATCH" ? ref.matchId : null,
+          eventMatchId: ref.kind === "EVENT_MATCH" ? ref.eventMatchId : null,
+          trigger,
+          overallOutcome,
+          steps: result as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      logger.error(
+        { matchRefKind: ref.kind, sourceId: footballMatchRefSourceId(ref), organisationId, err: failureReason(error) },
+        "[PostMatchLearning] failed to persist PostMatchLearningRun",
+      );
+    }
+  }
 
   return result;
 }
