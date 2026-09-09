@@ -232,7 +232,9 @@ The assistant must not skip steps or suggest finalization before the coach has c
 - Material change before resolution → pending review `SUPERSEDED`, fresh `PENDING` review 42 days from the change. Target close/complete outside a review → pending review `SUPERSEDED`, **no** replacement.
 - Resolution (owning coach, no reviewer): **Keep** (`COMPLETED`/`KEEP`, next review +42d), **Change** (edit target; material save resolves `CHANGE` + schedules next), **Complete** (`COMPLETED`/`COMPLETE`, closes target, **stops** cadence), **Later** (`dueAt += 7d`, `DECISION_REVIEW_DEFER_DAYS`, stays `PENDING`). Nothing auto-resolves.
 - Best-effort hooks in `createThread`/`updateThread` (`development-thread.ts`) and `createTeamFocus`/`updateTeamFocus`/`reopenTeamFocus` (`team-focus.ts`) — a scheduling failure never fails the coaching write.
-- Surfaced under "Needs attention" on Today (after immediate live/matchday items) and on the target's Player/Team detail, labels `Development focus ready to revisit` / `Team focus ready to revisit`, plus a compact date/outcome/note/resolver history (`getDecisionReviewHistoryForTarget()`) — no leaderboard, no count judgement, no invented success score.
+- Surfaced under "Needs attention" on Today (after immediate live/matchday items) via `AssistantCommandCentre.dueDecisionReviews` and `DueDecisionReviewSection` — labels `Development focus ready to revisit` / `Team focus ready to revisit`, attention styling (never an error/blocker), Keep/Change/Complete/Later actions (`resolveDecisionReviewAction`/`deferDecisionReviewAction`). "Change" resolves `CHANGE` and opens the target detail page for the edit.
+- `getDecisionReviewHistoryForTarget()` (compact date/outcome/note/resolver history — no leaderboard, no count judgement, no invented success score) exists; a target-detail history panel on Player/Team detail is a follow-up.
+- `/reviews` product copy is **Peer reviews** (route path unchanged); peer-review work-item titles/labels use "Peer review".
 
 ## Stack
 

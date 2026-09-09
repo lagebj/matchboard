@@ -1,5 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+}));
+vi.mock("@/app/(app)/o/[orgSlug]/reviews/decision-review-actions", () => ({
+  resolveDecisionReviewAction: vi.fn(),
+  deferDecisionReviewAction: vi.fn(),
+  getDecisionReviewHistoryAction: vi.fn(),
+}));
+
 import { AssistantCommandCentrePage } from "../assistant-command-centre-page";
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
@@ -31,6 +41,7 @@ function makeCommandCentre(
     leagueSeasonName: "Spring 2026",
     items,
     todayMatches,
+    dueDecisionReviews: [],
     roundPlanIntegrities,
     activeLiveSessions: {},
     computedAt: new Date(),

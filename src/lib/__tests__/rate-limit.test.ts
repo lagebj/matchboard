@@ -45,11 +45,15 @@ describe("rateLimit", () => {
   });
 
   it("resets after the time window expires", async () => {
-    await rateLimit("test-key-reset", 1, 10);
-    const blocked = await rateLimit("test-key-reset", 1, 10);
+    // The window must be comfortably longer than two sequential round-trips to the (possibly
+    // remote) test database — a 10ms window used to expire *between* these two awaited calls on
+    // a slow connection, making `blocked` unexpectedly `allowed` (flaky CI failure).
+    const windowMs = 400;
+    await rateLimit("test-key-reset", 1, windowMs);
+    const blocked = await rateLimit("test-key-reset", 1, windowMs);
     expect(blocked.allowed).toBe(false);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, windowMs + 150));
 
     const result = await rateLimit("test-key-reset", 1, 60_000);
     expect(result.allowed).toBe(true);

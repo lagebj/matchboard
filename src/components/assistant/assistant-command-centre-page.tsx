@@ -18,6 +18,7 @@ import type {
 } from "@/lib/situational/situation-types";
 import type { WeeklyCoachingContextResult } from "@/lib/weekly/weekly-coaching-context-types";
 import { WeeklyCoachingContextSection } from "@/components/assistant/weekly-coaching-context-section";
+import { DueDecisionReviewSection } from "@/components/assistant/due-decision-review-section";
 import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -107,8 +108,8 @@ const groups: GroupConfig[] = [
   },
   {
     key: "reviews",
-    label: "Reviews",
-    description: "Pending review requests and changes requested.",
+    label: "Peer reviews",
+    description: "Pending peer review requests and changes requested.",
     categories: ["review_assigned", "review_changes_requested"],
     icon: Eye,
     variant: "warning",
@@ -822,6 +823,9 @@ export function AssistantCommandCentrePage({
         />
       )}
 
+      {/* Due Decision reviews — attention, after immediate live/matchday items (ADR-0132) */}
+      <DueDecisionReviewSection reviews={commandCentre.dueDecisionReviews} />
+
       {/* Review/attention link */}
       {reviewCount > 0 && (
         <div className="flex items-center justify-end">
@@ -832,7 +836,7 @@ export function AssistantCommandCentrePage({
             size="sm"
             trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
           >
-            View all reviews
+            View peer reviews
           </Button>
         </div>
       )}
@@ -868,7 +872,7 @@ export function AssistantCommandCentrePage({
             icon={<AlertTriangle className="h-4 w-4" />}
           />
           <MetricTile
-            label="Reviews"
+            label="Peer reviews"
             value={reviewCount}
             tone={reviewCount > 0 ? "warning" : "neutral"}
             icon={<Eye className="h-4 w-4" />}

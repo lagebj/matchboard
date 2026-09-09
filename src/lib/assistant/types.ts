@@ -40,6 +40,28 @@ export type AssistantWorkItem = {
   primaryActionHref: string;
 };
 
+/**
+ * A due Decision review (ADR-0131 / ADR-0132) surfaced under "Needs attention" on Today. This is
+ * NOT an `AssistantWorkItem` — a Decision review is not round-scoped, is attention (never an
+ * error or a blocker), and has its own Keep/Change/Complete/Later interaction.
+ */
+export type DueDecisionReviewCard = {
+  reviewId: string;
+  targetType: "DEVELOPMENT_THREAD" | "TEAM_FOCUS";
+  targetId: string;
+  /** Player name (development thread) or team name (team focus). Resolved for display only. */
+  targetName: string;
+  /** The current decision: the thread's focus, or the team focus statement. */
+  decisionText: string;
+  dueAt: string;
+  createdAt: string;
+  /** Days since this review was scheduled — elapsed-time context, no success score. */
+  ageDays: number;
+  /** Deep link (org-relative) to the target detail page where "Change" edits it. */
+  targetHref: string;
+  label: "Development focus ready to revisit" | "Team focus ready to revisit";
+};
+
 export type TodayMatchStatus = "not_generated" | "draft" | "blocked" | "ready" | "finalized";
 
 export type TodayMatch = {
@@ -68,6 +90,9 @@ export type AssistantCommandCentre = {
   leagueSeasonName: string | null;
   items: AssistantWorkItem[];
   todayMatches: TodayMatch[];
+  /** Due Decision reviews (ADR-0132), soonest first. Rendered under "Needs attention" on Today
+   * after immediate live/matchday items — attention, never an error. */
+  dueDecisionReviews: DueDecisionReviewCard[];
   /** The already-computed `RoundPlanIntegrity` for every DRAFT round this call inspected, keyed
    * by matchRoundId. Exposed so a situational candidate provider (ADR-0107,
    * docs/domain/situational-decision-support.md) can build per-signal candidates without
