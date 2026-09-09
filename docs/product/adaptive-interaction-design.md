@@ -1,11 +1,57 @@
 # Adaptive Interaction Design
 
-> **Status:** Canonical detailed interaction-design reference. `AGENTS.md` remains the highest
-> repo-level authority; if this document and `AGENTS.md` ever diverge, that is a defect to fix,
-> not a choice between two valid rules. Architectural rationale and superseded prior decisions
-> are recorded in **ADR-0124** and **ADR-0125** (reference-convergence precision pass — the
-> `MatchPresentation` projection and its three variants, the `OperationalTimeline`, the
-> seventh evidence primitive `PairedOutcomeBar`, and the fixed evidence-story mappings).
+> **Status:** Canonical detailed interaction-design reference, updated for **Product Surface 1.0**
+> (ADR-0130). `AGENTS.md` remains the highest repo-level authority; if this document and
+> `AGENTS.md` ever diverge, that is a defect to fix, not a choice between two valid rules.
+> Architectural rationale and superseded prior decisions are recorded in **ADR-0124**,
+> **ADR-0125** (reference-convergence — the `MatchPresentation` projection, the
+> `OperationalTimeline`, the fixed evidence-story mappings), **ADR-0129** (exact positional
+> semantics), and **ADR-0130** (Product Surface 1.0 visual system and surface families, which
+> supersedes the earlier "exactly three match variants" and "fixed set of seven visualization
+> primitives" rules).
+
+## 0. Product Surface 1.0 (ADR-0130)
+
+The current visual system. What ADR-0124/0125 established that **still holds**: same canonical
+domain state at every viewport; one canonical `MatchPresentation` and one `OperationalTimeline`
+as sole owners of their concepts; the five breakpoint tokens; WCAG AA / visible focus / ~44px
+touch targets / no colour-only state; no drag-only workflow; installed-PWA and safe-area
+handling; temporal Today/Events composition.
+
+What Product Surface 1.0 replaces:
+
+- **Tokens** — solid dark canvas (`--background #0b0f17`, `--foreground #f2f5f7`), solid surface
+  hierarchy `--surface-base` → `--surface-raised` → `--surface-strong` → `--surface-hover`,
+  `--surface-overlay` for nav/sticky bars; cool hairline borders (`--border-soft`,
+  `--border-strong`); `--accent #8fb49a` for own-team identity only (never an outcome);
+  `--danger` **only** destructive/error/blocking; `--live #ef6464` a distinct colour, not
+  danger; `--success` workflow-only, never a win; `--focus #93b7ff` focus ring;
+  `--radius-micro/control/object/overlay` = 6/8/12/16; `--motion-fast/standard/overlay` =
+  150/200/260ms with `--motion-ease cubic-bezier(0.2,0.8,0.2,1)`; `--space-1…12` =
+  4 8 12 16 20 24 32 40 48. Older token names remain as compatibility aliases.
+- **Background** — solid canvas + **one** subtle fixed radial atmosphere. No repeating
+  pitch-line texture, no ordinary-card gradients, no glows.
+- **Surface families** — five: temporal flow; match/result scan; planning workspace;
+  evidence/story; reference/configuration. The same design system does **not** mean an
+  identical card everywhere. Scan lists use one parent surface (or the canvas) with dividers
+  and **no card per row**. Cards are reserved for: the dominant next-action object; a selected
+  match/decision; an evidence story; a modal/sheet; one coherent interactive object when a row
+  is insufficient. No nested bordered cards; no routine desktop shadows.
+- **Result colour is neutral** — a win is never green, a loss is never a danger/error colour.
+  Outcome text (`Won`/`Drawn`/`Lost`, `FT`) always carries the meaning; colour is at most
+  secondary reinforcement and never the sole signal.
+- **Review vocabulary** (ADR-0131) — five distinct concepts: **Check** (inspect generated work;
+  the `Populate → Check → Adjust` step), **Attention** (current reality needing action, incl. a
+  due Decision review — never an error), **Reflect** (post-play observation), **Peer review**
+  (`ReviewRequest`; product title "Peer reviews", route `/reviews` unchanged), **Decision
+  review** (`DecisionReview`; reconsider a durable coaching decision on a 42-day cadence).
+- **Exact positional safety** (ADR-0129) — automatic lineup/rotation/repair/coverage planning
+  resolves each formation slot to an exact role (role type + grid lane) and only treats a
+  player as an automatic candidate when their declared positions make them Natural/Strong/
+  Plausible for that exact role. Fairness and evidence re-order eligible candidates within a
+  tier; they never create eligibility. A slot with no safe fit is left unresolved and shown as
+  a gap — never filled with a Developmental or Unsupported player. The formation editor shows
+  each slot's derived exact role; a FREE slot shows "Manual-only for automatic planning".
 
 ## 1. Governing principle
 
@@ -79,18 +125,21 @@ colour alone. Draft state and finalised history must never look visually interch
 
 ## 5. Typography (compact scale)
 
-| Role | Size |
-|------|------|
-| primary score/value | 24–32px |
-| page title | 20–24px |
-| object/row title | 15–17px |
-| body/input | 14–16px (mobile input ≥16px where needed to avoid iOS zoom) |
-| secondary/meta | 12–13px |
-| exceptional micro-label | ≥11px |
+| Token | Role | Size |
+|-------|------|------|
+| `--text-score-header` | match-header score | 34/40 |
+| `--text-value` | dense list score/value | 22/24 |
+| `--text-title` | page title | 22/24 |
+| `--text-section` | section title | 17/18 |
+| `--text-row-title` | object/row title | 15/16 |
+| `--text-body` | body/input | 15 (mobile input ≥16px where needed to avoid iOS zoom) |
+| `--text-meta` | secondary/meta | 12–13 |
+| `--text-micro` | exceptional micro-label | ≥11 (floor — reduce density, not font size) |
 
 Remove routine 9px UI text. Reduce excessive uppercase tracking; use uppercase only for short
-orientation/status metadata. Use tabular numerals for score/time/minutes. Never shrink text
-merely to preserve desktop density.
+orientation/status metadata. Geist Sans for UI; Geist Mono only for real code/technical values.
+Use tabular numerals for score/time/minutes/comparisons. Never shrink text merely to preserve
+desktop density.
 
 ## 6. Canonical match visual grammar (ADR-0125)
 
@@ -109,13 +158,17 @@ Fields: `homeTeam`, `awayTeam`, `ownTeamSide` (`"home" | "away" | null`), `kicko
 `resultOutcomeForOwnTeam`, `outcomeLabel`, `planningAttention`, `reportAttention`,
 `cancelledReason`.
 
-### Exactly three variants (`src/components/ui/match-presentation.tsx`)
+### Match render variants (`src/components/ui/match-presentation.tsx`)
+
+ADR-0130 reopened the earlier "exactly three variants" rule; the list below is the current set,
+not permanent doctrine. A new variant needs a specification change.
 
 | Variant | Use | Shape |
 |---------|-----|-------|
-| `MatchScoreRow` | League/Fixtures, the Today operational timeline, event-day timelines, results/history | dense, **divider-based, no card border**; two team lines each with its value in a stable right-aligned lane; one status line; at most one secondary attention |
-| `MatchCard` | Today next-action hero, Round Board / event selected-match summary | one bordered card (~12px radius); `DATE · TIME` eyebrow above teams; one dominant action slot; one attention sentence |
-| `MatchHeader` | match-specific pages (detail, Follow Live, Live Reporting) | state readable before page controls; compact stacks home/away with per-line value; expanded shows one inline `home  N : M  away` line |
+| `MatchRow` (alias `MatchScoreRow`) | League/Fixtures, the Today operational timeline, event-day timelines, results/history | dense, **divider-based, no card border**; two team lines each with its value in a stable right-aligned lane; one status line; at most one secondary attention |
+| `MatchCard` | Today next-action hero, Round Board / event selected-match summary | one bordered card (`--radius-object`); `DATE · TIME` eyebrow above teams; one dominant action slot; one attention sentence |
+| `MatchHeader` | match-specific pages (detail, Follow Live, Live Reporting) | state readable before page controls; score uses `--text-score-header`; compact stacks home/away with per-line value; expanded shows one inline `home  N : M  away` line |
+| `MatchLiveStrip` | a compact live status strip where a full header is too much | teams + score + `LIVE · <clock>`, no mutating controls |
 
 ### Rules
 
@@ -126,9 +179,11 @@ Fields: `homeTeam`, `awayTeam`, `ownTeamSide` (`"home" | "away" | null`), `kicko
   numerals) so a vertical list of matches aligns and scans.
 - Scheduled → kickoff time in the value lane; date subordinate (under the away team); planning
   attention on the status line (`Planning open · 2 decisions`). Live → score in the value lane;
-  `LIVE · <clock>`; no mutating controls in a list row. Final → final score; `FT` + optional
-  `WON`/`DRAW`/`LOST`; `FT · Report incomplete` when the report is not complete. Cancelled → em
-  dash in both value lanes; `CANCELLED`; never `0-0`.
+  `LIVE · <clock>` (`--live`, not `--danger`); no mutating controls in a list row. Final → final
+  score; `FT` + optional `Won`/`Drawn`/`Lost`; `FT · Report incomplete` when the report is not
+  complete. Cancelled → em dash in both value lanes; `CANCELLED`; never `0-0`. Result colour is
+  neutral — a win is never green, a loss is never a danger colour; the outcome word carries the
+  meaning.
 - Long names: allow up to two lines for a team name; never shrink a team name below the standard
   row-title size; the value lane never collapses below its minimum; never ellipsize to the point
   two opponents are ambiguous.
@@ -320,25 +375,30 @@ Do not start by choosing a chart library. Every visualization answers a concrete
 
 `value → context → pattern → interpretation`
 
-Small primitive set only — **seven** primitives (ADR-0125 added `PairedOutcomeBar`):
+Small primitive set only. ADR-0130 removed the "fixed set of seven forever" rule; the approved
+set for Product Surface 1.0 is **nine** (this list is not permanent future doctrine, and no
+further primitive may be added without a specification change):
 
-| Primitive | Question |
-|-----------|----------|
-| `TrendSpark` | is this changing over recent periods? |
-| `DistributionBar` | how is exposure split across categories? |
-| `PeriodBars` | when in the match/sequence does a pattern occur? |
-| `PairedOutcomeBar` | what two factual outcome measures occurred together (e.g. goals for vs against while a combination was on the field)? *(two rows, same scale, direct numeric labels, neutral tokens — no ranking, no red/green good-bad)* |
-| `RangeBand` | is a value inside/outside a meaningful historical range? *(only with a real canonical baseline — never an invented "ideal")* |
-| `DeltaMetric` | how does the current period compare with a relevant previous/baseline period? *(neutral direction language unless the domain meaning is inherently directional)* |
-| `MetricStory` | reusable: label + primary value + comparator/context + one small visualization + one short factual interpretation + optional detail link |
+| Primitive | Question | Status |
+|-----------|----------|--------|
+| `TrendSpark` | is this changing over recent periods? | implemented |
+| `DistributionBar` | how is exposure split across categories? | implemented |
+| `PeriodBars` | when in the match/sequence does a pattern occur? | implemented |
+| `PairedOutcomeBar` | what two factual outcome measures occurred together (e.g. goals for vs against while a combination was on the field)? *(two rows, same scale, direct numeric labels, neutral tokens — no ranking, no red/green good-bad)* | implemented |
+| `RangeBand` | is a value inside/outside a meaningful historical range? *(only with a real canonical baseline — never an invented "ideal")* | implemented |
+| `DeltaMetric` | how does the current period compare with a relevant previous/baseline period? *(neutral direction language unless the domain meaning is inherently directional)* | implemented |
+| `MetricStory` | reusable wrapper: label + primary value + comparator/context + one small visualization + one short factual interpretation + optional detail link | implemented |
+| `DotComparison` | how do a few discrete factual measures compare on one neutral scale? | spec-approved (ADR-0130), add when first needed — no further ADR required |
+| `SequenceStrip` | what ordered sequence of states/events occurred? | spec-approved (ADR-0130), add when first needed — no further ADR required |
 
 Every visualization: has a text equivalent; avoids colour-only meaning; works at 360px; stays
 understandable at zoom; exposes accessible names/descriptions; shows sample/evidence context;
 has an explicit insufficient-evidence state driven by the engine's own confidence/sample rules
-(`Not enough evidence yet` / `Observed in 1 match`), never an invented UI threshold.
+(`Not enough evidence yet` / `Observed in 1 match`), never an invented UI threshold; avoids
+causal/ranking claims and red/green good-bad encoding.
 
-Prefer native SVG/CSS/React. Do not add a large chart library solely for this work. An eighth
-primitive needs an ADR amendment.
+Prefer native SVG/CSS/React. Do not add a large chart library solely for this work. A tenth
+primitive needs a specification change.
 
 ### Fixed evidence-story → primitive mappings (ADR-0125)
 
@@ -378,10 +438,11 @@ navigation.
 Use motion only to explain insertion/removal, state transition, panel open/close, or
 movement/reorder. No decorative animation programme. Respect `prefers-reduced-motion`.
 
-Three timing classes only: immediate feedback 80–120ms; normal UI transition 140–180ms;
-sheet/dialog ≤240ms with the existing system easing curve. Never animate a score continuously,
-a timeline rail drawing itself, charts on every scroll into view, or an attention state with a
-perpetual pulse.
+Three timing tokens only (ADR-0130): `--motion-fast 150ms` (state/hover); `--motion-standard
+200ms` (local panel/row); `--motion-overlay 260ms` (sheet/drawer). Easing `--motion-ease
+cubic-bezier(0.2,0.8,0.2,1)`. Never animate a score continuously, a timeline rail drawing
+itself, charts on every scroll into view, or an attention state with a perpetual pulse. No
+celebratory score animation, no list-entrance cascade.
 
 ## 16a. Visual grammar precision (ADR-0125 / bundle 06)
 
@@ -398,9 +459,10 @@ perpetual pulse.
   row.
 - **Shadows**: minimal/none for normal content; reserved for floating nav, sheets/dialogs, and
   sticky overlays.
-- **Typography**: score/value 24–32px semibold tabular; team/object name 15–17px compact
-  medium/semibold normal-case; status/orientation 11–13px, uppercase only for very short labels
-  (`LIVE`, `FT`, `NEXT`); body 14–16px, line-height 1.35–1.5. No 9px primary UI text.
+- **Typography**: use the `--text-*` tokens in §5 (`--text-score-header` 34/40, `--text-value`
+  22/24 for dense list scores, `--text-row-title` 15/16 for names, `--text-micro` ≥11 floor).
+  Tabular numerals for scores/clocks. Uppercase only for very short labels (`LIVE`, `FT`,
+  `NEXT`). No 9px primary UI text.
 - **Icons** only where they speed recognition (nav icon+label, overflow/action). Status text
   generally needs no icon; timeline nodes are structural markers, not decorative icons; evidence
   charts carry no decorative sports icons. Compact icon size 18–22px.
@@ -418,10 +480,19 @@ perpetual pulse.
 - a detached metric grid ahead of the Today Next Action;
 - replacing the Today/event chronology with dashboard cards on desktop; an empty timeline rail
   when nothing is scheduled;
-- a card for every metric or text fragment; a card border on every `MatchScoreRow`;
+- a card for every metric or text fragment; a card border on every `MatchRow`; a card per row in
+  a scan list; nested bordered cards;
 - routine 9px primary UI text; shrinking text to preserve desktop density;
+- a repeating pitch-line background texture, ordinary-card gradients, or glows;
+- a win shown in green or a loss shown in a danger/error colour; `--live` rendered as
+  `--danger`; colour as the only signal for a result or status;
 - competing per-surface match components; a match row that does not render from
   `MatchPresentation`;
+- styling every Rules / Settings item as its own card;
+- broad-role automatic position eligibility (e.g. treating any "midfielder" as a candidate for a
+  winger slot); fairness or evidence used to make an ineligible player eligible; an automatic
+  planner filling a no-safe-fit slot with a Developmental/Unsupported player;
+- using "Review" for plan inspection (it is **Check**); mixing Peer review and Decision review;
 - reordering football home/away to put Matchboard's own team first; inventing a team logo;
 - an unaligned match score/time value lane;
 - showing a placeholder as a final score; treating planning-closed/finalized-planning as match

@@ -10,12 +10,12 @@ The app plans squads for already-created matches. It does not auto-create fixtur
 
 ## Coach workflow
 
-The primary workflow is:
+The primary workflow is `Setup → Intent → Populate → Check → Adjust → derived planning boundary → Reflect → Learn`:
 
 1. **Setup** — Add teams, add players, add matches. Mark player availability.
 2. **Define intent** — Set match purpose, team risk, desired football behavior, support need, development focus.
 3. **Populate all** — Generate draft selections for all rounds in the active league season. Each round uses round-level orchestration (not match-by-match). No round is finalized.
-4. **Review** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed.
+4. **Check** — Inspect draft selections, plan integrity signals, fairness impact, explanations, and coaching intent alignment. Resolve blockers. Manually adjust draft squads if needed. ("Check" is the fixed product word for plan inspection — ADR-0131. It is distinct from Peer review, Decision review, Attention, and Reflect.)
 5. **Adjust** — Manual changes are allowed. Manual changes must show impact. Manual changes must preserve auditability.
 6. **Finalize (derived, not a coach action)** — There is no "Finalize round"/"Finalize match" button. The plan becomes historical automatically the moment a match's real-world planning boundary closes: scheduled kickoff passes, or live match reporting starts, whichever happens first. Finalized rounds and matches become history and cannot be silently mutated. A genuine reschedule that proves a match hasn't actually started can reopen its planning — see "Planning baseline capture" below.
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
@@ -30,7 +30,7 @@ The canonical primary navigation is: Today, League, Events, Players, More.
 - Round Board is the primary squad decision surface.
 - Events (`/events`) provides event squad planning for cups, tournaments, and friendly days.
 - Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
-- More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Reviews.
+- More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Peer reviews.
 
 ## Adaptive interaction design
 
@@ -41,13 +41,26 @@ information, its order, density, interaction method, and supporting context. Bre
 compact `<600`, medium `600–839`, expanded `840–1199`, large `1200–1599`, xlarge `≥1600`
 (bottom nav → navigation rail → sidebar). Compact shows one primary object/task at a time, keeps
 team/season/round context recoverable, never requires drag or hover, respects safe areas and
-installed-PWA standalone display, and keeps the primary action clear of the fixed bottom nav. A
-single canonical match visual grammar — one `MatchPresentation` projection rendered through
-three variants (score row / card / header), scheduled / live / final / cancelled — is used
-across Today, League, Events, match detail, Follow Live, and history. Today and event detail
-lead with a chronological operational timeline; evidence surfaces present small factual data
-stories (a fixed set of seven native visualization primitives) rather than raw metric grids.
-See `docs/product/adaptive-interaction-design.md`, ADR-0124, and ADR-0125.
+installed-PWA standalone display, and keeps the primary action clear of the fixed bottom nav.
+
+**Product Surface 1.0** (ADR-0130) is the current visual system: a quiet solid dark canvas with
+one subtle radial atmosphere (no pitch-line texture), cool near-white foreground, cool hairline
+borders, a blue focus ring, and five surface families (temporal flow, match/result scan,
+planning workspace, evidence/story, reference/configuration) — the same design system does not
+mean an identical card everywhere; scan lists use dividers, not a card per row. A match result
+is shown neutrally: a win is never green and a loss is never a danger/error colour; `--live` is
+its own distinct colour, not `--danger`. A single canonical match visual grammar — one
+`MatchPresentation` projection rendered through four variants (`MatchRow`, `MatchCard`,
+`MatchHeader`, `MatchLiveStrip`), scheduled / live / final / cancelled — is used across Today,
+League, Events, match detail, Follow Live, and history. Today and event detail lead with a
+chronological operational timeline; evidence surfaces present small factual data stories (nine
+native visualization primitives — neither the variant list nor the primitive list is permanent
+doctrine) rather than raw metric grids. Automatic lineup/rotation planning uses exact positional
+eligibility (ADR-0129): a player is only an automatic candidate for a slot when their declared
+positions make them a Natural, Strong or Plausible fit for that slot's exact role — fairness and
+evidence can only re-order already-eligible candidates, never create eligibility, and a slot
+with no safe fit is left for manual assignment rather than filled unsafely.
+See `docs/product/adaptive-interaction-design.md`, ADR-0124, ADR-0125, ADR-0129, and ADR-0130.
 
 ## User documentation
 

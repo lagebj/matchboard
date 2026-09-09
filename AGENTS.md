@@ -2535,11 +2535,14 @@ if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
   observations → secondary attributes; it does not lead with an overall rating. Omitted detail
   stays reachable on player detail. No player score, ranking, or invented judgement logic.
 - **Evidence visualization**: the primitive set lives in `src/components/viz/` (`index.ts`
-  barrel) — **seven** primitives: `TrendSpark`, `DistributionBar`, `PeriodBars`,
-  `PairedOutcomeBar` (ADR-0125 — two factual outcome rows on one scale, neutral tokens, no
+  barrel). ADR-0130 removed the "fixed set of seven forever" rule; the Product Surface 1.0
+  approved set is **nine** (not permanent future doctrine): `TrendSpark`, `DistributionBar`,
+  `PeriodBars`, `PairedOutcomeBar` (two factual outcome rows on one scale, neutral tokens, no
   ranking, no red/green), `RangeBand` (only with a real canonical baseline + a `sampleContext`
-  naming its source), `DeltaMetric`, `MetricStory`, plus `viz-shared.ts` (categorical hues,
-  direction/range helpers). Native SVG/CSS/React only. Every primitive takes a required
+  naming its source), `DeltaMetric`, `MetricStory` — all implemented — plus `DotComparison` and
+  `SequenceStrip`, which are spec-approved and may be added when first needed **without a
+  further ADR**; a tenth needs a specification change. `viz-shared.ts` holds categorical hues +
+  direction/range helpers. Native SVG/CSS/React only. Every primitive takes a required
   `question` prop, renders a visually-hidden text equivalent, exposes an accessible name, works
   at 360px, never relies on colour alone, and has an explicit insufficient-evidence state driven
   by the engine's own confidence/sample rules. Fixed evidence-story → primitive mappings
@@ -2550,7 +2553,7 @@ if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
   small visual. Interpretation stays correlational (`appeared`/`observed`/`more frequent in this
   sample`). No radar charts, no overall player score, no rankings, no red/green good-bad scales,
   no causal wording from correlation, no wall of equal raw-metric cards. Do not add a large chart
-  dependency or an eighth primitive without amending ADR-0125.
+  dependency; do not add a tenth primitive without a specification change.
 - **Documentation replacement rule**: when mutable guidance conflicts with this model, replace
   the old rule — do not leave both active, append a vague exception, or keep stale wording
   because it is older. ADRs are append-only; supersede via a new ADR.
