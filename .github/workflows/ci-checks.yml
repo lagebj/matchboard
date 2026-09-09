@@ -132,6 +132,22 @@ jobs:
       - run: npm ci
       - run: npm run security:check-supply-chain
 
+  # Consolidation Programme C3 / ARR-0039: catch invalid Prisma select/where/data field names
+  # (e.g. `type` instead of `matchType`) that pass `tsc` because Prisma's generated
+  # `SelectSubset<T,U>` stops applying excess-property checking once the query-args object has
+  # 2+ keys. Fails only at runtime otherwise.
+  prisma-check-fields:
+    name: Prisma Query Fields
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:check-fields
+
   version-verify:
     name: Version Verify
     runs-on: ubuntu-24.04
@@ -317,7 +333,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-24.04
-    needs: [typecheck, test, security-check-supply-chain, policy-verify]
+    needs: [typecheck, test, security-check-supply-chain, policy-verify, prisma-check-fields]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

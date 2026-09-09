@@ -587,7 +587,7 @@ export async function copyBestLineupToMatch(
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
-    select: { id: true, teamId: true, organisationId: true },
+    select: { id: true, teamId: true, organisationId: true, matchRoundId: true },
   });
   if (!match) throw new Error('Match not found');
 
@@ -658,8 +658,9 @@ export async function copyBestLineupToMatch(
     }
   }
 
+  // Availability is round-scoped (ADR-0121): "unavailable for this match" == unavailable for its round.
   const matchAvailabilities = await db.availability.findMany({
-    where: { matchId, status: 'UNAVAILABLE' },
+    where: { matchRoundId: match.matchRoundId, status: 'UNAVAILABLE' },
     select: { playerId: true },
   });
   const unavailablePlayerIds = new Set(matchAvailabilities.map((a) => a.playerId));

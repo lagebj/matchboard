@@ -393,4 +393,12 @@ const extendedClient = rawClient.$extends({
 // client has the same surface API as PrismaClient. If Prisma's extension
 // API changes or new extension-specific methods are added, this cast must
 // be revisited. See ARR-0055 and ADR-0057 for context.
+//
+// NOTE (ARR-0039 / Consolidation Programme C3): this cast preserves the full
+// generated method signatures — the query-component extension is type-neutral.
+// It does NOT weaken excess-property checking. TypeScript + Prisma's generated
+// `SelectSubset<T,U>` independently stop rejecting an invalid *nested*
+// select/where/data field once the query-args object has 2+ keys, on the raw
+// client too. `scripts/check-prisma-query-fields.mjs` (in `npm run validate`
+// and CI) closes that gap statically.
 export const db = extendedClient as unknown as PrismaClient;
