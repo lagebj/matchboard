@@ -7858,6 +7858,34 @@ Feature: Matchboard football operations workspace
         When the coach views that match's Rotations tab
         Then a coverage note must say that change cannot be checked
 
+    Rule: Automatic rotation generation uses exact positional eligibility and safe matching (ADR-0129)
+
+      Automatic rotation generation tracks the exact target role of each on-field slot over
+      time. At each decision point the due-out slots and the eligible bench are matched by one
+      deterministic bounded matching. A bench player is only a candidate for a vacated slot when
+      their declared positions make them NATURAL, STRONG or PLAUSIBLE for that exact role.
+      A DEVELOPMENTAL or UNSUPPORTED bench player is never substituted in to satisfy a batch
+      size; the due player stays on and a diagnostic records the skipped replacement.
+
+      Scenario: A due player stays on when there is no safe replacement
+        Given three defenders and two strikers are on the pitch and one defender is due to come off
+        And the only available bench player has no defensive positional fit
+        When the app generates a rotation plan automatically
+        Then that defender must not be substituted
+        And the plan diagnostics must record "No safe replacement for" that role
+
+      Scenario: A bench player with a declared exact fit is preferred over one with none
+        Given a central defender is due to come off
+        And one bench player declares a defensive position and one does not
+        When the app generates a rotation plan automatically
+        Then the bench player who declares a defensive position must be substituted in
+
+      Scenario: Rotation never moves a central midfielder into a winger slot
+        Given a winger is due to come off and the only bench option is a central midfielder
+        When the app generates a rotation plan automatically
+        Then no substitution is made for that winger slot
+        And the plan diagnostics must record that no safe replacement was found
+
   # --- Lifecycle consolidation (Phase 6) ---
 
   Feature: Lifecycle consolidation

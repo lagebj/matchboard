@@ -258,7 +258,11 @@ export async function generateIntegratedMatchPlanAction(
     const starters = suggestion.assignments.map((a) => {
       const slot = formation.slots.find((s) => s.id === a.slotId);
       const roleType = slot?.roleType;
-      return { playerId: a.playerId, position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE") };
+      return {
+        playerId: a.playerId,
+        position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE"),
+        gridX: slot?.gridX,
+      };
     });
 
     const rotationPlayers = new Map<string, RotationPlanPlayer>(
@@ -267,9 +271,10 @@ export async function generateIntegratedMatchPlanAction(
         {
           playerId: p.id,
           declaredPositions: {
-            primary: mapPositionCodeToBroad(p.primaryPosition ?? ""),
-            secondary: p.secondaryPosition ? mapPositionCodeToBroad(p.secondaryPosition) : undefined,
-            tertiary: p.tertiaryPosition ? mapPositionCodeToBroad(p.tertiaryPosition) : undefined,
+            primaryPosition: p.primaryPosition ?? null,
+            secondaryPosition: p.secondaryPosition,
+            tertiaryPosition: p.tertiaryPosition ?? null,
+            bestSide: p.bestSide,
           },
           tacticalAttributes: {
             ballControl: p.ballControl,

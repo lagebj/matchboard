@@ -1,46 +1,30 @@
 // ─────────────────────────────────────────────────────────────────
 // Evidence-aware automatic rotation plan generation.
 //
-// Evidence-Informed Match Planning programme, Bundle 7 (ADR-0118).
+// Evidence-Informed Match Planning programme, Bundle 7 (ADR-0118),
+// with exact positional safety layered on top (ADR-0129 §11).
+//
 // Generates a complete match rotation plan — a sequence of evolving
-// on-field states, not independent substitutions — as PlannedRotationChangeData
-// rows the coach reviews/edits through the existing Rotations tab exactly like
-// a manually-authored plan (src/lib/planned-rotation/planned-rotation.ts remains
-// the sole owner of persistence and lineup/minutes projection; this module never
-// duplicates that logic).
+// on-field states, not independent substitutions — as
+// PlannedRotationChangeData rows the coach reviews/edits through the
+// existing Rotations tab exactly like a manually-authored plan
+// (src/lib/planned-rotation/planned-rotation.ts remains the sole owner
+// of persistence and lineup/minutes projection).
 //
-// Search strategy (disclosed, per PROGRAMME.md "Use a deterministic bounded
-// search... avoid exponential brute force. Document candidate generation,
-// pruning, scoring precedence, tie-breaking and performance limits."):
+// Exact slot occupancy is tracked over time. At each decision point the
+// due-out slots and the eligible bench are matched by one deterministic
+// bounded bipartite matching (src/domain/positions/matching.ts): a
+// bench player is only a candidate for a vacated slot when their
+// declared positions make them NATURAL / STRONG / PLAUSIBLE for that
+// exact role. If four are due but only three safe replacements exist,
+// three rotate and the fourth stays on — a DEVELOPMENTAL / UNSUPPORTED
+// player is never used to satisfy the batch size. Every skipped
+// replacement is recorded as a diagnostic.
 //
-//   - Candidate decision points are a small, fixed internal grid (1/3 and 2/3 of
-//     each playing period, plus the start of every period after the first —
-//     a natural-break opportunity). This is a computational search bound, not
-//     asserted footballing doctrine — PROGRAMME.md explicitly allows internal
-//     time grids on this condition ("They must not become product doctrine").
-//   - At each decision point, batch size EMERGES from how many on-pitch outfield
-//     players are simultaneously "due" (stint long enough, meaningfully ahead of
-//     an equal-share target) — there is no fixed/hard-coded batch-size cap.
-//   - This is a deterministic GREEDY algorithm with a minimum-useful-stint floor,
-//     not exhaustive backtracking search. A locally-good early substitution is
-//     not re-evaluated against every possible future sequence — the fairness
-//     target-to-date mechanism (see below) is the bounded stand-in for "a locally
-//     good early substitution cannot be accepted if it creates impossible
-//     fairness problems later": every decision is made relative to the *whole
-//     match's* fair-share curve, not just the moment at hand, but there is no
-//     multi-step lookahead/backtracking. Disclosed as a real, deliberate scope
-//     limit in ADR-0118, not claimed to be optimal.
-//   - Goalkeeper is never touched — starters with position "GK" are excluded
-//     entirely from candidacy in both directions (AGENTS.md Goalkeeper boundary).
+// Goalkeeper is never touched — starters with position "GK" are
+// excluded entirely from candidacy in both directions.
 // ─────────────────────────────────────────────────────────────────
 
-import {
-  computeOutfieldRoleSuitabilityProfile,
-  type DeclaredBroadPositions,
-  type TacticalFunctionAttributes,
-} from "@/domain/team-composition/outfield-role-evidence";
-import type { OutfieldRoleSuitabilityResult, TacticalFunctionCode } from "@/domain/team-composition/team-composition-types";
-import { mapPositionLabelToOutfieldRole } from "@/domain/team-composition/position-suitability";
 import { assertEvidenceDidNotExcludeCandidates } from "@/lib/policies/evidence-guardrails";
 import { projectPlannedMinutes, type PlannedRotationChangeData } from "@/lib/planned-rotation/planned-rotation";
 import type { TransitionStructureEvidenceRow } from "@/lib/evidence/transition-structure-evidence";
@@ -54,6 +38,13 @@ import { computePositionContextBonus, type PlayerPositionContextEvidence } from 
 import type { MatchPeriod } from "@/generated/prisma/client";
 import { buildReason, type RecommendationReason } from "@/lib/explanations/recommendation-reason";
 import { renderReason } from "@/lib/formatters/recommendation-reason-text";
+import { computeOutfieldRoleSuitabilityProfile, type TacticalFunctionAttributes } from "@/domain/team-composition/outfield-role-evidence";
+import { mapPositionCodeToBroad } from "@/domain/team-composition/position-suitability";
+import { deriveExactTargetRole } from "@/domain/positions/slot-target";
+import { matchSlotsToCandidates } from "@/domain/positions/matching";
+import type { DeclaredPositions } from "@/domain/positions/suitability";
+import type { ExactRole } from "@/domain/positions/roles";
+import type { FormationSlotRoleType } from "@/lib/formations/types";
 
 export type { OpponentFunctionTendency };
 
@@ -62,13 +53,17 @@ const MEANINGFUL_SHARE_GAP_SECONDS = 60;
 
 export interface RotationPlanPlayer {
   playerId: string;
-  declaredPositions: DeclaredBroadPositions;
+  /** Exact declared positions (ADR-0129) — primary/secondary/tertiary strings + bestSide. */
+  declaredPositions: DeclaredPositions;
   tacticalAttributes: TacticalFunctionAttributes;
 }
 
 export interface RotationPlanStarter {
   playerId: string;
+  /** The slot's `FormationSlotRoleType` (or "GK" for the goalkeeper). */
   position: string;
+  /** The slot's grid column, used to resolve an exact target role. Absent → role unresolved. */
+  gridX?: number;
 }
 
 export interface RotationPlanDecisionPoint {
@@ -85,8 +80,8 @@ export interface GenerateRotationPlanInput {
   decisionPoints: RotationPlanDecisionPoint[];
   opponentTendencies?: OpponentFunctionTendency[];
   transitionPatterns?: TransitionStructureEvidenceRow[];
-  /** Position-context evidence addendum: one row per (playerId, position) pair a bench
-   * candidate could be assigned to. Absent/empty contributes no position-context bonus. */
+  /** Position-context evidence: one row per (playerId, position) pair a bench candidate could
+   * be assigned to. Absent/empty contributes no position-context bonus. */
   positionContextEvidence?: PlayerPositionContextEvidence[];
   seed: string;
 }
@@ -100,8 +95,9 @@ export interface GeneratedRotationChange extends PlannedRotationChangeData {
 
 export interface GenerateRotationPlanResult {
   changes: GeneratedRotationChange[];
+  /** Human-readable notes about safe replacements that could not be made (ADR-0129 §6/§11). */
+  diagnostics: string[];
 }
-
 
 function stableTiebreak(seed: string, id: string): number {
   let hash = 2166136261;
@@ -113,17 +109,23 @@ function stableTiebreak(seed: string, id: string): number {
   return hash >>> 0;
 }
 
-const ROLE_TIER_SCORE: Record<OutfieldRoleSuitabilityResult["tier"], number> = {
-  NATURAL: 30,
-  PLAUSIBLE: 20,
-  DEVELOPMENTAL: 10,
-  UNSUPPORTED: 0,
-};
+function broadDeclared(d: DeclaredPositions) {
+  return {
+    primary: mapPositionCodeToBroad(d.primaryPosition ?? ""),
+    secondary: d.secondaryPosition ? mapPositionCodeToBroad(d.secondaryPosition) : undefined,
+    tertiary: d.tertiaryPosition ? mapPositionCodeToBroad(d.tertiaryPosition) : undefined,
+  };
+}
+
+function resolveExactRole(roleLabel: string, gridX: number | undefined): ExactRole | null {
+  if (roleLabel === "GK" || gridX == null) return null;
+  return deriveExactTargetRole(roleLabel as FormationSlotRoleType, gridX);
+}
 
 /**
  * Generates a complete rotation plan. Pure and deterministic — the same input always produces
- * the same output. Never mutates anything; the caller (the DB-bound action) is responsible for
- * persisting the returned changes via the existing `createPlannedRotation()` mutation.
+ * the same output. Never mutates anything; the caller (the DB-bound action) persists the
+ * returned changes via the existing `createPlannedRotation()` mutation.
  */
 export function generateRotationPlan(input: GenerateRotationPlanInput): GenerateRotationPlanResult {
   const outfieldStarters = input.starters.filter((s) => s.position !== "GK");
@@ -143,8 +145,16 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
   const preferred = preferredFunctionFor(input.opponentTendencies);
 
   const changes: GeneratedRotationChange[] = [];
+  const diagnostics: string[] = [];
   const lastEntrySeconds = new Map<string, number>();
   for (const starter of outfieldStarters) lastEntrySeconds.set(starter.playerId, 0);
+
+  // Exact slot occupancy over time: playerId → the role label + resolved exact role they hold.
+  type SlotOccupancy = { roleLabel: string; exactRole: ExactRole | null };
+  const onPitchSlot = new Map<string, SlotOccupancy>();
+  for (const starter of outfieldStarters) {
+    onPitchSlot.set(starter.playerId, { roleLabel: starter.position, exactRole: resolveExactRole(starter.position, starter.gridX) });
+  }
 
   const onPitchOutfieldIds = new Set(outfieldStarters.map((s) => s.playerId));
   const benchAvailable = new Set(input.benchPlayerIds);
@@ -179,80 +189,84 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
 
     if (dueOut.length === 0 || availableIn.length === 0) continue;
 
-    const consideredBenchIdsBefore = availableIn.map((c) => c.playerId);
-    const usedThisTick = new Set<string>();
-    const changesAtThisPoint: GeneratedRotationChange[] = [];
+    const minutesLabel = Math.round(point.atSeconds / 60);
 
-    for (const out of dueOut) {
-      const vacatedRole = input.starters.find((s) => s.playerId === out.playerId)?.position
-        ?? [...changes].reverse().find((c) => c.inPlayerId === out.playerId)?.inPosition
-        ?? "FLEXIBLE";
+    // Build the due-slot list. A due player whose slot has no resolvable exact role cannot be
+    // safely rotated — they stay on, with a diagnostic.
+    const dueSlots: { slotId: string; targetRole: ExactRole }[] = [];
+    const dueBySlotId = new Map<string, { playerId: string; roleLabel: string }>();
+    for (const due of dueOut) {
+      const occupancy = onPitchSlot.get(due.playerId);
+      if (!occupancy || occupancy.exactRole == null) {
+        diagnostics.push(`Slot role for a due player could not be resolved at ${minutesLabel} min — kept on`);
+        continue;
+      }
+      const slotId = `slot:${due.playerId}`;
+      dueSlots.push({ slotId, targetRole: occupancy.exactRole });
+      dueBySlotId.set(slotId, { playerId: due.playerId, roleLabel: occupancy.roleLabel });
+    }
+    if (dueSlots.length === 0) continue;
 
-      const remainingCandidates = availableIn.filter((c) => !usedThisTick.has(c.playerId));
-      if (remainingCandidates.length === 0) break;
+    const benchCandidates = availableIn.map((c) => ({
+      candidateId: c.playerId,
+      declaredPositions: input.players.get(c.playerId)?.declaredPositions ?? { primaryPosition: null },
+    }));
+    const underShareByPlayer = new Map(availableIn.map((c) => [c.playerId, c.underShare]));
 
-      const scored = remainingCandidates.map((candidate) => {
-        const player = input.players.get(candidate.playerId);
-        if (!player) return { candidate, score: -Infinity, outfieldProfile: [] as OutfieldRoleSuitabilityResult[], roleResult: undefined, evidenceBonus: 0, positionContextBonus: 0 };
+    const matchResult = matchSlotsToCandidates(dueSlots, benchCandidates, {
+      seed: `${input.seed}:${point.atSeconds}`,
+      fairness: (candidateId) => underShareByPlayer.get(candidateId) ?? 0,
+      preference: (candidateId, _slotId, role) => opponentAndContextPreference(input, preferred, candidateId, role),
+    });
 
-        const outfieldProfile = computeOutfieldRoleSuitabilityProfile(player.declaredPositions, { matchCountByRole: {} });
-        const roleResult = outfieldProfile.find((r) => r.role === mapPositionLabelToOutfieldRole(vacatedRole));
-        const roleScore = roleResult ? ROLE_TIER_SCORE[roleResult.tier] : 0;
-        const fairnessScore = Math.min(candidate.underShare, 600) / 10;
-        const evidenceBonus = computeOpponentFunctionBonus(player.tacticalAttributes, outfieldProfile, preferred);
-        const positionContextBonus = computePositionContextBonus(
-          input.positionContextEvidence?.find((e) => e.playerId === candidate.playerId && e.position === vacatedRole),
-        );
-        const tiebreak = stableTiebreak(input.seed, candidate.playerId) / 1e10;
+    // Guardrail (Bundle 6): scoring/matching must never structurally drop a considered candidate.
+    assertEvidenceDidNotExcludeCandidates(
+      benchCandidates.map((c) => c.candidateId),
+      [...matchResult.assignments.map((a) => a.candidateId), ...matchResult.benchedCandidateIds],
+      "generateRotationPlan per-tick matching",
+    );
 
-        return {
-          candidate,
-          score: roleScore + fairnessScore + evidenceBonus + positionContextBonus + tiebreak,
-          outfieldProfile,
-          roleResult,
-          evidenceBonus,
-          positionContextBonus,
-        };
-      });
+    for (const gap of matchResult.unfilledSlots) {
+      diagnostics.push(`No safe replacement for ${gap.role} at ${minutesLabel} min`);
+    }
 
-      // Guardrail (Bundle 6): scoring must never shrink who was actually considered for this
-      // vacated slot — everyone in `remainingCandidates` must still appear in `scored`.
-      assertEvidenceDidNotExcludeCandidates(
-        remainingCandidates.map((c) => c.playerId),
-        scored.map((s) => s.candidate.playerId),
-        "generateRotationPlan bench candidate scoring",
+    const disruptionBucket = bucketForSubstitutionCount(matchResult.assignments.length);
+    const transitionEvidence = input.transitionPatterns?.find(
+      (row) => row.period === point.period && row.batchSizeBucket === disruptionBucket && row.isAtNaturalBreak === point.isNaturalBreak,
+    );
+
+    for (const assignment of matchResult.assignments) {
+      const due = dueBySlotId.get(assignment.slotId);
+      if (!due) continue;
+      const inId = assignment.candidateId;
+
+      benchAvailable.delete(inId);
+      benchAvailable.add(due.playerId);
+      onPitchOutfieldIds.delete(due.playerId);
+      onPitchOutfieldIds.add(inId);
+      lastEntrySeconds.set(inId, point.atSeconds);
+      onPitchSlot.delete(due.playerId);
+      onPitchSlot.set(inId, { roleLabel: due.roleLabel, exactRole: assignment.role });
+
+      const positionContextBonus = computePositionContextBonus(
+        input.positionContextEvidence?.find((e) => e.playerId === inId && e.position === due.roleLabel),
       );
-
-      scored.sort((a, b) => b.score - a.score);
-      const chosen = scored[0];
-      if (!chosen || chosen.score === -Infinity) continue;
-
-      usedThisTick.add(chosen.candidate.playerId);
-      benchAvailable.delete(chosen.candidate.playerId);
-      benchAvailable.add(out.playerId);
-      onPitchOutfieldIds.delete(out.playerId);
-      onPitchOutfieldIds.add(chosen.candidate.playerId);
-      lastEntrySeconds.set(chosen.candidate.playerId, point.atSeconds);
-
-      const disruptionBucket = bucketForSubstitutionCount(dueOut.length);
-      const transitionEvidence = input.transitionPatterns?.find(
-        (row) => row.period === point.period && row.batchSizeBucket === disruptionBucket && row.isAtNaturalBreak === point.isNaturalBreak,
-      );
+      const opponentBonus = opponentFunctionBonusFor(input, preferred, inId) > 0;
 
       const reasons = buildRotationReasons({
-        roleResult: chosen.roleResult,
-        underShareSeconds: chosen.candidate.underShare,
-        evidenceBonus: chosen.evidenceBonus > 0,
-        positionContextBonus: chosen.positionContextBonus > 0,
+        underShareSeconds: underShareByPlayer.get(inId) ?? 0,
+        evidenceBonus: opponentBonus,
+        positionContextBonus: positionContextBonus > 0,
         preferred,
         isNaturalBreak: point.isNaturalBreak,
         transitionEvidence,
       });
-      changesAtThisPoint.push({
-        outPlayerId: out.playerId,
-        inPlayerId: chosen.candidate.playerId,
+
+      changes.push({
+        outPlayerId: due.playerId,
+        inPlayerId: inId,
         outPosition: null,
-        inPosition: vacatedRole,
+        inPosition: due.roleLabel,
         positionOnly: false,
         approximateMatchSeconds: point.atSeconds,
         notes: null,
@@ -260,33 +274,48 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
         explanation: reasons.map(renderReason).join("; ") + ".",
       });
     }
-
-    if (changesAtThisPoint.length > 0) {
-      // Every bench player considered at this tick who was not swapped on remains a candidate
-      // for a future tick — evidence-informed scoring only ever picks among candidates, it never
-      // structurally removes an unpicked one from future consideration.
-      const notSwappedOnThisTick = consideredBenchIdsBefore.filter((id) => !usedThisTick.has(id));
-      assertEvidenceDidNotExcludeCandidates(notSwappedOnThisTick, [...benchAvailable], "generateRotationPlan tick completion");
-      changes.push(...changesAtThisPoint);
-    }
   }
 
-  return { changes };
+  return { changes, diagnostics };
+}
+
+function opponentFunctionBonusFor(
+  input: GenerateRotationPlanInput,
+  preferred: ReturnType<typeof preferredFunctionFor>,
+  candidateId: string,
+): number {
+  const player = input.players.get(candidateId);
+  if (!player || !preferred) return 0;
+  const outfieldProfile = computeOutfieldRoleSuitabilityProfile(broadDeclared(player.declaredPositions), { matchCountByRole: {} });
+  return computeOpponentFunctionBonus(player.tacticalAttributes, outfieldProfile, preferred);
+}
+
+function opponentAndContextPreference(
+  input: GenerateRotationPlanInput,
+  preferred: ReturnType<typeof preferredFunctionFor>,
+  candidateId: string,
+  role: ExactRole,
+): number {
+  const opponentBonus = opponentFunctionBonusFor(input, preferred, candidateId);
+  // The tracked slot's role label drives position-context lookup; for the matcher we only have
+  // the exact role, so match on the raw exact role too (callers key evidence by the role label).
+  const positionContextBonus = computePositionContextBonus(
+    input.positionContextEvidence?.find((e) => e.playerId === candidateId && e.position === role),
+  );
+  return opponentBonus + positionContextBonus;
 }
 
 /**
  * Structured material reasons for one generated rotation change (C6 / F6). The engine builds
- * `RecommendationReason[]`; prose is the formatter's job. NOTE: the transition-structure signal
- * used to leak `goalsAgainstInWindow / occurrences` arithmetic into coach-facing text — it now
- * only carries the occurrence count and confidence (a bounded contextual note, not a number the
- * coach must interpret).
+ * `RecommendationReason[]`; prose is the formatter's job. Positional fit is the eligibility gate,
+ * not a differentiating reason — every matched player is already NATURAL / STRONG / PLAUSIBLE —
+ * so no role-fit clause is emitted here.
  */
 function buildRotationReasons(args: {
-  roleResult: OutfieldRoleSuitabilityResult | undefined;
   underShareSeconds: number;
   evidenceBonus: boolean;
   positionContextBonus: boolean;
-  preferred: { code: TacticalFunctionCode; confidence: "EMERGING" | "ESTABLISHED" } | null;
+  preferred: ReturnType<typeof preferredFunctionFor>;
   isNaturalBreak: boolean;
   transitionEvidence: TransitionStructureEvidenceRow | undefined;
 }): RecommendationReason[] {
@@ -298,15 +327,6 @@ function buildRotationReasons(args: {
       material: true,
     }),
   );
-
-  if (args.roleResult && args.roleResult.tier !== "UNSUPPORTED") {
-    reasons.push(
-      buildReason("ROLE_EXPOSURE_SUPPORTS", {
-        params: { tier: args.roleResult.tier },
-        material: true,
-      }),
-    );
-  }
 
   if (args.evidenceBonus && args.preferred) {
     reasons.push(

@@ -158,3 +158,24 @@ None (additive; no schema change).
 
 None. Extends `planned-rotation.ts` (unchanged), `match-state-timeline.ts` (unchanged, read-only
 consumer), and the Bundle 5/6 primitives (unchanged, first real consumers exercised here).
+
+## Amendment — superseded in part by ADR-0129 (2026-09-09)
+
+The Matchboard Productification and Decision Safety programme's exact positional-semantics
+model (ADR-0129) supersedes this bundle's rotation-generation behaviour in two respects:
+
+1. **Bench-candidate eligibility.** Candidates are now gated on **exact** target-role
+   suitability (`NATURAL`/`STRONG`/`PLAUSIBLE` in `src/domain/positions/`), not the broad
+   `OutfieldStructuralRole` profile. A vacated slot's exact role is derived from its
+   `FormationSlotRoleType` + grid lane; `RotationPlanStarter` now carries `gridX` and exact
+   slot occupancy is tracked over time.
+2. **Batch size never overrides safety.** This bundle's greedy per-`dueOut` loop would still
+   select an `UNSUPPORTED`-tier bench player (score 0) when no better option existed — its
+   regression test asserted "never structurally blocked". That is reversed: if four are due
+   but only three safe replacements exist, three rotate and the fourth **stays on**, with a
+   diagnostic (`No safe replacement for <ROLE> at <n> min`). Per-tick selection is now one
+   deterministic bounded matching (`matchSlotsToCandidates`), not an additive score.
+
+`GenerateRotationPlanResult` gains a `diagnostics: string[]` field. The evidence signals
+(opponent-function continuity, position-context, transition-structure) are unchanged and
+still apply only as within-tier preferences.

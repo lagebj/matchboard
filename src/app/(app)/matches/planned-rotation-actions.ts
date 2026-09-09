@@ -38,7 +38,6 @@ import {
 import { generateRotationPlan, type RotationPlanDecisionPoint, type RotationPlanPlayer } from "@/lib/planned-rotation/generate-rotation-plan";
 import { getTeamSeasonTransitionPatterns } from "@/lib/evidence/transition-structure-evidence";
 import { getCumulativePeriodOffsetsMs, type PeriodConfig } from "@/lib/live-match/period-config";
-import { mapPositionCodeToBroad } from "@/domain/team-composition/position-suitability";
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: { type: string; filter: Record<string, unknown> }): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -381,7 +380,7 @@ function buildDecisionPoints(periodConfig: PeriodConfig[]): RotationPlanDecision
 export async function generateRotationPlanAction(
   matchId: string,
   teamId: string,
-): Promise<{ success: true; rotation: PlannedRotationWithChanges } | { success: false; error: string }> {
+): Promise<{ success: true; rotation: PlannedRotationWithChanges; diagnostics: string[] } | { success: false; error: string }> {
   try {
     const ctx = await requirePageActorContext();
     setTenantOrganisationId(ctx.organisationId);
@@ -404,7 +403,7 @@ export async function generateRotationPlanAction(
     const lineup = await db.matchLineup.findFirst({
       where: { matchId, teamId, ...ctx.orgFilter.filter },
       include: {
-        formation: { include: { slots: { select: { id: true, roleType: true } } } },
+        formation: { include: { slots: { select: { id: true, roleType: true, gridX: true } } } },
         assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
       },
     });
@@ -416,8 +415,13 @@ export async function generateRotationPlanAction(
     const starters = lineup.assignments
       .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
       .map((a) => {
-        const roleType = slotsById.get(a.slotId)?.roleType;
-        return { playerId: a.playerId, position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE") };
+        const slot = slotsById.get(a.slotId);
+        const roleType = slot?.roleType;
+        return {
+          playerId: a.playerId,
+          position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE"),
+          gridX: slot?.gridX,
+        };
       });
 
     const selections = await db.selection.findMany({
@@ -439,6 +443,7 @@ export async function generateRotationPlanAction(
         primaryPosition: true,
         secondaryPosition: true,
         tertiaryPosition: true,
+        bestSide: true,
         ballControl: true,
         passing: true,
         firstTouch: true,
@@ -460,9 +465,10 @@ export async function generateRotationPlanAction(
         {
           playerId: p.id,
           declaredPositions: {
-            primary: mapPositionCodeToBroad(p.primaryPosition ?? ""),
-            secondary: p.secondaryPosition ? mapPositionCodeToBroad(p.secondaryPosition) : undefined,
-            tertiary: p.tertiaryPosition ? mapPositionCodeToBroad(p.tertiaryPosition) : undefined,
+            primaryPosition: p.primaryPosition,
+            secondaryPosition: p.secondaryPosition,
+            tertiaryPosition: p.tertiaryPosition,
+            bestSide: p.bestSide,
           },
           tacticalAttributes: {
             ballControl: p.ballControl,
@@ -538,7 +544,9 @@ export async function generateRotationPlanAction(
     logMutationEvent("planned_rotation_generate", ctx.email || "unknown", "planned_rotation", result.rotation.id, "success");
     revalidateMatchPaths(matchId);
 
-    return { success: true, rotation: result.rotation };
+    // Diagnostics: safe replacements that could not be made (a due player kept on rather than
+    // rotated to a DEVELOPMENTAL/UNSUPPORTED bench option — ADR-0129 §6/§11).
+    return { success: true, rotation: result.rotation, diagnostics: generated.diagnostics };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to generate rotation plan." };
   }
