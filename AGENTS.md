@@ -2186,10 +2186,15 @@ a slot — the generated state is a starting point to react to, not a final answ
 accept as-is.
 
 Behavior:
-- `autoSelectBestLineup` fills each formation slot with the best positionally-compatible player
-  from the team's core roster: primary-position match first, then rating descending (missing
-  ratings are neutral, not worst-case — see "Player attribute ratings"), scarcest slots filled
-  first.
+- `autoSelectBestLineup` resolves each formation slot to an exact target role
+  (`deriveExactTargetRole`) and fills the outfield slots by one deterministic bounded matching
+  (`selectBestLineupAssignments` → `matchSlotsToCandidates`, ADR-0129). A player is only an
+  automatic candidate for a slot when they are `NATURAL`/`STRONG`/`PLAUSIBLE` for its exact
+  role. Overall rating is a **within-tier preference only** — it re-orders already-eligible
+  candidates, never makes an ineligible player eligible or beats a higher fit tier (missing
+  ratings are neutral, not worst-case — see "Player attribute ratings"). The goalkeeper slot is
+  filled from declared goalkeepers only; `FREE` slots are left for manual assignment; a slot
+  with no eligible candidate is left empty.
 - Every slot remains individually lockable and coach-overridable
   (`assignPlayerToBestLineupSlot`); a locked slot survives regeneration.
 - Best Lineup is per team, not per match — it persists independent of any specific fixture.
@@ -2198,7 +2203,8 @@ Behavior:
 - Overall rating alone does not implicitly define Best Lineup — position/slot fit is checked
   first, rating only orders players within a fit tier.
 
-Key files: `src/lib/best-lineup/best-lineup.ts` (all generation/assignment/lock/copy logic),
+Key files: `src/lib/best-lineup/best-lineup.ts` (DB-bound generation/assignment/lock/copy logic),
+`src/lib/best-lineup/select-best-lineup.ts` (pure exact-eligibility + matching selection),
 `src/app/(app)/o/[orgSlug]/teams/[teamId]/best-lineup-actions/actions.ts` (server actions),
 `src/components/team/best-lineup-tab.tsx` (UI tab on the team workspace).
 
@@ -3689,7 +3695,7 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
-| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup); rotation / repair / exact-coverage wiring follows. |
+| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup) and `selectBestLineupAssignments` / `autoSelectBestLineup` (Recommended lineup — rating is a within-tier preference only); rotation / repair / exact-coverage wiring follows. |
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator (includes Phase 7: policy evaluation) |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
 | `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |

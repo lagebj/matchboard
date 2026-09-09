@@ -3640,6 +3640,21 @@ Feature: Matchboard football operations workspace
       Then the app must ask the coach to confirm using a player outside automatic positional fit
       And the assignment is allowed once confirmed
 
+    Scenario: Recommended lineup generation uses the same exact eligibility and safe matching
+      Given a team formation has a left-wing slot and a central-midfield slot
+      And the core roster has one left winger and one central midfielder
+      When the app generates the Recommended lineup automatically
+      Then the left winger must fill the left-wing slot
+      And the central midfielder must fill the central-midfield slot
+      And no player is placed in a slot for which they are Outside automatic fit
+
+    Scenario: Recommended lineup rating only orders players within a fit tier
+      Given two players are eligible for the same slot at the same fit tier
+      And one player has a higher overall rating
+      When the app generates the Recommended lineup automatically
+      Then the higher-rated player fills the slot
+      But a higher rating never places a player in a slot they are not eligible for
+
 
   Rule: Round checks are part of Round Board workflow
 
