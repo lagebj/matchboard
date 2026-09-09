@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { GeneratedRound } from "@/lib/selection/types";
 import type { CoachingIntentCategory, MatchdayResponsibilityType } from "@/lib/coaching/types";
+import type { RecommendationReason } from "@/lib/explanations/recommendation-reason";
 
 type PersistableExplanation = {
   scopeType: "ROUND" | "MATCH" | "TEAM" | "PLAYER";
@@ -9,8 +10,8 @@ type PersistableExplanation = {
   teamId?: string;
   playerId?: string;
   summary: string;
-  rulesApplied: Array<{ code: string; summary: string; hardRule?: boolean }>;
-  blockers: Array<{ code: string; summary: string }>;
+  rulesApplied: Array<{ code: string; summary: string; hardRule?: boolean; reason?: RecommendationReason }>;
+  blockers: Array<{ code: string; summary: string; reason?: RecommendationReason }>;
   warnings: Array<{ code: string; message: string; severity?: string }>;
   recommendations: Array<{ summary: string }>;
   crossTeamImpacts: Array<{ description: string }>;
@@ -28,9 +29,9 @@ function buildMatchExplanation(
 
   for (const player of matchResult.selectedPlayers) {
     for (const exp of player.explanations) {
-      rulesApplied.push({ code: exp.code, summary: exp.summary, hardRule: exp.hardRule });
+      rulesApplied.push({ code: exp.code, summary: exp.summary, hardRule: exp.hardRule, reason: exp.reason });
       if (exp.hardRule) {
-        blockers.push({ code: exp.code, summary: exp.summary });
+        blockers.push({ code: exp.code, summary: exp.summary, reason: exp.reason });
       }
     }
   }

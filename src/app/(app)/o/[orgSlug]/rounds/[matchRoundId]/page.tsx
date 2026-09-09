@@ -287,8 +287,20 @@ export default async function RoundBoardPage({
       seenPlayerIds.add(sel.player.id);
 
       const explanation = (sel.explanation ?? {}) as Record<string, unknown>;
-      const explanations = Array.isArray(explanation.records)
-        ? (explanation.records as Array<{ code: string; summary: string; details?: string; hardRule?: boolean }>)
+      // `save-generated-draft.ts` stores the full record array under `explanations`; `records`
+      // is a legacy key kept as a fallback. Carry the structured `reason` (C6 / ADR-0128).
+      const storedRecords =
+        (Array.isArray(explanation.explanations) && (explanation.explanations as unknown[])) ||
+        (Array.isArray(explanation.records) && (explanation.records as unknown[])) ||
+        null;
+      const explanations = storedRecords
+        ? (storedRecords as Array<{
+            code: string;
+            summary: string;
+            details?: string;
+            hardRule?: boolean;
+            reason?: unknown;
+          }>)
         : [{
             code: (explanation.code as string) ?? sel.role,
             summary: (explanation.summary as string) ?? "",

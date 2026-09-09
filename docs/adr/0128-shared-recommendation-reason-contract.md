@@ -58,28 +58,46 @@ coach-facing explanation of *why* a recommendation was made had become a liabili
   confidence.
 - **Tactics panel** (`match-tactics-panel.tsx`): the visible `· score {n}` is removed (F6).
 
-### Staged follow-up (contract is ready; emission paths not migrated here)
+### Wired in the C6 follow-up (2026-09-09)
 
-- **Squad selection** — `buildExplanation(code, prose, hardRule)` in `generate-selection.ts` /
-  `resolve-round-support.ts` / `generate-round.ts` keeps emitting `ExplanationRecord`s for now;
-  `classifyExplanationCode()` already classifies its codes into the shared vocabulary. Its ~20
-  sites also interpolate player names into stored strings — a distinct PII pass tracked as
-  **ARR-0043**, not this ADR.
-- **`suggestLineupForFormation()`** — its `reasons: string[]` + `evidenceBonusForSlot` hook stay
-  as-is (many callers, regression-guarded); migrating them to `RecommendationReason[]` and adding
-  a persistence path so lineup reasons stop being discarded on apply is follow-up.
+- **Squad selection** — `ExplanationRecord` gains an additive `reason?: RecommendationReason`.
+  `buildExplanation(code, summary, hardRule)` attaches it via `reasonFromLegacyExplanation(code,
+  hardRule)` (a legacy-code → `ReasonCode` map + `polarity` from `hardRule`) for every code that
+  has a clean mapping (~30 of the ~40); an unmapped code keeps just its prose. `summary` is
+  **kept** as the display fallback — it carries team names / counts / priority ordinals the
+  generic `renderReason()` cannot reproduce, and it is name-free after ARR-0043. `reason` is
+  persisted alongside the prose in `Selection.explanation` JSON and `SelectionExplanation.rulesApplied`
+  / `blockers`.
+- **Round Board** — `page.tsx` now reads the full stored record array from the `explanations`
+  key (`save-generated-draft.ts` always wrote it there; the parser previously only checked a
+  never-written `records` key, so the tooltip's soft-note list was silently always empty).
+  `explanationTooltipFor()` renders `renderReason(e.reason)` for each soft (non-hard-rule)
+  explanation when the structured reason is present, falling back to `e.summary`. First real
+  coach-facing consumer of a `RecommendationReason` outside the rotation generator.
+
+### Still staged (needs its own schema migration; no consumer yet)
+
+- **`suggestLineupForFormation()`** — its per-assignment `reasons: string[]` + the
+  `evidenceBonusForSlot` hook stay as string prose. Structuring them requires either changing
+  `LineupSuggestion` (many callers, regression-guarded) or adding a parallel field, plus a
+  nullable `MatchLineupAssignment.reasons Json?` column so they survive `applySuggestedLineup`.
+  Deferred until a surface actually reads structured lineup reasons — the Tactics panel already
+  renders the string list, and building the column ahead of a reader is the speculative plumbing
+  ADR-0117 / ADR-0128 caution against.
 
 Doing all of the above in one change would make it unreviewable and risk regressions in
-ARR-0002 / ARR-0033-sensitive selection-explanation storage. The contract + formatter + the
-highest-value generator + the concrete leak fixes are the C6 deliverable; the rest is
-incremental against a stable contract.
+ARR-0002 / ARR-0033-sensitive selection-explanation storage. The contract + formatter + the two
+generators + the Round Board consumer + the concrete leak fixes are the delivered scope.
 
 ## Consequences
 
 - New reason data across selection / lineup / rotation has one vocabulary and one prose owner.
 - The rotation generator no longer leaks score arithmetic; the Tactics panel no longer shows a
   raw score.
-- ARR-0043 records the player-name-in-explanations residue that surfaced during this work.
+- Every squad-selection explanation whose code maps carries a structured, neutral `reason`,
+  persisted and rendered on the Round Board — and the long-latent `records`/`explanations` key
+  mismatch that made the Round Board soft-note tooltip always empty is fixed.
+- ARR-0043 (player names in stored explanations) — resolved in the same follow-up.
 
 ## References
 
