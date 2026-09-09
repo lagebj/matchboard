@@ -1,3 +1,10 @@
+// DEAD CODE (as of ADR-0129 §04 wiring): the broad `getPlayerSlotCompatibility` /
+// `mapExistingPositionToBroad` / `sortPlayersBySlotCompatibility` / `getPlayersForLineup`
+// helpers here have no remaining production consumers — automatic lineup and the manual
+// candidate picker both use exact positional suitability (`src/domain/positions/`). Only this
+// module's own tests (and `best-lineup.test.ts`) still import it. Kept for one release to
+// avoid cascading test edits into this visual-system PR; scheduled for deletion in a
+// dedicated cleanup pass.
 import type { FormationSlotData, BroadPosition } from "./types";
 
 export type PlayerPositionInfo = {

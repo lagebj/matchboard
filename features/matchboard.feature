@@ -3640,6 +3640,13 @@ Feature: Matchboard football operations workspace
       Then the app must ask the coach to confirm using a player outside automatic positional fit
       And the assignment is allowed once confirmed
 
+    Scenario: The manual candidate picker shows exact positional fit per player
+      Given the coach opens the player picker for a formation slot with a resolvable exact role
+      Then each candidate shows its exact fit label (Natural fit, Strong fit, Plausible fit, Developmental positional fit or Outside automatic fit)
+      And candidates are ordered by fit tier, Natural fit first
+      And choosing a player who is Outside automatic fit prompts the "Use outside automatic positional fit?" confirmation before assigning
+      And choosing a Developmental positional fit player assigns without a modal
+
     Scenario: Squad coverage against a real formation uses exact roles and simultaneous matching
       Given a real formation with left-back, right-back and two central slots
       And a squad has only one player who is eligible for a wide full-back slot
