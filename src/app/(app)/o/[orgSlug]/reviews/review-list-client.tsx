@@ -60,15 +60,15 @@ export function ReviewListClient({ reviews: initialReviews }: { reviews: ReviewR
   if (reviews.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">Reviews</h1>
-        <p className="text-[var(--text-muted)]">No review requests yet.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Peer reviews</h1>
+        <p className="text-[var(--text-muted)]">No peer review requests yet.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Reviews</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Peer reviews</h1>
       <div className="rounded-md border">
         <table className="w-full text-sm">
           <thead>

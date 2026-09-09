@@ -60,7 +60,7 @@ export default async function MorePage({ params }: { params: Promise<{ orgSlug: 
     {
       title: "Workflow",
       cards: [
-        { href: `${prefix}/reviews`, label: "Reviews", description: "Pending and resolved review requests.", icon: Bell },
+        { href: `${prefix}/reviews`, label: "Peer reviews", description: "Pending and resolved peer review requests.", icon: Bell },
       ],
     },
   ];

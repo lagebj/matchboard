@@ -15,7 +15,7 @@ export default async function ReviewsPage({ params }: { params: Promise<{ orgSlu
   if (!membership) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">Reviews</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Peer reviews</h1>
         <p className="text-[var(--text-muted)]">No membership found.</p>
       </div>
     );

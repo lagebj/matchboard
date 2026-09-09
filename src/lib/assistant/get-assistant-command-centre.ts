@@ -10,7 +10,9 @@ import type {
   TodayMatchStatus,
 } from "./types";
 import { CATEGORY_PRIORITY } from "./types";
+import type { DueDecisionReviewCard } from "./types";
 import { getEventWorkItems } from "./get-event-work-items";
+import { getDueDecisionReviews } from "@/lib/review/decision-review";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Promise<AssistantCommandCentre> {
@@ -520,9 +522,9 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
         makeItem({
           category: "review_assigned",
           matchRoundId: "review",
-          title: `Review requested: ${review.targetType === "EVENT_SQUAD" ? "Event squad" : "Match lineup"}`,
-          summary: review.requestMessage ?? "A review has been requested.",
-          primaryActionLabel: "View review",
+          title: `Peer review requested: ${review.targetType === "EVENT_SQUAD" ? "Event squad" : "Match lineup"}`,
+          summary: review.requestMessage ?? "A peer review has been requested.",
+          primaryActionLabel: "View peer review",
           primaryActionHref: "/reviews",
           affectedTeamIds: [],
           affectedPlayerIds: [],
@@ -535,7 +537,7 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
           matchRoundId: "review",
           title: `Changes requested: ${review.targetType === "EVENT_SQUAD" ? "Event squad" : "Match lineup"}`,
           summary: review.reviewerComment ?? "Changes have been requested on your submission.",
-          primaryActionLabel: "View review",
+          primaryActionLabel: "View peer review",
           primaryActionHref: "/reviews",
           affectedTeamIds: [],
           affectedPlayerIds: [],
@@ -573,15 +575,97 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     return a.matchRoundId.localeCompare(b.matchRoundId);
   });
 
+  const dueDecisionReviews = await buildDueDecisionReviewCards(orgFilter);
+
   return {
     leagueSeasonId: leagueSeason.id,
     leagueSeasonName: leagueSeason.name,
     items,
     todayMatches: todayMatchData,
+    dueDecisionReviews,
     roundPlanIntegrities,
     activeLiveSessions,
     computedAt: new Date(),
   };
+}
+
+/**
+ * Resolve due Decision reviews (ADR-0132) into display cards. Player / team names are resolved
+ * here for display only — the review record itself stores no names.
+ */
+async function buildDueDecisionReviewCards(
+  orgFilter?: OrgFilterMode,
+): Promise<DueDecisionReviewCard[]> {
+  if (!orgFilter || orgFilter.type !== "org") return [];
+
+  const due = await getDueDecisionReviews(orgFilter);
+  if (due.length === 0) return [];
+
+  const threadIds = due.filter((r) => r.targetType === "DEVELOPMENT_THREAD").map((r) => r.targetId);
+  const focusIds = due.filter((r) => r.targetType === "TEAM_FOCUS").map((r) => r.targetId);
+
+  const [threads, focuses] = await Promise.all([
+    threadIds.length
+      ? db.developmentThread.findMany({
+          where: { id: { in: threadIds }, ...orgFilter.filter },
+          select: {
+            id: true,
+            focus: true,
+            playerId: true,
+            player: { select: { firstName: true, lastName: true } },
+          },
+        })
+      : Promise.resolve([]),
+    focusIds.length
+      ? db.teamFocus.findMany({
+          where: { id: { in: focusIds }, ...orgFilter.filter },
+          select: { id: true, statement: true, teamId: true, team: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const threadById = new Map(threads.map((t) => [t.id, t]));
+  const focusById = new Map(focuses.map((f) => [f.id, f]));
+  const now = Date.now();
+
+  const cards: DueDecisionReviewCard[] = [];
+  for (const review of due) {
+    const ageDays = Math.max(0, Math.round((now - review.createdAt.getTime()) / 86_400_000));
+    if (review.targetType === "DEVELOPMENT_THREAD") {
+      const thread = threadById.get(review.targetId);
+      if (!thread) continue;
+      cards.push({
+        reviewId: review.id,
+        targetType: "DEVELOPMENT_THREAD",
+        targetId: thread.id,
+        targetName: thread.player
+          ? `${thread.player.firstName}${thread.player.lastName ? ` ${thread.player.lastName}` : ""}`
+          : "Player",
+        decisionText: thread.focus,
+        dueAt: review.dueAt.toISOString(),
+        createdAt: review.createdAt.toISOString(),
+        ageDays,
+        targetHref: `/players/${thread.playerId}`,
+        label: "Development focus ready to revisit",
+      });
+    } else {
+      const focus = focusById.get(review.targetId);
+      if (!focus) continue;
+      cards.push({
+        reviewId: review.id,
+        targetType: "TEAM_FOCUS",
+        targetId: focus.id,
+        targetName: focus.team?.name ?? "Team",
+        decisionText: focus.statement,
+        dueAt: review.dueAt.toISOString(),
+        createdAt: review.createdAt.toISOString(),
+        ageDays,
+        targetHref: `/teams/${focus.teamId}`,
+        label: "Team focus ready to revisit",
+      });
+    }
+  }
+  return cards;
 }
 
 function makeItem(
@@ -614,6 +698,7 @@ function emptyResult(
     leagueSeasonName,
     items,
     todayMatches: [],
+    dueDecisionReviews: [],
     roundPlanIntegrities: {},
     activeLiveSessions: {},
     computedAt: new Date(),
