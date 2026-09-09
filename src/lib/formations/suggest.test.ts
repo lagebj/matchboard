@@ -351,22 +351,106 @@ describe("suggestLineupForFormation", () => {
     expect(assignment!.playerId).toBe("p1");
   });
 
-  it("passes already-assigned player ids so the hook can reason about combinations", () => {
+  it("passes the pre-matching known assignments (locked slots, goalkeeper) to the hook", () => {
+    // Exact assignment is one deterministic bounded matching (ADR-0129 §10), not a sequential
+    // greedy fill — so the hook sees the assignments known BEFORE matching (locked + GK), not an
+    // incremental running set.
     const alreadyAssignedSeen: string[][] = [];
     suggestLineupForFormation({
-      formationSlots: [defSlot, midSlot],
+      formationSlots: [gkSlot, defSlot, midSlot],
       playerPool: [
-        { id: "p1", firstName: "Def", lastName: "P", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
-        { id: "p2", firstName: "Mid", lastName: "P", primaryPosition: "CM", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "keeper", firstName: "GK", lastName: "P", primaryPosition: "GK", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "locked-cb", firstName: "Locked", lastName: "P", primaryPosition: "CB", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "mid", firstName: "Mid", lastName: "P", primaryPosition: "CM", secondaryPosition: null, coreTeamId: "t1" },
       ],
+      existingAssignments: [{ slotId: "def1", playerId: "locked-cb", locked: true }],
       evidenceBonusForSlot: (_playerId, _slot, alreadyAssignedPlayerIds) => {
         alreadyAssignedSeen.push(alreadyAssignedPlayerIds);
         return undefined;
       },
     });
 
-    // The second slot's scoring pass should see the first slot's assignment already made.
-    expect(alreadyAssignedSeen.some((seen) => seen.includes("p1"))).toBe(true);
+    expect(alreadyAssignedSeen.length).toBeGreaterThan(0);
+    expect(alreadyAssignedSeen.every((seen) => seen.includes("locked-cb") && seen.includes("keeper"))).toBe(true);
+  });
+});
+
+describe("suggestLineupForFormation — exact positional safety (ADR-0129)", () => {
+  // A left-wing / attacking-midfield slot: FORWARD roleType in the LEFT lane → exact role LW.
+  const lwSlot: FormationSlotData = makeSlot({
+    id: "lw", gridX: 0, gridY: 0, roleType: "FORWARD", acceptedPositionIds: ["forward", "midfielder"],
+  });
+  const rwSlot: FormationSlotData = makeSlot({
+    id: "rw", gridX: 4, gridY: 0, roleType: "FORWARD", acceptedPositionIds: ["forward", "midfielder"],
+  });
+
+  it("never auto-assigns a central midfielder to a winger slot — the slot is left unresolved and visible", () => {
+    const result = suggestLineupForFormation({
+      formationSlots: [lwSlot],
+      playerPool: [
+        { id: "cm", firstName: "Central", lastName: "Mid", primaryPosition: "CM", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+    });
+
+    expect(result.assignments).toHaveLength(0);
+    expect(result.unfilledSlotIds).toEqual(["lw"]);
+    expect(result.warnings).toContain("No safe automatic fit for LW");
+    expect(result.benchPlayerIds).toContain("cm");
+  });
+
+  it("assigns a striker to a winger slot (STRONG fit)", () => {
+    const result = suggestLineupForFormation({
+      formationSlots: [lwSlot],
+      playerPool: [
+        { id: "st", firstName: "Striker", lastName: "P", primaryPosition: "ST", secondaryPosition: null, bestSide: "CENTER", coreTeamId: "t1" },
+      ],
+    });
+
+    expect(result.assignments).toHaveLength(1);
+    expect(result.assignments[0].playerId).toBe("st");
+    expect(result.assignments[0].reasons[0]).toBe("Strong fit for LW");
+  });
+
+  it("does not consume one winger for two winger slots — a scarce role is matched, not duplicated", () => {
+    const result = suggestLineupForFormation({
+      formationSlots: [lwSlot, rwSlot],
+      playerPool: [
+        { id: "w", firstName: "Wide", lastName: "P", primaryPosition: "W", secondaryPosition: null, coreTeamId: "t1" },
+        { id: "lw-only", firstName: "Left", lastName: "Wing", primaryPosition: "LW", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+    });
+
+    expect(result.assignments).toHaveLength(2);
+    expect(new Set(result.assignments.map((a) => a.playerId))).toEqual(new Set(["w", "lw-only"]));
+    expect(result.unfilledSlotIds).toEqual([]);
+  });
+
+  it("leaves a FREE slot for manual assignment", () => {
+    const freeSlot: FormationSlotData = makeSlot({
+      id: "free", gridX: 2, gridY: 1, roleType: "FREE", acceptedPositionIds: ["flexible"],
+    });
+    const result = suggestLineupForFormation({
+      formationSlots: [freeSlot],
+      playerPool: [
+        { id: "any", firstName: "Any", lastName: "P", primaryPosition: "CM", secondaryPosition: null, coreTeamId: "t1" },
+      ],
+    });
+
+    expect(result.assignments).toHaveLength(0);
+    expect(result.unfilledSlotIds).toEqual(["free"]);
+    expect(result.warnings.some((w) => w.includes("Free slot"))).toBe(true);
+    expect(result.benchPlayerIds).toContain("any");
+  });
+
+  it("is deterministic for identical input", () => {
+    const input = {
+      formationSlots: [lwSlot, rwSlot],
+      playerPool: [
+        { id: "a", firstName: "A", lastName: "P", primaryPosition: "ST", secondaryPosition: null, bestSide: "CENTER" as const, coreTeamId: "t1" },
+        { id: "b", firstName: "B", lastName: "P", primaryPosition: "ST", secondaryPosition: null, bestSide: "CENTER" as const, coreTeamId: "t1" },
+      ],
+    };
+    expect(suggestLineupForFormation(input)).toEqual(suggestLineupForFormation(input));
   });
 });
 

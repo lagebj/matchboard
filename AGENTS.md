@@ -3689,7 +3689,7 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
-| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels. Sole authority for automatic-planning positional eligibility. |
+| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup); rotation / repair / exact-coverage wiring follows. |
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator (includes Phase 7: policy evaluation) |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
 | `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |

@@ -3586,6 +3586,61 @@ Feature: Matchboard football operations workspace
       And must ask the coach to choose a compatible 9-a-side formation
 
 
+  Rule: Automatic starting-lineup uses exact positional eligibility and safe matching (ADR-0129)
+
+    Automatic starting-lineup generation resolves each formation slot to an exact target role
+    from its role type and grid lane, then fills slots by one deterministic bounded matching.
+    A player is only an automatic candidate for a slot when their declared positions make them
+    NATURAL, STRONG or PLAUSIBLE for that exact role. Fairness, evidence, opponent context and
+    tactical attributes can only re-order already-eligible candidates within a tier — they can
+    never make an ineligible player eligible. When no eligible player exists the slot is left
+    unresolved and the gap is shown; automatic generation never fills it with a DEVELOPMENTAL or
+    UNSUPPORTED player.
+
+    Scenario: A central midfielder is not an automatic candidate for a winger slot
+      Given a formation has a left-wing slot
+      And the only available player declares primary position "CM"
+      When the app generates a starting lineup automatically
+      Then the winger slot must be left unresolved
+      And the app must report "No safe automatic fit for LW"
+      And the central midfielder must appear on the bench
+
+    Scenario: A striker is an automatic candidate for a winger slot
+      Given a formation has a left-wing slot
+      And an available player declares primary position "ST"
+      When the app generates a starting lineup automatically
+      Then the striker must be assigned to the winger slot
+      And the assignment must be labelled "Strong fit for LW"
+
+    Scenario: A scarce wide role is matched, not duplicated
+      Given a formation has a left-wing slot and a right-wing slot
+      And one available player can play either wing
+      And one available player can only play left wing
+      When the app generates a starting lineup automatically
+      Then each wing slot must be filled by a different player
+      And no player is assigned to two slots
+
+    Scenario: Fairness cannot make an ineligible player eligible for a slot
+      Given a formation has a left-wing slot
+      And a central midfielder has the greatest fairness need of any available player
+      And a striker with no fairness need is also available
+      When the app generates a starting lineup automatically
+      Then the striker must be assigned to the winger slot
+      And the central midfielder must not be assigned to the winger slot
+
+    Scenario: A Free slot is left for manual assignment
+      Given a formation has a Free slot
+      When the app generates a starting lineup automatically
+      Then the Free slot must be left unresolved
+      And the app must indicate the Free slot is assigned manually
+
+    Scenario: A player can still be assigned outside automatic fit by explicit coach decision
+      Given a central midfielder is Outside automatic fit for a winger slot
+      When the coach assigns that player to the winger slot manually
+      Then the app must ask the coach to confirm using a player outside automatic positional fit
+      And the assignment is allowed once confirmed
+
+
   Rule: Round checks are part of Round Board workflow
 
     Round checks summarize the generated round state. They are shown on the Round Board and can be expanded into a detailed view.
