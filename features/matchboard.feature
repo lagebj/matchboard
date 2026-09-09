@@ -5768,37 +5768,38 @@ Feature: Matchboard football operations workspace
     Then the app must require confirmation or remove the draft feedback transactionally
     And no feedback must remain attached to a player who is not an actual participant in the report
 
-  Rule: Fixtures use factual, subtle result styling
+  Rule: A completed fixture reads as a neutral sport result, never a colour-coded outcome (ADR-0130)
 
-    Completed fixtures may use soft colour treatment to support rapid scanning.
+    A final score is neutral. A loss is not an error and never uses danger red; a win is not a
+    workflow success and never fills the row green. Outcome text is secondary metadata. The
+    winning score may carry slightly stronger weight and the losing score slightly softer
+    weight; colour is never the outcome signal.
 
-    Outcome text must remain visible because colour alone is not sufficient.
-
-  Scenario: Won fixture uses soft win styling
+  Scenario: Won fixture shows a neutral score with secondary outcome text
     Given a fixture has a completed result that is a win from the Matchboard team's perspective
-    When the coach views Fixtures
-    Then the fixture must show the score
-    And it must show "Won"
-    And it must use a soft win visual treatment
+    When the coach views League
+    Then the fixture must show the score in a neutral colour
+    And it must show "Win" as secondary metadata
+    And the winning score must not be filled or coloured green
 
-  Scenario: Drawn fixture uses soft draw styling
-    Given a fixture has a completed result that is a draw
-    When the coach views Fixtures
-    Then the fixture must show the score
-    And it must show "Drawn"
-    And it must use a soft neutral draw visual treatment
-
-  Scenario: Lost fixture uses soft loss styling
+  Scenario: Lost fixture shows a neutral score, not a danger state
     Given a fixture has a completed result that is a loss from the Matchboard team's perspective
-    When the coach views Fixtures
-    Then the fixture must show the score
-    And it must show "Lost"
-    And it must use a soft loss visual treatment
+    When the coach views League
+    Then the fixture must show the score in a neutral colour
+    And it must show "Loss" as secondary metadata
+    And the losing score must not use danger red
+
+  Scenario: A round is a section, not a card
+    Given a league season has finalized rounds with completed matches
+    When the coach views League
+    Then each round is a section header line with its week, plan state as muted text and match count
+    And its matches are dense divider-based rows directly below, not wrapped in a card
+    And a "Board" action on the round header opens that round's board with an accessible name naming the round
 
   Scenario: Incomplete or future fixture is not styled as a result
     Given a fixture has no completed report
-    When the coach views Fixtures
-    Then it must not receive won, drawn or lost styling
+    When the coach views League
+    Then it must not receive win, draw or loss styling
 
   Rule: Navigation shell uses a compact football-oriented Matchboard identity
 

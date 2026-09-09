@@ -15,63 +15,39 @@ import {
 } from "@/domain/fixtures/actions";
 import { PageHeader } from "@/components/ui/page-header";
 import { Surface } from "@/components/ui/surface";
-import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { StatusRail } from "@/components/ui/status-rail";
-import { MatchScoreRow } from "@/components/ui/match-presentation";
+import { MatchRow } from "@/components/ui/match-presentation";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { EmptyState } from "@/components/ui/empty-state";
 
 /**
- * FixturesPage — per ADR 0007 the fixtures view reads as a timeline: past
- * finalized rounds are compact, current/upcoming rounds are slightly more
- * open. Match rows are scannable, not wrapped in heavy cards.
+ * League — the period → round → match hierarchy. Past results are dense sport
+ * rows; a round is a SECTION, not a card (ADR-0130 §05). The section header
+ * carries the week, the plan state as muted text, the match count and one
+ * `Board ›` action; unresolved Blocked / Decision-required conditions show as
+ * attention only when present.
  */
 
-
-
-
-function roundPrimaryAction(
-  round: FixtureRound,
-): { label: string; href: string } | null {
-  switch (round.selectionState) {
+/** Plan state as calm muted text (ADR-0130 §05 — "`Final` is muted text"). */
+function roundStateLabel(state: FixtureRound["selectionState"]): string {
+  switch (state) {
     case "NOT_GENERATED":
-      return { label: "Generate and review", href: `/rounds/${round.id}` };
+      return "Not generated";
     case "DRAFT":
-      return { label: "Review board", href: `/rounds/${round.id}` };
+      return "Draft";
     case "BLOCKED":
-      return { label: "Resolve blockers", href: `/rounds/${round.id}` };
+      return "Blocked";
     case "READY":
-      return { label: "Review board", href: `/rounds/${round.id}` };
+      return "Ready";
     case "FINALIZED":
-      return { label: "View finalised board", href: `/rounds/${round.id}` };
+      return "Final";
     default:
-      return null;
+      return "";
   }
 }
 
-function IntegritySummary({
-  blockerCount,
-  decisionRequiredCount,
-}: {
-  blockerCount: number;
-  decisionRequiredCount: number;
-}) {
-  if (blockerCount === 0 && decisionRequiredCount === 0) {
-    return (
-      <span className="text-[11px] text-[var(--accent-strong)]">Ready</span>
-    );
-  }
-  const parts: string[] = [];
-  if (blockerCount > 0) parts.push(`${blockerCount} blocked`);
-  if (decisionRequiredCount > 0) parts.push(`${decisionRequiredCount} decision`);
-  const tone =
-    blockerCount > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]";
-  return <span className={`text-[11px] ${tone}`}>{parts.join(" · ")}</span>;
-}
-
-function MatchRow({ match }: { match: FixtureMatch }) {
+function FixtureMatchRow({ match }: { match: FixtureMatch }) {
   const isCancelled = match.matchStatus === "CANCELLED";
   const completedResult =
     match.reportState.state === "COMPLETED" ? match.reportState.result : undefined;
@@ -109,69 +85,64 @@ function MatchRow({ match }: { match: FixtureMatch }) {
     cancelledReason: isCancelled ? (match.cancelledReason ?? null) : null,
   });
 
-  return <MatchScoreRow presentation={presentation} />;
+  return <MatchRow presentation={presentation} />;
 }
 
 function RoundSection({ round }: { round: FixtureRound }) {
-  const primaryAction = roundPrimaryAction(round);
-  const isFinalized = round.selectionState === "FINALIZED";
+  const stateLabel = roundStateLabel(round.selectionState);
+  const matchCount = round.matches.length;
+  const attention =
+    round.blockerCount > 0
+      ? { label: `${round.blockerCount} blocked`, tone: "text-[var(--danger)]" }
+      : round.decisionRequiredCount > 0
+        ? {
+            label: `${round.decisionRequiredCount} decision${round.decisionRequiredCount === 1 ? "" : "s"}`,
+            tone: "text-[var(--warning)]",
+          }
+        : null;
 
   return (
-    <TacticalSurface variant={isFinalized ? "default" : "board"} padding="none" className="overflow-hidden">
-      <div
-        className={[
-          "flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3.5",
-          isFinalized ? "py-2" : "py-2.5",
-        ].join(" ")}
-      >
-        <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-          <span className="text-sm font-semibold text-zinc-50 truncate">
-            {round.title}
-          </span>
-          <StatusRail
-            status={
-              round.selectionState === "NOT_GENERATED" ? "neutral" :
-              round.selectionState === "FINALIZED" ? "finalized" :
-              round.selectionState === "BLOCKED" ? "blocked" :
-              round.selectionState === "DRAFT" ? "draft" :
-              "neutral"
-            }
-          />
-          <IntegritySummary
-            blockerCount={round.blockerCount}
-            decisionRequiredCount={round.decisionRequiredCount}
-          />
-          {round.matches.length > 0 && (
-            <span className="text-[11px] text-[var(--text-muted)]">
-              {round.matches.length} match{round.matches.length !== 1 ? "es" : ""}
+    <section className="flex flex-col">
+      {/* Round header — a section line, not a card (ADR-0130 §05). */}
+      <div className="flex items-center justify-between gap-3 py-2">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="app-row-title truncate">{round.title}</span>
+          {stateLabel ? (
+            <span className="text-[var(--text-meta)] text-[var(--text-muted)] whitespace-nowrap">
+              {stateLabel}
             </span>
-          )}
+          ) : null}
+          {matchCount > 0 ? (
+            <span className="text-[var(--text-meta)] text-[var(--text-muted)] whitespace-nowrap">
+              · {matchCount} match{matchCount === 1 ? "" : "es"}
+            </span>
+          ) : null}
+          {attention ? (
+            <span className={`text-[var(--text-meta)] font-medium ${attention.tone} whitespace-nowrap`}>
+              {attention.label}
+            </span>
+          ) : null}
         </div>
-        {primaryAction && (
-          <Button
-            as={Link}
-            href={primaryAction.href}
-            variant={isFinalized ? "ghost" : "primary"}
-            size="sm"
-          >
-            {primaryAction.label}
-          </Button>
-        )}
+        <Link
+          href={`/rounds/${round.id}`}
+          aria-label={`Open ${round.title} round board`}
+          className="shrink-0 whitespace-nowrap text-[var(--text-meta)] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
+        >
+          Board ›
+        </Link>
       </div>
-      <div className={isFinalized ? "py-1" : "py-1.5"}>
-        {round.matches.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] px-3.5 py-3">
-            No matches in this round.
-          </p>
-        ) : (
-          <div className="divide-y divide-[var(--border-soft)] px-3.5">
-            {round.matches.map((match) => (
-              <MatchRow key={match.id} match={match} />
-            ))}
-          </div>
-        )}
-      </div>
-    </TacticalSurface>
+      {matchCount === 0 ? (
+        <p className="border-t border-[var(--border-soft)] py-3 text-[var(--text-meta)] text-[var(--text-muted)]">
+          No matches in this round.
+        </p>
+      ) : (
+        <div className="divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
+          {round.matches.map((match) => (
+            <FixtureMatchRow key={match.id} match={match} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -206,7 +177,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-base font-semibold text-zinc-50">{period.title}</h2>
+          <h2 className="app-section">{period.title}</h2>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
             {counts.notGenerated > 0 && (
               <span>{counts.notGenerated} not generated</span>
@@ -215,9 +186,7 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
               <span className="text-[var(--warning)]">{counts.draft} draft</span>
             )}
             {counts.ready > 0 && (
-              <span className="text-[var(--accent-strong)]">
-                {counts.ready} ready
-              </span>
+              <span>{counts.ready} ready</span>
             )}
             {counts.finalized > 0 && (
               <span>{counts.finalized} finalized</span>
@@ -313,12 +282,12 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Fixtures"
-        description="League seasons, rounds, and matches. Open a round for squad work."
+        title="League"
+        description="Seasons, rounds and matches. Open a round for squad work."
         actions={
           <Link
             href={`/o/${orgSlug}/teams`}
-            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
           >
             League teams
           </Link>
@@ -344,7 +313,7 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
           </select>
           <a
             href={`/o/${orgSlug}/matches/new`}
-            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
           >
             Create match
           </a>
@@ -355,7 +324,7 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
         <div className="flex flex-wrap items-center gap-2">
           <a
             href={`/o/${orgSlug}/matches/new`}
-            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
           >
             Create match
           </a>

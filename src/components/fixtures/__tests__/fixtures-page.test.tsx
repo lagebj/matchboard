@@ -205,7 +205,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Review board")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /round board/i })).toBeInTheDocument();
       expect(screen.queryByText("Finalise in board")).not.toBeInTheDocument();
     });
   });
