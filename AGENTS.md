@@ -3974,7 +3974,7 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/formations/normalize.ts` | `findFormationDataIssues()` — formation data validation/normalization |
 | `src/lib/formations/seed.ts` | `seedSystemFormations()` — DB seeding from system-formations data |
 | `src/components/formations/pitch-formation.tsx` | `PitchFormationBuilder` (editor), `PitchLineupView` (lineup), `SlotEditDialog` |
-| `src/components/formations/player-picker.tsx` | `PlayerPicker` dialog for slot assignment |
+| `src/components/formations/player-picker.tsx` | `PlayerPicker` dialog for slot assignment — shows exact positional fit per candidate (`classifyExactSuitability`), orders by tier, gates an `UNSUPPORTED` pick behind the `Use outside automatic positional fit?` confirmation (ADR-0129 §04) |
 | `src/components/formations/formations-builder.tsx` | `FormationsBuilderClient` — create/edit formation page component |
 | `src/components/matches/match-tactics-panel.tsx` | `MatchTacticsPanel` — tactics tab in match detail |
 | `src/app/(app)/rules/formation-actions.ts` | Server actions: CRUD for formations and slots, duplicate, archive |

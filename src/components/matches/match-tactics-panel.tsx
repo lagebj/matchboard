@@ -4,7 +4,6 @@ import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PitchLineupView } from "@/components/formations/pitch-formation";
 import { PlayerPicker } from "@/components/formations/player-picker";
-import { getPlayerSlotCompatibility } from "@/lib/formations/lineup-compatibility";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -385,19 +384,8 @@ export function MatchTacticsPanel({
     playerPool.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
   );
 
-  const pickerCompatiblePlayers = pickerState
-    ? playerPool.map((p) => {
-        const compat = getPlayerSlotCompatibility(
-          { playerId: p.id, primaryPosition: p.primaryPosition, secondaryPositions: p.secondaryPosition ? [p.secondaryPosition] : [] },
-          { id: pickerState.slotId, gridX: 0, gridY: 0, label: pickerState.slotLabel, shortLabel: "", roleType: "MIDFIELDER" as const, acceptedPositionIds: pickerState.acceptedPositions, sortOrder: 0 },
-        );
-        return { ...p, isCompatible: compat.isCompatible, compatibilityReason: compat.compatibilityReason };
-      }).sort((a, b) => {
-        if (a.isCompatible && !b.isCompatible) return -1;
-        if (!a.isCompatible && b.isCompatible) return 1;
-        return (a.firstName + " " + (a.lastName ?? "")).localeCompare(b.firstName + " " + (b.lastName ?? ""));
-      })
-    : [];
+  // PlayerPicker classifies exact positional fit and orders candidates itself (ADR-0129 §04).
+  const pickerCompatiblePlayers = pickerState ? playerPool : [];
 
   if (!loaded) {
     return (
@@ -711,18 +699,22 @@ export function MatchTacticsPanel({
             firstName: p.firstName,
             lastName: p.lastName,
             primaryPosition: p.primaryPosition,
+            secondaryPosition: p.secondaryPosition,
             coreTeamName: p.coreTeamName,
           }))}
-          slot={{
-            id: pickerState.slotId,
-            gridX: 0,
-            gridY: 0,
-            label: pickerState.slotLabel,
-            shortLabel: pickerState.slotLabel.split(" ")[0]?.slice(0, 4) ?? "",
-            roleType: (slots.find((s) => s.id === pickerState.slotId)?.roleType ?? "FREE") as FormationSlotRoleType,
-            acceptedPositionIds: pickerState.acceptedPositions,
-            sortOrder: 0,
-          }}
+          slot={(() => {
+            const s = slots.find((s) => s.id === pickerState.slotId);
+            return {
+              id: pickerState.slotId,
+              gridX: s?.gridX ?? 2,
+              gridY: s?.gridY ?? 2,
+              label: pickerState.slotLabel,
+              shortLabel: pickerState.slotLabel.split(" ")[0]?.slice(0, 4) ?? "",
+              roleType: (s?.roleType ?? "FREE") as FormationSlotRoleType,
+              acceptedPositionIds: pickerState.acceptedPositions,
+              sortOrder: 0,
+            };
+          })()}
           assignedPlayerIds={assignedPlayerIds}
           currentAssignedPlayer={currentAssignedPlayerInfo}
           onSelect={handlePlayerSelect}
