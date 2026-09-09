@@ -9,6 +9,19 @@ import { assertEligibleEventMatchPlayer, getEligibleEventMatchPlayers } from '@/
 import { getUnavailableParticipantIdsForMatch } from '@/lib/events/event-match-availability';
 import { getEffectiveEventSquadFormationId } from '@/lib/events/event-types';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { isEventMatchLineupEditable } from '@/lib/events/event-planning-boundary';
+
+/**
+ * The sole Event line-up editability gate (ARR-0038 / C2): the real planning boundary, shared
+ * with League via `isPlanningBoundaryClosed`. There is no `EventMatchLineup.status`-based check
+ * — nothing writes `CONFIRMED`, and a status check could also wrongly block an open match.
+ */
+async function requireEventLineupEditable(eventMatchId: string): Promise<void> {
+  const boundary = await isEventMatchLineupEditable(eventMatchId);
+  if (!boundary.editable) {
+    throw new Error(boundary.reason ?? 'Planning is closed for this event match.');
+  }
+}
 
 async function requireMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
   if (orgFilter.type !== 'org') {
@@ -80,6 +93,7 @@ export async function createEventMatchLineup(input: {
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   const { eventId } = await requireMatchOrgAccess(input.eventMatchId, ctx.orgFilter);
+  await requireEventLineupEditable(input.eventMatchId);
 
   const existing = await db.eventMatchLineup.findUnique({
     where: { eventMatchId: input.eventMatchId },
@@ -165,7 +179,8 @@ export async function assignPlayerToLineupSlot(
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
-  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventMatchId, eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  await requireEventLineupEditable(eventMatchId);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -222,7 +237,8 @@ export async function removePlayerFromLineupSlot(assignmentId: string) {
   });
 
   if (!assignment) throw new Error('Assignment not found');
-  await requireLineupOrgAccess(assignment.lineupId, ctx.orgFilter);
+  const { eventMatchId } = await requireLineupOrgAccess(assignment.lineupId, ctx.orgFilter);
+  await requireEventLineupEditable(eventMatchId);
 
   const eventId = assignment.lineup.eventMatch.eventId;
 
@@ -239,7 +255,8 @@ export async function clearEventMatchLineup(lineupId: string) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
-  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventMatchId, eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  await requireEventLineupEditable(eventMatchId);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -260,7 +277,8 @@ export async function deleteEventMatchLineup(lineupId: string) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
-  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventMatchId, eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  await requireEventLineupEditable(eventMatchId);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -284,7 +302,8 @@ export async function changeEventMatchLineupFormation(lineupId: string, formatio
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
-  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventMatchId, eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  await requireEventLineupEditable(eventMatchId);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -348,7 +367,8 @@ export async function autoFillEventMatchLineup(lineupId: string) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
-  const { eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  const { eventMatchId, eventId } = await requireLineupOrgAccess(lineupId, ctx.orgFilter);
+  await requireEventLineupEditable(eventMatchId);
 
   const lineup = await db.eventMatchLineup.findUnique({
     where: { id: lineupId },
@@ -521,6 +541,19 @@ export async function getEligibleEventMatchPlayersAction(eventMatchId: string) {
   await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
 
   return getEligibleEventMatchPlayers(eventMatchId, ctx.orgFilter);
+}
+
+/**
+ * Editability of this event match's line-up per the real planning boundary (ARR-0038 / C2) —
+ * for driving read-only UI state. Server-side mutations independently enforce the same via
+ * `requireEventLineupEditable`; a disabled control is not the gate.
+ */
+export async function getEventMatchLineupEditableAction(eventMatchId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  await requireMatchOrgAccess(eventMatchId, ctx.orgFilter);
+
+  return isEventMatchLineupEditable(eventMatchId);
 }
 
 export async function getAvailableFormations(gameFormat: string) {

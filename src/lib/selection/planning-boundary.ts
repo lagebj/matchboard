@@ -8,12 +8,61 @@ export type PlanningBoundaryResult = {
 };
 
 /**
- * The single mutability gate for pre-match plan mutation (ADR-0109). Round-level `FINALIZED`
- * status is deliberately NOT consulted here — it is a downstream side effect of every
- * constituent match's own boundary closing (Migration Rule #8: a persisted round status must not
- * be the canonical gate). Kickoff passing is a real closing condition, not a warning: this
- * function performs the boundary capture itself, lazily and idempotently, the first time it
- * observes the boundary has closed (Migration Rule #5/#6; PRINCIPLES.md #16).
+ * The real-world facts a pre-match planning boundary is derived from. Shared by the League
+ * `Match` adapter (`isMatchPlanningEditable`) and the Event `EventMatch` adapter
+ * (`isEventMatchLineupEditable`, `src/lib/events/event-planning-boundary.ts`) so both containers
+ * reason from ONE definition (ARR-0038 / Consolidation Programme C2). Intentional differences
+ * stay in the adapters, not here:
+ *  - League passes its persisted `planningClosedAt` marker (the historical baseline was frozen);
+ *    Event has nothing to freeze (no Selection/MovementLedger/round), so it always passes `null`.
+ *  - Event passes `reportStatus` (a completed/started Event report closes lineup editing); League
+ *    omits it because a League report only ever exists after the boundary already closed.
+ */
+export type PlanningBoundaryFacts = {
+  /** `Match.status` / `EventMatch.status` — only `"CANCELLED"` is significant here. */
+  matchStatus: string;
+  startsAt: Date | string | null;
+  /** League's persisted close marker; `null`/omitted for Event. */
+  planningClosedAt?: Date | string | null;
+  /** Linked live-session status — `"ACTIVE"` closes the boundary. */
+  liveSessionStatus?: string | null;
+  /** Event only: a `"DRAFT"` / `"REPORTED"` / `"LOCKED"` post-match report closes lineup editing. */
+  reportStatus?: "NONE" | "DRAFT" | "REPORTED" | "LOCKED" | null;
+  now?: Date;
+};
+
+/**
+ * Pure boundary decision — no DB, no side effects. Callers that own a real record layer the
+ * lazy baseline capture around this (see `isMatchPlanningEditable`).
+ */
+export function isPlanningBoundaryClosed(facts: PlanningBoundaryFacts): PlanningBoundaryResult {
+  const now = facts.now ?? new Date();
+
+  if (facts.matchStatus === "CANCELLED") {
+    return { editable: false, reason: "Cannot edit planning for a cancelled match." };
+  }
+  if (facts.planningClosedAt) {
+    return { editable: false, reason: "Planning is closed for this match." };
+  }
+  if (facts.liveSessionStatus === "ACTIVE") {
+    return { editable: false, reason: "Cannot edit planning for a match that has started live reporting." };
+  }
+  if (facts.reportStatus && facts.reportStatus !== "NONE") {
+    return { editable: false, reason: "Planning is closed — a post-match report exists for this match." };
+  }
+  if (facts.startsAt && new Date(facts.startsAt) <= now) {
+    return { editable: false, reason: "Scheduled kickoff has passed. Planning is closed for this match." };
+  }
+  return { editable: true };
+}
+
+/**
+ * The single mutability gate for pre-match plan mutation on a League `Match` (ADR-0109).
+ * Round-level `FINALIZED` status is deliberately NOT consulted here — it is a downstream side
+ * effect of every constituent match's own boundary closing (Migration Rule #8: a persisted round
+ * status must not be the canonical gate). Kickoff passing is a real closing condition, not a
+ * warning: this function performs the boundary capture itself, lazily and idempotently, the
+ * first time it observes the boundary has closed (Migration Rule #5/#6; PRINCIPLES.md #16).
  */
 export async function isMatchPlanningEditable(matchId: string, options?: { now?: Date }): Promise<PlanningBoundaryResult> {
   const now = options?.now ?? new Date();
@@ -33,25 +82,26 @@ export async function isMatchPlanningEditable(matchId: string, options?: { now?:
     return { editable: false, reason: "Match not found." };
   }
 
-  if (match.status === "CANCELLED") {
-    return { editable: false, reason: "Cannot edit planning for a cancelled match." };
-  }
+  const result = isPlanningBoundaryClosed({
+    matchStatus: match.status,
+    startsAt: match.startsAt,
+    planningClosedAt: match.planningClosedAt,
+    liveSessionStatus: match.liveSession?.status ?? null,
+    now,
+  });
 
-  if (match.planningClosedAt) {
-    return { editable: false, reason: "Planning is closed for this match." };
-  }
-
-  if (match.liveSession?.status === "ACTIVE") {
+  // Kickoff passing / live start is a real closing condition — capture the historical baseline
+  // lazily and idempotently the first time we observe it (only when not already captured).
+  if (
+    !result.editable &&
+    !match.planningClosedAt &&
+    match.status !== "CANCELLED" &&
+    (match.liveSession?.status === "ACTIVE" || (match.startsAt && new Date(match.startsAt) <= now))
+  ) {
     await ensureMatchPlanningBaselineCaptured(matchId, { now });
-    return { editable: false, reason: "Cannot edit planning for a match that has started live reporting." };
   }
 
-  if (match.startsAt && new Date(match.startsAt) <= now) {
-    await ensureMatchPlanningBaselineCaptured(matchId, { now });
-    return { editable: false, reason: "Scheduled kickoff has passed. Planning is closed for this match." };
-  }
-
-  return { editable: true };
+  return result;
 }
 
 /**
