@@ -24,7 +24,20 @@ export default async function ReviewsPage({ params }: { params: Promise<{ orgSlu
   const reviews = await db.reviewRequest.findMany({
     where: { organisationId: ctx.organisationId },
     orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      targetType: true,
+      targetId: true,
+      targetRevision: true,
+      status: true,
+      requestMessage: true,
+      reviewerComment: true,
+      resolvedAt: true,
+      createdAt: true,
+      requestedByMembershipId: true,
+      reviewerMembershipId: true,
+    },
   });
 
-  return <ReviewListClient reviews={reviews} />;
+  return <ReviewListClient reviews={reviews} myMembershipId={membership.id} />;
 }
