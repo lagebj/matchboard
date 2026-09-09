@@ -2,8 +2,8 @@
 
 ## State
 
-Open. Recorded, not resolved. Pre-existing residue — not introduced by the Adaptive UX/UI
-programme (ADR-0124); found during that programme's Phase 9 stale-guidance sweep.
+Resolved — Consolidation Programme C1b, 2026-09-09. Implements ADR-0109 (no new ADR needed — the
+decision already exists; this is unfinished implementation of it). See "Resolution".
 
 ## Identified
 
@@ -65,3 +65,31 @@ implementation-completion of ADR-0109), not an inline edit in an ADR-0124 PR.
 - `getRoundReview().finalizeable` and `DecisionAction`'s `FINALIZE` value are removed or
   repurposed, with no remaining caller implying a coach finalizes a round.
 - An ADR entry (amending ADR-0109) records the decision about the Round Review route's fate.
+
+## Resolution
+
+`round-review-page.tsx` is now a **read-only plan-integrity review surface**. Removed: the
+`DecisionPanel action="FINALIZE"` ("Finalise round") block, the disabled "Finalize (conditions
+require review)" button, the "Override and finalize with reason" button, and the entire
+override-reason modal (which called `createDecision({ action: "OVERRIDE_BLOCKER" })` — a no-op
+audit write dressed as finalization). The page keeps team readiness + live plan-integrity
+signals, and its summary line now states plainly that the round becomes historical automatically
+at the planning boundary with no finalise step; when conditions remain it links to the Round
+Board (where the ADR-0109 path — a manual edit's own override reason — actually lives).
+
+- `RoundReview.finalizeable` removed from `src/domain/assistant-manager/types.ts` and both
+  `getRoundReview()` return sites in `service.ts`. `blockedConditionCount` /
+  `decisionRequiredCount` already carried the same information.
+- `DecisionAction`'s `"FINALIZE"` removed from the union (nothing emits it after this change; a
+  comment notes historical `DecisionRecord.action` string rows may still carry it — the column
+  is a plain string, so old data is unaffected).
+- `service.test.ts` updated (the `recordDecision` persistence test now uses `"OVERRIDE_BLOCKER"`;
+  the `getRoundReview` default test asserts `decisionRequiredCount` instead of `finalizeable`).
+- `AGENTS.md`'s Workflow overview ("finalizes one round at a time") corrected to the ADR-0109
+  boundary-close wording. `features/matchboard.feature` and `docs/product/glossary.md` already
+  asserted the *absence* of a coach finalise action — the code now matches them.
+
+No new ADR: ADR-0109 already decided "round/match finalization is not a coach action"; this
+completes its implementation. `docs/product/adaptive-interaction-design.md` already lists
+"reintroducing a coach-operated Finalise round / Finalise match action" as an anti-pattern —
+unchanged.

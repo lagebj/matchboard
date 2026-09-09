@@ -93,7 +93,6 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
       openIssueIds: [],
       blockedConditionCount: 0,
       decisionRequiredCount: 0,
-      finalizeable: true,
     };
   }
 
@@ -180,7 +179,6 @@ export async function getRoundReview(roundId: string): Promise<RoundReview> {
     openIssueIds: [],
     blockedConditionCount: blockedConditions.length,
     decisionRequiredCount: decisionRequiredConditions.length,
-    finalizeable: blockedConditions.length === 0 && decisionRequiredConditions.length === 0,
   };
 }
 
