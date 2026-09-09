@@ -2418,13 +2418,27 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
-### Adaptive interaction design (ADR-0124, ADR-0125)
+### Adaptive interaction design (ADR-0124, ADR-0125) — see Product Surface 1.0 (ADR-0130)
 
-Canonical detail: `docs/product/adaptive-interaction-design.md`. This section is the concise
-normative rule; if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
-ADR-0125 (reference-convergence precision pass) sharpens the match grammar into a projection +
-three variants, makes the Operational Timeline a required structural element, and adds a seventh
-evidence primitive.
+**Product Surface 1.0 (ADR-0130) supersedes conflicting presentation doctrine in this
+section.** Retained from ADR-0124/0125: same-domain-truth across viewports; one canonical
+`MatchPresentation` and Operational Timeline; the five breakpoint tokens; accessibility;
+no drag-only workflow; PWA/safe-area handling; temporal Today/Events composition. Superseded by
+ADR-0130: result colouring (a loss is not danger red, a win is not a success fill; `--danger`
+is destructive/error/blocking only; `--live` is its own colour), the fixed "three match
+variants" and "seven visualization primitives" counts (now four variants / nine primitives,
+neither permanent), the pitch-line background (now a solid canvas + one subtle radial), the
+warm palette (now cool `--foreground #f2f5f7` / cool hairlines / solid surfaces), and scattered
+fixed pixel measurements. The normative token set is `src/app/globals.css` `:root` — new tokens
+`--surface-strong`, `--surface-overlay`, `--live`/`--live-subtle`, `--focus`,
+`--radius-micro/control/object/overlay`, `--motion-fast/standard/overlay/ease`,
+`--space-1…--space-12`, `--text-section`, `--text-score-header`; older names
+(`--surface-tactical`, `--surface-hero`, `--radius-xs…lg`, `--transition-*`, `--blocking`,
+`--border-pitch`, …) are kept as compatibility aliases while surfaces migrate phase by phase.
+
+Canonical detail: `docs/product/adaptive-interaction-design.md` (rewritten as the Product
+Surface 1.0 reference in the programme's Phase 11). This section is the concise normative rule;
+if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
 
 - **Governing principle: same domain state, different composition for the user's context.**
   Compact UI is a purpose-built composition of the same canonical state, never the desktop

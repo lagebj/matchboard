@@ -1,66 +1,83 @@
 @import "tailwindcss";
 
 /* -----------------------------------------------------------------------------
- * Matchboard tokens — tactical cockpit design system
+ * Matchboard — Product Surface 1.0 tokens (ADR-0130)
  *
- * A premium, professional football operations cockpit.
- * Deep navy/graphite base with subtle tactical texture.
- * Hairline borders; background/surface layers do the heavy lifting.
- * Strong, accessible focus rings. Calm semantic colour palette.
+ * Calm, dense-when-scanning, spacious-when-deciding, clearly football-oriented.
+ * Solid deep navy/graphite canvas (no repeating pitch-line texture). Hairline
+ * borders; background/surface layers do the heavy lifting. Neutral final-score
+ * colour — a loss is not a danger state, a win is not a workflow success.
  *
- * Visual levels:
- *   background → base surface → raised surface → tactical surface → hero surface
- *
- * Do not introduce new gradient surfaces, neon, or saturated fills
- * without amending this token set.
+ * Values are the normative set from the Productification programme's
+ * data/product-surface-tokens.css. Older token names are kept as compatibility
+ * aliases (see the block below) so existing consumers keep resolving while
+ * surfaces migrate to the new system phase by phase. Do not add new gradient
+ * surfaces, neon, saturated fills or a light mode without amending ADR-0130.
  * -------------------------------------------------------------------------- */
 
 :root {
-  /* Deep navy/graphite base — not flat black */
-  --background: #0c1019;
-  --foreground: #e8e2d4;
+  --background: #0b0f17;
+  --foreground: #f2f5f7;
 
-  /* Surface hierarchy — background contrast, not border dominance */
-  --surface-base: rgba(18, 24, 36, 0.82);
-  --surface-raised: rgba(26, 34, 50, 0.94);
-  --surface-muted: rgba(32, 42, 58, 0.50);
-  --surface-hover: rgba(42, 54, 74, 0.50);
-  /* Tactical surface — slightly warmer, for board/column backgrounds */
-  --surface-tactical: rgba(22, 30, 44, 0.88);
-  /* Hero surface — for primary hero panels, subtly elevated */
-  --surface-hero: rgba(28, 36, 52, 0.96);
+  /* Surface hierarchy — solid, background-contrast driven */
+  --surface-base: #101722;
+  --surface-raised: #151e2c;
+  --surface-strong: #1a2535;
+  --surface-hover: #1c2838;
+  --surface-overlay: rgba(8, 12, 18, 0.94);
 
-  /* Borders — tactical hairlines */
-  --border-soft: rgba(188, 180, 168, 0.07);
-  --border-strong: rgba(188, 180, 168, 0.15);
-  /* Pitch line — subtle grid/pitch accent, very low opacity */
-  --border-pitch: rgba(140, 167, 146, 0.06);
+  /* Borders — cool hairlines */
+  --border-soft: rgba(226, 232, 240, 0.08);
+  --border-strong: rgba(226, 232, 240, 0.14);
 
   /* Text */
-  --text-muted: #8a93a4;
-  --text-soft: #bcc5d1;
-  --text-disabled: #4d5565;
+  --text-soft: #b8c1cd;
+  --text-muted: #7f8b9c;
+  --text-disabled: #566171;
 
-  /* Semantic palette — calm, slightly desaturated, professional */
-  --accent: #8ca792;
-  --accent-strong: #c7dbc6;
-  --accent-subtle: rgba(140, 167, 146, 0.14);
-  --warning: #d0b07f;
-  --warning-subtle: rgba(208, 176, 127, 0.13);
-  --danger: #c0776e;
-  --danger-subtle: rgba(192, 119, 110, 0.13);
-  --info: #6a99db;
-  --info-subtle: rgba(106, 153, 219, 0.12);
-  --blocking: #c76a5b;
-  --blocking-subtle: rgba(199, 106, 91, 0.15);
-  --dev: #b28cdb;
-  --dev-subtle: rgba(178, 140, 219, 0.12);
-  /* Success — calm green, same hue family as accent but distinct */
-  --success: #7dba86;
-  --success-subtle: rgba(125, 186, 134, 0.12);
-  /* Locked/finalized — cool slate */
-  --locked: #7b8a9e;
-  --locked-subtle: rgba(123, 138, 158, 0.14);
+  /* Semantic palette. Own-team identity is a subtle accent, never an outcome. */
+  --accent: #8fb49a;
+  --accent-strong: #d2e1d4;
+  --accent-subtle: rgba(143, 180, 154, 0.14);
+  --info: #79a6e0;
+  --info-subtle: rgba(121, 166, 224, 0.13);
+  --warning: #d4b477;
+  --warning-subtle: rgba(212, 180, 119, 0.13);
+  /* Danger is ONLY destructive/error/blocking — never a loss colour. */
+  --danger: #d2776e;
+  --danger-subtle: rgba(210, 119, 110, 0.13);
+  /* Live has its own explicit colour, distinct from danger. */
+  --live: #ef6464;
+  --live-subtle: rgba(239, 100, 100, 0.13);
+  /* Success is workflow/action success — never a win colour. */
+  --success: #7ebc8d;
+  --success-subtle: rgba(126, 188, 141, 0.12);
+  --dev: #b39add;
+  --dev-subtle: rgba(179, 154, 221, 0.12);
+  --focus: #93b7ff;
+
+  /* Radius */
+  --radius-micro: 6px;   /* micro / status chips */
+  --radius-control: 8px; /* buttons, inputs, controls */
+  --radius-object: 12px; /* coherent object card */
+  --radius-overlay: 16px;/* modal / sheet */
+
+  /* Motion */
+  --motion-fast: 150ms;      /* state / hover */
+  --motion-standard: 200ms;  /* local panel / row */
+  --motion-overlay: 260ms;   /* sheet / drawer */
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Spacing scale (4 8 12 16 20 24 32 40 48) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
 
   /* Layout */
   --sidebar-width: 14rem;
@@ -68,30 +85,58 @@
   --topbar-height: 3.25rem;
   --inspector-width: 22rem;
 
-  /* Radius scale */
-  --radius-xs: 0.375rem;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-
-  /* Compact metric transition */
-  --transition-fast: 140ms ease;
-  --transition-smooth: 200ms ease-out;
-  --transition-lift: 180ms ease-out;
-
-  /* Adaptive typography scale (ADR-0124 §8 / docs/product/adaptive-interaction-design.md §5).
-     Reduce information density, not font size. Never use routine sub-11px UI text. */
-  --text-value: 1.75rem;       /* 28px — primary score/value (24–32 range) */
-  --text-value-sm: 1.375rem;   /* 22px — compact primary value */
-  --text-title: 1.375rem;      /* 22px — page title (20–24 range) */
-  --text-row-title: 1rem;      /* 16px — object/row title (15–17 range) */
+  /* Typography scale (ADR-0130 §8). Reduce density, not font size — no routine
+     sub-11px UI text. Compact values; expanded overrides below. */
+  --text-title: 1.375rem;      /* 22px — page title */
+  --text-section: 1.0625rem;   /* 17px — section heading */
+  --text-row-title: 0.9375rem; /* 15px — object/row/team title (15–16) */
   --text-body: 0.9375rem;      /* 15px — body */
-  --text-meta: 0.8125rem;      /* 13px — secondary/meta (12–13 range) */
-  --text-micro: 0.6875rem;     /* 11px — exceptional micro-label floor */
+  --text-meta: 0.8125rem;      /* 13px — secondary/meta (12–13) */
+  --text-micro: 0.6875rem;     /* 11px — micro-label floor */
+  --text-value: 1.375rem;      /* 22px — dense list score */
+  --text-score-header: 2.125rem;/* 34px — match-header score */
+  --text-value-sm: 1.375rem;   /* legacy alias for --text-value */
+
+  /* Compat aliases — older token names → Product Surface 1.0 values.
+     Prefer the names above in new/migrated code. */
+  --surface-muted: var(--surface-base);
+  --surface-tactical: var(--surface-base);
+  --surface-hero: var(--surface-raised);
+  --surface: var(--surface-base);
+  --surface-default: var(--surface-base);
+  --border: var(--border-soft);
+  --border-subtle: var(--border-soft);
+  --border-pitch: var(--border-soft);
+  --accent-hover: var(--accent);
+  --accent-soft: var(--accent-subtle);
+  --blocking: var(--danger);
+  --blocking-subtle: var(--danger-subtle);
+  --locked: #7b8a9e;
+  --locked-subtle: rgba(123, 138, 158, 0.14);
+  --text-primary: var(--foreground);
+  --text-strong: var(--foreground);
+  --text-error: var(--danger);
+  --radius-xs: var(--radius-micro);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-object);
+  --radius-lg: var(--radius-overlay);
+  --transition-fast: var(--motion-fast) var(--motion-ease);
+  --transition-smooth: var(--motion-standard) var(--motion-ease);
+  --transition-lift: var(--motion-standard) var(--motion-ease);
 
   /* Clearance for content/sticky actions above the fixed compact bottom nav +
      the device safe-area inset. Zero at medium+ where the bottom nav is gone. */
   --nav-clearance: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 840px) {
+  :root {
+    --text-title: 1.5rem;        /* 24px */
+    --text-section: 1.125rem;    /* 18px */
+    --text-row-title: 1rem;      /* 16px */
+    --text-value: 1.5rem;        /* 24px — dense list score */
+    --text-score-header: 2.5rem; /* 40px — match-header score */
+  }
 }
 
 @media (min-width: 600px) {
@@ -118,12 +163,15 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-info: var(--info);
+  --color-live: var(--live);
   --color-blocking: var(--blocking);
   --color-dev: var(--dev);
   --color-success: var(--success);
   --color-locked: var(--locked);
+  --color-focus: var(--focus);
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
+  --color-surface-strong: var(--surface-strong);
   --color-surface-muted: var(--surface-muted);
   --color-surface-hover: var(--surface-hover);
   --color-surface-tactical: var(--surface-tactical);
@@ -142,26 +190,15 @@ html {
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
-  /* Deep navy base with subtle tactical texture — pitch lines suggest the pitch,
-     radial accents suggest floodlight, both at near-zero opacity for atmosphere
-     without reducing readability. */
+  /* Solid deep navy/graphite canvas with ONE very subtle radial atmosphere
+     (ADR-0130 §4) — no repeating pitch-line texture, no ordinary-card gradients
+     or glows. */
   background-image:
-    /* Subtle floodlight radial accents — warm glow top-left, cool glow bottom-right */
-    radial-gradient(ellipse 60% 40% at 6% 2%, rgba(140, 167, 146, 0.05), transparent 50%),
-    radial-gradient(ellipse 50% 35% at 94% 98%, rgba(60, 90, 140, 0.05), transparent 45%),
-    /* Vertical pitch-line texture — very faint, horizontal hints */
-    repeating-linear-gradient(
-      180deg,
-      transparent 0px,
-      transparent 59px,
-      rgba(140, 167, 146, 0.018) 59px,
-      rgba(140, 167, 146, 0.018) 60px
-    ),
-    /* Base gradient */
-    linear-gradient(180deg, #0f1420 0%, #0c1019 100%);
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(143, 180, 154, 0.04), transparent 60%);
+  background-attachment: fixed;
   font-feature-settings:
     "ss01",
     "cv01",
@@ -170,8 +207,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Reduced motion users: pitch lines and backgrounds remain (they don't animate),
-   but any motion transitions are disabled. */
+/* Reduced motion: keep static backgrounds, disable motion transitions. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -181,8 +217,8 @@ body {
 }
 
 ::selection {
-  background: rgba(140, 167, 146, 0.3);
-  color: #f5f1e8;
+  background: var(--accent-subtle);
+  color: var(--foreground);
 }
 
 /* Focus — visible, accessible, calm */
@@ -190,8 +226,8 @@ body {
   outline: none;
   box-shadow:
     0 0 0 2px var(--background),
-    0 0 0 4px color-mix(in srgb, var(--accent) 70%, transparent);
-  border-radius: var(--radius-sm);
+    0 0 0 4px color-mix(in srgb, var(--focus) 78%, transparent);
+  border-radius: var(--radius-control);
 }
 
 a,
@@ -200,12 +236,12 @@ input,
 select,
 textarea {
   transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast),
-    color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    opacity var(--transition-fast),
-    transform var(--transition-fast);
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    opacity var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
 }
 
 /* Form controls */
@@ -239,6 +275,12 @@ textarea:disabled {
   letter-spacing: -0.01em;
   color: var(--foreground);
 }
+.app-section {
+  font-size: var(--text-section);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+}
 .app-row-title {
   font-size: var(--text-row-title);
   font-weight: 550;
@@ -250,6 +292,14 @@ textarea:disabled {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;
+}
+/* Match-header score — the one large score treatment (ADR-0130 §8). */
+.app-score-header {
+  font-size: var(--text-score-header);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 /* Tabular numerals for score/time/minutes columns */
 .app-nums {
@@ -283,7 +333,7 @@ textarea:disabled {
   padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
   margin-inline: -1rem;
   border-top: 1px solid var(--border-soft);
-  background: rgba(10, 13, 19, 0.94);
+  background: var(--surface-overlay);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -334,7 +384,7 @@ textarea:disabled {
   right: 0;
   z-index: 40;
   border-top: 1px solid var(--border-soft);
-  background: rgba(10, 13, 19, 0.96);
+  background: var(--surface-overlay);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Standalone PWA on notched phones: keep the nav row above the home
