@@ -686,6 +686,18 @@ algorithms. See ADR-0104.
   with a reason code, e.g. `NO_EVIDENCE_SEASON`, when no evidence season resolves). Returns a
   structured `APPLIED`/`SKIPPED`/`FAILED` result per evidence type — no step's failure blocks
   report completion or another step, and re-running is always safe (idempotent upserts/rebuilds).
+- **Every run is recorded as an observable `PostMatchLearningRun` (ADR-0127).**
+  `runPostMatchLearning(ref, orgFilter, trigger)` best-effort writes one row per run
+  (`trigger` = `REPORT_COMPLETION` | `REPLAY` | `RECONCILE`; `overallOutcome` =
+  `summariseLearningOutcome(result)`; `steps` = the per-step result JSON; dual nullable
+  `matchId`/`eventMatchId` FK + `CHECK`). The write is itself best-effort so a persist failure
+  never turns a swallowed learning failure into a completion failure. `completeReport()` /
+  `completeEventReport()` return the result as an optional `learning` field (still non-blocking).
+  `replayPostMatchLearningHistory()` tags runs `REPLAY` and accepts
+  `{ matchId } | { eventMatchId } | { failedOnly }` — `failedOnly` re-runs only matches whose
+  latest run is `FAILED` or missing. The integrity audit's `POST_MATCH_LEARNING` domain flags a
+  LOCKED report whose latest run is `FAILED`/absent (`REVIEW`, `AUTO_SAFE` — re-run with
+  `failedOnly: true`). A learning failure is never surfaced to a coach as an error.
 - Generalized models use nullable dual-FK + discriminator, matching the pattern already
   established by `PlayerDevelopmentObservation.sourceType`: `matchId String?` /
   `eventMatchId String?` with a `CHECK` constraint enforcing exactly one is set. Applied to
@@ -3631,7 +3643,7 @@ Avoid:
 | `src/lib/opponents/playing-style-query.ts` | DB-bound `getOpponentTacticalTendencies()`/`getOpponentTendencyOutcomes()` (ADR-0114) |
 | `src/lib/evidence/post-match-learning-replay.ts` | Historical catch-up: `replayPostMatchLearningHistory()` reprocesses every eligible completed match through `runPostMatchLearning()` (ADR-0114) |
 | `src/lib/evidence/date-range-filter.ts` | `startsAtRangeFilter()` — shared `{from,to}` → one Prisma range-filter merge, used by `post-match-learning-replay.ts` and `opponent-replay.ts` |
-| `src/lib/evidence/post-match-learning.ts` | `runPostMatchLearning(ref)` — the one shared post-match learning orchestrator used by League and Event report completion |
+| `src/lib/evidence/post-match-learning.ts` | `runPostMatchLearning(ref, orgFilter, trigger)` — the one shared post-match learning orchestrator used by League and Event report completion; writes an observable `PostMatchLearningRun` (ADR-0127); `summariseLearningOutcome()` |
 | `src/lib/evidence/adapters/league-evidence-adapter.ts` | Builds a League `FootballMatchRef` (`buildLeagueMatchRef`), resolving `leagueSeasonId` via the match's round |
 | `src/lib/evidence/adapters/event-evidence-adapter.ts` | Builds an Event `FootballMatchRef` (`buildEventMatchRef`), resolving `evidenceLeagueSeasonId` via football-group + date-range overlap (learning context only, never League competition membership) |
 | `src/lib/evidence/combination-topology.ts` | Derives all six canonical combination families (Partnership/Triangle/Line/Corridor/Functional Unit/Full Configuration) from the actual position timeline |

@@ -274,7 +274,16 @@ describe("Evidence-Informed Match Planning — Bundle 2 historical evidence", ()
       expect(result.details).toHaveLength(1);
       expect(result.details[0]!.sourceId).toBe(match.id);
       expect(result.details[0]!.kind).toBe("LEAGUE_MATCH");
-      expect(result.details[0]!.outcome).not.toBe("FAILED");
+      expect(["APPLIED", "SKIPPED"]).toContain(result.details[0]!.outcome);
+
+      // ADR-0127: a replay records an observable run tagged REPLAY.
+      const run = await testDb.postMatchLearningRun.findFirst({
+        where: { matchId: match.id },
+        orderBy: { runAt: "desc" },
+      });
+      expect(run).not.toBeNull();
+      expect(run!.trigger).toBe("REPLAY");
+      expect(run!.overallOutcome).toBe(result.details[0]!.outcome);
     });
   });
 });

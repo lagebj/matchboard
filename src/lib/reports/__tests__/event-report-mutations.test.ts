@@ -100,7 +100,7 @@ describe("completeEventReport (ARR-0030 resolution)", () => {
     expect(stillDraft!.status).toBe("DRAFT");
   });
 
-  it("completes a report with resolved attendance, resolves opponent identity, and runs post-match learning without throwing", async () => {
+  it("completes a report, resolves opponent identity, and records an observable post-match learning run", async () => {
     const { report, eventMatch } = await buildEventMatchWithReport({ attendance: "PRESENT" });
 
     const result = await completeEventReport(report.id, orgFilter);
@@ -115,6 +115,18 @@ describe("completeEventReport (ARR-0030 resolution)", () => {
 
     const resolvedMatch = await testDb.eventMatch.findUnique({ where: { id: eventMatch.id }, select: { opponentTeamId: true } });
     expect(resolvedMatch!.opponentTeamId).not.toBeNull();
+
+    // ADR-0127: learning outcome is returned AND persisted as an observable run.
+    expect(result.learning).toBeDefined();
+    const run = await testDb.postMatchLearningRun.findFirst({
+      where: { eventMatchId: eventMatch.id },
+      orderBy: { runAt: "desc" },
+    });
+    expect(run).not.toBeNull();
+    expect(run!.trigger).toBe("REPORT_COMPLETION");
+    expect(run!.matchId).toBeNull();
+    expect(["APPLIED", "SKIPPED", "FAILED"]).toContain(run!.overallOutcome);
+    expect(run!.steps).toEqual(result.learning);
   });
 
   it("refuses to complete a report that is already LOCKED", async () => {

@@ -41,12 +41,14 @@ test("completing a League post-match report via the real UI runs post-match lear
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Complete report" }).click();
 
-  // A LOCKED status pill is the user-visible proof that completeReport() (and therefore
-  // runPostMatchLearning()) ran to completion without throwing -- a learning-pipeline failure
-  // is swallowed internally (by design, ADR-0104: it must never block report completion), so
-  // this assertion is exactly the right level: report completion succeeding at all is the
-  // signal, not a specific evidence outcome (which depends on fixture data this throwaway
-  // match doesn't control, e.g. player ratings).
+  // This E2E's job is the real UI path reaching LOCKED. The authoritative, deterministic
+  // assertions on the learning OUTCOME (a `PostMatchLearningRun` row with the right
+  // trigger/outcome, per-step statuses, and the forced-failure-still-completes proof) live in
+  // the integration tests with controlled fixtures — `src/lib/evidence/__tests__/
+  // post-match-learning-pipeline.test.ts`, `src/lib/reports/__tests__/event-report-mutations.test.ts`,
+  // and `.../complete-report-learning-failure.test.ts` (ADR-0127). A learning failure never
+  // blocks completion (ADR-0104/ADR-0127), so a LOCKED pill here does not by itself prove the
+  // evidence succeeded — that's what the run record and those tests are for.
   // STATUS_LABEL.LOCKED renders as "Locked"; the pill's CSS uppercases it visually, so match
   // case-insensitively against the real DOM text rather than the rendered appearance.
   await expect(page.getByText(/^locked$/i)).toBeVisible({ timeout: 15_000 });

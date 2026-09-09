@@ -14,7 +14,15 @@ import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/te
 import { deriveInitialAttendance } from "@/lib/matches/attendance-derivation";
 
 export type ReportTransitionResult =
-  | { success: true; matchId: string }
+  | {
+      success: true;
+      matchId: string;
+      /**
+       * Only set by `completeReport()` — the non-blocking post-match learning outcome (ADR-0127).
+       * `undefined` means learning was not run in this transition (not that it failed).
+       */
+      learning?: import("@/lib/evidence/post-match-learning").PostMatchLearningResult;
+    }
   | { success: false; error: string };
 
 export async function seedReportFromFinalizedSquad(
@@ -724,6 +732,7 @@ export async function completeReport(
     const { resolveOpponentOnReportCompletion } = await import("@/lib/opponents/resolve-opponent");
     await resolveOpponentOnReportCompletion(report.matchId);
 
+    let learning: import("@/lib/evidence/post-match-learning").PostMatchLearningResult | undefined;
     try {
       const learningOrgFilter: OrgFilterMode = {
         type: "org",
@@ -734,14 +743,16 @@ export async function completeReport(
       const { buildLeagueMatchRef } = await import("@/lib/evidence/adapters/league-evidence-adapter");
       const { runPostMatchLearning } = await import("@/lib/evidence/post-match-learning");
       const ref = await buildLeagueMatchRef(report.matchId);
-      await runPostMatchLearning(ref, learningOrgFilter);
+      learning = await runPostMatchLearning(ref, learningOrgFilter, "REPORT_COMPLETION");
     } catch {
       // Post-match learning (opponent/player/combination evidence) must not block report
-      // completion — see ADR-0104. Failures are surfaced via runPostMatchLearning's own
-      // structured result to callers that want it, not by throwing here.
+      // completion — see ADR-0104/ADR-0127. Its authoritative outcome is the
+      // `PostMatchLearningRun` row `runPostMatchLearning` writes, plus the `learning` field
+      // below when it returned; a throw here (rare — the orchestrator catches per step) just
+      // leaves `learning` undefined.
     }
 
-    return { success: true, matchId: report.matchId };
+    return { success: true, matchId: report.matchId, learning };
   });
 }
 
