@@ -10,6 +10,19 @@ import { buildEntrypointArgs } from "./policy-metadata-utils.mjs";
 
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
 
+// `opa build -t wasm` is NOT byte-reproducible across host CPU architectures for identical Rego
+// (ARR-0037 — verified in CI). The committed artifact is canonical for ONE architecture: amd64
+// (`x64`), which is what GitHub's `ubuntu-24.04` runners and the `policy-verify` CI job use.
+// On any other architecture (an arm64 devcontainer / Apple Silicon), a rebuild-hash `DRIFT` on
+// a clean tree is EXPECTED, not a regression — so off the canonical arch it is reported as a
+// WARNING and does not fail the check. The deterministic stored-hash check and `opa build`
+// success (real Rego breakage) still hard-fail everywhere. `--strict` or a matching
+// `MATCHBOARD_POLICY_CANONICAL_ARCH` forces the hard failure regardless (used by CI).
+const CANONICAL_ARCH = process.env.MATCHBOARD_POLICY_CANONICAL_ARCH || "x64";
+const IS_CANONICAL_ARCH = process.arch === CANONICAL_ARCH;
+const STRICT = process.argv.includes("--strict");
+const ENFORCE_REBUILD_HASH = IS_CANONICAL_ARCH || STRICT;
+
 function isDeployablePack(packId) {
   const metadataPath = join(PACKS_DIR, packId, "policy-pack.json");
   if (!existsSync(metadataPath)) return false;
@@ -102,11 +115,22 @@ async function main() {
       const rebuiltHash = computeFileHash(rebuiltWasm);
 
       if (rebuiltHash !== currentHash) {
-        console.error(`  DRIFT: Rebuilt Wasm hash differs from committed artifact`);
+        const label = ENFORCE_REBUILD_HASH ? "DRIFT" : "DRIFT (expected off canonical arch)";
+        console.error(`  ${label}: Rebuilt Wasm hash differs from committed artifact`);
         console.error(`  Committed: ${currentHash}`);
         console.error(`  Rebuilt:   ${rebuiltHash}`);
-        console.error(`  Run 'npm run policy:sync' to update.`);
-        allVerified = false;
+        if (ENFORCE_REBUILD_HASH) {
+          console.error(`  Run 'npm run policy:sync' to update.`);
+          allVerified = false;
+        } else {
+          console.error(
+            `  Host arch is '${process.arch}', not the canonical '${CANONICAL_ARCH}' (ARR-0037): ` +
+              `opa build -t wasm is not byte-reproducible across architectures. The committed ` +
+              `artifact is verified by CI's amd64 policy-verify job. Do NOT run 'npm run ` +
+              `policy:sync' to "fix" this — it would commit a wrong-architecture artifact. ` +
+              `Behavioural equivalence still holds (opa build succeeded, entrypoints present).`,
+          );
+        }
       } else {
         console.log(`  VERIFIED: Committed Wasm matches fresh build`);
       }
@@ -127,7 +151,14 @@ async function main() {
   }
 
   console.log("\n=== Verification PASSED ===");
-  console.log("All committed Wasm artifacts are current and match fresh builds.");
+  if (!ENFORCE_REBUILD_HASH) {
+    console.log(
+      `(rebuild-hash comparison advisory only on '${process.arch}' — canonical arch is ` +
+        `'${CANONICAL_ARCH}', enforced by CI; stored-hash + opa build checks passed)`,
+    );
+  } else {
+    console.log("All committed Wasm artifacts are current and match fresh builds.");
+  }
 }
 
 main().catch((err) => {

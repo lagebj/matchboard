@@ -527,14 +527,14 @@ Runs on `http://localhost:3333`.
 | `npm run docker:down` | Stop local Postgres |
 | `npm run docker:reset` | Reset local Postgres (destroys data) |
 | `npm run policy:test` | Run policy pack tests |
-| `npm run policy:build` | Build Rego policy to Wasm |
-| `npm run policy:verify` | Verify policy artifacts |
+| `npm run policy:build` | Build Rego policy to Wasm (amd64 only — refuses on other hosts without `--force`, ARR-0037) |
+| `npm run policy:verify` | Verify policy artifacts. Rebuild-hash check is advisory on non-amd64 hosts (ARR-0037); CI runs it `--strict` on amd64 |
 | `npm run policy:validate` | Validate policy pack structure |
 | `npm run terminology:check` | Check terminology compliance |
 | `npm run security:check-sql` | Check for forbidden SQL patterns |
 | `npm run security:check-supply-chain` | Check supply chain security |
 | `npm run docs:check` | Check documentation consistency |
-| `npm run validate` | Run full validation suite |
+| `npm run validate` | Canonical local quality gate — runs every check, does not stop on first failure, prints a summary (`-- --fast` skips `test`+`build`) |
 | `swamp --no-telemetry model search --json` | List discoverable verification/investigation procedures (see docs/development/swamp-workflows.md) |
 
 ## Source of truth

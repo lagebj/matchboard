@@ -2218,6 +2218,16 @@ See `docs/policies/README.md` and `docs/admin/policy-management.md` for full doc
 
 Rules: selection rules should go through the policy layer where appropriate. Core invariants remain in app code. Custom policies must not break historical integrity or youth-safe defaults. Never add proprietary policy DSL. Never let Rego override historical integrity or youth-safe defaults. Update policy docs and tests with every policy change. Run policy tests and build before completion.
 
+**Regenerating the compiled Wasm artifact (`policy:sync` / `policy:build*`) is amd64-only
+(ARR-0037).** `opa build -t wasm` is not byte-reproducible across host CPU architectures, and the
+committed artifact + its `wasmHash` in `policy-pack.json` are canonical for `linux/amd64`
+(`x64`) — the architecture CI's `policy-verify` job enforces. `policy:sync` / `policy:build*`
+refuse to run on a non-x64 host unless `--force`; on such a host `policy:verify`'s rebuild-hash
+comparison is advisory (an expected `DRIFT`, not a regression — see the "Quality checks must
+pass" section). If a policy change is made from a non-amd64 machine, let CI's `policy-verify` job
+produce the canonical artifact (it uploads a `policy-wasm-rebuilt-<run-id>` artifact to
+download and commit).
+
 ## Situational decision support (delivered, v1 scope — ADR-0107)
 
 Matchboard is adding a decision-support layer over the existing domain model that infers the coach's current situation (`MATCHDAY` | `NEXT` | `LONG_TERM`) and produces normalized, ordered `CoachDecision`s from existing domain capabilities, rather than each UI surface (Today, Round Board, Insights) independently reconstructing priority. See `docs/domain/situational-decision-support.md` for the full contract. Key rules:
@@ -4252,14 +4262,29 @@ CI validates version format, pre-1.0 guard, and `package.json`/module consistenc
 
 Every change must leave the repo in a clean state. Pre-existing failures are not acceptable just because the current change did not introduce them.
 
-Required before completion:
-- `npm run lint` passes
-- `npm run typecheck` passes
-- `npm test` passes
-- `npm run build` passes
-- `npm run version:verify` passes
+**The canonical local quality gate is `npm run validate`** (`scripts/run-validate.mjs`). It runs
+every step, continues past a failure so nothing is silently masked, and prints a pass/fail
+summary. CI runs the same steps as individual jobs (`.github/workflows/ci-checks.yml`); the two
+contracts are kept in step. `npm run validate -- --fast` skips the two slow steps (`test`,
+`build`) for a quick pre-commit sweep.
 
-If a check cannot run, document why.
+Steps: `lint`, `typecheck`, `typecheck:workers`, `test`, `test:workers`, `build`, `policy:verify`,
+`version:verify`, `terminology:check`, `architecture:check`, `prisma:check-fields`,
+`security:check-sql`, `security:check-supply-chain`, `docs:check`.
+
+**One documented environment-specific exception — `policy:verify` (ARR-0037).** Its rebuild-hash
+comparison (`opa build -t wasm` output vs. the committed artifact) is only byte-reproducible on
+the architecture the artifact was built on: **linux/amd64** (`x64`), which is what CI's
+`policy-verify` job (`ubuntu-24.04`, run with `--strict`) uses. On a non-x64 host (arm64
+devcontainer / Apple Silicon) that comparison is reported as an **advisory** `DRIFT` and does
+**not** fail `policy:verify` — this is expected on a clean `main`, not a regression. The
+deterministic stored-hash check and `opa build` success still hard-fail everywhere. Do **not**
+run `npm run policy:sync` / `policy:build*` on a non-x64 machine to "resolve" it — those scripts
+now refuse (pass `--force` only if you truly intend it) because they would commit a
+wrong-architecture artifact that fails CI. Every other `validate` step is
+architecture-independent.
+
+If a check cannot run at all, document why.
 
 ### Cleanup is mandatory
 

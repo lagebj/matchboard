@@ -5,10 +5,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlink
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { resolveOpaPath, REPO_ROOT } from "./policy-utils.mjs";
+import { resolveOpaPath, assertCanonicalArchForArtifactRegen, REPO_ROOT } from "./policy-utils.mjs";
 import { buildEntrypointArgs } from "./policy-metadata-utils.mjs";
 
 const PACKS_DIR = join(REPO_ROOT, "policies", "packs");
+
+assertCanonicalArchForArtifactRegen("policy:sync");
 
 function listPackIds() {
   if (!existsSync(PACKS_DIR)) return [];
