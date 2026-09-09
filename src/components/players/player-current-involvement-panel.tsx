@@ -46,7 +46,7 @@ export function PlayerCurrentInvolvementPanel({ involvement, maxItems = 8 }: Pla
               {entry.opponent ? ` vs ${entry.opponent}` : ""}
             </Link>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] text-[var(--text-muted)]">{ROLE_LABELS[entry.role] ?? entry.role}</span>
+              <span className="text-[var(--text-micro)] text-[var(--text-muted)]">{ROLE_LABELS[entry.role] ?? entry.role}</span>
               <StatusPill
                 variant={entry.status === "FINALIZED" ? "success" : "warning"}
                 size="sm"

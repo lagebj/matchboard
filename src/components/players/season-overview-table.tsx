@@ -138,7 +138,7 @@ export function SeasonOverviewTable({
   const renderSortHeader = (field: SortField, label: string) => (
     <th
       key={field}
-      className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] cursor-pointer hover:text-zinc-300 select-none"
+      className="px-3 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-soft)] select-none"
       onClick={() => handleSort(field)}
       aria-sort={sortField === field ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
     >
@@ -153,9 +153,9 @@ export function SeasonOverviewTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-[var(--text-muted)]">
         Actual participation and recorded match statistics for{" "}
-        <span className="font-medium text-zinc-400">{leagueSeasonLabel}</span>.
+        <span className="font-medium text-[var(--text-muted)]">{leagueSeasonLabel}</span>.
         Played, goals and assists use reported match participation. Finalised upcoming matches remain separate until match reporting is completed.
       </p>
 
@@ -165,7 +165,7 @@ export function SeasonOverviewTable({
           placeholder="Search players..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Search players"
         />
         <select
@@ -214,7 +214,7 @@ export function SeasonOverviewTable({
           <option value="dropped_recently">Dropped recently</option>
           <option value="has_drops">Has drops</option>
         </select>
-        <label className="flex items-center gap-1.5 text-xs text-zinc-400">
+        <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <input
             type="checkbox"
             checked={includeDrafts}
@@ -228,18 +228,18 @@ export function SeasonOverviewTable({
       {(() => {
         const renderMovement = (row: PlayerSeasonOverviewRow) => (
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-300">
-            <span className="text-zinc-500 font-medium">Movement:</span>
+            <span className="text-[var(--text-muted)] font-medium">Movement:</span>
             {row.roundAssignments.length === 0 ? (
-              <span className="text-zinc-500">No assignments in this period</span>
+              <span className="text-[var(--text-muted)]">No assignments in this period</span>
             ) : (
               row.roundAssignments.map((ra) => (
                 <span key={ra.roundId} className="flex items-center gap-1">
-                  <span className="text-zinc-500">{ra.roundName || ra.roundId}</span>
-                  {ra.role === "CORE" && <span className="text-emerald-400">Core</span>}
+                  <span className="text-[var(--text-muted)]">{ra.roundName || ra.roundId}</span>
+                  {ra.role === "CORE" && <span className="text-[var(--success)]">Core</span>}
                   {ra.role === "SUPPORT" && <span className="text-amber-400">Support</span>}
                   {ra.role === "DEVELOPMENT" && <span className="text-sky-400">Dev</span>}
-                  {ra.teamName && <span className="text-zinc-500">→ {ra.teamName}</span>}
-                  {ra.isDraft && <span className="text-zinc-600 italic">(draft)</span>}
+                  {ra.teamName && <span className="text-[var(--text-muted)]">→ {ra.teamName}</span>}
+                  {ra.isDraft && <span className="text-[var(--text-disabled)] italic">(draft)</span>}
                 </span>
               ))
             )}
@@ -251,7 +251,7 @@ export function SeasonOverviewTable({
             items={filteredRows}
             getKey={(row) => row.playerId}
             emptyState={
-              <p className="px-4 py-8 text-center text-sm text-zinc-500">
+              <p className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
                 No players match the current filters.
               </p>
             }
@@ -281,19 +281,19 @@ export function SeasonOverviewTable({
                         >
                         <td className="px-4 py-2">
                           <span className="inline-flex items-center gap-1">
-                            <span className="text-[10px] text-zinc-600">{expandedPlayer === row.playerId ? "▾" : "▸"}</span>
+                            <span className="text-[var(--text-micro)] text-[var(--text-disabled)]">{expandedPlayer === row.playerId ? "▾" : "▸"}</span>
                             <Link href={`/players/${row.playerId}`} className="font-medium text-zinc-200 hover:text-zinc-50" onClick={(e) => e.stopPropagation()}>
                               {row.displayName}
                             </Link>
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-zinc-400">
+                        <td className="px-3 py-2 text-[var(--text-muted)]">
                           {row.coreTeam ? (
                             <Link href={`/teams/${row.coreTeam.id}`} className="hover:text-zinc-200">
                               {row.coreTeam.name}
                             </Link>
                           ) : (
-                            <span className="text-zinc-500">Unassigned</span>
+                            <span className="text-[var(--text-muted)]">Unassigned</span>
                           )}
                         </td>
                         <td className="px-3 py-2 text-zinc-200 tabular-nums">{row.actualAppearances}</td>
@@ -341,7 +341,7 @@ export function SeasonOverviewTable({
                     <span className="flex items-center gap-1.5 min-w-0">
                       <button
                         type="button"
-                        className="text-[11px] text-zinc-500"
+                        className="text-[11px] text-[var(--text-muted)]"
                         onClick={() => setExpandedPlayer(isExpanded ? null : row.playerId)}
                         aria-expanded={isExpanded}
                         aria-label={isExpanded ? "Collapse player details" : "Expand player details"}
@@ -355,7 +355,7 @@ export function SeasonOverviewTable({
                         {row.displayName}
                       </Link>
                     </span>
-                    <span className="shrink-0 text-xs text-zinc-500">
+                    <span className="shrink-0 text-xs text-[var(--text-muted)]">
                       {row.coreTeam?.name ?? "Unassigned"}
                     </span>
                   </div>

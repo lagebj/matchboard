@@ -118,7 +118,7 @@ export function PlayersPageClient({
             onClick={() => navigate({ showRemoved: includeRemoved ? undefined : "1" })}
             className={`ml-2 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
               includeRemoved
-                ? "border-amber-700/50 bg-amber-950/30 text-amber-300"
+                ? "border-amber-700/50 bg-amber-950/30 text-[var(--warning)]"
                 : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50"
             }`}
           >

@@ -65,7 +65,7 @@ export function PlayerOutfieldRoleSuitabilityPanel({
   return (
     <TacticalSurface variant="default" padding="sm">
       <SectionHeader title="Outfield role suitability" />
-      <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+      <p className="mt-1 text-[var(--text-micro)] text-[var(--text-muted)]">
         Declared position is a strong prior, not a rigid queue. Roles below reflect declared
         position and demonstrated exposure{leagueSeasonLabel ? ` (${leagueSeasonLabel})` : ""} —
         never a fairness need or coach convenience.
@@ -76,7 +76,7 @@ export function PlayerOutfieldRoleSuitabilityPanel({
           <div key={row.role} className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <span className="text-[11px] font-medium text-[var(--text-strong)]">{ROLE_LABEL[row.role]}</span>
-              <p className="text-[10px] text-[var(--text-soft)]">{row.explanation}</p>
+              <p className="text-[var(--text-micro)] text-[var(--text-soft)]">{row.explanation}</p>
             </div>
             <StatusPill variant={TIER_VARIANT[row.tier]} size="sm">
               {TIER_LABEL[row.tier]}
@@ -87,7 +87,7 @@ export function PlayerOutfieldRoleSuitabilityPanel({
 
       {applicableFunctions.length > 0 && (
         <div className="mt-2.5 border-t border-[var(--border-soft)] pt-2">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-1">
+          <p className="text-[var(--text-micro)] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-1">
             Tactical function fit
           </p>
           <div className="flex flex-wrap gap-1">

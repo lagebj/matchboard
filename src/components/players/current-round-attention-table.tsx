@@ -32,11 +32,11 @@ const stateLabels: Record<string, { label: string; variant: "blocked" | "decisio
 };
 
 const stateStyles: Record<string, string> = {
-  blocked: "text-red-300 bg-red-950/30 border-red-800/40",
-  decision: "text-amber-300 bg-amber-950/30 border-amber-700/40",
-  covered: "text-emerald-300 bg-emerald-950/30 border-emerald-800/40",
-  unavailable: "text-zinc-400 bg-zinc-800/30 border-zinc-700/40",
-  unconfirmed: "text-zinc-400 bg-zinc-800/30 border-zinc-700/40",
+  blocked: "text-red-300 bg-[var(--danger-subtle)] border-red-800/40",
+  decision: "text-[var(--warning)] bg-amber-950/30 border-amber-700/40",
+  covered: "text-[var(--success)] bg-emerald-950/30 border-emerald-800/40",
+  unavailable: "text-[var(--text-muted)] bg-[var(--surface-hover)] border-[var(--border-soft)]",
+  unconfirmed: "text-[var(--text-muted)] bg-[var(--surface-hover)] border-[var(--border-soft)]",
 };
 
 type StateFilter = "all" | "blocked" | "decision" | "covered" | "not_available" | "unconfirmed";
@@ -85,9 +85,9 @@ export function CurrentRoundAttentionTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-[var(--text-muted)]">
         Planned match opportunity and active integrity decisions for{" "}
-        <span className="font-medium text-zinc-400">{roundLabel}</span>.
+        <span className="font-medium text-[var(--text-muted)]">{roundLabel}</span>.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -96,7 +96,7 @@ export function CurrentRoundAttentionTable({
           placeholder="Search players..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Search players"
         />
         <select
@@ -131,7 +131,7 @@ export function CurrentRoundAttentionTable({
           getKey={(row) => row.playerId}
           cardListClassName="p-3"
           emptyState={
-            <p className="px-4 py-8 text-center text-sm text-zinc-500">
+            <p className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
               No players match the current filters.
             </p>
           }
@@ -140,13 +140,13 @@ export function CurrentRoundAttentionTable({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]">
-                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Player</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core team</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Availability</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Planned opportunity</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Role</th>
-                    <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">State</th>
-                    <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Action</th>
+                    <th className="px-4 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Player</th>
+                    <th className="px-3 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core team</th>
+                    <th className="px-3 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Availability</th>
+                    <th className="px-3 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Planned opportunity</th>
+                    <th className="px-3 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Role</th>
+                    <th className="px-3 py-2.5 text-left text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">State</th>
+                    <th className="px-3 py-2.5 text-right text-[var(--text-micro)] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-soft)]">
@@ -159,13 +159,13 @@ export function CurrentRoundAttentionTable({
                             {row.displayName}
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-zinc-400">
+                        <td className="px-3 py-2 text-[var(--text-muted)]">
                           {row.coreTeam ? (
                             <Link href={orgUrl(`/teams/${row.coreTeam.id}`)} className="hover:text-zinc-200">
                               {row.coreTeam.name}
                             </Link>
                           ) : (
-                            <span className="text-zinc-500">Unassigned</span>
+                            <span className="text-[var(--text-muted)]">Unassigned</span>
                           )}
                         </td>
                         <td className="px-3 py-2">
@@ -175,14 +175,14 @@ export function CurrentRoundAttentionTable({
                           {row.currentAssignment ? (
                             <span>{row.currentAssignment.teamName} vs {row.currentAssignment.opponent}</span>
                           ) : (
-                            <span className="text-zinc-500 italic">Not selected this round</span>
+                            <span className="text-[var(--text-muted)] italic">Not selected this round</span>
                           )}
                         </td>
                         <td className="px-3 py-2 text-zinc-300">
-                          {row.currentAssignment?.role ?? <span className="text-zinc-500">—</span>}
+                          {row.currentAssignment?.role ?? <span className="text-[var(--text-muted)]">—</span>}
                         </td>
                         <td className="px-3 py-2">
-                          <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${stateStyles[stateInfo.variant]}`}>
+                          <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[var(--text-micro)] font-medium ${stateStyles[stateInfo.variant]}`}>
                             {stateInfo.label}
                           </span>
                         </td>
@@ -190,12 +190,12 @@ export function CurrentRoundAttentionTable({
                           {(row.integrityState.startsWith("BLOCKED") || row.integrityState === "DECISION_REQUIRED_NO_PLANNED_MATCH") ? (
                             <Link
                               href={orgUrl(`/rounds/${roundId}`)}
-                              className="text-[10px] font-medium text-[var(--accent-strong)] hover:underline"
+                              className="text-[var(--text-micro)] font-medium text-[var(--accent-strong)] hover:underline"
                             >
                               Open Round Board
                             </Link>
                           ) : (
-                            <span className="text-[10px] text-zinc-600">—</span>
+                            <span className="text-[var(--text-micro)] text-[var(--text-disabled)]">—</span>
                           )}
                         </td>
                       </tr>
@@ -226,7 +226,7 @@ export function CurrentRoundAttentionTable({
                   {
                     label: "State",
                     value: (
-                      <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${stateStyles[stateInfo.variant]}`}>
+                      <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[var(--text-micro)] font-medium ${stateStyles[stateInfo.variant]}`}>
                         {stateInfo.label}
                       </span>
                     ),
@@ -253,12 +253,12 @@ export function CurrentRoundAttentionTable({
 
 function AvailabilityBadge({ availability }: { availability: string }) {
   const styles: Record<string, string> = {
-    AVAILABLE: "text-emerald-400",
-    INJURED: "text-red-400",
+    AVAILABLE: "text-[var(--success)]",
+    INJURED: "text-[var(--danger)]",
     SICK: "text-amber-400",
-    AWAY: "text-zinc-400",
-    TENTATIVE: "text-amber-300",
-    UNKNOWN: "text-zinc-500",
+    AWAY: "text-[var(--text-muted)]",
+    TENTATIVE: "text-[var(--warning)]",
+    UNKNOWN: "text-[var(--text-muted)]",
   };
 
   const labels: Record<string, string> = {
@@ -271,7 +271,7 @@ function AvailabilityBadge({ availability }: { availability: string }) {
   };
 
   return (
-    <span className={`text-xs ${styles[availability] ?? "text-zinc-500"}`}>
+    <span className={`text-xs ${styles[availability] ?? "text-[var(--text-muted)]"}`}>
       {labels[availability] ?? availability}
     </span>
   );

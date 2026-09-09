@@ -76,7 +76,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
 
       {rotationPaths.length > 0 && (
         <div className="mt-1.5">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-0.5">
+          <p className="text-[var(--text-micro)] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-0.5">
             Rotation paths
           </p>
           <div className="flex flex-col gap-0.5">
@@ -88,7 +88,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
                 <div className="flex items-center gap-1">
                   <span className="text-[var(--text-muted)]">{formatRole(path.role)}</span>
                   {!path.active && (
-                    <span className="text-[9px] text-zinc-500">Inactive</span>
+                    <span className="text-[var(--text-micro)] text-[var(--text-muted)]">Inactive</span>
                   )}
                 </div>
               </div>
@@ -99,7 +99,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
 
       {movementCandidates.length > 0 && (
         <div className={rotationPaths.length > 0 ? "mt-2" : "mt-1.5"}>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-0.5">
+          <p className="text-[var(--text-micro)] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-0.5">
             Movement candidates
           </p>
           <div className="flex flex-col gap-0.5">
@@ -121,7 +121,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
                 {movementCandidates
                   .filter((c) => c.rationaleCategory && c.rationaleCategory !== "COACH_JUDGEMENT")
                   .map((c) => (
-                    <p key={c.id} className="text-[9px] text-[var(--text-muted)]">
+                    <p key={c.id} className="text-[var(--text-micro)] text-[var(--text-muted)]">
                       {c.fromTeamName} → {c.toTeamName}: {formatRationale(c.rationaleCategory)}
                       {c.rationaleNote && <span className="text-[var(--text-soft)]"> — {c.rationaleNote}</span>}
                     </p>
@@ -136,7 +136,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
         <div className="mt-2">
           <Link
             href={`/teams/${coreTeamId}`}
-            className="text-[10px] text-[var(--accent)] hover:underline"
+            className="text-[var(--text-micro)] text-[var(--accent)] hover:underline"
           >
             View team detail →
           </Link>
