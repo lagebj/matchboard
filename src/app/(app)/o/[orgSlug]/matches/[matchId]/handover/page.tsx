@@ -5,6 +5,7 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { CoachHandoverView } from "@/components/matches/coach-handover-view";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
@@ -86,13 +87,22 @@ export default async function MatchHandoverPage({ params }: HandoverPageProps) {
           },
         },
       },
-      warnings: {
-        select: { id: true, code: true, severity: true, message: true },
-      },
     },
   });
 
   if (!match) notFound();
+
+  // Plan integrity is computed live from current state — never read from stale `Warning` rows
+  // (AGENTS.md "Canonical data truth" #11). Scope to this match's own signals.
+  const integrity = await computeRoundPlanIntegrity(match.matchRoundId);
+  const handoverWarnings: { id: string; kind: "BLOCKED" | "DECISION_REQUIRED" | "NOTE"; message: string }[] = [
+    ...integrity.signals
+      .filter((s) => s.matchId === match.id)
+      .map((s) => ({ id: s.idempotencyKey, kind: s.kind, message: s.title })),
+    ...integrity.planningNotes
+      .filter((n) => n.matchId === match.id)
+      .map((n) => ({ id: n.idempotencyKey, kind: "NOTE" as const, message: n.title })),
+  ];
 
   const matchIntent = await db.coachingIntent.findMany({
     where: { scopeType: "MATCH", scopeId: matchId, ...orgWhere },
@@ -154,7 +164,7 @@ export default async function MatchHandoverPage({ params }: HandoverPageProps) {
           : intent
             ? { id: intent.id, category: intent.category, note: intent.note }
             : null,
-        warnings: match.warnings,
+        warnings: handoverWarnings,
         plannedRotation: plannedRotation
           ? {
               id: plannedRotation.id,

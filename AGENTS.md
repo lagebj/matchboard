@@ -3458,6 +3458,17 @@ Database RLS policies serve as defence-in-depth. They are **permissive when `app
 
 See ADR-0057 for the where-clause-injection design and ADR-0087 for the fail-closed behavior and `runWithSystemPrivilege()`.
 
+**Prisma query field-name safety (ARR-0039, resolved).** The `db.ts` `.extends()` wrapper is
+type-neutral — it does not weaken query typing. But TypeScript + Prisma's generated
+`SelectSubset<T,U>` independently stop rejecting an invalid *nested* `select`/`where`/`data`
+field once the query-args object literal has 2+ keys (`where` + `select` together), on the raw
+`PrismaClient` too. A typo like `select: { type: true }` where the field is `matchType` then
+passes `tsc`/`lint` and fails only at runtime. `scripts/check-prisma-query-fields.mjs`
+(`npm run prisma:check-fields`, in `npm run validate` and the CI job `Prisma Query Fields`)
+closes this: it re-validates the written keys of every `db.<model>.<method>({...})` literal by
+direct assignment to the concrete `Prisma.<Model>Select` / `WhereInput` / `CreateInput` type.
+Do not weaken it to silence a finding — an invalid field name is a real runtime bug.
+
 ### Production migrations
 
 - **Schema-changing PRs must follow expand/contract discipline (ADR-0105).** Vercel deploys new

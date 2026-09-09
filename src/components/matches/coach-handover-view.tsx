@@ -31,8 +31,7 @@ type HandoverHelper = {
 
 type HandoverWarning = {
   id: string;
-  code: string;
-  severity: string;
+  kind: "BLOCKED" | "DECISION_REQUIRED" | "NOTE";
   message: string;
 };
 
@@ -116,9 +115,9 @@ export function CoachHandoverView({ match }: CoachHandoverViewProps) {
   }, {});
 
   const sortedRoles = Object.keys(grouped).sort((a, b) => (ROLE_ORDER[a] ?? 99) - (ROLE_ORDER[b] ?? 99));
-  const blockedWarnings = match.warnings.filter((w) => w.severity === "HARD_BLOCK");
-  const decisionWarnings = match.warnings.filter((w) => w.severity === "REQUIRES_OVERRIDE");
-  const noteWarnings = match.warnings.filter((w) => w.severity === "WARNING" || w.severity === "SCORING_PREFERENCE");
+  const blockedWarnings = match.warnings.filter((w) => w.kind === "BLOCKED");
+  const decisionWarnings = match.warnings.filter((w) => w.kind === "DECISION_REQUIRED");
+  const noteWarnings = match.warnings.filter((w) => w.kind === "NOTE");
 
   const isCancelled = match.status === "CANCELLED";
 

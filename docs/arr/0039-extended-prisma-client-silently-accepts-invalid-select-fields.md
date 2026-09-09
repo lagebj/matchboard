@@ -1,8 +1,22 @@
-# ARR-0039: The extended Prisma client silently accepts an invalid `select` field at `tsc` time
+# ARR-0039: `tsc` silently accepts an invalid `select`/`where`/`data` field in a multi-key `db.*` query
 
 ## State
 
-Contained (root-cause instance fixed; the general typing gap is not fixed)
+Resolved — Consolidation Programme C3, 2026-09-09. The general gap is now closed by a static
+check (`scripts/check-prisma-query-fields.mjs`, in `npm run validate` + CI job `Prisma Query
+Fields`). See "Correction" and the 2026-09-09 History entry.
+
+> **Correction (2026-09-09):** the original write-up below attributes the missed `tsc` error to
+> `src/lib/db.ts`'s `tenantRLS` `.extends()` wrapper. That attribution is **wrong**. The
+> behaviour reproduces **identically on the raw, un-extended `PrismaClient`**: it is a generic
+> TypeScript + Prisma `SelectSubset<T, U>` limitation that stops applying excess-property
+> checking to a *nested* `select`/`where`/`data` object once the query-args object literal has
+> **two or more keys** (e.g. `where` + `select` together — exactly the Follow-live query shape).
+> The single-key form (`{ select: {...} }` alone) *is* still rejected by `tsc`, on both clients.
+> The `as unknown as PrismaClient` cast in `db.ts` is type-neutral — it hands callers the full
+> generated method signatures. The original text is retained unedited below for history; treat
+> its "extended client's generic type plumbing does not preserve … strictness" claim as
+> superseded by this correction.
 
 ## Identified
 
@@ -92,30 +106,30 @@ identically everywhere in the codebase.
 
 ## Containment
 
-- The one known instance is fixed (`matchType` instead of `type`, in both the `select` and the
-  prop passthrough).
-- No blanket fix applied to `src/lib/db.ts`'s extension typing in this pass — that would require
-  either a stricter custom `select`/`where` type wrapper around every extended method (a
-  significant, invasive change to a security-load-bearing file, ADR-0057/ADR-0087) or an
-  ESLint/CI-time script that re-validates every `db.*` object literal's field names against
-  `prisma/schema.prisma` (a real "docs alignment"/lint-rule style fix that has not been
-  attempted or scoped here).
+- The original instance (`matchType` instead of `type`) was fixed on 2026-09-03.
+- Resolution took approach (b) from the criteria below: a static, generated-type-aware check
+  rather than a runtime-only guard, and without touching the security-load-bearing extension
+  (there was nothing to fix there — see Correction).
 
 ## Resolution criteria
 
-Not yet defined for the general typing gap — this ARR stays "Contained" rather than "Resolved"
-until either (a) the extended client's TypeScript types are verified to preserve full
-excess-property strictness on `select`/`where`/`data`, or (b) an equivalent automated check
-(lint rule, codemod-verifiable script, or a CI step that runs representative queries against a
-real schema) is added and demonstrated to catch a reintroduced instance of this exact class of
-bug.
+Met via option (b): an automated check that catches a reintroduced instance of this class of
+bug, wired into the canonical quality gate.
 
 ## Disposition
 
-Contained. The one confirmed instance is fixed and shipped. The systemic gap (extended Prisma
-client typing weaker than the raw client's) is recorded here, not fixed — flagged for a future
-decision on whether it is worth the investment given the codebase's otherwise-heavy reliance on
-`db.ts` everywhere.
+Resolved. `scripts/check-prisma-query-fields.mjs` statically scans every
+`<client>.<model>.<method>({...})` call in `src/`, extracts the explicitly-written keys of each
+nested `select`/`include`/`where`/`data`/`orderBy`/`omit` object literal, and re-checks them by
+direct assignment to the concrete generated `Prisma.<Model>Select` / `WhereInput` / `CreateInput`
+etc. (direct assignment triggers excess-property checking regardless of key count). It runs in
+`npm run validate` and as the CI job `Prisma Query Fields` (a `needs:` dependency of `build`).
+Its first run found and fixed two further pre-existing instances of the same class
+(`best-lineup.ts` querying `Availability.matchId`, which does not exist; the coach-handover page
+selecting a non-existent `Match.warnings` relation). `src/lib/__tests__/prisma-query-field-safety.test-d.ts`
+pins the single-key `tsc` protection and documents the multi-key boundary;
+`scripts/__tests__/check-prisma-query-fields.test.ts` proves the static check catches a
+reintroduced multi-key instance.
 
 ## Related decisions
 
@@ -125,9 +139,15 @@ conflated with — a separate, now-fixed problem)
 
 ## Related implementation
 
-- `src/app/(app)/o/[orgSlug]/matches/[matchId]/live/follow/page.tsx` (the fix)
-- `src/lib/db.ts` (the `tenantRLS` extension whose wrapping is the root cause of the weakened
-  compile-time checking — not modified by this fix)
+- `scripts/check-prisma-query-fields.mjs` — the static field-name check (resolution)
+- `scripts/__tests__/check-prisma-query-fields.test.ts`,
+  `src/lib/__tests__/prisma-query-field-safety.test-d.ts` — regression coverage
+- `.github/workflows/ci-checks.yml` — `Prisma Query Fields` job
+- `src/app/(app)/o/[orgSlug]/matches/[matchId]/live/follow/page.tsx` (the original 2026-09-03 fix)
+- `src/lib/best-lineup/best-lineup.ts`,
+  `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` (two further instances found and
+  fixed by the check's first run)
+- `src/lib/db.ts` (comment corrected — the wrapper is NOT the cause; not otherwise modified)
 
 ## Supersedes
 
@@ -149,3 +169,18 @@ deadlock this same bug's CI failures were causing. Root-caused by reproducing th
 `PrismaClientValidationError` directly against a real database connection rather than continuing
 to reason from Playwright's generic error-boundary screenshot alone. Fixed in the same session;
 this ARR records the general typing gap that let it ship silently.
+
+### 2026-09-09
+
+Resolved (Consolidation Programme C3). Re-verified the mechanism: the missed `tsc` error is a
+generic Prisma `SelectSubset<T,U>` + TypeScript excess-property-check limitation for query-args
+objects with 2+ keys, reproducing on the raw `PrismaClient` too — **not** caused by the
+`tenantRLS` extension (see Correction). Closed the gap with `scripts/check-prisma-query-fields.mjs`
+(static, generated-type-aware; `npm run validate` + CI job `Prisma Query Fields` gating `build`).
+The check's first run surfaced two more pre-existing instances of the same class, both fixed:
+`best-lineup.ts` filtering `db.availability.findMany({ where: { matchId } })` (`Availability` is
+round-scoped, has no `matchId`), and the coach-handover page selecting a non-existent
+`Match.warnings` relation (rewired to `computeRoundPlanIntegrity()`, the canonical live source).
+Added `src/lib/__tests__/prisma-query-field-safety.test-d.ts` (compile-time canary) and
+`scripts/__tests__/check-prisma-query-fields.test.ts` (proves the static check catches a
+reintroduced multi-key instance). Corrected the `db.ts` cast comment.
