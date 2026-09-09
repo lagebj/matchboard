@@ -82,7 +82,7 @@ Pending.
 
 - `src/lib/evidence/opponent-replay.ts`
 - `src/lib/opponents/sporting-level-recording.ts`
-- `src/lib/opponents/sporting-level-query.ts`
+- ~~`src/lib/opponents/sporting-level-query.ts`~~ (deleted by ARR-0032's resolution, Consolidation Programme C4)
 - `src/lib/evidence/adapters/league-evidence-adapter.ts`, `event-evidence-adapter.ts`
 - `src/lib/evidence/football-match-ref.ts`, `post-match-learning.ts` (ADR-0104)
 

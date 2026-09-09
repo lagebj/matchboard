@@ -2,7 +2,10 @@
 
 ## State
 
-Identified
+Resolved — Consolidation Programme C4, 2026-09-09. The legacy calculation path is deleted; one
+canonical owner (`sporting-level-recording.ts` + `sporting-level-aggregation.ts` +
+`sporting-level-calculation.ts`, with `evidence/opponent-engine.ts` helpers) remains. See
+"Resolution".
 
 ## Identified
 
@@ -52,7 +55,48 @@ One owning implementation for opponent sporting level calculation. The opponent 
 
 ## Disposition
 
-Pending. Migration deferred until Phase 7 cleanup is prioritised. The current parallel path is contained and functional.
+Resolved (Consolidation Programme C4).
+
+## Resolution
+
+Re-verification (2026-09-09) confirmed the entire legacy trio was already **fully orphaned** —
+reachable only from `src/lib/opponent/__tests__/opponent-estimate.test.ts`. `sporting-level-query.ts`
+had zero importers (the opponent detail page already calls `getOpponentSportingEvidence()` +
+`aggregateSportingLevel()` directly); `opponent-context.ts`'s never-wired selection-influence
+functions had zero production callers. The ARR's original "used by the UI / contained and
+functional" description was stale.
+
+Deleted: `src/lib/opponent/opponent-estimate.ts` (`calculateWeightedLevel`,
+`calculateConfidence`, `buildOpponentEstimate` and the duplicate `SportingLevelConfidence` /
+`CONFIDENCE_THRESHOLDS` / `DEFAULT_CHALLENGE_MARGIN` / `MAX_SPORTING_LEVEL` /
+`MAX_RECENT_ENCOUNTERS`), `src/lib/opponent/opponent-context.ts`, the now-empty `src/lib/opponent/`
+directory, `src/lib/opponents/sporting-level-query.ts`, and the orphaned
+`src/app/(app)/opponents/[opponentTeamId]/evidence-actions.ts`. Also removed the dead bare
+`recordOpponentSportingEvidence()` League wrapper in `sporting-level-recording.ts` (zero callers;
+`recordOpponentSportingEvidenceForRef()` is the sole writer). `sporting-level-query.test.ts` —
+which only ever imported `sporting-level-aggregation`/`sporting-level-calculation` — was renamed
+to `sporting-level-aggregation.test.ts`.
+
+Canonical owner after this pass: **one** path — write via
+`recordOpponentSportingEvidenceForRef()` → `OpponentSportingEvidence`; read/aggregate via
+`aggregateSportingLevel()`; primitive `sporting-level-calculation.ts`; data-quality/whole-match
+helpers `src/lib/evidence/opponent-engine.ts`. Confidence type/thresholds live only in
+`sporting-level-aggregation.ts`. Opponent tactical tendency
+(`src/lib/opponents/playing-style-*.ts`, ADR-0114) is a deliberately separate concept and keeps
+its own confidence vocabulary (D-016).
+
+## Adjacent residue (not ARR-0032, still open — recorded here, not fixed)
+
+- `evidence/opponent-engine.ts`'s significance-weighted lineup-state blending
+  (`computeLineupStateStrengths`, `computeEncounterEvidenceFromLineupStates`,
+  `computePositionSuitability`, `computeEffectivePlayerStrength`) has no caller — the recording
+  path only uses `computeWholeMatchEstimate`.
+- `OpponentAssessmentChange` is a write-only audit table; `getOpponentAssessmentHistory()` /
+  `getLatestOpponentAssessment()` are re-exported by the `evidence/index.ts` barrel but have no
+  app consumer (kept — they are read helpers for a genuinely-written table, not a parallel
+  calculation).
+- `OpponentEncounterObservation.sportingLevel` / `sportingLevelNote` columns are dormant
+  (no reader, no writer) — a schema-contraction candidate (ADR-0105 expand/contract).
 
 ## Related decisions
 
