@@ -110,6 +110,40 @@ describe("generateEmergencyRepairOptions", () => {
     await testDb.selection.deleteMany({ where: { matchRoundId: fixture.matchRoundId } });
   });
 
+  it("only offers players automatically eligible for the vacated exact role (ADR-0129 §13)", async () => {
+    const { generateEmergencyRepairOptions } = await import("../emergency-repair-options");
+
+    const blaMatchId = fixture.matches["Bla"]!;
+    const blaPlayers = fixture.players.filter((p) => p.coreTeamName === "Bla");
+    const vacatedPlayer = blaPlayers[0]!;
+
+    // Give the vacated player an exact wide role so the positional gate engages.
+    await testDb.player.update({ where: { id: vacatedPlayer.id }, data: { primaryPosition: "LW" } });
+    await testDb.selection.create({
+      data: {
+        matchId: blaMatchId,
+        matchRoundId: fixture.matchRoundId,
+        playerId: vacatedPlayer.id,
+        role: "CORE",
+        status: "DRAFT",
+        organisationId: fixture.organisationId,
+        selectionReason: "Test setup",
+      },
+    });
+
+    const result = await generateEmergencyRepairOptions(blaMatchId, vacatedPlayer.id, orgFilterFor(fixture.organisationId));
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // Every option carries an automatic-eligible exact fit for LW; nobody UNSUPPORTED/DEVELOPMENTAL.
+    for (const option of result.options) {
+      expect(["NATURAL", "STRONG", "PLAUSIBLE"]).toContain(option.positionFit);
+    }
+
+    await testDb.player.update({ where: { id: vacatedPlayer.id }, data: { primaryPosition: "GK" } });
+    await testDb.selection.deleteMany({ where: { matchRoundId: fixture.matchRoundId } });
+  });
+
   it("returns an error when the player is not currently in the match draft", async () => {
     const { generateEmergencyRepairOptions } = await import("../emergency-repair-options");
 

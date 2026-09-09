@@ -8,7 +8,14 @@ import { getNegativeReadinessSignals, type ReadinessSignalEntry } from "@/lib/se
 import { getSeasonCombinationEvidence, aggregateSeasonCombinations } from "@/lib/evidence/combination-aggregation";
 import { getCombinationScoreModifier, deriveCombinationIntentMode, explainCombinationEvidence, type CombinationScoringInput } from "@/lib/selection/combination-scoring";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
+import { classifyExactSuitability } from "@/domain/positions/suitability";
+import { normalizeSourceRole } from "@/domain/positions/aliases";
+import { isExactRole } from "@/domain/positions/roles";
 import type { SelectionRole } from "@/generated/prisma/client";
+
+/** Exact-fit tiers that are automatically eligible for a required role (ADR-0129 §13). */
+type EligiblePositionFit = "NATURAL" | "STRONG" | "PLAUSIBLE";
+const POSITION_FIT_RANK: Record<EligiblePositionFit, number> = { NATURAL: 0, STRONG: 1, PLAUSIBLE: 2 };
 
 /**
  * A viable pre-kickoff repair alternative for a player who just became unavailable. Ordered most
@@ -22,7 +29,9 @@ export type EmergencyRepairOption = {
   coreTeamName: string | null;
   role: SelectionRole;
   isOwnTeam: boolean;
-  positionMatch: boolean;
+  /** Exact positional fit for the vacated role (ADR-0129), or `null` when the vacated role does
+   * not normalise to an exact role so no positional gate is applied. */
+  positionFit: EligiblePositionFit | null;
   combinationNotes: string[];
   newBlockedSignals: string[];
   newDecisionRequiredSignals: string[];
@@ -67,6 +76,13 @@ export async function generateEmergencyRepairOptions(
   const vacatedRole = vacatedSelection.role;
   const vacatedPosition = vacatedSelection.player.primaryPosition;
   const vacatedPlayerName = `${vacatedSelection.player.firstName}${vacatedSelection.player.lastName ? ` ${vacatedSelection.player.lastName}` : ""}`;
+
+  // Exact target role for the positional-eligibility gate (ADR-0129 §13). When the vacated
+  // player's declared primary position does not normalise to one of the twelve exact roles
+  // (e.g. a broad legacy string), no positional gate is applied and candidates rank purely on
+  // the secondary consequences below.
+  const vacatedNorm = normalizeSourceRole(vacatedPosition);
+  const targetExactRole = vacatedNorm.known && isExactRole(vacatedNorm.role) ? vacatedNorm.role : null;
 
   const removeResult = await removePlayerFromDraftMatch(matchId, vacatedPlayerId);
   if (!removeResult.success) {
@@ -142,6 +158,24 @@ export async function generateEmergencyRepairOptions(
       const isOwnTeam = candidate.coreTeamId === match.teamId;
       const role: SelectionRole = isOwnTeam ? "CORE" : vacatedRole;
 
+      // Exact positional-eligibility gate (ADR-0129 §13): a candidate below the automatic
+      // threshold (NATURAL/STRONG/PLAUSIBLE) for the vacated exact role is not a "viable"
+      // repair option and is not surfaced — the coach can still make a manual decision.
+      let positionFit: EligiblePositionFit | null = null;
+      if (targetExactRole) {
+        const fit = classifyExactSuitability(
+          {
+            primaryPosition: candidate.primaryPosition,
+            secondaryPosition: candidate.secondaryPosition,
+            tertiaryPosition: candidate.tertiaryPosition,
+            bestSide: candidate.bestSide,
+          },
+          targetExactRole,
+        );
+        if (!fit.automaticallyEligible) continue;
+        positionFit = fit.tier as EligiblePositionFit;
+      }
+
       const currentIntegrity = await safeComputeIntegrity(match.matchRoundId);
       const currentSignalCodes = new Set((currentIntegrity?.signals ?? []).map((s) => s.ruleCode));
 
@@ -173,11 +207,10 @@ export async function generateEmergencyRepairOptions(
       const negativeReadiness = getNegativeReadinessSignals(candidate.id, readinessSignals);
       const floatingHistory = await getFloatingHistory(candidate.id, match.startsAt);
       const combinationBonus = getCombinationScoreModifier(candidate.id, currentSquadPlayerIds, combinationScoringInputs, combinationIntentMode);
-      const positionMatch = candidate.primaryPosition === vacatedPosition;
 
+      // Positional fit is ranked first (tier), not folded into this additive score.
       const priorityScore =
         (isOwnTeam ? 20 : 0) +
-        (positionMatch ? 15 : 0) +
         readinessScore +
         combinationBonus -
         floatingHistory.totalFloatingMatches * 3 -
@@ -191,7 +224,7 @@ export async function generateEmergencyRepairOptions(
         coreTeamName: candidate.coreTeam?.name ?? null,
         role,
         isOwnTeam,
-        positionMatch,
+        positionFit,
         combinationNotes: explainCombinationEvidence(candidate.id, currentSquadPlayerIds, combinationScoringInputs),
         newBlockedSignals,
         newDecisionRequiredSignals,
@@ -200,7 +233,15 @@ export async function generateEmergencyRepairOptions(
       });
     }
 
-    attempts.sort((a, b) => b.priorityScore - a.priorityScore);
+    // Rank NATURAL > STRONG > PLAUSIBLE first (ADR-0129 §13), then the secondary consequences.
+    // When there is no exact target role every attempt has `positionFit: null` and this falls
+    // back to the pure priority-score ordering.
+    attempts.sort((a, b) => {
+      const at = a.positionFit ? POSITION_FIT_RANK[a.positionFit] : 99;
+      const bt = b.positionFit ? POSITION_FIT_RANK[b.positionFit] : 99;
+      if (at !== bt) return at - bt;
+      return b.priorityScore - a.priorityScore;
+    });
     const options = attempts.slice(0, MAX_OPTIONS_RETURNED).map(({ priorityScore: _priorityScore, ...option }) => option);
 
     return { success: true, vacatedPlayerId, vacatedPlayerName, vacatedRole, options };
