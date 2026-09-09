@@ -49,6 +49,39 @@ describe("generateRotationPlan — basics", () => {
     }
   });
 
+  it("emits structured RecommendationReasons and name-free, arithmetic-free prose (C6 / F6)", () => {
+    const players = new Map([
+      player("gk", { primary: "goalkeeper" }),
+      player("def1", { primary: "defender" }),
+      player("mid1", { primary: "midfielder" }),
+      player("bench1", { primary: "defender" }),
+      player("bench2", { primary: "midfielder" }),
+    ]);
+    const starters = [starter("gk", "GK"), starter("def1", "DEFENCE"), starter("mid1", "MIDFIELD")];
+    const result = generateRotationPlan({
+      starters,
+      benchPlayerIds: ["bench1", "bench2"],
+      players,
+      totalMatchSeconds: TOTAL_MATCH_SECONDS,
+      decisionPoints: DECISION_POINTS,
+      seed: "test",
+    });
+
+    expect(result.changes.length).toBeGreaterThan(0);
+    for (const change of result.changes) {
+      expect(Array.isArray(change.reasons)).toBe(true);
+      expect(change.reasons.length).toBeGreaterThan(0);
+      for (const r of change.reasons) {
+        expect(typeof r.code).toBe("string");
+        expect(typeof r.category).toBe("string");
+        expect(["CONSTRAINT", "SUPPORTING", "CAUTION"]).toContain(r.polarity);
+      }
+      // The prose is derived from the reasons and must not leak the old arithmetic clause.
+      expect(change.explanation).not.toMatch(/goals conceded|prior instances|on average/i);
+      expect(change.explanation.length).toBeGreaterThan(0);
+    }
+  });
+
   it("is deterministic for identical input", () => {
     const players = new Map([
       player("att1", { primary: "forward" }),

@@ -561,6 +561,22 @@ Rules:
 - Explanation must cite the rule, intent, and relevant impact where possible.
 - Explanation must use stable player IDs in external/sanitized contexts.
 
+**Shared structured reason contract (ADR-0128 / C6).** New recommendation-reason data — for
+squad selection, lineup generation, and rotation generation alike — uses
+`RecommendationReason` (`src/lib/explanations/recommendation-reason.ts`, client-safe like
+`signal-category.ts`): a closed `ReasonCode` union, five `ReasonCategory` families
+(`HARD_CONSTRAINT` / `FAIRNESS_OPPORTUNITY` / `ROLE_POSITION_SUITABILITY` /
+`OPPONENT_EVIDENCE_CONTEXT` / `DOWNSTREAM_COVERAGE`), a `polarity`, an optional `confidence`, and
+`params` that carry **counts / minutes / tier labels only — never a score, weight, or delta**.
+Prose is produced in exactly one place: `renderReason()`
+(`src/lib/formatters/recommendation-reason-text.ts`), neutral language only, no ranking, no
+leaked numbers, correlational wording for evidence. Engines must not build explanation sentences
+themselves. `classifyExplanationCode()` bridges the legacy squad-selection snake_case codes into
+the shared categories. Wired end-to-end in the rotation generator so far; squad-selection
+`buildExplanation` and `suggestLineupForFormation` migration onto the contract, and the
+player-name-in-stored-explanations cleanup (ARR-0043), are staged follow-ups against this stable
+contract.
+
 ### Manual draft change impact analysis
 
 Manual changes are allowed, but the app must explain impact.
