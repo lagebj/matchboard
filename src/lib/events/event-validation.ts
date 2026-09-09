@@ -12,6 +12,9 @@ import {
 } from './event-types';
 import type { SelectionPolicyResult } from '@/lib/policies/types';
 import { coachFacingWarningMessage } from '@/lib/policies/policy-evaluation';
+import { computeExactFormationCoverage } from '@/domain/positions/formation-coverage';
+import type { FormationSlotRoleType } from '@/lib/formations/types';
+import type { SideInput } from '@/domain/positions/roles';
 
 export function applyPolicyWarnings(
   policyResult: SelectionPolicyResult | null,
@@ -176,6 +179,48 @@ export function validateEventPool(
     }
   }
 
+  // Exact simultaneous coverage (ADR-0129 §12): only when a real formation was resolved (its
+  // slots carry grid geometry). We test whether the whole available pool can staff
+  // `targetSquadCount` copies of the formation at once, via maximum matching — so one versatile
+  // player is never counted as the sole solution for two different required roles.
+  let exactFormationCoverage: EventPoolValidation['exactFormationCoverage'] = null;
+  const geometricSlots = formationSlots.filter((s) => typeof s.gridX === 'number');
+  if (geometricSlots.length > 0 && targetSquadCount > 0) {
+    const coverageSlots: { slotId: string; roleType: FormationSlotRoleType; gridX: number }[] = [];
+    for (let squad = 0; squad < targetSquadCount; squad++) {
+      geometricSlots.forEach((slot, i) => {
+        coverageSlots.push({
+          slotId: `s${squad}-${i}`,
+          roleType: slot.roleType as FormationSlotRoleType,
+          gridX: slot.gridX as number,
+        });
+      });
+    }
+    const coverage = computeExactFormationCoverage(
+      coverageSlots,
+      available.map((p) => ({
+        id: p.playerId,
+        primaryPosition: p.primaryPosition,
+        secondaryPosition: p.secondaryPosition,
+        tertiaryPosition: p.tertiaryPosition,
+        bestSide: p.bestSide as SideInput,
+      })),
+    );
+    const unfilledByRole = new Map<string, number>();
+    for (const role of coverage.unfilledRoles) unfilledByRole.set(role, (unfilledByRole.get(role) ?? 0) + 1);
+    exactFormationCoverage = {
+      covered: coverage.covered,
+      requiredExactSlots: coverage.requiredExactSlots,
+      filledExactSlots: coverage.filledExactSlots,
+      unfilledRoles: [...unfilledByRole.entries()].map(([role, count]) => ({ role, count })),
+    };
+    for (const { role, count } of exactFormationCoverage.unfilledRoles) {
+      warnings.push(
+        `Not enough players for the ${role} role across ${targetSquadCount} squad${targetSquadCount === 1 ? '' : 's'} (${count} uncovered)`,
+      );
+    }
+  }
+
   return {
     availablePlayerCount: availableCount,
     targetSquadCount,
@@ -190,6 +235,7 @@ export function validateEventPool(
       sufficient: goalkeeperSufficient,
     },
     positionCoverage,
+    exactFormationCoverage,
     warnings,
     notes,
   };

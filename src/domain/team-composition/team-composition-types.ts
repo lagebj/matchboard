@@ -109,6 +109,12 @@ export interface CompositionPlayer {
   primaryBroadPosition: BroadPosition;
   /** Composite strength per structural role (null = not computable) */
   roleStrength: RoleStrengthProfile;
+  /** Raw declared positions + best side — for exact positional coverage (ADR-0129 §12).
+   * Optional so hand-built fixtures/adapters that don't need exact coverage can omit them. */
+  declaredPrimaryPosition?: string | null;
+  declaredSecondaryPosition?: string | null;
+  declaredTertiaryPosition?: string | null;
+  bestSide?: string | null;
 }
 
 export interface RoleStrengthProfile {
@@ -238,6 +244,9 @@ export interface TeamStructuralRequirements {
   source: "FORMATION" | "FALLBACK" | "MANUAL";
   formationId?: string;
   formationName?: string;
+  /** Individual real formation slots with grid geometry — present only for `source: "FORMATION"`.
+   * Enables exact simultaneous-coverage matching (ADR-0129 §12); absent → broad checks only. */
+  exactSlots?: { slotId: string; roleType: string; gridX: number }[];
 }
 
 // ── Locked assignments ──────────────────────────────────────────

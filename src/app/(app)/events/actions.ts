@@ -969,7 +969,7 @@ export async function generateEventSquadsAction(eventId: string) {
   const validationFormation = event.squads[0]?.formation
     ?? fallbackFormationsByFormat.find((f) => f.gameFormat === typeGameFormat)
     ?? fallbackFormationsByFormat[0];
-  const formationSlots: { roleType: string; acceptedPositions: BroadPosition[]; label: string }[] = [];
+  const formationSlots: { roleType: string; acceptedPositions: BroadPosition[]; label: string; gridX?: number }[] = [];
   if (validationFormation?.slots) {
     for (const slot of validationFormation.slots) {
       const posIds = typeof slot.acceptedPositionIds === 'string'
@@ -981,6 +981,8 @@ export async function generateEventSquadsAction(eventId: string) {
         roleType: slot.roleType,
         acceptedPositions: posIds,
         label: slot.label ?? slot.roleType,
+        // Real formation slot geometry → exact simultaneous-coverage matching (ADR-0129 §12).
+        gridX: slot.gridX,
       });
     }
   }

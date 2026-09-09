@@ -1290,11 +1290,21 @@ automatic-eligibility authority.
   assign only after one explicit confirmation (`Use outside automatic positional fit?` /
   `Assign anyway`). Neutral labels only — `Natural fit`, `Strong fit`, `Plausible fit`,
   `Developmental positional fit`, `Outside automatic fit`; never player-value language.
-- **Exact formation-context resolution** (for exact coverage / exact lineup + rotation
-  generation): existing match lineup formation → explicitly selected match formation → team
-  Best Lineup formation → otherwise no exact context. The first system formation is never
-  silently chosen. Without exact context, broad composition may remain but the UI must not
-  claim exact formation coverage and exact lineup/rotation generation requires a formation.
+- **Exact formation coverage** (`src/domain/positions/formation-coverage.ts`,
+  `computeExactFormationCoverage`): when real formation slots with grid geometry exist, squad
+  coverage is tested with **simultaneous maximum matching** over exact target roles — one
+  versatile player is never counted as the sole solution for two required roles, and a "some
+  compatible player exists per slot" check can never fabricate coverage that is not actually
+  simultaneously achievable. Wired into `validateEventPool` (Event pool validation —
+  `EventPoolValidation.exactFormationCoverage`, computed only when the resolved formation's
+  slots carry `gridX`, `null` otherwise) and `computeTeamMetrics`
+  (`TeamStructuralRequirements.exactSlots` → `formationViability` + structural warnings; league
+  team-composition). Without real slot geometry, broad composition stays valid and the UI must
+  not claim exact formation coverage. `FREE` slots are excluded from the exact-coverage count.
+  Not yet wired: `event-squad-generation.ts`'s internal per-slot assignment scoring (still
+  broad — ARR-0040 territory) and the Formations-page per-slot derived-role display / Rotations
+  coverage panel (Phase 6/10 UI work); exact lineup + rotation generation already require a
+  formation/line-up.
 - **Migration:** declared position strings normalize at read time; no destructive rewrite of
   `Player.*Position` or historical position snapshots; no schema change.
 
@@ -3711,7 +3721,7 @@ Avoid:
 
 | File | Purpose |
 |------|---------|
-| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup), `selectBestLineupAssignments` / `autoSelectBestLineup` (Recommended lineup — rating is a within-tier preference only), `generateRotationPlan` (per-tick due-slot × eligible-bench matching; a due player with no safe replacement stays on with a diagnostic, never rotated to a DEVELOPMENTAL/UNSUPPORTED option — ADR-0129 §11, superseding ADR-0118's "never structurally blocked"), and `generateEmergencyRepairOptions` (a candidate below NATURAL/STRONG/PLAUSIBLE for the vacated exact role is not offered; options rank by fit tier first, then secondary consequences — ADR-0129 §13); exact-coverage wiring follows. |
+| `src/domain/positions/` | Exact positional-semantics domain owner (ADR-0129): canonical exact roles, exact alias normalization, the directed suitability matrix (`position-suitability-matrix.json`, normative), tiers + automatic-eligibility threshold, `bestSide` modifier, `deriveExactTargetRole` (slot `roleType`+`gridX` → exact role), `classifyExactSuitability` / `isAutomaticallyEligibleForRole`, neutral fit labels, and `matching.ts` `matchSlotsToCandidates` — the deterministic bounded bipartite slot↔candidate matcher (lexicographic: eligible-count → NATURAL count → STRONG count → fairness → suitability → preference → tie-break; never an additive blend). Sole authority for automatic-planning positional eligibility and safe assignment. Wired into `suggestLineupForFormation` (automatic starting lineup), `selectBestLineupAssignments` / `autoSelectBestLineup` (Recommended lineup — rating is a within-tier preference only), `generateRotationPlan` (per-tick due-slot × eligible-bench matching; a due player with no safe replacement stays on with a diagnostic, never rotated to a DEVELOPMENTAL/UNSUPPORTED option — ADR-0129 §11, superseding ADR-0118's "never structurally blocked"), `generateEmergencyRepairOptions` (a candidate below NATURAL/STRONG/PLAUSIBLE for the vacated exact role is not offered; options rank by fit tier first — ADR-0129 §13), and `computeExactFormationCoverage` (`src/domain/positions/formation-coverage.ts`) — exact simultaneous-coverage matching wired into `validateEventPool` (`exactFormationCoverage`, computed only when a real formation's slots carry `gridX`; `null` otherwise so the UI never claims exact coverage) and `computeTeamMetrics` (`formationViability` + structural warnings from exact coverage when `TeamStructuralRequirements.exactSlots` is present — league team-composition). |
 | `src/lib/selection/generate-round.ts` | Round-level orchestrator (includes Phase 7: policy evaluation) |
 | `src/lib/selection/generate-selection.ts` | Per-match selection |
 | `src/lib/selection/resolve-round-support.ts` | Cross-match support and squad repair resolution |

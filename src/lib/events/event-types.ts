@@ -205,6 +205,10 @@ export interface FormationSlotRequirement {
   roleType: string;
   acceptedPositions: BroadPosition[];
   label: string;
+  /** Grid column of the real formation slot, present only when a real `Formation` was resolved
+   * (absent for the hard-coded per-format fallbacks). Enables exact target-role derivation and
+   * exact simultaneous-coverage matching (ADR-0129 §12). */
+  gridX?: number;
 }
 
 export interface EventPoolValidation {
@@ -217,6 +221,15 @@ export interface EventPoolValidation {
   ratedPlayerCount: number;
   goalkeeperCoverage: { total: number; perSquad: number; sufficient: boolean };
   positionCoverage: Record<BroadPosition, { count: number; perSquad: number; sufficient: boolean }>;
+  /** Exact simultaneous coverage across every squad (ADR-0129 §12). `null` when no real
+   * formation was resolved — the UI must then not claim exact formation coverage. */
+  exactFormationCoverage: {
+    covered: boolean;
+    requiredExactSlots: number;
+    filledExactSlots: number;
+    /** Exact roles still uncovered, with how many squad copies lack one. */
+    unfilledRoles: { role: string; count: number }[];
+  } | null;
   warnings: string[];
   notes: string[];
 }

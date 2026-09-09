@@ -1133,7 +1133,7 @@ export function composeTeams(
   }
   const teamMetrics: ProposedTeamMetrics[] = targetTeams.map((team) => {
     const teamAssignmentList = finalAssignments.filter((a) => a.teamId === team.id);
-    return computeTeamMetrics(team.id, team.name, teamAssignmentList, players);
+    return computeTeamMetrics(team.id, team.name, teamAssignmentList, players, input.structure);
   });
 
   const totalMoved = finalAssignments.filter(
