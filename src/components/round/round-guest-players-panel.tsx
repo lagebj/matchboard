@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { UserPlus, X } from "lucide-react";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import {
   registerGuestPlayerForRoundAction,
   unregisterGuestPlayerFromRoundAction,
@@ -69,19 +69,19 @@ export function RoundGuestPlayersPanel({ matchRoundId }: { matchRoundId: string 
   }
 
   return (
-    <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
       <SectionHeader
         title="Guest players"
         description="Register a guest player as a participant of this Round before assigning them to a match."
         actions={
-          <Button
+          <TouchlineButton
             variant="ghost"
             size="sm"
             leadingIcon={<UserPlus className="h-3.5 w-3.5" aria-hidden="true" />}
             onClick={() => (showAdd ? setShowAdd(false) : openAdd())}
           >
             {showAdd ? "Cancel" : "Register guest player"}
-          </Button>
+          </TouchlineButton>
         }
       />
 
