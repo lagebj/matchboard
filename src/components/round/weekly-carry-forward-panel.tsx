@@ -70,7 +70,7 @@ export function WeeklyCarryForwardPanel({ result }: { result: WeeklyCoachingCont
     .slice(0, 4);
 
   return (
-    <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4 flex flex-col gap-2">
+    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4 flex flex-col gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         From {context.weekLabel}
       </h3>
@@ -93,7 +93,7 @@ export function WeeklyCarryForwardPanel({ result }: { result: WeeklyCoachingCont
             return (
               <span key={id}>
                 {i > 0 && " · "}
-                <Link href={orgUrl(display.href)} className="underline decoration-dotted underline-offset-2 hover:text-zinc-100">
+                <Link href={orgUrl(display.href)} className="underline decoration-dotted underline-offset-2 hover:text-[var(--foreground)]">
                   {display.displayName}
                 </Link>
               </span>

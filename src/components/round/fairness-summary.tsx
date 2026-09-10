@@ -33,7 +33,7 @@ function MetricRow({ metric }: { metric: FairnessMetric }) {
     <div className="flex items-center justify-between gap-3 py-1">
       <span className="text-xs text-[var(--text-soft)]">{metric.label}</span>
       <div className="flex items-center gap-1.5">
-        <span className="text-sm font-medium text-zinc-100 tabular-nums">{metric.value}</span>
+        <span className="text-sm font-medium text-[var(--foreground)] tabular-nums">{metric.value}</span>
         {metric.trend && metric.trend !== "neutral" && (
           <Icon className={`h-3 w-3 ${trendIcon.className}`} aria-hidden="true" />
         )}
@@ -46,7 +46,7 @@ function MovementStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
-      <span className="text-xs font-medium tabular-nums text-zinc-100">{value}</span>
+      <span className="text-xs font-medium tabular-nums text-[var(--foreground)]">{value}</span>
     </div>
   );
 }

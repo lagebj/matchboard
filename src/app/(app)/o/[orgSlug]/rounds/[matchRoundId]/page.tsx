@@ -493,14 +493,15 @@ export default async function RoundBoardPage({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 6).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
       {error && (
-        <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
       {generated && (
-        <div className="rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-3 text-sm text-[var(--text-soft)]">
           Round generated successfully.
         </div>
       )}
@@ -527,8 +528,8 @@ export default async function RoundBoardPage({
       <RoundGuestPlayersPanel matchRoundId={matchRoundId} />
       {roundPlanningBoundary.editable && (
         <div className="flex flex-col gap-3">
-          <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-            <h3 className="text-sm font-semibold text-zinc-200 mb-3">Coaching intent</h3>
+          <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Coaching intent</h3>
             <div className="flex flex-col gap-2">
               <div className="text-xs text-[var(--text-muted)]">Round intent</div>
               <CoachingIntentSelector

@@ -38,7 +38,7 @@ import {
   type PlayerChipRoleHint,
 } from "@/components/ui/player-chip";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { StatusPill } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Dialog } from "@/components/ui/dialog";
@@ -325,7 +325,7 @@ function MatchColumnComponent({
     <div
       data-drop-match={match.matchId}
       className={[
-        "flex flex-col rounded-xl border transition-colors",
+        "flex flex-col rounded-[var(--tl-c-radius-object)] border transition-colors",
         fullWidth
           ? "w-full"
           : "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
@@ -350,7 +350,7 @@ function MatchColumnComponent({
     >
       <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
         <div className="flex flex-col gap-0.5 min-w-0">
-          <p className="text-sm font-semibold text-zinc-50 truncate">{match.teamName}</p>
+          <p className="text-sm font-semibold text-[var(--foreground)] truncate">{match.teamName}</p>
           <p className="text-[11px] text-[var(--text-muted)]">
             vs {match.opponent} · {dateStr}
           </p>
@@ -768,7 +768,10 @@ export function RoundBoard({
     : [];
 
   return (
-    <div className="flex flex-col gap-5">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134). Also
+    // rendered directly by the org-scoped round page, which island-wraps too; nested
+    // `.touchline` is idempotent.
+    <div className="touchline flex flex-col gap-5" data-theme="dark">
       <RoundStatusStrip
         totalTeams={matches.length}
         completeTeams={completeTeams}
@@ -782,7 +785,7 @@ export function RoundBoard({
 
       {planningBoundaryOpen && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button
+          <TouchlineButton
             variant="secondary"
             disabled={isPending}
             leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -796,15 +799,15 @@ export function RoundBoard({
             }}
           >
             Regenerate
-          </Button>
-          <Button
+          </TouchlineButton>
+          <TouchlineButton
             variant="danger"
             disabled={isPending}
             leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
             onClick={() => setShowClearRoundDialog(true)}
           >
             Clear
-          </Button>
+          </TouchlineButton>
         </div>
       )}
 
@@ -850,7 +853,7 @@ export function RoundBoard({
 
       {planningNotes.length > 0 && (
         <details className="text-xs">
-          <summary className="cursor-pointer text-[var(--text-muted)] hover:text-zinc-100 transition-colors">
+          <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
             Planning notes ({planningNotes.length})
           </summary>
           <div className="mt-2 flex flex-col gap-1.5">
@@ -862,7 +865,7 @@ export function RoundBoard({
                 className="px-3 py-1.5 text-[11px] text-[var(--text-soft)]"
               >
                 {w.playerName && (
-                  <span className="font-medium text-zinc-100">
+                  <span className="font-medium text-[var(--foreground)]">
                     {w.playerName}:{" "}
                   </span>
                 )}
@@ -892,7 +895,7 @@ export function RoundBoard({
                 className={[
                   "shrink-0 rounded-lg border px-3 py-2 text-left transition-colors min-h-[44px]",
                   active
-                    ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)] text-zinc-50"
+                    ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)] text-[var(--foreground)]"
                     : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)]",
                 ].join(" ")}
               >
@@ -956,7 +959,7 @@ export function RoundBoard({
         <div
           data-drop-available
           className={[
-            "flex flex-col rounded-xl border transition-colors",
+            "flex flex-col rounded-[var(--tl-c-radius-object)] border transition-colors",
             isCompactViewport
               ? "w-full"
               : "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
@@ -980,7 +983,7 @@ export function RoundBoard({
         >
           <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
             <div>
-              <p className="text-sm font-semibold text-zinc-50">Available</p>
+              <p className="text-sm font-semibold text-[var(--foreground)]">Available</p>
               <p className="text-[11px] text-[var(--text-muted)]">
                 {unassignedPlayers.length} unassigned
               </p>
@@ -1067,13 +1070,13 @@ export function RoundBoard({
         description="Remove all draft selections and plan check signals for this round. Finalised data will not be affected."
         footer={
           <>
-            <Button
+            <TouchlineButton
               variant="secondary"
               onClick={() => setShowClearRoundDialog(false)}
             >
               Cancel
-            </Button>
-            <Button
+            </TouchlineButton>
+            <TouchlineButton
               variant="danger"
               disabled={isPending}
               onClick={() => {
@@ -1087,7 +1090,7 @@ export function RoundBoard({
               }}
             >
               {isPending ? "Clearing…" : "Clear round"}
-            </Button>
+            </TouchlineButton>
           </>
         }
       />
@@ -1102,7 +1105,7 @@ export function RoundBoard({
         title={repairTarget ? `Repair options for ${repairTarget.playerName}` : ""}
         description="Generated alternatives, ranked most to least suitable. Nothing changes until you pick one."
         footer={
-          <Button
+          <TouchlineButton
             variant="secondary"
             onClick={() => {
               setRepairTarget(null);
@@ -1111,7 +1114,7 @@ export function RoundBoard({
             }}
           >
             Cancel
-          </Button>
+          </TouchlineButton>
         }
       >
         {repairError && <p className="text-sm text-[var(--text-error)]">{repairError}</p>}
@@ -1132,7 +1135,7 @@ export function RoundBoard({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-medium text-zinc-50 truncate">{option.playerName}</span>
+                    <span className="font-medium text-[var(--foreground)] truncate">{option.playerName}</span>
                     <RoleBadge role={option.role as UISelectionRole} />
                     {option.isOwnTeam && (
                       <span className="text-[10px] text-[var(--text-muted)]">Own team</span>
@@ -1146,14 +1149,14 @@ export function RoundBoard({
                       </span>
                     )}
                   </div>
-                  <Button
+                  <TouchlineButton
                     variant="primary"
                     size="sm"
                     disabled={isPending}
                     onClick={() => handleApplyRepairOption(option)}
                   >
                     Use this player
-                  </Button>
+                  </TouchlineButton>
                 </div>
                 {option.combinationNotes.length > 0 && (
                   <p className="text-[11px] text-[var(--text-muted)]">{option.combinationNotes.join(" · ")}</p>
@@ -1180,9 +1183,9 @@ export function RoundBoard({
           onClose={() => setMovePicker(null)}
           title={movePicker ? `Move ${movePicker.playerName} to...` : ""}
           footer={
-            <Button variant="secondary" onClick={() => setMovePicker(null)}>
+            <TouchlineButton variant="secondary" onClick={() => setMovePicker(null)}>
               Cancel
-            </Button>
+            </TouchlineButton>
           }
         >
           <MoveDestinationList
@@ -1198,9 +1201,9 @@ export function RoundBoard({
           title={movePicker ? `Move ${movePicker.playerName} to...` : ""}
           size="sm"
           footer={
-            <Button variant="secondary" onClick={() => setMovePicker(null)}>
+            <TouchlineButton variant="secondary" onClick={() => setMovePicker(null)}>
               Cancel
-            </Button>
+            </TouchlineButton>
           }
         >
           <MoveDestinationList
@@ -1241,7 +1244,7 @@ function MoveDestinationList({
           onClick={() => onSelect(m.matchId)}
           className="flex flex-col items-start gap-0.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-left text-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 disabled:opacity-50"
         >
-          <span className="font-medium text-zinc-50">{m.teamName}</span>
+          <span className="font-medium text-[var(--foreground)]">{m.teamName}</span>
           <span className="text-[11px] text-[var(--text-muted)]">vs {m.opponent}</span>
         </button>
       ))}
