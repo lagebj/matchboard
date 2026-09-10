@@ -170,6 +170,109 @@ describe("Run -> Learn report seeding invariants (ARR-0028)", () => {
     expect(reportCount).toBe(1);
   });
 
+  // ADR-0133 H1 — the Rød v Drammens BK incident: a DRAFT report seeded pre-match (e.g. by
+  // marking a per-match absence) used to make the whole live-session handoff a no-op, silently
+  // discarding every goal/assist/rotation. It must now MERGE into the DRAFT report instead.
+  it("seedReportFromLiveSession merges live data into a pre-existing DRAFT report", async () => {
+    const match = (await testDb.match.findFirstOrThrow({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true, homeAway: true },
+    }));
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === match.teamId).slice(0, 3);
+    await finalizeMatchSelections(testDb, match.id, fixtureIds.matchRoundId, players.map((p) => p.id), fixtureIds.organisationId);
+
+    // 1. Pre-match DRAFT report exists, UNKNOWN attendance, no score, no goals.
+    const pre = await seedReportFromFinalizedSquad(match.id);
+    expect(pre.success).toBe(true);
+    const preReport = await testDb.postMatchReport.findUniqueOrThrow({
+      where: { matchId: match.id },
+      select: { id: true },
+    });
+
+    // 2. A live session recorded a goal + scorer + assist + a rotation pair.
+    const user = await createTestUser(testDb);
+    const session = await testDb.liveMatchSession.create({
+      data: { matchId: match.id, coachId: user.id, status: "ACTIVE", organisationId: fixtureIds.organisationId },
+    });
+    const ev = (eventType: string, extra: Record<string, unknown> = {}) =>
+      testDb.liveMatchEvent.create({
+        data: { matchId: match.id, sessionId: session.id, eventType: eventType as never, organisationId: fixtureIds.organisationId, ...extra },
+      });
+    await ev("GOAL_FOR");
+    await ev("SCORER_SET", { playerId: players[0]!.id });
+    await ev("ASSIST_SET", { playerId: players[1]!.id });
+    await ev("GOAL_AGAINST");
+    await ev("ROTATION_OUT", { playerId: players[0]!.id, period: 1, matchSeconds: 600000 });
+    await ev("ROTATION_IN", { playerId: players[2]!.id, period: 1, matchSeconds: 600001 });
+
+    // 3. Handoff.
+    const result = await seedReportFromLiveSession(match.id, fixtureIds.organisationId);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.alreadyExisted).toBe(true);
+    expect(result.merged).toBe(true);
+    expect(result.reportId).toBe(preReport.id);
+
+    const report = await testDb.postMatchReport.findUniqueOrThrow({
+      where: { matchId: match.id },
+      select: {
+        status: true,
+        homeGoals: true,
+        awayGoals: true,
+        goals: { select: { playerId: true } },
+        assists: { select: { playerId: true } },
+        playerActuals: { select: { attendanceStatus: true } },
+      },
+    });
+    const ourGoals = match.homeAway === "HOME" ? report.homeGoals : report.awayGoals;
+    const theirGoals = match.homeAway === "HOME" ? report.awayGoals : report.homeGoals;
+    expect(ourGoals).toBe(1);
+    expect(theirGoals).toBe(1);
+    expect(report.goals.map((g) => g.playerId)).toEqual([players[0]!.id]);
+    expect(report.assists.map((a) => a.playerId)).toEqual([players[1]!.id]);
+    expect(report.playerActuals.every((pa) => pa.attendanceStatus === "PRESENT")).toBe(true);
+    expect(await testDb.matchRotation.count({ where: { matchId: match.id, source: "LIVE" } })).toBe(1);
+
+    // Still exactly one report row.
+    expect(await testDb.postMatchReport.count({ where: { matchId: match.id } })).toBe(1);
+  });
+
+  it("seedReportFromLiveSession never overwrites a REPORTED or LOCKED report", async () => {
+    const match = (await testDb.match.findFirstOrThrow({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true },
+    }));
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === match.teamId).slice(0, 3);
+    await finalizeMatchSelections(testDb, match.id, fixtureIds.matchRoundId, players.map((p) => p.id), fixtureIds.organisationId);
+
+    const report = await testDb.postMatchReport.create({
+      data: { matchId: match.id, status: "LOCKED", homeGoals: 2, awayGoals: 2, organisationId: fixtureIds.organisationId },
+    });
+
+    const user = await createTestUser(testDb);
+    const session = await testDb.liveMatchSession.create({
+      data: { matchId: match.id, coachId: user.id, status: "ACTIVE", organisationId: fixtureIds.organisationId },
+    });
+    await testDb.liveMatchEvent.create({
+      data: { matchId: match.id, sessionId: session.id, eventType: "GOAL_FOR", organisationId: fixtureIds.organisationId },
+    });
+
+    const result = await seedReportFromLiveSession(match.id, fixtureIds.organisationId);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.alreadyExisted).toBe(true);
+    expect(result.merged).toBe(false);
+
+    const after = await testDb.postMatchReport.findUniqueOrThrow({
+      where: { id: report.id },
+      select: { status: true, homeGoals: true, awayGoals: true, goals: { select: { id: true } } },
+    });
+    expect(after.status).toBe("LOCKED");
+    expect(after.homeGoals).toBe(2);
+    expect(after.awayGoals).toBe(2);
+    expect(after.goals.length).toBe(0);
+  });
+
   it("seedReportFromLiveSession includes League Match helpers in the seeded player list (regression)", async () => {
     const matches = await testDb.match.findMany({
       where: { matchRoundId: fixtureIds.matchRoundId },

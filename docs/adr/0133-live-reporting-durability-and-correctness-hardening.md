@@ -54,7 +54,7 @@ correctness of the coach-visible outcome first, then the realtime transport.
 
 | # | Change | Risk | ADR-gated? |
 |---|--------|------|-----------|
-| **H1** | `seedReportFromLiveSession()` merges into an existing DRAFT report instead of bailing; reconcile goals/assists/attendance/rotations idempotently by `clientEventId`; refuse only on `REPORTED`/`LOCKED`. Plus a guarded one-off remediation for the incident match's lost assists/rotations (reopen → reconcile → re-lock), run only on explicit maintainer go-ahead. | med (core report path) | yes — this ADR |
+| **H1** ✅ | `seedReportFromLiveSession()` **merges** into an existing DRAFT report instead of bailing: score set only when currently unset, `UNKNOWN` attendance → `PRESENT` for players who appeared, and goals/assists/fair-play/rotations seeded only for categories the report has none of yet; a `REPORTED`/`LOCKED` report is left untouched (`merged: false`). Delivered in PR following this ADR. **Still to do:** honour `EVENT_REVERSED` when deriving the score (a reversed `GOAL_FOR` still counts today); a guarded one-off remediation for the incident match's lost assists/rotations (reopen → reconcile → re-lock), on explicit maintainer go-ahead. | med (core report path) | yes — this ADR |
 | **H2** | Persist clock state on `LiveMatchSession` (`currentPeriod Int`, `periodStartedAt DateTime?`, `elapsedBeforeMs Int @default(0)`, updated on every `PERIOD_START`/`PERIOD_END`/pause/resume). Server-hydrate `/live` and the post-match handoff from it. Reject a `PERIOD_START` that would move the period backwards; cap `MATCH_END` period to the format's real max. | med (expand/contract migration) | yes — extend this ADR |
 | **H3** | Fix the `matchSeconds` unit end-to-end (settle on **milliseconds since period start**, rename column `matchOffsetMs`, migrate, fix all readers) **or** keep the name and coerce at the write boundary — decide in the H3 slice. Make `actual-timeline` rebuild use `wallClockTime` + period boundaries as the primary source and `matchOffsetMs` as a cross-check. Backfill: recompute existing intervals from `wallClockTime`. | med | yes — extend this ADR |
 | **H4** | `get-assistant-command-centre.ts`: exclude `ENDED` sessions and `REPORTED`/`LOCKED` reports from `live_report_available`; widen the today-window by a fixed buffer so a near-midnight CEST match is not mis-bucketed. | low | no (plain bug fix) — **delivered with this ADR** |
@@ -71,10 +71,10 @@ correctness of the coach-visible outcome first, then the realtime transport.
 
 ## Delivery
 
-- **H4** ships with this ADR (`get-assistant-command-centre.ts` guard + today-window buffer +
+- **H4** shipped with this ADR (`get-assistant-command-centre.ts` guard + today-window buffer +
   regression test reproducing the incident).
-- **H1** ships next as its own PR (merge semantics + tests + the guarded remediation).
-- **H2, H3, H6** are planned here and each extend this ADR with a concrete design in their PR.
+- **H1** shipped in the following PR (`seedReportFromLiveSession()` merge semantics + tests).
+- **H2, H3, H5, H6** are planned here and each extend this ADR with a concrete design in their PR.
 
 ## Consequences
 
