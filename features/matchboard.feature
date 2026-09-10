@@ -4830,6 +4830,17 @@ Feature: Matchboard football operations workspace
       When the coach opens the match
       Then no "Start live reporting" action must be shown
 
+    Scenario: The live score reflects every goal of the match, not just recent ones (ADR-0133)
+      Given eight goals have been recorded across a long live reporting session
+      When the live client reconciles its score with the server
+      Then the displayed score must still show all eight goals
+      And an earlier goal must not drop off because newer events were recorded
+
+    Scenario: Reversing a goal removes it from the live score (ADR-0133)
+      Given a goal was recorded and then reversed during live reporting
+      When the live client reconciles its score with the server
+      Then the reversed goal must not be counted
+
     Scenario: Compact layouts preserve access to omitted detail and context
       Given the coach is on any primary surface on a compact viewport
       Then there must be no page-level horizontal scrolling between 360 and 430px

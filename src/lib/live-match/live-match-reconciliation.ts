@@ -33,9 +33,20 @@ export function reconcileFromServerEvents(
   let goalsAgainst = 0;
   const onFieldPlayerIds = new Set(initialOnFieldIds);
 
+  // ADR-0133 H6: an `EVENT_REVERSED` row's own `isReversed` flag is true, but the row it
+  // *reverses* (e.g. a GOAL_FOR) is not flagged — its id is in the reversal's `correctsEventId`.
+  // The old `if (event.isReversed) continue` therefore only skipped the (non-scoring) reversal
+  // row and still counted the reversed goal, so an undone goal never left the score.
+  const reversedEventIds = new Set<string>();
   for (const event of events) {
-    // Skip reversed events
-    if (event.isReversed) continue;
+    if (event.eventType === "EVENT_REVERSED" && event.correctsEventId) {
+      reversedEventIds.add(event.correctsEventId);
+    }
+  }
+
+  for (const event of events) {
+    if (event.isReversed || event.eventType === "EVENT_REVERSED") continue;
+    if (reversedEventIds.has(event.id)) continue;
 
     switch (event.eventType) {
       case "GOAL_FOR":
@@ -75,16 +86,17 @@ export function reconcileFromCanonicalEvents(
   let goalsAgainst = 0;
   const onFieldPlayerIds = new Set(initialOnFieldIds);
 
-  // Track reversed event IDs (by id and clientEventId)
+  // Track reversed event IDs. ADR-0133 H6: `CanonicalLiveEvent` does not carry
+  // `correctsEventId` on the realtime wire yet (that is the worker-side follow-up), so this
+  // realtime/Follow-Live path still cannot un-count a reversed goal precisely — the
+  // reporting client uses `reconcileFromServerEvents` (the LiveEventSummary path), which is
+  // fixed. When `correctsEventId` is added to the protocol, honour it here too.
   const reversedEventIds = new Set<string>();
   for (const event of events) {
     if (event.eventType === "EVENT_REVERSED") {
-      // EVENT_REVERSED reverses a prior event. We mark it as reversed
-      // so it's not counted. The prior event that was reversed will also
-      // appear in the event list — we rely on the EVENT_REVERSED to
-      // identify which event to skip. Since CanonicalLiveEvent doesn't
-      // carry correctsEventId, we track reversed events by their own ID.
       reversedEventIds.add(event.id);
+      const corrects = (event as { correctsEventId?: string | null }).correctsEventId;
+      if (corrects) reversedEventIds.add(corrects);
     }
   }
 
