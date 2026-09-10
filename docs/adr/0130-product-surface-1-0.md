@@ -2,7 +2,23 @@
 
 ## Status
 
-Accepted
+**Superseded for visual design by ADR-0134 (Matchboard Visual Identity & Frontend Reset 1.0 —
+"Touchline").** Product Surface 1.0's *visual* doctrine is no longer authoritative: the
+dark-only `color-scheme`, the muted-sage primary accent, the prohibition on a light mode, the
+prohibition on a saturated brand accent, the navigation material geometry, the typography scale
+as final visual doctrine, the score visual treatment as final doctrine, the surface hierarchy
+where it blocks open-canvas design, the exact evidence-visualization inventory as a permanent
+constraint, and the page-width assumptions are all replaced by ADR-0134 and its bundle.
+
+Still valid unless separately changed (carried forward by ADR-0134): same canonical domain
+truth at every viewport; no colour-only meaning; visible focus; touch-target/accessibility
+intent; no drag-only critical workflow; the canonical `MatchPresentation` / Operational
+Timeline data ownership; positional safety; the Review vocabulary/semantics; live read/write
+separation; PWA safe-area behaviour.
+
+The rest of this ADR is retained as historical context for the Product Surface 1.0 programme.
+
+Accepted (visual doctrine superseded 2026-09-10)
 
 ## Context
 
