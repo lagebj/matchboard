@@ -5,6 +5,42 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import type { LiveSessionInfo } from "./live-match-types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { ensureMatchPlanningBaselineCaptured } from "@/lib/selection/capture-planning-baseline";
+import { persistedToClockState, clockStateToPersisted, isForwardClockTransition } from "./session-clock";
+import { createInitialClockState } from "./match-clock";
+import type { MatchClockState } from "./live-match-types";
+
+type LiveMatchSessionRow = {
+  id: string;
+  matchId: string;
+  coachId: string;
+  status: LiveSessionInfo["status"];
+  startedAt: Date;
+  endedAt: Date | null;
+  lastHeartbeatAt: Date | null;
+  clockPeriod: LiveSessionInfo["clock"]["period"];
+  clockRunning: boolean;
+  clockPeriodStartedAt: Date | null;
+  clockElapsedBeforeMs: number;
+};
+
+function toLiveSessionInfo(row: LiveMatchSessionRow): LiveSessionInfo {
+  return {
+    id: row.id,
+    matchId: row.matchId,
+    coachId: row.coachId,
+    status: row.status,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    lastHeartbeatAt: row.lastHeartbeatAt,
+    clock:
+      persistedToClockState({
+        clockPeriod: row.clockPeriod,
+        clockRunning: row.clockRunning,
+        clockPeriodStartedAt: row.clockPeriodStartedAt,
+        clockElapsedBeforeMs: row.clockElapsedBeforeMs,
+      }) ?? createInitialClockState(),
+  };
+}
 
 export async function startLiveSession(matchId: string): Promise<LiveSessionInfo> {
   const ctx = await requireActorContext();
@@ -28,15 +64,7 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
   });
 
   if (existing && existing.status === "ACTIVE") {
-    return {
-      id: existing.id,
-      matchId: existing.matchId,
-      coachId: existing.coachId,
-      status: existing.status,
-      startedAt: existing.startedAt,
-      endedAt: existing.endedAt,
-      lastHeartbeatAt: existing.lastHeartbeatAt,
-    };
+    return toLiveSessionInfo(existing);
   }
 
   if (existing && existing.status === "ENDED") {
@@ -56,15 +84,7 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
   // planned baseline immediately, even if scheduled kickoff has not arrived yet.
   await ensureMatchPlanningBaselineCaptured(matchId, { force: true });
 
-  return {
-    id: session.id,
-    matchId: session.matchId,
-    coachId: session.coachId,
-    status: session.status,
-    startedAt: session.startedAt,
-    endedAt: session.endedAt,
-    lastHeartbeatAt: session.lastHeartbeatAt,
-  };
+  return toLiveSessionInfo(session);
 }
 
 export async function getActiveSession(matchId: string): Promise<LiveSessionInfo | null> {
@@ -83,15 +103,7 @@ export async function getActiveSession(matchId: string): Promise<LiveSessionInfo
     return null;
   }
 
-  return {
-    id: session.id,
-    matchId: session.matchId,
-    coachId: session.coachId,
-    status: session.status,
-    startedAt: session.startedAt,
-    endedAt: session.endedAt,
-    lastHeartbeatAt: session.lastHeartbeatAt,
-  };
+  return toLiveSessionInfo(session);
 }
 
 export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo> {
@@ -122,15 +134,36 @@ export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo
     },
   });
 
-  return {
-    id: updated.id,
-    matchId: updated.matchId,
-    coachId: updated.coachId,
-    status: updated.status,
-    startedAt: updated.startedAt,
-    endedAt: updated.endedAt,
-    lastHeartbeatAt: updated.lastHeartbeatAt,
-  };
+  return toLiveSessionInfo(updated);
+}
+
+/**
+ * Persist the match clock for an ACTIVE session (ADR-0133 H2). Best-effort — a clock-persist
+ * failure must never break event recording; the caller swallows errors. The write is guarded
+ * so a stale / reloaded client that briefly holds the fresh `BEFORE` state cannot move the
+ * stored period backwards over a running clock.
+ */
+export async function persistLiveSessionClock(sessionId: string, clock: MatchClockState): Promise<void> {
+  const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+
+  const session = await db.liveMatchSession.findUnique({
+    where: { id: sessionId },
+    select: { organisationId: true, status: true, clockPeriod: true },
+  });
+
+  if (!session || session.organisationId !== ctx.organisationId || session.status !== "ACTIVE") {
+    return;
+  }
+
+  if (!isForwardClockTransition(session.clockPeriod, clock.period)) {
+    return;
+  }
+
+  await db.liveMatchSession.update({
+    where: { id: sessionId },
+    data: { ...clockStateToPersisted(clock), clockUpdatedAt: new Date() },
+  });
 }
 
 export async function heartbeatSession(sessionId: string): Promise<void> {

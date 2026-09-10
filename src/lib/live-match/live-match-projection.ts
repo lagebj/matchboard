@@ -67,7 +67,20 @@ export interface LiveMatchBaselineSquadPlayer {
 
 export interface LiveMatchBaseline {
   squad: LiveMatchBaselineSquadPlayer[];
-  activeSession: { id: string; coachId: string; startedAt: string } | null;
+  activeSession:
+    | {
+        id: string;
+        coachId: string;
+        startedAt: string;
+        /** Persisted match clock (ADR-0133 H2), serialized. `startedAt` is an ISO string. */
+        clock?: {
+          period: string;
+          running: boolean;
+          startedAt: string | null;
+          elapsedBeforeStartMs: number;
+        };
+      }
+    | null;
 }
 
 // --- Projection logic ---
