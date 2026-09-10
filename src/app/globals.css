@@ -183,6 +183,10 @@
   --color-text-soft: var(--text-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Sports/numeric display face — Touchline visual system (ADR-0134 §5). Used
+     only via the `.tl-*` display classes in src/app/touchline.css and the
+     `font-sport` utility; never for body/nav/names. */
+  --font-sport: var(--font-barlow-condensed);
 }
 
 html {

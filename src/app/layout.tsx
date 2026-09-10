@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Barlow_Condensed } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from "@/lib/theme/theme-provider";
+import { THEME_INIT_SCRIPT } from "@/lib/theme/theme";
 import "./globals.css";
+import "./touchline.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,6 +17,17 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Barlow Condensed — sports/numeric display roles ONLY (ADR-0134 §5): score,
+// prominent live clock, large kickoff time, week/round marker, major evidence
+// number. Never used for body/navigation/team/player names. Only the two
+// weights the design needs are loaded.
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -45,9 +59,14 @@ export const metadata: Metadata = {
 
 // themeColor / viewport-fit belong in the `viewport` export (the `metadata`
 // equivalents are deprecated in Next). viewport-fit=cover opts standalone PWA
-// layouts into the safe-area insets used by the app shell.
+// layouts into the safe-area insets used by the app shell. themeColor is
+// appearance-aware (ADR-0134): the dark canvas base for dark/system-dark, the
+// light canvas base for light.
 export const viewport: Viewport = {
-  themeColor: "#0a0d13",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#090b0f" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f5f1" },
+  ],
   viewportFit: "cover",
 };
 
@@ -62,13 +81,22 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${barlowCondensed.variable} h-full antialiased`}
     >
+      <head>
+        {/* Pre-hydration appearance initializer — applies an explicit stored
+            theme to <html> before first paint so there is no flash through the
+            wrong appearance (ADR-0134 §3). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full bg-background font-sans text-foreground">
         <NextIntlClientProvider messages={messages}>
-          {children}
-          <SpeedInsights />
-          <Analytics />
+          <ThemeProvider>
+            {children}
+            <SpeedInsights />
+            <Analytics />
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

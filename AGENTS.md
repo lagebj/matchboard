@@ -2438,6 +2438,36 @@ Populate all is a convenience workflow that generates drafts for all non-finaliz
 
 ## UI architecture
 
+### Frontend visual authority — Touchline (ADR-0134)
+
+**The current visual system is "Touchline" — Matchboard Visual Identity & Frontend Reset 1.0
+(ADR-0134). It supersedes Product Surface 1.0's (ADR-0130) *visual* doctrine.** Canonical
+detailed spec: `.matchboard-work/matchboard_visual_identity_frontend_reset_2026-09-10/`
+(gitignored working bundle); `docs/product/adaptive-interaction-design.md` is rewritten as the
+in-repo reference once the UI Lab gate is passed.
+
+- **Theme**: `system` (default) / `light` / `dark`. Storage `matchboard-theme`; explicit choice
+  stamps `data-theme` on `<html>`; pre-hydration initializer in `src/lib/theme/`. Light is a
+  first-class production theme; dark stays the reference appearance.
+- **Tokens**: `src/app/touchline.css` (`--tl-*`, activated by the `.touchline` class). Accent is
+  luminous `#C7F54A` dark / `#587400` light, used sparsely. Football outcome is never `--danger`
+  / `--success`; `--live` is its own colour.
+- **Typography**: Geist for all UI/names; Barlow Condensed (`.tl-*` display classes) only for
+  score / clock / week-round marker / major evidence number.
+- **Grammar owners** (`src/components/touchline/`): scorebook (`ScorebookMatchRow`,
+  `ScorebookRoundSection`), match (`MatchScoreHeader`, `LiveScoreStrip`, `OperationalMatchCard`),
+  timeline (`TouchlineTimeline`), evidence (`EvidenceStory` + `PhaseDistribution` / `OutcomePair`
+  / …), workbench (`WorkbenchToolbar`, `RosterColumn`, `RosterRow`, `TouchlineInspector`), nav
+  (`TouchlineSidebar` / `TouchlineRail` / `TouchlineBottomNav`), `TouchlineContextRail`,
+  `TouchlineBottomSheet`. The canonical `MatchPresentation` (ADR-0125) remains the sole owner of
+  home/away, score orientation, own-team side, lifecycle, outcome, clock, cancellation, and
+  planning/report attention — presentation components consume it.
+- **Migration status**: Phases 0–3 delivered (theme foundation + `/dev/ui-lab` with the seven
+  golden screens). Production-surface migration (Phases 5–12) is gated on explicit human
+  approval of the UI Lab — do not restyle production routes onto Touchline ahead of that.
+- The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
+  superseded by Touchline, its retained domain/accessibility principles are carried forward.
+
 ### Adaptive interaction design (ADR-0124, ADR-0125) — see Product Surface 1.0 (ADR-0130)
 
 **Product Surface 1.0 (ADR-0130) supersedes conflicting presentation doctrine in this

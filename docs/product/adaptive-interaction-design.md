@@ -1,5 +1,17 @@
 # Adaptive Interaction Design
 
+> **Visual doctrine superseded by Touchline (ADR-0134).** The visual system below (Product
+> Surface 1.0 — palette, materials, typography scale, score/timeline/evidence visuals, page-width
+> assumptions, dark-only mode) is superseded by the Matchboard Visual Identity & Frontend Reset
+> 1.0 ("Touchline"). During Phases 0–3 the new system lives in `src/app/touchline.css` +
+> `src/components/touchline/` and is exercised at `/dev/ui-lab`; this document is rewritten as the
+> Touchline reference once the UI Lab human-approval gate is passed (bundle Phase 11). Until then,
+> the **retained** domain/adaptive/accessibility principles here (same canonical domain truth at
+> every viewport, `MatchPresentation` / `OperationalTimeline` ownership, breakpoints, no
+> colour-only meaning, visible focus, touch targets, no drag-only workflow, positional safety,
+> PWA safe-area behaviour) remain current; the visual specifics do not. See ADR-0134 and
+> `.matchboard-work/matchboard_visual_identity_frontend_reset_2026-09-10/`.
+
 > **Status:** Canonical detailed interaction-design reference, updated for **Product Surface 1.0**
 > (ADR-0130). `AGENTS.md` remains the highest repo-level authority; if this document and
 > `AGENTS.md` ever diverge, that is a defect to fix, not a choice between two valid rules.

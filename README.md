@@ -43,7 +43,14 @@ compact `<600`, medium `600–839`, expanded `840–1199`, large `1200–1599`, 
 team/season/round context recoverable, never requires drag or hover, respects safe areas and
 installed-PWA standalone display, and keeps the primary action clear of the fixed bottom nav.
 
-**Product Surface 1.0** (ADR-0130) is the current visual system: a quiet solid dark canvas with
+> The visual system is being reset — **Matchboard Visual Identity & Frontend Reset 1.0
+> (ADR-0134)** supersedes Product Surface 1.0's visual doctrine (luminous yellow-green accent,
+> System/Light/Dark appearance, editorial sports hierarchy, Barlow Condensed for
+> scores/clocks). It is being built behind a `/dev/ui-lab` human-approval gate; production
+> routes still render Product Surface 1.0 below until that migration lands. See
+> `docs/adr/0134-visual-identity-frontend-reset-touchline.md`.
+
+**Product Surface 1.0** (ADR-0130) is the current production visual system: a quiet solid dark canvas with
 one subtle radial atmosphere (no pitch-line texture), cool near-white foreground, cool hairline
 borders, a blue focus ring, and five surface families (temporal flow, match/result scan,
 planning workspace, evidence/story, reference/configuration) — the same design system does not
