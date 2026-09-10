@@ -148,9 +148,10 @@ export function PlayerPathwaysClient({
   const rounds = data?.rounds ?? [];
 
   return (
-    <div className="space-y-6">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline space-y-6" data-theme="dark">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Player Pathways</h1>
+        <h1 className="text-[28px] font-[650] text-[var(--foreground)]">Player Pathways</h1>
         <p className="text-sm text-zinc-400 mt-1">
           Track load, movement, and context across the league season.
         </p>

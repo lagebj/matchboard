@@ -74,7 +74,8 @@ export function PlannedVsActualClient({
   const totalDeltas = filteredDeltas.reduce((sum, d) => sum + d.deltas.length, 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
       <div className="flex items-center gap-3">
         <Link
           href="/insights"
