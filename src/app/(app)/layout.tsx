@@ -50,7 +50,7 @@ export default async function AppLayout({
         data-theme="dark"
         className="touchline touchline-canvas flex min-h-screen flex-col"
       >
-        <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--tl-c-canvas)_85%,transparent)] backdrop-blur-2xl">
+        <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]">
           <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
             <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground)]">
               Matchboard
@@ -89,7 +89,7 @@ export default async function AppLayout({
           <SidebarNav orgSlug={orgSlug} />
         </aside>
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--tl-c-canvas)_82%,transparent)] backdrop-blur-2xl">
+          <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]">
             <div className="min-w-0 flex-1">
               <TopContextBar />
             </div>

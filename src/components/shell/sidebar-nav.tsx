@@ -82,7 +82,7 @@ export function SidebarNav({ orgSlug }: { orgSlug: string }) {
         })}
       </ul>
 
-      <div className="px-5 py-4 text-[11px] uppercase tracking-[0.14em] text-[var(--text-disabled)]">
+      <div className="px-5 py-4 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
         v{APP_VERSION}
       </div>
     </nav>
