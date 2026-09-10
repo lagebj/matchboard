@@ -4120,16 +4120,21 @@ exposed that live reporting is durability-critical and under-hardened. Fixed so 
 completed report (H4); `seedReportFromLiveSession()` now **merges** the live session's derived
 data into a pre-existing DRAFT `PostMatchReport` instead of no-op'ing (H1) — it previously
 discarded the entire live session whenever any report row existed (e.g. a DRAFT seeded pre-match
-by `markMatchAbsence()`). Still open: `LiveMatchSession` persists **no clock/period state** (F5
-resets to "Start First Half" — H2); `LiveMatchEvent.matchSeconds` is written in **milliseconds**
-(~1000× — corrupts the evidence layer — H3); the realtime DO snapshot can **regress** canonical
-state on reconnect (H6). See ADR-0133 for the full forensics and the H1–H6 plan.
+by `markMatchAbsence()`). `LiveMatchSession` now persists the match clock (`clockPeriod`/`clockRunning`/
+`clockPeriodStartedAt`/`clockElapsedBeforeMs`, `persistLiveSessionClock()`, forward-only guard)
+and the client rehydrates from it on mount instead of resetting to "before kickoff" (H2). Still
+open: `LiveMatchEvent.matchSeconds` is written in **milliseconds** (the field name says seconds —
+readers disagree on the unit; corrupts the evidence layer — H3); no visible "Start live
+reporting" entry point before the planning baseline is captured (H5); the realtime DO snapshot
+can **regress** canonical state on reconnect and its `clockAnchor` is never advanced (H6). See
+ADR-0133 for the full forensics and the H1–H6 plan.
 
 | File | Purpose |
 |------|---------|
 | `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
 | `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
-| `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions |
+| `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions; `persistLiveSessionClock()` — persisted match clock (ADR-0133 H2), forward-only |
+| `src/lib/live-match/session-clock.ts` | `MatchClockState` ↔ persisted `LiveMatchSession` clock columns; `isForwardClockTransition()` monotonic-period guard (ADR-0133 H2) |
 | `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events, `estimateCurrentMatchSeconds()` (server-side match-time estimate, no clock anchor is persisted) |
 | `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
 | `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |

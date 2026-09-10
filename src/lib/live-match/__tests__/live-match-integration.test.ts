@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
-import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession } from "../live-match-session";
+import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession, persistLiveSessionClock } from "../live-match-session";
 import { recordEvent, recordEventForActor, getMatchEvents, getRecentEvents } from "../live-match-event-store";
 import { validateLiveEventInput, isValidEventType, isGoalEventType, isPeriodTransition } from "../live-match-domain";
 import type { LiveMatchEventType } from "@/generated/prisma/client";
@@ -87,6 +87,89 @@ describe("Live match session lifecycle", () => {
     const session = await getActiveSession(matchId);
     expect(session).toBeNull();
     await expect(endLiveSession("nonexistent-session")).rejects.toThrow();
+  });
+});
+
+describe("Live match session clock persistence (ADR-0133 H2)", () => {
+  let clockMatchId: string;
+
+  beforeAll(async () => {
+    // A fresh match so this block is independent of the ended session above.
+    clockMatchId = Object.values(fixture.matches)[1];
+    await startLiveSession(clockMatchId);
+  });
+
+  it("defaults to a fresh 'before kickoff' clock", async () => {
+    const session = await getActiveSession(clockMatchId);
+    expect(session!.clock).toEqual({
+      period: "BEFORE",
+      running: false,
+      startedAt: null,
+      elapsedBeforeStartMs: 0,
+    });
+  });
+
+  it("round-trips a running clock so a reload rehydrates it", async () => {
+    const session = await getActiveSession(clockMatchId);
+    const startedAt = new Date("2026-09-09T15:30:00.000Z");
+    await persistLiveSessionClock(session!.id, {
+      period: "FIRST_HALF",
+      running: true,
+      startedAt,
+      elapsedBeforeStartMs: 0,
+    });
+
+    const reloaded = await getActiveSession(clockMatchId);
+    expect(reloaded!.clock.period).toBe("FIRST_HALF");
+    expect(reloaded!.clock.running).toBe(true);
+    expect(reloaded!.clock.startedAt?.getTime()).toBe(startedAt.getTime());
+  });
+
+  it("round-trips a paused clock with accumulated elapsed time", async () => {
+    const session = await getActiveSession(clockMatchId);
+    await persistLiveSessionClock(session!.id, {
+      period: "HALF_TIME",
+      running: false,
+      startedAt: null,
+      elapsedBeforeStartMs: 20 * 60 * 1000,
+    });
+
+    const reloaded = await getActiveSession(clockMatchId);
+    expect(reloaded!.clock).toEqual({
+      period: "HALF_TIME",
+      running: false,
+      startedAt: null,
+      elapsedBeforeStartMs: 20 * 60 * 1000,
+    });
+  });
+
+  it("refuses to move the persisted period backwards (a stale/reloaded client cannot stomp a running clock)", async () => {
+    const session = await getActiveSession(clockMatchId);
+    // Currently HALF_TIME. A client that briefly holds the fresh BEFORE state must not win.
+    await persistLiveSessionClock(session!.id, {
+      period: "BEFORE",
+      running: false,
+      startedAt: null,
+      elapsedBeforeStartMs: 0,
+    });
+
+    const reloaded = await getActiveSession(clockMatchId);
+    expect(reloaded!.clock.period).toBe("HALF_TIME");
+  });
+
+  it("does not persist a clock for an ENDED session", async () => {
+    const session = await getActiveSession(clockMatchId);
+    const ended = await endLiveSession(session!.id);
+    expect(ended.status).toBe("ENDED");
+    // No throw, just a no-op.
+    await persistLiveSessionClock(session!.id, {
+      period: "SECOND_HALF",
+      running: true,
+      startedAt: new Date(),
+      elapsedBeforeStartMs: 0,
+    });
+    const row = await testDb.liveMatchSession.findUniqueOrThrow({ where: { matchId: clockMatchId } });
+    expect(row.clockPeriod).toBe("HALF_TIME");
   });
 });
 

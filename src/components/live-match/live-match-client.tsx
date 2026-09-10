@@ -72,10 +72,19 @@ export interface LiveMatchActions {
     success: boolean;
     data?: {
       squad: SquadPlayer[];
-      activeSession: { id: string; coachId: string; startedAt: string } | null;
+      activeSession: {
+        id: string;
+        coachId: string;
+        startedAt: string;
+        /** Persisted match clock (ADR-0133 H2), serialized. */
+        clock?: { period: string; running: boolean; startedAt: string | null; elapsedBeforeStartMs: number };
+      } | null;
     };
     error?: string;
   }>;
+  /** Persist the match clock on a transition (ADR-0133 H2). Best-effort; optional so non-League
+   * clients that don't wire it are unaffected. */
+  persistClock?: (sessionId: string, clock: MatchClockState) => Promise<{ success: boolean; error?: string }>;
   reportUrl?: (reportId: string) => string;
   /**
    * Realtime integration (SPEC.md §5 scenario 2, §27) — optional because non-League live
@@ -288,6 +297,21 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   const [onFieldIds, setOnFieldIds] = useState<Set<string>>(new Set());
   const [clock, setClock] = useState<MatchClockState>(createInitialClockState());
+  // ADR-0133 H2: persist the clock on every transition (period advance / pause / resume /
+  // adjust) so a reload / device swap rehydrates it. NOT on the per-second tick — the tick
+  // moves `now`, not `clock`. Best-effort; the server write is forward-only and idempotent.
+  const clockHydratedRef = useRef(false);
+  useEffect(() => {
+    if (!sessionActive || !sessionId || !actions.persistClock) return;
+    // Skip the very first render's initial "before kickoff" state — nothing to persist yet,
+    // and the pre-match package's own hydration will settle `clock` momentarily.
+    if (!clockHydratedRef.current) {
+      clockHydratedRef.current = true;
+      const isFresh = clock.period === "BEFORE" && !clock.running && clock.elapsedBeforeStartMs === 0;
+      if (isFresh) return;
+    }
+    void actions.persistClock(sessionId, clock);
+  }, [clock, sessionActive, sessionId, actions]);
   const [goalsFor, setGoalsFor] = useState(0);
   const [goalsAgainst, setGoalsAgainst] = useState(0);
   const [recentEvents, setRecentEvents] = useState<LiveEventSummary[]>([]);
@@ -433,6 +457,22 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           setSessionActive(true);
           const savedSession = { id: result.data.activeSession.id, matchId, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
           await saveSessionLocally(savedSession);
+          // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
+          // device swap does not reset it to "before kickoff". A still-`BEFORE`, not-running,
+          // zero-elapsed clock is indistinguishable from the fresh initial state, so leave the
+          // initial `useState` value in place for that case.
+          const savedClock = result.data.activeSession.clock;
+          if (
+            savedClock &&
+            !(savedClock.period === "BEFORE" && !savedClock.running && savedClock.elapsedBeforeStartMs === 0)
+          ) {
+            setClock({
+              period: savedClock.period as MatchClockState["period"],
+              running: savedClock.running,
+              startedAt: savedClock.startedAt ? new Date(savedClock.startedAt) : null,
+              elapsedBeforeStartMs: savedClock.elapsedBeforeStartMs,
+            });
+          }
         }
       } else {
         setError(result.error ?? "Failed to load match data");

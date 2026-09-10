@@ -17,6 +17,8 @@ export interface LiveSessionInfo {
   startedAt: Date;
   endedAt: Date | null;
   lastHeartbeatAt: Date | null;
+  /** Persisted match clock (ADR-0133 H2) — used to rehydrate the client after a reload. */
+  clock: MatchClockState;
 }
 
 export interface LiveEventInput {

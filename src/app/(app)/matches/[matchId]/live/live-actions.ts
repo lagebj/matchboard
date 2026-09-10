@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession } from "@/lib/live-match/live-match-session";
+import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession, persistLiveSessionClock } from "@/lib/live-match/live-match-session";
+import type { MatchClockState } from "@/lib/live-match/live-match-types";
 import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/live-match-event-store";
 import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
 import type { LiveEventInput } from "@/lib/live-match/live-match-types";
@@ -75,6 +76,37 @@ export async function heartbeatAction(sessionId: string) {
     return { success: true as const };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Heartbeat failed." };
+  }
+}
+
+/**
+ * Persist the match clock on a live-reporting clock transition (ADR-0133 H2) so a reload /
+ * device swap / reconnect rehydrates it instead of resetting to "before kickoff". Called from
+ * the client on every period advance / pause / resume / adjust — never on the per-second tick.
+ * Best-effort: a failure here must never disrupt live reporting.
+ */
+export async function persistLiveSessionClockAction(
+  sessionId: string,
+  clock: {
+    period: MatchClockState["period"];
+    running: boolean;
+    startedAt: string | null;
+    elapsedBeforeStartMs: number;
+  },
+) {
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    requireMutationRole(ctx);
+    await persistLiveSessionClock(sessionId, {
+      period: clock.period,
+      running: clock.running,
+      startedAt: clock.startedAt ? new Date(clock.startedAt) : null,
+      elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
+    });
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to persist clock." };
   }
 }
 
@@ -332,6 +364,14 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
               id: activeSession.id,
               coachId: activeSession.coachId,
               startedAt: activeSession.startedAt.toISOString(),
+              // Persisted match clock (ADR-0133 H2) — the client rehydrates from this on mount
+              // instead of starting at "before kickoff".
+              clock: {
+                period: activeSession.clock.period,
+                running: activeSession.clock.running,
+                startedAt: activeSession.clock.startedAt?.toISOString() ?? null,
+                elapsedBeforeStartMs: activeSession.clock.elapsedBeforeStartMs,
+              },
             }
           : null,
       },

@@ -1060,6 +1060,17 @@ model LiveMatchSession {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  // Persisted match clock (ADR-0133 H2). Reconstructs the clock deterministically on a
+  // reload / device swap / reconnect instead of resetting to "before kickoff". Written on
+  // every clock transition (period advance / pause / resume / adjust), never on every tick —
+  // `clockElapsedBeforeMs` + `clockPeriodStartedAt` fully determine elapsed time at any later
+  // instant.
+  clockPeriod          MatchPeriod @default(BEFORE)
+  clockRunning         Boolean     @default(false)
+  clockPeriodStartedAt DateTime?
+  clockElapsedBeforeMs Int         @default(0)
+  clockUpdatedAt       DateTime?
+
   match        Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
   organisation Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   events       LiveMatchEvent[]

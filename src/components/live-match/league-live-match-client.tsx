@@ -10,6 +10,7 @@ import {
   recordLiveEventAction,
   getRecentEventsAction,
   getLiveMatchPreMatchPackageAction,
+  persistLiveSessionClockAction,
 } from "@/app/(app)/matches/[matchId]/live/live-actions";
 import { endLiveSessionAndCreateReportAction } from "@/app/(app)/matches/[matchId]/live/live-report-handoff";
 import { getLeaguePeriodConfig } from "@/lib/live-match/period-config";
@@ -220,6 +221,15 @@ export function createLeagueActions(
     },
     heartbeat: async (sessionId) => {
       await heartbeatAction(sessionId);
+    },
+    persistClock: async (sessionId, clock) => {
+      // ADR-0133 H2 — best-effort clock persistence on a transition.
+      return persistLiveSessionClockAction(sessionId, {
+        period: clock.period,
+        running: clock.running,
+        startedAt: clock.startedAt ? clock.startedAt.toISOString() : null,
+        elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
+      });
     },
     // SPEC.md §28 primary/fallback decision flow: try the realtime path first (fast,
     // broadcasts to other connections as part of the same call); fall through to the

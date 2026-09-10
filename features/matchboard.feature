@@ -4797,6 +4797,17 @@ Feature: Matchboard football operations workspace
       Then Follow Live must expose no reporting controls
       And refreshing Follow Live must not change any recorded match truth
 
+    Scenario: Reloading live reporting keeps the match clock (ADR-0133)
+      Given a coach has started live reporting and the match clock is running in the second half
+      When the coach reloads the live reporting page
+      Then the match clock must resume in the second half at the elapsed time it had reached
+      And it must not reset to before kickoff
+
+    Scenario: A stale device cannot move the live match clock backwards (ADR-0133)
+      Given the persisted match clock for a live session is in the second half
+      When a stale or reloaded device reports a before-kickoff clock for the same session
+      Then the persisted match clock must stay in the second half
+
     Scenario: Compact layouts preserve access to omitted detail and context
       Given the coach is on any primary surface on a compact viewport
       Then there must be no page-level horizontal scrolling between 360 and 430px
