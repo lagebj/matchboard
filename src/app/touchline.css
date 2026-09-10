@@ -1,0 +1,441 @@
+/* -----------------------------------------------------------------------------
+ * Matchboard Visual Identity & Frontend Reset 1.0 — token system
+ * Internal visual-language codename: Touchline. Product name remains Matchboard.
+ * Authority: ADR-0134 and
+ * .matchboard-work/matchboard_visual_identity_frontend_reset_2026-09-10/
+ *
+ * This supersedes the Product Surface 1.0 visual doctrine (ADR-0130). During the
+ * phased migration the raw palette lives here under `--tl-*` names and is
+ * activated on a subtree by the `.touchline` class, which remaps `--tl-*` onto
+ * the working token names and adds the Touchline-only names. Phase 10 moves the
+ * activation to the app shell root and deletes src/app/globals.css's old
+ * `:root` block and compatibility aliases.
+ *
+ * Appearance: `system` (default) follows `prefers-color-scheme`; an explicit
+ * choice stamps `data-theme="light" | "dark"` on <html> (or, for the UI Lab
+ * screenshot harness, directly on the `.touchline` wrapper). Storage key
+ * `matchboard-theme`.
+ * -------------------------------------------------------------------------- */
+
+/* --- Dark palette (primary/reference) ------------------------------------- */
+:root,
+.touchline[data-theme="dark"] {
+  --tl-canvas: #090b0f;
+  --tl-canvas-raised: #0d1117;
+  --tl-surface: #11161d;
+  --tl-surface-strong: #171e27;
+  --tl-surface-selected: #1a222c;
+  --tl-surface-hover: #151b23;
+
+  --tl-foreground: #f5f7f2;
+  --tl-text-soft: #a5afbb;
+  --tl-text-muted: #7f8997;
+  --tl-text-disabled: #596270;
+
+  --tl-border-soft: rgba(221, 230, 240, 0.1);
+  --tl-border-strong: rgba(221, 230, 240, 0.17);
+
+  --tl-accent: #c7f54a;
+  --tl-accent-strong: #d8ff73;
+  --tl-accent-subtle: rgba(199, 245, 74, 0.12);
+  --tl-accent-on-fill: #101500;
+
+  --tl-live: #ff5c5c;
+  --tl-live-subtle: rgba(255, 92, 92, 0.12);
+  --tl-danger: #e07068;
+  --tl-danger-subtle: rgba(224, 112, 104, 0.12);
+  --tl-attention: #e4b85f;
+  --tl-attention-subtle: rgba(228, 184, 95, 0.13);
+  --tl-info: #78a9ff;
+  --tl-info-subtle: rgba(120, 169, 255, 0.12);
+  --tl-positive: #71c58c;
+  --tl-positive-subtle: rgba(113, 197, 140, 0.12);
+  --tl-evidence: #a88aff;
+  --tl-evidence-subtle: rgba(168, 138, 255, 0.12);
+
+  --tl-shadow-control: 0 12px 32px rgba(0, 0, 0, 0.28);
+  --tl-shadow-overlay: 0 22px 60px rgba(0, 0, 0, 0.38);
+
+  --tl-atmosphere-accent: rgba(199, 245, 74, 0.06);
+  --tl-atmosphere-cool: rgba(120, 169, 255, 0.04);
+}
+
+/* --- Light palette (first-class production theme / sideline mode) -------- */
+:root[data-theme="light"],
+.touchline[data-theme="light"] {
+  --tl-canvas: #f3f5f1;
+  --tl-canvas-raised: #ecefe9;
+  --tl-surface: #ffffff;
+  --tl-surface-strong: #e6eae4;
+  --tl-surface-selected: #e2e7df;
+  --tl-surface-hover: #edf0eb;
+
+  --tl-foreground: #101316;
+  --tl-text-soft: #59636e;
+  --tl-text-muted: #747e88;
+  --tl-text-disabled: #9aa1a8;
+
+  --tl-border-soft: rgba(16, 19, 22, 0.1);
+  --tl-border-strong: rgba(16, 19, 22, 0.17);
+
+  --tl-accent: #587400;
+  --tl-accent-strong: #486100;
+  --tl-accent-subtle: rgba(88, 116, 0, 0.1);
+  --tl-accent-on-fill: #101500;
+
+  --tl-live: #c43d3d;
+  --tl-live-subtle: rgba(196, 61, 61, 0.1);
+  --tl-danger: #a92f2a;
+  --tl-danger-subtle: rgba(169, 47, 42, 0.1);
+  --tl-attention: #8b5e09;
+  --tl-attention-subtle: rgba(139, 94, 9, 0.1);
+  --tl-info: #2f64b2;
+  --tl-info-subtle: rgba(47, 100, 178, 0.1);
+  --tl-positive: #267a42;
+  --tl-positive-subtle: rgba(38, 122, 66, 0.1);
+  --tl-evidence: #7150b8;
+  --tl-evidence-subtle: rgba(113, 80, 184, 0.1);
+
+  --tl-shadow-control: 0 12px 28px rgba(24, 31, 38, 0.12);
+  --tl-shadow-overlay: 0 22px 52px rgba(24, 31, 38, 0.16);
+
+  --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
+  --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]),
+  .touchline:not([data-theme]) {
+    --tl-canvas: #f3f5f1;
+    --tl-canvas-raised: #ecefe9;
+    --tl-surface: #ffffff;
+    --tl-surface-strong: #e6eae4;
+    --tl-surface-selected: #e2e7df;
+    --tl-surface-hover: #edf0eb;
+
+    --tl-foreground: #101316;
+    --tl-text-soft: #59636e;
+    --tl-text-muted: #747e88;
+    --tl-text-disabled: #9aa1a8;
+
+    --tl-border-soft: rgba(16, 19, 22, 0.1);
+    --tl-border-strong: rgba(16, 19, 22, 0.17);
+
+    --tl-accent: #587400;
+    --tl-accent-strong: #486100;
+    --tl-accent-subtle: rgba(88, 116, 0, 0.1);
+    --tl-accent-on-fill: #101500;
+
+    --tl-live: #c43d3d;
+    --tl-live-subtle: rgba(196, 61, 61, 0.1);
+    --tl-danger: #a92f2a;
+    --tl-danger-subtle: rgba(169, 47, 42, 0.1);
+    --tl-attention: #8b5e09;
+    --tl-attention-subtle: rgba(139, 94, 9, 0.1);
+    --tl-info: #2f64b2;
+    --tl-info-subtle: rgba(47, 100, 178, 0.1);
+    --tl-positive: #267a42;
+    --tl-positive-subtle: rgba(38, 122, 66, 0.1);
+    --tl-evidence: #7150b8;
+    --tl-evidence-subtle: rgba(113, 80, 184, 0.1);
+
+    --tl-shadow-control: 0 12px 28px rgba(24, 31, 38, 0.12);
+    --tl-shadow-overlay: 0 22px 52px rgba(24, 31, 38, 0.16);
+
+    --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
+    --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
+  }
+}
+
+/* --- Non-palette constants (mode-independent) --------------------------- */
+:root {
+  --tl-font-ui: var(--font-geist-sans);
+  --tl-font-sport: var(--font-barlow-condensed);
+
+  --tl-radius-status: 6px;
+  --tl-radius-control: 8px;
+  --tl-radius-object: 10px;
+  --tl-radius-feature: 12px;
+  --tl-radius-overlay: 16px;
+
+  --tl-space-1: 4px;
+  --tl-space-2: 8px;
+  --tl-space-3: 12px;
+  --tl-space-4: 16px;
+  --tl-space-5: 20px;
+  --tl-space-6: 24px;
+  --tl-space-8: 32px;
+  --tl-space-10: 40px;
+  --tl-space-12: 48px;
+  --tl-space-16: 64px;
+
+  --tl-motion-micro: 120ms;
+  --tl-motion-state: 160ms;
+  --tl-motion-content: 200ms;
+  --tl-motion-panel: 260ms;
+  --tl-motion-route-max: 320ms;
+  --tl-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* -----------------------------------------------------------------------------
+ * Activation scope. Applied to the UI Lab wrapper now; moves to the app shell
+ * root on Phase 5 approval. Remaps `--tl-*` onto the working token names that
+ * both the existing Tailwind `@theme inline` layer and the Touchline primitives
+ * consume, and adds the Touchline-only names.
+ * -------------------------------------------------------------------------- */
+.touchline {
+  color-scheme: dark;
+
+  /* Working names (shared with Product Surface 1.0 consumers) */
+  --background: var(--tl-canvas);
+  --foreground: var(--tl-foreground);
+  --surface-base: var(--tl-surface);
+  --surface-raised: var(--tl-canvas-raised);
+  --surface-strong: var(--tl-surface-strong);
+  --surface-hover: var(--tl-surface-hover);
+  --surface-muted: var(--tl-surface);
+  --surface-overlay: color-mix(in srgb, var(--tl-canvas) 88%, transparent);
+  --border-soft: var(--tl-border-soft);
+  --border-strong: var(--tl-border-strong);
+  --text-soft: var(--tl-text-soft);
+  --text-muted: var(--tl-text-muted);
+  --text-disabled: var(--tl-text-disabled);
+  --accent: var(--tl-accent);
+  --accent-strong: var(--tl-accent-strong);
+  --accent-subtle: var(--tl-accent-subtle);
+  --live: var(--tl-live);
+  --live-subtle: var(--tl-live-subtle);
+  --danger: var(--tl-danger);
+  --danger-subtle: var(--tl-danger-subtle);
+  --warning: var(--tl-attention);
+  --warning-subtle: var(--tl-attention-subtle);
+  --info: var(--tl-info);
+  --info-subtle: var(--tl-info-subtle);
+  --success: var(--tl-positive);
+  --success-subtle: var(--tl-positive-subtle);
+  --dev: var(--tl-evidence);
+  --dev-subtle: var(--tl-evidence-subtle);
+  --focus: var(--tl-accent);
+
+  /* Touchline-only names */
+  --tl-c-canvas: var(--tl-canvas);
+  --tl-c-canvas-raised: var(--tl-canvas-raised);
+  --tl-c-surface: var(--tl-surface);
+  --tl-c-surface-strong: var(--tl-surface-strong);
+  --tl-c-surface-selected: var(--tl-surface-selected);
+  --tl-c-surface-hover: var(--tl-surface-hover);
+  --tl-c-foreground: var(--tl-foreground);
+  --tl-c-text-soft: var(--tl-text-soft);
+  --tl-c-text-muted: var(--tl-text-muted);
+  --tl-c-text-disabled: var(--tl-text-disabled);
+  --tl-c-border-soft: var(--tl-border-soft);
+  --tl-c-border-strong: var(--tl-border-strong);
+  --tl-c-accent: var(--tl-accent);
+  --tl-c-accent-strong: var(--tl-accent-strong);
+  --tl-c-accent-subtle: var(--tl-accent-subtle);
+  --tl-c-accent-on-fill: var(--tl-accent-on-fill);
+  --tl-c-live: var(--tl-live);
+  --tl-c-live-subtle: var(--tl-live-subtle);
+  --tl-c-danger: var(--tl-danger);
+  --tl-c-attention: var(--tl-attention);
+  --tl-c-info: var(--tl-info);
+  --tl-c-positive: var(--tl-positive);
+  --tl-c-evidence: var(--tl-evidence);
+  --tl-c-evidence-subtle: var(--tl-evidence-subtle);
+  --tl-c-shadow-control: var(--tl-shadow-control);
+  --tl-c-shadow-overlay: var(--tl-shadow-overlay);
+
+  --tl-c-font-ui: var(--tl-font-ui);
+  --tl-c-font-sport: var(--tl-font-sport);
+
+  --tl-c-radius-status: var(--tl-radius-status);
+  --tl-c-radius-control: var(--tl-radius-control);
+  --tl-c-radius-object: var(--tl-radius-object);
+  --tl-c-radius-feature: var(--tl-radius-feature);
+  --tl-c-radius-overlay: var(--tl-radius-overlay);
+
+  --tl-c-motion-micro: var(--tl-motion-micro);
+  --tl-c-motion-state: var(--tl-motion-state);
+  --tl-c-motion-content: var(--tl-motion-content);
+  --tl-c-motion-panel: var(--tl-motion-panel);
+  --tl-c-motion-ease: var(--tl-motion-ease);
+
+  background-color: var(--tl-canvas);
+  color: var(--tl-foreground);
+  font-family: var(--tl-font-ui), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv01", "cv11";
+}
+
+:root[data-theme="light"] .touchline:not([data-theme="dark"]),
+.touchline[data-theme="light"] {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  .touchline:not([data-theme="dark"]) {
+    color-scheme: light;
+  }
+}
+
+/* Canvas atmosphere — one faint top-right accent radial, one broad lower-left
+   cool wash (03 §8). No repeating pitch geometry, no per-card glow. */
+.touchline-canvas {
+  position: relative;
+  min-height: 100%;
+  background-color: var(--tl-canvas);
+  background-image:
+    radial-gradient(60rem 42rem at 108% -6%, var(--tl-atmosphere-accent), transparent 68%),
+    radial-gradient(56rem 50rem at -14% 112%, var(--tl-atmosphere-cool), transparent 72%);
+  background-attachment: fixed;
+}
+
+/* --- Sports display type (Barlow Condensed) --------------------------- */
+.tl-sport {
+  font-family: var(--tl-font-sport), var(--tl-font-ui), sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.005em;
+}
+.tl-score-hero {
+  font-family: var(--tl-font-sport), var(--tl-font-ui), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(3.5rem, 12vw, 5rem);
+  line-height: 0.92;
+}
+.tl-score-list {
+  font-family: var(--tl-font-sport), var(--tl-font-ui), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 2rem;
+  line-height: 0.94;
+}
+.tl-clock {
+  font-family: var(--tl-font-sport), var(--tl-font-ui), sans-serif;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  font-size: 2.125rem;
+  line-height: 1;
+}
+.tl-round-marker {
+  font-family: var(--tl-font-sport), var(--tl-font-ui), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.875rem;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+}
+.tl-evidence-number {
+  font-family: var(--tl-font-sport), var(--tl-font-ui), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(3rem, 9vw, 3.5rem);
+  line-height: 0.9;
+}
+
+@media (min-width: 840px) {
+  .tl-score-list {
+    font-size: 2.125rem;
+  }
+  .tl-clock {
+    font-size: 2.5rem;
+  }
+  .tl-evidence-number {
+    font-size: 4rem;
+  }
+}
+
+/* --- Focus ring (05 §8) --------------------------------------------------- */
+.touchline :where(a, button, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"]):focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--tl-canvas),
+    0 0 0 4px color-mix(in srgb, var(--tl-accent) 78%, transparent);
+  border-radius: var(--tl-radius-control);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .touchline *,
+  .touchline *::before,
+  .touchline *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Compact floating bottom navigation (05 §2) ------------------------- */
+.tl-bottom-nav {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  z-index: 40;
+  height: 62px;
+  max-width: calc(100vw - 24px);
+  margin-inline: auto;
+  border-radius: var(--tl-radius-overlay);
+  border: 1px solid rgba(221, 230, 240, 0.14);
+  /* Solid fallback first — used when backdrop-filter is unsupported. */
+  background: color-mix(in srgb, var(--tl-canvas-raised) 96%, var(--tl-canvas));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+:root[data-theme="light"] .tl-bottom-nav,
+.touchline[data-theme="light"] .tl-bottom-nav {
+  border-color: rgba(16, 19, 22, 0.12);
+  background: color-mix(in srgb, #ffffff 96%, var(--tl-canvas));
+  box-shadow: 0 12px 28px rgba(24, 31, 38, 0.12);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .tl-bottom-nav {
+    border-color: rgba(16, 19, 22, 0.12);
+    background: color-mix(in srgb, #ffffff 96%, var(--tl-canvas));
+    box-shadow: 0 12px 28px rgba(24, 31, 38, 0.12);
+  }
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .tl-bottom-nav {
+    background: rgba(17, 22, 29, 0.78);
+    backdrop-filter: blur(24px) saturate(135%);
+    -webkit-backdrop-filter: blur(24px) saturate(135%);
+  }
+  :root[data-theme="light"] .tl-bottom-nav,
+  .touchline[data-theme="light"] .tl-bottom-nav {
+    background: rgba(255, 255, 255, 0.8);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .tl-bottom-nav {
+      background: rgba(255, 255, 255, 0.8);
+    }
+  }
+}
+.tl-bottom-nav > ul {
+  height: 100%;
+}
+
+/* Content/sticky-action clearance above the fixed compact bottom nav. Zero from
+   medium up, where the bottom nav is gone. */
+.tl-nav-clearance {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 20px);
+}
+@media (min-width: 600px) {
+  .tl-nav-clearance {
+    padding-bottom: 0;
+  }
+}
+
+/* --- Sticky compact action bar (control layer) ------------------------- */
+.tl-sticky-actions {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+}
+@media (min-width: 600px) {
+  .tl-sticky-actions {
+    position: static;
+    bottom: auto;
+  }
+}
