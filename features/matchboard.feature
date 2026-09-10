@@ -4819,6 +4819,17 @@ Feature: Matchboard football operations workspace
       Then the corrupt time must be clamped to a plausible in-match value
       And it must not place an interval decades into the match
 
+    Scenario: Live reporting can be started at kickoff without the plan being finalised (ADR-0133)
+      Given a match kicks off within the hour and its selections are not all finalised
+      When the coach opens the match
+      Then a "Start live reporting" action must be visible
+      And the coach must not need to type the live URL by hand
+
+    Scenario: Live reporting is not offered once the match is fully reported (ADR-0133)
+      Given a match has a completed post-match report
+      When the coach opens the match
+      Then no "Start live reporting" action must be shown
+
     Scenario: Compact layouts preserve access to omitted detail and context
       Given the coach is on any primary surface on a compact viewport
       Then there must be no page-level horizontal scrolling between 360 and 430px

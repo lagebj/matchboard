@@ -4127,10 +4127,12 @@ and the client rehydrates from it on mount instead of resetting to "before kicko
 holds MILLISECONDS since period start** — a legacy misnomer, now documented on the schema
 fields; the readers that assumed seconds are fixed and `actual-timeline.ts` clamps an
 implausible offset (H3). `PlannedRotationChange.approximate/actualMatchSeconds` is a *separate*
-SECONDS unit domain (coach-planned time). Still open: no visible "Start live reporting" entry
-point before the planning baseline is captured (H5); the realtime DO snapshot can **regress**
-canonical state on reconnect and its `clockAnchor` is never advanced (H6). See ADR-0133 for the
-full forensics and the H1–H6 plan.
+SECONDS unit domain (coach-planned time). The match-detail "Start live reporting" button is
+driven by `canStartLiveReporting()` (`src/lib/matches/can-live-report.ts`) — reachable at
+kickoff / while a session is live / once planning closes, not gated only on every `Selection`
+being `FINALIZED` (H5). Still open: the realtime DO snapshot can **regress** canonical state on
+reconnect and its `clockAnchor` is never advanced (H6 — needs the CF Worker Observability logs).
+See ADR-0133 for the full forensics and the H1–H6 plan.
 
 | File | Purpose |
 |------|---------|
