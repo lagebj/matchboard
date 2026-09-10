@@ -110,5 +110,6 @@ function toSummary(event: {
     secondaryPlayerId: event.secondaryPlayerId,
     isCorrected: event.correctionType === "CORRECTION",
     isReversed: event.correctionType === "REVERSAL",
+    correctsEventId: event.correctsEventId ?? null,
   };
 }

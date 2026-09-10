@@ -164,6 +164,7 @@ export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[
     secondaryPlayerId: e.secondaryPlayerId,
     isCorrected: e.correctionType === "CORRECTION",
     isReversed: e.correctionType === "REVERSAL",
+    correctsEventId: e.correctsEventId ?? null,
   }));
 }
 
@@ -201,6 +202,7 @@ export async function getRecentEvents(
     secondaryPlayerId: e.secondaryPlayerId,
     isCorrected: e.correctionType === "CORRECTION",
     isReversed: e.correctionType === "REVERSAL",
+    correctsEventId: e.correctsEventId ?? null,
   }));
 }
 

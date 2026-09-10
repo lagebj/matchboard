@@ -128,6 +128,12 @@ export interface LiveMatchClientProps {
   markOwnTeam?: boolean;
 }
 
+/** ADR-0133 H6: how many events `fetchEvents` pulls for the score / on-field reconcile. Must
+ * comfortably exceed the total event count of a real match (the 2026-09-09 incident had 68) so
+ * no goal is ever dropped from the running-score computation. The recent-events *display* list
+ * is capped separately (`mergedEvents` slices to 15). */
+const LIVE_RECONCILE_EVENT_LIMIT = 1000;
+
 const FAIR_PLAY_POSITIVE_CATEGORIES = [
   "HELPED_OPPONENT",
   "CHECKED_ON_INJURED_PLAYER",
@@ -493,12 +499,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }, [sessionActive, sessionId, actions]);
 
   const fetchEvents = useCallback(async () => {
-    const result = await actions.getRecentEvents(matchId, 20);
+    // ADR-0133 H6: reconcile the score / on-field state from the WHOLE match's event set, not a
+    // 20-event tail. The old 20-event window silently dropped every goal older than the last 20
+    // events, so `reconcileFromServerEvents` under-counted and `setGoalsFor/Against` reset the
+    // true running score to that under-count on every 5s poll and every reconnect broadcast —
+    // the coach saw goals "disappear". The recent-events display list is still capped downstream
+    // (`mergedEvents` slices to 15).
+    const result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
     if (result.success && result.data) {
       setRecentEvents(result.data);
-      // Reconcile score and on-field state from canonical server events (ADR-0112).
-      // This ensures local state converges with the canonical record, preventing
-      // drift between reporter and follower displays after refresh or reconnect.
       if (squad.length > 0) {
         const initialOnField = new Set(squad.filter((p) => p.startingOnField).map((p) => p.playerId));
         const reconciled = reconcileFromServerEvents(result.data, initialOnField);
@@ -790,6 +799,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       secondaryPlayerId: e.secondaryPlayerId ?? null,
       isCorrected: false,
       isReversed: false,
+      correctsEventId: e.correctsEventId ?? null,
     }));
     const all = [...recentEvents, ...localSummaries];
     const seen = new Set<string>();

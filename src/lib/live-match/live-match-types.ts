@@ -99,7 +99,11 @@ export interface LiveEventSummary {
   playerId: string | null;
   secondaryPlayerId: string | null;
   isCorrected: boolean;
+  /** True on the `EVENT_REVERSED` row itself (its own `correctionType` is `REVERSAL`) — NOT on
+   * the goal it reverses. To un-count a reversed goal, use `correctsEventId` (ADR-0133 H6). */
   isReversed: boolean;
+  /** For an `EVENT_REVERSED` row: the id of the event it reverses. Null otherwise. */
+  correctsEventId: string | null;
 }
 
 export const GOAL_DETAIL_INACTIVITY_TIMEOUT_MS = 90_000;

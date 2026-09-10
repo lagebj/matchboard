@@ -4130,9 +4130,13 @@ implausible offset (H3). `PlannedRotationChange.approximate/actualMatchSeconds` 
 SECONDS unit domain (coach-planned time). The match-detail "Start live reporting" button is
 driven by `canStartLiveReporting()` (`src/lib/matches/can-live-report.ts`) — reachable at
 kickoff / while a session is live / once planning closes, not gated only on every `Selection`
-being `FINALIZED` (H5). Still open: the realtime DO snapshot can **regress** canonical state on
-reconnect and its `clockAnchor` is never advanced (H6 — needs the CF Worker Observability logs).
-See ADR-0133 for the full forensics and the H1–H6 plan.
+being `FINALIZED` (H5). The live client reconciles the running score from the **whole match's
+events**, not a 20-event tail, and un-counts a goal via the reversal's `correctsEventId` —
+`reconcileFromServerEvents` previously did neither, which is why goals appeared to "disappear /
+reset" (H6a). Still open: no keepalive on the realtime WebSocket (client or DO) so idle/half-open
+connections churn (H6b); the DO `clockAnchor` is never advanced and `CanonicalLiveEvent` carries
+no `correctsEventId` for the Follow-Live path (H6c). See ADR-0133 for the full forensics and the
+H1–H6 plan.
 
 | File | Purpose |
 |------|---------|
