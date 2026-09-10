@@ -20,7 +20,10 @@ type Props = {
   /** e.g. "Final · 3 matches" or "Planning · 2 decisions". */
   summary: string;
   boardHref?: string;
+  /** Visible link text on expanded viewports (compact always shows "Board"). */
   boardLabel?: string;
+  /** Accessible name for the board link, when it should differ from the visible text. */
+  boardAriaLabel?: string;
   children: ReactNode;
   className?: string;
 };
@@ -31,6 +34,7 @@ export function ScorebookRoundSection({
   summary,
   boardHref,
   boardLabel = "Round board",
+  boardAriaLabel,
   children,
   className,
 }: Props) {
@@ -47,6 +51,7 @@ export function ScorebookRoundSection({
         {boardHref ? (
           <Link
             href={boardHref}
+            aria-label={boardAriaLabel}
             className="ml-auto shrink-0 text-[13px] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
           >
             <span className="medium:hidden">Board</span>

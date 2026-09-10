@@ -42,10 +42,19 @@ export default async function AppLayout({
     // /invite/[token] live inside this same (app) group and must stay
     // reachable in this state, or redirecting to them here loops forever.
     return (
-      <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[rgba(10,13,19,0.85)] backdrop-blur-2xl">
+      <div className="flex min-h-screen flex-col bg-background">
+        {/* Shell chrome renders inside a `.touchline` island (dark-pinned until
+            Phase 9). Page content (`{children}`) stays on Product Surface 1.0
+            until its own migration phase wraps it — see ADR-0134's phased
+            model. */}
+        <header
+          data-theme="dark"
+          className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
+        >
           <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
-            <span className="text-sm font-semibold">Matchboard</span>
+            <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground)]">
+              Matchboard
+            </span>
             {isTestEnvironment && <TestEnvironmentBadge />}
           </div>
           <div className="shrink-0 px-3">
@@ -72,16 +81,22 @@ export default async function AppLayout({
   const content = (
     <OrgSlugProvider orgSlug={orgSlug}>
       <OrgSlugCookieSetter orgSlug={orgSlug} />
-      <div className="app-shell flex min-h-full">
-        <aside className="sticky top-0 z-30 hidden h-screen w-[var(--rail-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl medium:flex expanded:hidden">
+      {/* The nav / top bar are `.touchline` islands (dark-pinned); page content
+          stays on Product Surface 1.0 until its own migration phase. Phase 10
+          hoists `.touchline` to this wrapper and deletes the PS 1.0 layer. */}
+      <div className="app-shell flex min-h-screen bg-background">
+        <aside className="sticky top-0 z-30 hidden h-screen w-[var(--rail-width)] shrink-0 flex-col medium:flex expanded:hidden">
           <NavigationRail orgSlug={orgSlug} />
         </aside>
-        <aside className="sticky top-0 z-30 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-soft)] bg-[rgba(8,11,18,0.98)] backdrop-blur-2xl expanded:flex">
+        <aside className="sticky top-0 z-30 hidden h-screen w-[216px] shrink-0 flex-col expanded:flex">
           <SidebarNav orgSlug={orgSlug} />
         </aside>
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[rgba(10,13,19,0.85)] backdrop-blur-2xl">
-            <div className="flex-1 min-w-0">
+          <header
+            data-theme="dark"
+            className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
+          >
+            <div className="min-w-0 flex-1">
               <TopContextBar />
             </div>
             {isTestEnvironment && (
@@ -89,7 +104,7 @@ export default async function AppLayout({
                 <TestEnvironmentBadge />
               </div>
             )}
-            <div className="shrink-0 px-3">
+            <div className="shrink-0 px-3 py-2">
               <UserNav />
             </div>
           </header>

@@ -163,6 +163,11 @@ export function ScorebookMatchRow({ presentation: p, href, className }: Props) {
           valueIsDate={scheduled}
           weight={weightFor("away")}
         />
+        {cancelled && p.cancelledReason ? (
+          <p className="pl-[calc(2px+0.625rem)] text-[11px] text-[var(--text-muted)]">
+            {p.cancelledReason}
+          </p>
+        ) : null}
       </div>
       {trailing ? (
         <div className="w-[4.5rem] shrink-0 text-left leading-tight">{trailing}</div>

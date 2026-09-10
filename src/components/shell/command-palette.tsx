@@ -322,7 +322,7 @@ export function CommandPaletteTrigger({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-8 items-center gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 text-xs text-[var(--text-soft)] transition-colors hover:border-[var(--accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+      className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 text-xs text-[var(--text-soft)] transition-colors hover:border-[var(--accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 medium:h-8 medium:min-h-0 medium:min-w-0"
       aria-label="Open command palette"
     >
       <Search className="h-3.5 w-3.5 text-[var(--text-muted)]" />

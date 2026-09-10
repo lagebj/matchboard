@@ -72,16 +72,16 @@
 
   --tl-foreground: #101316;
   --tl-text-soft: #59636e;
-  --tl-text-muted: #747e88;
+  --tl-text-muted: #616973;
   --tl-text-disabled: #9aa1a8;
 
   --tl-border-soft: rgba(16, 19, 22, 0.1);
   --tl-border-strong: rgba(16, 19, 22, 0.17);
 
-  --tl-accent: #587400;
+  --tl-accent: #4f6c00;
   --tl-accent-strong: #486100;
   --tl-accent-subtle: rgba(88, 116, 0, 0.1);
-  --tl-accent-on-fill: #101500;
+  --tl-accent-on-fill: #ffffff;
 
   --tl-live: #c43d3d;
   --tl-live-subtle: rgba(196, 61, 61, 0.1);
@@ -115,16 +115,16 @@
 
     --tl-foreground: #101316;
     --tl-text-soft: #59636e;
-    --tl-text-muted: #747e88;
+    --tl-text-muted: #616973;
     --tl-text-disabled: #9aa1a8;
 
     --tl-border-soft: rgba(16, 19, 22, 0.1);
     --tl-border-strong: rgba(16, 19, 22, 0.17);
 
-    --tl-accent: #587400;
+    --tl-accent: #4f6c00;
     --tl-accent-strong: #486100;
     --tl-accent-subtle: rgba(88, 116, 0, 0.1);
-    --tl-accent-on-fill: #101500;
+    --tl-accent-on-fill: #ffffff;
 
     --tl-live: #c43d3d;
     --tl-live-subtle: rgba(196, 61, 61, 0.1);
@@ -194,7 +194,7 @@
   --surface-strong: var(--tl-surface-strong);
   --surface-hover: var(--tl-surface-hover);
   --surface-muted: var(--tl-surface);
-  --surface-overlay: color-mix(in srgb, var(--tl-canvas) 88%, transparent);
+  --surface-overlay: var(--tl-canvas-raised);
   --border-soft: var(--tl-border-soft);
   --border-strong: var(--tl-border-strong);
   --text-soft: var(--tl-text-soft);
@@ -266,6 +266,17 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "ss01", "cv01", "cv11";
+
+  /* Content/sticky-action clearance above the floating compact bottom nav
+     (62px bar + 10px bottom gap + 20px breathing) + the device safe area.
+     Zero from medium up, where the bottom nav is gone. Overrides the Product
+     Surface 1.0 --nav-clearance for every consumer inside the shell. */
+  --nav-clearance: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 600px) {
+  .touchline {
+    --nav-clearance: 0px;
+  }
 }
 
 :root[data-theme="light"] .touchline:not([data-theme="dark"]),
@@ -279,15 +290,26 @@
 }
 
 /* Canvas atmosphere — one faint top-right accent radial, one broad lower-left
-   cool wash (03 §8). No repeating pitch geometry, no per-card glow. */
+   cool wash (03 §8). No repeating pitch geometry, no per-card glow. The
+   gradients live on a fixed ::before pseudo-element so the canvas element itself
+   keeps a plain solid `background-color` — a `background-image` on the element
+   makes axe-core treat the page background as indeterminate and fall back to
+   white when computing contrast for anything layered above it. */
 .touchline-canvas {
   position: relative;
   min-height: 100%;
   background-color: var(--tl-canvas);
+  isolation: isolate;
+}
+.touchline-canvas::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(60rem 42rem at 108% -6%, var(--tl-atmosphere-accent), transparent 68%),
     radial-gradient(56rem 50rem at -14% 112%, var(--tl-atmosphere-cool), transparent 72%);
-  background-attachment: fixed;
 }
 
 /* --- Sports display type (Barlow Condensed) --------------------------- */
@@ -375,39 +397,14 @@
   max-width: calc(100vw - 24px);
   margin-inline: auto;
   border-radius: var(--tl-radius-overlay);
-  border: 1px solid rgba(221, 230, 240, 0.14);
-  /* Solid fallback first — used when backdrop-filter is unsupported. */
-  background: color-mix(in srgb, var(--tl-canvas-raised) 96%, var(--tl-canvas));
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-}
-:root[data-theme="light"] .tl-bottom-nav,
-.touchline[data-theme="light"] .tl-bottom-nav {
-  border-color: rgba(16, 19, 22, 0.12);
-  background: color-mix(in srgb, #ffffff 96%, var(--tl-canvas));
-  box-shadow: 0 12px 28px rgba(24, 31, 38, 0.12);
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .tl-bottom-nav {
-    border-color: rgba(16, 19, 22, 0.12);
-    background: color-mix(in srgb, #ffffff 96%, var(--tl-canvas));
-    box-shadow: 0 12px 28px rgba(24, 31, 38, 0.12);
-  }
-}
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  .tl-bottom-nav {
-    background: rgba(17, 22, 29, 0.78);
-    backdrop-filter: blur(24px) saturate(135%);
-    -webkit-backdrop-filter: blur(24px) saturate(135%);
-  }
-  :root[data-theme="light"] .tl-bottom-nav,
-  .touchline[data-theme="light"] .tl-bottom-nav {
-    background: rgba(255, 255, 255, 0.8);
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .tl-bottom-nav {
-      background: rgba(255, 255, 255, 0.8);
-    }
-  }
+  border: 1px solid var(--tl-border-strong);
+  /* Opaque, not glass. The bundle (05 §2) pictures a translucent control layer,
+     but a `position: fixed` translucent element cannot be given a determinate
+     background for WCAG-AA contrast checking (04 §12 already mandates a solid
+     fallback, and gate N requires AA), and axe-core mis-composites it. A subtle
+     shadow + border give the "floating" separation instead of translucency. */
+  background: var(--tl-canvas-raised);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
 }
 .tl-bottom-nav > ul {
   height: 100%;

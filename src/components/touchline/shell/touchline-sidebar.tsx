@@ -58,7 +58,7 @@ export function TouchlineSidebar({ items, activeKey, versionLabel }: Props) {
       </ul>
 
       {versionLabel ? (
-        <div className="px-5 py-4 text-[11px] uppercase tracking-[0.14em] text-[var(--text-disabled)]">
+        <div className="px-5 py-4 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {versionLabel}
         </div>
       ) : null}

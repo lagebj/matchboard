@@ -2,9 +2,17 @@
 
 ## Status
 
-Accepted (2026-09-10). Implementation in progress — Phases 0–3 delivered behind the
-`/dev/ui-lab` human-approval gate; production-surface migration (Phases 5–12) is gated on
-explicit human approval of the UI Lab.
+Accepted (2026-09-10). Implementation in progress:
+
+- **Phases 0–3** delivered (theme foundation + `/dev/ui-lab` with the seven golden screens),
+  PR #489.
+- **UI Lab approved** (2026-09-10) — production-surface migration authorised.
+- **Phase 5 (high-identity surfaces)** in progress: the `(app)` shell now activates the
+  `.touchline` scope and its navigation (sidebar / rail / floating bottom nav) + top context
+  bar use the Touchline visual system; **League** (`/fixtures`) is migrated to the scorebook
+  grammar. Remaining Phase 5 surfaces (Today, Events, match detail + Follow Live, Insights) and
+  Phases 6–12 follow. Unmigrated production surfaces render transitionally on the new palette
+  until their phase; Phase 10 removes the Product Surface 1.0 token layer.
 
 ## Context
 
@@ -45,6 +53,21 @@ Matchboard supports `system`, `light`, and `dark`. Default is `system`. Storage 
 omits the attribute and follows `prefers-color-scheme`. A minimal inline pre-hydration
 initializer prevents a flash to the wrong explicit theme. `next-themes` is **not** added — the
 behaviour is small enough to own locally (`src/lib/theme/`).
+
+**Transitional dark pin (Phases 5–8).** The `.touchline` app-shell wrapper carries a hardcoded
+`data-theme="dark"` until Phase 9 ships the Settings → Appearance control. During the phased
+rollout, unmigrated surfaces still use Product Surface 1.0 CSS with no audited light palette, so
+enabling `system`/light app-wide would surface WCAG-AA contrast failures on those pages (caught
+by the acceptance a11y suite). Phase 9 removes the pin (not the `.touchline` class) alongside
+the appearance control, after the light palette + every surface pass gate N.
+
+**Light-palette AA adjustments.** Three of the bundle's frozen light values (`03 §5`) fall just
+below WCAG-AA 4.5:1 on the light canvas/surfaces and are darkened in `src/app/touchline.css`
+per the bundle's own `10 §12` ("ensure readable contrast in bright conditions; do not merely
+invert dark tokens") and gate N: muted text `#747e88 → #616973`, accent `#587400 → #4f6c00`;
+and the on-accent-fill text in **light** is white (`#ffffff`), not `#101500` — matching
+`12_COMPONENT_CONTRACTS.md §16` ("light uses `#587400` + white text"), which the initial token
+file did not encode. Dark palette values are unchanged.
 
 Dark remains the primary brand/reference appearance; light is a first-class production theme
 (a real sideline mode, not an inverted dark palette).

@@ -44,11 +44,20 @@ function getPageTitleKey(pathname: string): PageTitleKey {
   return "default";
 }
 
+/**
+ * TopContextBar — the quiet desktop context strip (bundle
+ * `05_NAVIGATION_MATERIALS_AND_SHELL.md §5`). Leads with the current
+ * group/season context; search / help / account stay visually secondary. On a
+ * list page the page title lives in the page header, so the bar shows only the
+ * context; on a detail page (Round Board / Team / …) the short type label is
+ * kept as orientation.
+ */
 export function TopContextBar() {
   const t = useTranslations("PageTitles");
   const pathname = usePathname();
   const orgSlug = useOrgSlug();
-  const title = t(getPageTitleKey(pathname));
+  const titleKey = getPageTitleKey(pathname);
+  const title = titleKey === "default" ? null : t(titleKey);
   const [ctx, setCtx] = useState<ContextData | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -64,33 +73,38 @@ export function TopContextBar() {
     <>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
-      <div className="flex h-[var(--topbar-height)] items-center gap-4 px-4">
-        <div className="flex items-baseline gap-3 min-w-0 flex-1">
-          <span className="text-sm font-semibold text-zinc-50 shrink-0">{title}</span>
-          {ctx && (
-            <div className="hidden items-center gap-2 text-xs text-[var(--text-muted)] min-w-0 lg:flex">
-              {ctx.leagueSeason && (
-                <span className="truncate">
-                  {ctx.leagueSeason.seasonLabel} · {ctx.leagueSeason.combinedLabel}
-                </span>
-              )}
-              {ctx.matchRound && (
-                <>
-                  <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
-                  <Link
-                    href={`/o/${orgSlug}/rounds/${ctx.matchRound.id}`}
-                    className="text-[var(--accent-strong)] hover:underline shrink-0"
-                  >
-                    {ctx.matchRound.name}
-                  </Link>
-                </>
-              )}
-            </div>
-          )}
+      <div className="flex h-[50px] items-center gap-3 px-4 medium:px-6">
+        {/* Context detail (incl. the round quick-link) is a pointer-first
+            affordance shown from medium up only — on compact the page header
+            owns identity and this small inline link would fail WCAG 2.5.8
+            target size. Matches the pre-Touchline `lg:flex` gating. */}
+        <div className="hidden min-w-0 flex-1 items-center gap-2 text-[13px] text-[var(--text-muted)] medium:flex">
+          {title ? (
+            <span className="shrink-0 font-medium text-[var(--foreground)]">{title}</span>
+          ) : null}
+          {ctx?.leagueSeason ? (
+            <span className="truncate">
+              {ctx.leagueSeason.seasonLabel} · {ctx.leagueSeason.combinedLabel}
+            </span>
+          ) : null}
+          {ctx?.matchRound ? (
+            <>
+              <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
+              <Link
+                href={`/o/${orgSlug}/rounds/${ctx.matchRound.id}`}
+                className="shrink-0 rounded-[var(--tl-c-radius-status)] px-1 py-0.5 text-[var(--accent)] no-underline hover:bg-[var(--tl-c-surface-hover)] hover:underline"
+              >
+                {ctx.matchRound.name}
+              </Link>
+            </>
+          ) : null}
         </div>
+        <div className="flex-1 medium:hidden" />
 
-        <HelpButton onClick={() => setHelpOpen(true)} />
-        <CommandPaletteTrigger onClick={() => setPaletteOpen(true)} />
+        <div className="flex shrink-0 items-center gap-2">
+          <HelpButton onClick={() => setHelpOpen(true)} />
+          <CommandPaletteTrigger onClick={() => setPaletteOpen(true)} />
+        </div>
       </div>
     </>
   );

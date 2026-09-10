@@ -13,23 +13,28 @@ import {
   fetchFixturesOverview,
   fixturePopulateAllAction,
 } from "@/domain/fixtures/actions";
-import { PageHeader } from "@/components/ui/page-header";
-import { Surface } from "@/components/ui/surface";
+import {
+  TouchlinePageHeader,
+  TouchlineButton,
+  ScorebookRoundSection,
+  ScorebookMatchRow,
+} from "@/components/touchline";
 import { PageSkeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { MatchRow } from "@/components/ui/match-presentation";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { EmptyState } from "@/components/ui/empty-state";
 
 /**
- * League — the period → round → match hierarchy. Past results are dense sport
- * rows; a round is a SECTION, not a card (ADR-0130 §05). The section header
- * carries the week, the plan state as muted text, the match count and one
- * `Board ›` action; unresolved Blocked / Decision-required conditions show as
- * attention only when present.
+ * League — the period → round → match hierarchy, Touchline sports-scorebook
+ * grammar (ADR-0134 §7, bundle `06_MATCH_AND_SCOREBOOK_GRAMMAR.md`). A round is
+ * a scorebook SECTION, not a card: a Barlow week marker, the plan state as
+ * muted text, the match count and one `Board ›` action; past results are dense
+ * divider rows with neutral Barlow scores.
+ *
+ * Domain flow unchanged: `fetchFixturesOverview()` /
+ * `fixturePopulateAllAction`, the `/matches/{id}` and `/rounds/{id}` links, the
+ * league-season selector, and every plan-integrity count are exactly as before.
  */
 
-/** Plan state as calm muted text (ADR-0130 §05 — "`Final` is muted text"). */
 function roundStateLabel(state: FixtureRound["selectionState"]): string {
   switch (state) {
     case "NOT_GENERATED":
@@ -76,7 +81,6 @@ function FixtureMatchRow({ match }: { match: FixtureMatch }) {
     isHome: match.venue === "Home",
     kickoffAt: match.startsAt ?? null,
     lifecycleStatus: isCancelled ? "cancelled" : match.lifecycleStatus,
-    // completedResult goals are our-team-relative; the builder re-orients them.
     ownGoals: completedResult ? completedResult.goalsFor : null,
     opponentGoals: completedResult ? completedResult.goalsAgainst : null,
     outcome: completedResult ? completedResult.outcome : null,
@@ -85,7 +89,7 @@ function FixtureMatchRow({ match }: { match: FixtureMatch }) {
     cancelledReason: isCancelled ? (match.cancelledReason ?? null) : null,
   });
 
-  return <MatchRow presentation={presentation} />;
+  return <ScorebookMatchRow presentation={presentation} />;
 }
 
 function RoundSection({ round }: { round: FixtureRound }) {
@@ -93,56 +97,45 @@ function RoundSection({ round }: { round: FixtureRound }) {
   const matchCount = round.matches.length;
   const attention =
     round.blockerCount > 0
-      ? { label: `${round.blockerCount} blocked`, tone: "text-[var(--danger)]" }
+      ? `${round.blockerCount} blocked`
       : round.decisionRequiredCount > 0
-        ? {
-            label: `${round.decisionRequiredCount} decision${round.decisionRequiredCount === 1 ? "" : "s"}`,
-            tone: "text-[var(--warning)]",
-          }
+        ? `${round.decisionRequiredCount} decision${round.decisionRequiredCount === 1 ? "" : "s"}`
         : null;
 
+  const summary = [
+    stateLabel || null,
+    matchCount > 0 ? `${matchCount} match${matchCount === 1 ? "" : "es"}` : null,
+    attention,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  if (matchCount === 0) {
+    return (
+      <ScorebookRoundSection
+        marker={round.title}
+        dateLabel={round.dateRange}
+        summary={summary || "No matches"}
+        boardHref={`/rounds/${round.id}`}
+        boardAriaLabel={`Open ${round.title} round board`}
+      >
+        <p className="py-3 text-[13px] text-[var(--text-muted)]">No matches in this round.</p>
+      </ScorebookRoundSection>
+    );
+  }
+
   return (
-    <section className="flex flex-col">
-      {/* Round header — a section line, not a card (ADR-0130 §05). */}
-      <div className="flex items-center justify-between gap-3 py-2">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <span className="app-row-title truncate">{round.title}</span>
-          {stateLabel ? (
-            <span className="text-[var(--text-meta)] text-[var(--text-muted)] whitespace-nowrap">
-              {stateLabel}
-            </span>
-          ) : null}
-          {matchCount > 0 ? (
-            <span className="text-[var(--text-meta)] text-[var(--text-muted)] whitespace-nowrap">
-              · {matchCount} match{matchCount === 1 ? "" : "es"}
-            </span>
-          ) : null}
-          {attention ? (
-            <span className={`text-[var(--text-meta)] font-medium ${attention.tone} whitespace-nowrap`}>
-              {attention.label}
-            </span>
-          ) : null}
-        </div>
-        <Link
-          href={`/rounds/${round.id}`}
-          aria-label={`Open ${round.title} round board`}
-          className="shrink-0 whitespace-nowrap text-[var(--text-meta)] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
-        >
-          Board ›
-        </Link>
-      </div>
-      {matchCount === 0 ? (
-        <p className="border-t border-[var(--border-soft)] py-3 text-[var(--text-meta)] text-[var(--text-muted)]">
-          No matches in this round.
-        </p>
-      ) : (
-        <div className="divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
-          {round.matches.map((match) => (
-            <FixtureMatchRow key={match.id} match={match} />
-          ))}
-        </div>
-      )}
-    </section>
+    <ScorebookRoundSection
+      marker={round.title}
+      dateLabel={round.dateRange}
+      summary={summary}
+      boardHref={`/rounds/${round.id}`}
+      boardAriaLabel={`Open ${round.title} round board`}
+    >
+      {round.matches.map((match) => (
+        <FixtureMatchRow key={match.id} match={match} />
+      ))}
+    </ScorebookRoundSection>
   );
 }
 
@@ -155,46 +148,28 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const counts = {
-    notGenerated: period.rounds.filter((r) => r.selectionState === "NOT_GENERATED")
-      .length,
+    notGenerated: period.rounds.filter((r) => r.selectionState === "NOT_GENERATED").length,
     draft: period.rounds.filter(
       (r) => r.selectionState === "DRAFT" || r.selectionState === "BLOCKED",
     ).length,
     ready: period.rounds.filter((r) => r.selectionState === "READY").length,
-    finalized: period.rounds.filter((r) => r.selectionState === "FINALIZED")
-      .length,
+    finalized: period.rounds.filter((r) => r.selectionState === "FINALIZED").length,
   };
-  const totalBlockers = period.rounds.reduce(
-    (sum, r) => sum + r.blockerCount,
-    0,
-  );
-  const totalDecisions = period.rounds.reduce(
-    (sum, r) => sum + r.decisionRequiredCount,
-    0,
-  );
+  const totalBlockers = period.rounds.reduce((sum, r) => sum + r.blockerCount, 0);
+  const totalDecisions = period.rounds.reduce((sum, r) => sum + r.decisionRequiredCount, 0);
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="app-section">{period.title}</h2>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]">
-            {counts.notGenerated > 0 && (
-              <span>{counts.notGenerated} not generated</span>
-            )}
-            {counts.draft > 0 && (
-              <span className="text-[var(--warning)]">{counts.draft} draft</span>
-            )}
-            {counts.ready > 0 && (
-              <span>{counts.ready} ready</span>
-            )}
-            {counts.finalized > 0 && (
-              <span>{counts.finalized} finalized</span>
-            )}
+          <h2 className="text-[20px] font-[620] text-[var(--foreground)]">{period.title}</h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--text-muted)]">
+            {counts.notGenerated > 0 && <span>{counts.notGenerated} not generated</span>}
+            {counts.draft > 0 && <span className="text-[var(--warning)]">{counts.draft} draft</span>}
+            {counts.ready > 0 && <span>{counts.ready} ready</span>}
+            {counts.finalized > 0 && <span>{counts.finalized} finalized</span>}
             {totalBlockers > 0 && (
-              <span className="text-[var(--danger)]">
-                {totalBlockers} blocked
-              </span>
+              <span className="text-[var(--danger)]">{totalBlockers} blocked</span>
             )}
             {totalDecisions > 0 && (
               <span className="text-[var(--warning)]">
@@ -204,55 +179,42 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
           </div>
         </div>
         {hasNotGenerated && (
-          <Button
+          <TouchlineButton
             type="button"
             variant="primary"
-            size="md"
             disabled={isPending}
             onClick={() => {
               startTransition(async () => {
                 const fd = new FormData();
                 fd.set("leagueSeasonId", period.id);
-                const result = await fixturePopulateAllAction(
-                  { error: "" },
-                  fd,
-                );
+                const result = await fixturePopulateAllAction({ error: "" }, fd);
                 if (result.error) setStatusMessage(result.error);
                 else
                   router.push(
                     `/rounds/${
-                      period.rounds.find((r) => r.selectionState === "NOT_GENERATED")
-                        ?.id ?? period.rounds[0]?.id ?? "/"
+                      period.rounds.find((r) => r.selectionState === "NOT_GENERATED")?.id ??
+                      period.rounds[0]?.id ??
+                      "/"
                     }`,
                   );
               });
             }}
           >
             {isPending ? "Generating…" : "Generate all draft squads"}
-          </Button>
+          </TouchlineButton>
         )}
         {statusMessage && (
-          <span className="text-[11px] text-[var(--text-muted)]">
-            {statusMessage}
-          </span>
+          <span className="text-[12px] text-[var(--text-muted)]">{statusMessage}</span>
         )}
       </div>
 
-      {/* Reduced card chrome (ADR-0124 §7): the header count line above is the
-          single period-level summary. Unresolved conditions attach to the round
-          (IntegritySummary) and the match (MatchScoreRow attention). */}
-
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col">
         {period.rounds.length === 0 ? (
-          <Surface padding="md">
-            <p className="text-sm text-[var(--text-muted)] text-center">
-              No rounds in this period.
-            </p>
-          </Surface>
+          <p className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] p-4 text-center text-[13px] text-[var(--text-muted)]">
+            No rounds in this period.
+          </p>
         ) : (
-          period.rounds.map((round) => (
-            <RoundSection key={round.id} round={round} />
-          ))
+          period.rounds.map((round) => <RoundSection key={round.id} round={round} />)
         )}
       </div>
     </section>
@@ -275,59 +237,57 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
     });
   }, [startTransition]);
 
-  const displayedPeriods = selectedPeriodId && data
-    ? data.periods.filter((p) => p.id === selectedPeriodId)
-    : data?.periods ?? [];
+  const selectedPeriod =
+    (data?.periods ?? []).find((p) => p.id === selectedPeriodId) ?? data?.periods[0] ?? null;
+  const displayedPeriods = selectedPeriod ? [selectedPeriod] : [];
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    // Phase 10 hoists `.touchline` to the app shell and removes this wrapper.
+    <div className="touchline flex flex-col gap-6" data-theme="dark">
+      <TouchlinePageHeader
         title="League"
-        description="Seasons, rounds and matches. Open a round for squad work."
+        context={
+          selectedPeriod?.dateRange
+            ? `${selectedPeriod.title} · ${selectedPeriod.dateRange}`
+            : "Seasons, rounds and matches. Open a round for squad work."
+        }
         actions={
-          <Link
-            href={`/o/${orgSlug}/teams`}
-            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
-          >
-            League teams
-          </Link>
+          <>
+            <Link
+              href={`/o/${orgSlug}/teams`}
+              className="text-[13px] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
+            >
+              League teams <span aria-hidden="true">›</span>
+            </Link>
+            <TouchlineButton as="a" href={`/o/${orgSlug}/matches/new`} variant="primary">
+              Create match
+            </TouchlineButton>
+          </>
         }
       />
 
       {data && data.periods.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="league-season-select" className="app-eyebrow">
+          <label
+            htmlFor="league-season-select"
+            className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]"
+          >
             League season
           </label>
           <select
             id="league-season-select"
             value={selectedPeriodId ?? ""}
             onChange={(e) => setSelectedPeriodId(e.target.value)}
-            className="min-h-[44px] rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-1.5 text-base text-zinc-100 focus:outline-none focus:border-[var(--accent)] medium:text-sm"
+            className="min-h-[44px] rounded-[var(--tl-c-radius-control)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-1.5 text-[16px] text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none medium:min-h-9 medium:text-[14px]"
           >
             {data.periods.map((period) => (
               <option key={period.id} value={period.id}>
-                {period.title}{period.dateRange ? ` · ${period.dateRange}` : ""}
+                {period.title}
+                {period.dateRange ? ` · ${period.dateRange}` : ""}
               </option>
             ))}
           </select>
-          <a
-            href={`/o/${orgSlug}/matches/new`}
-            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
-          >
-            Create match
-          </a>
-        </div>
-      )}
-
-      {data && data.periods.length === 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <a
-            href={`/o/${orgSlug}/matches/new`}
-            className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
-          >
-            Create match
-          </a>
         </div>
       )}
 
@@ -339,13 +299,13 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
           description="Create a season and league season to start planning rounds."
           illustration="emptyMatches"
           action={
-            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/season/new`}>
+            <TouchlineButton as="a" href={`/o/${orgSlug}/season/new`} variant="primary">
               Create league season
-            </Button>
+            </TouchlineButton>
           }
         />
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
           {displayedPeriods.map((period) => (
             <PeriodSection key={period.id} period={period} />
           ))}
