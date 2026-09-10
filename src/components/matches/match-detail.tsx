@@ -39,6 +39,7 @@ import { Surface } from "@/components/ui/surface";
 import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { Button } from "@/components/ui/button";
 import type { MatchLifecycleStatus } from "@/components/ui/status-badge";
+import { canStartLiveReporting } from "@/lib/matches/can-live-report";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
@@ -279,6 +280,16 @@ export function MatchDetail({ match }: { match: MatchData }) {
 
   const isCancelled = match.matchStatus === "CANCELLED";
 
+  // ADR-0133 H5: the "Start live reporting" entry point must be reachable at kickoff, not only
+  // once every Selection is FINALIZED — the 2026-09-09 incident had the coach hand-type `/live`.
+  const canLiveReport = canStartLiveReporting({
+    lifecycleStatus: match.lifecycleStatus,
+    isCancelled,
+    isLive: Boolean(match.isLive),
+    allSelectionsFinalized: matchFinalized,
+    startsAt: match.startsAt,
+  });
+
   function handleCancel() {
     startTransition(async () => {
       await cancelMatchAction(match.id, cancelReason || undefined);
@@ -344,9 +355,9 @@ export function MatchDetail({ match }: { match: MatchData }) {
           </Link>
         </span>
         <span className="ml-auto flex items-center gap-2">
-          {matchFinalized && !isCancelled && (
+          {canLiveReport && (
             <Button as={Link} href={orgUrl(`/matches/${match.id}/live`)} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
-              Live reporting
+              {match.isLive ? "Live reporting" : "Start live reporting"}
             </Button>
           )}
           {match.isLive && match.canFollowLive && (
