@@ -1,7 +1,13 @@
 import { proxyAuth } from "@/auth-proxy";
 import { NextResponse } from "next/server";
 import { getContentSecurityPolicy } from "@/lib/security/csp";
-import { isPublicRoute, isProduction, getPreviewAllowlistEmails, isVercelPreview } from "@/lib/env";
+import {
+  isPublicRoute,
+  isProduction,
+  getPreviewAllowlistEmails,
+  isVercelPreview,
+  isDevToolingRoute,
+} from "@/lib/env";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
@@ -69,6 +75,13 @@ export default proxyAuth((req) => {
   // See isInternalMachineRoute()'s doc comment: this must run before both session-based gates
   // below, not just the preview-allowlist one.
   if (isInternalMachineRoute(path)) {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
+  // Development-only tooling (`/dev/**`, e.g. the ADR-0134 `/dev/ui-lab` visual-reset proving
+  // ground). isDevToolingRoute() is false in production, and the routes also notFound() in
+  // production — this only lets them render without a session locally / in Test.
+  if (isDevToolingRoute(path)) {
     return withSecurityHeaders(NextResponse.next());
   }
 

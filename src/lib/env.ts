@@ -200,6 +200,18 @@ export function isPublicRoute(pathname: string): boolean {
   });
 }
 
+/**
+ * `/dev/**` — development-only tooling routes (the `/dev/ui-lab` visual-reset
+ * proving ground, ADR-0134). Reachable without an authenticated session ONLY
+ * outside production; the routes themselves also `notFound()` in production
+ * (src/app/dev/ui-lab/layout.tsx), so this is defence-in-depth, not the only
+ * gate. This is deliberately NOT a `PUBLIC_ROUTES` entry — those are public in
+ * every environment; `/dev/**` must be unreachable in production.
+ */
+export function isDevToolingRoute(pathname: string): boolean {
+  return !isProduction() && (pathname === "/dev" || pathname.startsWith("/dev/"));
+}
+
 let envValidated = false;
 let envValidationResult: EnvValidationResult | null = null;
 
