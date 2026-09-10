@@ -40,9 +40,11 @@ test("a second coach can follow a live match in real time via the Cloudflare rea
     try {
       await followerPage.goto(`/o/test-club-a/matches/${matchId}/live/follow`);
 
-      // "Live" is the connected-state label (CONNECTION_LABEL.connected in follow-live-client.tsx).
-      // A generous timeout: this is a real WebSocket round trip through the Worker, not a mock.
-      await expect(followerPage.getByText("Live", { exact: true })).toBeVisible({ timeout: 20_000 });
+      // "LIVE" is the connected-state label (the Touchline `StatusText` live indicator —
+      // bundle 04 §4 allows `LIVE` uppercase — replacing the old `CONNECTION_LABEL.connected`
+      // "Live" text). A generous timeout: this is a real WebSocket round trip through the
+      // Worker, not a mock.
+      await expect(followerPage.getByText("LIVE", { exact: true })).toBeVisible({ timeout: 20_000 });
       await expect(followerPage.getByText("Live following isn't available right now.")).toHaveCount(0);
 
       // Confirm the connection is genuinely live, not just the initial label — an event the
