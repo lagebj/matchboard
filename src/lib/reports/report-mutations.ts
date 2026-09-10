@@ -231,7 +231,7 @@ export async function seedReportFromLiveSession(
     .map((h) => h.playerId)
     .filter((playerId) => !plannedPlayerIds.has(playerId));
 
-  const liveEvents = await db.liveMatchEvent.findMany({
+  const liveEventRows = await db.liveMatchEvent.findMany({
     where: {
       matchId,
       organisationId,
@@ -252,6 +252,23 @@ export async function seedReportFromLiveSession(
     },
     orderBy: { createdAt: "asc" },
   });
+
+  // ADR-0133 H1 follow-up: an `EVENT_REVERSED` row (`correctionType: "REVERSAL"`) is already
+  // excluded from `liveEventRows` above, but the scoring/scorer/assist/rotation row it points
+  // at via `correctsEventId` still has `correctionType: null` and would otherwise be counted.
+  // A reversed goal must not survive into the seeded report — same class of bug as the live
+  // score reconciliation fix (H6a), on a different code path.
+  const reversalRows = await db.liveMatchEvent.findMany({
+    where: {
+      matchId,
+      organisationId,
+      eventType: "EVENT_REVERSED",
+      correctsEventId: { not: null },
+    },
+    select: { correctsEventId: true },
+  });
+  const reversedEventIds = new Set(reversalRows.map((r) => r.correctsEventId as string));
+  const liveEvents = liveEventRows.filter((e) => !reversedEventIds.has(e.id));
 
   const match = await db.match.findFirst({
     where: { id: matchId, organisationId },

@@ -57,6 +57,9 @@ describe("Run -> Learn report seeding invariants (ARR-0028)", () => {
     await testDb.liveMatchSession.deleteMany({});
     await testDb.matchHelperAssignment.deleteMany({});
     await testDb.selection.deleteMany({});
+    // Match-scoped (not report-scoped), so not covered by the postMatchReport cascade above.
+    await testDb.matchRotation.deleteMany({});
+    await testDb.fairPlayObservation.deleteMany({});
   });
 
   it("seedReportFromFinalizedSquad and seedReportFromLiveSession both satisfy the same report invariants", async () => {
@@ -271,6 +274,66 @@ describe("Run -> Learn report seeding invariants (ARR-0028)", () => {
     expect(after.homeGoals).toBe(2);
     expect(after.awayGoals).toBe(2);
     expect(after.goals.length).toBe(0);
+  });
+
+  it("seedReportFromLiveSession excludes a reversed goal / scorer / assist / rotation (ADR-0133 H1 follow-up)", async () => {
+    const match = await testDb.match.findFirstOrThrow({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true, homeAway: true },
+    });
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === match.teamId).slice(0, 3);
+    await finalizeMatchSelections(testDb, match.id, fixtureIds.matchRoundId, players.map((p) => p.id), fixtureIds.organisationId);
+
+    const user = await createTestUser(testDb);
+    const session = await testDb.liveMatchSession.create({
+      data: { matchId: match.id, coachId: user.id, status: "ACTIVE", organisationId: fixtureIds.organisationId },
+    });
+    const ev = (eventType: string, extra: Record<string, unknown> = {}) =>
+      testDb.liveMatchEvent.create({
+        data: { matchId: match.id, sessionId: session.id, eventType: eventType as never, organisationId: fixtureIds.organisationId, ...extra },
+      });
+
+    // Goal 1 stands. Goal 2 (+ its scorer, assist, and the rotation pair recorded with it) is
+    // reversed by an EVENT_REVERSED row pointing back at each id.
+    await ev("GOAL_FOR");
+    await ev("SCORER_SET", { playerId: players[0]!.id });
+
+    const reversedGoal = await ev("GOAL_FOR");
+    const reversedScorer = await ev("SCORER_SET", { playerId: players[1]!.id });
+    const reversedAssist = await ev("ASSIST_SET", { playerId: players[2]!.id });
+    const reversedOut = await ev("ROTATION_OUT", { playerId: players[0]!.id, period: 1, matchSeconds: 300000 });
+    const reversedIn = await ev("ROTATION_IN", { playerId: players[2]!.id, period: 1, matchSeconds: 300001 });
+    for (const target of [reversedGoal, reversedScorer, reversedAssist, reversedOut, reversedIn]) {
+      await testDb.liveMatchEvent.create({
+        data: {
+          matchId: match.id,
+          sessionId: session.id,
+          eventType: "EVENT_REVERSED",
+          correctionType: "REVERSAL",
+          correctsEventId: target.id,
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+    }
+
+    const result = await seedReportFromLiveSession(match.id, fixtureIds.organisationId);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const report = await testDb.postMatchReport.findUniqueOrThrow({
+      where: { matchId: match.id },
+      select: {
+        homeGoals: true,
+        awayGoals: true,
+        goals: { select: { playerId: true } },
+        assists: { select: { playerId: true } },
+      },
+    });
+    const ourGoals = match.homeAway === "HOME" ? report.homeGoals : report.awayGoals;
+    expect(ourGoals).toBe(1);
+    expect(report.goals.map((g) => g.playerId)).toEqual([players[0]!.id]);
+    expect(report.assists.length).toBe(0);
+    expect(await testDb.matchRotation.count({ where: { matchId: match.id, source: "LIVE" } })).toBe(0);
   });
 
   it("seedReportFromLiveSession includes League Match helpers in the seeded player list (regression)", async () => {
