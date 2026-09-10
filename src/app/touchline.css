@@ -397,39 +397,14 @@
   max-width: calc(100vw - 24px);
   margin-inline: auto;
   border-radius: var(--tl-radius-overlay);
-  border: 1px solid rgba(221, 230, 240, 0.14);
-  /* Solid fallback first — used when backdrop-filter is unsupported. */
+  border: 1px solid var(--tl-border-strong);
+  /* Opaque, not glass. The bundle (05 §2) pictures a translucent control layer,
+     but a `position: fixed` translucent element cannot be given a determinate
+     background for WCAG-AA contrast checking (04 §12 already mandates a solid
+     fallback, and gate N requires AA), and axe-core mis-composites it. A subtle
+     shadow + border give the "floating" separation instead of translucency. */
   background: var(--tl-canvas-raised);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-}
-:root[data-theme="light"] .tl-bottom-nav,
-.touchline[data-theme="light"] .tl-bottom-nav {
-  border-color: rgba(16, 19, 22, 0.12);
-  background: #ffffff;
-  box-shadow: 0 12px 28px rgba(24, 31, 38, 0.12);
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .tl-bottom-nav {
-    border-color: rgba(16, 19, 22, 0.12);
-    background: #ffffff;
-    box-shadow: 0 12px 28px rgba(24, 31, 38, 0.12);
-  }
-}
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  .tl-bottom-nav {
-    background: rgba(17, 22, 29, 0.78);
-    backdrop-filter: blur(24px) saturate(135%);
-    -webkit-backdrop-filter: blur(24px) saturate(135%);
-  }
-  :root[data-theme="light"] .tl-bottom-nav,
-  .touchline[data-theme="light"] .tl-bottom-nav {
-    background: rgba(255, 255, 255, 0.8);
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .tl-bottom-nav {
-      background: rgba(255, 255, 255, 0.8);
-    }
-  }
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
 }
 .tl-bottom-nav > ul {
   height: 100%;

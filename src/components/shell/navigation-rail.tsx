@@ -45,7 +45,8 @@ export function NavigationRail({ orgSlug }: { orgSlug: string }) {
   return (
     <nav
       aria-label="Primary"
-      className="flex h-full w-[72px] flex-col items-center border-r border-[var(--border-soft)] bg-[var(--tl-c-canvas)]"
+      data-theme="dark"
+      className="touchline flex h-full w-[72px] flex-col items-center border-r border-[var(--border-soft)] bg-[var(--tl-c-canvas)]"
     >
       <div className="flex h-14 items-center justify-center">
         <TouchlineMark className="h-6 w-6 text-[var(--accent)]" />

@@ -42,15 +42,15 @@ export default async function AppLayout({
     // /invite/[token] live inside this same (app) group and must stay
     // reachable in this state, or redirecting to them here loops forever.
     return (
-      <div
-        /* Phase 5–8: pin dark until Settings ships the appearance control (Phase 9).
-           Unmigrated surfaces have no audited light palette yet — light mode is
-           enabled app-wide only after the WCAG-AA light audit (gate N). Remove
-           this data-theme (not the class) in Phase 9. */
-        data-theme="dark"
-        className="touchline touchline-canvas flex min-h-screen flex-col"
-      >
-        <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]">
+      <div className="flex min-h-screen flex-col bg-background">
+        {/* Shell chrome renders inside a `.touchline` island (dark-pinned until
+            Phase 9). Page content (`{children}`) stays on Product Surface 1.0
+            until its own migration phase wraps it — see ADR-0134's phased
+            model. */}
+        <header
+          data-theme="dark"
+          className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
+        >
           <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
             <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground)]">
               Matchboard
@@ -81,7 +81,10 @@ export default async function AppLayout({
   const content = (
     <OrgSlugProvider orgSlug={orgSlug}>
       <OrgSlugCookieSetter orgSlug={orgSlug} />
-      <div data-theme="dark" className="touchline touchline-canvas app-shell flex min-h-screen">
+      {/* The nav / top bar are `.touchline` islands (dark-pinned); page content
+          stays on Product Surface 1.0 until its own migration phase. Phase 10
+          hoists `.touchline` to this wrapper and deletes the PS 1.0 layer. */}
+      <div className="app-shell flex min-h-screen bg-background">
         <aside className="sticky top-0 z-30 hidden h-screen w-[var(--rail-width)] shrink-0 flex-col medium:flex expanded:hidden">
           <NavigationRail orgSlug={orgSlug} />
         </aside>
@@ -89,7 +92,10 @@ export default async function AppLayout({
           <SidebarNav orgSlug={orgSlug} />
         </aside>
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]">
+          <header
+            data-theme="dark"
+            className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
+          >
             <div className="min-w-0 flex-1">
               <TopContextBar />
             </div>
@@ -103,7 +109,7 @@ export default async function AppLayout({
             </div>
           </header>
           <main className="flex-1 pb-[var(--nav-clearance)]">
-            <div className="mx-auto w-full max-w-[1440px] px-4 py-6 medium:px-8 medium:py-7">
+            <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
               {children}
             </div>
           </main>

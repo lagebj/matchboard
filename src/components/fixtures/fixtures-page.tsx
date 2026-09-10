@@ -242,7 +242,9 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
   const displayedPeriods = selectedPeriod ? [selectedPeriod] : [];
 
   return (
-    <div className="flex flex-col gap-6">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    // Phase 10 hoists `.touchline` to the app shell and removes this wrapper.
+    <div className="touchline flex flex-col gap-6" data-theme="dark">
       <TouchlinePageHeader
         title="League"
         context={

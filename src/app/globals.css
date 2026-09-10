@@ -126,7 +126,7 @@
 
   /* Clearance for content/sticky actions above the fixed compact bottom nav +
      the device safe-area inset. Zero at medium+ where the bottom nav is gone. */
-  --nav-clearance: calc(5rem + env(safe-area-inset-bottom, 0px));
+  --nav-clearance: calc(6.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 840px) {
