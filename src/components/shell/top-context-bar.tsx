@@ -74,7 +74,11 @@ export function TopContextBar() {
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
       <div className="flex h-[50px] items-center gap-3 px-4 medium:px-6">
-        <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px] text-[var(--text-muted)]">
+        {/* Context detail (incl. the round quick-link) is a pointer-first
+            affordance shown from medium up only — on compact the page header
+            owns identity and this small inline link would fail WCAG 2.5.8
+            target size. Matches the pre-Touchline `lg:flex` gating. */}
+        <div className="hidden min-w-0 flex-1 items-center gap-2 text-[13px] text-[var(--text-muted)] medium:flex">
           {title ? (
             <span className="shrink-0 font-medium text-[var(--foreground)]">{title}</span>
           ) : null}
@@ -88,15 +92,16 @@ export function TopContextBar() {
               <span aria-hidden="true" className="text-[var(--border-strong)]">·</span>
               <Link
                 href={`/o/${orgSlug}/rounds/${ctx.matchRound.id}`}
-                className="shrink-0 text-[var(--accent)] no-underline hover:underline"
+                className="shrink-0 rounded-[var(--tl-c-radius-status)] px-1 py-0.5 text-[var(--accent)] no-underline hover:bg-[var(--tl-c-surface-hover)] hover:underline"
               >
                 {ctx.matchRound.name}
               </Link>
             </>
           ) : null}
         </div>
+        <div className="flex-1 medium:hidden" />
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-2">
           <HelpButton onClick={() => setHelpOpen(true)} />
           <CommandPaletteTrigger onClick={() => setPaletteOpen(true)} />
         </div>

@@ -125,7 +125,7 @@ export function HelpButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-1.5 rounded-md border border-[var(--border-soft)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+      className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-md border border-[var(--border-soft)] px-2.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 medium:min-h-9 medium:min-w-0"
       aria-label="Open help"
     >
       <HelpCircle className="h-4 w-4" aria-hidden="true" />
