@@ -42,7 +42,14 @@ export default async function AppLayout({
     // /invite/[token] live inside this same (app) group and must stay
     // reachable in this state, or redirecting to them here loops forever.
     return (
-      <div className="touchline touchline-canvas flex min-h-screen flex-col">
+      <div
+        /* Phase 5–8: pin dark until Settings ships the appearance control (Phase 9).
+           Unmigrated surfaces have no audited light palette yet — light mode is
+           enabled app-wide only after the WCAG-AA light audit (gate N). Remove
+           this data-theme (not the class) in Phase 9. */
+        data-theme="dark"
+        className="touchline touchline-canvas flex min-h-screen flex-col"
+      >
         <header className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--tl-c-canvas)_85%,transparent)] backdrop-blur-2xl">
           <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
             <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground)]">
@@ -74,7 +81,7 @@ export default async function AppLayout({
   const content = (
     <OrgSlugProvider orgSlug={orgSlug}>
       <OrgSlugCookieSetter orgSlug={orgSlug} />
-      <div className="touchline touchline-canvas app-shell flex min-h-screen">
+      <div data-theme="dark" className="touchline touchline-canvas app-shell flex min-h-screen">
         <aside className="sticky top-0 z-30 hidden h-screen w-[var(--rail-width)] shrink-0 flex-col medium:flex expanded:hidden">
           <NavigationRail orgSlug={orgSlug} />
         </aside>
