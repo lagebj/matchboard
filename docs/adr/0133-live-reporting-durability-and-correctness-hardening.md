@@ -61,7 +61,7 @@ correctness of the coach-visible outcome first, then the realtime transport.
 | **H5** ✅ | `canStartLiveReporting()` (`src/lib/matches/can-live-report.ts`, pure + unit-tested) drives the **match detail** "Start live reporting" button: offered while a session is live, once the plan is closed (`planning_closed`) or every selection is finalized, and in the hour before kickoff (`LIVE_REPORTING_LEAD_MS`) while planning is still open — no longer gated only on `isMatchFinalized(selections)`. Hidden for cancelled / `done` / `report_incomplete` / `played` (those route through "After match"). Label switches "Start live reporting" ↔ "Live reporting". Round Board has no live entry point today — a per-match column action there is a deliberate deferral (out of scope for the incident fix; the coach reaches live via match detail). | low | no |
 | **H6** | Realtime reconnect churn (218 reconnects, ~53 s median connection lifetime) and its symptoms. Split into three: | | yes — this ADR |
 | **H6a** ✅ | **"Goals disappeared / reset" — the actual mechanism.** `LiveMatchClient.fetchEvents` reconciled the running score from a **20-event tail** (`getRecentEvents(matchId, 20)`), so once >20 events accumulated it dropped every earlier goal and `setGoalsFor/Against` reset the on-screen score to that under-count on every 5 s poll and every reconnect broadcast — the churn just made it fire constantly. Separately, `reconcileFromServerEvents` skipped the `EVENT_REVERSED` row (its `isReversed` flag) but not the goal it reversed (`correctsEventId`), so an undone goal never left the score. Fix: reconcile from the whole match's events (`LIVE_RECONCILE_EVENT_LIMIT = 1000`, display list still capped to 15) and honour `correctsEventId` (added to `LiveEventSummary`, populated by `getMatchEvents`/`getRecentEvents`). Client-only, no worker. Delivered in PR following this ADR. | med | |
-| **H6b** | **Reduce the churn.** No keepalive on either side today (`RealtimeMatchClient` never pings; the DO never `setWebSocketAutoResponse`), so an idle WebSocket is closed by Cloudflare's ~100 s idle handling and a half-open one (mobile radio at a pitch) isn't detected until the next RPC. Add a hibernation-safe ping/pong (`setWebSocketAutoResponse` + a ~25 s client interval). Client + worker; backward-compatible. | med | planned |
+| **H6b** ✅ | **Reduce the churn.** `RealtimeMatchClient` now sends `KEEPALIVE_PING` every 25 s while connected; the DO registers a hibernation-safe `setWebSocketAutoResponse(KEEPALIVE_PING → KEEPALIVE_PONG)` on accept so the edge answers without waking the object. After the *first* pong is seen (proving the peer supports it), the client force-closes + reconnects once `KEEPALIVE_MISSED_LIMIT` (3) intervals pass with no pong — half-open detection in ~75 s instead of "next RPC or never". Fully backward-compatible: an old DO silently drops the ping (no `id`, no reply) and the missed-pong guard never arms; an old client never sends one. Constants live in the shared `realtime/protocol.ts` (the worker already imports from it). Delivered in PR following this ADR. | med | |
 | **H6c** | Advance the DO's own `clockAnchor` on `PERIOD_START`/`MATCH_START` (it is initialised to `BEFORE` and never moved — H2's Neon rehydration already covers the reporter's reload, this fixes the Follow-Live snapshot). Add `correctsEventId` to `CanonicalLiveEvent` so `reconcileFromCanonicalEvents` can un-count reversed goals on the Follow-Live path too. Worker + protocol. | med | planned |
 
 ### Explicitly out of scope
@@ -82,9 +82,11 @@ correctness of the coach-visible outcome first, then the realtime transport.
 - **H5** shipped in the following PR (`canStartLiveReporting()` + match-detail entry point).
 - **H6a** shipped in the following PR (whole-match score reconcile + `correctsEventId`-aware
   reversal handling — the actual "goals disappeared" fix, client-only).
-- **H6b** (keepalive) and **H6c** (DO `clockAnchor` + Follow-Live reversal) are planned here,
-  each its own PR. Neither needs the Cloudflare Worker Observability logs — the code + the
-  account-level analytics were enough to root-cause the churn (no keepalive on either side).
+- **H6b** shipped in the following PR (WebSocket keepalive ping/pong — client + DO auto-response,
+  backward-compatible).
+- **H6c** (DO `clockAnchor` advancement + `correctsEventId` on `CanonicalLiveEvent` for the
+  Follow-Live reversal path) is planned here. It needs no Cloudflare Observability logs — the
+  code + account-level analytics were enough.
 
 ## Consequences
 

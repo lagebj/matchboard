@@ -12,6 +12,10 @@
 
 import {
   PROTOCOL_VERSION,
+  KEEPALIVE_PING,
+  KEEPALIVE_PONG,
+  KEEPALIVE_INTERVAL_MS,
+  KEEPALIVE_MISSED_LIMIT,
   type RpcCall,
   type RpcResult,
   type RpcErrorCode,
@@ -102,6 +106,10 @@ export class RealtimeMatchClient {
   private reconnectAttempt = 0;
   private intentionalDisconnect = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  // ADR-0133 H6b — application-level keepalive.
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  private lastPongAt: number | null = null;
+  private pongEverReceived = false;
 
   constructor(options: RealtimeMatchClientOptions) {
     this.options = options;
@@ -145,6 +153,7 @@ export class RealtimeMatchClient {
   disconnect(): void {
     this.intentionalDisconnect = true;
     this.clearReconnectTimer();
+    this.stopKeepalive();
     logDebug("disconnect: intentional close");
     this.socket?.close(1000, "client disconnect");
     this.socket = null;
@@ -195,6 +204,7 @@ export class RealtimeMatchClient {
       this.reconnectAttempt = 0;
       logDebug("authenticate: success, connected");
       this.setState("connected");
+      this.startKeepalive();
     } catch (error) {
       const errorInfo = error instanceof Error ? error.message : typeof error === "object" && error !== null && "code" in error ? String((error as { code: string }).code) : String(error);
       logError("authenticate: failed — %s", errorInfo);
@@ -211,6 +221,15 @@ export class RealtimeMatchClient {
    */
   private handleRawMessage(data: unknown): void {
     if (typeof data !== "string") return;
+
+    // ADR-0133 H6b — keepalive pong (from the DO's hibernation auto-response). Not an RPC
+    // envelope; intercept before the schema parser so it doesn't log a spurious parse warning.
+    if (data === KEEPALIVE_PONG) {
+      this.lastPongAt = Date.now();
+      this.pongEverReceived = true;
+      return;
+    }
+    if (data === KEEPALIVE_PING) return; // never expected client-side; ignore defensively
 
     const parsed = parseRawSocketMessage(data, "toClient");
     if (!parsed.ok) {
@@ -274,6 +293,7 @@ export class RealtimeMatchClient {
 
   private handleSocketClosed(): void {
     logDebug("handleSocketClosed: connection lost (intentional=%s, pendingCalls=%d)", this.intentionalDisconnect, this.pendingCalls.size);
+    this.stopKeepalive();
     this.socket = null;
     for (const pending of this.pendingCalls.values()) {
       pending.reject({ code: "SESSION_NOT_FOUND", message: "Connection closed." });
@@ -302,6 +322,48 @@ export class RealtimeMatchClient {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+  }
+
+  /**
+   * ADR-0133 H6b — start sending keepalive pings on the connected socket. The DO replies via a
+   * hibernation-safe auto-response; an older DO that has not registered one simply never pongs,
+   * which is why the missed-pong disconnect below only arms after the *first* pong is seen.
+   */
+  private startKeepalive(): void {
+    this.stopKeepalive();
+    this.lastPongAt = Date.now();
+    this.keepaliveTimer = setInterval(() => this.keepaliveTick(), KEEPALIVE_INTERVAL_MS);
+  }
+
+  private stopKeepalive(): void {
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+    this.pongEverReceived = false;
+    this.lastPongAt = null;
+  }
+
+  private keepaliveTick(): void {
+    const socket = this.socket;
+    if (!socket || socket.readyState !== WEBSOCKET_OPEN) return;
+
+    if (
+      this.pongEverReceived &&
+      this.lastPongAt !== null &&
+      Date.now() - this.lastPongAt > KEEPALIVE_INTERVAL_MS * KEEPALIVE_MISSED_LIMIT
+    ) {
+      logWarn("keepalive: no pong in %d intervals — closing to force reconnect", KEEPALIVE_MISSED_LIMIT);
+      socket.close(4000, "keepalive timeout");
+      return;
+    }
+
+    try {
+      socket.send(KEEPALIVE_PING);
+    } catch {
+      logWarn("keepalive: ping send threw — closing");
+      socket.close();
     }
   }
 

@@ -4841,6 +4841,12 @@ Feature: Matchboard football operations workspace
       When the live client reconciles its score with the server
       Then the reversed goal must not be counted
 
+    Scenario: The live reporting connection keeps itself alive and detects a dead link (ADR-0133)
+      Given a coach has an open live reporting connection
+      Then the client must send a keepalive signal on a regular interval
+      When the connection goes silent for several intervals after keepalive was confirmed
+      Then the client must drop it and reconnect rather than sit on a half-open link
+
     Scenario: Compact layouts preserve access to omitted detail and context
       Given the coach is on any primary surface on a compact viewport
       Then there must be no page-level horizontal scrolling between 360 and 430px
