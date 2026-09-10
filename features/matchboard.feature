@@ -4847,6 +4847,12 @@ Feature: Matchboard football operations workspace
       When the connection goes silent for several intervals after keepalive was confirmed
       Then the client must drop it and reconnect rather than sit on a half-open link
 
+    Scenario: Following live shows a correct clock after the match has started (ADR-0133)
+      Given a live match has progressed into the second half
+      When a second coach opens Follow Live
+      Then the clock must show the second half at roughly the elapsed time
+      And it must not show "before kickoff"
+
     Scenario: Compact layouts preserve access to omitted detail and context
       Given the coach is on any primary surface on a compact viewport
       Then there must be no page-level horizontal scrolling between 360 and 430px
