@@ -59,7 +59,6 @@ export function TimelineItem({
   children,
   className,
 }: ItemProps) {
-  const muted = state === "done";
   return (
     <li className={cn("relative flex gap-3 py-2.5", className)}>
       <span
@@ -69,12 +68,7 @@ export function TimelineItem({
           isLast ? "h-7" : "bottom-0",
         )}
       />
-      <span
-        className={cn(
-          "w-[3.5rem] shrink-0 whitespace-nowrap pt-1 text-right text-[11px] tabular-nums",
-          muted ? "text-[var(--text-disabled)]" : "text-[var(--text-muted)]",
-        )}
-      >
+      <span className="w-[3.5rem] shrink-0 whitespace-nowrap pt-1 text-right text-[11px] tabular-nums text-[var(--text-muted)]">
         {timeLabel ?? ""}
       </span>
       <span className="relative z-10 flex w-2.5 shrink-0 justify-center pt-[0.6rem]">
