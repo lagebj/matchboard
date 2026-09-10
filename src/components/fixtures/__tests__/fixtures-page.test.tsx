@@ -159,7 +159,11 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      const draftBadges = screen.getAllByText("Draft");
+      // The round state is folded into the section summary line
+      // ("Draft · 1 match") since the Touchline scorebook migration (ADR-0134).
+      const draftBadges = screen.getAllByText((_, el) =>
+        (el?.textContent ?? "").startsWith("Draft ·"),
+      );
       expect(draftBadges.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -181,7 +185,9 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      const blockedBadges = screen.getAllByText("Blocked");
+      const blockedBadges = screen.getAllByText((_, el) =>
+        (el?.textContent ?? "").startsWith("Blocked ·"),
+      );
       expect(blockedBadges.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -252,7 +258,9 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("CANCELLED")).toBeInTheDocument();
+      // Ordinary metadata is not uppercased in the Touchline scorebook (ADR-0134
+      // §04 §4 / §06 §8): "Cancelled", not "CANCELLED".
+      expect(screen.getByText("Cancelled")).toBeInTheDocument();
     });
     expect(screen.getByText("Weather")).toBeInTheDocument();
   });
