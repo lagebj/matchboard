@@ -525,4 +525,36 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     const resultWithObs = await runPostMatchLearning(refWithObs, orgFilter);
     expect(resultWithObs.players).toEqual({ status: "SKIPPED", reason: "INSUFFICIENT_DISTINCT_MATCHES" });
   });
+
+  it("runPostMatchLearning's `players` step runs to APPLIED with no request context (ADR-0133 remediation follow-up)", async () => {
+    // This file mocks @/lib/db but NOT @/lib/auth/actor-context. Before the fix,
+    // applyPlayerAssessmentProposals()/recordAssessmentChange() called requireActorContext()
+    // unconditionally, so as soon as a proposal was computed the `players` step threw
+    // "`headers` was called outside a request scope" and the whole run was FAILED -- exactly
+    // what happened re-running learning for the Rød v Drammens BK incident match from a script.
+    const matchId = fixtureIds.matches["Bla"];
+    const player = fixtureIds.players.find((p) => p.coreTeamId === fixtureIds.teams["Bla"])!;
+    // A non-null current attribute so a proposal object is produced (NO_CHANGE, below
+    // threshold) -- enough to enter the apply path that used to need a request scope.
+    await testDb.player.update({ where: { id: player.id }, data: { passing: 6 } });
+    await testDb.playerDevelopmentObservation.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        playerId: player.id,
+        sourceType: "LEAGUE_MATCH",
+        matchId,
+        kind: "ATTRIBUTE",
+        attributeKey: "PASSING_EFFECTIVE",
+        direction: "POSITIVE",
+        observedAt: new Date(),
+        recordedBy: "test@test-agent.matchboard.football",
+      },
+    });
+
+    const ref = await buildLeagueMatchRef(matchId);
+    const result = await runPostMatchLearning(ref, orgFilter);
+
+    expect(result.players.status).toBe("APPLIED");
+    expect(summariseLearningOutcome(result)).not.toBe("FAILED");
+  });
 });
