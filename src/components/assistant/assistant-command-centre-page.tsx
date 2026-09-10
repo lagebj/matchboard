@@ -5,12 +5,14 @@ import Link from "next/link";
 import { formatKickoffTime } from "@/lib/date-utils";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
-import { MatchRow } from "@/components/ui/match-presentation";
 import {
-  OperationalTimeline,
+  TouchlinePageHeader,
+  TouchlineButton,
+  ScorebookMatchRow,
+  TouchlineTimeline as OperationalTimeline,
   TimelineItem,
-  type TimelineNodeState,
-} from "@/components/ui/operational-timeline";
+} from "@/components/touchline";
+import type { TimelineNodeState } from "@/components/touchline/timeline/touchline-timeline";
 import type {
   CoachSituationProjection,
   CoachSituationProjectionStatus,
@@ -20,16 +22,12 @@ import type { WeeklyCoachingContextResult } from "@/lib/weekly/weekly-coaching-c
 import { WeeklyCoachingContextSection } from "@/components/assistant/weekly-coaching-context-section";
 import { DueDecisionReviewSection } from "@/components/assistant/due-decision-review-section";
 import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
-import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
-import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
-import { BrandIllustration } from "@/components/ui/brand-illustration";
 import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import {
@@ -42,22 +40,25 @@ import {
   ShieldAlert,
   Eye,
   FileText,
-  Radio,
   Timer,
 } from "lucide-react";
 
 /**
- * AssistantCommandCentrePage — mission board for coach operations.
+ * AssistantCommandCentrePage — the Today operational surface, Touchline
+ * editorial + temporal grammar (ADR-0134 §7, bundle
+ * `07_TEMPORAL_AND_EVENT_GRAMMAR.md §11`).
  *
- * Layout:
- * 1. Page header
- * 2. Hero TacticalSurface with next action
- * 3. MetricTile row (blocked, decisions, reports, upcoming)
- * 4. Grouped work sections
- * 5. Repeated reports are grouped, not duplicated.
+ * Order: editorial page header → matchday now-anchor → the dominant Next Action
+ * object → the chronological `OperationalTimeline` of today's football →
+ * next-round readiness + grouped work → the "At a glance" tile row (a
+ * deliberate unfiltered summary, kept below the operational flow) → weekly
+ * context → upcoming. No pitch-line texture, no decorative sketch, no metric
+ * grid ahead of the flow. Red/amber only for a real blocker/decision.
  *
- * No red/amber unless actual blocker/decision exists.
- * Next action is obvious within 3 seconds.
+ * All work-item derivation, the situational projection wiring, grouping, and
+ * every link/action are unchanged — this is a presentation migration only
+ * (`17_FUNCTIONAL_FREEZE.md`). Rendered inside a dark-pinned `.touchline`
+ * island during the phased rollout.
  */
 
 type WorkCategory = AssistantWorkItem["category"];
@@ -244,37 +245,33 @@ function NextActionCard({
 }) {
   const config = groupForCategory(item.category);
   return (
-    <TacticalSurface variant="hero" padding="lg" pitch className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-strong)] bg-[var(--tl-c-surface-strong)] p-4">
       <div className="flex items-center justify-between gap-3">
-        <StatusPill
-          variant={config?.variant ?? "neutral"}
-          icon={config?.icon}
-          size="md"
-        >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">
           {heroPillLabel(status)}
-        </StatusPill>
+        </p>
         <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
           {config?.label ?? "Action"}
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-lg font-semibold text-zinc-50">{item.title}</h2>
+        <h2 className="text-[20px] font-[620] leading-snug text-[var(--foreground)]">{item.title}</h2>
         {item.summary && (
-          <p className="text-sm text-[var(--text-soft)] leading-snug">{item.summary}</p>
+          <p className="text-[13px] leading-snug text-[var(--text-soft)]">{item.summary}</p>
         )}
       </div>
       <div className="flex items-center justify-between gap-3">
         <ItemCounts item={item} />
-        <Button
+        <TouchlineButton
           as={Link}
           href={item.primaryActionHref}
           variant="primary"
           trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
         >
           {item.primaryActionLabel}
-        </Button>
+        </TouchlineButton>
       </div>
-    </TacticalSurface>
+    </div>
   );
 }
 
@@ -351,21 +348,25 @@ function MatchdayContextBanner({
       : "Matchday";
 
   return (
-    <TacticalSurface
-      variant="hero"
-      padding="md"
-      pitch
-      className="flex items-center justify-between gap-3"
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <StatusPill variant={isLive ? "danger" : "warning"} icon={isLive ? Radio : Timer} size="sm">
+    <div className="flex items-center justify-between gap-3 rounded-[var(--tl-c-radius-object)] border border-[var(--border-strong)] bg-[var(--tl-c-surface-strong)] px-4 py-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span
+          className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+            isLive ? "text-[var(--tl-c-live)]" : "text-[var(--accent)]"
+          }`}
+        >
+          {isLive ? (
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--tl-c-live)]" aria-hidden="true" />
+          ) : (
+            <Timer className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
           {statusLabel}
-        </StatusPill>
-        <span className="min-w-0 truncate text-sm font-semibold text-zinc-50">
+        </span>
+        <span className="min-w-0 truncate text-[14px] font-[600] text-[var(--foreground)]">
           {match.teamName} {match.homeAway === "HOME" ? "vs" : "@"} {match.opponent}
         </span>
       </div>
-      <Button
+      <TouchlineButton
         as={Link}
         href={orgUrl(isLive ? `/matches/${match.matchId}/live/follow` : `/matches/${match.matchId}`)}
         variant="primary"
@@ -373,8 +374,8 @@ function MatchdayContextBanner({
         trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
       >
         {isLive ? "Follow live" : "Open match"}
-      </Button>
-    </TacticalSurface>
+      </TouchlineButton>
+    </div>
   );
 }
 
@@ -433,7 +434,7 @@ function NextRoundReadinessSection({
                 <span className="text-sm font-medium text-zinc-100 truncate">{roundName}</span>
                 <span className="text-xs text-[var(--text-muted)]">{parts.join(" · ")}</span>
               </div>
-              <Button
+              <TouchlineButton
                 as={Link}
                 href={orgUrl(`/rounds/${integrity.matchRoundId}`)}
                 variant="secondary"
@@ -441,7 +442,7 @@ function NextRoundReadinessSection({
                 trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
               >
                 Open Round Board
-              </Button>
+              </TouchlineButton>
             </li>
           );
         })}
@@ -482,7 +483,7 @@ function WorkRow({
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <ItemCounts item={item} />
-        <Button
+        <TouchlineButton
           as={Link}
           href={item.primaryActionHref}
           variant="ghost"
@@ -490,7 +491,7 @@ function WorkRow({
           trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
         >
           {item.primaryActionLabel}
-        </Button>
+        </TouchlineButton>
       </div>
     </li>
   );
@@ -604,18 +605,18 @@ function TodayOperationalTimeline({
       match.lifecycleStatus === "played" || match.lifecycleStatus === "report_incomplete";
     const state: TimelineNodeState =
       match.lifecycleStatus === "live"
-        ? "current"
+        ? "live"
         : needsReport
-          ? "attention"
+          ? "current"
           : match.lifecycleStatus === "done"
             ? "done"
             : match.matchId === firstUpcomingId
               ? "next"
               : "later";
     const kicker =
-      state === "current"
+      state === "live"
         ? "LIVE"
-        : state === "attention"
+        : needsReport
           ? "FOLLOW-UP"
           : state === "next"
             ? "NEXT"
@@ -635,9 +636,9 @@ function TodayOperationalTimeline({
         kicker={kicker}
         isLast={idx === lastIndex}
       >
-        <MatchRow presentation={todayMatchPresentation(match, href)} inTimeline />
+        <ScorebookMatchRow presentation={todayMatchPresentation(match, href)} />
         {match.hasActiveLiveSession ? (
-          <Button
+          <TouchlineButton
             as={Link}
             href={orgUrl(`/matches/${match.matchId}/live/follow`)}
             variant="primary"
@@ -645,9 +646,9 @@ function TodayOperationalTimeline({
             className="mt-1"
           >
             Follow live
-          </Button>
+          </TouchlineButton>
         ) : needsReport ? (
-          <Button
+          <TouchlineButton
             as={Link}
             href={orgUrl(`/matches/${match.matchId}`)}
             variant="ghost"
@@ -656,26 +657,26 @@ function TodayOperationalTimeline({
             trailingIcon={<FileText className="h-3 w-3" aria-hidden="true" />}
           >
             Complete report
-          </Button>
+          </TouchlineButton>
         ) : null}
       </TimelineItem>,
     );
   });
 
   return (
-    <Surface padding="md" className="flex flex-col gap-3">
-      <SectionHeader
-        title="Matchday"
-        description="Today's football, in order."
-        eyebrow={liveCount > 0 ? `${liveCount} live` : undefined}
-        actions={
-          <StatusPill variant="info" size="sm" icon={CalendarDays}>
-            {matches.length}
-          </StatusPill>
-        }
-      />
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-[20px] font-[620] text-[var(--foreground)]">Matchday</h2>
+          <p className="text-[13px] text-[var(--text-muted)]">Today&rsquo;s football, in order.</p>
+        </div>
+        <span className="text-[12px] text-[var(--text-muted)]">
+          {liveCount > 0 ? `${liveCount} live · ` : ""}
+          {matches.length} {matches.length === 1 ? "match" : "matches"}
+        </span>
+      </div>
       <OperationalTimeline aria-label="Today's operational timeline">{rows}</OperationalTimeline>
-    </Surface>
+    </section>
   );
 }
 
@@ -754,23 +755,13 @@ export function AssistantCommandCentrePage({
   const upcomingCount = upcoming.length;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start gap-4">
-        <div className="flex-1 min-w-0">
-          <PageHeader
-            title="Today"
-            description="What needs attention before the next matches."
-            context={leagueSeasonName ? <span>{leagueSeasonName}</span> : null}
-          />
-        </div>
-        {actionable.length > 0 && (
-          <BrandIllustration
-            name="matchdayPrepSketch"
-            decorative
-            className="hidden expanded:block h-16 large:h-20 w-auto opacity-60 dark:opacity-50 shrink-0"
-          />
-        )}
-      </div>
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    // Phase 10 hoists `.touchline` to the app shell and removes this wrapper.
+    <div className="touchline flex flex-col gap-6" data-theme="dark">
+      <TouchlinePageHeader
+        title="Today"
+        context={leagueSeasonName ?? "What needs attention before the next matches."}
+      />
 
       {/*
        * Compact composition order (ADR-0124 §6 / ADR-0125 / adaptive-interaction-design.md §7):
@@ -799,14 +790,14 @@ export function AssistantCommandCentrePage({
           description={readyState.description}
           illustration="matchdayPrepSketch"
           action={
-            <Button
+            <TouchlineButton
               as={Link}
               href={orgUrl("/fixtures")}
               variant="primary"
               trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
             >
               Open Fixtures
-            </Button>
+            </TouchlineButton>
           }
         />
       )}
@@ -829,7 +820,7 @@ export function AssistantCommandCentrePage({
       {/* Review/attention link */}
       {reviewCount > 0 && (
         <div className="flex items-center justify-end">
-          <Button
+          <TouchlineButton
             as={Link}
             href={orgUrl("/reviews")}
             variant="ghost"
@@ -837,7 +828,7 @@ export function AssistantCommandCentrePage({
             trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
           >
             View peer reviews
-          </Button>
+          </TouchlineButton>
         </div>
       )}
 

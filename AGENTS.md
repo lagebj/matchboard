@@ -2462,13 +2462,17 @@ in-repo reference once the UI Lab gate is passed.
   `TouchlineBottomSheet`. The canonical `MatchPresentation` (ADR-0125) remains the sole owner of
   home/away, score orientation, own-team side, lifecycle, outcome, clock, cancellation, and
   planning/report attention — presentation components consume it.
-- **Migration status**: UI Lab approved. Phase 5 in progress — the `(app)` shell activates the
-  `.touchline` scope, its nav (sidebar / rail / floating bottom nav) + top context bar are
-  Touchline, and **League** (`/fixtures`) uses the scorebook grammar. Remaining Phase 5 (Today,
-  Events, match detail + Follow Live, Insights) and Phases 6–12 follow. Unmigrated surfaces
-  render transitionally on the new palette until their phase; Phase 10 deletes the Product
-  Surface 1.0 `:root` token layer in `globals.css`. Migrate a surface's *presentation* only —
-  domain/permissions/persistence/audit/validation are frozen (`17_FUNCTIONAL_FREEZE.md`).
+- **Migration status**: UI Lab approved. Phase 5 in progress. `.touchline` is applied
+  **per-surface** as a **dark-pinned island** (`class="touchline" data-theme="dark"`) —
+  the shell nav/top-bar each carry it, and each migrated page wraps its own root; unmigrated
+  pages stay on Product Surface 1.0, untouched. Migrated so far: shell nav + top bar,
+  **League** (`/fixtures`), **Today** (`AssistantCommandCentrePage`). Remaining Phase 5
+  (Events, match detail + Follow Live, Insights) and Phases 6–12 follow. Phase 9 removes the
+  dark pin + ships the Settings appearance control after a light WCAG-AA audit; Phase 10 hoists
+  `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in `globals.css`. Migrate
+  a surface's *presentation* only — domain/permissions/persistence/audit/validation are frozen
+  (`17_FUNCTIONAL_FREEZE.md`). Compact touch targets must be ≥ 44×44 and the top-bar context
+  detail is hidden below `medium` (WCAG 2.2 2.5.8, learned in #490).
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
