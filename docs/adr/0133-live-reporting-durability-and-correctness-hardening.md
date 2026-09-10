@@ -90,6 +90,24 @@ correctness of the coach-visible outcome first, then the realtime transport.
 - **H6c** shipped in the following PR (DO `clockAnchor` advancement, worker-only). The
   `correctsEventId`-on-the-realtime-wire residual above is the only open item in the programme
   and is a deliberate, documented deferral — not a gap left unmet.
+- **Player-evidence apply path made batch-safe** (surfaced while re-running learning for the
+  incident match from a script): the replay's `players` step hard-failed with "`headers` was
+  called outside a request scope" because `applyPlayerAssessmentProposals()` /
+  `recordAssessmentChange()` called `requireActorContext()` purely to obtain an organisation id.
+  Both now take the (already-known) `organisationId` explicitly — the automatic evidence path
+  records no actor identity and its entry points (`completeReport`,
+  `rebuildHistoricalEvidenceAction`, `replayPostMatchLearningHistory`) have already authorised —
+  so `runPostMatchLearning`'s `players` step now runs from a batch / replay / script context,
+  matching its documented purpose (ADR-0104). Shipped in the following PR.
+- **Incident-match remediation** (`scripts/remediate-rod-drammens-live-report.ts`, run once
+  against production): backfilled `Goal.minute` on 7 of the 8 hand-entered goal rows from the
+  surviving `GOAL_FOR` live events (8th, Benjamin LR, had no live event); created the 6 lost
+  `Assist` rows (5 live `ASSIST_SET` + 1 coach-asserted for the 8th goal); recreated the 13 lost
+  `MatchRotation` rows from `ROTATION_OUT`/`ROTATION_IN` pairs. Scoreline (3–8), scorer
+  attribution and report `LOCKED` status were not touched. `replayPostMatchLearningHistory()`
+  then rebuilt the actual timeline, opponent evidence and — newly derivable from the restored
+  rotations — combination evidence (133 rows; the original completion run had `combinations:
+  SKIPPED — INSUFFICIENT_POSITION_DATA`).
 
 **Programme status: H1–H6 complete.** The one open residual (Follow-Live viewer reversal
 precision) is recorded in the H6c row above.

@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { requireActorContext } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import {
   createAccumulator,
@@ -405,10 +404,16 @@ export function computePlayerAssessmentProposals(
 
 export async function applyPlayerAssessmentProposals(
   proposals: AssessmentProposal[],
-  _organisationId: string,
+  organisationId: string,
 ): Promise<{ applied: number; skipped: number; errors: string[] }> {
-  const ctx = await requireActorContext();
-  setTenantOrganisationId(ctx.organisationId);
+  // Scope by the caller-supplied organisation id (always known here — it is read from the
+  // Player row by the one caller, computeAndApplyPlayerEvidenceForMatch). This is the
+  // automatic, derived evidence-apply path: it records no actor identity, and its entry
+  // points (completeReport, rebuildHistoricalEvidenceAction, replayPostMatchLearningHistory)
+  // have already authorised. Not calling requireActorContext() here lets runPostMatchLearning's
+  // `players` step run from a batch / replay / script context, matching its documented purpose
+  // (ADR-0104) — it previously hard-failed with "`headers` was called outside a request scope".
+  setTenantOrganisationId(organisationId);
 
   let applied = 0;
   let skipped = 0;
@@ -432,6 +437,7 @@ export async function applyPlayerAssessmentProposals(
       });
 
       await recordAssessmentChange({
+        organisationId,
         playerId: proposal.playerId,
         targetType: "ATTRIBUTE",
         attributeKey: proposal.attributeKey,
@@ -580,6 +586,7 @@ export async function computeAndApplyPlayerEvidenceForMatch(
         });
 
         await recordAssessmentChange({
+          organisationId: player.organisationId,
           playerId,
           targetType: "GOALKEEPER",
           attributeKey: null,

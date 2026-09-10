@@ -14,6 +14,12 @@ export type AssessmentChangeSource =
 export type AssessmentChangeTargetType = "ATTRIBUTE" | "GOALKEEPER" | "POSITION";
 
 export interface CreateAssessmentChangeInput {
+  /**
+   * Owning organisation. Supplied by the caller (always known — the automatic evidence path
+   * reads it from the Player row) rather than resolved from a request context, so this can run
+   * from a batch / replay / script path. See applyPlayerAssessmentProposals for the rationale.
+   */
+  organisationId: string;
   playerId: string;
   targetType: AssessmentChangeTargetType;
   attributeKey: RatingAttributeKey | null;
@@ -30,12 +36,11 @@ export interface CreateAssessmentChangeInput {
 export async function recordAssessmentChange(
   input: CreateAssessmentChangeInput,
 ): Promise<{ id: string }> {
-  const ctx = await requireActorContext();
-  setTenantOrganisationId(ctx.organisationId);
+  setTenantOrganisationId(input.organisationId);
 
   const change = await db.assessmentChange.create({
     data: {
-      organisationId: ctx.organisationId,
+      organisationId: input.organisationId,
       playerId: input.playerId,
       targetType: input.targetType,
       attributeKey: input.attributeKey,
