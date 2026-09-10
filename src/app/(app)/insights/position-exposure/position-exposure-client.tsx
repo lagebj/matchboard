@@ -42,7 +42,8 @@ export function PositionExposureClient({
   }, [selectedPeriodId]);
 
   return (
-    <div className="flex flex-col gap-4">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
       <div className="flex items-center gap-3">
         <Link href="/insights" className="text-zinc-500 hover:text-zinc-300 transition-colors">
           <ArrowLeft className="h-4 w-4" />

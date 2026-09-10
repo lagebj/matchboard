@@ -207,24 +207,25 @@ export function InsightsOverviewClient({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline flex flex-col gap-6" data-theme="dark">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-100">Insights</h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          Visual decision review and coaching insight surfaces
+        <h1 className="text-[28px] font-[650] leading-tight text-[var(--foreground)]">Insights</h1>
+        <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+          Authored evidence and coaching-insight surfaces.
         </p>
       </div>
 
       {leagueSeasons.length > 1 && (
         <div className="flex items-center gap-3">
-          <label htmlFor="league-season-select" className="text-sm text-zinc-400">
+          <label htmlFor="league-season-select" className="text-[13px] text-[var(--text-muted)]">
             League season
           </label>
           <select
             id="league-season-select"
             value={selectedPeriodId}
             onChange={(e) => setSelectedPeriodId(e.target.value)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200"
+            className="min-h-[44px] rounded-[var(--tl-c-radius-control)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-1.5 text-[16px] text-[var(--foreground)] medium:min-h-9 medium:text-[14px]"
           >
             {leagueSeasons.map((ls) => (
               <option key={ls.id} value={ls.id}>
@@ -261,37 +262,39 @@ export function InsightsOverviewClient({
       )}
 
       {overviewState.status === "loading" && (
-        <p className="text-sm text-zinc-500">Loading insights...</p>
+        <p className="text-[13px] text-[var(--text-muted)]">Loading insights…</p>
       )}
 
       {overviewState.status === "error" && (
-        <div className="rounded-xl border border-red-800/30 bg-red-900/10 px-4 py-3">
-          <p className="text-sm text-red-300">{overviewState.message}</p>
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-4 py-3">
+          <p className="text-[13px] text-[var(--danger)]">{overviewState.message}</p>
           <button
             onClick={handleRetry}
-            className="mt-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 hover:bg-zinc-800"
+            className="mt-2 rounded-[var(--tl-c-radius-control)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-1.5 text-[13px] text-[var(--foreground)] hover:bg-[var(--tl-c-surface-hover)]"
           >
             Retry
           </button>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="divide-y divide-[var(--border-soft)] border-y border-[var(--border-soft)]">
         {SURFACE_CARDS.map((card) => (
           <Link
             key={card.href}
             href={`${card.href}?leagueSeasonId=${encodeURIComponent(selectedPeriodId)}`}
-            className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 transition-colors hover:border-zinc-600 hover:bg-zinc-800/50"
+            className="group flex items-start gap-3 py-3.5 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
           >
-            <div className="flex items-center gap-3 mb-2">
-              <card.icon className="h-5 w-5 text-zinc-400 group-hover:text-zinc-200" />
-              <h2 className="text-sm font-semibold text-zinc-200 group-hover:text-white">
-                {card.label}
-              </h2>
+            <card.icon
+              strokeWidth={1.75}
+              className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--accent)]"
+              aria-hidden="true"
+            />
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-[600] text-[var(--foreground)]">{card.label}</h2>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--text-muted)]">
+                {card.description}
+              </p>
             </div>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              {card.description}
-            </p>
           </Link>
         ))}
       </div>
@@ -309,11 +312,11 @@ function SummaryCard({
   accent: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
-      <div className="text-xs text-zinc-500">{label}</div>
+    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-3">
+      <div className="text-[12px] text-[var(--text-muted)]">{label}</div>
       <div
-        className={`text-2xl font-semibold mt-1 ${
-          accent ? "text-amber-400" : "text-zinc-200"
+        className={`mt-1 text-[24px] font-[650] tabular-nums ${
+          accent ? "text-[var(--warning)]" : "text-[var(--foreground)]"
         }`}
       >
         {value}
