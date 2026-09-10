@@ -22,7 +22,7 @@
  */
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Tv, Users, WifiOff } from "lucide-react";
+import { Users, WifiOff } from "lucide-react";
 import { RealtimeMatchClient, type RealtimeConnectionState } from "@/lib/live-match/realtime/realtime-client";
 import { fetchRealtimeTicket } from "@/lib/live-match/realtime/fetch-ticket";
 import type {
@@ -32,11 +32,9 @@ import type {
   CanonicalLiveEvent,
   ClientAck,
 } from "@/lib/live-match/realtime/realtime-messages";
-import { PageHeader } from "@/components/ui/page-header";
-import { Surface } from "@/components/ui/surface";
-import { StatusPill } from "@/components/ui/status-pill";
-import { MatchHeader } from "@/components/ui/match-presentation";
+import { MatchScoreHeader, StatusText } from "@/components/touchline";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
+import { cn } from "@/lib/cn";
 import {
   projectCanonicalLiveState,
   clockProjectionToClockState,
@@ -255,97 +253,110 @@ export function FollowLiveClient({
     return projection.recentEvents.map((event) => canonicalEventToSummary(event, playerMap));
   }, [projection, playerMap]);
 
+  const isConnected = connectionState === "connected";
+
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
-        title="Follow live"
-        description={`Read-only · ${homeAway === "HOME" ? "Home" : "Away"}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <StatusPill variant={connectionState === "connected" ? "success" : "neutral"}>
-              {CONNECTION_LABEL[connectionState]}
-            </StatusPill>
-            <span className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)]">
-              <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              {connectedCount}
-            </span>
-          </div>
-        }
-      />
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    // Read-only "Follow live" scoreboard grammar (bundle 06 §11 map).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
+      <div className="flex items-start justify-between gap-3 pt-1">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+            Follow live
+          </p>
+          <h1 className="mt-0.5 truncate text-[24px] font-[650] leading-tight text-[var(--foreground)]">
+            {teamName} {homeAway === "HOME" ? "vs" : "@"} {opponentName}
+          </h1>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1 pt-1">
+          <StatusText tone={isConnected ? "live" : "neutral"} dot={isConnected} strong>
+            {isConnected ? "LIVE" : CONNECTION_LABEL[connectionState]}
+          </StatusText>
+          <span className="inline-flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            {connectedCount}
+          </span>
+        </div>
+      </div>
 
       {sessionEnded && (
-        <Surface className="p-4 text-sm text-[var(--text-soft)]">This live session has ended.</Surface>
+        <p className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] p-4 text-[13px] text-[var(--text-soft)]">
+          This live session has ended.
+        </p>
       )}
 
       {connectionState === "error" && (
-        <Surface className="flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
+        <p className="flex items-center gap-2 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] p-4 text-[13px] text-[var(--text-muted)]">
           <WifiOff className="h-4 w-4" aria-hidden="true" />
           Live following isn&apos;t available right now.
-        </Surface>
+        </p>
       )}
 
       {/* Scoreboard — canonical match-header grammar, derived from the projection.
           Read-only: no mutation controls, matching Live Reporting's header shape. */}
       {projection && (
-        <Surface className="p-4">
-          <MatchHeader
-            presentation={buildMatchPresentation({
-              id: matchId,
-              teamName,
-              opponentName,
-              isHome: homeAway === "HOME",
-              lifecycleStatus: "live",
-              ownGoals: projection.score.goalsFor,
-              opponentGoals: projection.score.goalsAgainst,
-              liveClockLabel: `${periodLabel} · ${formatElapsedMs(elapsedMs)}`,
-            })}
-          />
-        </Surface>
+        <MatchScoreHeader
+          framed
+          presentation={buildMatchPresentation({
+            id: matchId,
+            teamName,
+            opponentName,
+            isHome: homeAway === "HOME",
+            lifecycleStatus: "live",
+            ownGoals: projection.score.goalsFor,
+            opponentGoals: projection.score.goalsAgainst,
+            liveClockLabel: `${periodLabel} · ${formatElapsedMs(elapsedMs)}`,
+          })}
+        />
       )}
 
       {/* On-field players — derived from projection */}
       {onFieldPlayers.length > 0 && (
-        <Surface className="p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
-            <Users className="h-4 w-4" aria-hidden="true" />
-            On field ({onFieldPlayers.length})
+        <section>
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[18px] font-[620] text-[var(--foreground)]">On field</h2>
+            <span className="text-[12px] text-[var(--text-muted)]">{onFieldPlayers.length} players</span>
           </div>
-          <div className="flex flex-wrap gap-1">
+          <ul className="mt-2 divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
             {onFieldPlayers.map((p) => (
-              <span key={p.id} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-[var(--success-subtle)] text-[var(--success)] rounded">
+              <li key={p.id} className="py-2.5 text-[15px] font-[600] text-[var(--foreground)]">
                 {p.name}
-              </span>
+              </li>
             ))}
-          </div>
-        </Surface>
+          </ul>
+        </section>
       )}
 
-      {/* Recent activity — derived from projection */}
-      <Surface className="p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
-          <Tv className="h-4 w-4" aria-hidden="true" />
-          Recent activity
-        </div>
+      {/* Match events — derived from projection */}
+      <section>
+        <h2 className="text-[18px] font-[620] text-[var(--foreground)]">Match events</h2>
         {eventSummaries.length === 0 && !projection ? (
-          <p className="text-sm text-[var(--text-muted)]">Connecting to live match…</p>
+          <p className="mt-2 text-[13px] text-[var(--text-muted)]">Connecting to live match…</p>
         ) : eventSummaries.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No events yet — updates will appear here as they happen.</p>
+          <p className="mt-2 text-[13px] text-[var(--text-muted)]">
+            No events yet — updates will appear here as they happen.
+          </p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="mt-2 divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
             {eventSummaries.map((summary) => (
-              <li key={summary.id} className="text-sm text-[var(--text-soft)] flex items-baseline gap-2">
-                {summary.matchClock && (
-                  <span className="text-[var(--text-micro)] font-mono text-[var(--text-muted)] shrink-0">{summary.matchClock}</span>
-                )}
-                <span>{summary.text}</span>
+              <li key={summary.id} className="flex items-baseline gap-3 py-2.5 text-[14px]">
+                <span
+                  className={cn(
+                    "w-12 shrink-0 text-[12px] tabular-nums text-[var(--text-muted)]",
+                    !summary.matchClock && "invisible",
+                  )}
+                >
+                  {summary.matchClock ?? "0:00"}
+                </span>
+                <span className="text-[var(--text-soft)]">{summary.text}</span>
                 {summary.period && !summary.matchClock && (
-                  <span className="text-[var(--text-micro)] text-[var(--text-muted)] shrink-0">{summary.period}</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">{summary.period}</span>
                 )}
               </li>
             ))}
           </ul>
         )}
-      </Surface>
+      </section>
     </div>
   );
 }

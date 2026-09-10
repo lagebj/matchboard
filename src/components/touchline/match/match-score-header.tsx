@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import {
   type MatchPresentation,
@@ -20,10 +21,19 @@ import {
 type Props = {
   presentation: MatchPresentation;
   framed?: boolean;
+  /** A quiet "‹ Back" link above the score, for match-specific pages. */
+  backHref?: string;
+  backLabel?: string;
   className?: string;
 };
 
-export function MatchScoreHeader({ presentation: p, framed = false, className }: Props) {
+export function MatchScoreHeader({
+  presentation: p,
+  framed = false,
+  backHref,
+  backLabel = "Back",
+  className,
+}: Props) {
   const phase = matchPresentationPhase(p);
   const isLive = phase === "live";
   const isScheduled = phase === "scheduled";
@@ -53,6 +63,15 @@ export function MatchScoreHeader({ presentation: p, framed = false, className }:
         className,
       )}
     >
+      {backHref ? (
+        <Link
+          href={backHref}
+          className="mb-2 inline-flex w-fit items-center gap-1 text-[13px] text-[var(--text-muted)] no-underline hover:text-[var(--text-soft)]"
+        >
+          <span aria-hidden="true">‹</span> {backLabel}
+        </Link>
+      ) : null}
+
       <div className="flex items-center justify-between gap-4">
         <span
           className={cn(

@@ -20,7 +20,7 @@ import {
   Tv,
 } from "lucide-react";
 import { RoleBadge } from "@/components/ui/role-badge";
-import { MatchHeader } from "@/components/ui/match-presentation";
+import { MatchScoreHeader, TouchlineButton } from "@/components/touchline";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
@@ -36,8 +36,6 @@ import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/action
 import { formatWarningCode } from "@/lib/match-utils";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
-import { TacticalSurface } from "@/components/ui/tactical-surface";
-import { Button } from "@/components/ui/button";
 import type { MatchLifecycleStatus } from "@/components/ui/status-badge";
 import { canStartLiveReporting } from "@/lib/matches/can-live-report";
 import { DecisionBanner } from "@/components/ui/decision-banner";
@@ -307,7 +305,8 @@ export function MatchDetail({ match }: { match: MatchData }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline flex flex-col gap-5" data-theme="dark">
       {isCancelled && (
         <DecisionBanner
           variant="blocked"
@@ -318,16 +317,16 @@ export function MatchDetail({ match }: { match: MatchData }) {
               : "This match was cancelled and will not require post-match reporting. Planned squad is kept for reference but will not count as played."
           }
           action={
-            <Button variant="secondary" size="sm" onClick={handleReopen} disabled={isPending} leadingIcon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}>
+            <TouchlineButton variant="secondary" size="sm" onClick={handleReopen} disabled={isPending} leadingIcon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}>
               {isPending ? "Reopening…" : "Reopen match"}
-            </Button>
+            </TouchlineButton>
           }
         />
       )}
       {/* Canonical match-header grammar (ADR-0125) — the match identity reads
           before the page controls. Round link + live-reporting entry points sit
           in a slim row below it. */}
-      <MatchHeader
+      <MatchScoreHeader
         presentation={buildMatchPresentation({
           id: match.id,
           teamName: match.teamName,
@@ -356,19 +355,19 @@ export function MatchDetail({ match }: { match: MatchData }) {
         </span>
         <span className="ml-auto flex items-center gap-2">
           {canLiveReport && (
-            <Button as={Link} href={orgUrl(`/matches/${match.id}/live`)} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
+            <TouchlineButton as={Link} href={orgUrl(`/matches/${match.id}/live`)} variant="secondary" size="sm" leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}>
               {match.isLive ? "Live reporting" : "Start live reporting"}
-            </Button>
+            </TouchlineButton>
           )}
           {match.isLive && match.canFollowLive && (
-            <Button as={Link} href={orgUrl(`/matches/${match.id}/live/follow`)} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
+            <TouchlineButton as={Link} href={orgUrl(`/matches/${match.id}/live/follow`)} variant="secondary" size="sm" leadingIcon={<Tv className="h-3.5 w-3.5" aria-hidden="true" />}>
               Follow live
-            </Button>
+            </TouchlineButton>
           )}
         </span>
       </div>
 
-      <TacticalSurface variant="hero" padding="lg">
+      <div className="rounded-[var(--tl-c-radius-feature)] border border-[var(--border-strong)] bg-[var(--tl-c-surface-strong)] p-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <MetaTile icon={<MapPin className="h-3.5 w-3.5" />} label="Venue" value={formatVenue(match.homeAway)} />
           <MetaTile icon={<Trophy className="h-3.5 w-3.5" />} label="Type" value={formatMatchType(match.matchType)} />
@@ -411,7 +410,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
             currentIntentId={match.coachingIntentId}
           />
         </div>
-      </TacticalSurface>
+      </div>
 
       <TabRail
         items={tabs}
@@ -503,14 +502,14 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 description="Generate or edit the squad in the round board to plan this match."
                 illustration="emptyLineup"
                 action={
-                  <Button
+                  <TouchlineButton
                     as={Link}
                     href={orgUrl(`/rounds/${match.matchRoundId}`)}
                     variant="primary"
                     size="sm"
                   >
                     Go to round
-                  </Button>
+                  </TouchlineButton>
                 }
               />
             )}
@@ -537,9 +536,9 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 variant="finalized"
                  title="Planning is closed for every match in this round."
                 action={
-                  <Button as={Link} href={orgUrl(`/rounds/${match.matchRoundId}`)} variant="ghost" size="sm">
+                  <TouchlineButton as={Link} href={orgUrl(`/rounds/${match.matchRoundId}`)} variant="ghost" size="sm">
                     View round
-                  </Button>
+                  </TouchlineButton>
                 }
               />
             )}
@@ -606,16 +605,16 @@ export function MatchDetail({ match }: { match: MatchData }) {
                       rows={2}
                     />
                     <div className="flex gap-2">
-                      <Button variant="danger" size="sm" onClick={handleCancel} disabled={isPending}>
+                      <TouchlineButton variant="danger" size="sm" onClick={handleCancel} disabled={isPending}>
                         {isPending ? "Cancelling…" : "Confirm cancellation"}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setShowCancelDialog(false)}>
+                      </TouchlineButton>
+                      <TouchlineButton variant="ghost" size="sm" onClick={() => setShowCancelDialog(false)}>
                         Cancel
-                      </Button>
+                      </TouchlineButton>
                     </div>
                   </div>
                 ) : (
-                  <Button
+                  <TouchlineButton
                     variant="ghost"
                     size="sm"
                     className="mt-2 text-[var(--danger)]"
@@ -623,7 +622,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                     onClick={() => setShowCancelDialog(true)}
                   >
                     Mark as cancelled
-                  </Button>
+                  </TouchlineButton>
                 )}
               </Surface>
             )}
@@ -677,7 +676,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
           <div className="flex flex-col gap-4">
             <Surface padding="md">
               <SectionHeader title="Post-match report" description="Record match results, player participation, and observations." />
-              <Button
+              <TouchlineButton
                 as={Link}
                 href={orgUrl(`/matches/${match.id}/post-match`)}
                 variant="primary"
@@ -685,12 +684,12 @@ export function MatchDetail({ match }: { match: MatchData }) {
                 className="self-start mt-2"
               >
                 Open post-match report
-              </Button>
+              </TouchlineButton>
             </Surface>
             {match.plannedRotation && (
               <Surface padding="md">
                 <SectionHeader title="Planned vs actual rotations" description="Compare planned rotation changes with what happened during the match." />
-                <Button
+                <TouchlineButton
                   as={Link}
                   href={orgUrl(`/matches/${match.id}/review`)}
                   variant="secondary"
@@ -698,7 +697,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   className="self-start mt-2"
                 >
                   View rotation review
-                </Button>
+                </TouchlineButton>
               </Surface>
             )}
           </div>
@@ -737,7 +736,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   title="Opponent context"
                   description="Sporting fit, post-match observations, and full encounter history."
                 />
-                <Button
+                <TouchlineButton
                   as={Link}
                   href={orgUrl(`/opponents/${match.opponentTeamId}`)}
                   variant="primary"
@@ -746,7 +745,7 @@ export function MatchDetail({ match }: { match: MatchData }) {
                   className="self-start"
                 >
                   View opponent detail
-                </Button>
+                </TouchlineButton>
               </Surface>
             </>
           ) : (
