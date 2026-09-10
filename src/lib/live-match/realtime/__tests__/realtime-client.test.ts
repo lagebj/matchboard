@@ -5,7 +5,13 @@ import {
   type RealtimeConnectionState,
   type RealtimeMatchClientOptions,
 } from "../realtime-client";
-import { PROTOCOL_VERSION } from "../protocol";
+import {
+  PROTOCOL_VERSION,
+  KEEPALIVE_PING,
+  KEEPALIVE_PONG,
+  KEEPALIVE_INTERVAL_MS,
+  KEEPALIVE_MISSED_LIMIT,
+} from "../protocol";
 
 const WS_CONNECTING = 0;
 const WS_OPEN = 1;
@@ -40,6 +46,10 @@ class FakeSocket implements WebSocketLike {
 
   simulateMessage(data: unknown): void {
     this.emit("message", { data: JSON.stringify(data) });
+  }
+
+  simulateRawMessage(raw: string): void {
+    this.emit("message", { data: raw });
   }
 
   lastSent(): unknown {
@@ -223,5 +233,93 @@ describe("RealtimeMatchClient — incoming server calls (callback RPC)", () => {
     const reply = socket.lastSent() as { id: string; ok: boolean; error: { code: string } };
     expect(reply.ok).toBe(false);
     expect(reply.error.code).toBe("METHOD_NOT_FOUND");
+  });
+
+  // ADR-0133 H6b — keepalive.
+  describe("keepalive", () => {
+    it("sends a ping on the interval while connected", async () => {
+      vi.useFakeTimers();
+      try {
+        const { client, sockets } = buildClient();
+        const socket = await connectAndAuthenticate(client, sockets);
+        socket.sent.length = 0;
+
+        vi.advanceTimersByTime(KEEPALIVE_INTERVAL_MS);
+        expect(socket.sent).toContain(KEEPALIVE_PING);
+
+        socket.sent.length = 0;
+        vi.advanceTimersByTime(KEEPALIVE_INTERVAL_MS);
+        expect(socket.sent).toContain(KEEPALIVE_PING);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("treats a pong as liveness and does not surface it to the RPC parser", async () => {
+      vi.useFakeTimers();
+      try {
+        const { client, sockets, states } = buildClient();
+        const socket = await connectAndAuthenticate(client, sockets);
+        states.length = 0;
+
+        socket.simulateRawMessage(KEEPALIVE_PONG);
+        await Promise.resolve();
+
+        // No state change, no reply sent, connection stays connected.
+        expect(states).toEqual([]);
+        expect(client.connectionState).toBe("connected");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("closes the socket to force a reconnect after enough missed pongs (once a pong was seen)", async () => {
+      vi.useFakeTimers();
+      try {
+        const { client, sockets } = buildClient();
+        const socket = await connectAndAuthenticate(client, sockets);
+
+        // One pong proves the peer supports keepalive — the missed-pong guard now arms.
+        socket.simulateRawMessage(KEEPALIVE_PONG);
+
+        // Intervals pass with no further pong.
+        vi.advanceTimersByTime(KEEPALIVE_INTERVAL_MS * (KEEPALIVE_MISSED_LIMIT + 1));
+
+        expect(socket.readyState).toBe(WS_CLOSED);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("never force-closes when the peer never pongs (old Durable Object)", async () => {
+      vi.useFakeTimers();
+      try {
+        const { client, sockets } = buildClient();
+        const socket = await connectAndAuthenticate(client, sockets);
+
+        // No pong ever. Many intervals pass. The socket must stay open (pings are harmless).
+        vi.advanceTimersByTime(KEEPALIVE_INTERVAL_MS * 10);
+
+        expect(socket.readyState).toBe(WS_OPEN);
+        expect(socket.sent.filter((m) => m === KEEPALIVE_PING).length).toBeGreaterThanOrEqual(5);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops pinging after an intentional disconnect", async () => {
+      vi.useFakeTimers();
+      try {
+        const { client, sockets } = buildClient();
+        const socket = await connectAndAuthenticate(client, sockets);
+        client.disconnect();
+        socket.sent.length = 0;
+
+        vi.advanceTimersByTime(KEEPALIVE_INTERVAL_MS * 3);
+        expect(socket.sent).not.toContain(KEEPALIVE_PING);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

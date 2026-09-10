@@ -4133,9 +4133,12 @@ kickoff / while a session is live / once planning closes, not gated only on ever
 being `FINALIZED` (H5). The live client reconciles the running score from the **whole match's
 events**, not a 20-event tail, and un-counts a goal via the reversal's `correctsEventId` —
 `reconcileFromServerEvents` previously did neither, which is why goals appeared to "disappear /
-reset" (H6a). Still open: no keepalive on the realtime WebSocket (client or DO) so idle/half-open
-connections churn (H6b); the DO `clockAnchor` is never advanced and `CanonicalLiveEvent` carries
-no `correctsEventId` for the Follow-Live path (H6c). See ADR-0133 for the full forensics and the
+reset" (H6a). The realtime WebSocket has an application-level keepalive
+(`KEEPALIVE_PING`/`KEEPALIVE_PONG` in `realtime/protocol.ts`): the client pings every 25 s, the
+DO answers via a hibernation-safe `setWebSocketAutoResponse`, and the client force-reconnects
+after 3 missed pongs (only once a pong has ever been seen — backward-compatible with an old DO)
+(H6b). Still open: the DO `clockAnchor` is never advanced and `CanonicalLiveEvent` carries no
+`correctsEventId` for the Follow-Live path (H6c). See ADR-0133 for the full forensics and the
 H1–H6 plan.
 
 | File | Purpose |
@@ -4184,11 +4187,11 @@ uses for its own accepted events, not something "Follow live" depends on.
 
 | File | Purpose |
 |------|---------|
-| `src/lib/live-match/realtime/protocol.ts` | RPC envelope types, error code set, method allowlists, protocol version |
+| `src/lib/live-match/realtime/protocol.ts` | RPC envelope types, error code set, method allowlists, protocol version; `KEEPALIVE_PING`/`KEEPALIVE_PONG`/`KEEPALIVE_INTERVAL_MS`/`KEEPALIVE_MISSED_LIMIT` (ADR-0133 H6b — the worker imports these too) |
 | `src/lib/live-match/realtime/protocol-schemas.ts` | Zod validation for the RPC envelope; `parseIncomingMessage`/`parseRawSocketMessage` |
 | `src/lib/live-match/realtime/realtime-messages.ts` | Business payload types (`MatchSessionSnapshot`, `ClockAnchor`, command/callback shapes) |
 | `src/lib/live-match/realtime/realtime-state.ts` | Client-side realtime version tracking (`RealtimeVersionTracker`) |
-| `src/lib/live-match/realtime/realtime-client.ts` | Browser `RealtimeMatchClient` abstraction: connect/reconnect, RPC call/response matching, callback dispatch |
+| `src/lib/live-match/realtime/realtime-client.ts` | Browser `RealtimeMatchClient` abstraction: connect/reconnect, RPC call/response matching, callback dispatch, keepalive ping + missed-pong force-reconnect (ADR-0133 H6b) |
 | `src/lib/live-match/realtime/realtime-ticket.ts` | Realtime connection ticket signing/verification (jose HS256, mirrors `machine-token.ts`'s pattern) |
 | `src/app/api/live-match/[matchId]/realtime-ticket/route.ts` | Issues short-lived realtime connection tickets; reuses live-match session authorization |
 | `workers/live-match/wrangler.jsonc` | Worker/Durable Object config: SQLite-backed DO storage, `production`/`test` environments |

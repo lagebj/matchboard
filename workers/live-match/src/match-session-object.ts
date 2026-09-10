@@ -59,6 +59,8 @@ import { DurableObject } from "cloudflare:workers";
 import { parseRawSocketMessage } from "../../../src/lib/live-match/realtime/protocol-schemas";
 import {
   PRE_AUTH_ALLOWED_METHOD,
+  KEEPALIVE_PING,
+  KEEPALIVE_PONG,
   type RpcCall,
   type RpcResult,
   type ClientMethod,
@@ -154,6 +156,10 @@ export class MatchSessionObject extends DurableObject<Env> {
     const [client, server] = Object.values(pair);
     const connectionId = crypto.randomUUID();
     this.ctx.acceptWebSocket(server, ["live-match"]);
+    // ADR-0133 H6b — hibernation-safe keepalive: the edge answers a keepalive ping with the
+    // pong string without waking this object. Object-wide (not per-socket) and idempotent, so
+    // setting it on every accept is fine.
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(KEEPALIVE_PING, KEEPALIVE_PONG));
     server.serializeAttachment({ ...UNAUTHENTICATED_ATTACHMENT, connectionId } satisfies ConnectionAttachment);
 
     return new Response(null, { status: 101, webSocket: client });

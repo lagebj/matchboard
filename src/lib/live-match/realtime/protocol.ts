@@ -124,3 +124,23 @@ export function isClientMethod(value: string): value is ClientMethod {
 /** SPEC.md §12 — `authenticate` is the only method a connection may call before it has
  * successfully authenticated; every other pre-auth RPC must close the connection. */
 export const PRE_AUTH_ALLOWED_METHOD: SessionMethod = "authenticate";
+
+/**
+ * ADR-0133 H6b — application-level keepalive, distinct from the RPC envelope. The browser
+ * sends `KEEPALIVE_PING` on an interval while connected; the Durable Object registers a
+ * hibernation-safe auto-response (`state.setWebSocketAutoResponse`) so the edge replies
+ * `KEEPALIVE_PONG` without waking the object. This keeps an otherwise-idle WebSocket from
+ * being closed by Cloudflare's idle handling and lets the client detect a half-open socket
+ * (mobile radio handoff at a pitch) in ~one interval instead of "next RPC or never".
+ *
+ * The strings are deliberately NOT valid RPC envelopes: an older Durable Object that has not
+ * registered the auto-response drops them silently (`parseRawSocketMessage` fails, no `id`,
+ * no reply), and an older browser simply never sends them — both directions degrade safely.
+ * The worker imports these same constants from this module (as it does the RPC protocol).
+ */
+export const KEEPALIVE_PING = '{"t":"live-match/ping"}';
+export const KEEPALIVE_PONG = '{"t":"live-match/pong"}';
+export const KEEPALIVE_INTERVAL_MS = 25_000;
+/** Close + reconnect once this many intervals have elapsed with no pong (only after at least
+ * one pong has ever been seen, so an old DO that never pongs is never treated as dead). */
+export const KEEPALIVE_MISSED_LIMIT = 3;

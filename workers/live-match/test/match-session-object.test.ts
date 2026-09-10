@@ -114,6 +114,7 @@ class FakeWebSocket {
 class FakeCtx {
   storage = new FakeStorage();
   private sockets: FakeWebSocket[] = [];
+  autoResponse: { request: string; response: string } | null = null;
 
   acceptWebSocket(ws: FakeWebSocket): void {
     this.sockets.push(ws);
@@ -121,6 +122,10 @@ class FakeCtx {
 
   getWebSockets(): FakeWebSocket[] {
     return this.sockets;
+  }
+
+  setWebSocketAutoResponse(pair: { request: string; response: string }): void {
+    this.autoResponse = pair;
   }
 }
 
@@ -605,5 +610,47 @@ describe("MatchSessionObject — end-session pending checks resolve for real (SP
     const ended = ws.sent.find((m) => (m as { id?: string }).id === "end-2") as { ok: boolean; result?: { ended: boolean } };
     expect(ended.ok).toBe(true);
     expect(ended.result?.ended).toBe(true);
+  });
+});
+
+describe("MatchSessionObject — keepalive auto-response (ADR-0133 H6b)", () => {
+  it("registers the hibernation-safe ping/pong auto-response on connection accept", async () => {
+    const { MatchSessionObject } = await import("../src/match-session-object");
+    const { KEEPALIVE_PING, KEEPALIVE_PONG } = await import(
+      "../../../src/lib/live-match/realtime/protocol"
+    );
+
+    // WebSocketPair / WebSocketRequestResponsePair are Workers-runtime globals with no Node
+    // equivalent — stub them just for this `fetch()` path.
+    const originalPair = (globalThis as Record<string, unknown>).WebSocketPair;
+    const originalReqRes = (globalThis as Record<string, unknown>).WebSocketRequestResponsePair;
+    (globalThis as Record<string, unknown>).WebSocketPair = function () {
+      return { 0: new FakeWebSocket(), 1: new FakeWebSocket() };
+    };
+    (globalThis as Record<string, unknown>).WebSocketRequestResponsePair = class {
+      constructor(public request: string, public response: string) {}
+    };
+
+    try {
+      const ctx = new FakeCtx();
+      const env = {
+        MATCHBOARD_APP_ORIGINS: "http://localhost:3333",
+        MATCHBOARD_API_BASE_URL: "http://localhost:3333",
+        LIVE_MATCH_REALTIME_SECRET: REALTIME_SECRET,
+        LIVE_MATCH_INTERNAL_SECRET: INTERNAL_SECRET,
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const instance = new MatchSessionObject(ctx as any, env as any);
+
+      // `new Response(null, { status: 101 })` at the end of fetch() is legal in the Workers
+      // runtime but not in Node/undici — the auto-response is registered before that line, so
+      // swallow the constructor error and assert on the side effect.
+      await instance.fetch(new Request("https://realtime.test/matches/match-1")).catch(() => {});
+
+      expect(ctx.autoResponse).toEqual({ request: KEEPALIVE_PING, response: KEEPALIVE_PONG });
+    } finally {
+      (globalThis as Record<string, unknown>).WebSocketPair = originalPair;
+      (globalThis as Record<string, unknown>).WebSocketRequestResponsePair = originalReqRes;
+    }
   });
 });
