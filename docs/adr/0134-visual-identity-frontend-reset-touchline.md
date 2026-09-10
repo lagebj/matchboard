@@ -11,9 +11,8 @@ Accepted (2026-09-10). Implementation in progress:
   dark-pinned island** (`class="touchline" data-theme="dark"`), not globally on the shell — a
   global scope made axe-core mis-composite unmigrated Product Surface 1.0 components and forced
   a dark pin anyway (see #490). The shell nav / top bar each carry the island; each migrated
-  page wraps its own root; unmigrated pages are untouched PS 1.0. Migrated: shell nav + top bar,
-  **League** (`/fixtures`), **Today** (`AssistantCommandCentrePage`). Remaining Phase 5 (Events,
-  match detail + Follow Live, Insights) and Phases 6–12 follow. The compact bottom nav is
+  page wraps its own root; unmigrated pages are untouched PS 1.0. Migrated: shell nav + top bar, **League** (`/fixtures`), **Today** (`AssistantCommandCentrePage`), **Events** (list + `/events/[eventId]` header + event-day timeline; squad/lineup tabs are Phase 6). Remaining Phase 5
+  (match detail + Follow Live, Insights) and Phases 6–12 follow. The compact bottom nav is
   **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
   contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
   ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell

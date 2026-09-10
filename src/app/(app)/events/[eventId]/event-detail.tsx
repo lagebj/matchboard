@@ -30,13 +30,12 @@ import { formatGameFormatShort } from '@/lib/formations/types';
 import { useOrgSlug } from '@/components/shell/org-slug-context';
 import type { FormationSlotRoleType } from '@/lib/formations/types';
 
-import { PageHeader } from '@/components/ui/page-header';
 import { TabRail } from '@/components/ui/tab-rail';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
 import { EventMatchesTab } from './event-matches-tab';
-import { Button } from '@/components/ui/button';
+import { TouchlinePageHeader, TouchlineButton } from '@/components/touchline';
 import { MetricTile } from '@/components/ui/metric-tile';
 import { DecisionBanner } from '@/components/ui/decision-banner';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -415,32 +414,33 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     : data.players.filter((p) => p.status === availabilityFilter);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline space-y-6" data-theme="dark">
+      <TouchlinePageHeader
         title={data.name}
-        description={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${formatKickoffDate(new Date(data.startsAt))} · ${EVENT_STATUS_LABELS[data.status] ?? data.status}`}
+        context={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${formatKickoffDate(new Date(data.startsAt))} · ${EVENT_STATUS_LABELS[data.status] ?? data.status}`}
         actions={
           <div className="flex gap-2">
             {isFinalized ? (
-              <Button variant="secondary" onClick={handleUnfinalize} disabled={isPending}>
+              <TouchlineButton variant="secondary" onClick={handleUnfinalize} disabled={isPending}>
                 {isPending ? 'Unfinalizing...' : 'Unfinalize'}
-              </Button>
+              </TouchlineButton>
             ) : (
-              <Button variant="primary" onClick={handleFinalize} disabled={isPending}>
+              <TouchlineButton variant="primary" onClick={handleFinalize} disabled={isPending}>
                 {isPending ? 'Finalizing...' : 'Finalize'}
-              </Button>
+              </TouchlineButton>
             )}
             {!isFinalized && (
               <>
-                <Button variant="primary" onClick={handleGenerate} disabled={isPending}>
+                <TouchlineButton variant="primary" onClick={handleGenerate} disabled={isPending}>
                   {isPending ? 'Generating...' : totalAssigned > 0 ? 'Regenerate automatic plan' : 'Generate squads'}
-                </Button>
-                <Button variant="secondary" onClick={handleFillRemainingPlaces} disabled={isPending} title="Add unassigned eligible players to squads with unmet target size. Never moves an existing assignment.">
+                </TouchlineButton>
+                <TouchlineButton variant="secondary" onClick={handleFillRemainingPlaces} disabled={isPending} title="Add unassigned eligible players to squads with unmet target size. Never moves an existing assignment.">
                   {isPending ? 'Filling...' : 'Fill remaining places'}
-                </Button>
-                <Button variant="secondary" onClick={handleClear} disabled={isPending}>
+                </TouchlineButton>
+                <TouchlineButton variant="secondary" onClick={handleClear} disabled={isPending}>
                   Clear
-                </Button>
+                </TouchlineButton>
               </>
             )}
             <a
@@ -451,12 +451,12 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               Export event
             </a>
             {!isFinalized && (
-              <Button variant="danger" onClick={handleDelete} disabled={isPending}>
+              <TouchlineButton variant="danger" onClick={handleDelete} disabled={isPending}>
                 Delete
-              </Button>
+              </TouchlineButton>
             )}
             <Link href="/events">
-              <Button variant="ghost">Back</Button>
+              <TouchlineButton variant="ghost">Back</TouchlineButton>
             </Link>
           </div>
         }
@@ -1220,13 +1220,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                   </table>
                 </div>
                 <div className="mt-3 flex items-center gap-3">
-                  <Button variant="primary" onClick={handleAddPlayers} disabled={isPending || isFinalized || selectedToAdd.size === 0}>
+                  <TouchlineButton variant="primary" onClick={handleAddPlayers} disabled={isPending || isFinalized || selectedToAdd.size === 0}>
                     {isPending ? 'Adding...' : `Add ${selectedToAdd.size} player${selectedToAdd.size !== 1 ? 's' : ''} to pool`}
-                  </Button>
+                  </TouchlineButton>
                   {selectedToAdd.size > 0 && (
-                    <Button variant="ghost" onClick={() => setSelectedToAdd(new Set())}>
+                    <TouchlineButton variant="ghost" onClick={() => setSelectedToAdd(new Set())}>
                       Clear selection
-                    </Button>
+                    </TouchlineButton>
                   )}
                 </div>
               </>

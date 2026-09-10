@@ -3,8 +3,7 @@ import { requirePageActorContext } from '@/lib/auth/actor-context';
 import { getEvents } from '@/app/(app)/events/actions';
 import { formatKickoffTime } from '@/lib/date-utils';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader } from '@/components/ui/page-header';
-import { Button } from '@/components/ui/button';
+import { TouchlinePageHeader, TouchlineButton } from '@/components/touchline';
 import { formatEventType } from "@/lib/formatters/event-labels";
 
 type EventListItem = Awaited<ReturnType<typeof getEvents>>[number];
@@ -13,7 +12,7 @@ function monthKey(d: Date): string {
   return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 }
 
-/** Chronological month groups (ADR-0130 §05): upcoming ascending, then past descending. */
+/** Chronological month groups (bundle 07 §5): upcoming ascending, then past descending. */
 function groupByMonth(events: EventListItem[]): Array<{ month: string; events: EventListItem[] }> {
   const groups: Array<{ month: string; events: EventListItem[] }> = [];
   for (const event of events) {
@@ -25,7 +24,7 @@ function groupByMonth(events: EventListItem[]): Array<{ month: string; events: E
   return groups;
 }
 
-/** One readiness / next-action line — never a row of equal-weight counters (ADR-0130 §05). */
+/** One readiness / next-action line — never a row of equal-weight counters. */
 function readinessLabel(event: EventListItem): string {
   if (event.status === 'FINALIZED') return 'Done';
   if (event.squads.length === 0) return 'No squads planned';
@@ -44,17 +43,17 @@ function EventRow({ event, orgSlug }: { event: EventListItem; orgSlug: string })
   return (
     <Link
       href={`/o/${orgSlug}/events/${event.id}`}
-      className="-mx-2 flex items-start gap-3 rounded-[var(--radius-control)] px-2 py-2.5 no-underline transition-colors hover:bg-[var(--surface-hover)]"
+      className="-mx-2 flex items-start gap-3 rounded-[var(--tl-c-radius-control)] px-2 py-3 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
     >
-      <span className="w-[3.5rem] shrink-0 pt-0.5 text-[var(--text-meta)] font-medium tabular-nums text-[var(--text-muted)]">
+      <span className="w-[3.5rem] shrink-0 pt-0.5 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
         {dayLabel}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="app-row-title truncate">{event.name}</p>
-        <p className="mt-0.5 text-[var(--text-meta)] text-[var(--text-muted)] truncate">
+        <p className="truncate text-[16px] font-[600] text-[var(--foreground)]">{event.name}</p>
+        <p className="mt-0.5 truncate text-[13px] text-[var(--text-muted)]">
           {formatEventType(event.eventType)} &middot; {timeRange}
         </p>
-        <p className="mt-0.5 text-[var(--text-meta)] text-[var(--text-soft)]">{readinessLabel(event)}</p>
+        <p className="mt-0.5 text-[13px] text-[var(--text-soft)]">{readinessLabel(event)}</p>
       </div>
     </Link>
   );
@@ -79,14 +78,15 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
   const pastGroups = groupByMonth(past);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    <div className="touchline flex flex-col gap-6" data-theme="dark">
+      <TouchlinePageHeader
         title="Events"
-        description="Cup, tournament and friendly-day squad planning."
+        context="Cup, tournament and friendly-day squad planning."
         actions={
-          <Button as="a" href={`/o/${orgSlug}/events/new`} variant="primary" size="sm">
+          <TouchlineButton as="a" href={`/o/${orgSlug}/events/new`} variant="primary">
             Create event
-          </Button>
+          </TouchlineButton>
         }
       />
 
@@ -96,16 +96,16 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
           description="Create an event to start planning cups, tournaments and friendly days."
           illustration="emptyEvents"
           action={
-            <Button as="a" href={`/o/${orgSlug}/events/new`} variant="primary" size="sm">
+            <TouchlineButton as="a" href={`/o/${orgSlug}/events/new`} variant="primary">
               Create event
-            </Button>
+            </TouchlineButton>
           }
         />
       ) : (
         <div className="flex flex-col gap-6">
           {upcomingGroups.map((group) => (
             <section key={`up-${group.month}`} className="flex flex-col">
-              <h2 className="text-[var(--text-meta)] font-medium text-[var(--text-muted)]">{group.month}</h2>
+              <h2 className="text-[13px] font-medium text-[var(--text-muted)]">{group.month}</h2>
               <div className="mt-1 divide-y divide-[var(--border-soft)]">
                 {group.events.map((event) => (
                   <EventRow key={event.id} event={event} orgSlug={orgSlug} />
@@ -116,10 +116,10 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
 
           {pastGroups.length > 0 && (
             <div className="flex flex-col gap-6 border-t border-[var(--border-soft)] pt-4">
-              <p className="text-[var(--text-meta)] font-medium text-[var(--text-disabled)]">Past events</p>
+              <p className="text-[13px] font-medium text-[var(--text-muted)]">Past events</p>
               {pastGroups.map((group) => (
                 <section key={`past-${group.month}`} className="flex flex-col">
-                  <h2 className="text-[var(--text-meta)] font-medium text-[var(--text-muted)]">{group.month}</h2>
+                  <h2 className="text-[13px] font-medium text-[var(--text-muted)]">{group.month}</h2>
                   <div className="mt-1 divide-y divide-[var(--border-soft)] opacity-80">
                     {group.events.map((event) => (
                       <EventRow key={event.id} event={event} orgSlug={orgSlug} />
