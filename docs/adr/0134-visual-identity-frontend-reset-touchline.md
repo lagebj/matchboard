@@ -2,9 +2,17 @@
 
 ## Status
 
-Accepted (2026-09-10). Implementation in progress — Phases 0–3 delivered behind the
-`/dev/ui-lab` human-approval gate; production-surface migration (Phases 5–12) is gated on
-explicit human approval of the UI Lab.
+Accepted (2026-09-10). Implementation in progress:
+
+- **Phases 0–3** delivered (theme foundation + `/dev/ui-lab` with the seven golden screens),
+  PR #489.
+- **UI Lab approved** (2026-09-10) — production-surface migration authorised.
+- **Phase 5 (high-identity surfaces)** in progress: the `(app)` shell now activates the
+  `.touchline` scope and its navigation (sidebar / rail / floating bottom nav) + top context
+  bar use the Touchline visual system; **League** (`/fixtures`) is migrated to the scorebook
+  grammar. Remaining Phase 5 surfaces (Today, Events, match detail + Follow Live, Insights) and
+  Phases 6–12 follow. Unmigrated production surfaces render transitionally on the new palette
+  until their phase; Phase 10 removes the Product Surface 1.0 token layer.
 
 ## Context
 

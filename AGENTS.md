@@ -2462,9 +2462,13 @@ in-repo reference once the UI Lab gate is passed.
   `TouchlineBottomSheet`. The canonical `MatchPresentation` (ADR-0125) remains the sole owner of
   home/away, score orientation, own-team side, lifecycle, outcome, clock, cancellation, and
   planning/report attention — presentation components consume it.
-- **Migration status**: Phases 0–3 delivered (theme foundation + `/dev/ui-lab` with the seven
-  golden screens). Production-surface migration (Phases 5–12) is gated on explicit human
-  approval of the UI Lab — do not restyle production routes onto Touchline ahead of that.
+- **Migration status**: UI Lab approved. Phase 5 in progress — the `(app)` shell activates the
+  `.touchline` scope, its nav (sidebar / rail / floating bottom nav) + top context bar are
+  Touchline, and **League** (`/fixtures`) uses the scorebook grammar. Remaining Phase 5 (Today,
+  Events, match detail + Follow Live, Insights) and Phases 6–12 follow. Unmigrated surfaces
+  render transitionally on the new palette until their phase; Phase 10 deletes the Product
+  Surface 1.0 `:root` token layer in `globals.css`. Migrate a surface's *presentation* only —
+  domain/permissions/persistence/audit/validation are frozen (`17_FUNCTIONAL_FREEZE.md`).
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
