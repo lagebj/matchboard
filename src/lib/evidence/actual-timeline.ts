@@ -17,6 +17,21 @@ import {
 } from "@/lib/live-match/period-config";
 import { getEffectiveEventSquadMatchTiming } from "@/lib/events/event-types";
 
+/**
+ * `LiveMatchEvent.matchSeconds` / `MatchRotation.matchSeconds` hold MILLISECONDS since period
+ * start (legacy name — ADR-0133 H3). A corrupt live-reporting session can persist a wildly
+ * out-of-range value (the 2026-09-09 incident produced `period=0` events after an F5 reset, and
+ * a stale ms/s confusion elsewhere can inflate a value ~1000×). Clamp such values to a plausible
+ * band before they feed the absolute-clock arithmetic, so one bad event can't push an interval
+ * decades into the match. 4 hours comfortably exceeds any real youth-football period offset.
+ */
+const MAX_PLAUSIBLE_PERIOD_OFFSET_MS = 4 * 60 * 60 * 1000;
+
+export function sanitizePeriodOffsetMs(raw: number | null | undefined): number {
+  if (raw == null || !Number.isFinite(raw) || raw < 0) return 0;
+  return Math.min(raw, MAX_PLAUSIBLE_PERIOD_OFFSET_MS);
+}
+
 type RotationInput = {
   outPlayerId: string;
   inPlayerId: string;
@@ -294,7 +309,7 @@ async function getEventRotationsAndPositionChanges(
     // Absolute match-clock ms since kickoff -- EventLiveMatchEvent.period is already a
     // MatchPeriod enum value (unlike League's LiveMatchEvent.period int index), so no
     // MATCH_PERIOD_ORDER lookup is needed here.
-    const seconds = toAbsoluteMatchMs(e.period, e.matchSeconds ?? 0, periodOffsets);
+    const seconds = toAbsoluteMatchMs(e.period, sanitizePeriodOffsetMs(e.matchSeconds), periodOffsets);
     if (e.eventType === "ROTATION_OUT") {
       const list = outsBySeconds.get(seconds) ?? [];
       list.push(e.playerId);
@@ -443,7 +458,7 @@ async function getMatchRotations(
       outPosition: r.outPosition,
       inPosition: r.inPosition,
       positionOnly: r.positionOnly,
-      matchSeconds: toAbsoluteMatchMs(MATCH_PERIOD_ORDER[r.period], r.matchSeconds ?? 0, periodOffsets),
+      matchSeconds: toAbsoluteMatchMs(MATCH_PERIOD_ORDER[r.period], sanitizePeriodOffsetMs(r.matchSeconds), periodOffsets),
     }))
     .sort((a, b) => a.matchSeconds - b.matchSeconds);
 }
@@ -477,7 +492,7 @@ async function getPositionChanges(
         toPosition: (payload?.toPosition as string) ?? "unknown",
         matchSeconds: toAbsoluteMatchMs(
           e.period != null ? MATCH_PERIOD_ORDER[e.period] : null,
-          e.matchSeconds ?? 0,
+          sanitizePeriodOffsetMs(e.matchSeconds),
           periodOffsets,
         ),
       };

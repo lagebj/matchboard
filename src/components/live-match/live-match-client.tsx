@@ -992,8 +992,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
               return (
                 <div key={event.id} className="flex items-center justify-between py-1.5 px-2 bg-[var(--surface-base)]/80 rounded text-xs">
                   <div className="min-w-0 flex items-baseline gap-1.5">
+                    {/* event.matchSeconds is milliseconds since period start (legacy name — ADR-0133 H3);
+                        formatElapsedMs takes ms, so no ×1000. */}
                     {event.matchSeconds != null && (
-                      <span className="text-[var(--text-micro)] font-mono text-[var(--text-muted)] shrink-0">{formatElapsedMs(event.matchSeconds * 1000)}</span>
+                      <span className="text-[var(--text-micro)] font-mono text-[var(--text-muted)] shrink-0">{formatElapsedMs(event.matchSeconds)}</span>
                     )}
                     <span className="text-[var(--text-soft)]">{displayText}</span>
                     {event.isReversed && <span className="text-red-400 ml-1 text-[var(--text-micro)]">reversed</span>}

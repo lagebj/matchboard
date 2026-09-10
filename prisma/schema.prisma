@@ -1087,6 +1087,9 @@ model LiveMatchEvent {
   sessionId              String
   eventType              LiveMatchEventType
   period                 Int?
+  /// Elapsed match-clock time in MILLISECONDS since the start of `period` (legacy name — it is
+  /// not seconds). Written from the client clock via `getElapsedMs()`; consumed as ms by the
+  /// evidence pipeline (`actual-timeline.ts`) and the realtime layer (`CanonicalLiveEvent`).
   matchSeconds           Int?
   wallClockTime          DateTime?
   playerId               String?
@@ -1130,6 +1133,7 @@ model MatchRotation {
   outGuestPlayerId String?
   inGuestPlayerId  String?
   period           Int
+  /// MILLISECONDS since the start of `period` (legacy name), copied from `LiveMatchEvent.matchSeconds`.
   matchSeconds     Int?
   outPosition      String?
   inPosition       String?
@@ -1185,6 +1189,9 @@ model PlannedRotationChange {
   outPosition             String?
   inPosition              String?
   positionOnly            Boolean             @default(false)
+  /// SECONDS since kickoff (this is a different unit domain from `LiveMatchEvent.matchSeconds`,
+  /// which is milliseconds). `approximateMatchSeconds` is the coach-planned time; `actualMatchSeconds`
+  /// is filled at apply time and is stored in the same SECONDS unit for a like-for-like deviation.
   approximateMatchSeconds Int?
   actualMatchSeconds      Int?
   status                  PlannedChangeStatus @default(PENDING)
@@ -1211,6 +1218,7 @@ model FairPlayObservation {
   organisationId String
   matchId        String
   period         Int?
+  /// MILLISECONDS since the start of `period` (legacy name).
   matchSeconds   Int?
   playerId       String?
   category       FairPlayCategory
@@ -1538,6 +1546,7 @@ model EventLiveMatchEvent {
   sessionId         String
   eventType         LiveMatchEventType
   period            MatchPeriod?
+  /// Elapsed match-clock time in MILLISECONDS since the start of `period` (legacy name).
   matchSeconds      Int?
   wallClockTime     DateTime?
   playerId          String?

@@ -174,14 +174,17 @@ export async function getRotationVsActual(
     let realisedMinutes = 0;
     const realisedPositions: string[] = [];
 
+    // `MatchRotation.matchSeconds` is MILLISECONDS since period start (legacy name — ADR-0133
+    // H3), whereas `totalMatchSeconds` is genuinely seconds. Work in ms and divide by 60_000.
+    const totalMatchMs = totalMatchSeconds * 1000;
     if (isPlannedStarter && !isSubstitutedOut) {
-      realisedMinutes = totalMatchSeconds / 60;
+      realisedMinutes = totalMatchMs / 60_000;
       realisedPositions.push("starter");
     } else if (isPlannedStarter && isSubstitutedOut) {
       const outRotation = realisedRotations.find((r) => r.outPlayerId === playerId && !r.positionOnly);
       if (outRotation) {
-        const outSeconds = outRotation.matchSeconds ?? totalMatchSeconds / 2;
-        realisedMinutes = outSeconds / 60;
+        const outMs = outRotation.matchSeconds ?? totalMatchMs / 2;
+        realisedMinutes = outMs / 60_000;
         realisedPositions.push(outRotation.outPosition ?? "starter");
       }
     }
@@ -189,8 +192,8 @@ export async function getRotationVsActual(
     if (isSubstitutedIn) {
       const inRotation = realisedRotations.find((r) => r.inPlayerId === playerId && !r.positionOnly);
       if (inRotation) {
-        const inSeconds = inRotation.matchSeconds ?? 0;
-        realisedMinutes += (totalMatchSeconds - inSeconds) / 60;
+        const inMs = inRotation.matchSeconds ?? 0;
+        realisedMinutes += Math.max(0, totalMatchMs - inMs) / 60_000;
         realisedPositions.push(inRotation.inPosition ?? "bench");
       }
     }

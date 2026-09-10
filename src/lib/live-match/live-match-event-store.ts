@@ -205,20 +205,43 @@ export async function getRecentEvents(
 }
 
 /**
- * The live match clock (period, elapsed time, pause state) is reconstructed client-side from the
- * event log — no clock anchor is persisted server-side (see `LiveMatchSession`). A server action
- * that needs to record an event on the coach's behalf without a client-supplied timestamp (e.g.
- * applying a planned rotation change) has no way to know the exact current time, so this
- * estimates it: the most recent event's own `matchSeconds` plus wall-clock time elapsed since it
- * was recorded, or elapsed time since session start if no timed event exists yet. This is
- * necessarily approximate — see DECISIONS.md "Support exact and approximate timestamps. Preserve
- * uncertainty rather than inventing precision" — callers should treat the result as an estimate,
- * not an exact timestamp.
+ * Estimate the current match-clock offset (**milliseconds since the start of the current
+ * period** — the same unit as `LiveMatchEvent.matchSeconds`, ADR-0133 H3) for a server action
+ * that records an event on the coach's behalf with no client-supplied timestamp (e.g. applying
+ * a planned rotation change).
+ *
+ * Source of truth, in order: the persisted `LiveMatchSession` clock (ADR-0133 H2) — accurate,
+ * not an estimate; then the most recent timed event plus wall-clock elapsed since it was
+ * recorded; then wall-clock since session start. Still an *estimate* for the two fallbacks —
+ * see DECISIONS.md "Preserve uncertainty rather than inventing precision".
  */
-export async function estimateCurrentMatchSeconds(
+export async function estimateCurrentMatchOffsetMs(
   matchId: string,
   sessionId: string,
-): Promise<{ matchSeconds: number; period: MatchPeriod | null }> {
+): Promise<{ matchOffsetMs: number; period: MatchPeriod | null }> {
+  const session = await db.liveMatchSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      startedAt: true,
+      clockPeriod: true,
+      clockRunning: true,
+      clockPeriodStartedAt: true,
+      clockElapsedBeforeMs: true,
+    },
+  });
+
+  // Persisted clock (ADR-0133 H2) — the accurate path.
+  if (session?.clockPeriod && (session.clockPeriod !== "BEFORE" || (session.clockElapsedBeforeMs ?? 0) > 0)) {
+    const running =
+      session.clockRunning && session.clockPeriodStartedAt
+        ? Date.now() - session.clockPeriodStartedAt.getTime()
+        : 0;
+    return {
+      matchOffsetMs: Math.max(0, (session.clockElapsedBeforeMs ?? 0) + running),
+      period: session.clockPeriod,
+    };
+  }
+
   const lastTimedEvent = await db.liveMatchEvent.findFirst({
     where: { matchId, sessionId, matchSeconds: { not: null } },
     orderBy: { createdAt: "desc" },
@@ -228,16 +251,11 @@ export async function estimateCurrentMatchSeconds(
   if (lastTimedEvent?.matchSeconds != null) {
     const elapsedSinceEventMs = Date.now() - lastTimedEvent.createdAt.getTime();
     return {
-      matchSeconds: lastTimedEvent.matchSeconds + Math.max(0, Math.round(elapsedSinceEventMs / 1000)),
+      matchOffsetMs: lastTimedEvent.matchSeconds + Math.max(0, elapsedSinceEventMs),
       period: (lastTimedEvent.period as MatchPeriod | null) ?? null,
     };
   }
 
-  const session = await db.liveMatchSession.findUnique({
-    where: { id: sessionId },
-    select: { startedAt: true },
-  });
-
   const elapsedSinceStartMs = session ? Date.now() - session.startedAt.getTime() : 0;
-  return { matchSeconds: Math.max(0, Math.round(elapsedSinceStartMs / 1000)), period: null };
+  return { matchOffsetMs: Math.max(0, elapsedSinceStartMs), period: null };
 }

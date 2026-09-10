@@ -4808,6 +4808,17 @@ Feature: Matchboard football operations workspace
       When a stale or reloaded device reports a before-kickoff clock for the same session
       Then the persisted match clock must stay in the second half
 
+    Scenario: Live event times are shown at the correct minute (ADR-0133)
+      Given a goal was recorded three and a half minutes into the first half
+      When the live event stream shows that goal
+      Then its timestamp must read about "3:30", not a value one thousand times too large
+
+    Scenario: A corrupt live event time does not poison the actual timeline (ADR-0133)
+      Given a live rotation event was recorded with an implausible match time
+      When the actual position timeline is rebuilt
+      Then the corrupt time must be clamped to a plausible in-match value
+      And it must not place an interval decades into the match
+
     Scenario: Compact layouts preserve access to omitted detail and context
       Given the coach is on any primary surface on a compact viewport
       Then there must be no page-level horizontal scrolling between 360 and 430px
