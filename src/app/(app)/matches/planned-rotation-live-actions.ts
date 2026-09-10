@@ -18,7 +18,7 @@ import {
   getPlannedChangesForMatch,
 } from "@/lib/planned-rotation/planned-rotation-live-bridge";
 import { getActiveSession } from "@/lib/live-match/live-match-session";
-import { recordEvent, estimateCurrentMatchSeconds } from "@/lib/live-match/live-match-event-store";
+import { recordEvent, estimateCurrentMatchOffsetMs } from "@/lib/live-match/live-match-event-store";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 
 function revalidateMatchPaths(matchId: string): void {
@@ -32,8 +32,12 @@ function revalidateMatchPaths(matchId: string): void {
  * version had the browser invent placeholder ids (`live-${Date.now()}-out`) with no
  * corresponding LiveMatchEvent ever created, so "Apply" never actually produced actual match
  * truth (see DECISIONS.md "Live execution of plan": "Applying/changing writes normal actual live
- * events"). matchSeconds is estimated server-side (no clock anchor is persisted — see
- * `estimateCurrentMatchSeconds`) since this runs without the client's own live clock state.
+ * events"). The current time is resolved server-side by `estimateCurrentMatchOffsetMs` — from
+ * the persisted `LiveMatchSession` clock (ADR-0133 H2) when available, else an event-log
+ * estimate — since this runs without the client's own live clock state.
+ * The value is milliseconds since period start (ADR-0133 H3) — the same unit as
+ * `LiveMatchEvent.matchSeconds`; `applyPlannedChange` receives it converted to whole SECONDS so
+ * `PlannedRotationChange.actualMatchSeconds` stays like-for-like with `approximateMatchSeconds`.
  */
 export type ApplyPlannedChangeOverrides = {
   /** Swap which named player goes out and which comes in — the bounded "Change" interaction the
@@ -84,7 +88,9 @@ export async function applyPlannedChangeAction(
     const session = await getActiveSession(rotation.matchId);
     if (!session) return { success: false, error: "No active live session for this match." };
 
-    const { matchSeconds, period } = await estimateCurrentMatchSeconds(rotation.matchId, session.id);
+    const { matchOffsetMs, period } = await estimateCurrentMatchOffsetMs(rotation.matchId, session.id);
+    const matchSeconds = matchOffsetMs; // LiveMatchEvent.matchSeconds column is milliseconds (legacy name)
+    const actualMatchSecondsForPlan = Math.max(0, Math.round(matchOffsetMs / 1000));
 
     let outEventId: string;
     let inEventId: string | null = null;
@@ -146,7 +152,7 @@ export async function applyPlannedChangeAction(
       changeId,
       { outEventId, inEventId: inEventId ?? undefined },
       ctx.orgFilter,
-      matchSeconds,
+      actualMatchSecondsForPlan,
     );
     if (!result.success) return result;
 
