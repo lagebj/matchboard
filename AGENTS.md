@@ -4137,9 +4137,12 @@ reset" (H6a). The realtime WebSocket has an application-level keepalive
 (`KEEPALIVE_PING`/`KEEPALIVE_PONG` in `realtime/protocol.ts`): the client pings every 25 s, the
 DO answers via a hibernation-safe `setWebSocketAutoResponse`, and the client force-reconnects
 after 3 missed pongs (only once a pong has ever been seen — backward-compatible with an old DO)
-(H6b). Still open: the DO `clockAnchor` is never advanced and `CanonicalLiveEvent` carries no
-`correctsEventId` for the Follow-Live path (H6c). See ADR-0133 for the full forensics and the
-H1–H6 plan.
+(H6b). The DO's `SessionMeta.clockAnchor` is advanced on every accepted period-transition event
+(`advanceClockAnchor()`, `workers/live-match/src/state.ts`) so a reconnecting client / Follow-Live
+viewer gets a real clock from the snapshot (H6c). **Programme H1–H6 complete.** One documented
+residual: `CanonicalLiveEvent` carries no `correctsEventId` on the realtime wire, so a Follow-Live
+*viewer* can briefly show a reversed goal still in the score until the next full reconcile (the
+reporter and the persisted report are correct). See ADR-0133 for the full forensics.
 
 | File | Purpose |
 |------|---------|

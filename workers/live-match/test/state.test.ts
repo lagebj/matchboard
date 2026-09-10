@@ -7,6 +7,7 @@ import {
   evaluateEndSession,
   hasReportCapability,
   initialClockAnchor,
+  advanceClockAnchor,
   classifyPersistenceFailure,
   computeBackoffDelayMs,
   selectDueRetries,
@@ -574,3 +575,41 @@ describe("evaluateReconciliation", () => {
     expect(result.newRecords).toEqual([]);
   });
 });
+
+describe("advanceClockAnchor (ADR-0133 H6c)", () => {
+  const before = initialClockAnchor(1000);
+
+  it("leaves the anchor unchanged for a non-transition event", () => {
+    expect(advanceClockAnchor(before, "GOAL_FOR", { period: "FIRST_HALF" }, 5000)).toBe(before);
+  });
+
+  it("starts the clock on PERIOD_START / MATCH_START", () => {
+    expect(advanceClockAnchor(before, "MATCH_START", { period: "FIRST_HALF", matchSeconds: 0 }, 5000)).toEqual({
+      period: "FIRST_HALF",
+      running: true,
+      matchSecondsAtAnchor: 0,
+      anchorServerTimeMs: 5000,
+    });
+    expect(
+      advanceClockAnchor(before, "PERIOD_START", { period: "SECOND_HALF", matchSeconds: 1500 }, 9000),
+    ).toEqual({ period: "SECOND_HALF", running: true, matchSecondsAtAnchor: 1500, anchorServerTimeMs: 9000 });
+  });
+
+  it("stops the clock on PERIOD_END / MATCH_END", () => {
+    const running = advanceClockAnchor(before, "PERIOD_START", { period: "FIRST_HALF" }, 5000);
+    expect(advanceClockAnchor(running, "PERIOD_END", { period: "HALF_TIME" }, 8000)).toEqual({
+      period: "HALF_TIME",
+      running: false,
+      matchSecondsAtAnchor: 0,
+      anchorServerTimeMs: 8000,
+    });
+  });
+
+  it("clamps a missing or negative matchSeconds to 0", () => {
+    expect(advanceClockAnchor(before, "PERIOD_START", { period: "FIRST_HALF" }, 5000).matchSecondsAtAnchor).toBe(0);
+    expect(
+      advanceClockAnchor(before, "PERIOD_START", { period: "FIRST_HALF", matchSeconds: -10 }, 5000).matchSecondsAtAnchor,
+    ).toBe(0);
+  });
+});
+

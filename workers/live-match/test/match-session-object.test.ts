@@ -613,6 +613,52 @@ describe("MatchSessionObject — end-session pending checks resolve for real (SP
   });
 });
 
+describe("MatchSessionObject — clock anchor advancement (ADR-0133 H6c)", () => {
+  it("advances meta.clockAnchor on an accepted PERIOD_START so the snapshot clock is correct", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockResolvedValueOnce({
+      id: "canonical-1",
+      clientEventId: "ps-1",
+      eventType: "PERIOD_START",
+      createdAt: "2026-08-23T00:00:00.000Z",
+    });
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", {
+        clientEventId: "ps-1",
+        baseVersion: 0,
+        event: { eventType: "PERIOD_START", period: "SECOND_HALF", matchSeconds: 0 },
+      }),
+    );
+
+    const meta = (await ctx.storage.get("meta")) as { clockAnchor: { period: string; running: boolean } };
+    expect(meta.clockAnchor.period).toBe("SECOND_HALF");
+    expect(meta.clockAnchor.running).toBe(true);
+  });
+
+  it("leaves meta.clockAnchor at BEFORE for a non-transition event", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockResolvedValueOnce({
+      id: "canonical-1",
+      clientEventId: "g-1",
+      eventType: "GOAL_FOR",
+      createdAt: "2026-08-23T00:00:00.000Z",
+    });
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "g-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+
+    const meta = (await ctx.storage.get("meta")) as { clockAnchor: { period: string; running: boolean } };
+    expect(meta.clockAnchor.period).toBe("BEFORE");
+    expect(meta.clockAnchor.running).toBe(false);
+  });
+});
+
 describe("MatchSessionObject — keepalive auto-response (ADR-0133 H6b)", () => {
   it("registers the hibernation-safe ping/pong auto-response on connection accept", async () => {
     const { MatchSessionObject } = await import("../src/match-session-object");

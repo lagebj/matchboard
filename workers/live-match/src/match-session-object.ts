@@ -98,6 +98,7 @@ import {
   selectDueRetries,
   nextAlarmTime,
   evaluateReconciliation,
+  advanceClockAnchor,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "./state";
@@ -408,6 +409,13 @@ export class MatchSessionObject extends DurableObject<Env> {
           ...meta,
           version: decision.record.version,
           lastActivityAt: decision.record.acceptedAt,
+          // ADR-0133 H6c — keep the snapshot clock current for reconnects / Follow-Live.
+          clockAnchor: advanceClockAnchor(
+            meta.clockAnchor,
+            String(eventType),
+            eventFields,
+            decision.record.acceptedAt,
+          ),
         } satisfies SessionMeta);
 
         const persistRequest: InternalPersistEventRequest = {

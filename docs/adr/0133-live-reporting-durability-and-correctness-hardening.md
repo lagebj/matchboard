@@ -62,7 +62,7 @@ correctness of the coach-visible outcome first, then the realtime transport.
 | **H6** | Realtime reconnect churn (218 reconnects, ~53 s median connection lifetime) and its symptoms. Split into three: | | yes — this ADR |
 | **H6a** ✅ | **"Goals disappeared / reset" — the actual mechanism.** `LiveMatchClient.fetchEvents` reconciled the running score from a **20-event tail** (`getRecentEvents(matchId, 20)`), so once >20 events accumulated it dropped every earlier goal and `setGoalsFor/Against` reset the on-screen score to that under-count on every 5 s poll and every reconnect broadcast — the churn just made it fire constantly. Separately, `reconcileFromServerEvents` skipped the `EVENT_REVERSED` row (its `isReversed` flag) but not the goal it reversed (`correctsEventId`), so an undone goal never left the score. Fix: reconcile from the whole match's events (`LIVE_RECONCILE_EVENT_LIMIT = 1000`, display list still capped to 15) and honour `correctsEventId` (added to `LiveEventSummary`, populated by `getMatchEvents`/`getRecentEvents`). Client-only, no worker. Delivered in PR following this ADR. | med | |
 | **H6b** ✅ | **Reduce the churn.** `RealtimeMatchClient` now sends `KEEPALIVE_PING` every 25 s while connected; the DO registers a hibernation-safe `setWebSocketAutoResponse(KEEPALIVE_PING → KEEPALIVE_PONG)` on accept so the edge answers without waking the object. After the *first* pong is seen (proving the peer supports it), the client force-closes + reconnects once `KEEPALIVE_MISSED_LIMIT` (3) intervals pass with no pong — half-open detection in ~75 s instead of "next RPC or never". Fully backward-compatible: an old DO silently drops the ping (no `id`, no reply) and the missed-pong guard never arms; an old client never sends one. Constants live in the shared `realtime/protocol.ts` (the worker already imports from it). Delivered in PR following this ADR. | med | |
-| **H6c** | Advance the DO's own `clockAnchor` on `PERIOD_START`/`MATCH_START` (it is initialised to `BEFORE` and never moved — H2's Neon rehydration already covers the reporter's reload, this fixes the Follow-Live snapshot). Add `correctsEventId` to `CanonicalLiveEvent` so `reconcileFromCanonicalEvents` can un-count reversed goals on the Follow-Live path too. Worker + protocol. | med | planned |
+| **H6c** ✅ | `advanceClockAnchor()` (`workers/live-match/src/state.ts`, pure) updates `SessionMeta.clockAnchor` on every accepted period-transition event (`MATCH_START`/`PERIOD_START` → running; `PERIOD_END`/`MATCH_END` → stopped), so a reconnecting client / Follow-Live viewer gets a real clock from the snapshot instead of a permanent `BEFORE`. Worker-only. Delivered in PR following this ADR. **Residual (documented, not scheduled):** `CanonicalLiveEvent` still carries no `correctsEventId` on the realtime wire, so `reconcileFromCanonicalEvents` (Follow-Live viewer only) cannot precisely un-count a reversed goal — a *watching* second coach may briefly see a reversed goal still in the score until the next full reconcile. The **reporter** (H6a) and the **persisted report** (H1) are both correct; this is a transient view-only inaccuracy on a secondary surface. Closing it means adding `correctsEventId` to `recordEventForActor()`'s return + the protocol type + the two DO construction sites — deferred as low-value against that surface. | med | |
 
 ### Explicitly out of scope
 
@@ -84,9 +84,12 @@ correctness of the coach-visible outcome first, then the realtime transport.
   reversal handling — the actual "goals disappeared" fix, client-only).
 - **H6b** shipped in the following PR (WebSocket keepalive ping/pong — client + DO auto-response,
   backward-compatible).
-- **H6c** (DO `clockAnchor` advancement + `correctsEventId` on `CanonicalLiveEvent` for the
-  Follow-Live reversal path) is planned here. It needs no Cloudflare Observability logs — the
-  code + account-level analytics were enough.
+- **H6c** shipped in the following PR (DO `clockAnchor` advancement, worker-only). The
+  `correctsEventId`-on-the-realtime-wire residual above is the only open item in the programme
+  and is a deliberate, documented deferral — not a gap left unmet.
+
+**Programme status: H1–H6 complete.** The one open residual (Follow-Live viewer reversal
+precision) is recorded in the H6c row above.
 
 ## Consequences
 

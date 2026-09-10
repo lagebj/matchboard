@@ -115,6 +115,40 @@ export function initialClockAnchor(now: number): ClockAnchor {
   return { period: "BEFORE", running: false, matchSecondsAtAnchor: 0, anchorServerTimeMs: now };
 }
 
+const PERIOD_TRANSITION_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "MATCH_START",
+  "PERIOD_START",
+  "PERIOD_END",
+  "MATCH_END",
+]);
+
+/**
+ * ADR-0133 H6c — keep the session `clockAnchor` current so a reconnecting client / Follow-Live
+ * viewer gets a correct clock from the snapshot. Previously the anchor was set once to `BEFORE`
+ * and never advanced. A non-transition event returns the anchor unchanged. `MATCH_START` /
+ * `PERIOD_START` mean a playing period is now running; `PERIOD_END` / `MATCH_END` stop the clock.
+ * `matchSeconds` is milliseconds since period start (ADR-0133 H3) — clamp a missing/negative
+ * value to 0 rather than trust it.
+ */
+export function advanceClockAnchor(
+  current: ClockAnchor,
+  eventType: string,
+  eventFields: Record<string, unknown> | undefined,
+  acceptedAt: number,
+): ClockAnchor {
+  if (!PERIOD_TRANSITION_EVENT_TYPES.has(eventType)) return current;
+  const period =
+    typeof eventFields?.period === "string"
+      ? (eventFields.period as ClockAnchor["period"])
+      : current.period;
+  const running = eventType === "MATCH_START" || eventType === "PERIOD_START";
+  const matchSecondsAtAnchor =
+    typeof eventFields?.matchSeconds === "number" && eventFields.matchSeconds >= 0
+      ? eventFields.matchSeconds
+      : 0;
+  return { period, running, matchSecondsAtAnchor, anchorServerTimeMs: acceptedAt };
+}
+
 // ---------------------------------------------------------------------------------------
 // capability enforcement ("Follow live" read-only viewers)
 // ---------------------------------------------------------------------------------------
