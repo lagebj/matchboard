@@ -21,14 +21,20 @@ export function isAppearanceMode(value: unknown): value is AppearanceMode {
 }
 
 /**
- * Minimal, self-contained pre-hydration initializer. Stringified into an inline
- * <script> in the root layout so an explicit stored theme is applied to <html>
- * before first paint — no flash through the wrong appearance. Reads nothing it
- * did not write; tolerates `localStorage` being unavailable.
+ * Minimal, self-contained pre-hydration initializer. Injected verbatim into an
+ * inline `<script>` in the root layout so an explicit stored theme is applied to
+ * `<html>` before first paint — no flash through the wrong appearance. Reads
+ * nothing it did not write; tolerates `localStorage` being unavailable.
+ *
+ * This is a **fully static string literal** — nothing is interpolated into it,
+ * so no executable code is ever constructed from a value (CodeQL
+ * `js/bad-code-sanitization`). The storage key is written out literally here and
+ * must stay equal to `THEME_STORAGE_KEY`; `theme.test.ts` asserts that.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var k=${JSON.stringify(
-  THEME_STORAGE_KEY,
-)};var t=null;try{t=localStorage.getItem(k);}catch(e){}var d=document.documentElement;if(t==="light"||t==="dark"){d.setAttribute("data-theme",t);d.style.colorScheme=t;}else{d.removeAttribute("data-theme");}}catch(e){}})();`;
+export const THEME_INIT_SCRIPT =
+  '(function(){try{var t=null;try{t=localStorage.getItem("matchboard-theme")}catch(e){}' +
+  'var d=document.documentElement;if(t==="light"||t==="dark"){d.setAttribute("data-theme",t);' +
+  'd.style.colorScheme=t}else{d.removeAttribute("data-theme")}}catch(e){}})();';
 
 /** Apply a mode to <html> and persist it. Client-only. */
 export function applyAppearance(mode: AppearanceMode): void {
