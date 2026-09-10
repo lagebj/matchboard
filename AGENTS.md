@@ -2465,8 +2465,7 @@ in-repo reference once the UI Lab gate is passed.
 - **Migration status**: UI Lab approved. Phase 5 in progress. `.touchline` is applied
   **per-surface** as a **dark-pinned island** (`class="touchline" data-theme="dark"`) —
   the shell nav/top-bar each carry it, and each migrated page wraps its own root; unmigrated
-  pages stay on Product Surface 1.0, untouched. Migrated so far: shell nav + top bar,
-  **League** (`/fixtures`), **Today** (`AssistantCommandCentrePage`). Remaining Phase 5
+  pages stay on Product Surface 1.0, untouched. Migrated so far: shell nav + top bar, **League** (`/fixtures`), **Today** (`AssistantCommandCentrePage`), **Events** (list + `/events/[eventId]` header + event-day timeline; the squad/lineup tabs are Phase 6). Remaining Phase 5
   (Events, match detail + Follow Live, Insights) and Phases 6–12 follow. Phase 9 removes the
   dark pin + ships the Settings appearance control after a light WCAG-AA audit; Phase 10 hoists
   `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in `globals.css`. Migrate

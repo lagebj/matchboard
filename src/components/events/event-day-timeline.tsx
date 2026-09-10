@@ -5,17 +5,20 @@ import { listEventMatchesAction } from "@/app/(app)/events/event-match-actions";
 import type { EventMatchWithReport } from "@/lib/stats/event-match-stats";
 import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
-import { MatchRow } from "@/components/ui/match-presentation";
-import { OperationalTimeline, TimelineItem, type TimelineNodeState } from "@/components/ui/operational-timeline";
-import { SectionHeader } from "@/components/ui/section-header";
-import { Surface } from "@/components/ui/surface";
+import {
+  ScorebookMatchRow,
+  TouchlineTimeline,
+  TimelineItem,
+} from "@/components/touchline";
+import type { TimelineNodeState } from "@/components/touchline/timeline/touchline-timeline";
 import { formatKickoffTime } from "@/lib/date-utils";
 
 /**
- * Event-day match timeline (ADR-0125). Event detail leads with the day's football
- * in chronological order — one `OperationalTimeline` of `MatchRow` items —
- * above squad/helper administration. Fetches its own matches (mirrors
- * `EventMatchesTab`) so the big page loader is untouched.
+ * Event-day match timeline (ADR-0134 §7, bundle `07_TEMPORAL_AND_EVENT_GRAMMAR.md
+ * §3`). Event detail leads with the day's football in chronological order — one
+ * `TouchlineTimeline` of `ScorebookMatchRow` items — above squad/helper
+ * administration. Fetches its own matches (mirrors `EventMatchesTab`) so the big
+ * page loader is untouched.
  */
 type Props = {
   eventId: string;
@@ -67,24 +70,27 @@ export function EventDayTimeline({ eventId, squadNames }: Props) {
   const lastIndex = sorted.length - 1;
 
   return (
-    <Surface variant="default" padding="md" className="flex flex-col gap-3">
-      <SectionHeader title="Event day" description="Matches in order." />
-      <OperationalTimeline aria-label="Event-day match timeline">
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-[20px] font-[620] text-[var(--foreground)]">Event day</h2>
+        <p className="text-[13px] text-[var(--text-muted)]">Matches in order.</p>
+      </div>
+      <TouchlineTimeline aria-label="Event-day match timeline">
         {sorted.map((m, idx) => {
           const lifecycle = deriveEventMatchLifecycle(m, now);
           const needsReport = lifecycle === "played" || lifecycle === "report_incomplete";
           const state: TimelineNodeState =
             lifecycle === "live"
-              ? "current"
+              ? "live"
               : needsReport
-                ? "attention"
+                ? "current"
                 : lifecycle === "done"
                   ? "done"
                   : m.id === firstUpcomingId
                     ? "next"
                     : "later";
           const kicker =
-            state === "attention"
+            needsReport
               ? "FOLLOW-UP"
               : state === "next"
                 ? "NEXT"
@@ -111,11 +117,11 @@ export function EventDayTimeline({ eventId, squadNames }: Props) {
               kicker={kicker}
               isLast={idx === lastIndex}
             >
-              <MatchRow presentation={presentation} inTimeline />
+              <ScorebookMatchRow presentation={presentation} />
             </TimelineItem>
           );
         })}
-      </OperationalTimeline>
-    </Surface>
+      </TouchlineTimeline>
+    </section>
   );
 }
