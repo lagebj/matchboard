@@ -381,17 +381,5 @@ textarea:disabled {
   }
 }
 
-.app-mobile-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 40;
-  border-top: 1px solid var(--border-soft);
-  background: var(--surface-overlay);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  /* Standalone PWA on notched phones: keep the nav row above the home
-     indicator (viewport-fit=cover is set in src/app/layout.tsx). */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
+/* `.app-mobile-nav` removed — the compact bottom nav is now the floating
+   `.tl-bottom-nav` control-layer bar (src/app/touchline.css, ADR-0134 §8). */

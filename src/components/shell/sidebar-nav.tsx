@@ -11,7 +11,8 @@ import {
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { MatchboardLogo } from "@/components/shell/matchboard-logo";
+import { cn } from "@/lib/cn";
+import { TouchlineWordmark } from "@/components/touchline/brand/touchline-wordmark";
 import { isNavItemActive } from "@/components/shell/nav-active";
 import { APP_VERSION } from "@/lib/version";
 
@@ -32,12 +33,12 @@ function navItems(orgSlug: string): NavItem[] {
 }
 
 /**
- * SidebarNav — professional ops cockpit sidebar.
+ * SidebarNav — desktop primary nav, Touchline visual system (ADR-0134 §8,
+ * bundle `05_NAVIGATION_MATERIALS_AND_SHELL.md §4`).
  *
- * Active item: calm left rail accent + muted surface highlight.
- * Inactive: quiet, muted, hover reveals surface.
- * Brand mark: subtle identity, not heavy.
- * Version: barely visible footer text.
+ * Recedes behind work content: background one step toward canvas, a subtle
+ * right border, no card around the sidebar. Active item: a 3 px accent leading
+ * marker + strengthened foreground — no large pill.
  */
 export function SidebarNav({ orgSlug }: { orgSlug: string }) {
   const t = useTranslations("Navigation");
@@ -47,49 +48,42 @@ export function SidebarNav({ orgSlug }: { orgSlug: string }) {
   return (
     <nav
       aria-label="Primary"
-      className="flex h-full flex-col bg-[rgba(8,11,18,0.98)]"
+      className="flex h-full flex-col border-r border-[var(--border-soft)] bg-[var(--tl-c-canvas)]"
     >
-      {/* Brand */}
-      <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
-        <MatchboardLogo className="h-7 w-7 text-[var(--accent-strong)]" ariaHidden />
-        <div className="min-w-0">
-          <p className="text-sm font-semibold tracking-tight text-zinc-50">Matchboard</p>
-        </div>
+      <div className="px-5 pt-6 pb-5">
+        <TouchlineWordmark />
       </div>
 
-      {/* Nav items */}
-      <div className="flex-1 overflow-y-auto px-2 pt-1">
-        <ul className="flex flex-col gap-0.5" role="list">
-          {items.map((item) => {
-            const active = isNavItemActive(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  aria-current={active ? "page" : undefined}
-                  className={[
-                    "relative flex items-center gap-2.5 rounded-lg pl-3 pr-3 py-2 text-sm transition-colors",
-                    active
-                      ? "bg-[var(--accent-subtle)] text-zinc-50 font-medium before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[2.5px] before:rounded-r before:bg-[var(--accent-strong)]"
-                      : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/40 hover:text-zinc-100",
-                  ].join(" ")}
-                  href={item.href}
-                >
-                  <Icon
-                    className={`h-[18px] w-[18px] shrink-0 transition-colors ${active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}`}
-                    aria-hidden="true"
-                  />
-                  <span className="flex-1">{t(item.labelKey)}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <ul className="flex flex-1 flex-col gap-0.5 px-3" role="list">
+        {items.map((item) => {
+          const active = isNavItemActive(pathname, item.href);
+          const Icon = item.icon;
+          return (
+            <li key={item.href}>
+              <Link
+                aria-current={active ? "page" : undefined}
+                href={item.href}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-[var(--tl-c-radius-control)] py-2 pl-3.5 pr-3 text-[14px] no-underline transition-colors duration-[var(--tl-c-motion-state)]",
+                  active
+                    ? "font-medium text-[var(--foreground)] before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-r before:bg-[var(--accent)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--tl-c-surface-hover)] hover:text-[var(--text-soft)]",
+                )}
+              >
+                <Icon
+                  strokeWidth={active ? 2 : 1.75}
+                  className={cn("h-5 w-5 shrink-0", active ? "text-[var(--accent)]" : "text-[var(--text-muted)]")}
+                  aria-hidden="true"
+                />
+                <span>{t(item.labelKey)}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
 
-      {/* Pitch-line subtle texture hint at bottom */}
-      <div className="border-t border-[var(--border-soft)] px-4 py-3">
-        <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-disabled)]">v{APP_VERSION}</p>
+      <div className="px-5 py-4 text-[11px] uppercase tracking-[0.14em] text-[var(--text-disabled)]">
+        v{APP_VERSION}
       </div>
     </nav>
   );
