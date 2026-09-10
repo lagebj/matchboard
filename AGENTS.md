@@ -4114,6 +4114,16 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 
 ### Live Match Reporting files
 
+**Hardening in progress (ADR-0133).** A production incident (Rød v Drammens BK, 2026-09-09)
+exposed that live reporting is durability-critical and under-hardened:
+`seedReportFromLiveSession()` **no-ops if any `PostMatchReport` row already exists** (so a
+pre-match DRAFT report — e.g. one seeded by `markMatchAbsence()` — silently discards the whole
+live session's goals/assists/rotations); `LiveMatchSession` persists **no clock/period state**
+(F5 resets to "Start First Half"); `LiveMatchEvent.matchSeconds` is written in **milliseconds**
+(~1000× — corrupts the evidence layer); the realtime DO snapshot can **regress** canonical
+state on reconnect; `live_report_available` did not exclude `ENDED` sessions / completed
+reports (fixed — H4). See ADR-0133 for the full forensics and the H1–H6 plan.
+
 | File | Purpose |
 |------|---------|
 | `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |

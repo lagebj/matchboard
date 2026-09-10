@@ -3040,6 +3040,17 @@ Feature: Matchboard football operations workspace
       When the coach opens the Assistant page
       Then the Assistant must show two post_match_report items
 
+    Scenario: A finished live session removes the start-live-reporting work item (ADR-0133)
+      Given a today match has a finalized squad and no live reporting session
+      Then the Assistant must offer a start-live-reporting work item for that match
+      When live reporting is started and then finished for that match
+      Then the Assistant must not offer a start-live-reporting work item for that match
+
+    Scenario: A completed post-match report removes the start-live-reporting work item (ADR-0133)
+      Given a today match has a finalized squad
+      And its post-match report is REPORTED or LOCKED
+      Then the Assistant must not offer a start-live-reporting work item for that match
+
     Scenario: Resolved condition removes work item immediately
       Given Assistant contains a blocked_round item for "R1"
       And the draft is changed so the Blocked condition no longer exists

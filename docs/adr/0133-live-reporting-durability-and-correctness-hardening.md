@@ -1,0 +1,86 @@
+# ADR-0133: Live reporting durability and correctness hardening
+
+## Status
+
+Accepted (programme — delivered incrementally; see "Delivery" below)
+
+## Context
+
+On 2026-09-09, a real League match (Rød away v Drammens BK, KO 17:30 CEST) was live-reported
+in production and the experience broke coach trust. Full forensic analysis (production Neon +
+Cloudflare account analytics; incident window 15:18–16:36 UTC):
+
+| # | Symptom | Confirmed root cause |
+|---|---------|----------------------|
+| S1 | No "Live reporting" button on the match — coach had to hand-type `/live` | `match-detail.tsx` gates the button on `isMatchFinalized(selections)` (every `Selection` row `FINALIZED`). The round was still `DRAFT` and the match's selections only became `FINALIZED` at 15:18:56 — **because starting the session force-captured the planning baseline**. Chicken-and-egg: no visible way in before the session exists. |
+| S2 / S4 | Goals disappeared / reset on screen during reporting, both teams | **218 WebSocket connections in ~64 min, 100 % ended `clientDisconnected`, median connection lifetime ~53 s** (Cloudflare). The DO itself was healthy (1081 RPCs, 0 errors). On every reconnect the client resyncs to the DO snapshot, which lags events written via the HTTP fallback and never learns about goals written directly to Neon → goals blink out. Two `EVENT_REVERSED` rows show the coach fighting the UI. |
+| S3 | F5 reset the clock to "Start First Half" | `LiveMatchSession` persists **no clock/period state** (only `status`, `startedAt`, `lastHeartbeatAt`). At ~16:19 UTC the coach refreshed; period reset to `0`; four goals were recorded at `period = 0, matchSeconds = 0`; the coach then clicked Start-1st → End-1st → Start-2nd within **1.3 s** to recover. `MATCH_END` was logged at a nonsense `period = 7`. |
+| S5 | After-match report was not populated by the live score | `seedReportFromLiveSession()` (`report-mutations.ts:183`) **bails to a no-op the instant any `PostMatchReport` row exists** — it does not merge live-derived goals/assists/attendance/rotations. A DRAFT report had been created at 15:02:09 (16 min before the session — almost certainly by pre-match `markMatchAbsence()` for the `NO_SHOW` player, which calls `seedReportFromFinalizedSquad()`). Result: **8 `Goal` rows hand-typed at 19:53 CEST**, `minute = NULL`; **0 `Assist` rows** (7 live `ASSIST_SET` events lost); **0 `MatchRotation` rows** (26 live rotation events lost). |
+| S6 / S7 | "Start live reporting" showed on Today long after kickoff, and *after* the report was LOCKED | `get-assistant-command-centre.ts` emits `live_report_available` for any today-match with a finalized squad and **no *ACTIVE* session** — it never checks for an `ENDED` session or a `REPORTED`/`LOCKED` report. Here both are true (`ENDED` 16:36, `LOCKED` 17:58) and the item still showed. The today-window also uses server-UTC midnight (`setHours(0,…)`), so a late-evening / early-hours CEST match is mis-bucketed relative to the coach's actual day. |
+| — | Evidence layer for the match is garbage | `matchSeconds` stores **milliseconds** (a goal 3m29s in → `matchSeconds = 209529`), ~1000× on every event. `PostMatchLearningRun` recorded `combinations: SKIPPED — INSUFFICIENT_POSITION_DATA`; the 7 `ActualPositionInterval` rows all have `startedAtMs = 0, endedAtMs = null`. `wallClockTime` on each event *is* correct, so the data is recoverable — nothing reads it. |
+
+Neon compute for the production branch was **up continuously 15:12–16:33 UTC** — this was not an
+infrastructure outage. 68 `LiveMatchEvent` rows *did* persist. Every failure above is
+application-level.
+
+## Decision
+
+Treat live reporting as a **durability-critical** subsystem and harden it in that order:
+correctness of the coach-visible outcome first, then the realtime transport.
+
+### Invariants (new)
+
+1. **A live session's canonical output must always reach the report.** Finishing live reporting
+   reconciles the session's events into the match's `PostMatchReport` (goals, assists,
+   attendance, rotations) **whether or not a DRAFT report already exists**. It refuses only when
+   the report is already `REPORTED`/`LOCKED` (a completed report is corrected via the existing
+   reopen flow, not silently overwritten).
+2. **In-match clock/period state is persisted.** A reload, a device swap, or a reconnect
+   reconstructs the same period and elapsed time deterministically from the server, never
+   "Start First Half".
+3. **`matchSeconds` has one documented unit** and every writer and reader agrees on it;
+   reconstruction falls back to `wallClockTime` + `PERIOD_START` when `matchSeconds` is absent
+   or implausible.
+4. **The realtime snapshot may never regress canonical state.** On reconnect the client
+   reconciles the DO snapshot *against* its own local + Neon-persisted events; an event the
+   client persisted via the HTTP fallback is pushed into the DO so the DO's snapshot cannot
+   drop it.
+5. **A finished/reported match produces no "start live reporting" prompt.** Work-item emission
+   checks session lifecycle *and* report status.
+6. **There is always a visible way to start live reporting** once a match's kickoff is near or
+   has passed — independent of `Selection.status`.
+
+### Work items
+
+| # | Change | Risk | ADR-gated? |
+|---|--------|------|-----------|
+| **H1** | `seedReportFromLiveSession()` merges into an existing DRAFT report instead of bailing; reconcile goals/assists/attendance/rotations idempotently by `clientEventId`; refuse only on `REPORTED`/`LOCKED`. Plus a guarded one-off remediation for the incident match's lost assists/rotations (reopen → reconcile → re-lock), run only on explicit maintainer go-ahead. | med (core report path) | yes — this ADR |
+| **H2** | Persist clock state on `LiveMatchSession` (`currentPeriod Int`, `periodStartedAt DateTime?`, `elapsedBeforeMs Int @default(0)`, updated on every `PERIOD_START`/`PERIOD_END`/pause/resume). Server-hydrate `/live` and the post-match handoff from it. Reject a `PERIOD_START` that would move the period backwards; cap `MATCH_END` period to the format's real max. | med (expand/contract migration) | yes — extend this ADR |
+| **H3** | Fix the `matchSeconds` unit end-to-end (settle on **milliseconds since period start**, rename column `matchOffsetMs`, migrate, fix all readers) **or** keep the name and coerce at the write boundary — decide in the H3 slice. Make `actual-timeline` rebuild use `wallClockTime` + period boundaries as the primary source and `matchOffsetMs` as a cross-check. Backfill: recompute existing intervals from `wallClockTime`. | med | yes — extend this ADR |
+| **H4** | `get-assistant-command-centre.ts`: exclude `ENDED` sessions and `REPORTED`/`LOCKED` reports from `live_report_available`; widen the today-window by a fixed buffer so a near-midnight CEST match is not mis-bucketed. | low | no (plain bug fix) — **delivered with this ADR** |
+| **H5** | Add a "Start live reporting" entry point on match detail / Round Board / Today keyed on "kickoff passed or a session already exists", not `Selection` FINALIZED. Keep the existing button when finalized; add a secondary affordance otherwise. | low | no |
+| **H6** | Realtime reconnect churn (median 53 s connection lifetime, 218 reconnects). **Root cause of the churn itself still needs the Cloudflare Worker Observability logs** (`console`/`logStructured` output — the current API token cannot read `workers/observability/telemetry`; pull from the CF dashboard). Then: make the client trust local + Neon over the DO snapshot on reconnect; push HTTP-fallback events into the DO; investigate whether hibernation, a missed heartbeat, or the ~53 s edge idle-close drives the reconnect. | investigate first | yes — extend this ADR once the logs are in |
+
+### Explicitly out of scope
+
+- Replacing the DO transport or making it the sole system of record — Neon stays canonical
+  (ADR-0086), the DO stays a coordination actor.
+- A per-organisation timezone model — H4's buffer is a pragmatic near-midnight fix; a real
+  `Europe/Oslo`-day computation is a separate, larger change.
+- Offline live reporting / service worker (ADR-0123 out-of-scope stands).
+
+## Delivery
+
+- **H4** ships with this ADR (`get-assistant-command-centre.ts` guard + today-window buffer +
+  regression test reproducing the incident).
+- **H1** ships next as its own PR (merge semantics + tests + the guarded remediation).
+- **H2, H3, H6** are planned here and each extend this ADR with a concrete design in their PR.
+
+## Consequences
+
+- Schema changes for H2/H3 follow ADR-0105 expand/contract.
+- H1 changes the meaning of "finish live reporting" for the (common) case where a DRAFT report
+  already exists — from "no-op" to "reconcile". This is the intended behaviour; the previous
+  behaviour was the bug.
+- `docs/development/live-match-realtime.md` and AGENTS.md's live-match sections are updated as
+  each slice lands.

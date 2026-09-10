@@ -381,6 +381,79 @@ describe("getAssistantCommandCentre", () => {
       await db.matchRound.delete({ where: { id: todayRound.id } });
     }
   });
+
+  // Regression: the Rød v Drammens BK incident (2026-09-09) — "Start live reporting" kept
+  // showing on Today long after the match, and even after the report was LOCKED, because the
+  // live_report_available loop only excluded ACTIVE sessions and never checked the report.
+  it("does not offer live_report_available once the session has ENDED or the report is LOCKED", async () => {
+    const teamId = Object.values(fixture.teams)[0]!;
+    const round = await db.matchRound.create({
+      data: { name: "Live Guard Round", leagueSeasonId: fixture.leagueSeasonId, status: "DRAFT", organisationId: fixture.organisationId },
+    });
+    const match = await db.match.create({
+      data: {
+        matchRoundId: round.id,
+        teamId,
+        opponent: "Guard Opponent",
+        startsAt: new Date(),
+        homeAway: "AWAY",
+        squadSize: 11,
+        matchType: "LEAGUE",
+        gameFormat: "ELEVEN_A_SIDE",
+        organisationId: fixture.organisationId,
+      },
+    });
+    const player = fixture.players.find((p) => p.coreTeamId === teamId)!;
+    await db.selection.create({
+      data: {
+        matchId: match.id,
+        matchRoundId: round.id,
+        playerId: player.id,
+        role: "CORE",
+        status: "FINALIZED",
+        organisationId: fixture.organisationId,
+      },
+    });
+
+    try {
+      // 1. FINALIZED squad, no session, no report -> the item IS offered (happy path).
+      let result = await getAssistantCommandCentre();
+      expect(
+        result.items.some((i) => i.category === "live_report_available" && i.matchId === match.id),
+      ).toBe(true);
+
+      // 2. An ENDED session -> the item is gone.
+      const session = await db.liveMatchSession.create({
+        data: {
+          matchId: match.id,
+          organisationId: fixture.organisationId,
+          coachId: "coach-guard",
+          status: "ENDED",
+          endedAt: new Date(),
+        },
+      });
+      result = await getAssistantCommandCentre();
+      expect(
+        result.items.some((i) => i.category === "live_report_available" && i.matchId === match.id),
+      ).toBe(false);
+
+      // 3. Session cleared but a LOCKED report exists -> still gone.
+      await db.liveMatchSession.delete({ where: { id: session.id } });
+      await db.postMatchReport.create({
+        data: { matchId: match.id, status: "LOCKED", organisationId: fixture.organisationId },
+      });
+      result = await getAssistantCommandCentre();
+      expect(
+        result.items.some((i) => i.category === "live_report_available" && i.matchId === match.id),
+      ).toBe(false);
+    } finally {
+      await db.postMatchReport.deleteMany({ where: { matchId: match.id } });
+      await db.liveMatchSession.deleteMany({ where: { matchId: match.id } });
+      await db.selection.deleteMany({ where: { matchId: match.id } });
+      await db.match.delete({ where: { id: match.id } });
+      await db.matchRound.delete({ where: { id: round.id } });
+    }
+  });
 });
 
 describe("getAssistantCommandCentre — setup missing cases", () => {

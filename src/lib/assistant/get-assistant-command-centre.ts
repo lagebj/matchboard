@@ -360,10 +360,20 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
     }
   }
 
+  // "Today" is a UTC calendar day widened by a fixed buffer each side. On Vercel the server
+  // runs in UTC, so a plain UTC midnight-to-midnight window mis-buckets a match near midnight
+  // in the coach's actual timezone (Norway is UTC+1/+2) — e.g. a 00:30 CEST kickoff is 22:30
+  // UTC the previous day and would drop off "Today" while it is still very much today's match.
+  // The buffer only ever *widens* the set (a match a few hours either side of the calendar day
+  // may appear early / linger briefly), never hides a relevant one. A precise Europe/Oslo-day
+  // computation is the ideal — see ADR-0133 — but is deliberately not done here.
+  const TODAY_WINDOW_BUFFER_HOURS = 4;
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  todayStart.setHours(todayStart.getHours() - TODAY_WINDOW_BUFFER_HOURS);
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
+  todayEnd.setHours(todayEnd.getHours() + TODAY_WINDOW_BUFFER_HOURS);
 
   const todayMatches = await db.match.findMany({
     where: {
@@ -421,15 +431,21 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
 
   const matchesWithSquad = new Set(finalizedSquadCounts.map((s) => s.matchId));
 
-  const activeSessions = await db.liveMatchSession.findMany({
+  const liveSessions = await db.liveMatchSession.findMany({
     where: {
       matchId: { in: todayMatchIds },
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "ENDED"] },
     },
-    select: { matchId: true, startedAt: true, lastHeartbeatAt: true },
+    select: { matchId: true, status: true, startedAt: true, lastHeartbeatAt: true },
   });
 
+  const activeSessions = liveSessions.filter((s) => s.status === "ACTIVE");
   const matchesWithSession = new Set(activeSessions.map((s) => s.matchId));
+  // A session that has already ENDED means live reporting for this match is *done*, not
+  // pending — "Start live reporting" must not reappear as a work item (the coach finishes the
+  // report instead; if they genuinely need to resume live, they do so from the match page,
+  // which reactivates the ended session).
+  const matchesWithAnySession = new Set(liveSessions.map((s) => s.matchId));
   const activeLiveSessions: AssistantCommandCentre["activeLiveSessions"] = {};
   for (const session of activeSessions) {
     activeLiveSessions[session.matchId] = {
@@ -485,8 +501,13 @@ export async function getAssistantCommandCentre(orgFilter?: OrgFilterMode): Prom
   });
 
   for (const match of todayMatches) {
-    if (matchesWithSession.has(match.id)) continue;
+    if (matchesWithAnySession.has(match.id)) continue;
     if (!matchesWithSquad.has(match.id)) continue;
+    // A completed (REPORTED/LOCKED) post-match report means the match is fully reported — no
+    // amount of "Start live reporting" applies. (DRAFT is still in progress and does not block:
+    // the coach may want to start live reporting to fill it.)
+    const reportStatusForMatch = matchReportMap.get(match.id)?.status;
+    if (reportStatusForMatch === "REPORTED" || reportStatusForMatch === "LOCKED") continue;
 
     const teamName = match.team.name;
     const homeAway = match.homeAway === "HOME" ? "vs" : "@";
