@@ -4115,14 +4115,15 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 ### Live Match Reporting files
 
 **Hardening in progress (ADR-0133).** A production incident (Rød v Drammens BK, 2026-09-09)
-exposed that live reporting is durability-critical and under-hardened:
-`seedReportFromLiveSession()` **no-ops if any `PostMatchReport` row already exists** (so a
-pre-match DRAFT report — e.g. one seeded by `markMatchAbsence()` — silently discards the whole
-live session's goals/assists/rotations); `LiveMatchSession` persists **no clock/period state**
-(F5 resets to "Start First Half"); `LiveMatchEvent.matchSeconds` is written in **milliseconds**
-(~1000× — corrupts the evidence layer); the realtime DO snapshot can **regress** canonical
-state on reconnect; `live_report_available` did not exclude `ENDED` sessions / completed
-reports (fixed — H4). See ADR-0133 for the full forensics and the H1–H6 plan.
+exposed that live reporting is durability-critical and under-hardened. Fixed so far:
+`live_report_available` no longer offers "Start live reporting" for an `ENDED` session or a
+completed report (H4); `seedReportFromLiveSession()` now **merges** the live session's derived
+data into a pre-existing DRAFT `PostMatchReport` instead of no-op'ing (H1) — it previously
+discarded the entire live session whenever any report row existed (e.g. a DRAFT seeded pre-match
+by `markMatchAbsence()`). Still open: `LiveMatchSession` persists **no clock/period state** (F5
+resets to "Start First Half" — H2); `LiveMatchEvent.matchSeconds` is written in **milliseconds**
+(~1000× — corrupts the evidence layer — H3); the realtime DO snapshot can **regress** canonical
+state on reconnect (H6). See ADR-0133 for the full forensics and the H1–H6 plan.
 
 | File | Purpose |
 |------|---------|
@@ -4140,7 +4141,7 @@ reports (fixed — H4). See ADR-0133 for the full forensics and the H1–H6 plan
 | `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) |
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
 | `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endLiveSession()` and `seedReportFromLiveSession()` — does not reimplement either write |
-| `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
+| `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088; **merges into a pre-existing DRAFT report, never overwrites a REPORTED/LOCKED one — ADR-0133 H1**), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
 | `src/lib/reports/report-domain.ts` | Report transition validation shared by League and Event (ARR-0030 resolution): `canTransitionTo`, `isReportLocked`, `hasUnknownAttendance` operate purely on the shared `MatchReportStatus` enum and a generic attendance shape, with no League-specific coupling |
 | `src/app/(app)/events/[eventId]/event-live-actions.ts` | Server actions: event live session lifecycle, event recording, pre-match package |
 | `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endEventLiveSession()` and `seedEventReportFromLiveSession()` |

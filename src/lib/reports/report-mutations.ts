@@ -153,7 +153,18 @@ function fairPlayCategoryFromEvent(eventType: string, payload: Record<string, un
 }
 
 export type SeedReportFromLiveSessionResult =
-  | { success: true; matchId: string; reportId: string; status: MatchReportStatus; alreadyExisted: boolean }
+  | {
+      success: true;
+      matchId: string;
+      reportId: string;
+      status: MatchReportStatus;
+      /** A `PostMatchReport` row already existed when the live session ended. */
+      alreadyExisted: boolean;
+      /** The live session's derived data was merged into a pre-existing DRAFT report
+       * (ADR-0133 H1). `false` when a fresh report was created, or when the pre-existing
+       * report was already `REPORTED`/`LOCKED` and left untouched. */
+      merged: boolean;
+    }
   | { success: false; error: string };
 
 /**
@@ -161,32 +172,43 @@ export type SeedReportFromLiveSessionResult =
  * strategy from `seedReportFromFinalizedSquad()` above — this one seeds `PRESENT` attendance and
  * derives goals/assists/fair-play/rotations from the session's `LiveMatchEvent` rows, since the
  * coach already recorded them live, rather than seeding `UNKNOWN` for a coach to fill in
- * manually. Both are legitimate seeding strategies for the same lifecycle transition (the first
- * DRAFT post-match report); which one applies depends on whether a live session produced events
- * to derive from. The caller (`endLiveSessionAndCreateReportAction`) is responsible for
- * validating session/match/organisation consistency before calling this — `organisationId` here
- * is trusted, not re-derived.
+ * manually.
+ *
+ * **ADR-0133 H1:** when a DRAFT `PostMatchReport` already exists (the common case — one is
+ * seeded pre-match by `seedReportFromFinalizedSquad()` the first time a coach marks a
+ * per-match absence or opens "After match"), the live session's derived data is **merged**
+ * into it: score set when currently unset, `UNKNOWN` attendance flipped to `PRESENT` for
+ * players who appeared, and goals/assists/fair-play/rotations created for any of those
+ * categories the report has none of yet. A `REPORTED`/`LOCKED` report is never touched — the
+ * coach corrects a completed report via the reopen flow. Previously this function no-op'd
+ * whenever *any* report row existed, silently discarding the whole live session (the incident
+ * this ADR was written for).
+ *
+ * The caller (`endLiveSessionAndCreateReportAction`) is responsible for validating
+ * session/match/organisation consistency before calling this — `organisationId` here is
+ * trusted, not re-derived. Every read/write below is explicitly scoped by that
+ * caller-verified `organisationId` (ADR-0087 `getExplicitOrgId()` convention), matching Event's
+ * `seedEventReportFromLiveSession()`.
  */
 export async function seedReportFromLiveSession(
   matchId: string,
   organisationId: string,
 ): Promise<SeedReportFromLiveSessionResult> {
-  // Every read below is explicitly scoped by the caller-verified `organisationId` parameter
-  // (not just whatever tenant context happens to be ambient via AsyncLocalStorage) — the same
-  // defense-in-depth convention ADR-0087 documents (getExplicitOrgId()), matching the equivalent
-  // hardening applied to Event's seedEventReportFromLiveSession().
   const existingReport = await db.postMatchReport.findFirst({
     where: { matchId, organisationId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, homeGoals: true, awayGoals: true },
   });
 
-  if (existingReport) {
+  // A completed report is authoritative — a late live-session handoff must not overwrite it.
+  // (The coach corrects a completed report by reopening it, not through this path.)
+  if (existingReport && (existingReport.status === "REPORTED" || existingReport.status === "LOCKED")) {
     return {
       success: true,
       matchId,
       reportId: existingReport.id,
       status: existingReport.status,
       alreadyExisted: true,
+      merged: false,
     };
   }
 
@@ -279,50 +301,133 @@ export async function seedReportFromLiveSession(
     }
   }
 
-  const report = await db.postMatchReport.create({
-    data: {
-      matchId,
-      status: "DRAFT",
-      homeGoals,
-      awayGoals,
-      organisationId,
-      playerActuals: {
-        create: [
-          ...selections.map((s) => ({
-            matchId,
-            playerId: s.playerId,
-            source: "PLANNED" as const,
-            attendanceStatus: "PRESENT" as const,
-            organisationId,
-          })),
-          ...helperPlayerIds.map((playerId) => ({
-            matchId,
-            playerId,
-            source: "EMERGENCY_BACKFILL" as const,
-            attendanceStatus: "PRESENT" as const,
-            unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
-            organisationId,
-          })),
-        ],
-      },
-      goals: {
-        create: scorerEvents.map((e) => ({
-          playerId: e.playerId!,
-          type: "NORMAL",
-          organisationId,
-        })),
-      },
-      assists: {
-        create: assistEvents.map((e) => ({
-          playerId: e.playerId!,
-          type: "NORMAL",
-          organisationId,
-        })),
-      },
-    },
-  });
+  const plannedPlayerIdList = selections.map((s) => s.playerId);
 
-  if (fairPlayEvents.length > 0) {
+  let reportId: string;
+  let reportStatus: MatchReportStatus;
+
+  if (existingReport) {
+    // ── MERGE into the pre-existing DRAFT report (ADR-0133 H1) ──────────────────
+    reportId = existingReport.id;
+    reportStatus = existingReport.status;
+
+    // Score: only when the report has no score yet — never clobber a manually entered one.
+    if (existingReport.homeGoals === null && existingReport.awayGoals === null) {
+      await db.postMatchReport.update({ where: { id: reportId }, data: { homeGoals, awayGoals } });
+    }
+
+    // Attendance: flip UNKNOWN -> PRESENT for players who appeared; add a PRESENT row for any
+    // appearing player who has no actual row yet. Never touch an explicit NO_SHOW / other
+    // status the coach already set.
+    const existingActuals = await db.postMatchPlayerActual.findMany({
+      where: { reportId, organisationId },
+      select: { playerId: true, attendanceStatus: true },
+    });
+    const actualStatusByPlayer = new Map(
+      existingActuals.filter((a) => a.playerId !== null).map((a) => [a.playerId as string, a.attendanceStatus]),
+    );
+    for (const playerId of plannedPlayerIdList) {
+      const current = actualStatusByPlayer.get(playerId);
+      if (current === undefined) {
+        await db.postMatchPlayerActual.create({
+          data: { matchId, reportId, playerId, source: "PLANNED", attendanceStatus: "PRESENT", organisationId },
+        });
+      } else if (current === "UNKNOWN") {
+        await db.postMatchPlayerActual.updateMany({
+          where: { reportId, playerId, organisationId },
+          data: { attendanceStatus: "PRESENT" },
+        });
+      }
+    }
+    for (const playerId of helperPlayerIds) {
+      const current = actualStatusByPlayer.get(playerId);
+      if (current === undefined) {
+        await db.postMatchPlayerActual.create({
+          data: {
+            matchId,
+            reportId,
+            playerId,
+            source: "EMERGENCY_BACKFILL",
+            attendanceStatus: "PRESENT",
+            unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER",
+            organisationId,
+          },
+        });
+      } else if (current === "UNKNOWN") {
+        await db.postMatchPlayerActual.updateMany({
+          where: { reportId, playerId, organisationId },
+          data: { attendanceStatus: "PRESENT" },
+        });
+      }
+    }
+
+    // Goals / assists: only seed a category the report has none of yet, so a coach who already
+    // curated goals in the DRAFT report is not double-counted.
+    if (scorerEvents.length > 0 && (await db.goal.count({ where: { reportId, organisationId } })) === 0) {
+      await db.goal.createMany({
+        data: scorerEvents.map((e) => ({ reportId, playerId: e.playerId!, type: "NORMAL" as const, organisationId })),
+      });
+    }
+    if (assistEvents.length > 0 && (await db.assist.count({ where: { reportId, organisationId } })) === 0) {
+      await db.assist.createMany({
+        data: assistEvents.map((e) => ({ reportId, playerId: e.playerId!, type: "NORMAL" as const, organisationId })),
+      });
+    }
+  } else {
+    // ── CREATE a fresh report from the live session ────────────────────────────
+    const created = await db.postMatchReport.create({
+      data: {
+        matchId,
+        status: "DRAFT",
+        homeGoals,
+        awayGoals,
+        organisationId,
+        playerActuals: {
+          create: [
+            ...selections.map((s) => ({
+              matchId,
+              playerId: s.playerId,
+              source: "PLANNED" as const,
+              attendanceStatus: "PRESENT" as const,
+              organisationId,
+            })),
+            ...helperPlayerIds.map((playerId) => ({
+              matchId,
+              playerId,
+              source: "EMERGENCY_BACKFILL" as const,
+              attendanceStatus: "PRESENT" as const,
+              unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
+              organisationId,
+            })),
+          ],
+        },
+        goals: {
+          create: scorerEvents.map((e) => ({
+            playerId: e.playerId!,
+            type: "NORMAL",
+            organisationId,
+          })),
+        },
+        assists: {
+          create: assistEvents.map((e) => ({
+            playerId: e.playerId!,
+            type: "NORMAL",
+            organisationId,
+          })),
+        },
+      },
+    });
+    reportId = created.id;
+    reportStatus = created.status;
+  }
+
+  // Fair-play observations and rotations are match-scoped (not report-scoped) and derived from
+  // LIVE events. Seed them only when none from a LIVE source exist yet — idempotent across a
+  // re-run and safe on the merge path.
+  if (
+    fairPlayEvents.length > 0 &&
+    (await db.fairPlayObservation.count({ where: { matchId, source: "LIVE", organisationId } })) === 0
+  ) {
     await db.fairPlayObservation.createMany({
       data: fairPlayEvents.map((e) => ({
         matchId,
@@ -338,7 +443,10 @@ export async function seedReportFromLiveSession(
     });
   }
 
-  if (rotationPairs.length > 0) {
+  if (
+    rotationPairs.length > 0 &&
+    (await db.matchRotation.count({ where: { matchId, source: "LIVE", organisationId } })) === 0
+  ) {
     await db.matchRotation.createMany({
       data: rotationPairs.map((rp) => ({
         matchId,
@@ -355,9 +463,10 @@ export async function seedReportFromLiveSession(
   return {
     success: true,
     matchId,
-    reportId: report.id,
-    status: report.status,
-    alreadyExisted: false,
+    reportId,
+    status: reportStatus,
+    alreadyExisted: Boolean(existingReport),
+    merged: Boolean(existingReport),
   };
 }
 

@@ -5842,6 +5842,21 @@ Feature: Matchboard football operations workspace
     When the coach selects "After match"
     Then the existing editable draft report must open directly
 
+  Scenario: Finishing live reporting merges into a pre-existing draft report (ADR-0133)
+    Given match "M1" already has a DRAFT post-match report seeded before the match
+    And the coach recorded goals, assists, and rotations during a live reporting session
+    When the coach finishes live reporting
+    Then the live session's goals, assists, and rotations must be merged into that DRAFT report
+    And players who appeared must be marked present
+    And the final score must be taken from the live session when the report has no score yet
+    And no second post-match report must be created
+
+  Scenario: Finishing live reporting never overwrites a completed report (ADR-0133)
+    Given match "M1" already has a REPORTED or LOCKED post-match report
+    When the coach finishes a live reporting session for "M1"
+    Then the completed report must be left unchanged
+    And correcting it must go through the reopen workflow
+
   Scenario: Existing completed report opens directly in completed state
     Given match "M1" has a REPORTED or LOCKED post-match report
     When the coach selects "After match"
