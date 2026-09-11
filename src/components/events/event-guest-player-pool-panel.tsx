@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { UserPlus } from "lucide-react";
 import {
@@ -126,7 +126,7 @@ export function EventGuestPlayerPoolPanel({
       />
 
       {error && (
-        <p className="mt-2 text-xs text-red-500" role="alert">
+        <p className="mt-2 text-xs text-[var(--danger)]" role="alert">
           {error}
         </p>
       )}
@@ -140,7 +140,7 @@ export function EventGuestPlayerPoolPanel({
             {available.map((g) => (
               <label
                 key={g.id}
-                className="flex items-center gap-1.5 rounded-md border border-[var(--border-soft)] px-2 py-1 text-xs text-zinc-100"
+                className="flex items-center gap-1.5 rounded-md border border-[var(--border-soft)] px-2 py-1 text-xs text-[var(--foreground)]"
               >
                 <input
                   type="checkbox"
@@ -158,7 +158,7 @@ export function EventGuestPlayerPoolPanel({
               </label>
             ))}
           </div>
-          <Button
+          <TouchlineButton
             size="sm"
             variant="secondary"
             className="mt-2"
@@ -167,7 +167,7 @@ export function EventGuestPlayerPoolPanel({
           >
             <UserPlus className="mr-1 h-4 w-4" />
             Add {selectedToAdd.size > 0 ? selectedToAdd.size : ""} to pool
-          </Button>
+          </TouchlineButton>
         </div>
       )}
 
@@ -186,7 +186,7 @@ export function EventGuestPlayerPoolPanel({
             <tbody>
               {pool.map((g) => (
                 <tr key={g.guestPlayerId} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--surface-hover)]">
-                  <td className="py-2 px-2 text-zinc-100">
+                  <td className="py-2 px-2 text-[var(--foreground)]">
                     {g.name}
                     {g.sourceLabel && <span className="ml-1 text-[var(--text-muted)]">({g.sourceLabel})</span>}
                   </td>

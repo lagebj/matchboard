@@ -88,7 +88,7 @@ export function EventMatchAvailabilityPanel({ eventId }: { eventId: string }) {
       />
 
       {error && (
-        <p className="mt-2 text-xs text-red-500" role="alert">
+        <p className="mt-2 text-xs text-[var(--danger)]" role="alert">
           {error}
         </p>
       )}
@@ -122,7 +122,7 @@ export function EventMatchAvailabilityPanel({ eventId }: { eventId: string }) {
                   const hardExcluded = HARD_EXCLUDED_STATUSES.has(entry.eventLevelStatus);
                   return (
                     <tr key={entry.participantId} className="border-b border-[var(--border-soft)]/50">
-                      <td className="py-2 px-2 text-zinc-100">
+                      <td className="py-2 px-2 text-[var(--foreground)]">
                         {entry.displayName}
                         {hardExcluded && (
                           <span className="ml-1.5 text-[10px] text-[var(--text-muted)]">
@@ -149,7 +149,7 @@ export function EventMatchAvailabilityPanel({ eventId }: { eventId: string }) {
                               className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs disabled:cursor-not-allowed ${
                                 unavailable
                                   ? "bg-[var(--danger)]/20 text-[var(--danger)]"
-                                  : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                                  : "bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110"
                               }`}
                             >
                               {unavailable ? "✕" : "✓"}
@@ -170,7 +170,7 @@ export function EventMatchAvailabilityPanel({ eventId }: { eventId: string }) {
               const hardExcluded = HARD_EXCLUDED_STATUSES.has(entry.eventLevelStatus);
               return (
                 <details key={entry.participantId} className="rounded-md border border-[var(--border-soft)] p-2">
-                  <summary className="cursor-pointer text-sm text-zinc-100">
+                  <summary className="cursor-pointer text-sm text-[var(--foreground)]">
                     {entry.displayName}
                     {hardExcluded && (
                       <span className="ml-1.5 text-[10px] text-[var(--text-muted)]">
@@ -190,7 +190,7 @@ export function EventMatchAvailabilityPanel({ eventId }: { eventId: string }) {
                             disabled={isPending || hardExcluded}
                             onClick={() => toggle(entry, m.id)}
                             className={`rounded px-2 py-0.5 disabled:cursor-not-allowed ${
-                              unavailable ? "text-[var(--danger)]" : "text-emerald-400"
+                              unavailable ? "text-[var(--danger)]" : "text-[var(--success)]"
                             }`}
                           >
                             {unavailable ? "Unavailable ✕" : "Available ✓"}

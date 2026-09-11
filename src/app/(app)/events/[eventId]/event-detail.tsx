@@ -446,7 +446,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             <a
               href={`/events/${data.id}/export`}
               download
-              className="inline-flex items-center justify-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-[var(--surface-base)] transition-colors"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-base)] transition-colors"
             >
               Export event
             </a>
@@ -513,7 +513,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
           </div>
           <div className="relative">
             <h2 className="text-sm font-medium text-[var(--text-soft)]">Event squads created</h2>
-            <p className="text-lg font-semibold text-zinc-50">{data.squads.length} squad{data.squads.length !== 1 ? 's' : ''} · {totalAssigned} player{totalAssigned !== 1 ? 's' : ''} assigned</p>
+            <p className="text-lg font-semibold text-[var(--foreground)]">{data.squads.length} squad{data.squads.length !== 1 ? 's' : ''} · {totalAssigned} player{totalAssigned !== 1 ? 's' : ''} assigned</p>
           </div>
         </div>
       )}
@@ -585,11 +585,11 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             <div className="mt-3 grid gap-3 medium:grid-cols-2">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Type</p>
-                <p className="text-sm text-zinc-100">{EVENT_TYPE_LABELS[data.eventType] ?? data.eventType}</p>
+                <p className="text-sm text-[var(--foreground)]">{EVENT_TYPE_LABELS[data.eventType] ?? data.eventType}</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Game format</p>
-                <p className="text-sm text-zinc-100">{formatGameFormat(data.gameFormat)}</p>
+                <p className="text-sm text-[var(--foreground)]">{formatGameFormat(data.gameFormat)}</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Halves</p>
@@ -601,7 +601,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                     await updateEventNumberOfHalvesAction(data.id, halves);
                     router.refresh();
                   }}
-                  className="rounded border border-[var(--border-soft)] bg-transparent px-1.5 py-0.5 text-sm text-zinc-100 outline-none focus-visible:border-[var(--accent)]"
+                  className="rounded border border-[var(--border-soft)] bg-transparent px-1.5 py-0.5 text-sm text-[var(--foreground)] outline-none focus-visible:border-[var(--accent)]"
                   title="Number of halves for matches in this event"
                 >
                   <option value="1">1 (single period)</option>
@@ -641,7 +641,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         router.refresh();
                       }}
                       autoFocus
-                      className="w-20 rounded border border-[var(--accent)] bg-transparent px-1.5 py-0.5 text-sm text-zinc-100 outline-none"
+                      className="w-20 rounded border border-[var(--accent)] bg-transparent px-1.5 py-0.5 text-sm text-[var(--foreground)] outline-none"
                       placeholder="min"
                     />
                     <span className="text-xs text-[var(--text-muted)]">min</span>
@@ -649,7 +649,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                 ) : (
                   <button
                     type="button"
-                    className="text-sm text-zinc-100 hover:text-[var(--accent)] transition-colors cursor-text"
+                    className="text-sm text-[var(--foreground)] hover:text-[var(--accent)] transition-colors cursor-text"
                     onClick={() => {
                       const current = localDuration !== undefined ? localDuration : data.matchDurationMinutes;
                       setDurationValue(current?.toString() ?? '');
@@ -697,7 +697,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                           router.refresh();
                         }}
                         autoFocus
-                        className="w-20 rounded border border-[var(--accent)] bg-transparent px-1.5 py-0.5 text-sm text-zinc-100 outline-none"
+                        className="w-20 rounded border border-[var(--accent)] bg-transparent px-1.5 py-0.5 text-sm text-[var(--foreground)] outline-none"
                         placeholder="min"
                       />
                       <span className="text-xs text-[var(--text-muted)]">min</span>
@@ -705,7 +705,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                   ) : (
                     <button
                       type="button"
-                      className="text-sm text-zinc-100 hover:text-[var(--accent)] transition-colors cursor-text"
+                      className="text-sm text-[var(--foreground)] hover:text-[var(--accent)] transition-colors cursor-text"
                       onClick={() => {
                         const current = localBreak !== undefined ? localBreak : data.breakDurationMinutes;
                         setBreakValue(current?.toString() ?? '');
@@ -720,12 +720,12 @@ export function EventDetail({ data }: { data: EventDetailData }) {
               )}
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Starts</p>
-                <p className="text-sm text-zinc-100">{formatKickoffDate(new Date(data.startsAt))}</p>
+                <p className="text-sm text-[var(--foreground)]">{formatKickoffDate(new Date(data.startsAt))}</p>
               </div>
               {data.endsAt && (
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Ends</p>
-                  <p className="text-sm text-zinc-100">{new Date(data.endsAt).toLocaleDateString()}</p>
+                  <p className="text-sm text-[var(--foreground)]">{new Date(data.endsAt).toLocaleDateString()}</p>
                 </div>
               )}
               {data.notes && (
@@ -746,7 +746,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                   <div key={squad.id} className="rounded-lg border border-[var(--border-soft)] p-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-sm font-medium text-zinc-100">{squad.name}</span>
+                        <span className="text-sm font-medium text-[var(--foreground)]">{squad.name}</span>
                         <StatusPill variant="neutral" className="ml-2">{INTENT_LABELS[squad.intent] ?? squad.intent}</StatusPill>
                       </div>
                       <span className="text-sm text-[var(--text-muted)]">
@@ -783,7 +783,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         {squad.players.map((p) => (
                           <span
                             key={p.id}
-                            className="inline-flex items-center rounded-md bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-zinc-200"
+                            className="inline-flex items-center rounded-md bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--foreground)]"
                             title={p.selectionReason || undefined}
                           >
                             {formatName(p)}
@@ -823,7 +823,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         className="flex items-center gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1.5"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-zinc-100 truncate">{formatName(p)}</p>
+                          <p className="text-sm font-medium text-[var(--foreground)] truncate">{formatName(p)}</p>
                           <p className="text-[10px] text-[var(--text-muted)]">
                             {[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || 'flexible'} · {p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}
                             {p.isGK && ' · GK'}
@@ -882,12 +882,12 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                               setEditingSquadName(null);
                             }}
                             autoFocus
-                            className="text-sm font-semibold bg-transparent border-b border-[var(--accent)] text-zinc-100 outline-none px-0.5 w-32"
+                            className="text-sm font-semibold bg-transparent border-b border-[var(--accent)] text-[var(--foreground)] outline-none px-0.5 w-32"
                           />
                         ) : (
                           <button
                             type="button"
-                            className="text-sm font-semibold text-zinc-100 hover:text-[var(--accent)] transition-colors cursor-text"
+                            className="text-sm font-semibold text-[var(--foreground)] hover:text-[var(--accent)] transition-colors cursor-text"
                             onClick={() => {
                               setEditingSquadName(squad.id);
                               setEditingSquadNameValue(squad.name);
@@ -944,7 +944,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                               setEditingSquadTargetSize(null);
                             }}
                             autoFocus
-                            className="w-12 rounded border border-[var(--accent)] bg-transparent px-1 py-0 text-sm text-zinc-100 outline-none"
+                            className="w-12 rounded border border-[var(--accent)] bg-transparent px-1 py-0 text-sm text-[var(--foreground)] outline-none"
                           />
                         ) : (
                           <button
@@ -1073,7 +1073,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                         {squad.players.map((p) => (
                           <div
                             key={p.id}
-                            className="group relative inline-flex items-center gap-1.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-sm text-zinc-200 hover:border-[var(--accent)]/50 transition-colors"
+                            className="group relative inline-flex items-center gap-1.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-sm text-[var(--foreground)] hover:border-[var(--accent)]/50 transition-colors"
                             title={p.selectionReason || undefined}
                           >
                             <span>{formatName(p)}</span>
@@ -1152,7 +1152,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                     placeholder="Search by name or team..."
                     value={addFilter}
                     onChange={(e) => setAddFilter(e.target.value)}
-                    className="w-full max-w-sm rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100 placeholder:text-[var(--text-muted)]"
+                    className="w-full max-w-sm rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
                   />
                 </div>
                 <div className="overflow-x-auto">
@@ -1209,10 +1209,10 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                               }}
                             />
                           </td>
-                          <td className="py-2 px-2 text-zinc-100">{formatName(p)}</td>
+                          <td className="py-2 px-2 text-[var(--foreground)]">{formatName(p)}</td>
                           <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
                           <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
-                          <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}</td>
+                          <td className="py-2 px-2 text-[var(--foreground)] tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}</td>
                           <td className="py-2 px-2">{p.isGK && <span className="text-[10px] text-[var(--text-muted)]">GK</span>}</td>
                         </tr>
                       ))}
@@ -1245,7 +1245,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                   onClick={() => setAvailabilityFilter(filter)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                     availabilityFilter === filter
-                      ? 'bg-[var(--accent)] text-zinc-950'
+                      ? 'bg-[var(--accent)] text-[var(--tl-c-accent-on-fill)]'
                       : 'bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
@@ -1278,13 +1278,13 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                     {filteredPlayers.map((p) => (
                       <tr key={p.playerId} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--surface-hover)]">
                         <td className="py-2 px-2">
-                          <Link href={`/players/${p.playerId}`} className="text-zinc-100 hover:text-[var(--accent-strong)]">
+                          <Link href={`/players/${p.playerId}`} className="text-[var(--foreground)] hover:text-[var(--accent-strong)]">
                             {formatName(p)}
                           </Link>
                         </td>
                         <td className="py-2 px-2 text-[var(--text-soft)]">{p.coreTeamName ?? '—'}</td>
                         <td className="py-2 px-2 text-[var(--text-soft)]">{[p.primaryPosition, p.secondaryPosition, p.tertiaryPosition].filter(Boolean).join('/') || '—'}</td>
-                        <td className="py-2 px-2 text-zinc-100 tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}</td>
+                        <td className="py-2 px-2 text-[var(--foreground)] tabular-nums">{p.overallLevel !== null ? p.overallLevel.toFixed(1) : 'Not rated'}</td>
                         <td className="py-2 px-2">
                           <StatusPill variant={STATUS_VARIANTS[p.status] ?? 'neutral'}>
                             {p.status.charAt(0) + p.status.slice(1).toLowerCase().replace(/_/g, ' ')}

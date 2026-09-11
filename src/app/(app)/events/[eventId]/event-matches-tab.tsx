@@ -363,7 +363,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
         <div className="flex gap-2">
           <button
             onClick={loadMatches}
-            className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+            className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
             disabled={isPending}
           >
             Refresh
@@ -381,14 +381,14 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
 
       {showCreateForm && (
         <Surface variant="default" padding="md">
-          <h3 className="text-sm font-semibold text-zinc-100 mb-3">New match</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">New match</h3>
           <form onSubmit={handleCreate} className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Squad</label>
               <select
                 value={createSquadId}
                 onChange={(e) => setCreateSquadId(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
                 required
               >
                 {squads.map((s) => (
@@ -414,7 +414,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                 type="datetime-local"
                 value={createDate}
                 onChange={(e) => setCreateDate(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
                 required
               />
             </div>
@@ -423,7 +423,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
               <select
                 value={createCategory}
                 onChange={(e) => setCreateCategory(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
               >
                 <option value="CUP">Cup</option>
                 <option value="OTHER">Other</option>
@@ -435,7 +435,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                 type="text"
                 value={createLocation}
                 onChange={(e) => setCreateLocation(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
               />
             </div>
             <div>
@@ -443,7 +443,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
               <textarea
                 value={createNotes}
                 onChange={(e) => setCreateNotes(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
                 rows={2}
                 maxLength={500}
               />
@@ -459,7 +459,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+                className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
               >
                 Cancel
               </button>
@@ -474,7 +474,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
           <Surface key={squad.id} variant="default" padding="md">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <span className="text-sm font-semibold text-zinc-100">{squad.name}</span>
+                <span className="text-sm font-semibold text-[var(--foreground)]">{squad.name}</span>
                 <StatusPill variant="neutral" className="ml-2">{squad.intent}</StatusPill>
               </div>
               <span className="text-xs text-[var(--text-muted)]">{squadMatches.length} match{squadMatches.length !== 1 ? 'es' : ''}</span>
@@ -577,7 +577,7 @@ function SupportLoadSummary({
         {Array.from(supportLoadByPlayer.entries()).map(([playerId, count]) => {
           const assignment = supportAssignments.find((a) => a.playerId === playerId);
           return (
-            <div key={playerId} className="inline-flex items-center gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200">
+            <div key={playerId} className="inline-flex items-center gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-[var(--foreground)]">
               <span>{assignment ? `${assignment.firstName} ${assignment.lastName}` : playerId}</span>
               <span className="text-[var(--text-muted)]">
                 helping {count} match{count !== 1 ? 'es' : ''}
@@ -752,7 +752,7 @@ function EventMatchCard({
               {expandedMatchId === match.id ? '▼' : '▶'}
             </button>
           )}
-          <span className="text-sm font-medium text-zinc-100">vs {match.opponentName}</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">vs {match.opponentName}</span>
           <StatusPill variant={match.status === 'CANCELLED' ? 'warning' : 'neutral'}>
             {CATEGORY_LABELS[match.category] ?? match.category}
           </StatusPill>
@@ -789,7 +789,7 @@ function EventMatchCard({
                     {REPORT_STATUS_LABELS[match.report.status] ?? match.report.status}
                   </StatusPill>
                   {match.report.ourScore !== null && match.report.opponentScore !== null && (
-                    <span className="text-xs font-mono text-zinc-200 ml-1">
+                    <span className="text-xs font-mono text-[var(--foreground)] ml-1">
                       {match.report.ourScore}-{match.report.opponentScore}
                     </span>
                   )}
@@ -852,7 +852,7 @@ function EventMatchCard({
           {match.status !== 'CANCELLED' && !match.report?.status?.includes('LOCKED') && (
             <a
               href={`/events/${eventId}/matches/${match.id}/live`}
-              className="text-[10px] text-emerald-400 hover:underline ml-1"
+              className="text-[10px] text-[var(--success)] hover:underline ml-1"
             >
               Live
             </a>
@@ -887,7 +887,7 @@ function EventMatchCard({
             <div className="space-y-1 mt-1">
               {assignmentsForMatch.map((a) => (
                 <div key={a.id} className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-200">
+                  <span className="text-[var(--foreground)]">
                     {a.firstName} {a.lastName}
                     <span className="text-[var(--text-muted)] ml-1">from {a.sourceEventSquadName}</span>
                     {a.plannedRole && <span className="text-[var(--text-muted)] ml-1">({formatEventMatchSupportRole(a.plannedRole)})</span>}
@@ -906,7 +906,7 @@ function EventMatchCard({
           )}
 
           {helperError && (
-            <div className="mt-1 rounded border border-red-800/50 bg-red-950/30 px-2 py-1 text-[10px] text-red-300">
+            <div className="mt-1 rounded border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-2 py-1 text-[10px] text-[var(--danger)]">
               {helperError}
             </div>
           )}
@@ -927,7 +927,7 @@ function EventMatchCard({
                           <select
                             value={selectedPlayerId ?? ''}
                             onChange={(e) => setSelectedPlayerId(e.target.value || null)}
-                            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
+                            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-[var(--foreground)]"
                           >
                             <option value="">Select player...</option>
                             {eligibleCandidates.map((c) => (
@@ -941,7 +941,7 @@ function EventMatchCard({
                           <select
                             value={selectedRole}
                             onChange={(e) => setSelectedRole(e.target.value as EventMatchSupportRole | '')}
-                            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-zinc-200"
+                            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-1 text-xs text-[var(--foreground)]"
                           >
                             {PLANNED_ROLE_OPTIONS.map((r) => (
                               <option key={r.value} value={r.value}>{r.label}</option>
@@ -986,7 +986,7 @@ function EventMatchCard({
 
       {editingMatchId === match.id && (
         <div className="mt-3 border-t border-[var(--border-soft)] pt-3 space-y-2">
-          <h4 className="text-xs font-semibold text-zinc-100">Edit match</h4>
+          <h4 className="text-xs font-semibold text-[var(--foreground)]">Edit match</h4>
           <OpponentTeamSelect
             opponentTeams={opponentTeams}
             selectedId={editOpponentTeamId}
@@ -1004,7 +1004,7 @@ function EventMatchCard({
             <select
               value={editSquadId}
               onChange={(e) => setEditSquadId(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
             >
               {squads.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -1017,7 +1017,7 @@ function EventMatchCard({
               type="datetime-local"
               value={editStartsAt}
               onChange={(e) => setEditStartsAt(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
               required
             />
           </div>
@@ -1026,7 +1026,7 @@ function EventMatchCard({
             <select
               value={editCategory}
               onChange={(e) => setEditCategory(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
             >
               <option value="CUP">Cup</option>
               <option value="OTHER">Other</option>
@@ -1038,7 +1038,7 @@ function EventMatchCard({
               type="text"
               value={editLocation}
               onChange={(e) => setEditLocation(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
             />
           </div>
           <div>
@@ -1046,7 +1046,7 @@ function EventMatchCard({
             <textarea
               value={editNotes}
               onChange={(e) => setEditNotes(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
               rows={2}
               maxLength={500}
             />
@@ -1062,7 +1062,7 @@ function EventMatchCard({
             <button
               type="button"
               onClick={cancelEdit}
-              className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+              className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
             >
               Cancel
             </button>
