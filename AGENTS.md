@@ -2523,9 +2523,27 @@ in-repo reference once the UI Lab gate is passed.
   byte-identical files, fixed identically) are also now migrated. These all render inside
   `(app)/layout.tsx`'s `<main>`, which is not itself `.touchline`-scoped (only the shell
   header/nav are) — each needed its own explicit `.touchline` class on its own root, not just a
-  literal fix. The Review family remains — Phase 10 cannot proceed until it is migrated too (see
-  the maintainer's explicit choice to migrate first, recorded in this session's history, over
-  scoping Phase 10 down instead).
+  literal fix. **The Review family** (`round-review-page.tsx`/`match-review-page.tsx`/
+  `team-review-page.tsx`, reachable via `/rounds/[id]/review`, `/matches/[id]/review`,
+  `/teams/[id]/review`, plus shared `cross-team-impact-panel`/`decision-panel`/
+  `recommendation-panel`/`rule-impact-panel`/`team-readiness-card` components and
+  `PlannedVsActualPanel`, rendered alongside `MatchReviewPage`) is now migrated too — this was
+  genuine PS0-era code, dense with raw zinc/red/amber/emerald/blue literals across every file, not
+  a handful of stragglers. Two domain-layer color helpers
+  (`getSeverityBadgeClasses`/`getReadinessClasses` in
+  `src/domain/assistant-manager/utils/issue-grouping.ts`) were also token-aligned, with their unit
+  test updated to assert on token names instead of literal Tailwind palette names.
+  `planned-vs-actual-panel.tsx`'s `resultColor()` was a second, independent instance of the exact
+  ADR-0130 win/loss-colour violation already fixed once in Opponents' `previous-encounters-*.tsx`
+  (emerald for a win, red for a loss) — fixed to the same weight-only `outcomeTint` pairing.
+  `rule-impact-panel.tsx`'s `signalDot()` had an unrelated, pre-existing rendering bug (its
+  returned class string was rendered as bare text content instead of applied as a `className`, so
+  the severity dot never actually rendered in any theme) — fixed incidentally while migrating this
+  exact function's colors, not a deliberate scope expansion.
+
+  **This closes the Phase 10 scope gap.** Every surface identified as blocking Phase 10 removal is
+  now migrated. Phase 10 (remove the superseded Product Surface 1.0 system) is unblocked and is
+  the next piece of work.
 
   Phase 10 hoists `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in
   `globals.css`. Migrate a surface's *presentation* only — domain/permissions/persistence/audit/

@@ -35,25 +35,26 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
   }, [matchId, startTransition]);
 
   if (!review) {
-    return <div className="p-4 text-sm text-zinc-500">Loading match review...</div>;
+    return <div className="touchline p-4 text-sm text-[var(--text-muted)]">Loading match review...</div>;
   }
 
   const hasBlockers = review.blockedPlayerIds.length > 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Match Review</p>
-        <Link href={orgUrl("/fixtures")} className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to fixtures</Link>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Match Review</p>
+        <Link href={orgUrl("/fixtures")} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-soft)]">Back to fixtures</Link>
       </div>
 
-      <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
-        <p className="text-sm font-medium text-zinc-200">{matchId}</p>
-        <p className="text-[11px] text-zinc-400 mt-0.5">
+      <div className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-3">
+        <p className="text-sm font-medium text-[var(--foreground)]">{matchId}</p>
+        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
           Selected: {review.selectedPlayerIds.length} · Unavailable: {review.unavailablePlayerIds.length} · Unknown RSVP: {review.unknownRsvpPlayerIds.length} · Blocked: {review.blockedPlayerIds.length}
         </p>
         {review.positionGaps.length > 0 && (
-          <p className="text-[11px] text-amber-400 mt-0.5">Position gaps: {review.positionGaps.join(", ")}</p>
+          <p className="text-[11px] text-[var(--warning)] mt-0.5">Position gaps: {review.positionGaps.join(", ")}</p>
         )}
       </div>
 
@@ -92,7 +93,7 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
         <button
           type="button"
           onClick={() => setShowOverrideModal(true)}
-          className="h-7 rounded border border-red-700/40 bg-red-900/20 px-3 text-xs font-semibold text-red-300 hover:bg-red-900/30"
+          className="h-7 rounded border border-[var(--danger)]/40 bg-[var(--danger-subtle)] px-3 text-xs font-semibold text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_18%,transparent)]"
         >
           Override Blocked condition
         </button>
@@ -103,17 +104,17 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOverrideModal(false)} />
           <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
             <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Override Blocked condition</h3>
-              <p className="text-sm text-zinc-300">This match has blocked players. Overriding requires a reason.</p>
+              <h3 className="text-base font-semibold text-[var(--foreground)]">Override Blocked condition</h3>
+              <p className="text-sm text-[var(--text-soft)]">This match has blocked players. Overriding requires a reason.</p>
               <textarea
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
                 placeholder="Reason for overriding Blocked conditions..."
-                className="rounded-md border border-zinc-700/40 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+                className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--text-disabled)] focus:border-[var(--accent)] focus:outline-none"
                 rows={3}
               />
               {!overrideReason.trim() && (
-                <p className="text-xs text-red-400">A reason is required for this decision.</p>
+                <p className="text-xs text-[var(--danger)]">A reason is required for this decision.</p>
               )}
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
@@ -141,7 +142,7 @@ export function MatchReviewPage({ matchId }: { matchId: string }) {
                     setOverrideReason("");
                   });
                 }}
-                className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 disabled:opacity-50"
+                className="rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-subtle)] px-4 py-2 text-sm font-semibold text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] disabled:opacity-50"
               >
                 Override
               </button>

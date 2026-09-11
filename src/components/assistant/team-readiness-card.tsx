@@ -20,60 +20,60 @@ type TeamReadinessCardProps = {
 
 export function TeamReadinessCard({ readiness }: TeamReadinessCardProps) {
   return (
-    <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+    <div className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-200">{readiness.teamName || readiness.teamId}</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">{readiness.teamName || readiness.teamId}</span>
           <span className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${getReadinessClasses(readiness.readinessState)}`}>
             {readinessLabel(readiness.readinessState)}
           </span>
         </div>
-        <Link href={`/teams/${readiness.teamId}/review`} className="text-[10px] text-zinc-500 hover:text-zinc-300">
+        <Link href={`/teams/${readiness.teamId}/review`} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-soft)]">
           Review
         </Link>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-        <span className="text-zinc-500">Confirmed</span>
-        <span className="text-zinc-200">{readiness.confirmedPlayers}/{readiness.targetSquadSize}</span>
+        <span className="text-[var(--text-muted)]">Confirmed</span>
+        <span className="text-[var(--foreground)]">{readiness.confirmedPlayers}/{readiness.targetSquadSize}</span>
         {readiness.unknownRsvp > 0 && (
           <>
-            <span className="text-zinc-500">Unknown RSVP</span>
-            <span className="text-amber-400">{readiness.unknownRsvp}</span>
+            <span className="text-[var(--text-muted)]">Unknown RSVP</span>
+            <span className="text-[var(--warning)]">{readiness.unknownRsvp}</span>
           </>
         )}
         {readiness.unavailablePlayers > 0 && (
           <>
-            <span className="text-zinc-500">Unavailable</span>
-            <span className="text-red-400">{readiness.unavailablePlayers}</span>
+            <span className="text-[var(--text-muted)]">Unavailable</span>
+            <span className="text-[var(--danger)]">{readiness.unavailablePlayers}</span>
           </>
         )}
         {readiness.blockedPlayers > 0 && (
           <>
-            <span className="text-zinc-500">Blocked</span>
-            <span className="text-red-400">{readiness.blockedPlayers}</span>
+            <span className="text-[var(--text-muted)]">Blocked</span>
+            <span className="text-[var(--danger)]">{readiness.blockedPlayers}</span>
           </>
         )}
         {readiness.supportNeeded > 0 && (
           <>
-            <span className="text-zinc-500">Support needed</span>
-            <span className="text-amber-300">{readiness.supportNeeded}</span>
+            <span className="text-[var(--text-muted)]">Support needed</span>
+            <span className="text-[var(--warning)]">{readiness.supportNeeded}</span>
           </>
         )}
         {readiness.positionGaps.length > 0 && (
           <>
-            <span className="text-zinc-500">Position gaps</span>
-            <span className="text-zinc-300">{readiness.positionGaps.join(", ")}</span>
+            <span className="text-[var(--text-muted)]">Position gaps</span>
+            <span className="text-[var(--text-soft)]">{readiness.positionGaps.join(", ")}</span>
           </>
         )}
-        <span className="text-zinc-500">Pressure</span>
-        <span className={readiness.rotationPressure === "HIGH" ? "text-amber-300" : readiness.rotationPressure === "MEDIUM" ? "text-blue-300" : "text-zinc-300"}>
+        <span className="text-[var(--text-muted)]">Pressure</span>
+        <span className={readiness.rotationPressure === "HIGH" ? "text-[var(--warning)]" : readiness.rotationPressure === "MEDIUM" ? "text-[var(--info)]" : "text-[var(--text-soft)]"}>
           {readiness.rotationPressure}
         </span>
       </div>
       {readiness.signals.length > 0 && (
         <div className="mt-2 flex flex-col gap-0.5">
           {readiness.signals.map((s, i) => (
-            <p key={i} className="text-[10px] text-amber-400">{s}</p>
+            <p key={i} className="text-[10px] text-[var(--warning)]">{s}</p>
           ))}
         </div>
       )}

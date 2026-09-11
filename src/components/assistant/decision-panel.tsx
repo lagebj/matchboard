@@ -51,7 +51,7 @@ export function DecisionPanel({ decisionType, entityType, entityId, action, acti
         type="button"
         onClick={() => setShowReasonModal(true)}
         disabled={isPending}
-        className="h-7 rounded border border-zinc-700/40 bg-zinc-800/30 px-3 text-xs font-medium text-zinc-300 hover:bg-zinc-700/30 disabled:opacity-50"
+        className="h-7 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
       >
         {actionLabel}
       </button>
@@ -60,17 +60,17 @@ export function DecisionPanel({ decisionType, entityType, entityId, action, acti
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowReasonModal(false)} />
           <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
             <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">{actionLabel}</h3>
-              <p className="text-sm text-zinc-300">A reason is required for this decision.</p>
+              <h3 className="text-base font-semibold text-[var(--foreground)]">{actionLabel}</h3>
+              <p className="text-sm text-[var(--text-soft)]">A reason is required for this decision.</p>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Enter reason..."
-                className="rounded-md border border-zinc-700/40 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+                className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--text-disabled)] focus:border-[var(--accent)] focus:outline-none"
                 rows={3}
               />
               {!reason.trim() && (
-                <p className="text-xs text-red-400">A reason is required for this decision.</p>
+                <p className="text-xs text-[var(--danger)]">A reason is required for this decision.</p>
               )}
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">

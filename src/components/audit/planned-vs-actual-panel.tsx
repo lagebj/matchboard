@@ -28,11 +28,15 @@ function formatResult(result: "won" | "drawn" | "lost" | null): string {
   }
 }
 
+// Was a genuine ADR-0130 win/loss-colour violation (emerald for a win, red for a loss) — the
+// same "a loss is not danger red, a win is not a success fill" bug already fixed once in
+// Opponents' previous-encounters-*.tsx. Fixed to the same weight-only outcomeTint pairing
+// match-presentation.tsx already established (win=foreground, loss=muted+medium, draw=soft).
 function resultColor(result: "won" | "drawn" | "lost" | null): string {
   switch (result) {
-    case "won": return "text-emerald-400";
-    case "drawn": return "text-zinc-400";
-    case "lost": return "text-red-400";
+    case "won": return "text-[var(--foreground)]";
+    case "drawn": return "text-[var(--text-soft)]";
+    case "lost": return "text-[var(--text-muted)] font-medium";
     default: return "";
   }
 }
@@ -61,7 +65,7 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
   if (error) {
     return (
       <Surface padding="md">
-        <p className="text-sm text-red-400">{error}</p>
+        <p className="text-sm text-[var(--danger)]">{error}</p>
       </Surface>
     );
   }
@@ -69,7 +73,7 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
   if (isPending || !data) {
     return (
       <Surface padding="md">
-        <p className="text-sm text-zinc-500">Loading review data...</p>
+        <p className="text-sm text-[var(--text-muted)]">Loading review data...</p>
       </Surface>
     );
   }
@@ -77,14 +81,16 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
   const reportInfo = formatReportStatus(data.reportStatus);
 
   return (
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134): rendered as a sibling
+    // of MatchReviewPage in matches/[matchId]/review/page.tsx, which now carries the class.
     <div className="flex flex-col gap-4">
       <Surface padding="md">
         <SectionHeader
           title="Planned vs Actual"
           eyebrow={`Report status: ${reportInfo.label}`}
         />
-        <p className="mt-2 text-sm text-zinc-300">{data.deltaSummary}</p>
-        <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400">
+        <p className="mt-2 text-sm text-[var(--text-soft)]">{data.deltaSummary}</p>
+        <div className="mt-2 flex items-center gap-3 text-xs text-[var(--text-muted)]">
           <span>{data.homeAway === "HOME" ? "Home" : "Away"} vs {data.opponent}</span>
           {data.result && (
             <span className={resultColor(data.result)}>
@@ -107,15 +113,15 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
             {data.plannedPlayers.map((p) => (
               <div key={p.playerId} className="flex items-center gap-2 text-sm">
                 <RoleBadge role={p.role} />
-                <span className="text-zinc-200">{p.playerName}</span>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[var(--foreground)]">{p.playerName}</span>
+                <span className="text-[10px] text-[var(--text-muted)]">
                   {p.coreTeamName && p.coreTeamName !== p.teamName ? `(${p.coreTeamName})` : ""}
                 </span>
                 {p.overrideReason && (
-                  <span className="text-[10px] text-amber-500 ml-auto">Override</span>
+                  <span className="text-[10px] text-[var(--warning)] ml-auto">Override</span>
                 )}
                 {p.matchdayResponsibility && (
-                  <span className="text-[10px] text-blue-400">{p.matchdayResponsibility.replace(/_/g, " ")}</span>
+                  <span className="text-[10px] text-[var(--info)]">{p.matchdayResponsibility.replace(/_/g, " ")}</span>
                 )}
               </div>
             ))}
@@ -134,15 +140,15 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
               .filter((a) => a.attendanceStatus === "PRESENT")
               .map((a) => (
                 <div key={a.playerId} className="flex items-center gap-2 text-sm">
-                  <span className="text-zinc-200">{a.playerName}</span>
+                  <span className="text-[var(--foreground)]">{a.playerName}</span>
                   {a.goals > 0 && (
-                    <span className="text-[10px] text-emerald-400">{a.goals}G</span>
+                    <span className="text-[10px] text-[var(--success)]">{a.goals}G</span>
                   )}
                   {a.assists > 0 && (
-                    <span className="text-[10px] text-blue-400">{a.assists}A</span>
+                    <span className="text-[10px] text-[var(--info)]">{a.assists}A</span>
                   )}
                   {a.source === "ADDED_POST_MATCH" && (
-                    <span className="text-[10px] text-amber-400 ml-auto">Unplanned</span>
+                    <span className="text-[10px] text-[var(--warning)] ml-auto">Unplanned</span>
                   )}
                 </div>
               ))}
@@ -160,12 +166,12 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
             {data.plannedButAbsent.map((p) => (
               <div key={p.playerId} className="flex items-center gap-2 text-sm">
                 <RoleBadge role={p.plannedRole} />
-                <span className="text-zinc-200">{p.playerName}</span>
+                <span className="text-[var(--foreground)]">{p.playerName}</span>
                 {p.absenceReason && (
-                  <span className="text-[10px] text-red-400">{p.absenceReason.replace(/_/g, " ")}</span>
+                  <span className="text-[10px] text-[var(--danger)]">{p.absenceReason.replace(/_/g, " ")}</span>
                 )}
                 {!p.absenceReason && (
-                  <span className="text-[10px] text-zinc-500">No reason recorded</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">No reason recorded</span>
                 )}
               </div>
             ))}
@@ -182,15 +188,15 @@ export function PlannedVsActualPanel({ matchId }: { matchId: string }) {
           <div className="mt-3 flex flex-col gap-1.5">
             {data.unplannedParticipants.map((p) => (
               <div key={p.playerId} className="flex items-center gap-2 text-sm">
-                <span className="text-zinc-200">{p.playerName}</span>
+                <span className="text-[var(--foreground)]">{p.playerName}</span>
                 {p.unplannedAppearanceReason && (
-                  <span className="text-[10px] text-amber-400">{p.unplannedAppearanceReason.replace(/_/g, " ")}</span>
+                  <span className="text-[10px] text-[var(--warning)]">{p.unplannedAppearanceReason.replace(/_/g, " ")}</span>
                 )}
                 {p.goals > 0 && (
-                  <span className="text-[10px] text-emerald-400">{p.goals}G</span>
+                  <span className="text-[10px] text-[var(--success)]">{p.goals}G</span>
                 )}
                 {p.assists > 0 && (
-                  <span className="text-[10px] text-blue-400">{p.assists}A</span>
+                  <span className="text-[10px] text-[var(--info)]">{p.assists}A</span>
                 )}
               </div>
             ))}
