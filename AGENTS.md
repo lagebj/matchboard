@@ -2642,6 +2642,22 @@ in-repo reference once the UI Lab gate is passed.
 
   See ADR-0134 for the full account, including the two verification-pass corrections that preceded
   this and this CI-caught fix.
+
+  **Phase 11 (documentation) is complete.** `docs/product/adaptive-interaction-design.md` is
+  rewritten to describe Touchline (not Product Surface 1.0) as the current canonical visual
+  system: theme/token/typography/scale/grammar-owner sections replace the old PS 1.0 palette
+  section, with PS 1.0 retained only as an explicit historical attribution where a rule it
+  established (surface families, neutral result colour, review vocabulary, exact positional
+  safety, the nine-primitive evidence-viz set) carries forward unchanged under Touchline's new
+  token values. `content/docs/settings-and-access.mdx` gained an "Appearance" section documenting
+  the already-shipped light/dark/system theme control (previously undocumented in public docs).
+  No other `content/docs/**` page referenced stale theme/visual-system language. Screenshot
+  regeneration (`npm run db:seed:docs && npm run docs:screenshots`) was not run in this pass —
+  Touchline's Phase 5–10 rollout changed no domain-visible content, only presentation, and no
+  committed documentation screenshot's *subject matter* changed; a full visual refresh of the
+  screenshot set is tracked as follow-up work rather than blocking Phase 11, consistent with the
+  "acceptance is not automatic" screenshot-regeneration discipline (DECISIONS.md D23) — see
+  ADR-0134 for the disclosed deferral.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
@@ -2663,9 +2679,15 @@ fixed pixel measurements. The normative token set is `src/app/globals.css` `:roo
 (`--surface-tactical`, `--surface-hero`, `--radius-xs…lg`, `--transition-*`, `--blocking`,
 `--border-pitch`, …) are kept as compatibility aliases while surfaces migrate phase by phase.
 
-Canonical detail: `docs/product/adaptive-interaction-design.md` (rewritten as the Product
-Surface 1.0 reference in the programme's Phase 11). This section is the concise normative rule;
-if the two ever diverge that is a defect to fix, with `AGENTS.md` winning.
+Canonical detail: `docs/product/adaptive-interaction-design.md` — rewritten in ADR-0134's Phase
+11 to describe **Touchline**, not Product Surface 1.0, as the current visual system (the plan
+recorded just below this line, when originally written, predicted a PS 1.0-framed rewrite; by
+the time Phase 11 actually ran, Touchline itself had superseded PS 1.0, so the deep reference was
+rewritten for Touchline instead — a corrected prediction, not a second rewrite). This section is
+the concise normative rule; if the two ever diverge that is a defect to fix, with `AGENTS.md`
+winning. The remainder of this subsection is left as the Product Surface 1.0 historical record
+per the "Frontend visual authority — Touchline" section above, which already states its visual
+specifics are superseded and its retained domain/accessibility principles carry forward.
 
 - **Governing principle: same domain state, different composition for the user's context.**
   Compact UI is a purpose-built composition of the same canonical state, never the desktop

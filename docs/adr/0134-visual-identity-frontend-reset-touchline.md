@@ -238,6 +238,32 @@ Every surface *named so far* was migrated at this point, and this ADR then claim
   The compact bottom nav is **opaque** (a `position: fixed` translucent surface has no determinate
   background for WCAG-AA contrast checking; `04 §12` already mandates a solid fallback).
 
+  **Phase 11 (documentation) is complete.** `docs/product/adaptive-interaction-design.md` — the
+  canonical detailed interaction-design reference this ADR's own "Documentation" decision (§11)
+  requires — is rewritten so Touchline, not Product Surface 1.0, is described as the current
+  visual system: a new §0 covers the theme system (system/light/dark, `data-theme`, storage key,
+  pre-hydration init), the `.touchline` activation class and its full working-token remap, the
+  dark/light palette table, the accent-discipline rule, the Barlow Condensed display-type
+  boundary, the exact radius/motion/spacing scale (`--tl-radius-*`/`--tl-motion-*`/`--tl-space-*`),
+  the canvas atmosphere mechanism, the `src/components/touchline/` grammar-owner list, and the
+  Phase 0–10 migration status — while explicitly retaining, as still-current interaction/domain
+  doctrine unaffected by the palette swap, everything ADR-0124/0125/0129/0130 established that
+  was never a colour/token specific: surface families, neutral result colour, the review
+  vocabulary, the fixed evidence-primitive set, and exact positional safety. §16 (motion) and
+  §16a (visual grammar precision) are recalibrated to Touchline's exact radius/motion values
+  (e.g. corners 6/8/10/12/16px, not PS 1.0's 6/8/12/16px; motion 120/160/200/260/320ms, not PS
+  1.0's 150/200/260ms) rather than left silently wrong. `content/docs/settings-and-access.mdx`
+  gained an "Appearance" section — the shipped light/dark/system theme control had no public-docs
+  coverage at all before this pass. No other `content/docs/**` page referenced stale
+  theme/visual-system language (verified by search). Screenshot regeneration
+  (`npm run db:seed:docs && npm run docs:screenshots`) is **not** run in this pass: Phases 5–10
+  changed presentation only, not the underlying domain content any committed screenshot's subject
+  matter documents, so no screenshot became factually inaccurate because of this programme —
+  screenshots gain Touchline's actual look only when regenerated at all, which is tracked as
+  disclosed follow-up work rather than treated as a Phase 11 blocker (DECISIONS.md D23:
+  regeneration is mechanical, but accepting a new screenshot as correct content is a deliberate
+  review step, not something to force through in an unattended docs pass).
+
 ## Context
 
 Product Surface 1.0 (ADR-0130) improved consistency but stayed too close to the previous

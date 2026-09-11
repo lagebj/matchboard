@@ -1,57 +1,167 @@
 # Adaptive Interaction Design
 
-> **Visual doctrine superseded by Touchline (ADR-0134).** The visual system below (Product
-> Surface 1.0 — palette, materials, typography scale, score/timeline/evidence visuals, page-width
-> assumptions, dark-only mode) is superseded by the Matchboard Visual Identity & Frontend Reset
-> 1.0 ("Touchline"). During Phases 0–3 the new system lives in `src/app/touchline.css` +
-> `src/components/touchline/` and is exercised at `/dev/ui-lab`; this document is rewritten as the
-> Touchline reference once the UI Lab human-approval gate is passed (bundle Phase 11). Until then,
-> the **retained** domain/adaptive/accessibility principles here (same canonical domain truth at
-> every viewport, `MatchPresentation` / `OperationalTimeline` ownership, breakpoints, no
-> colour-only meaning, visible focus, touch targets, no drag-only workflow, positional safety,
-> PWA safe-area behaviour) remain current; the visual specifics do not. See ADR-0134 and
-> `.matchboard-work/matchboard_visual_identity_frontend_reset_2026-09-10/`.
-
-> **Status:** Canonical detailed interaction-design reference, updated for **Product Surface 1.0**
-> (ADR-0130). `AGENTS.md` remains the highest repo-level authority; if this document and
+> **Status:** Canonical detailed interaction-design reference, updated for **Touchline**
+> (ADR-0134 — Matchboard Visual Identity & Frontend Reset 1.0), which is now the current visual
+> system across the whole app (Phases 0–10 complete: theme system, `src/app/touchline.css`
+> tokens, `src/components/touchline/` grammar, and the `.touchline` activation class hoisted to
+> the shell root). `AGENTS.md` remains the highest repo-level authority; if this document and
 > `AGENTS.md` ever diverge, that is a defect to fix, not a choice between two valid rules.
+>
+> Touchline supersedes the earlier **Product Surface 1.0** (ADR-0130) visual doctrine — palette,
+> raw token values, typography display treatment, and the exact motion/radius scale below are
+> Touchline's, not PS 1.0's. What ADR-0130 established that is **not** a colour/token specific —
+> surface families, neutral result colour, the review vocabulary, the fixed evidence primitive
+> set, and exact positional safety — is retained unchanged and is called out explicitly below.
 > Architectural rationale and superseded prior decisions are recorded in **ADR-0124**,
 > **ADR-0125** (reference-convergence — the `MatchPresentation` projection, the
 > `OperationalTimeline`, the fixed evidence-story mappings), **ADR-0129** (exact positional
-> semantics), and **ADR-0130** (Product Surface 1.0 visual system and surface families, which
-> supersedes the earlier "exactly three match variants" and "fixed set of seven visualization
-> primitives" rules).
+> semantics), **ADR-0130** (Product Surface 1.0 — superseded for visual specifics, retained for
+> the interaction/domain doctrine named above), and **ADR-0134** (Touchline — the current
+> authority for palette, tokens, typography, and motion).
 
-## 0. Product Surface 1.0 (ADR-0130)
+## 0. Touchline (ADR-0134)
 
-The current visual system. What ADR-0124/0125 established that **still holds**: same canonical
-domain state at every viewport; one canonical `MatchPresentation` and one `OperationalTimeline`
-as sole owners of their concepts; the five breakpoint tokens; WCAG AA / visible focus / ~44px
-touch targets / no colour-only state; no drag-only workflow; installed-PWA and safe-area
-handling; temporal Today/Events composition.
+The current visual system. Canonical detailed spec:
+`.matchboard-work/matchboard_visual_identity_frontend_reset_2026-09-10/` (gitignored working
+bundle).
 
-What Product Surface 1.0 replaces:
+### 0.1 Theme
 
-- **Tokens** — solid dark canvas (`--background #0b0f17`, `--foreground #f2f5f7`), solid surface
-  hierarchy `--surface-base` → `--surface-raised` → `--surface-strong` → `--surface-hover`,
-  `--surface-overlay` for nav/sticky bars; cool hairline borders (`--border-soft`,
-  `--border-strong`); `--accent #8fb49a` for own-team identity only (never an outcome);
-  `--danger` **only** destructive/error/blocking; `--live #ef6464` a distinct colour, not
-  danger; `--success` workflow-only, never a win; `--focus #93b7ff` focus ring;
-  `--radius-micro/control/object/overlay` = 6/8/12/16; `--motion-fast/standard/overlay` =
-  150/200/260ms with `--motion-ease cubic-bezier(0.2,0.8,0.2,1)`; `--space-1…12` =
-  4 8 12 16 20 24 32 40 48. Older token names remain as compatibility aliases.
-- **Background** — solid canvas + **one** subtle fixed radial atmosphere. No repeating
-  pitch-line texture, no ordinary-card gradients, no glows.
+Three appearance states: `system` (default, follows `prefers-color-scheme`), `light`, `dark`.
+An explicit choice stamps `data-theme="light" | "dark"` on `<html>`; `system` stamps nothing and
+resolves purely from the media query. Storage key `matchboard-theme`
+(`src/lib/theme/`); a pre-hydration inline script (`THEME_INIT_SCRIPT`) applies the stored choice
+to `<html>` before first paint so there is no flash through the wrong appearance. **Light is a
+first-class production theme, not a fallback** — dark remains the reference appearance the
+design was authored against, but both are maintained to the same bar. A coach controls this via
+the Appearance control on Settings; it is a personal per-device display preference only.
+
+### 0.2 Tokens and activation
+
+Raw palette and scale live in `src/app/touchline.css` as `--tl-*` custom properties, and are
+activated on a subtree by the `.touchline` class, which remaps them onto the "working" token
+names every component actually consumes (`--background`, `--foreground`, `--surface-base`/
+`-raised`/`-strong`/`-hover`/`-muted`/`-overlay`, `--border-soft`/`-strong`, `--text-soft`/
+`-muted`/`-disabled`, `--accent`/`-strong`/`-subtle`, `--live`/`-subtle`, `--danger`/`-subtle`,
+`--warning`/`-subtle`, `--info`/`-subtle`, `--success`/`-subtle`, `--dev`/`-subtle`, `--focus`)
+and also exposes Touchline-only names (`--tl-c-*`) for components that want the raw scale
+directly. `.touchline` is applied once, at the app shell root (`<body>`, `src/app/layout.tsx`) —
+every route renders inside its scope; there is no remaining unmigrated surface, and
+`src/app/globals.css`'s old bare-`:root` colour palette and compatibility aliases have been
+removed (Phase 10) since nothing renders outside `.touchline` anymore. `src/app/globals.css`
+still owns the genuinely shared, non-visual structural scale (radius/motion/spacing/layout
+fallbacks, the typography-scale custom properties in §5) that both the retired PS 1.0 system and
+Touchline size/space/round themselves against; the exact Touchline-authored scale a component
+should reach for is `--tl-*`, described below.
+
+**Palette** — dark (primary/reference) and light (first-class) are both fully defined:
+
+| Token | Dark | Light |
+|-------|------|-------|
+| `--tl-canvas` / `--tl-canvas-raised` | `#090b0f` / `#0d1117` | `#f3f5f1` / `#ecefe9` |
+| `--tl-surface` / `-strong` / `-selected` / `-hover` | `#11161d` / `#171e27` / `#1a222c` / `#151b23` | `#ffffff` / `#e6eae4` / `#e2e7df` / `#edf0eb` |
+| `--tl-foreground` | `#f5f7f2` | `#101316` |
+| `--tl-text-soft` / `-muted` / `-disabled` | `#a5afbb` / `#7f8997` / `#596270` | `#59636e` / `#616973` / `#9aa1a8` |
+| `--tl-border-soft` / `-strong` | hairlines at 10%/17% foreground alpha (both themes) | same |
+| `--tl-accent` / `-strong` | `#c7f54a` / `#d8ff73` (luminous lime) | `#4f6c00` / `#486100` (deep olive) |
+| `--tl-live` | `#ff5c5c` | `#c43d3d` |
+| `--tl-danger` | `#e07068` | `#a92f2a` |
+| `--tl-attention` (→ `--warning`) | `#e4b85f` | `#8b5e09` |
+| `--tl-info` | `#78a9ff` | `#2f64b2` |
+| `--tl-positive` (→ `--success`) | `#71c58c` | `#267a42` |
+| `--tl-evidence` (→ `--dev`) | `#a88aff` | `#7150b8` |
+
+Football outcome rule (carried forward from ADR-0130, still absolute): a win is never rendered
+with `--success`/green and a loss is never rendered with `--danger`/an error colour — a result is
+neutral, and outcome text (`Won`/`Drawn`/`Lost`, `FT`) carries the meaning. `--live` is its own
+distinct hue in both themes, never `--danger` reused for "in progress."
+
+**Accent discipline**: `--accent` is used sparsely — own-team identity, the active nav item, a
+focus ring, a primary interactive affordance — never as a decorative fill, and never repurposed
+as a result colour.
+
+### 0.3 Typography
+
+Geist Sans (`--tl-font-ui`) is the UI/body/navigation/name typeface throughout, in both themes.
+**Barlow Condensed** (`--tl-font-sport`, loaded at weights 600/700 only) is reserved exclusively
+for the small set of sports/numeric display roles via the `.tl-*` classes in `touchline.css` —
+`.tl-score-hero`, `.tl-score-list`, `.tl-clock`, `.tl-round-marker`, `.tl-evidence-number` — a
+match score, a prominent live clock, a large kickoff time, a week/round marker, or one major
+evidence number. It must never be used for body copy, navigation, or team/player names; the
+compact typography scale in §5 (Geist, `--text-*` tokens) is unchanged and is what those contexts
+use.
+
+### 0.4 Scale (radius / motion / spacing)
+
+Touchline's own scale, layered over the shared structural fallback in `globals.css`:
+
+| Radius | Value | Use |
+|--------|-------|-----|
+| `--tl-radius-status` | 6px | status chips, micro badges |
+| `--tl-radius-control` | 8px | buttons, inputs, controls |
+| `--tl-radius-object` | 10px | a coherent interactive object (row, card) |
+| `--tl-radius-feature` | 12px | a featured/hero object |
+| `--tl-radius-overlay` | 16px | modal / sheet / drawer |
+
+| Motion | Value | Use |
+|--------|-------|-----|
+| `--tl-motion-micro` | 120ms | state/hover micro-feedback |
+| `--tl-motion-state` | 160ms | control state change |
+| `--tl-motion-content` | 200ms | local panel/row content change |
+| `--tl-motion-panel` | 260ms | sheet/drawer open-close |
+| `--tl-motion-route-max` | 320ms | ceiling for a route/page-level transition |
+
+Easing is one curve throughout: `--tl-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1)`.
+
+Spacing scale (4px rhythm, unchanged from the retained structural fallback, plus one added major
+step): `--tl-space-1…16` = 4, 8, 12, 16, 20, 24, 32, 40, 48, 64px — the last (64px) is for a
+major desktop-only gap that PS 1.0's scale did not need.
+
+### 0.5 Canvas atmosphere
+
+One faint top-right accent-hued radial and one broad lower-left cool-hued wash, painted on a
+fixed `::before` pseudo-element (`.touchline-canvas`) behind the real content — never a
+`background-image` on the canvas element itself, which would make automated contrast tooling
+treat the page background as indeterminate. No repeating pitch-line geometry, no per-card glow,
+no ordinary-card gradients. Applied once, at `<body>` (`touchline touchline-canvas` classes on
+the root layout).
+
+### 0.6 Grammar owners
+
+`src/components/touchline/` is the one place each Touchline grammar family is implemented:
+scorebook (`ScorebookMatchRow`, `ScorebookRoundSection`), match (`MatchScoreHeader`,
+`LiveScoreStrip`, `OperationalMatchCard`), timeline (`TouchlineTimeline`), evidence
+(`EvidenceStory` + `PhaseDistribution` / `OutcomePair` / …), workbench (`WorkbenchToolbar`,
+`RosterColumn`, `RosterRow`, `TouchlineInspector`), navigation (`TouchlineSidebar` /
+`TouchlineRail` / `TouchlineBottomNav`), `TouchlineContextRail`, `TouchlineBottomSheet`. The
+canonical `MatchPresentation` (§6, ADR-0125) remains the sole owner of home/away, score
+orientation, own-team side, lifecycle, outcome, clock, cancellation, and planning/report
+attention — these presentation components consume it, they do not re-derive match truth.
+
+### 0.7 Migration status
+
+Phases 0–10 are complete: theme system, token set, `/dev/ui-lab` preview harness, the full
+component grammar, and — as of Phase 10 — `.touchline` activated at the true shell root (every
+route renders inside its scope) with PS 1.0's old bare-`:root` palette and compatibility aliases
+deleted from `globals.css`. Phase 11 (this document, public user docs, screenshot regeneration)
+and Phase 12 (full verification sweep) are the closing phases of the programme. See ADR-0134 for
+the complete phase-by-phase history.
+
+### 0.8 What's retained unchanged (ADR-0124 / ADR-0125 / ADR-0129 / ADR-0130)
+
+These are interaction/domain rules, not colour or token specifics, and Touchline changes none of
+them:
+
+- same canonical domain state at every viewport; one canonical `MatchPresentation` and one
+  `OperationalTimeline` as sole owners of their concepts; the five breakpoint tokens;
+- WCAG AA / visible focus / ~44px touch targets / no colour-only state; no drag-only workflow;
+  installed-PWA and safe-area handling; temporal Today/Events composition;
 - **Surface families** — five: temporal flow; match/result scan; planning workspace;
-  evidence/story; reference/configuration. The same design system does **not** mean an
-  identical card everywhere. Scan lists use one parent surface (or the canvas) with dividers
-  and **no card per row**. Cards are reserved for: the dominant next-action object; a selected
-  match/decision; an evidence story; a modal/sheet; one coherent interactive object when a row
-  is insufficient. No nested bordered cards; no routine desktop shadows.
-- **Result colour is neutral** — a win is never green, a loss is never a danger/error colour.
-  Outcome text (`Won`/`Drawn`/`Lost`, `FT`) always carries the meaning; colour is at most
-  secondary reinforcement and never the sole signal.
+  evidence/story; reference/configuration. Scan lists use one parent surface (or the canvas)
+  with dividers and **no card per row**. Cards are reserved for: the dominant next-action object;
+  a selected match/decision; an evidence story; a modal/sheet; one coherent interactive object
+  when a row is insufficient. No nested bordered cards; no routine desktop shadows.
+- **Result colour is neutral** (§0.2 above; carried forward from ADR-0130 as an absolute rule).
 - **Review vocabulary** (ADR-0131) — five distinct concepts: **Check** (inspect generated work;
   the `Populate → Check → Adjust` step), **Attention** (current reality needing action, incl. a
   due Decision review — never an error), **Reflect** (post-play observation), **Peer review**
@@ -149,9 +259,10 @@ colour alone. Draft state and finalised history must never look visually interch
 | `--text-micro` | exceptional micro-label | ≥11 (floor — reduce density, not font size) |
 
 Remove routine 9px UI text. Reduce excessive uppercase tracking; use uppercase only for short
-orientation/status metadata. Geist Sans for UI; Geist Mono only for real code/technical values.
-Use tabular numerals for score/time/minutes/comparisons. Never shrink text merely to preserve
-desktop density.
+orientation/status metadata. Geist Sans for UI; Geist Mono only for real code/technical values;
+Barlow Condensed only via the `.tl-*` display classes in §0.3 — never for this scale. Use tabular
+numerals for score/time/minutes/comparisons. Never shrink text merely to preserve desktop
+density.
 
 ## 6. Canonical match visual grammar (ADR-0125)
 
@@ -170,17 +281,18 @@ Fields: `homeTeam`, `awayTeam`, `ownTeamSide` (`"home" | "away" | null`), `kicko
 `resultOutcomeForOwnTeam`, `outcomeLabel`, `planningAttention`, `reportAttention`,
 `cancelledReason`.
 
-### Match render variants (`src/components/ui/match-presentation.tsx`)
+### Match render variants (`src/components/ui/match-presentation.tsx`, Touchline: `src/components/touchline/`)
 
 ADR-0130 reopened the earlier "exactly three variants" rule; the list below is the current set,
-not permanent doctrine. A new variant needs a specification change.
+not permanent doctrine. A new variant needs a specification change. Touchline's scorebook/match
+grammar owners (§0.6) render the same variants with Touchline's visual language.
 
 | Variant | Use | Shape |
 |---------|-----|-------|
-| `MatchRow` (alias `MatchScoreRow`) | League/Fixtures, the Today operational timeline, event-day timelines, results/history | dense, **divider-based, no card border**; two team lines each with its value in a stable right-aligned lane; one status line; at most one secondary attention |
-| `MatchCard` | Today next-action hero, Round Board / event selected-match summary | one bordered card (`--radius-object`); `DATE · TIME` eyebrow above teams; one dominant action slot; one attention sentence |
-| `MatchHeader` | match-specific pages (detail, Follow Live, Live Reporting) | state readable before page controls; score uses `--text-score-header`; compact stacks home/away with per-line value; expanded shows one inline `home  N : M  away` line |
-| `MatchLiveStrip` | a compact live status strip where a full header is too much | teams + score + `LIVE · <clock>`, no mutating controls |
+| `MatchRow` (alias `MatchScoreRow`; Touchline: `ScorebookMatchRow`) | League/Fixtures, the Today operational timeline, event-day timelines, results/history | dense, **divider-based, no card border**; two team lines each with its value in a stable right-aligned lane; one status line; at most one secondary attention |
+| `MatchCard` (Touchline: `OperationalMatchCard`) | Today next-action hero, Round Board / event selected-match summary | one bordered card (`--tl-radius-object`); `DATE · TIME` eyebrow above teams; one dominant action slot; one attention sentence |
+| `MatchHeader` (Touchline: `MatchScoreHeader`) | match-specific pages (detail, Follow Live, Live Reporting) | state readable before page controls; score uses `--text-score-header`/`.tl-score-hero`; compact stacks home/away with per-line value; expanded shows one inline `home  N : M  away` line |
+| `MatchLiveStrip` (Touchline: `LiveScoreStrip`) | a compact live status strip where a full header is too much | teams + score + `LIVE · <clock>`, no mutating controls |
 
 ### Rules
 
@@ -214,9 +326,9 @@ not permanent doctrine. A new variant needs a specification change.
 ## 6a. Operational Timeline (ADR-0125)
 
 One canonical timeline system — `OperationalTimeline` + `TimelineItem`
-(`src/components/ui/operational-timeline.tsx`) — used on **Today** and **Event detail**
-(event-day flow). It is a structure for football work, not a calendar product, a task manager,
-or a general inbox.
+(`src/components/ui/operational-timeline.tsx`; Touchline: `TouchlineTimeline`) — used on
+**Today** and **Event detail** (event-day flow). It is a structure for football work, not a
+calendar product, a task manager, or a general inbox.
 
 ### Compact anatomy (`<600px`)
 
@@ -226,8 +338,8 @@ or a general inbox.
 
 ### Item types
 
-- **Match item** — renders `MatchScoreRow` in the content area; the timeline owns time
-  position, the match component owns teams/score/state/action.
+- **Match item** — renders `MatchScoreRow`/`ScorebookMatchRow` in the content area; the timeline
+  owns time position, the match component owns teams/score/state/action.
 - **Event item** — event name, start/end, readiness/action state.
 - **Follow-up item** — post-match report or another canonical required follow-up. Stays
   prominent after the match ends until the work is complete; **never auto-collapsed**.
@@ -260,7 +372,8 @@ it answers: what matters now or next, what needs action, which object to open.
 ### Compact composition order
 
 1. page title + compact context/date orientation;
-2. dominant **Next Action** object (renders `MatchCard` when the next action is a match);
+2. dominant **Next Action** object (renders `MatchCard`/`OperationalMatchCard` when the next
+   action is a match);
 3. `OperationalTimeline` — now / next / later / earlier, chronological, one rail;
 4. secondary coaching context (visually quieter);
 5. distant / upcoming information;
@@ -371,8 +484,8 @@ canonical match grammar, typography, safe-area, and touch rules. Preserve: live 
 mutable, Follow Live is read-only, score/clock/on-field state derives from canonical live state,
 refresh does not change truth. Do not merge read-only and mutating interaction patterns.
 
-- **Follow Live** and **League match detail** use the full `MatchHeader` variant for the match
-  identity.
+- **Follow Live** and **League match detail** use the full `MatchHeader`/`MatchScoreHeader`
+  variant for the match identity.
 - **Live Reporting** keeps a compact **one-row** sticky scoreboard — a deliberate
   operational-focus density exception so the live action buttons stay above the fold — but it
   follows canonical football home→away order and marks the own team by a subtle name accent, not
@@ -388,8 +501,9 @@ Do not start by choosing a chart library. Every visualization answers a concrete
 `value → context → pattern → interpretation`
 
 Small primitive set only. ADR-0130 removed the "fixed set of seven forever" rule; the approved
-set for Product Surface 1.0 is **nine** (this list is not permanent future doctrine, and no
-further primitive may be added without a specification change):
+set is **nine** (this list is not permanent future doctrine, and no further primitive may be
+added without a specification change) — this set and its rules carry forward unchanged under
+Touchline, styled with Touchline's tokens:
 
 | Primitive | Question | Status |
 |-----------|----------|--------|
@@ -450,31 +564,36 @@ navigation.
 Use motion only to explain insertion/removal, state transition, panel open/close, or
 movement/reorder. No decorative animation programme. Respect `prefers-reduced-motion`.
 
-Three timing tokens only (ADR-0130): `--motion-fast 150ms` (state/hover); `--motion-standard
-200ms` (local panel/row); `--motion-overlay 260ms` (sheet/drawer). Easing `--motion-ease
-cubic-bezier(0.2,0.8,0.2,1)`. Never animate a score continuously, a timeline rail drawing
-itself, charts on every scroll into view, or an attention state with a perpetual pulse. No
-celebratory score animation, no list-entrance cascade.
+Touchline's timing scale (§0.4): `--tl-motion-micro 120ms` (state/hover micro-feedback);
+`--tl-motion-state 160ms` (control state change); `--tl-motion-content 200ms` (local
+panel/row content change); `--tl-motion-panel 260ms` (sheet/drawer open-close);
+`--tl-motion-route-max 320ms` (ceiling for a route/page-level transition). One easing curve:
+`--tl-motion-ease cubic-bezier(0.2, 0.8, 0.2, 1)`. Never animate a score continuously, a timeline
+rail drawing itself, charts on every scroll into view, or an attention state with a perpetual
+pulse. No celebratory score animation, no list-entrance cascade.
 
-## 16a. Visual grammar precision (ADR-0125 / bundle 06)
+## 16a. Visual grammar precision (ADR-0125 / bundle 06, recalibrated to Touchline's exact scale — ADR-0134)
 
 - **Spacing** on a 4px rhythm: 4 micro / 8 related-inline / 12 compact-internal / 16 standard
   compact padding / 20 section-internal / 24 section gap / 32 major section / 40–48 major desktop
-  only. Avoid arbitrary 13/17/22px unless an existing shared token requires it.
+  / 64 major-desktop-only gap (`--tl-space-1…16`, §0.4). Avoid arbitrary 13/17/22px unless an
+  existing shared token requires it.
 - **Page padding**: compact 16px; medium 20–24px; expanded 24–32px; wide workbench uses width
   for panels, not ever-growing page padding.
-- **Corners**: small controls/chips ~6–8px; standard interactive object ~12px; sheet/dialog
-  ~16–20px. No pill radius on ordinary cards/rows.
+- **Corners** (`--tl-radius-*`, §0.4): status chips/micro badges 6px; buttons/inputs/controls
+  8px; a coherent interactive object (row, card) 10px; a featured/hero object 12px; sheet/dialog/
+  drawer 16px. No pill radius on ordinary cards/rows.
 - **Dividers over cards**: primary list separation uses thin dividers or spacing. Reserve
   bordered cards for the dominant Next Action, a self-contained evidence story, sheet/dialog
   sections, and important grouped interactive objects — not every match/player/metric/timeline
   row.
-- **Shadows**: minimal/none for normal content; reserved for floating nav, sheets/dialogs, and
-  sticky overlays.
+- **Shadows**: minimal/none for normal content; reserved for floating nav
+  (`--tl-shadow-control`), sheets/dialogs, and sticky overlays (`--tl-shadow-overlay`).
 - **Typography**: use the `--text-*` tokens in §5 (`--text-score-header` 34/40, `--text-value`
-  22/24 for dense list scores, `--text-row-title` 15/16 for names, `--text-micro` ≥11 floor).
-  Tabular numerals for scores/clocks. Uppercase only for very short labels (`LIVE`, `FT`,
-  `NEXT`). No 9px primary UI text.
+  22/24 for dense list scores, `--text-row-title` 15/16 for names, `--text-micro` ≥11 floor) for
+  ordinary UI text; use the `.tl-*` display classes (§0.3) only for score/clock/round-marker/major
+  evidence number. Tabular numerals for scores/clocks. Uppercase only for very short labels
+  (`LIVE`, `FT`, `NEXT`). No 9px primary UI text.
 - **Icons** only where they speed recognition (nav icon+label, overflow/action). Status text
   generally needs no icon; timeline nodes are structural markers, not decorative icons; evidence
   charts carry no decorative sports icons. Compact icon size 18–22px.
@@ -484,7 +603,8 @@ celebratory score animation, no list-entrance cascade.
   match, live) = more whitespace, one dominant action, larger value; *scan density* (League
   rows, event lists, player lists) = compact rhythm, aligned value lanes, dividers; *analysis
   density* (evidence detail / desktop workbench) = more data, still grouped by questions/stories.
-- Use existing Matchboard colour tokens only. Do not copy reference-app colours.
+- Use existing Matchboard colour tokens only (`--tl-*` / the working names they remap to in
+  §0.2). Do not copy reference-app colours; do not hardcode a hex value in a component.
 
 ## 17. Explicit anti-patterns
 
@@ -495,7 +615,8 @@ celebratory score animation, no list-entrance cascade.
 - a card for every metric or text fragment; a card border on every `MatchRow`; a card per row in
   a scan list; nested bordered cards;
 - routine 9px primary UI text; shrinking text to preserve desktop density;
-- a repeating pitch-line background texture, ordinary-card gradients, or glows;
+- a repeating pitch-line background texture, ordinary-card gradients, or glows (Touchline's own
+  canvas atmosphere is deliberately one faint fixed radial pairing, nothing per-card);
 - a win shown in green or a loss shown in a danger/error colour; `--live` rendered as
   `--danger`; colour as the only signal for a result or status;
 - competing per-surface match components; a match row that does not render from
@@ -516,4 +637,7 @@ celebratory score animation, no list-entrance cascade.
   evidence surface;
 - a separate mobile app or a separate mobile route tree;
 - UI-local copies of domain rules or client-only validation shortcuts;
-- reintroducing a coach-operated Finalise round / Finalise match action.
+- reintroducing a coach-operated Finalise round / Finalise match action;
+- hardcoding a raw hex colour or an undefined Tailwind utility class in a component instead of
+  the `.touchline`-remapped token names (§0.2) — the exact bug class Phase 10 found and fixed
+  across the app.
