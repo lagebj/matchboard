@@ -58,7 +58,7 @@ export function AssessmentHistoryPanel({ playerId }: AssessmentHistoryPanelProps
   if (loading) {
     return (
       <Surface>
-        <div className="p-4 text-sm text-muted-foreground">Loading assessment history...</div>
+        <div className="p-4 text-sm text-[var(--text-muted)]">Loading assessment history...</div>
       </Surface>
     );
   }
@@ -66,7 +66,7 @@ export function AssessmentHistoryPanel({ playerId }: AssessmentHistoryPanelProps
   if (error) {
     return (
       <Surface>
-        <div className="p-4 text-sm text-destructive">{error}</div>
+        <div className="p-4 text-sm text-[var(--danger)]">{error}</div>
       </Surface>
     );
   }
@@ -76,7 +76,7 @@ export function AssessmentHistoryPanel({ playerId }: AssessmentHistoryPanelProps
       <div className="p-4">
         <SectionHeader title="Assessment history" description="Attribute changes recorded by the evidence engine or coach." />
         {changes.length === 0 ? (
-          <p className="text-sm text-muted-foreground mt-2">No assessment changes recorded.</p>
+          <p className="text-sm text-[var(--text-muted)] mt-2">No assessment changes recorded.</p>
         ) : (
           <div className="mt-3 space-y-2">
             {changes.slice(0, 20).map((change) => (
@@ -89,27 +89,27 @@ export function AssessmentHistoryPanel({ playerId }: AssessmentHistoryPanelProps
                     {change.attributeKey ?? TARGET_TYPE_LABELS[change.targetType] ?? change.targetType}
                   </span>
                   {change.targetDescription && (
-                    <span className="text-xs text-muted-foreground">{change.targetDescription}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{change.targetDescription}</span>
                   )}
                   {change.reason && (
-                    <span className="text-xs text-muted-foreground">{change.reason}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{change.reason}</span>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-0.5">
                   <span className="font-mono text-sm">
                     {change.beforeValue !== null ? Number(change.beforeValue).toFixed(0) : "—"} → {change.afterValue !== null ? Number(change.afterValue).toFixed(0) : "—"}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-[var(--text-muted)]">
                     {SOURCE_LABELS[change.source] ?? change.source}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-[var(--text-muted)]">
                     {new Date(change.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>
             ))}
             {changes.length > 20 && (
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-[var(--text-muted)] text-center">
                 Showing 20 of {changes.length} changes
               </p>
             )}

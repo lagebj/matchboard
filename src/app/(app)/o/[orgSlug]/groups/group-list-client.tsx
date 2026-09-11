@@ -44,7 +44,7 @@ export function GroupListClient({
         </div>
         <Link
           href={`/o/${orgSlug}/groups/new`}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="inline-flex items-center gap-2 rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105"
         >
           <Plus className="h-4 w-4" />
           Create group
@@ -60,7 +60,7 @@ export function GroupListClient({
           </p>
           <Link
             href={`/o/${orgSlug}/groups/new`}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105"
           >
             <Plus className="h-4 w-4" />
             Create group
@@ -72,12 +72,12 @@ export function GroupListClient({
             <Link
               key={group.id}
               href={`/o/${orgSlug}/groups/${group.slug}`}
-              className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              className="flex items-center justify-between rounded-lg border p-4 hover:bg-[var(--surface-hover)] transition-colors"
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium">{group.name}</h3>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                  <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {GROUP_TYPE_LABELS[group.type] ?? group.type}
                   </span>
                   {group.cohortYear && (

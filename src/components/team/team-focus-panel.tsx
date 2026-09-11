@@ -154,7 +154,7 @@ export function TeamFocusPanel({
       </div>
 
       {activeFocuses.length === 0 && !adding && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           No active focus blocks. Add a focus to track what the team is working on.
         </p>
       )}
@@ -242,9 +242,9 @@ export function TeamFocusPanel({
                   </span>
                 </div>
                 {focus.context && (
-                  <p className="mt-1 text-sm text-muted-foreground">{focus.context}</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">{focus.context}</p>
                 )}
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Started {formatDate(focus.startedAt)}
                 </p>
               </div>
@@ -288,7 +288,7 @@ export function TeamFocusPanel({
 
       {pastFocuses.length > 0 && (
         <details className="group">
-          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+          <summary className="cursor-pointer text-sm font-medium text-[var(--text-muted)] hover:text-[var(--foreground)]">
             Past focus ({pastFocuses.length})
           </summary>
           <div className="mt-2 space-y-2">
@@ -300,7 +300,7 @@ export function TeamFocusPanel({
                     <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[focus.status]}`}>
                       {STATUS_LABELS[focus.status]}
                     </span>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[var(--text-muted)]">
                       {formatDate(focus.startedAt)}
                       {focus.completedAt ? ` — completed ${formatDate(focus.completedAt)}` : ""}
                       {focus.closedAt ? ` — closed ${formatDate(focus.closedAt)}` : ""}

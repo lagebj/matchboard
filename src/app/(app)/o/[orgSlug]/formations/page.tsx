@@ -7,9 +7,8 @@ import { formatGameFormatShort } from "@/lib/formations/types";
 import type { GameFormat } from "@/generated/prisma/client";
 import { Surface } from "@/components/ui/surface";
 import { StatusPill } from "@/components/ui/status-pill";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 
 const GAME_FORMATS: GameFormat[] = ["THREE_A_SIDE", "FIVE_A_SIDE", "SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"];
 
@@ -28,14 +27,15 @@ export default async function FormationsPage({ params, searchParams }: { params:
   const formations = await getFormationsForFormat(selectedFormat);
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-4">
+      <TouchlinePageHeader
         title="Formations"
-        description="Manage system and custom formations for each game format."
+        context="Manage system and custom formations for each game format."
         actions={
-          <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/formations/new?gameFormat=${selectedFormat}`}>
+          <TouchlineButton variant="primary" size="sm" as="a" href={`/o/${orgSlug}/formations/new?gameFormat=${selectedFormat}`}>
             Create formation
-          </Button>
+          </TouchlineButton>
         }
       />
 
@@ -47,7 +47,7 @@ export default async function FormationsPage({ params, searchParams }: { params:
             className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
               gf === selectedFormat
                 ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
-                : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-zinc-50"
+                : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--foreground)]"
             }`}
           >
             {formatGameFormatShort(gf)}
@@ -61,9 +61,9 @@ export default async function FormationsPage({ params, searchParams }: { params:
           description={`Create a ${formatGameFormatShort(selectedFormat)} formation to define pitch positions and roles.`}
           illustration="emptyLineup"
           action={
-            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/formations/new?gameFormat=${selectedFormat}`}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={`/o/${orgSlug}/formations/new?gameFormat=${selectedFormat}`}>
               Create formation
-            </Button>
+            </TouchlineButton>
           }
         />
       ) : (
@@ -73,7 +73,7 @@ export default async function FormationsPage({ params, searchParams }: { params:
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-zinc-200 truncate">{formation.name}</span>
+                    <span className="text-sm font-medium text-[var(--foreground)] truncate">{formation.name}</span>
                     <StatusPill variant={formation.source === "SYSTEM" ? "info" : "neutral"} size="sm">
                       {formation.source === "SYSTEM" ? "System" : "Custom"}
                     </StatusPill>
@@ -86,9 +86,9 @@ export default async function FormationsPage({ params, searchParams }: { params:
 
               <div className="flex items-center gap-1.5 mt-2">
                 {formation.source === "CUSTOM" && (
-                  <Button variant="ghost" size="sm" as="a" href={`/o/${orgSlug}/formations/${formation.id}/edit`}>
+                  <TouchlineButton variant="ghost" size="sm" as="a" href={`/o/${orgSlug}/formations/${formation.id}/edit`}>
                     Edit
-                  </Button>
+                  </TouchlineButton>
                 )}
                 <FormationsDuplicateButton formationId={formation.id} />
                 {formation.source === "CUSTOM" && (
@@ -110,7 +110,7 @@ function FormationsDuplicateButton({ formationId }: { formationId: string }) {
       const { duplicateFormation } = await import("@/app/(app)/rules/formation-actions");
       await duplicateFormation(formationId);
     }}>
-      <Button variant="ghost" size="sm" type="submit">Duplicate</Button>
+      <TouchlineButton variant="ghost" size="sm" type="submit">Duplicate</TouchlineButton>
     </form>
   );
 }
@@ -122,7 +122,7 @@ function FormationsArchiveButton({ formationId }: { formationId: string }) {
       const { archiveFormation } = await import("@/app/(app)/rules/formation-actions");
       await archiveFormation(formationId);
     }}>
-      <Button variant="ghost" size="sm" type="submit" className="text-[var(--danger)] hover:text-[var(--danger)]">Archive</Button>
+      <TouchlineButton variant="ghost" size="sm" type="submit" className="text-[var(--danger)] hover:text-[var(--danger)]">Archive</TouchlineButton>
     </form>
   );
 }

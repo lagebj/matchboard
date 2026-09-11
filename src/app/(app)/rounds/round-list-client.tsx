@@ -10,6 +10,7 @@ import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { CalendarRange } from "lucide-react";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { TouchlineButton } from "@/components/touchline";
 
 type RoundListItem = {
   id: string;
@@ -74,6 +75,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
   const filtered = filterRounds(rounds, filter);
 
   return (
+    // Rendered inside o/[orgSlug]/rounds/page.tsx's .touchline island — no wrap needed here.
     <>
       <div className="flex items-center gap-2 mt-4">
         {filterConfig.map((f) => (
@@ -83,7 +85,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               filter === f.key
                 ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)] border border-[var(--accent)]/30"
-                : "text-[var(--text-muted)] hover:text-zinc-50 hover:bg-[var(--surface-hover)] border border-transparent"
+                : "text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >
             {f.label}
@@ -91,8 +93,9 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
         ))}
         <div className="ml-auto flex gap-2">
           {roundCount > 0 && (
-            <button
-              className="rounded-full border app-hairline px-3 py-1.5 text-xs font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50 transition"
+            <TouchlineButton
+              variant="secondary"
+              size="sm"
               disabled={isPending}
               onClick={() => {
                 startTransition(async () => {
@@ -103,11 +106,12 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
               }}
             >
               Regroup rounds
-            </button>
+            </TouchlineButton>
           )}
           {hasNotGeneratedRounds && activeLeagueSeasonId && (
-            <button
-              className="rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 py-1.5 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition"
+            <TouchlineButton
+              variant="primary"
+              size="sm"
               disabled={isPending}
               onClick={() => {
                 startTransition(async () => {
@@ -119,11 +123,12 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
               }}
             >
               {isPending ? "Generating..." : "Populate all rounds"}
-            </button>
+            </TouchlineButton>
           )}
           {hasDraftRounds && activeLeagueSeasonId && (
-            <button
-              className="rounded-full border border-zinc-600/50 bg-zinc-800/30 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700/30 transition"
+            <TouchlineButton
+              variant="secondary"
+              size="sm"
               disabled={isPending}
               onClick={() => {
                 startTransition(async () => {
@@ -136,24 +141,21 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
               }}
             >
               {isPending ? "Regenerating..." : "Regenerate all drafts"}
-            </button>
+            </TouchlineButton>
           )}
           {hasDraftRounds && activeLeagueSeasonId && (
-            <button
-              className="rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-900/30 transition-colors"
-              onClick={() => setShowClearAllDialog(true)}
-            >
+            <TouchlineButton variant="danger" size="sm" onClick={() => setShowClearAllDialog(true)}>
               Clear all drafts
-            </button>
+            </TouchlineButton>
           )}
         </div>
       </div>
 
       {regroupResult && (
-        <div className="mt-2 rounded-lg border border-[rgba(140,167,146,0.28)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
+        <div className="mt-2 rounded-lg border border-[var(--success)]/35 bg-[var(--success-subtle)] px-4 py-3 text-sm text-[var(--success)]">
           {regroupResult}
           <button
-            className="ml-3 underline hover:text-white"
+            className="ml-3 underline hover:text-[var(--foreground)]"
             onClick={() => setRegroupResult(null)}
             type="button"
           >
@@ -163,10 +165,10 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
       )}
 
       {regenerateResult && (
-        <div className="mt-2 rounded-lg border border-zinc-600/50 bg-zinc-800/30 px-4 py-3 text-sm text-zinc-100">
+        <div className="mt-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-4 py-3 text-sm text-[var(--foreground)]">
           {regenerateResult}
           <button
-            className="ml-3 underline hover:text-white"
+            className="ml-3 underline hover:text-[var(--foreground)]"
             onClick={() => setRegenerateResult(null)}
             type="button"
           >
@@ -176,7 +178,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
       )}
 
       {filtered.length === 0 ? (
-        <div className="mt-4 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-5 text-sm app-copy-soft">
+        <div className="mt-4 rounded-2xl border app-hairline bg-[var(--surface-muted)]/40 px-4 py-5 text-sm app-copy-soft">
           {filter === "all"
             ? "No match rounds yet. Create matches to start."
             : `No ${filter === "needs_action" ? "blocked or ungenerated" : filter} rounds.`}
@@ -189,11 +191,11 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                 <Link
                   href={orgUrl(`/rounds/${round.id}`)}
                   prefetch={false}
-                  className="block hover:bg-[rgba(255,255,255,0.03)] p-4 rounded-[1.5rem]"
+                  className="block hover:bg-[var(--surface-hover)] p-4 rounded-[1.5rem]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-base font-semibold text-zinc-50">{round.weekLabel}</p>
+                      <p className="text-base font-semibold text-[var(--foreground)]">{round.weekLabel}</p>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         <MetricTile
                           icon={<CalendarRange className="h-3.5 w-3.5" />}
@@ -221,8 +223,9 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                 </Link>
                 {round.derivedStatus === "NOT_GENERATED" && (
                   <div className="mt-3 border-t app-hairline pt-3">
-                    <button
-                      className="h-8 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-3 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:brightness-110 transition disabled:opacity-50"
+                    <TouchlineButton
+                      variant="primary"
+                      size="sm"
                       disabled={isPending}
                       onClick={() => {
                         startTransition(async () => {
@@ -235,7 +238,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                       type="button"
                     >
                       {isPending ? "Generating..." : "Generate squads"}
-                    </button>
+                    </TouchlineButton>
                   </div>
                 )}
               </TacticalSurface>
@@ -249,23 +252,21 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowClearAllDialog(false)} />
           <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--border-strong)] bg-[var(--surface-base)] shadow-2xl">
             <div className="flex flex-col gap-4 px-5 py-4">
-              <h3 className="text-base font-semibold text-zinc-100">Clear all draft selections</h3>
-              <p className="text-sm text-zinc-300">
+              <h3 className="text-base font-semibold text-[var(--foreground)]">Clear all draft selections</h3>
+              <p className="text-sm text-[var(--text-soft)]">
                 This will remove all non-finalized draft selections, plan integrity signals, and explanations across all rounds.
               </p>
-              <div className="rounded-lg border border-amber-700/40 bg-amber-900/15 px-3 py-2">
-                <p className="text-sm text-amber-300">Finalised rounds and setup data will not be affected. This action cannot be undone.</p>
+              <div className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-3 py-2">
+                <p className="text-sm text-[var(--warning)]">Finalised rounds and setup data will not be affected. This action cannot be undone.</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-[var(--border-soft)] px-5 py-3">
-              <button
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-100 transition-colors"
-                onClick={() => setShowClearAllDialog(false)}
-              >
+              <TouchlineButton variant="secondary" size="md" onClick={() => setShowClearAllDialog(false)}>
                 Cancel
-              </button>
-              <button
-                className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+              </TouchlineButton>
+              <TouchlineButton
+                variant="danger"
+                size="md"
                 disabled={isPending}
                 onClick={() => {
                   startTransition(async () => {
@@ -278,7 +279,7 @@ export function RoundListClient({ rounds, activeLeagueSeasonId, hasDraftRounds, 
                 }}
               >
                 {isPending ? "Clearing..." : "Clear all drafts"}
-              </button>
+              </TouchlineButton>
             </div>
           </div>
         </div>

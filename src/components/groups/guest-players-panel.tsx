@@ -177,7 +177,7 @@ export function GuestPlayersPanel({
       )}
 
       {activeGuestPlayers.length === 0 && !adding && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--text-muted)]">
           No guest players yet. Add a guest player to include an external player in an Event or League Round.
         </p>
       )}
@@ -282,13 +282,13 @@ export function GuestPlayersPanel({
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{guestPlayer.name}</span>
                   {guestPlayer.sourceLabel && (
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {guestPlayer.sourceLabel}
                     </span>
                   )}
                 </div>
                 {guestPlayer.note && (
-                  <p className="mt-1 text-sm text-muted-foreground">{guestPlayer.note}</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">{guestPlayer.note}</p>
                 )}
               </div>
               <div className="flex gap-1">
@@ -332,12 +332,12 @@ export function GuestPlayersPanel({
             if (isOpen) refresh(true);
           }}
         >
-          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+          <summary className="cursor-pointer text-sm font-medium text-[var(--text-muted)] hover:text-[var(--foreground)]">
             Inactive guest players
           </summary>
           <div className="mt-2 space-y-2">
             {inactiveGuestPlayers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No inactive guest players.</p>
+              <p className="text-sm text-[var(--text-muted)]">No inactive guest players.</p>
             ) : (
               inactiveGuestPlayers.map((guestPlayer) => (
                 <Surface key={guestPlayer.id} variant="subtle" padding="sm">
@@ -345,7 +345,7 @@ export function GuestPlayersPanel({
                     <div className="flex-1">
                       <span className="text-sm">{guestPlayer.name}</span>
                       {guestPlayer.sourceLabel && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                           {guestPlayer.sourceLabel}
                         </span>
                       )}

@@ -131,7 +131,7 @@ export function GroupDetailClient({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{group.name}</h1>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+            <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
               {GROUP_TYPE_LABELS[group.type] ?? group.type}
             </span>
           </div>
@@ -146,7 +146,7 @@ export function GroupDetailClient({
         </div>
         <Link
           href={`/o/${orgSlug}/groups/${group.slug}/settings`}
-          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-md border border-[var(--border-soft)] px-3 py-2 text-sm font-medium hover:bg-[var(--surface-hover)]"
         >
           <Settings className="h-4 w-4" />
           Settings
@@ -193,7 +193,7 @@ export function GroupDetailClient({
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
-                ? "border-primary text-primary"
+                ? "border-[var(--accent)] text-[var(--accent-strong)]"
                 : "border-transparent text-[var(--text-muted)] hover:text-foreground"
             }`}
           >
@@ -216,7 +216,7 @@ export function GroupDetailClient({
                     <span className="font-medium">
                       {access.membership.user.name ?? access.membership.user.email}
                     </span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                    <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
                     </span>
                   </div>
@@ -235,7 +235,7 @@ export function GroupDetailClient({
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     <span className="font-medium">{season.name}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                    <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {season.status}
                     </span>
                   </div>
@@ -255,10 +255,10 @@ export function GroupDetailClient({
                   <Link
                     key={event.id}
                     href={`/o/${orgSlug}/events/${event.id}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between rounded-lg border border-[var(--border-soft)] p-3 hover:bg-[var(--surface-hover)] transition-colors"
                   >
                     <span className="font-medium">{event.name}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                    <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
                     </span>
                   </Link>
@@ -281,7 +281,7 @@ export function GroupDetailClient({
                 <Link
                   key={team.id}
                   href={`/o/${orgSlug}/teams/${team.id}`}
-                  className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between rounded-lg border border-[var(--border-soft)] p-4 hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   <div>
                     <span className="font-medium">{team.name}</span>
@@ -304,7 +304,7 @@ export function GroupDetailClient({
             <div className="rounded-lg border">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/50">
+                  <tr className="border-b border-[var(--border-soft)] bg-[var(--surface-muted)]/50">
                     <th className="px-3 py-2 text-left font-medium">Name</th>
                     <th className="px-3 py-2 text-left font-medium">Core team</th>
                     <th className="px-3 py-2 text-left font-medium">Membership</th>
@@ -312,11 +312,11 @@ export function GroupDetailClient({
                 </thead>
                 <tbody>
                   {group.players.map((gp: PlayerItem) => (
-                    <tr key={gp.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <tr key={gp.id} className="border-b border-[var(--border-soft)] last:border-0 hover:bg-[var(--surface-hover)]">
                       <td className="px-3 py-2">
                         <Link
                           href={`/o/${orgSlug}/players/${gp.player.id}`}
-                          className="text-primary hover:underline"
+                          className="text-[var(--accent-strong)] hover:underline"
                         >
                           {gp.player.firstName}{gp.player.lastName ? ` ${gp.player.lastName}` : ""}
                         </Link>
@@ -325,7 +325,7 @@ export function GroupDetailClient({
                         {gp.player.coreTeam?.name ?? "\u2014"}
                       </td>
                       <td className="px-3 py-2">
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs">
                           {MEMBERSHIP_TYPE_LABELS[gp.membershipType] ?? gp.membershipType}
                         </span>
                       </td>
@@ -360,7 +360,7 @@ export function GroupDetailClient({
                           <ArrowRight className="inline h-3 w-3 mx-1 text-[var(--text-muted)]" />
                           <span className="font-medium">{path.toGroupName}</span>
                         </span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                        <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                           {PATH_ROLE_LABELS[path.role] ?? path.role}
                         </span>
                       </div>
@@ -382,7 +382,7 @@ export function GroupDetailClient({
                           <ArrowRight className="inline h-3 w-3 mx-1 text-[var(--text-muted)]" />
                           <span className="font-medium">{group.name}</span>
                         </span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                        <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                           {PATH_ROLE_LABELS[path.role] ?? path.role}
                         </span>
                       </div>

@@ -114,7 +114,8 @@ export function OrgDetailClient({
   const roleOrder = ["OWNER", "ADMIN", "COACH", "VIEWER"];
 
   return (
-    <div className="space-y-6" key={refreshKey}>
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline space-y-6" key={refreshKey}>
       <div>
         <h1 className="text-2xl font-bold">{org.name}</h1>
         <p className="text-sm text-[var(--text-muted)]">
@@ -150,7 +151,7 @@ export function OrgDetailClient({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="coach@example.com"
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -158,7 +159,7 @@ export function OrgDetailClient({
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm"
+                className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm"
               >
                 {isOwner && <option value="OWNER">Owner</option>}
                 {(isOwner || isAdmin) && <option value="ADMIN">Admin</option>}
@@ -166,7 +167,7 @@ export function OrgDetailClient({
                 <option value="VIEWER">Viewer</option>
               </select>
             </div>
-            {inviteError && <p className="text-sm text-red-500">{inviteError}</p>}
+            {inviteError && <p className="text-sm text-[var(--danger)]">{inviteError}</p>}
             <button
               onClick={handleInvite}
               disabled={!inviteEmail.trim() || inviteSending}
@@ -213,7 +214,7 @@ export function OrgDetailClient({
                     {(canManageRoles || (isOwner && m.userId !== currentUserId)) && m.role !== "OWNER" && m.userId !== currentUserId && (
                       <button
                         onClick={() => handleRemoveMember(m.id, m.user.name || m.user.email)}
-                        className="text-xs text-[var(--text-muted)] hover:text-red-500"
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--danger)]"
                       >
                         Remove
                       </button>
@@ -255,7 +256,7 @@ export function OrgDetailClient({
                 </div>
                 <button
                   onClick={() => handleRevokeInvitation(inv.id)}
-                  className="text-xs text-[var(--text-muted)] hover:text-red-500"
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--danger)]"
                 >
                   Revoke
                 </button>

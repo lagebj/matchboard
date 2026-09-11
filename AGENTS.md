@@ -2541,9 +2541,24 @@ in-repo reference once the UI Lab gate is passed.
   the severity dot never actually rendered in any theme) — fixed incidentally while migrating this
   exact function's colors, not a deliberate scope expansion.
 
-  **This closes the Phase 10 scope gap.** Every surface identified as blocking Phase 10 removal is
-  now migrated. Phase 10 (remove the superseded Product Surface 1.0 system) is unblocked and is
-  the next piece of work.
+  This was believed to close the Phase 10 scope gap in full — **that was premature.** A systematic
+  verification (tracing every `o/[orgSlug]/**/page.tsx`'s local imports up to 3 hops for
+  `.touchline`) found **7 more genuinely unmigrated pages** no prior pass had named: Formations
+  list, Evidence rebuild, Populate opponent levels, Match creation, Match handover, Rounds list,
+  and an Organisation detail admin page (`/o/{orgSlug}` bare route, not in the canonical routes
+  table). All are now migrated — `round-list-client.tsx` was genuinely PS0-era (five gradient-pill
+  buttons, matching the `/rules` precedent).
+
+  This pass also found a **second, independent bug class**: 11 files used undefined shadcn/ui-
+  convention Tailwind classes (`text-muted-foreground`, `bg-destructive`, `text-primary`, etc.)
+  that this app's `@theme` never defines — silently generating no CSS rule at all, in any theme,
+  since each was written. Several of these were in files already "migrated" in earlier PRs
+  (Groups, Simulation, Workbench) — missed there because those passes only grepped for raw
+  Tailwind palette names, not this separate convention. All fixed to this app's real tokens.
+
+  **Given two independent classes of latent bugs were found by widening the audit twice, Phase 10
+  is not declared unblocked a third time without another verification pass first.** See ADR-0134
+  for the full account.
 
   Phase 10 hoists `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in
   `globals.css`. Migrate a surface's *presentation* only — domain/permissions/persistence/audit/

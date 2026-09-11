@@ -275,7 +275,7 @@ export function WorkbenchPageContent() {
           </Surface>
 
           <details className="text-sm">
-            <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+            <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--foreground)]">
               Raw JSON (sanitized)
             </summary>
             <pre className="mt-2 p-3 bg-[var(--surface-muted)] rounded text-xs overflow-auto max-h-96">
