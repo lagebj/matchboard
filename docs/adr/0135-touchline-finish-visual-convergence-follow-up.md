@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted (2026-09-11). **Phases F0–F4 implemented; F5–F9 gated on human UI-Lab approval.**
+Accepted (2026-09-11). **Phases F0–F4 implemented and merged (#517); F5–F9 gated on human
+UI-Lab approval.** A full post-merge verification sweep (local `npm run validate`, plus feasible
+E2E/accessibility/PWA evidence against the deployed Test slot) ran clean the same day — see
+"Post-merge verification sweep" below.
 
 This is a follow-up to ADR-0134 ("Matchboard Visual Identity & Frontend Reset 1.0" / Touchline),
 not a new visual system. ADR-0134's Touchline foundation (theme system, accent, sports
@@ -111,6 +114,62 @@ Moment marked — Shot/Yellow/Red/Foul/Corner/Free kick are not modelled anywher
 domain today. Per this bundle's "no silent deviations" rule, `LiveActionGrid`'s UI Lab fixture
 (`src/app/dev/ui-lab/fixtures.ts`'s `liveReportingActions`) uses only the six real action types;
 no new `LiveMatchEventType` value was added. See the conformance report for the full record.
+
+## Post-merge verification sweep (2026-09-11)
+
+After PR #517 (this ADR's F0–F4 work) merged to `main` (commit `81d388a4`), a full verification
+sweep was run against the merged state — the same discipline ADR-0134 §Phase 12 used, scoped to
+this follow-up rather than re-litigating ADR-0134 itself (which remains complete, unchanged, per
+its own Phase 12 record).
+
+**Full local `npm run validate` (not `--fast`), on `main` after the merge — all 14 steps passed:**
+lint, typecheck, typecheck (workers), unit + component tests (306 files / 3,802 tests, plus 36
+files / 253 tests), worker tests (5 files / 84 tests), build, policy verify, version verify
+(`0.111.0`), terminology check, architecture check (140 files / 5 domain directories, 0
+violations), Prisma query fields (4,129 literals), forbidden SQL, supply chain integrity, docs
+check.
+
+**E2E/Playwright — feasible and run against the deployed Test slot** (`test.matchboard.football`;
+`TEST_AGENT_AUTH_SECRET` and outbound network access are both available in this environment).
+Ran every spec that is read-only or asserts a denial with no persisted side effect:
+
+- `accessibility.spec.ts` — 8/8 pass (3 auth setup + Today/League/Players/Opponents/Round Board,
+  zero automatically-detectable WCAG 2.2 AA violations).
+- `pwa-installability.spec.ts` — 10/10 pass (manifest, icons, installability, `start_url`,
+  install-card guidance).
+- `smoke.spec.ts` — 6/6 pass.
+- `authz-failure.spec.ts` + a `mobile-critical.spec.ts` subset — 11/11 pass on a clean run. One
+  transient failure occurred on the first attempt (`authz-failure.spec.ts`'s "creating a team is
+  denied" case hit a Playwright strict-mode "2 elements matched `#name`" error); a direct
+  live-page inspection immediately afterward found exactly one `#name` element, and a bare retry
+  passed cleanly — confirmed as transient (a cold-start/streaming-SSR race on the shared Test
+  slot), not a reproducible bug, and unrelated to this PR (`/teams/new` was not touched by PR
+  #517's diff).
+
+**Deliberately not run**: `round-mutation.spec.ts`, `live-reporting.spec.ts`,
+`follow-live.spec.ts`, `post-match-evidence-parity.spec.ts` — these generate real rounds/matches/
+live sessions against the shared, persistent Test-slot Neon branch. `playwright.config.ts`'s own
+comment documents that concurrent heavy-transaction specs against one Postgres instance can
+exhaust that branch's transaction capacity (a real, previously-observed CI failure, P2028). Running
+them ad hoc from this session, outside the sanctioned CI pipeline (which either serialises them or
+runs against an isolated per-PR branch), risks colliding with any concurrently running CI/PR job
+and leaves mutated seed data behind for other developers. This is a disclosed, deliberate scope
+limit, not a silent skip.
+
+**Not feasible in this sandbox, confirmed rather than assumed**:
+- **Visual regression** — confirmed absent from the repository (no `toHaveScreenshot`/
+  `toMatchSnapshot` usage anywhere outside `scripts/docs-screenshots.ts`'s own comment
+  disclaiming it), matching ADR-0134 Phase 12's identical finding — nothing changed since.
+- **Real-device acceptance** — no physical devices exist in this sandbox;
+  `docs/development/pwa-manual-verification.md`'s manual Windows/Android/iPhone steps remain the
+  only path, unchanged from Phase 12.
+- **Performance/Core Web Vitals** — no Lighthouse CI or performance-budget config exists in the
+  repository; production monitoring is `@vercel/speed-insights`/`@vercel/analytics` RUM only, not
+  assessable from a local sandbox with no production traffic.
+
+No selection/fairness/lineup/rotation/match-lifecycle/live-state/attendance/guest-player/evidence/
+permissions/audit test failed or was skipped for domain-relevance reasons — every skip above is a
+resource/environment constraint, not a domain-scope decision.
 
 ## Consequences
 
