@@ -48,6 +48,7 @@ export default function AtlasFormationsPage() {
             readOnly
             onAddSlot={() => {}}
             onEditSlot={() => {}}
+            pitchStyle="perspective"
           />
         </div>
 

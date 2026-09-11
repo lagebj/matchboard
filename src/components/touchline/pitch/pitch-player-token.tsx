@@ -9,9 +9,14 @@ import { cn } from "@/lib/cn";
  *
  * No role-colour rainbow: the only state colours are the shared Touchline
  * accent (selected) and status tones (attention / unavailable). No team-kit
- * colour is inferred unless a canonical stored field already exists.
+ * colour is inferred unless a canonical stored field already exists — the
+ * one exception is `kit="goalkeeper"` (Touchline Design Atlas feedback,
+ * `docs/domain/touchline-atlas-provenance.md`), which is not an invented
+ * per-team colour but the same real goalkeeper/outfield distinction that
+ * already exists as canonical data (`FormationSlotRoleType.GOALKEEPER`).
  */
 export type PitchPlayerTokenStatus = "normal" | "attention" | "unavailable";
+export type PitchPlayerTokenKit = "outfield" | "goalkeeper";
 
 type Props = {
   name: string;
@@ -21,6 +26,8 @@ type Props = {
   selected?: boolean;
   locked?: boolean;
   status?: PitchPlayerTokenStatus;
+  /** Goalkeeper vs outfield — the one non-arbitrary colour distinction (see above). Default "outfield". */
+  kit?: PitchPlayerTokenKit;
   onClick?: () => void;
   compact?: boolean;
   /** Hide the name/role text below the token — used where a caller renders its own identity block. */
@@ -42,6 +49,7 @@ export function PitchPlayerToken({
   selected = false,
   locked = false,
   status = "normal",
+  kit = "outfield",
   onClick,
   compact = false,
   showLabel = true,
@@ -50,6 +58,10 @@ export function PitchPlayerToken({
   const Tag = onClick ? "button" : "div";
   const sizeClass = compact ? "h-10 w-10" : "h-12 w-12 medium:h-14 medium:w-14";
   const label = number != null && number !== "" ? String(number) : initialsFor(name);
+  const kitToneClass =
+    kit === "goalkeeper"
+      ? "border-[var(--warning)] bg-[var(--warning-subtle)] text-[var(--warning)]"
+      : "border-[var(--tl-c-surface-strong)] bg-[var(--tl-c-surface-strong)] text-[var(--foreground)]";
 
   return (
     <Tag
@@ -71,7 +83,7 @@ export function PitchPlayerToken({
           compact ? "text-[13px]" : "text-[15px]",
           selected
             ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--foreground)] ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--tl-pitch)]"
-            : "border-[var(--tl-c-surface-strong)] bg-[var(--tl-c-surface-strong)] text-[var(--foreground)]",
+            : kitToneClass,
           status === "attention" && !selected && "border-[var(--warning)]",
           onClick && "group-hover:scale-105",
         )}

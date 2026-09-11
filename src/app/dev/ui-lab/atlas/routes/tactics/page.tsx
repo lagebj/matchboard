@@ -23,6 +23,7 @@ export default function AtlasTacticsPage() {
             assignments={lineupAssignments}
             players={lineupPlayers}
             readOnly
+            pitchStyle="perspective"
           />
         </div>
         <div className="hidden large:block">

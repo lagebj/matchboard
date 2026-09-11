@@ -240,3 +240,39 @@ sidebar mockup is composition flavour for that specific mockup, not an instructi
 IA. Routes named in the golden sidebars that are not primary items today (Rounds, Teams, Matches,
 Opponents, Insights, History, Formations, Groups, Rules, Settings, Reviews) remain reachable via
 League or More exactly as the current, deliberate Phase 2.4 IA decision specifies.
+
+## 12. Hard Gate A review-feedback iteration (2026-09-11)
+
+Human visual review of the Phase 3 UI Lab (`/dev/ui-lab/atlas`) surfaced two composition gaps,
+fixed in this iteration:
+
+- **`PitchExposure`/`PositionExposureWidget` had no pitch-line markings** — the mini-map rendered
+  the `.tl-pitch-surface` background with no touchline/halfway-line/box markings, unlike every
+  other pitch surface in the app. Fixed by exporting `PitchMarkings` from `TacticsBoard`
+  (`src/components/formations/tactics-board.tsx`) — previously a private helper — and rendering
+  it inside `PitchExposure`, matching this document's own "reuse, never duplicate a pitch"
+  discipline (§0.9) rather than hand-drawing a second set of pitch lines.
+- **The Tactics/Lineup/Formations golden panels show a slight perspective tilt and a
+  goalkeeper/outfield kit distinction that the flat, neutral-toned production `TacticsBoard`
+  rendering didn't have.** Two additive, low-risk fixes:
+  - `PitchPlayerToken` gained an optional `kit?: "outfield" | "goalkeeper"` prop (default
+    `"outfield"`) — not an invented per-team colour (which the component's own doc comment
+    already correctly rules out), but the same real goalkeeper/outfield distinction
+    `FormationSlotRoleType.GOALKEEPER` already carries as canonical data. `TacticsBoard` passes
+    it automatically for every lineup/selection-preview token — this ships to every existing
+    production consumer, since it is purely additive clarity with no interaction change.
+  - `TacticsBoard` gained an optional `pitchStyle?: "flat" | "perspective"` prop, default
+    `"flat"` — every existing production call site is therefore visually unchanged. The Atlas
+    Tactics/Lineup/Formations route pages opt into `"perspective"`, a subtle
+    `transform: perspective()/rotateX()` on the pitch-surface container. Because the transform
+    moves the whole flat plane (background, markings, and player tokens) together as one rigid
+    unit, no coordinate math (`getBoardPositionPercent`, slot click hit-testing, formation-builder
+    add/edit) needed to change — this is presentation-only. Whether to flip the *default* to
+    `"perspective"` for production Lineup/Tactics/Formations pages is a Phase 4 decision, not
+    made here.
+- `.tl-pitch-surface`'s own doc comment in `src/app/touchline.css` is updated to distinguish "no
+  fake-3D stadium" (crowd/floodlights/rendered venue — still out of scope) from "a subtle CSS
+  tilt is not" (now real, via `TacticsBoard`'s opt-in prop) — no shared-class behaviour changed,
+  only the comment.
+
+Full `npm run validate` (14/14 steps) passed after this iteration.

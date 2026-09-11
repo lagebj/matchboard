@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
 import {
   WIDTH_LANE_LABELS,
@@ -120,10 +121,24 @@ type SelectionPreviewRenderProps = {
   players: TacticsBoardPlayer[];
 };
 
+/**
+ * `"perspective"` is an opt-in, purely presentational tilt (Touchline Design Atlas feedback,
+ * `docs/domain/touchline-atlas-provenance.md`) — a subtle `transform: perspective()/rotateX()`
+ * on the pitch-surface container. It moves the whole flat plane (background, markings, and
+ * player tokens together) as one rigid unit, so slot/click hit-testing and every existing
+ * coordinate (`getBoardPositionPercent`, drag/drop, formation-builder add/edit) is completely
+ * unaffected — nothing here changes actual position math, only how the same flat plane is
+ * painted. Defaults to `"flat"` everywhere, so no existing production caller's rendering
+ * changes; the Design Atlas UI Lab (`/dev/ui-lab/atlas/routes/{tactics,lineup,formations}`)
+ * opts in explicitly.
+ */
+export type TacticsBoardPitchStyle = "flat" | "perspective";
+
 type TacticsBoardProps = {
   orientation?: BoardOrientation;
   attackingDirection?: AttackingDirection;
   size?: TacticsBoardSize;
+  pitchStyle?: TacticsBoardPitchStyle;
   className?: string;
   mode: TacticsBoardMode;
 } & (
@@ -220,7 +235,12 @@ function VerticalPitchMarkings() {
   );
 }
 
-function PitchMarkings({ orientation }: { orientation: BoardOrientation }) {
+/**
+ * Exported so other pitch-surface consumers outside `TacticsBoard` itself (e.g. `PitchExposure`,
+ * Touchline Design Atlas `04_WIDGET_COMPONENT_CONTRACTS.md §3`) can draw the same canonical
+ * pitch-line markings instead of leaving a bare `.tl-pitch-surface` background with no lines.
+ */
+export function PitchMarkings({ orientation }: { orientation: BoardOrientation }) {
   if (orientation === "horizontal") {
     return <HorizontalPitchMarkings />;
   }
@@ -491,6 +511,7 @@ function LineupContent({
                 number={player.shirtNumber ?? null}
                 locked={assignment?.locked ?? false}
                 selected={false}
+                kit={slot.roleType === "GOALKEEPER" ? "goalkeeper" : "outfield"}
                 compact={compact}
                 onClick={canEdit ? handleClick : undefined}
               />
@@ -550,6 +571,7 @@ function SelectionPreviewContent({
                 name={`${player.firstName}${player.lastName ? ` ${player.lastName.charAt(0)}.` : ""}`}
                 role={slot.shortLabel}
                 number={player.shirtNumber ?? null}
+                kit={slot.roleType === "GOALKEEPER" ? "goalkeeper" : "outfield"}
                 compact={compact}
               />
             ) : (
@@ -568,6 +590,10 @@ export function TacticsBoard(props: TacticsBoardProps) {
   const size = props.size ?? "standard";
   const aspectClass = getAspectClass(orientation);
   const viewBox = getBoardViewBox({ orientation });
+  const pitchSurfaceStyle: CSSProperties | undefined =
+    props.pitchStyle === "perspective"
+      ? { transform: "perspective(1100px) rotateX(9deg)", transformOrigin: "50% 100%" }
+      : undefined;
 
   if (props.mode === "position-profile") {
     const { markers } = props;
@@ -576,6 +602,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
         <div
           data-testid="pitch-surface"
           className={cn("pitch-surface tl-pitch-surface relative w-full", aspectClass)}
+          style={pitchSurfaceStyle}
         >
           <PitchMarkings orientation={orientation} />
           <svg
@@ -610,6 +637,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
         <div
           data-testid="pitch-surface"
           className={cn("pitch-surface tl-pitch-surface relative w-full", aspectClass)}
+          style={pitchSurfaceStyle}
         >
           <PitchMarkings orientation={orientation} />
           <FormationBuilderContent
@@ -635,6 +663,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
         <div
           data-testid="pitch-surface"
           className={cn("pitch-surface tl-pitch-surface relative w-full", aspectClass)}
+          style={pitchSurfaceStyle}
         >
           <PitchMarkings orientation={orientation} />
           <LineupContent
@@ -660,6 +689,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
         <div
           data-testid="pitch-surface"
           className={cn("pitch-surface tl-pitch-surface relative w-full", aspectClass)}
+          style={pitchSurfaceStyle}
         >
           <PitchMarkings orientation={orientation} />
           <SelectionPreviewContent

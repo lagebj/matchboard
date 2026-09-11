@@ -22,6 +22,7 @@ export default function AtlasLineupPage() {
             assignments={lineupAssignments}
             players={lineupPlayers}
             readOnly={false}
+            pitchStyle="perspective"
           />
         </div>
         <div className="expanded:col-span-4">
