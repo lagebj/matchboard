@@ -2658,6 +2658,48 @@ in-repo reference once the UI Lab gate is passed.
   screenshot set is tracked as follow-up work rather than blocking Phase 11, consistent with the
   "acceptance is not automatic" screenshot-regeneration discipline (DECISIONS.md D23) — see
   ADR-0134 for the disclosed deferral.
+
+  **Phase 12 (full verification sweep) is complete — the closing phase of the ADR-0134
+  programme.** `npm run validate` (the complete gate, not `--fast`) was run against `main` at
+  Phase 11's merge commit, all steps green: lint, typecheck, typecheck (workers), the full unit +
+  component suite (306 + 36 test files, 3,802 + 253 tests, all pass), worker tests (5 files, 84
+  tests, all pass), build (`✓ Compiled successfully`), policy verify, version verify, terminology
+  check, architecture check (140 files across 5 domain directories, zero boundary violations),
+  Prisma query fields (4,129 literals checked), forbidden SQL, supply chain integrity, docs check.
+  This is the local half of Phase 12's checklist (lint/typecheck/unit/component/worker/build/
+  architecture/terminology), confirmed clean on top of every Touchline change through Phase 11.
+
+  The other half — E2E, accessibility, real-device/PWA, visual regression, performance — was
+  assessed rather than blindly re-run, since this repository already has a standing per-PR
+  acceptance pipeline (`test-acceptance.yml`, ADR-0075) whose `Deploy PR to Test slot` job runs
+  the **full** `npm run test:e2e` (`playwright test`, all 9 specs in `e2e/`, including
+  `accessibility.spec.ts` in two dedicated projects and `pwa-installability.spec.ts`) against an
+  isolated, real deployment of every PR's exact commit — not a job that needs separately
+  triggering for Phase 12. Every PR across this whole Touchline effort (#507–#515) already went
+  through it: **#514 (Phase 10, the actual visual-system code change) is the load-bearing proof**
+  — its accessibility suite caught the real `TestEnvironmentBadge` light-theme contrast
+  regression documented above, blocking merge until fixed, then passed clean. Re-running the
+  identical suite against Phase 11/12's own doc-only commits would exercise no code path Phase 10
+  didn't already exercise, so it was not redundantly repeated here.
+  - **Real-device/PWA**: the automated `pwa-installability.spec.ts` (manifest reachable
+    unauthenticated, parses cleanly, icons load, no installability errors) is part of the same
+    already-passing E2E run above. Genuine physical-device acceptance
+    (`docs/development/pwa-manual-verification.md`) is a pre-existing, documented human-only step
+    ("the automated suite proves installability and non-interference; it cannot prove OS-level
+    install/launch") — unaffected by Touchline, which changed page presentation, not the
+    manifest/icons/PWA mechanism, so nothing here needed re-verification for this programme.
+  - **Visual regression and automated performance budgets**: searched for and confirmed **absent
+    from this repository entirely** — no `toHaveScreenshot`/`toMatchSnapshot` usage anywhere
+    outside `scripts/docs-screenshots.ts`'s own comment explicitly disclaiming it
+    (`page.screenshot()` there produces documentation content assets, not visual-regression
+    baselines — DECISIONS.md D12), and no Lighthouse CI / performance-budget config anywhere in
+    the repo (production monitoring is `@vercel/speed-insights`/`@vercel/analytics` RUM, already
+    wired into `src/app/layout.tsx`, not a CI gate). This is a genuine, pre-existing gap in the
+    repository's own test infrastructure, not something the Touchline programme left undone or
+    something Phase 12 could close by itself — recorded here rather than silently treated as
+    satisfied.
+
+  **Programme status: all 12 ADR-0134 phases are complete.**
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
