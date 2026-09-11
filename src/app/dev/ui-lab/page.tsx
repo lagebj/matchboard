@@ -81,6 +81,21 @@ export default function UiLabIndexPage() {
           </li>
         ))}
       </ul>
+
+      <p className="mt-8 mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        Touchline Design Atlas &amp; Composition Convergence (Phase 3 gate)
+      </p>
+      <ul className="divide-y divide-[var(--border-soft)] border-y border-[var(--border-soft)]">
+        <li>
+          <Link
+            href="/dev/ui-lab/atlas"
+            className="flex items-center justify-between gap-4 py-3.5 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
+          >
+            <span className="text-[15px] font-[600] text-[var(--foreground)]">Atlas — full route composition set</span>
+            <span className="text-[12px] text-[var(--text-disabled)]">31 routes</span>
+          </Link>
+        </li>
+      </ul>
     </div>
   );
 }
