@@ -10,7 +10,7 @@ export default async function TeamReviewRoute({ params }: TeamReviewRouteProps) 
   const { orgSlug, teamId } = await params;
   await requirePageActorContext(orgSlug);
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading team review...</div>}>
+    <Suspense fallback={<div className="touchline p-4 text-sm text-[var(--text-muted)]">Loading team review...</div>}>
       <TeamReviewPage teamId={teamId} />
     </Suspense>
   );

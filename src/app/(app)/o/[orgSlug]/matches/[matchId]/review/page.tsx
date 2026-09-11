@@ -9,11 +9,12 @@ type MatchReviewRouteProps = {
 export default async function MatchReviewRoute({ params }: MatchReviewRouteProps) {
   const { matchId } = await params;
   return (
-    <div className="flex flex-col gap-6">
-      <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading match review...</div>}>
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-6">
+      <Suspense fallback={<div className="p-4 text-sm text-[var(--text-muted)]">Loading match review...</div>}>
         <MatchReviewPage matchId={matchId} />
       </Suspense>
-      <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading planned vs actual...</div>}>
+      <Suspense fallback={<div className="p-4 text-sm text-[var(--text-muted)]">Loading planned vs actual...</div>}>
         <PlannedVsActualPanel matchId={matchId} />
       </Suspense>
     </div>

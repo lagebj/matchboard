@@ -86,9 +86,34 @@ Accepted (2026-09-10). Implementation in progress:
   shell header/nav carry the class), so each page's own root needed an explicit `.touchline` class
   or its tokens would keep resolving to plain, non-dual-theme `globals.css` values regardless of
   the viewer's theme — the same root cause already found once for `help-drawer.tsx`'s portal root
-  in the previous PR. The Review family remains open — Phase 10 itself is still blocked pending
-  its migration. Phase 10 (remove the superseded Product Surface 1.0 system) follows once that
-  closes. The compact bottom nav is
+  in the previous PR. **The Review family** — `round-review-page.tsx`/`match-review-page.tsx`/
+  `team-review-page.tsx` (reachable via `/rounds/[id]/review`, `/matches/[id]/review`,
+  `/teams/[id]/review`), shared `cross-team-impact-panel`/`decision-panel`/`recommendation-panel`/
+  `rule-impact-panel`/`team-readiness-card` components, and `PlannedVsActualPanel` (rendered
+  alongside `MatchReviewPage`) — is now migrated too, closing the last piece of the Phase 10 scope
+  gap. This was genuinely PS0-era code, dense with raw zinc/red/amber/emerald/blue literals in
+  every file, not a handful of stragglers. Fixes of note:
+  - Two domain-layer color helpers (`getSeverityBadgeClasses`/`getReadinessClasses` in
+    `src/domain/assistant-manager/utils/issue-grouping.ts`) carried the same raw-literal pattern
+    one layer down from the components that called them; token-aligned, with the accompanying
+    unit test updated to assert token names (`--warning`/`--danger`/`--info`/`--success`) rather
+    than literal Tailwind palette names (`amber`/`red`/`blue`/`emerald`).
+  - `planned-vs-actual-panel.tsx`'s `resultColor()` was a **second, independent** instance of the
+    exact ADR-0130 win/loss-colour violation already fixed once in Opponents'
+    `previous-encounters-*.tsx` (emerald for a win, red for a loss) — fixed to the identical
+    weight-only `outcomeTint` pairing (`match-presentation.tsx`: win=foreground, loss=muted+
+    medium, draw=soft).
+  - `rule-impact-panel.tsx`'s `signalDot()` had an unrelated, pre-existing rendering bug: its
+    returned Tailwind class string was rendered as the `<div>`'s bare text content rather than
+    applied as its `className`, so the severity dot never actually rendered, in any theme, since
+    the component was written. Fixed incidentally while migrating this exact function's colors to
+    tokens — not a deliberate scope expansion, but too small and directly adjacent to leave broken
+    once found.
+
+  **This closes the Phase 10 scope gap in full.** Every surface identified as blocking Phase 10
+  removal — Teams, Simulation, Workbench, Attention, Organisations, Invite, error boundaries, and
+  now the Review family — is migrated. Phase 10 (remove the superseded Product Surface 1.0
+  system) is unblocked and is the next piece of work. The compact bottom nav is
   **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
   contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
   ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell

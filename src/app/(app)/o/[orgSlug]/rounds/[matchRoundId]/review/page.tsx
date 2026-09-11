@@ -10,7 +10,7 @@ export default async function RoundReviewRoute({ params }: RoundReviewRouteProps
   const { orgSlug, matchRoundId } = await params;
   await requirePageActorContext(orgSlug);
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading round review...</div>}>
+    <Suspense fallback={<div className="touchline p-4 text-sm text-[var(--text-muted)]">Loading round review...</div>}>
       <RoundReviewPage roundId={matchRoundId} />
     </Suspense>
   );

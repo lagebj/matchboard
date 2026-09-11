@@ -28,24 +28,25 @@ export function TeamReviewPage({ teamId }: { teamId: string }) {
   }, [teamId, startTransition]);
 
   if (!readiness) {
-    return <div className="p-4 text-sm text-zinc-500">Loading team review...</div>;
+    return <div className="touchline p-4 text-sm text-[var(--text-muted)]">Loading team review...</div>;
   }
 
   const recommendation: Recommendation | undefined = readiness.recommendation;
 
   return (
-    <div className="flex flex-col gap-4">
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Team Review</p>
-        <Link href={orgUrl("/teams")} className="text-[10px] text-zinc-500 hover:text-zinc-300">Back to teams</Link>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Team Review</p>
+        <Link href={orgUrl("/teams")} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-soft)]">Back to teams</Link>
       </div>
 
       <TeamReadinessCard readiness={readiness} />
 
       {readiness.supportNeeded > 0 && (
-        <div className="rounded-md border border-amber-700/40 bg-amber-900/15 p-3">
-          <p className="text-xs font-semibold text-amber-300">Support needed</p>
-          <p className="text-[11px] text-zinc-300 mt-1">
+        <div className="rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] p-3">
+          <p className="text-xs font-semibold text-[var(--warning)]">Support needed</p>
+          <p className="text-[11px] text-[var(--text-soft)] mt-1">
             {readiness.teamName || readiness.teamId} needs {readiness.supportNeeded} support player{readiness.supportNeeded !== 1 ? "s" : ""} to reach target squad size.
           </p>
         </div>
