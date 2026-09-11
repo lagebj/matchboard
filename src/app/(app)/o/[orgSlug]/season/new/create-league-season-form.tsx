@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 
 type Group = { id: string; name: string };
@@ -33,7 +33,7 @@ export function CreateLeagueSeasonForm({ action, groups, orgSlug }: CreateLeague
             id="year"
             name="year"
             required
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           >
             <option value={currentYear}>{currentYear}</option>
             <option value={NEXT_YEAR}>{NEXT_YEAR}</option>
@@ -48,7 +48,7 @@ export function CreateLeagueSeasonForm({ action, groups, orgSlug }: CreateLeague
             id="part"
             name="part"
             required
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           >
             <option value="SPRING">Spring (Jan–Jun)</option>
             <option value="FALL">Autumn (Jul–Dec)</option>
@@ -64,7 +64,7 @@ export function CreateLeagueSeasonForm({ action, groups, orgSlug }: CreateLeague
           id="name"
           name="name"
           type="text"
-          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           placeholder="Auto-generated from year and part if left blank"
         />
       </div>
@@ -77,7 +77,7 @@ export function CreateLeagueSeasonForm({ action, groups, orgSlug }: CreateLeague
           <select
             id="footballGroupId"
             name="footballGroupId"
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           >
             <option value="">Default group</option>
             {groups.map((g) => (
@@ -88,12 +88,12 @@ export function CreateLeagueSeasonForm({ action, groups, orgSlug }: CreateLeague
       )}
 
       <div className="flex gap-3 pt-2">
-        <Button variant="primary" size="md" type="submit" disabled={isPending}>
+        <TouchlineButton variant="primary" size="md" type="submit" disabled={isPending}>
           Create league season
-        </Button>
-        <Button variant="ghost" size="md" as="a" href={`/o/${orgSlug}/season`}>
+        </TouchlineButton>
+        <TouchlineButton variant="ghost" size="md" as="a" href={`/o/${orgSlug}/season`}>
           Cancel
-        </Button>
+        </TouchlineButton>
       </div>
     </form>
   );

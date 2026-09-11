@@ -49,13 +49,16 @@ type SortState =
   | "warnings"
   | "readiness";
 
+// Categorical selection-role legend (Core/Support/Development/Squad repair/Drop) — a fixed data-viz
+// hue key, not outcome or severity coloring, matching the same treatment as tactics-board.tsx's
+// ROLE_COLORS. Drop categories use the neutral surface token rather than a literal zinc value.
 const ROLE_CELL_STYLES: Record<string, string> = {
   CORE: "bg-emerald-900/30 text-emerald-300 border-emerald-700/30",
   SUPPORT: "bg-amber-900/25 text-amber-300 border-amber-700/30",
   DEVELOPMENT: "bg-blue-900/25 text-blue-300 border-blue-700/30",
   BACKFILL: "bg-purple-900/25 text-purple-300 border-purple-700/30",
-  CORE_MATCH_DROP: "bg-zinc-800/30 text-zinc-400 border-zinc-600/30",
-  REDUCED_MATCH_LOAD_DROP: "bg-zinc-800/30 text-zinc-400 border-zinc-600/30",
+  CORE_MATCH_DROP: "bg-[var(--tl-c-surface-hover)] text-[var(--text-muted)] border-[var(--border-soft)]",
+  REDUCED_MATCH_LOAD_DROP: "bg-[var(--tl-c-surface-hover)] text-[var(--text-muted)] border-[var(--border-soft)]",
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -140,10 +143,11 @@ export function SeasonOverviewClient({
   const sortedPlayers = applySort(filteredPlayers, sort);
 
   return (
-    <div className="flex flex-col gap-4">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
       <div className="flex items-center gap-3 flex-wrap">
         <select
-          className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+          className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)]"
           value={selectedPeriodId}
           onChange={(e) => setSelectedPeriodId(e.target.value)}
         >
@@ -157,7 +161,7 @@ export function SeasonOverviewClient({
         <button
           className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
             !includeDrafts
-              ? "border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-zinc-100"
+              ? "border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-[var(--foreground)]"
               : "border border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]"
           }`}
           onClick={() => setIncludeDrafts(false)}
@@ -168,7 +172,7 @@ export function SeasonOverviewClient({
         <button
           className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
             includeDrafts
-              ? "border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-zinc-100"
+              ? "border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-[var(--foreground)]"
               : "border border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]"
           }`}
           onClick={() => setIncludeDrafts(true)}
@@ -178,7 +182,7 @@ export function SeasonOverviewClient({
         </button>
 
         <select
-          className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-zinc-100"
+          className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-[var(--foreground)]"
           value={filter}
           onChange={(e) => setFilter(e.target.value as FilterState)}
         >
@@ -195,7 +199,7 @@ export function SeasonOverviewClient({
         </select>
 
         <select
-          className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-zinc-100"
+          className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-[var(--foreground)]"
           value={sort}
           onChange={(e) => setSort(e.target.value as SortState)}
         >
@@ -212,7 +216,7 @@ export function SeasonOverviewClient({
 
         <div className="ml-auto flex items-center gap-2">
           <select
-            className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-zinc-100"
+            className="h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-[var(--foreground)]"
             value={exportFormat}
             onChange={(e) => setExportFormat(e.target.value as "csv" | "json" | "txt" | "md")}
           >
@@ -224,7 +228,7 @@ export function SeasonOverviewClient({
           <a
             href={exportUrl}
             download
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-xs font-medium text-zinc-100 hover:bg-[var(--surface-hover)] transition-colors"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
           >
             <Download className="h-3.5 w-3.5" />
             Export
@@ -234,41 +238,41 @@ export function SeasonOverviewClient({
 
       {matrix && (
         <div className="flex items-center gap-4 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] px-4 py-3 text-xs">
-          <span className="text-zinc-300">
-            <span className="font-semibold text-zinc-100">
+          <span className="text-[var(--text-soft)]">
+            <span className="font-semibold text-[var(--foreground)]">
               {matrix.roundCount}
             </span>{" "}
             rounds
           </span>
-          <span className="text-zinc-300">
-            <span className="font-semibold text-emerald-400">
+          <span className="text-[var(--text-soft)]">
+            <span className="font-semibold text-[var(--success)]">
               {matrix.finalizedRoundCount}
             </span>{" "}
             finalized
           </span>
-          <span className="text-zinc-300">
-            <span className="font-semibold text-amber-400">
+          <span className="text-[var(--text-soft)]">
+            <span className="font-semibold text-[var(--warning)]">
               {matrix.draftRoundCount}
             </span>{" "}
             draft
           </span>
-          <span className="text-zinc-300">
-            <span className="font-semibold text-red-400">
+          <span className="text-[var(--text-soft)]">
+            <span className="font-semibold text-[var(--danger)]">
               {matrix.playersWithWarnings}
             </span>{" "}
             w/ warnings
           </span>
           {matrix.highestSupportBurden && (
-            <span className="text-zinc-300">
+            <span className="text-[var(--text-soft)]">
               Highest support:{" "}
-              <span className="font-semibold text-amber-300">
+              <span className="font-semibold text-[var(--warning)]">
                 {matrix.highestSupportBurden}
               </span>
             </span>
           )}
           {matrix.doubleLoadCount > 0 && (
-            <span className="text-zinc-300">
-              <span className="font-semibold text-red-400">
+            <span className="text-[var(--text-soft)]">
+              <span className="font-semibold text-[var(--danger)]">
                 {matrix.doubleLoadCount}
               </span>{" "}
               player{matrix.doubleLoadCount !== 1 ? "s" : ""} w/ double-load
@@ -286,48 +290,48 @@ export function SeasonOverviewClient({
           <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b border-[var(--border-soft)]">
-                <th className="sticky left-0 z-10 bg-[var(--surface-base)] px-2 py-2 text-left text-[10px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="sticky left-0 z-10 bg-[var(--surface-base)] px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Player
                 </th>
-                <th className="px-2 py-2 text-left text-[10px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Team
                 </th>
                 {matrix.rounds.map((r) => (
                   <th
                     key={r.matchRoundId}
-                    className="px-1 py-2 text-center text-[9px] font-semibold text-zinc-400 whitespace-nowrap"
+                    className="px-1 py-2 text-center text-[9px] font-semibold text-[var(--text-muted)] whitespace-nowrap"
                   >
                     {r.matchRoundName}
                   </th>
                 ))}
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap border-l app-hairline">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap border-l border-[var(--border-soft)]">
                   Total
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Core
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Sup
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Dev
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Rep
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   2x
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Drp
                 </th>
-                <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                   Unav
                 </th>
-                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                    Warn
                  </th>
-                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-zinc-300 whitespace-nowrap">
+                 <th className="px-2 py-2 text-center text-[9px] font-semibold text-[var(--text-soft)] whitespace-nowrap">
                    Rdy
                  </th>
               </tr>
@@ -349,10 +353,10 @@ export function SeasonOverviewClient({
                     )
                   }
                 >
-                  <td className="sticky left-0 z-10 bg-inherit px-2 py-1.5 text-zinc-100 whitespace-nowrap font-medium">
+                  <td className="sticky left-0 z-10 bg-inherit px-2 py-1.5 text-[var(--foreground)] whitespace-nowrap font-medium">
                     {player.playerName}
                   </td>
-                  <td className="px-2 py-1.5 text-zinc-300 whitespace-nowrap">
+                  <td className="px-2 py-1.5 text-[var(--text-soft)] whitespace-nowrap">
                     {player.coreTeamName}
                   </td>
                   {matrix.rounds.map((round) => {
@@ -368,11 +372,11 @@ export function SeasonOverviewClient({
                           className="px-1 py-1.5 text-center"
                         >
                           {isUnavailable ? (
-                            <span className="text-[9px] text-zinc-500">
+                            <span className="text-[9px] text-[var(--text-muted)]">
                               Unav
                             </span>
                           ) : (
-                            <span className="text-[9px] text-zinc-600">—</span>
+                            <span className="text-[9px] text-[var(--text-muted)]">—</span>
                           )}
                         </td>
                       );
@@ -387,17 +391,17 @@ export function SeasonOverviewClient({
                             const isDraft = cell.status === "DRAFT";
                             const style =
                               ROLE_CELL_STYLES[cell.role] ??
-                              "bg-zinc-800/20 text-zinc-400 border-zinc-600/30";
+                              "bg-[var(--tl-c-surface-hover)] text-[var(--text-muted)] border-[var(--border-soft)]";
                             const label =
                               ROLE_LABELS[cell.role] ?? cell.role.slice(0, 3);
                             return (
                               <span
                                 key={ci}
-                                className={`inline-flex items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold border ${style} ${isDraft ? "opacity-60 border-dashed" : ""} ${cell.controlledDoubleLoad ? "ring-1 ring-red-500/40" : ""}`}
+                                className={`inline-flex items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold border ${style} ${isDraft ? "opacity-60 border-dashed" : ""} ${cell.controlledDoubleLoad ? "ring-1 ring-[var(--danger)]/40" : ""}`}
                                 title={`${cell.role} for ${cell.teamName}${cell.controlledDoubleLoad ? " (double-load)" : ""}${isDraft ? " (draft)" : ""}`}
                               >
                                 {label}
-                                {cell.controlledDoubleLoad && <span className="text-red-400">2x</span>}
+                                {cell.controlledDoubleLoad && <span className="text-[var(--danger)]">2x</span>}
                               </span>
                             );
                           })}
@@ -405,7 +409,7 @@ export function SeasonOverviewClient({
                       </td>
                     );
                   })}
-                  <td className="px-2 py-1.5 text-center text-zinc-200 font-semibold border-l app-hairline">
+                  <td className="px-2 py-1.5 text-center text-[var(--foreground)] font-semibold border-l border-[var(--border-soft)]">
                     {player.roundsPlayed}
                   </td>
                   <td className="px-2 py-1.5 text-center text-emerald-400">
@@ -420,29 +424,29 @@ export function SeasonOverviewClient({
                   <td className="px-2 py-1.5 text-center text-purple-400">
                     {player.backfillMatches}
                   </td>
-                  <td className="px-2 py-1.5 text-center text-red-400">
+                  <td className="px-2 py-1.5 text-center text-[var(--danger)]">
                     {player.doubleLoadRounds}
                   </td>
-                  <td className="px-2 py-1.5 text-center text-zinc-400">
+                  <td className="px-2 py-1.5 text-center text-[var(--text-muted)]">
                     {player.droppedRounds}
                   </td>
-                  <td className="px-2 py-1.5 text-center text-zinc-500">
+                  <td className="px-2 py-1.5 text-center text-[var(--text-muted)]">
                     {player.unavailableRounds}
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     {player.warningCount > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 text-amber-400">
+                      <span className="inline-flex items-center gap-0.5 text-[var(--warning)]">
                         <AlertTriangle className="h-3 w-3" />
                         {player.warningCount}
                       </span>
                     ) : (
-                      <span className="text-zinc-600">0</span>
+                      <span className="text-[var(--text-muted)]">0</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     {player.negativeReadinessSignals.length > 0 ? (
                       <span
-                        className="inline-flex items-center gap-0.5 text-orange-400 cursor-help"
+                        className="inline-flex items-center gap-0.5 text-[var(--warning)] cursor-help"
                         title={player.negativeReadinessSignals
                           .map((s) => `${READINESS_SIGNAL_LABELS[s.signalType as ReadinessSignalType] ?? s.signalType}: ${READINESS_VALUE_LABELS[s.value as ReadinessSignalValue] ?? s.value}`)
                           .join(", ")}
@@ -451,7 +455,7 @@ export function SeasonOverviewClient({
                         {player.negativeReadinessSignals.length}
                       </span>
                     ) : (
-                      <span className="text-zinc-600">0</span>
+                      <span className="text-[var(--text-muted)]">0</span>
                     )}
                   </td>
                 </tr>
@@ -464,7 +468,7 @@ export function SeasonOverviewClient({
       {selectedPlayerId && playerTimeline && (
         <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-zinc-100">
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">
               Player movement timeline
             </h3>
             <button
@@ -481,7 +485,7 @@ export function SeasonOverviewClient({
           <div className="flex items-center gap-2 flex-wrap text-xs">
             {playerTimeline.map((entry, i) => (
               <span key={i} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3 w-3 text-zinc-500" />}
+                {i > 0 && <ChevronRight className="h-3 w-3 text-[var(--text-muted)]" />}
                 <span
                   className={`rounded border px-1.5 py-0.5 ${
                     entry.status === "DRAFT"
@@ -489,17 +493,17 @@ export function SeasonOverviewClient({
                       : ""
                   } ${
                     ROLE_CELL_STYLES[entry.role] ??
-                    "bg-zinc-800/20 text-zinc-400 border-zinc-600/30"
+                    "bg-[var(--tl-c-surface-hover)] text-[var(--text-muted)] border-[var(--border-soft)]"
                   }`}
                 >
                   {entry.matchRoundName} {entry.teamName?.slice(0, 3)}{" "}
                   {ROLE_LABELS[entry.role] ?? entry.role.slice(0, 3)}
                   {entry.status === "DRAFT" && (
-                    <span className="text-zinc-500 ml-0.5">draft</span>
+                    <span className="text-[var(--text-muted)] ml-0.5">draft</span>
                   )}
                 </span>
                 {entry.fromTeamName && (
-                  <span className="text-[9px] text-zinc-400">
+                  <span className="text-[9px] text-[var(--text-muted)]">
                     {entry.fromTeamName.slice(0, 3)}→
                     {entry.teamName?.slice(0, 3)}
                   </span>
@@ -512,25 +516,25 @@ export function SeasonOverviewClient({
 
       {movementPaths.length > 0 && (
         <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-          <h3 className="text-sm font-semibold text-zinc-100 mb-3">
+          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">
             Movement path summary
           </h3>
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--border-soft)]">
-                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold text-zinc-400">
+                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold text-[var(--text-muted)]">
                   From
                 </th>
-                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold text-zinc-400">
+                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold text-[var(--text-muted)]">
                   To
                 </th>
-                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold text-zinc-400">
+                <th className="text-left py-1.5 pr-3 text-[10px] font-semibold text-[var(--text-muted)]">
                   Role
                 </th>
-                <th className="text-center py-1.5 pr-3 text-[10px] font-semibold text-zinc-400">
+                <th className="text-center py-1.5 pr-3 text-[10px] font-semibold text-[var(--text-muted)]">
                   Count
                 </th>
-                <th className="text-center py-1.5 pr-3 text-[10px] font-semibold text-zinc-400">
+                <th className="text-center py-1.5 pr-3 text-[10px] font-semibold text-[var(--text-muted)]">
                   Players
                 </th>
               </tr>
@@ -559,26 +563,26 @@ export function SeasonOverviewClient({
                       }
                     }}
                   >
-                    <td className="py-1.5 pr-3 text-zinc-200">
+                    <td className="py-1.5 pr-3 text-[var(--foreground)]">
                       {path.fromTeamName}
                     </td>
-                    <td className="py-1.5 pr-3 text-zinc-200">
+                    <td className="py-1.5 pr-3 text-[var(--foreground)]">
                       {path.toTeamName}
                     </td>
                     <td className="py-1.5 pr-3">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                           ROLE_CELL_STYLES[path.role] ??
-                          "bg-zinc-800/20 text-zinc-400"
+                          "bg-[var(--tl-c-surface-hover)] text-[var(--text-muted)]"
                         }`}
                       >
                         {formatSelectionRole(path.role as SelectionRole)}
                       </span>
                     </td>
-                    <td className="py-1.5 pr-3 text-center text-zinc-200">
+                    <td className="py-1.5 pr-3 text-center text-[var(--foreground)]">
                       {path.count}
                     </td>
-                    <td className="py-1.5 pr-3 text-center text-zinc-300">
+                    <td className="py-1.5 pr-3 text-center text-[var(--text-soft)]">
                       {path.uniquePlayers}
                     </td>
                   </tr>
@@ -589,14 +593,14 @@ export function SeasonOverviewClient({
 
           {selectedPathKey && pathPlayers.length > 0 && (
             <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
-              <h4 className="text-[11px] font-semibold text-zinc-300 mb-2">
+              <h4 className="text-[11px] font-semibold text-[var(--text-soft)] mb-2">
                 Path detail
               </h4>
               <div className="flex flex-wrap gap-2 text-xs">
                 {pathPlayers.map((p, i) => (
                   <span
                     key={i}
-                    className="rounded border border-[var(--border-soft)] px-2 py-1 text-zinc-200"
+                    className="rounded border border-[var(--border-soft)] px-2 py-1 text-[var(--foreground)]"
                   >
                     {p.playerName} · {p.roundName} · {p.date}
                   </span>

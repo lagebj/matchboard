@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { TouchlineButton } from "@/components/touchline";
 import { finalizeLeagueSeasonAction, unfinalizeLeagueSeasonAction, getFinalizationValidationAction } from "./season-actions";
 
 type SeasonFinalizeControlsProps = {
@@ -91,43 +92,33 @@ export function SeasonFinalizeControls({
       <div className="flex items-center gap-3">
         {isFinalized ? (
           <>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-700/40 bg-emerald-950/20 px-2.5 py-1 text-xs font-medium text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-2.5 py-1 text-xs font-medium text-[var(--success)]">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               Finalised
               {currentFinalizedAt && (
-                <span className="text-emerald-400/60">
+                <span className="text-[var(--success)]/60">
                   {new Date(currentFinalizedAt).toLocaleDateString()}
                 </span>
               )}
               {finalizedBy && (
-                <span className="text-emerald-400/40" title={`Finalised by: ${finalizedBy}`}>
+                <span className="text-[var(--success)]/40" title={`Finalised by: ${finalizedBy}`}>
                   by {finalizedBy}
                 </span>
               )}
             </span>
-            <button
-              type="button"
-              onClick={handleUnfinalize}
-              disabled={isPending}
-              className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors disabled:opacity-50"
-            >
+            <TouchlineButton type="button" variant="secondary" size="sm" onClick={handleUnfinalize} disabled={isPending}>
               Unfinalise
-            </button>
+            </TouchlineButton>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={handleFinalize}
-            disabled={isPending}
-            className="rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 py-1 text-xs font-medium text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors disabled:opacity-50"
-          >
+          <TouchlineButton type="button" variant="primary" size="sm" onClick={handleFinalize} disabled={isPending}>
             Finalise league season
-          </button>
+          </TouchlineButton>
         )}
         {error && (
-          <span className="text-xs text-red-400">{error}</span>
+          <span className="text-xs text-[var(--danger)]">{error}</span>
         )}
       </div>
       {showValidation && validation && !isFinalized && (
@@ -135,14 +126,14 @@ export function SeasonFinalizeControls({
           {validation.errors.length > 0 && (
             <div className="flex flex-col gap-0.5">
               {validation.errors.map((err, i) => (
-                <span key={i} className="text-red-400">{err}</span>
+                <span key={i} className="text-[var(--danger)]">{err}</span>
               ))}
             </div>
           )}
           {validation.warnings.length > 0 && (
             <div className="flex flex-col gap-0.5">
               {validation.warnings.map((w, i) => (
-                <span key={i} className="text-amber-400">{w}</span>
+                <span key={i} className="text-[var(--warning)]">{w}</span>
               ))}
             </div>
           )}
