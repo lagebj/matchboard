@@ -3,10 +3,20 @@
 ## Status
 
 Accepted (2026-09-11). **Phases 0–3 implemented (inventory/provenance, presentation view
-models, semantic widget/viz library, route-complete UI Lab). Phases 4–14 (production route
-migration, brand/PWA, transitional-system removal, full regression, final visual approval) are
-explicitly gated behind Hard Gate A — human visual approval of the Phase 3 UI Lab — and have not
-started.** No production route was touched in this pass.
+models, semantic widget/viz library, route-complete UI Lab), followed by two rounds of Hard Gate
+A review feedback (pitch-line markings, GK kit colour + opt-in perspective tilt, shirt-shaped
+tokens, vertical pitch orientation — see `docs/domain/touchline-atlas-provenance.md` §12–§13),
+each verified with a full `npm run validate` pass and merged (#519, #520).
+
+**Hard Gate A: approved 2026-09-11.** The human reviewer confirmed the Phase 3 UI Lab
+(`/dev/ui-lab/atlas`, including both feedback rounds) matches expectations — information
+hierarchy, component composition, visual fidelity, and data-story quality all accepted. Per
+`13_IMPLEMENTATION_PHASES_AND_GATES.md`, this unblocks **Phase 4 — High-identity routes** (Today,
+League, Events, Event detail, Match detail, Players, Player detail, Insights), which stops again
+at **Human Gate B** before Phase 5 (the football work surfaces: Round Board, Lineup, Tactics,
+Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/intelligence routes,
+utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
+validation and final sign-off) remain unstarted and ungated until their own turn.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish
@@ -91,9 +101,11 @@ three hard human-approval gates (A, B, C); this ADR covers Phases 0–3, ending 
   captured against the running dev server and archived outside the repository (development
   evidence, not a committed baseline — see "Screenshots" in the accompanying report).
 
-**Explicitly not done in this pass** (Phases 4–14, gated behind Hard Gate A): any production route
-migration, brand mark/icon/PWA regeneration, removal of Product Surface 1.0 residue, and full
-acceptance-gate verification / public-doc screenshot regeneration.
+**Explicitly not done in this pass** (Phases 4–10, per `13_IMPLEMENTATION_PHASES_AND_GATES.md` —
+Hard Gate A has since been approved, see Status above): any production route migration, brand
+mark/icon/PWA regeneration, removal of Product Surface 1.0 residue, and full acceptance-gate
+verification / public-doc screenshot regeneration. These begin in a follow-up ADR/PR sequence
+starting with Phase 4.
 
 ## Consequences
 
