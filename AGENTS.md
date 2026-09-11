@@ -2735,6 +2735,19 @@ in-repo reference once the UI Lab gate is passed.
   Board), F6 (supporting surfaces), F7 (brand-asset/PWA regeneration), F8 (cleanup), and F9 (full
   acceptance-gate verification) are not started — do not migrate further production surfaces
   without a fresh explicit approval, per the same UI-Lab gate discipline ADR-0134 established.
+
+  **F0–F4 merged (PR #517, commit `81d388a4`) and post-merge-verified (2026-09-11) — full account
+  in ADR-0135's "Post-merge verification sweep".** Full local `npm run validate` (all 14 steps)
+  passed clean on `main` after the merge. E2E: every read-only/denial-asserting spec
+  (`accessibility.spec.ts`, `pwa-installability.spec.ts`, `smoke.spec.ts`, `authz-failure.spec.ts`,
+  a `mobile-critical.spec.ts` subset) ran and passed against the deployed Test slot — zero
+  automatically-detectable WCAG 2.2 AA violations. The data-mutating specs
+  (`round-mutation.spec.ts`/`live-reporting.spec.ts`/`follow-live.spec.ts`/
+  `post-match-evidence-parity.spec.ts`) were deliberately not run ad hoc against the shared
+  persistent Test branch (transaction-contention/shared-state risk, documented in
+  `playwright.config.ts`). Visual regression, real-device acceptance, and Lighthouse/performance
+  budgets remain absent from this repository / infeasible in a sandbox, unchanged from ADR-0134
+  Phase 12's identical finding.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
