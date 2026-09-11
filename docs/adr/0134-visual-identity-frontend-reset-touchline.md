@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted (2026-09-10). Implementation in progress:
+Accepted (2026-09-10). **Implementation complete — all 12 phases shipped** (2026-09-11):
+Touchline is the current, sole visual system across every route; Product Surface 1.0's palette
+and compatibility aliases are removed; the canonical interaction-design reference, public docs,
+and this ADR all describe current reality; the full verification sweep is green. See the Phase
+10/11/12 entries at the end of this section for the closing account.
 
 - **Phases 0–3** delivered (theme foundation + `/dev/ui-lab` with the seven golden screens),
   PR #489.
@@ -263,6 +267,38 @@ Every surface *named so far* was migrated at this point, and this ADR then claim
   disclosed follow-up work rather than treated as a Phase 11 blocker (DECISIONS.md D23:
   regeneration is mechanical, but accepting a new screenshot as correct content is a deliberate
   review step, not something to force through in an unattended docs pass).
+
+  **Phase 12 (full verification sweep) is complete — the final phase of this programme.**
+  `npm run validate` (the full gate, not `--fast`) was run against `main` at Phase 11's merge
+  commit: lint, typecheck (app + workers), the complete unit + component suite (306 + 36 test
+  files, 3,802 + 253 tests, all pass), worker tests (5 files, 84 tests, all pass), the production
+  build (compiled successfully), policy verify, version verify, terminology check, architecture
+  check, Prisma query field validation, forbidden-SQL scan, supply-chain integrity, and docs
+  check — every step green. That covers the local half of Phase 12's checklist.
+
+  The E2E/accessibility/real-device-PWA half was assessed against this repository's existing
+  per-PR acceptance pipeline (`test-acceptance.yml`, ADR-0075) rather than re-run redundantly:
+  its `Deploy PR to Test slot` job runs the full `npm run test:e2e` (all 9 Playwright specs,
+  including `accessibility.spec.ts` and `pwa-installability.spec.ts`) against an isolated real
+  deployment of every PR's exact commit, and every PR in this Touchline effort (#507–#515)
+  already went through it — #514 (Phase 10's actual code change) is the load-bearing proof: its
+  accessibility run caught the real `TestEnvironmentBadge` contrast regression above and blocked
+  merge until fixed. Re-running that identical suite against Phase 11/12's doc-only commits would
+  exercise no code path #514 hadn't already exercised.
+
+  Two items in Phase 12's original checklist — visual regression and automated performance
+  budgets — were searched for and confirmed **absent from this repository entirely** (no
+  `toHaveScreenshot`/`toMatchSnapshot` usage anywhere, no Lighthouse CI or performance-budget
+  config; production performance monitoring is `@vercel/speed-insights`/`@vercel/analytics` RUM,
+  not a CI gate). This is a pre-existing gap in the repository's own tooling, not something the
+  Touchline programme left undone — recorded here rather than silently marked satisfied.
+  Genuine physical-device PWA acceptance remains the pre-existing, documented human-only step in
+  `docs/development/pwa-manual-verification.md`; Touchline did not touch the PWA manifest, icons,
+  or install mechanism, so nothing there needed re-verification for this programme.
+
+  **All 12 phases of ADR-0134 are complete.** Touchline is the current, sole visual system across
+  every route; Product Surface 1.0's palette and compatibility aliases are removed; the canonical
+  interaction-design reference, public docs, and this ADR all describe current reality.
 
 ## Context
 
