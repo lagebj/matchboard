@@ -249,7 +249,7 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
             <div className="mt-1.5">
               <button
                 type="button"
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)]"
                 onClick={() => setExpandedThread(expandedThread === thread.id ? null : thread.id)}
               >
                 {thread.observations.length} observation{thread.observations.length !== 1 ? 's' : ''}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import type { HistoricalDryRunResult } from "@/lib/evidence/opponent-engine";
@@ -55,55 +55,55 @@ export function OpponentPopulationContent({ orgSlug }: { orgSlug: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="touchline flex flex-col gap-6">
       <SectionHeader title="Populate opponent levels" description="Populate opponent sporting level evidence from historical match data. This is a one-time migration tool." />
 
       <Surface>
         <div className="flex flex-col gap-4 p-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--text-muted)]">
             This tool processes completed post-match reports — League and Event matches alike — and
             creates opponent sporting level evidence for matches that were played before the opponent
             engine was active. Use dry-run first to preview the results, then apply to persist them.
           </p>
 
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={handleDryRun} disabled={loading}>
+            <TouchlineButton variant="secondary" onClick={handleDryRun} disabled={loading}>
               {loading && !applyResult ? "Processing..." : "Dry run"}
-            </Button>
-            <Button variant="primary" onClick={handleApply} disabled={loading}>
+            </TouchlineButton>
+            <TouchlineButton variant="primary" onClick={handleApply} disabled={loading}>
               {loading && !dryRunResult ? "Applying..." : "Apply to history"}
-            </Button>
+            </TouchlineButton>
           </div>
 
           {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+            <div className="rounded-md bg-[var(--danger-subtle)] p-3 text-sm text-[var(--danger)]">{error}</div>
           )}
 
           {dryRunResult && (
             <div className="rounded-md border p-4">
               <h3 className="font-medium mb-2">Dry run results</h3>
               <dl className="grid grid-cols-2 gap-1 text-sm">
-                <dt className="text-muted-foreground">Matches inspected</dt>
+                <dt className="text-[var(--text-muted)]">Matches inspected</dt>
                 <dd>{dryRunResult.matchesInspected}</dd>
-                <dt className="text-muted-foreground">Matches eligible</dt>
+                <dt className="text-[var(--text-muted)]">Matches eligible</dt>
                 <dd>{dryRunResult.matchesEligible}</dd>
-                <dt className="text-muted-foreground">Evidence would be created</dt>
+                <dt className="text-[var(--text-muted)]">Evidence would be created</dt>
                 <dd>{dryRunResult.evidenceCreated}</dd>
-                <dt className="text-muted-foreground">Evidence skipped</dt>
+                <dt className="text-[var(--text-muted)]">Evidence skipped</dt>
                 <dd>{dryRunResult.evidenceSkipped}</dd>
-                <dt className="text-muted-foreground">Opponents affected</dt>
+                <dt className="text-[var(--text-muted)]">Opponents affected</dt>
                 <dd>{dryRunResult.opponentsAffected}</dd>
-                <dt className="text-muted-foreground">Exclusions</dt>
+                <dt className="text-[var(--text-muted)]">Exclusions</dt>
                 <dd>{dryRunResult.exclusions.length}</dd>
               </dl>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
                 League matches inspected: {dryRunResult.bySource.league.inspected} ({dryRunResult.bySource.league.eligible} eligible) ·
                 {" "}Event matches inspected: {dryRunResult.bySource.event.inspected} ({dryRunResult.bySource.event.eligible} eligible)
               </p>
               {dryRunResult.exclusions.length > 0 && (
                 <div className="mt-3">
                   <h4 className="text-sm font-medium mb-1">Exclusions</h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
+                  <ul className="text-xs text-[var(--text-muted)] space-y-1">
                     {dryRunResult.exclusions.slice(0, 20).map((e, i) => (
                       <li key={i}>{e.matchId}: {e.reason}</li>
                     ))}
@@ -120,18 +120,18 @@ export function OpponentPopulationContent({ orgSlug }: { orgSlug: string }) {
             <div className="rounded-md border p-4">
               <h3 className="font-medium mb-2">Apply results</h3>
               <dl className="grid grid-cols-2 gap-1 text-sm">
-                <dt className="text-muted-foreground">Total eligible matches</dt>
+                <dt className="text-[var(--text-muted)]">Total eligible matches</dt>
                 <dd>{applyResult.totalMatches}</dd>
-                <dt className="text-muted-foreground">Processed</dt>
+                <dt className="text-[var(--text-muted)]">Processed</dt>
                 <dd>{applyResult.processed}</dd>
-                <dt className="text-muted-foreground">Evidence recorded</dt>
+                <dt className="text-[var(--text-muted)]">Evidence recorded</dt>
                 <dd>{applyResult.recorded}</dd>
-                <dt className="text-muted-foreground">Already recorded (skipped)</dt>
+                <dt className="text-[var(--text-muted)]">Already recorded (skipped)</dt>
                 <dd>{applyResult.skipped}</dd>
-                <dt className="text-muted-foreground">Failed</dt>
+                <dt className="text-[var(--text-muted)]">Failed</dt>
                 <dd>{applyResult.failed}</dd>
               </dl>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs text-[var(--text-muted)]">
                 League: {applyResult.bySource.league.recorded} recorded, {applyResult.bySource.league.skipped} skipped, {applyResult.bySource.league.failed} failed ·
                 {" "}Event: {applyResult.bySource.event.recorded} recorded, {applyResult.bySource.event.skipped} skipped, {applyResult.bySource.event.failed} failed
               </p>

@@ -186,7 +186,7 @@ export function GroupSettingsClient({
                 <div className="flex items-center gap-3">
                   <Users className="h-4 w-4 text-[var(--text-muted)]" />
                   <span className="font-medium">{access.membership.user.name ?? access.membership.user.email}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                  <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {access.role === "GROUP_COACH" ? "Coach" : "Viewer"}
                   </span>
                 </div>
@@ -198,7 +198,7 @@ export function GroupSettingsClient({
                   >
                     <button
                       type="submit"
-                      className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
+                      className="rounded-md p-1.5 text-[var(--danger)] hover:bg-[var(--danger-subtle)]"
                       title="Remove access"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -229,11 +229,11 @@ export function GroupSettingsClient({
               {group.players.map((p: PlayerItem) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-muted/50"
+                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{p.player.firstName}{p.player.lastName ? ` ${p.player.lastName}` : ""}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                    <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                       {MEMBERSHIP_TYPE_LABELS[p.membershipType] ?? p.membershipType}
                     </span>
                     {p.player.coreTeam && (
@@ -260,14 +260,14 @@ export function GroupSettingsClient({
                   <span className="font-medium">{path.fromGroup.name}</span>
                   <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
                   <span className="font-medium">{path.toGroup.name}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                  <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {MOVEMENT_ROLE_LABELS[path.role] ?? path.role}
                   </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--text-muted)]">
+                  <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
                     {MOVEMENT_SCOPE_LABELS[path.scope] ?? path.scope}
                   </span>
                   {!path.isActive && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--warning)]">Inactive</span>
+                    <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--warning)]">Inactive</span>
                   )}
                 </div>
                 {canMutate && (
@@ -284,8 +284,8 @@ export function GroupSettingsClient({
                       type="submit"
                       className={`rounded-md px-3 py-1 text-xs font-medium ${
                         path.isActive
-                          ? "text-destructive hover:bg-destructive/10"
-                          : "text-primary hover:bg-primary/10"
+                          ? "text-[var(--danger)] hover:bg-[var(--danger-subtle)]"
+                          : "text-[var(--accent-strong)] hover:bg-[var(--accent-subtle)]"
                       }`}
                     >
                       {path.isActive ? "Deactivate" : "Reactivate"}
@@ -309,7 +309,7 @@ export function GroupSettingsClient({
                     >
                       <button
                         type="submit"
-                        className="rounded-md p-1 text-[var(--text-muted)] hover:text-destructive hover:bg-destructive/10"
+                        className="rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)]"
                         title="Remove from group"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -330,8 +330,8 @@ export function GroupSettingsClient({
 
       {canMutate && (
         <section className="space-y-4 pt-4 border-t">
-          <h2 className="text-lg font-semibold text-destructive">Danger zone</h2>
-          <div className="rounded-lg border border-destructive/20 p-4">
+          <h2 className="text-lg font-semibold text-[var(--danger)]">Danger zone</h2>
+          <div className="rounded-lg border border-[var(--danger)]/35 p-4">
             <p className="text-sm text-[var(--text-muted)]">
               Deactivating this group will remove it from the active groups list.
               This cannot be undone if the group has players, teams, or seasons.
@@ -344,7 +344,7 @@ export function GroupSettingsClient({
                 }
               }}
               disabled={deactivating}
-              className="mt-3 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              className="mt-3 rounded-md bg-[var(--danger-subtle)] px-4 py-2 text-sm font-medium text-[var(--danger)] hover:bg-[var(--danger-subtle)] disabled:opacity-50"
             >
               {deactivating ? "Deactivating..." : "Deactivate group"}
             </button>
@@ -370,7 +370,7 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
           <span className="text-sm text-[var(--text-muted)]">Group details</span>
           <button
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-muted hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-foreground"
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit
@@ -412,7 +412,7 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="rounded-md px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-muted"
+          className="rounded-md px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
         >
           Cancel
         </button>
@@ -461,7 +461,7 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
             type="text"
             value={group.slug}
             disabled
-            className="w-full rounded-md border bg-muted px-3 py-2 text-sm font-mono text-[var(--text-muted)]"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm font-mono text-[var(--text-muted)]"
           />
         </div>
       </div>
@@ -480,7 +480,7 @@ function GroupEditForm({ group }: { group: GroupDetail }) {
         <button
           type="submit"
           disabled={saving || !name.trim()}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105 disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save changes"}
         </button>
@@ -543,7 +543,7 @@ function AddAccessForm({ groupId, availableMembers }: { groupId: string; availab
               }
             }}
             disabled={!selectedMemberId}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105 disabled:opacity-50"
           >
             <Plus className="inline h-4 w-4 mr-1" />
             Add access
@@ -599,7 +599,7 @@ function AddPlayerForm({ groupId }: { groupId: string }) {
           setAdding(false);
         }}
         disabled={!playerId.trim() || adding}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        className="rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105 disabled:opacity-50"
       >
         <Plus className="inline h-4 w-4 mr-1" />
         {adding ? "Adding..." : "Add player"}
@@ -667,7 +667,7 @@ function AddMovementPathForm({ groupId }: { groupId: string }) {
           setCreating(false);
         }}
         disabled={!toGroupId.trim() || creating}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        className="rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105 disabled:opacity-50"
       >
         <Plus className="inline h-4 w-4 mr-1" />
         {creating ? "Creating..." : "Add path"}

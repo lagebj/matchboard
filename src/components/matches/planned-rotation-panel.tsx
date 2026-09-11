@@ -522,7 +522,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
                     <button
                       onClick={() => handleMoveChange(change.id, "up")}
                       disabled={isPending || index === 0}
-                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                      className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-30"
                       aria-label="Move up"
                     >
                       <ChevronUp className="h-3.5 w-3.5" />
@@ -530,7 +530,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
                     <button
                       onClick={() => handleMoveChange(change.id, "down")}
                       disabled={isPending || index === rotation.changes.length - 1}
-                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                      className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-30"
                       aria-label="Move down"
                     >
                       <ChevronDown className="h-3.5 w-3.5" />
@@ -581,7 +581,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
                     <button
                       onClick={() => setEditingChangeId(change.id)}
                       disabled={isPending}
-                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                      className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-30"
                       aria-label="Edit change"
                     >
                       <Pencil className="h-3.5 w-3.5" />

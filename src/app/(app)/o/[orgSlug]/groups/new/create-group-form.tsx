@@ -101,14 +101,14 @@ export function CreateGroupForm({ orgSlug }: { orgSlug: string }) {
         <div className="flex justify-end gap-3 pt-2">
           <a
             href={`/o/${orgSlug}/groups`}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+            className="rounded-md border border-[var(--border-soft)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)]"
           >
             Cancel
           </a>
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105 disabled:opacity-50"
           >
             {isPending ? "Creating..." : "Create group"}
           </button>

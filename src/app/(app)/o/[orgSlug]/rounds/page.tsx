@@ -69,9 +69,10 @@ export default async function RoundsPage({ params }: { params: Promise<{ orgSlug
   const roundItems = await buildRoundItems(matchRounds, reportStatusByMatchId as Map<string, string>);
 
   return (
-    <div className="flex flex-col gap-3">
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Rounds · {roundItems.length}</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rounds · {roundItems.length}</p>
       </div>
 
       <RoundListClient

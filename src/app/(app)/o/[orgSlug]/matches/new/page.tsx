@@ -2,9 +2,8 @@ import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { MatchCreateForm } from "@/components/matches/match-create-form";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
 import { DecisionBanner } from "@/components/ui/decision-banner";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function NewMatchPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -27,15 +26,16 @@ export default async function NewMatchPage({ params }: { params: Promise<{ orgSl
 
   if (teams.length === 0) {
     return (
-      <main className="flex min-h-full flex-col gap-6 text-foreground">
-        <PageHeader title="Create match" />
+      // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+      <main className="touchline flex min-h-full flex-col gap-6 text-foreground">
+        <TouchlinePageHeader title="Create match" />
         <DecisionBanner
           variant="decision"
           title="Create at least one team before adding matches."
           action={
-            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
               Create a team
-            </Button>
+            </TouchlineButton>
           }
         />
       </main>
@@ -43,10 +43,10 @@ export default async function NewMatchPage({ params }: { params: Promise<{ orgSl
   }
 
   return (
-    <main className="flex min-h-full flex-col gap-6 text-foreground">
-      <PageHeader
+    <main className="touchline flex min-h-full flex-col gap-6 text-foreground">
+      <TouchlinePageHeader
         title="Create match"
-        description="Register match details. Matches are assigned to rounds by date."
+        context="Register match details. Matches are assigned to rounds by date."
       />
 
       <Surface variant="default" padding="lg">

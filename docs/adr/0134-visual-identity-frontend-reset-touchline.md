@@ -110,10 +110,44 @@ Accepted (2026-09-10). Implementation in progress:
     tokens — not a deliberate scope expansion, but too small and directly adjacent to leave broken
     once found.
 
-  **This closes the Phase 10 scope gap in full.** Every surface identified as blocking Phase 10
-  removal — Teams, Simulation, Workbench, Attention, Organisations, Invite, error boundaries, and
-  now the Review family — is migrated. Phase 10 (remove the superseded Product Surface 1.0
-  system) is unblocked and is the next piece of work. The compact bottom nav is
+Every surface *named so far* was migrated at this point, and this ADR then claimed the Phase 10
+  scope gap was closed in full. **That claim was premature** — before starting Phase 10's actual
+  destructive work, a systematic verification (tracing every `o/[orgSlug]/**/page.tsx`'s local
+  imports up to 3 hops, checking each for `.touchline`) found **7 more genuinely unmigrated,
+  content-bearing pages** the earlier discovery passes had missed entirely, never named in the
+  original spec or any prior gap-discovery pass: **Formations list** (`/formations`), **Evidence
+  rebuild** and **Populate opponent levels** (their `-client-content.tsx` files, reached via a thin
+  page.tsx one directory up — a pattern the earlier, shallower per-directory grep check had
+  missed), **Match creation** (`/matches/new`, `match-create-form.tsx`), **Match handover**
+  (`/matches/[matchId]/handover`, `coach-handover-view.tsx`), **Rounds list** (`/rounds`,
+  `round-list-client.tsx`), and an **Organisation detail admin page** (`/o/{orgSlug}` bare route,
+  `org-detail-client.tsx`) not listed anywhere in the canonical routes table. All are now
+  migrated, closing this second, larger round of the gap. `round-list-client.tsx` was genuinely
+  PS0-era (five custom gradient-pill buttons, matching the `/rules` precedent, all became
+  `TouchlineButton`).
+
+  This same pass also found a **second, independent class of bug**, distinct from every raw-color-
+  literal bug found so far: several files used shadcn/ui-convention Tailwind classes
+  (`text-muted-foreground`, `bg-destructive`, `text-primary`, `bg-muted`, `text-primary-foreground`,
+  etc.) that this app's `@theme` **never defines** — these silently fail to generate any CSS rule
+  at all, so the affected text/backgrounds render with no color styling applied, in *any* theme,
+  since the day each was written. A comprehensive codebase-wide grep for this exact class family
+  found it in 11 files, including several already "migrated" in earlier PRs this ADR describes
+  (`group-settings-client.tsx`, `guest-players-panel.tsx`, `team-focus-panel.tsx`,
+  `group-list-client.tsx`, `group-detail-client.tsx`, `create-group-form.tsx`,
+  `simulation-client-content.tsx`, `workbench-client-content.tsx`) — missed there because those
+  passes' greps only matched raw Tailwind palette names (`zinc`, `red`, `amber`, …), not this
+  separate shadcn-convention vocabulary. All 11 files fixed to this app's actual token set
+  (`--text-muted`, `--danger`/`--danger-subtle`, `--surface-muted`, and the accent-fill pattern for
+  solid "primary" buttons). `org-detail-client.tsx` also had a second, independent instance of the
+  `var(--surface-1)` undefined-token bug already found once in Settings' Phase 9 pass — fixed to
+  `--surface-base`.
+
+  **Given two independent classes of latent, already-shipped bugs were found by widening the
+  audit method twice, Phase 10 is not yet declared unblocked a third time without another
+  verification pass first.** Phase 10 (remove the superseded Product Surface 1.0 system) remains
+  the next piece of work, contingent on that pass finding nothing further. The compact bottom nav
+  is
   **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
   contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
   ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell
