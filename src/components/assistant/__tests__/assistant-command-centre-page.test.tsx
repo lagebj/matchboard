@@ -252,6 +252,30 @@ describe("AssistantCommandCentrePage next-action selection", () => {
     expect(screen.getByText("Nothing urgent right now.")).toBeTruthy();
   });
 
+  it("features the upcoming match as the hero (Touchline Design Atlas, ADR-0136) instead of the plain empty state when no decision is urgent enough to force-feature but a real upcoming match exists", () => {
+    const projection: CoachSituationProjection = { ...makeMatchdayProjection({}), decisions: [], status: "READY" };
+    const todayMatches = [
+      makeTodayMatch({ matchId: "m1", teamName: "Rød", opponent: "Graabein United", lifecycleStatus: "planning_open", startsAt: new Date(Date.now() + 3600_000).toISOString() }),
+    ];
+    renderPage(makeCommandCentre([], todayMatches), projection);
+
+    // The match hero replaces the generic empty state...
+    expect(screen.queryByText("Nothing urgent right now.")).toBeNull();
+    // ...and shows the real match as a "NEXT MATCH" hero with a real action. (The same match also
+    // legitimately appears again in the operational timeline below — that's the existing,
+    // unchanged TodayOperationalTimeline, not a duplicate hero.)
+    expect(screen.getByText("NEXT MATCH")).toBeTruthy();
+    expect(screen.getAllByText("Graabein United").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Match details/i })).toBeTruthy();
+  });
+
+  it("still shows the plain empty state when there is no decision and no upcoming match at all", () => {
+    const projection: CoachSituationProjection = { ...makeMatchdayProjection({}), decisions: [], status: "READY" };
+    renderPage(makeCommandCentre([], []), projection);
+    expect(screen.getByText("Nothing urgent right now.")).toBeTruthy();
+    expect(screen.queryByText("NEXT MATCH")).toBeNull();
+  });
+
   it("labels the hero 'Worth reviewing' (not 'Next action') when status is REVIEW_AVAILABLE", () => {
     const items = [makeItem({ id: "report-item", category: "post_match_report", title: "Complete report" })];
     const commandCentre = makeCommandCentre(items);

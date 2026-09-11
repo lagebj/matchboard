@@ -23,7 +23,7 @@
 
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 
-export type TodayAvailability = "AVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
+export type TodayAvailability = "AVAILABLE" | "UNAVAILABLE" | "INJURED" | "SICK" | "AWAY" | "TENTATIVE" | "UNKNOWN";
 
 export interface TodayPlayerAvailabilityInput {
   playerId: string;
@@ -39,6 +39,11 @@ export interface TodayDecisionInput {
   visibility: "PROMOTE" | "NORMAL" | "DEFER" | "SUPPRESS";
   deepLink?: string;
   recommendedActionLabel?: string;
+  /** Passthrough of `CoachDecision.candidateId` — this view-model never interprets it, but a
+   * caller that also needs to correlate the hero decision back to its underlying
+   * `AssistantWorkItem` (e.g. to exclude it from a grouped work-item list rendered elsewhere on
+   * the same page, avoiding showing the same item twice) needs it available. */
+  candidateId?: string;
 }
 
 export interface TodayScheduleItemInput {
@@ -106,6 +111,7 @@ export interface TodayViewModel {
 }
 
 const AVAILABILITY_LABEL: Record<Exclude<TodayAvailability, "AVAILABLE">, string> = {
+  UNAVAILABLE: "Unavailable",
   INJURED: "Injured",
   SICK: "Illness",
   AWAY: "Away",

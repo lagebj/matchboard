@@ -18,6 +18,28 @@ Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/i
 utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
 validation and final sign-off) remain unstarted and ungated until their own turn.
 
+**Phase 4 progress: Today migrated (1 of 8).** See
+`docs/domain/touchline-atlas-provenance.md` §14 for the full account. This is the real production
+`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage` — not a UI-Lab copy. Every
+existing situational-decision-support behaviour (matchday banner, grouped work items, decision
+reviews, next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching
+context, upcoming rounds, PWA install) is frozen, unchanged; the migration is additive
+composition only:
+- A real match hero (`NextMatchHero`) now appears when no decision is urgent enough to
+  force-feature and a real upcoming match exists — previously this state showed only a generic
+  empty state, never the match itself.
+- Squad status (org-wide `Player.currentAvailability`), latest results (last 5 completed
+  matches), and one evidence-spotlight story (opening-10-minutes goals conceded, scoped to the
+  featured match's own team) are new, real, database-backed additions.
+- The golden's illustrative "Training" schedule row and a redundant second rendering of today's
+  matches were deliberately not built — see the provenance doc's new `PROHIBITED_ILLUSTRATIVE`
+  entry and its "deliberately omitted" reasoning.
+- Verified: full `npm run validate` (14/14), a new DB-backed test
+  (`get-org-active-player-availability.test.ts`), a new pure-logic test
+  (`today-match-presentation.test.ts`), 2 new component tests plus all 24 pre-existing ones
+  passing unchanged, and a real screenshot captured against the seeded Fjordvik FK dataset via
+  the existing test-agent auth flow (not a fixture).
+
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish
 programme's widget/pitch/control-glass primitives are the foundation this bundle builds

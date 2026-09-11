@@ -298,3 +298,63 @@ Further human visual review surfaced two more gaps in the same review pass:
   it to fill all available grid width.
 
 Full `npm run validate` (14/14 steps) passed after this round too.
+
+## 14. Phase 4 — Today production migration (2026-09-11)
+
+First of the eight Phase 4 "High-identity routes." Migrates the real production
+`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage` — not a UI-Lab copy — following
+Hard Gate A approval. All existing situational logic (matchday banner, grouped work items,
+decision-review section, next-round readiness, deferred-item annotation, "at a glance" metric
+tiles, weekly coaching context, upcoming rounds, PWA install) is **frozen, unchanged** — this is
+an additive composition change, not a rewrite of production behaviour.
+
+**New, real (non-fixture) additions**:
+- **Match hero** (`NextMatchHero`) — shown only when `resolveNextAction()` finds no decision
+  urgent enough to force-feature (the existing, unchanged selection) *and* a real upcoming match
+  exists (`resolveFeaturedUpcomingMatch()`, extracted to a shared helper so it's the same match
+  `TodayOperationalTimeline` already marks NEXT — not a second, competing selection). Previously
+  this exact state showed only a generic "Nothing urgent" empty state; the match itself was never
+  shown as a hero anywhere on Today.
+- **Squad status** (`SquadReadinessWidget`) — org-wide `Player.currentAvailability`
+  (`getOrgActivePlayerAvailability()`, new, mirrors `getPlayersSeasonOverview()`'s existing
+  active-player query shape), summarized via `summarizeSquadStatus()`. Fixed a real gap this
+  surfaced: `TodayAvailability`/`AVAILABILITY_LABEL` was missing the `UNAVAILABLE` enum value
+  (real production data, absent from the original UI-Lab-only type).
+- **Latest matches** (`RecentFootballWidget`) — last 5 completed results org-wide, reusing
+  `getFixturesOverview()`'s already-computed report state exactly like the League page does
+  (no second results query).
+- **Evidence spotlight** (`EvidenceSpotlightWidget`) — one factual "goals conceded in the opening
+  10 minutes" story, scoped to the *featured match's own team* (never an arbitrary team pick —
+  it's the same team the hero above is already about), via `getTeamSeasonMatchPhasePatterns()`.
+  Phrased as a count ("N goals conceded ... across M matches"), deliberately **not** a percentage
+  — computing "% of all goals conceded" correctly would require reconciling overlapping phase
+  windows (`OPENING_5` sits inside `OPENING_10`, etc.) that `getTeamSeasonMatchPhasePatterns()`'s
+  rows don't disambiguate; a wrong percentage is worse than a plainer true count, so it wasn't
+  attempted.
+
+**Deliberately omitted, not silently dropped**:
+- **External "League table"** — as documented in §0.5/§10, no standings model exists.
+- **"Training" schedule row** — the golden's "17:30 Training · G2015 · Pitch 2" schedule item has
+  no real data owner; this repository has no training-session model at all (confirmed by schema
+  search). Added to the `PROHIBITED_ILLUSTRATIVE` register below.
+- **A separate "Today's schedule" widget** — the golden's mixed training+match daily agenda
+  concept, once the (illustrative) training row is removed, would only ever show the *same*
+  matches `TodayOperationalTimeline` already renders, with strictly less functionality (no
+  inline Follow-live/Complete-report actions, no live/next/later states). Building a second,
+  weaker rendering of identical data was judged a regression, not an improvement, so it was not
+  added — `TodayOperationalTimeline` (existing, unchanged) remains the one schedule/timeline
+  surface.
+
+**Extracted, not duplicated**: `todayMatchPresentation()` (Today-row match-presentation mapping)
+moved from `assistant-command-centre-page.tsx` (a `"use client"` module) to a plain shared file,
+`src/lib/matches/today-match-presentation.ts`, alongside the new `resolveFeaturedUpcomingMatch()`
+helper — so the server page (which needs the identical mapping/selection to build the hero) and
+the client component (which still needs it for the operational timeline) both call the one real
+implementation, rather than a second copy living in a client-only module a server component
+shouldn't import from for execution.
+
+New `PROHIBITED_ILLUSTRATIVE` entry:
+
+| Route | Requested illustrative content | Missing owner | Resolution |
+|---|---|---|---|
+| Today | "Training" schedule row (time + pitch) | No training-session model anywhere in the schema | Omit; schedule/timeline content stays real-match-only via the existing `TodayOperationalTimeline`. |
