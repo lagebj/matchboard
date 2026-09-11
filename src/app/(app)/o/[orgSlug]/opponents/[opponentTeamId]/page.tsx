@@ -186,8 +186,8 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   };
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <div className="touchline flex flex-col gap-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-6">
       <div>
         <Link href="/fixtures" className="text-sm text-[var(--accent-strong)] hover:underline">
           &larr; Fixtures

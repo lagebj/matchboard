@@ -34,8 +34,8 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
   });
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-6">
       <TouchlinePageHeader
         title="Opponent teams"
         context="Encountered opponents created from completed post-match reports."

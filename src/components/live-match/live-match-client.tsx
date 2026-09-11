@@ -832,8 +832,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // --- Render ---
   if (loading) {
     return (
-      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
-      <div className="touchline flex items-center justify-center min-h-[100dvh] bg-[var(--background)]" data-theme="dark">
+      // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7).
+      <div className="touchline flex items-center justify-center min-h-[100dvh] bg-[var(--background)]">
         <p className="text-[var(--text-muted)]">Loading match data...</p>
       </div>
     );
@@ -841,8 +841,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   if (!sessionActive) {
     return (
-      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
-      <div className="touchline flex flex-col items-center justify-center min-h-[100dvh] bg-[var(--background)] p-6 space-y-6" data-theme="dark" style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
+      // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7).
+      <div className="touchline flex flex-col items-center justify-center min-h-[100dvh] bg-[var(--background)] p-6 space-y-6" style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="text-center">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">{teamName}</h1>
           <p className="text-[var(--text-muted)] mt-1 text-lg">vs {opponentName}</p>
@@ -860,8 +860,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
-    <div className="touchline min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col" data-theme="dark" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7).
+    <div className="touchline min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       {/* Scoreboard — canonical football home→away order (ADR-0125). Deliberately a
           compact operational-focus density (one row, sticky) rather than the full
           MatchHeader: the live action buttons must stay above the fold. Our team is

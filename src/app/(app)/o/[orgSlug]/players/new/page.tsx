@@ -22,8 +22,8 @@ export default async function NewPlayerPage({ params }: { params: Promise<{ orgS
 
   if (teams.length === 0) {
     return (
-      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-      <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+      // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+      <main className="touchline flex min-h-full flex-col gap-6">
         <TouchlinePageHeader title="Create player" />
         <DecisionBanner
           variant="decision"
@@ -39,8 +39,8 @@ export default async function NewPlayerPage({ params }: { params: Promise<{ orgS
   }
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-6">
       <TouchlinePageHeader
         title="Create player"
         context="Add a player to the registry. The player code is generated automatically."

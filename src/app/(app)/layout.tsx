@@ -43,12 +43,11 @@ export default async function AppLayout({
     // reachable in this state, or redirecting to them here loops forever.
     return (
       <div className="flex min-h-screen flex-col bg-background">
-        {/* Shell chrome renders inside a `.touchline` island (dark-pinned until
-            Phase 9). Page content (`{children}`) stays on Product Surface 1.0
+        {/* Shell chrome renders inside a `.touchline` island (theme-aware, no longer dark-pinned
+            as of Phase 9). Page content (`{children}`) stays on Product Surface 1.0
             until its own migration phase wraps it — see ADR-0134's phased
             model. */}
         <header
-          data-theme="dark"
           className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
         >
           <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
@@ -81,7 +80,7 @@ export default async function AppLayout({
   const content = (
     <OrgSlugProvider orgSlug={orgSlug}>
       <OrgSlugCookieSetter orgSlug={orgSlug} />
-      {/* The nav / top bar are `.touchline` islands (dark-pinned); page content
+      {/* The nav / top bar are `.touchline` islands (theme-aware, no longer dark-pinned); page content
           stays on Product Surface 1.0 until its own migration phase. Phase 10
           hoists `.touchline` to this wrapper and deletes the PS 1.0 layer. */}
       <div className="app-shell flex min-h-screen bg-background">
@@ -93,7 +92,6 @@ export default async function AppLayout({
         </aside>
         <div className="flex min-h-screen flex-1 flex-col">
           <header
-            data-theme="dark"
             className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
           >
             <div className="min-w-0 flex-1">

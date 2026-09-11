@@ -33,7 +33,7 @@ function formatRoleDisplay(role: string): string {
 // ROLE_COLORS and season-client.tsx's ROLE_CELL_STYLES.
 function roleBadgeClasses(role: string): string {
   switch (role) {
-    case "SUPPORT": return "border-[rgba(178,140,219,0.24)] bg-[rgba(178,140,219,0.08)] text-[#c0a0db]";
+    case "SUPPORT": return "border-[color-mix(in_srgb,var(--tl-c-evidence)_35%,transparent)] bg-[var(--tl-c-evidence-subtle)] text-[var(--tl-c-evidence)]";
     case "DEVELOPMENT": return "border-[rgba(140,167,146,0.24)] bg-[rgba(140,167,146,0.08)] text-[var(--accent-strong)]";
     case "BACKFILL": return "border-[rgba(208,176,127,0.24)] bg-[rgba(208,176,127,0.08)] text-[var(--warning)]";
     default: return "border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] text-[var(--text-soft)]";

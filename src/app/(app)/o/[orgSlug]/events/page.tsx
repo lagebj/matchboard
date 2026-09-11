@@ -78,8 +78,8 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
   const pastGroups = groupByMonth(past);
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134).
-    <div className="touchline flex flex-col gap-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134).
+    <div className="touchline flex flex-col gap-6">
       <TouchlinePageHeader
         title="Events"
         context="Cup, tournament and friendly-day squad planning."

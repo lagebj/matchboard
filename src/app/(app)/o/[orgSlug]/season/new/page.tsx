@@ -18,8 +18,8 @@ export default async function NewLeagueSeasonPage({ params, searchParams }: NewL
   const groups = await getFootballGroupsAction();
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <main className="touchline flex min-h-full flex-col gap-8" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-8">
       <TouchlinePageHeader
         title="Create league season"
         context="Set up a new league season for squad planning. Matches are grouped into rounds within a league season."

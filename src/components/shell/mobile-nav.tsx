@@ -43,7 +43,7 @@ export function MobileNav({ orgSlug }: { orgSlug: string }) {
   const items = mobileNavItems(orgSlug);
 
   return (
-    <nav aria-label="Mobile" data-theme="dark" className="touchline tl-bottom-nav medium:hidden">
+    <nav aria-label="Mobile" className="touchline tl-bottom-nav medium:hidden">
       <ul className="flex h-full items-stretch justify-between px-2" role="list">
         {items.map((item) => {
           const active = isNavItemActive(pathname, item.href);

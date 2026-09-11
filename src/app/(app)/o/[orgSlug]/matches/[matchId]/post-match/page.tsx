@@ -279,11 +279,11 @@ export default async function PostMatchRoute({ params }: PageProps) {
   }));
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7). PostMatchPage
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7). PostMatchPage
     // island-wraps its own root too (also rendered from other contexts) — nested `.touchline` is
     // idempotent. The sibling observation/feedback/reflection/evidence sections below are not
     // self-wrapped and rely on this page-level island.
-    <div className="touchline flex flex-col gap-4" data-theme="dark">
+    <div className="touchline flex flex-col gap-4">
       <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} />
       <ObservationSection
         matchId={matchId}

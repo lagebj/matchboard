@@ -208,8 +208,8 @@ export function FormationsBuilderClient({
   }));
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 6).
-    <div className="touchline flex flex-col gap-4" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 6).
+    <div className="touchline flex flex-col gap-4">
       <TouchlinePageHeader
         title={isEditing ? "Edit formation" : "Create formation"}
         actions={

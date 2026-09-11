@@ -124,8 +124,8 @@ export function GroupSettingsClient({
   const [deactivating, setDeactivating] = useState(false);
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 9).
-    <div className="touchline space-y-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 9).
+    <div className="touchline space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -267,7 +267,7 @@ export function GroupSettingsClient({
                     {MOVEMENT_SCOPE_LABELS[path.scope] ?? path.scope}
                   </span>
                   {!path.isActive && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-orange-600">Inactive</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-[var(--warning)]">Inactive</span>
                   )}
                 </div>
                 {canMutate && (
