@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppearanceControl } from "@/components/touchline";
 import {
   createMachinePrincipalAction,
   revokeMachinePrincipalAction,
@@ -92,11 +93,21 @@ export function OrgSettingsClient({
   }
 
   return (
-    <div className="space-y-8" key={refreshKey}>
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 9).
+    <div className="touchline space-y-8" data-theme="dark" key={refreshKey}>
       <div>
         <h1 className="text-2xl font-bold">Organisation Settings</h1>
         <p className="text-sm text-[var(--text-muted)]">Manage {org.name}</p>
       </div>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Appearance</h2>
+        <p className="text-xs text-[var(--text-muted)]">
+          Choose how Matchboard looks on this device. This is a per-device preference, not an
+          organisation setting.
+        </p>
+        <AppearanceControl />
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Details</h2>
@@ -152,7 +163,7 @@ export function OrgSettingsClient({
                   value={principalName}
                   onChange={(e) => setPrincipalName(e.target.value)}
                   placeholder="e.g., Simulation Bot"
-                  className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -162,7 +173,7 @@ export function OrgSettingsClient({
                   value={principalDescription}
                   onChange={(e) => setPrincipalDescription(e.target.value)}
                   placeholder="Purpose of this machine principal"
-                  className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -181,14 +192,14 @@ export function OrgSettingsClient({
                   ))}
                 </div>
               </div>
-              {createError && <p className="text-sm text-red-500">{createError}</p>}
+              {createError && <p className="text-sm text-[var(--danger)]">{createError}</p>}
               {createdSecret && (
-                <div className="rounded-md border border-green-800 bg-green-950/30 p-3">
-                  <p className="text-sm font-medium text-green-400">Principal created!</p>
+                <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] p-3">
+                  <p className="text-sm font-medium text-[var(--success)]">Principal created!</p>
                   <p className="text-xs text-[var(--text-muted)] mt-1">
                     Copy this client secret now. It will not be shown again.
                   </p>
-                  <code className="block mt-2 rounded bg-[var(--surface-1)] px-2 py-1 text-xs break-all">{createdSecret}</code>
+                  <code className="block mt-2 rounded bg-[var(--tl-c-surface-hover)] px-2 py-1 text-xs break-all">{createdSecret}</code>
                 </div>
               )}
               <button
@@ -212,7 +223,7 @@ export function OrgSettingsClient({
                       <p className="text-sm font-medium">{p.name}</p>
                       {p.description && <p className="text-xs text-[var(--text-muted)]">{p.description}</p>}
                     </div>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${p.status === "ACTIVE" ? "bg-green-950/30 text-green-400" : "bg-red-950/30 text-red-400"}`}>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${p.status === "ACTIVE" ? "bg-[var(--success-subtle)] text-[var(--success)]" : "bg-[var(--danger-subtle)] text-[var(--danger)]"}`}>
                       {p.status}
                     </span>
                   </div>
@@ -244,11 +255,11 @@ export function OrgSettingsClient({
 
       {isOwner && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-red-400">Danger Zone</h2>
+          <h2 className="text-lg font-semibold text-[var(--danger)]">Danger Zone</h2>
 
           {isSuspended ? (
-            <div className="rounded-md border border-red-800 bg-red-950/20 p-4 space-y-3">
-              <p className="text-sm font-medium text-red-400">
+            <div className="rounded-md border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] p-4 space-y-3">
+              <p className="text-sm font-medium text-[var(--danger)]">
                 This organisation is suspended.
               </p>
               {suspendedReason && (
@@ -312,17 +323,17 @@ function SuspendActionButton({ orgSlug, action }: { orgSlug: string; action: "su
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Reason for suspension"
-          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm"
+          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm"
         />
       )}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
       <button
         onClick={handleSuspend}
         disabled={loading}
         className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
           action === "suspend"
-            ? "bg-red-950/30 text-red-400 hover:bg-red-950/50"
-            : "bg-green-950/30 text-green-400 hover:bg-green-950/50"
+            ? "bg-[var(--danger-subtle)] text-[var(--danger)] hover:bg-[var(--danger-subtle)]"
+            : "bg-[var(--success-subtle)] text-[var(--success)] hover:bg-[var(--success-subtle)]"
         }`}
       >
         {loading
@@ -358,11 +369,11 @@ function DeleteOrgButton({ orgSlug }: { orgSlug: string }) {
       <button
         onClick={handleDelete}
         disabled={loading}
-        className="rounded-md bg-red-950/30 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-950/50 disabled:opacity-50"
+        className="rounded-md bg-[var(--danger-subtle)] px-4 py-2 text-sm font-medium text-[var(--danger)] hover:bg-[var(--danger-subtle)] disabled:opacity-50"
       >
         {loading ? "Deleting..." : "Delete organisation permanently"}
       </button>
-      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-sm text-[var(--danger)] mt-1">{error}</p>}
     </div>
   );
 }
@@ -386,11 +397,11 @@ function RevokeButton({ principalId, orgSlug }: { principalId: string; orgSlug: 
       <button
         onClick={handleRevoke}
         disabled={loading}
-        className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+        className="text-xs text-[var(--danger)] hover:text-[var(--danger)] disabled:opacity-50"
       >
         {loading ? "Revoking..." : "Revoke"}
       </button>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
     </div>
   );
 }
@@ -409,7 +420,7 @@ function ReactivateButton({ principalId, orgSlug }: { principalId: string; orgSl
     <button
       onClick={handleReactivate}
       disabled={loading}
-      className="text-xs text-green-400 hover:text-green-300 disabled:opacity-50"
+      className="text-xs text-[var(--success)] hover:brightness-110 disabled:opacity-50"
     >
       {loading ? "Reactivating..." : "Reactivate"}
     </button>
@@ -432,8 +443,8 @@ function RotateSecretButton({ principalId, orgSlug }: { principalId: string; org
 
   if (newSecret) {
     return (
-      <div className="rounded border border-green-800 bg-green-950/30 p-2">
-        <p className="text-xs text-green-400 font-medium">New secret generated</p>
+      <div className="rounded border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] p-2">
+        <p className="text-xs text-[var(--success)] font-medium">New secret generated</p>
         <code className="text-xs break-all">{newSecret}</code>
         <p className="text-xs text-[var(--text-muted)] mt-1">Copy now. Won&apos;t be shown again.</p>
       </div>
