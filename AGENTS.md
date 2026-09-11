@@ -2512,10 +2512,15 @@ in-repo reference once the UI Lab gate is passed.
   `context` together and `TouchlinePageHeader` only exposes one `context` slot and no icon slot;
   `team-focus-panel.tsx`'s `STATUS_COLORS` was a second instance of the pre-existing raw
   light-mode-only Tailwind pattern already documented for `football-observation-section.tsx`,
-  token-aligned the same way) is now migrated, closing part of this gap. The Review family,
-  Simulation, Workbench, Attention, Organisations, Invite, and error boundaries remain — Phase 10
-  cannot proceed until they are migrated too (see the maintainer's explicit choice to migrate
-  first, recorded in this session's history, over scoping Phase 10 down instead).
+  token-aligned the same way) is now migrated. **Simulation** (`/simulation`,
+  `simulation-client-content.tsx`), **Workbench** (`/workbench`, `workbench-client-content.tsx`),
+  and **Attention** (`/attention`, `attention-client.tsx`) are also now migrated —
+  `attention-client.tsx`'s `urgencyStyles` was a third instance of the same pre-existing raw
+  light-mode-only Tailwind pattern (`bg-red-50`/`bg-amber-50`/`bg-slate-50`, no dark styling at
+  all), token-aligned the same way as `team-focus-panel.tsx`'s `STATUS_COLORS`. The Review family,
+  Organisations, Invite, and error boundaries remain — Phase 10 cannot proceed until they are
+  migrated too (see the maintainer's explicit choice to migrate first, recorded in this session's
+  history, over scoping Phase 10 down instead).
 
   Phase 10 hoists `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in
   `globals.css`. Migrate a surface's *presentation* only — domain/permissions/persistence/audit/

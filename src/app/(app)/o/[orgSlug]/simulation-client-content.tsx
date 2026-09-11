@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import type {
@@ -198,7 +198,8 @@ export function SimulationPageContent() {
   }
 
   return (
-    <div className="space-y-6">
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline space-y-6">
       <SectionHeader
         title="Season Planning Simulation"
         description="Dry-run planning across league rounds and events without committing changes."
@@ -210,12 +211,12 @@ export function SimulationPageContent() {
       </p>
 
       <Surface variant="default" padding="md">
-        <h3 className="text-sm font-semibold text-zinc-100 mb-3">Simulation Scope</h3>
+        <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Simulation Scope</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm text-[var(--text-muted)]">League season</label>
             <select
-              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)]"
               value={leagueSeasonId}
               onChange={(e) => setLeagueSeasonId(e.target.value)}
             >
@@ -228,7 +229,7 @@ export function SimulationPageContent() {
           <div>
             <label className="text-sm text-[var(--text-muted)]">Scope</label>
             <select
-              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)]"
               value={scope}
               onChange={(e) => setScope(e.target.value as SimulationScope)}
             >
@@ -260,7 +261,7 @@ export function SimulationPageContent() {
           <div>
             <label className="text-sm text-[var(--text-muted)]">Policy mode</label>
             <select
-              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)]"
               value={policyMode}
               onChange={(e) => setPolicyMode(e.target.value as SimulationPolicyMode)}
             >
@@ -271,9 +272,9 @@ export function SimulationPageContent() {
           </div>
         </div>
         <div className="mt-4">
-          <Button onClick={handleRun} disabled={loading || (!includeLeague && !includeEvents)}>
+          <TouchlineButton onClick={handleRun} disabled={loading || (!includeLeague && !includeEvents)}>
             {loading ? "Simulating..." : "Run simulation"}
-          </Button>
+          </TouchlineButton>
         </div>
       </Surface>
 
@@ -293,24 +294,24 @@ export function SimulationPageContent() {
         <Surface variant="default" padding="md">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">Apply as drafts</h3>
+              <h3 className="text-sm font-semibold text-[var(--foreground)]">Apply as drafts</h3>
               <p className="text-xs text-[var(--text-muted)] mt-1">
                 Re-run generation through the normal pipeline and persist draft selections for all non-finalised rounds.
                 Existing drafts will be replaced. Finalised rounds are skipped.
               </p>
             </div>
             {!confirmApply ? (
-              <Button onClick={() => setConfirmApply(true)} variant="primary" size="sm">
+              <TouchlineButton onClick={() => setConfirmApply(true)} variant="primary" size="sm">
                 Apply as drafts
-              </Button>
+              </TouchlineButton>
             ) : (
               <div className="flex items-center gap-2">
-                <Button onClick={handleApply} variant="primary" size="sm" disabled={applying}>
+                <TouchlineButton onClick={handleApply} variant="primary" size="sm" disabled={applying}>
                   {applying ? "Applying..." : "Confirm apply"}
-                </Button>
-                <Button onClick={() => setConfirmApply(false)} variant="ghost" size="sm">
+                </TouchlineButton>
+                <TouchlineButton onClick={() => setConfirmApply(false)} variant="ghost" size="sm">
                   Cancel
-                </Button>
+                </TouchlineButton>
               </div>
             )}
           </div>
@@ -333,7 +334,7 @@ export function SimulationPageContent() {
 
       {applyResult && (
         <Surface variant="default" padding="md">
-          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Apply Results</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Apply Results</h3>
           <div className="grid grid-cols-4 gap-4 text-sm mb-4">
             <div><span className="text-[var(--text-muted)]">Total</span><p className="font-bold">{applyResult.totalRounds}</p></div>
             <div><span className="text-[var(--text-muted)]">Applied</span><p className="font-bold text-[var(--success)]">{applyResult.appliedCount}</p></div>
@@ -415,7 +416,7 @@ function FairnessSummary({ fairness }: { fairness: SeasonSimulationResult["fairn
 
   return (
     <Surface variant="default" padding="md">
-      <h3 className="text-sm font-semibold text-zinc-100 mb-3">Fairness Summary</h3>
+      <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Fairness Summary</h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
         <div><span className="text-[var(--text-muted)]">Total players</span><p className="font-bold">{fairness.totalPlayers}</p></div>
         <div><span className="text-[var(--text-muted)]">No opportunity</span><p className="font-bold text-[var(--danger)]">{fairness.playersWithZeroOpportunity}</p></div>
@@ -467,7 +468,7 @@ function LeagueResults({
   return (
     <>
       <Surface variant="default" padding="md">
-        <h3 className="text-sm font-semibold text-zinc-100 mb-3">League Simulation</h3>
+        <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">League Simulation</h3>
         <div className="mb-4">
           <h4 className="text-sm font-medium mb-2">Round Coverage</h4>
           <div className="overflow-x-auto">
@@ -503,10 +504,10 @@ function LeagueResults({
 
       <Surface variant="default" padding="md">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-zinc-100">Player Participation</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Player Participation</h4>
           <div className="flex gap-2">
             <select
-              className="h-7 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-zinc-100"
+              className="h-7 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-xs text-[var(--foreground)]"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "name" | "opportunity" | "load")}
             >
@@ -561,7 +562,7 @@ function ConflictList({ conflicts }: { conflicts: SimulationConflict[] }) {
 
   return (
     <Surface variant="warning" padding="md">
-      <h3 className="text-sm font-semibold text-zinc-100 mb-3">Conflicts</h3>
+      <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Conflicts</h3>
       <div className="space-y-1">
         {conflicts.slice(0, 20).map((c, i) => (
           <div key={i} className="flex items-start gap-2 text-sm">
@@ -582,12 +583,12 @@ function ConflictList({ conflicts }: { conflicts: SimulationConflict[] }) {
 function EventResults({ events }: { events: EventSimulationResult[] }) {
   return (
     <Surface variant="default" padding="md">
-      <h3 className="text-sm font-semibold text-zinc-100 mb-3">Event Simulation</h3>
+      <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Event Simulation</h3>
       <div className="space-y-4">
         {events.map((event) => (
           <div key={event.eventId} className="border border-[var(--border-soft)] rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-zinc-100">{event.eventName}</h4>
+              <h4 className="text-sm font-medium text-[var(--foreground)]">{event.eventName}</h4>
               <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                 event.valid ? "bg-[var(--success-subtle)] text-[var(--success)]" : "bg-[var(--danger-subtle)] text-[var(--danger)]"
               }`}>

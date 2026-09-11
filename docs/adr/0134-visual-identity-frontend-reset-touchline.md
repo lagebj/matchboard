@@ -69,10 +69,17 @@ Accepted (2026-09-10). Implementation in progress:
   instance of the pre-existing raw light-mode-only Tailwind pattern already documented for
   `football-observation-section.tsx`/`observation-section.tsx` in Phase 7 — `bg-emerald-100`/
   `bg-blue-100`/`bg-gray-100` with no dark styling at all — token-aligned the same way) is now
-  migrated. The Review family, Simulation, Workbench, Attention, Organisations, Invite, and error
-  boundaries remain open — Phase 10 itself is still blocked pending their migration. Phase 10
-  (remove the superseded Product Surface 1.0 system) follows once that closes. The compact bottom
-  nav is
+  migrated. **Simulation** (`/simulation`, `simulation-client-content.tsx`), **Workbench**
+  (`/workbench`, `workbench-client-content.tsx`), and **Attention** (`/attention`,
+  `attention-client.tsx`) are also now migrated in the same pass — all three were small,
+  self-contained files island-wrapped with a straightforward `Button`→`TouchlineButton` swap;
+  `attention-client.tsx`'s `urgencyStyles` map was a third, independent instance of the same
+  pre-existing raw light-mode-only Tailwind pattern (`bg-red-50`/`bg-amber-50`/`bg-slate-50`, no
+  dark styling at all — the same root cause already found twice, in Phase 7's observation
+  sections and Teams' `team-focus-panel.tsx`), token-aligned the same way. The Review family,
+  Organisations, Invite, and error boundaries remain open — Phase 10 itself is still blocked
+  pending their migration. Phase 10 (remove the superseded Product Surface 1.0 system) follows
+  once that closes. The compact bottom nav is
   **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
   contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
   ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell
