@@ -16,9 +16,10 @@ export default function AtlasTacticsPage() {
       <TouchlinePageHeader title="Tactics" context="Rød vs Graabein United" />
 
       <div className="mt-5 flex flex-col gap-6 large:flex-row">
-        <div className="min-w-0 flex-1">
+        <div className="w-full max-w-[380px]">
           <TacticsBoard
             mode="lineup-readonly"
+            orientation="vertical"
             slots={lineupSlots}
             assignments={lineupAssignments}
             players={lineupPlayers}

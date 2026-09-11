@@ -276,3 +276,25 @@ fixed in this iteration:
   only the comment.
 
 Full `npm run validate` (14/14 steps) passed after this iteration.
+
+## 13. Hard Gate A review-feedback iteration, round 2 (2026-09-11)
+
+Further human visual review surfaced two more gaps in the same review pass:
+
+- **Player tokens didn't read as football "kits"** — the GK colour distinction (§12) was applied
+  to a plain rounded-rectangle badge, which still didn't look like a shirt. `PitchPlayerToken`/
+  `PitchEmptySlot` now render `lucide-react`'s `Shirt` icon (already an app dependency — no new
+  icon pack, no generated image asset) as the token shape, filled/stroked by the same
+  selected/kit/attention tone logic as before; the shirt number/role code sits on the "chest."
+  This lands globally (no opt-in gate, unlike `pitchStyle`) since it is a strict visual
+  improvement over the previous plain badge with no interaction or domain implication.
+- **The golden Tactics/Lineup/Formations panels use a vertical (portrait) pitch, not
+  horizontal** — own goal at the bottom, attacking direction bottom-to-top. `TacticsBoard` already
+  supports `orientation="vertical"` (an established path — the earlier Touchline Finish UI Lab's
+  `/dev/ui-lab/lineup` already exercises it) with no change needed to the component itself. The
+  three Atlas route pages (Tactics/Lineup/Formations) now pass `orientation="vertical"` and cap
+  the pitch container at `max-w-[380px]` so the taller portrait aspect ratio doesn't dominate a
+  wide desktop layout — matching the golden's own bounded pitch proportions rather than stretching
+  it to fill all available grid width.
+
+Full `npm run validate` (14/14 steps) passed after this round too.

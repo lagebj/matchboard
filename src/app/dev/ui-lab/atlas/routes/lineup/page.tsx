@@ -15,17 +15,20 @@ export default function AtlasLineupPage() {
       <TouchlinePageHeader title="Lineup" context="Rød vs Graabein United" actions={<TouchlineButton variant="secondary">Suggest lineup</TouchlineButton>} />
 
       <div className="mt-5 grid grid-cols-1 gap-5 expanded:grid-cols-12">
-        <div className="expanded:col-span-8">
-          <TacticsBoard
-            mode="lineup-assignment"
-            slots={lineupSlots}
-            assignments={lineupAssignments}
-            players={lineupPlayers}
-            readOnly={false}
-            pitchStyle="perspective"
-          />
+        <div className="expanded:col-span-6">
+          <div className="w-full max-w-[380px]">
+            <TacticsBoard
+              mode="lineup-assignment"
+              orientation="vertical"
+              slots={lineupSlots}
+              assignments={lineupAssignments}
+              players={lineupPlayers}
+              readOnly={false}
+              pitchStyle="perspective"
+            />
+          </div>
         </div>
-        <div className="expanded:col-span-4">
+        <div className="expanded:col-span-6">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Bench</p>
           <BenchRail players={lineupBench} />
         </div>
