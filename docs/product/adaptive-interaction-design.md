@@ -132,11 +132,15 @@ the root layout).
 scorebook (`ScorebookMatchRow`, `ScorebookRoundSection`), match (`MatchScoreHeader`,
 `LiveScoreStrip`, `OperationalMatchCard`), timeline (`TouchlineTimeline`), evidence
 (`EvidenceStory` + `PhaseDistribution` / `OutcomePair` / …), workbench (`WorkbenchToolbar`,
-`RosterColumn`, `RosterRow`, `TouchlineInspector`), navigation (`TouchlineSidebar` /
-`TouchlineRail` / `TouchlineBottomNav`), `TouchlineContextRail`, `TouchlineBottomSheet`. The
-canonical `MatchPresentation` (§6, ADR-0125) remains the sole owner of home/away, score
-orientation, own-team side, lifecycle, outcome, clock, cancellation, and planning/report
-attention — these presentation components consume it, they do not re-derive match truth.
+`RosterColumn`, `RosterRow`, `TouchlineInspector`, `WorkbenchSummaryStrip`, `BenchRail`,
+`PositionFitList`, `PlayerContextHeader`), navigation (`TouchlineSidebar` / `TouchlineRail` /
+`TouchlineBottomNav`, `TouchlineBrandTile`), `TouchlineContextRail`, `TouchlineBottomSheet`,
+widget (`TouchlineWidget`, `WidgetHeader`, `MetricStrip`, `CapacityBar`, `QuickActionGrid` —
+Touchline Finish follow-up, ADR-0135, §0.9), pitch (`PitchPlayerToken`, `PitchEmptySlot` — same
+follow-up), live (`LiveActionGrid` — same follow-up). The canonical `MatchPresentation` (§6,
+ADR-0125) remains the sole owner of home/away, score orientation, own-team side, lifecycle,
+outcome, clock, cancellation, and planning/report attention — these presentation components
+consume it, they do not re-derive match truth.
 
 ### 0.7 Migration status
 
@@ -146,6 +150,12 @@ route renders inside its scope) with PS 1.0's old bare-`:root` palette and compa
 deleted from `globals.css`. Phase 11 (this document, public user docs, screenshot regeneration)
 and Phase 12 (full verification sweep) are the closing phases of the programme. See ADR-0134 for
 the complete phase-by-phase history.
+
+The Touchline Finish & Visual Convergence follow-up (§0.9, ADR-0135) is a separate,
+subsequent effort: its Phases F0–F4 (token/material convergence, the widget/pitch/glass
+component set, the pitch-renderer refactor, and an extended `/dev/ui-lab` gate) are complete;
+F5–F9 (production migration, brand-asset regeneration, cleanup, full re-verification) are gated
+on human approval of that F4 UI Lab and have not started.
 
 ### 0.8 What's retained unchanged (ADR-0124 / ADR-0125 / ADR-0129 / ADR-0130)
 
@@ -174,6 +184,45 @@ them:
   tier; they never create eligibility. A slot with no safe fit is left unresolved and shown as
   a gap — never filled with a Developmental or Unsupported player. The formation editor shows
   each slot's derived exact role; a FREE slot shows "Manual-only for automatic planning".
+
+### 0.9 Touchline Finish & Visual Convergence follow-up (ADR-0135)
+
+A second, richer set of golden references proved Touchline needed evolving on five points —
+implemented as of this section's writing for `/dev/ui-lab` only (F0–F4); production migration
+(F5+) is a separately gated follow-on. See ADR-0135 for the full account.
+
+- **Widgets are now first-class**, refining (not reversing) §0.8's "no card per row" rule: a
+  `TouchlineWidget` (`src/components/touchline/widget/`) is justified only when it answers one
+  question or supports one action cluster — `WidgetHeader`, `MetricStrip`, `CapacityBar`,
+  `QuickActionGrid` are its composition primitives. Workbenches (Round Board, Lineup, Tactics,
+  Rotations, Live Reporting) stay workbenches; widgets are used sparingly there.
+- **The compact bottom nav is genuinely translucent**, superseding §0.6's implicit "opaque"
+  baseline: `.tl-bottom-nav` now uses a `>=90%`-opaque `--tl-control-glass` background with
+  `backdrop-filter` layered on top only inside an `@supports` guard — the opacity level is
+  itself both the AA-contrast fallback and the enhanced material, so nothing was traded away to
+  get translucency. `TouchlineBottomSheet` uses the same material at `tone="context"`.
+  `backdrop-filter` is reserved for floating controls (nav, sheet) — never applied to a
+  scrolling content surface.
+  ↳ Superseded example (do not reinstate): the nav was previously fully opaque
+  (`--tl-canvas-raised`, no blur) specifically to sidestep an unverified worry about automated
+  contrast checking against a translucent `position: fixed` element. The `>=90%` floor resolves
+  that without giving up the intended material.
+- **Pitch has its own token system** — `--tl-pitch` / `-deep` / `-line` / `-border` /
+  `-selected` / `-atmosphere`, applied via `.tl-pitch-surface`
+  (`src/components/formations/tactics-board.tsx`) — never generic surface/border tokens.
+- **Lineup/tactics render players with `PitchPlayerToken`/`PitchEmptySlot`**
+  (`src/components/touchline/pitch/`), not saturated role-coloured rectangles.
+  ↳ Superseded example (do not reinstate): `tactics-board.tsx`'s `ROLE_COLORS` previously used
+  Tailwind-500 saturated fills per role type (amber/sky/teal/emerald/orange/red/zinc) for the
+  formation builder AND for lineup/tactics player representation. The formation builder keeps a
+  *restrained* border/text-only role mapping; lineup/tactics/selection-preview no longer use
+  `ROLE_COLORS` at all.
+- **Golden reference images are composition authority only** — never a licence to add a player
+  photo, a league table, a drill/training feature, a new live-event type, or any other product
+  concept a reference image merely happens to illustrate. `LiveActionGrid`
+  (`src/components/touchline/live/`) is a clean example: it defines no action type itself and is
+  fed only the six action types Matchboard's `LiveMatchEventType` actually models, not the
+  golden reference's illustrative eight.
 
 ## 1. Governing principle
 

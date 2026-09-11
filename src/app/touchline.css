@@ -58,6 +58,27 @@
 
   --tl-atmosphere-accent: rgba(199, 245, 74, 0.06);
   --tl-atmosphere-cool: rgba(120, 169, 255, 0.04);
+
+  /* --- Touchline Finish & Visual Convergence follow-up (03 §A) -------------
+   * Widget / floating-control-glass / pitch semantic tokens. Additive to the
+   * palette above — never a second active token system. */
+  --tl-widget: #111820;
+  --tl-widget-strong: #161f29;
+  --tl-widget-muted: #0e141b;
+  --tl-widget-border: rgba(222, 232, 242, 0.12);
+  --tl-widget-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+  --tl-widget-shadow-strong: 0 18px 42px rgba(0, 0, 0, 0.3);
+
+  --tl-control-glass: rgba(16, 22, 29, 0.9);
+  --tl-control-glass-border: rgba(232, 240, 248, 0.15);
+  --tl-control-glass-shadow: 0 16px 44px rgba(0, 0, 0, 0.34);
+
+  --tl-pitch: #0b2817;
+  --tl-pitch-deep: #06180f;
+  --tl-pitch-line: rgba(184, 228, 172, 0.24);
+  --tl-pitch-border: rgba(199, 245, 74, 0.18);
+  --tl-pitch-selected: rgba(199, 245, 74, 0.16);
+  --tl-pitch-atmosphere: radial-gradient(circle at 50% 35%, rgba(72, 126, 67, 0.16), transparent 42%);
 }
 
 /* --- Light palette (first-class production theme / sideline mode) -------- */
@@ -101,6 +122,26 @@
 
   --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
   --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
+
+  /* Touchline Finish & Visual Convergence follow-up (03 §A) — light values. */
+  --tl-widget: #ffffff;
+  --tl-widget-strong: #f7f9f5;
+  --tl-widget-muted: #edf0ea;
+  --tl-widget-border: rgba(16, 19, 22, 0.11);
+  --tl-widget-shadow: 0 10px 24px rgba(30, 38, 32, 0.08);
+  --tl-widget-shadow-strong: 0 18px 38px rgba(30, 38, 32, 0.12);
+
+  --tl-control-glass: rgba(250, 252, 248, 0.92);
+  --tl-control-glass-border: rgba(16, 19, 22, 0.13);
+  --tl-control-glass-shadow: 0 16px 36px rgba(30, 38, 32, 0.14);
+
+  --tl-pitch: #dbe8d4;
+  --tl-pitch-deep: #cbdcc2;
+  --tl-pitch-line: rgba(38, 81, 39, 0.3);
+  --tl-pitch-border: rgba(79, 108, 0, 0.2);
+  --tl-pitch-selected: rgba(88, 116, 0, 0.12);
+  /* No dark-canvas radial atmosphere on the light pitch (06 §2). */
+  --tl-pitch-atmosphere: none;
 }
 
 @media (prefers-color-scheme: light) {
@@ -144,6 +185,24 @@
 
     --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
     --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
+
+    --tl-widget: #ffffff;
+    --tl-widget-strong: #f7f9f5;
+    --tl-widget-muted: #edf0ea;
+    --tl-widget-border: rgba(16, 19, 22, 0.11);
+    --tl-widget-shadow: 0 10px 24px rgba(30, 38, 32, 0.08);
+    --tl-widget-shadow-strong: 0 18px 38px rgba(30, 38, 32, 0.12);
+
+    --tl-control-glass: rgba(250, 252, 248, 0.92);
+    --tl-control-glass-border: rgba(16, 19, 22, 0.13);
+    --tl-control-glass-shadow: 0 16px 36px rgba(30, 38, 32, 0.14);
+
+    --tl-pitch: #dbe8d4;
+    --tl-pitch-deep: #cbdcc2;
+    --tl-pitch-line: rgba(38, 81, 39, 0.3);
+    --tl-pitch-border: rgba(79, 108, 0, 0.2);
+    --tl-pitch-selected: rgba(88, 116, 0, 0.12);
+    --tl-pitch-atmosphere: none;
   }
 }
 
@@ -157,6 +216,12 @@
   --tl-radius-object: 10px;
   --tl-radius-feature: 12px;
   --tl-radius-overlay: 16px;
+
+  /* Touchline Finish & Visual Convergence follow-up (03 §A). */
+  --tl-radius-widget: 14px;
+  --tl-radius-control-layer: 22px;
+  --tl-radius-sheet: 24px;
+  --tl-control-blur: 18px;
 
   --tl-space-1: 4px;
   --tl-space-2: 8px;
@@ -268,10 +333,11 @@
   font-feature-settings: "ss01", "cv01", "cv11";
 
   /* Content/sticky-action clearance above the floating compact bottom nav
-     (62px bar + 10px bottom gap + 20px breathing) + the device safe area.
-     Zero from medium up, where the bottom nav is gone. Overrides the Product
-     Surface 1.0 --nav-clearance for every consumer inside the shell. */
-  --nav-clearance: calc(92px + env(safe-area-inset-bottom, 0px));
+     (74px bar + 12px bottom inset + 22px breathing, Touchline Finish
+     follow-up 03 §A) + the device safe area. Zero from medium up, where the
+     bottom nav is gone. Overrides the Product Surface 1.0 --nav-clearance for
+     every consumer inside the shell. */
+  --nav-clearance: calc(108px + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 600px) {
   .touchline {
@@ -386,25 +452,32 @@
   }
 }
 
-/* --- Compact floating bottom navigation (05 §2) ------------------------- */
+/* --- Compact floating bottom navigation (Touchline Finish follow-up
+   03 §A, superseding the first-pass opaque-only nav) ----------------------
+   16 px side inset, safe-area + 12 px bottom, 74 px tall, 22 px radius.
+   Translucent control-glass material with a >=90%-opacity solid backdrop as
+   both the accessibility fallback AND the enhanced material at once — an
+   `@supports` blur layers on top only where the browser actually composites
+   it, so the AA-contrast-checked background never depends on blur support. */
 .tl-bottom-nav {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  left: 16px;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   z-index: 40;
-  height: 62px;
-  max-width: calc(100vw - 24px);
+  height: 74px;
+  max-width: calc(100vw - 32px);
   margin-inline: auto;
-  border-radius: var(--tl-radius-overlay);
-  border: 1px solid var(--tl-border-strong);
-  /* Opaque, not glass. The bundle (05 §2) pictures a translucent control layer,
-     but a `position: fixed` translucent element cannot be given a determinate
-     background for WCAG-AA contrast checking (04 §12 already mandates a solid
-     fallback, and gate N requires AA), and axe-core mis-composites it. A subtle
-     shadow + border give the "floating" separation instead of translucency. */
-  background: var(--tl-canvas-raised);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+  border-radius: var(--tl-radius-control-layer);
+  border: 1px solid var(--tl-control-glass-border);
+  background: var(--tl-control-glass);
+  box-shadow: var(--tl-control-glass-shadow);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tl-bottom-nav {
+    backdrop-filter: blur(var(--tl-control-blur)) saturate(1.08);
+    -webkit-backdrop-filter: blur(var(--tl-control-blur)) saturate(1.08);
+  }
 }
 .tl-bottom-nav > ul {
   height: 100%;
@@ -413,12 +486,79 @@
 /* Content/sticky-action clearance above the fixed compact bottom nav. Zero from
    medium up, where the bottom nav is gone. */
 .tl-nav-clearance {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 20px);
+  padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 600px) {
   .tl-nav-clearance {
     padding-bottom: 0;
   }
+}
+
+/* -----------------------------------------------------------------------
+ * Touchline Finish & Visual Convergence follow-up — widget / control-glass /
+ * pitch utility classes (03 §A). Deliberately few: composition owners under
+ * `src/components/touchline/widget/` and `pitch/` use these rather than each
+ * re-deriving the same declarations inline.
+ * ---------------------------------------------------------------------- */
+.tl-feature-atmosphere {
+  position: relative;
+  isolation: isolate;
+}
+.tl-feature-atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: radial-gradient(120% 90% at 82% 0%, var(--tl-atmosphere-accent), transparent 62%);
+}
+
+.tl-widget {
+  background: var(--tl-widget);
+  border: 1px solid var(--tl-widget-border);
+  border-radius: var(--tl-radius-widget);
+  box-shadow: var(--tl-widget-shadow);
+}
+
+.tl-widget-strong {
+  background: var(--tl-widget-strong);
+  border: 1px solid var(--tl-widget-border);
+  border-radius: var(--tl-radius-widget);
+  box-shadow: var(--tl-widget-shadow-strong);
+}
+
+.tl-control-glass {
+  background: var(--tl-control-glass);
+  border: 1px solid var(--tl-control-glass-border);
+  box-shadow: var(--tl-control-glass-shadow);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tl-control-glass {
+    backdrop-filter: blur(var(--tl-control-blur)) saturate(1.08);
+    -webkit-backdrop-filter: blur(var(--tl-control-blur)) saturate(1.08);
+  }
+}
+
+/* Canonical pitch surface (06 §2) — one field gradient + border + radius. The
+ * subtle dark-only depth radial is a per-theme token (`--tl-pitch-atmosphere`,
+ * `none` in light) rather than a second rule, so this class needs no media
+ * query of its own. No photographic grass, no fake 3D stadium. */
+.tl-pitch-surface {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 14px;
+  border: 1px solid var(--tl-pitch-border);
+  background: linear-gradient(180deg, var(--tl-pitch), var(--tl-pitch-deep));
+}
+.tl-pitch-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--tl-pitch-atmosphere);
 }
 
 /* --- Sticky compact action bar (control layer) ------------------------- */

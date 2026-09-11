@@ -2700,6 +2700,41 @@ in-repo reference once the UI Lab gate is passed.
     satisfied.
 
   **Programme status: all 12 ADR-0134 phases are complete.**
+
+  **Touchline Finish & Visual Convergence follow-up (ADR-0135) — Phases F0–F4 complete;
+  F5–F9 gated on human UI-Lab approval.** A second, richer set of golden references
+  (`.matchboard-work/matchboard_touchline_finish_followup_2026-09-11/`) proved Touchline needed
+  evolving, not replacing, on five durable points — see ADR-0135 for the full account:
+
+  1. **Widgets are first-class** on overview/detail surfaces (`TouchlineWidget`/`WidgetHeader`/
+     `MetricStrip`/`CapacityBar`/`QuickActionGrid`, `src/components/touchline/widget/`) — a widget
+     is justified only when it answers one question or one action cluster; workbenches (Round
+     Board, Lineup, Tactics, Rotations, Live Reporting) stay workbenches.
+  2. **Floating control layers are genuinely translucent** — `>=90%`-opaque `--tl-control-glass`
+     background with `backdrop-filter` layered on top inside an `@supports` guard, replacing the
+     first pass's fully opaque `.tl-bottom-nav` (the opacity level is itself the AA-contrast
+     fallback and the enhanced material at once).
+  3. **Pitch owns its own token system** (`--tl-pitch-*`, `.tl-pitch-surface`) — never generic UI
+     surface tokens.
+  4. **Lineup/tactics render players with `PitchPlayerToken`/`PitchEmptySlot`**
+     (`src/components/touchline/pitch/`), not saturated role-coloured rectangles; the formation
+     builder's own role-type differentiation is restrained (border/text only).
+  5. **Golden reference images are composition authority only** — never licence to add a player
+     photo, league table, drill/training feature, new live-event type, or any other product
+     concept a reference image merely illustrates.
+
+  F0–F4 shipped: token/material convergence, the core component set above, the
+  `tactics-board.tsx` pitch-renderer refactor (slot geometry/callbacks unchanged), and seven new
+  dev-only `/dev/ui-lab/` routes (`shell-light`, `shell-mobile`, `event-squad`, `lineup`,
+  `live-reporting`, `player-detail`, `tactics`) with their own fixtures — no production route
+  touched, no database involved. **One documented domain gap**: the live-reporting golden shows
+  Shot/Yellow/Red/Foul/Corner/Free-kick actions Matchboard's `LiveMatchEventType` does not model;
+  `LiveActionGrid`'s fixture uses only the six real action types (Goal for/against, Rotation,
+  Fair play +/concern, Moment marked) — no new event type was added to satisfy the image. F5
+  (production migration of Today/Event squad/Player detail/Lineup/Tactics/Live Reporting/Round
+  Board), F6 (supporting surfaces), F7 (brand-asset/PWA regeneration), F8 (cleanup), and F9 (full
+  acceptance-gate verification) are not started — do not migrate further production surfaces
+  without a fresh explicit approval, per the same UI-Lab gate discipline ADR-0134 established.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 

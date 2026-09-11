@@ -4,13 +4,16 @@ import { TOUCHLINE_NAV_META, type TouchlineNavItem, type TouchlineNavKey } from 
 
 /**
  * TouchlineBottomNav — compact (<600px) floating translucent primary nav
- * (bundle `05_NAVIGATION_MATERIALS_AND_SHELL.md §2`, acceptance gate E).
+ * (bundle `05_NAVIGATION_MATERIALS_AND_SHELL.md §2`, acceptance gate E;
+ * geometry/material superseded by the Touchline Finish follow-up
+ * `03_CODE_CHANGE_MAP.md §B` / `05_SHELL_NAVIGATION_AND_MATERIALS.md §1`).
  *
- * Geometry: 12 px side inset, `calc(safe-area + 10px)` bottom, 62 px tall,
- * 16 px radius, 8 px inner padding. Control-layer material (blur + subtle
- * border + separation shadow) with a solid opaque fallback where
- * `backdrop-filter` is unsupported. Active item: accent icon + label + a
- * 24×3 px accent bar at the item's bottom edge — never a pill.
+ * Geometry: 16 px side inset, `calc(safe-area + 12px)` bottom, 74 px tall,
+ * 22 px radius. Control-glass material (>=90% opaque background + blur where
+ * supported — the `.tl-bottom-nav` class carries this, both the AA-contrast
+ * fallback and the enhanced material at once). Active item: a 28×28 bordered
+ * accent-subtle icon container + accent label + a 24×3 px accent bar at the
+ * item's bottom edge — never a full-destination pill.
  */
 type Props = {
   items: TouchlineNavItem[];
@@ -34,16 +37,29 @@ export function TouchlineBottomNav({ items, activeKey, className }: Props) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-[var(--tl-c-radius-control)] px-1 py-2 no-underline transition-colors duration-[var(--tl-c-motion-state)]",
+                  "relative flex min-h-[44px] flex-col items-center justify-center gap-1 px-1 py-2 no-underline",
                   active ? "text-[var(--accent)]" : "text-[var(--text-muted)]",
                 )}
               >
-                <Icon
-                  strokeWidth={active ? 2 : 1.75}
-                  className="h-5 w-5"
+                <span
                   aria-hidden="true"
-                />
-                <span className="text-[11px] font-medium leading-none">{item.label}</span>
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-[var(--tl-c-radius-control)] border transition-colors duration-[var(--tl-c-motion-state)]",
+                    active
+                      ? "border-[color-mix(in_srgb,var(--accent)_55%,transparent)] bg-[var(--accent-subtle)]"
+                      : "border-transparent",
+                  )}
+                >
+                  <Icon strokeWidth={active ? 2 : 1.75} className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span
+                  className={cn(
+                    "text-[12px] leading-none transition-colors duration-[var(--tl-c-motion-state)]",
+                    active ? "font-medium text-[var(--accent)]" : "font-medium",
+                  )}
+                >
+                  {item.label}
+                </span>
                 {active ? (
                   <span
                     aria-hidden="true"
