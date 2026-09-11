@@ -6,7 +6,7 @@ import Link from "next/link";
 import { formatSelectionRole, formatUnplannedAppearanceReason, UNPLANNED_APPEARANCE_REASON_LABELS } from "@/lib/match-utils";
 import type { SelectionRole, PostMatchAttendanceStatus } from "@/generated/prisma/client";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { StatusPill } from "@/components/ui/status-pill";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -137,8 +137,9 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
 
   if (!report || report.status === "NOT_STARTED") {
     return (
-      <div className="flex flex-col gap-4">
-        <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors">
+      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
+      <div className="touchline flex flex-col gap-4" data-theme="dark">
+        <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
           &larr; Back to match
         </Link>
         <EmptyState
@@ -146,9 +147,9 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
           description={hasFinalizedSelections ? "Seed from planned selections to begin recording actuals." : "No finalised squad was available. Add the players who actually played."}
           illustration="emptyStats"
           action={
-            <Button variant="primary" size="md" disabled={isPending} onClick={handleSeed}>
+            <TouchlineButton variant="primary" size="md" disabled={isPending} onClick={handleSeed}>
               {isPending ? "Creating..." : "Start after-match report"}
-            </Button>
+            </TouchlineButton>
           }
         />
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
@@ -177,9 +178,10 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
+    <div className="touchline flex flex-col gap-5" data-theme="dark">
       <div className="flex items-center gap-2">
-        <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-zinc-50 transition-colors">
+        <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
           &larr; Back to match
         </Link>
         <span className="text-xs text-[var(--border-soft)]">|</span>
@@ -193,7 +195,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
           <select
             value={newPlayerReason}
             onChange={(e) => setNewPlayerReason(e.target.value)}
-            className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             disabled={isPending}
           >
             <option value="">Reason...</option>
@@ -221,12 +223,12 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
                     value={teamNote}
                     onChange={(e) => setTeamNote(e.target.value)}
                     placeholder="Optional notes..."
-                    className="w-full mt-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                    className="w-full mt-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
                     rows={3}
                   />
-                  <Button variant="secondary" size="sm" disabled={isPending} onClick={handleSaveTeamNote} className="mt-2">
+                  <TouchlineButton variant="secondary" size="sm" disabled={isPending} onClick={handleSaveTeamNote} className="mt-2">
                     Save note
-                  </Button>
+                  </TouchlineButton>
                 </>
               ) : (
                 report.teamNote && <p className="text-sm text-[var(--text-soft)] mt-2">{report.teamNote}</p>
@@ -290,7 +292,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
                         <span className="text-[var(--text-soft)]">{s.playerName}</span>
                         <span className="text-[10px] text-[var(--text-muted)]">({s.coreTeamName})</span>
                         <select
-                          className="rounded border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-1.5 py-0.5 text-xs text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                          className="rounded border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-1.5 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                           defaultValue=""
                           onChange={(e) => {
                             if (e.target.value) {

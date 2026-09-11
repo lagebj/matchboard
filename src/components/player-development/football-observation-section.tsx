@@ -120,18 +120,18 @@ export function FootballObservationSection({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+    <div className="space-y-4 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
         Football observations
       </h3>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-[var(--text-muted)]">
         Record what you observed — not what you think it means. Matchboard interprets the
         meaning.
       </p>
 
       {isLocked ? (
         <div className="space-y-2">
-          <p className="text-sm text-gray-500 italic">
+          <p className="text-sm text-[var(--text-muted)] italic">
             This report is locked. Observations cannot be added.
           </p>
           {existingObservations.length > 0 && (
@@ -140,7 +140,7 @@ export function FootballObservationSection({
                 .filter((p) => existingObservations.some((o) => o.playerId === p.id))
                 .map((p) => (
                   <div key={p.id} className="space-y-1">
-                    <p className="text-xs font-semibold text-gray-500">{p.name}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)]">{p.name}</p>
                     {existingObservations
                       .filter((o) => o.playerId === p.id)
                       .map((o) => {
@@ -151,8 +151,8 @@ export function FootballObservationSection({
                             <span
                               className={`inline-block rounded px-1.5 py-0.5 font-medium ${
                                 o.polarity === "POSITIVE"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-amber-100 text-amber-800"
+                                  ? "bg-[var(--success-subtle)] text-[var(--success)]"
+                                  : "bg-[var(--warning-subtle)] text-[var(--warning)]"
                               }`}
                             >
                               {o.polarity === "POSITIVE" ? "✓" : "!"}
@@ -162,7 +162,7 @@ export function FootballObservationSection({
                                 ? getObservationLabel(code, o.polarity as ObservationPolarity)
                                 : o.observationCode}
                             </span>
-                            {o.note && <span className="text-gray-500">— {o.note}</span>}
+                            {o.note && <span className="text-[var(--text-muted)]">— {o.note}</span>}
                           </div>
                         );
                       })}
@@ -174,13 +174,13 @@ export function FootballObservationSection({
       ) : (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">
               Player
             </label>
             <select
               value={selectedPlayer}
               onChange={(e) => setSelectedPlayer(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm text-[var(--foreground)]"
             >
               <option value="">Select a player</option>
               {players.map((p) => (
@@ -192,7 +192,7 @@ export function FootballObservationSection({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-green-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--success)] mb-1">
               Worked well
             </label>
             <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
@@ -203,8 +203,8 @@ export function FootballObservationSection({
                   onClick={() => toggleCode(code, "POSITIVE")}
                   className={`rounded px-2 py-1 text-xs text-left transition-colors ${
                     positiveCodes.includes(code)
-                      ? "bg-green-100 text-green-800 border border-green-300"
-                      : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                      ? "bg-[var(--success-subtle)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+                      : "bg-[var(--tl-c-surface)] text-[var(--text-muted)] border border-[var(--border-soft)] hover:bg-[var(--tl-c-surface-hover)]"
                   }`}
                 >
                   {getObservationLabel(code, "POSITIVE")}
@@ -214,7 +214,7 @@ export function FootballObservationSection({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-amber-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--warning)] mb-1">
               Needs attention
             </label>
             <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
@@ -225,8 +225,8 @@ export function FootballObservationSection({
                   onClick={() => toggleCode(code, "NEGATIVE")}
                   className={`rounded px-2 py-1 text-xs text-left transition-colors ${
                     negativeCodes.includes(code)
-                      ? "bg-amber-100 text-amber-800 border border-amber-300"
-                      : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                      ? "bg-[var(--warning-subtle)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
+                      : "bg-[var(--tl-c-surface)] text-[var(--text-muted)] border border-[var(--border-soft)] hover:bg-[var(--tl-c-surface-hover)]"
                   }`}
                 >
                   {getObservationLabel(code, "NEGATIVE")}
@@ -236,7 +236,7 @@ export function FootballObservationSection({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-soft)] mb-1">
               Note (optional)
             </label>
             <textarea
@@ -245,26 +245,26 @@ export function FootballObservationSection({
               maxLength={500}
               rows={2}
               placeholder="Observable behavior only — no labels or judgment"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm text-[var(--foreground)]"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-[var(--danger)]">{error}</p>
           )}
 
           <button
             type="button"
             onClick={handleSave}
             disabled={saving || !selectedPlayer}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-[var(--tl-c-accent)] px-4 py-2 text-sm font-medium text-[var(--tl-c-accent-on-fill)] hover:brightness-105 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save observations"}
           </button>
 
           {selectedPlayer && existingObservations.filter(o => o.playerId === selectedPlayer).length > 0 && (
             <div className="mt-3 space-y-1">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase">
+              <h4 className="text-xs font-semibold text-[var(--text-muted)] uppercase">
                 Recorded for this player
               </h4>
               {existingObservations.filter(o => o.playerId === selectedPlayer).map((o) => {
@@ -275,8 +275,8 @@ export function FootballObservationSection({
                     <span
                       className={`inline-block rounded px-1.5 py-0.5 font-medium ${
                         o.polarity === "POSITIVE"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-amber-100 text-amber-800"
+                          ? "bg-[var(--success-subtle)] text-[var(--success)]"
+                          : "bg-[var(--warning-subtle)] text-[var(--warning)]"
                       }`}
                     >
                       {o.polarity === "POSITIVE" ? "✓" : "!"}
@@ -286,7 +286,7 @@ export function FootballObservationSection({
                         ? getObservationLabel(code, o.polarity as ObservationPolarity)
                         : o.observationCode}
                     </span>
-                    {o.note && <span className="text-gray-500">— {o.note}</span>}
+                    {o.note && <span className="text-[var(--text-muted)]">— {o.note}</span>}
                   </div>
                 );
               })}

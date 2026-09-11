@@ -184,20 +184,20 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
                   <textarea
                     value={teamReflection}
                     onChange={(e) => setTeamReflection(e.target.value)}
-                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
                     rows={2}
                     maxLength={1000}
                   />
                   <button
                     type="button"
                     onClick={() => updateEventMatchResultAction(report.id, { teamReflection: teamReflection || undefined }).then(onRefresh)}
-                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
                   >
                     Save
                   </button>
                 </>
               ) : (
-                report.teamReflection && <p className="mt-2 text-sm text-zinc-200">{report.teamReflection}</p>
+                report.teamReflection && <p className="mt-2 text-sm text-[var(--foreground)]">{report.teamReflection}</p>
               )}
             </Surface>
 
@@ -208,20 +208,20 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
                   <textarea
                     value={opponentObservation}
                     onChange={(e) => setOpponentObservation(e.target.value)}
-                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
                     rows={2}
                     maxLength={500}
                   />
                   <button
                     type="button"
                     onClick={() => updateEventMatchResultAction(report.id, { opponentObservation: opponentObservation || undefined }).then(onRefresh)}
-                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
                   >
                     Save
                   </button>
                 </>
               ) : (
-                report.opponentObservation && <p className="mt-2 text-sm text-zinc-200">{report.opponentObservation}</p>
+                report.opponentObservation && <p className="mt-2 text-sm text-[var(--foreground)]">{report.opponentObservation}</p>
               )}
             </Surface>
 
@@ -232,20 +232,20 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
                     rows={2}
                     maxLength={1000}
                   />
                   <button
                     type="button"
                     onClick={() => updateEventMatchResultAction(report.id, { notes: notes || undefined }).then(onRefresh)}
-                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
                   >
                     Save
                   </button>
                 </>
               ) : (
-                report.notes && <p className="mt-2 text-sm text-zinc-200">{report.notes}</p>
+                report.notes && <p className="mt-2 text-sm text-[var(--foreground)]">{report.notes}</p>
               )}
             </Surface>
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { StatusPill } from "@/components/ui/status-pill";
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
@@ -81,7 +81,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
       <Surface variant="default" padding="lg">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-base font-semibold text-zinc-50">
+            <p className="text-base font-semibold text-[var(--foreground)]">
               {report.teamLabel} vs {report.opponentLabel}
             </p>
           </div>
@@ -92,7 +92,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
 
         <div className="flex items-center gap-2 mt-3">
           {(isDraft || isReported) && (
-            <Button
+            <TouchlineButton
               variant="primary"
               size="sm"
               disabled={isPending}
@@ -102,20 +102,21 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
               }}
             >
               Complete report
-            </Button>
+            </TouchlineButton>
           )}
           {isLocked && (
-            <Button
-              variant="warning"
+            <TouchlineButton
+              variant="secondary"
               size="sm"
               disabled={isPending}
+              className="bg-[var(--warning-subtle)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] hover:brightness-110"
               onClick={() => {
                 if (!confirm("Reopen this report for correction?")) return;
                 run(() => actions.reopen("DRAFT"));
               }}
             >
               Reopen report
-            </Button>
+            </TouchlineButton>
           )}
         </div>
       </Surface>
@@ -132,7 +133,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
       <Surface variant="default" padding="lg">
         <SectionHeader title="Result" />
         {isLocked ? (
-          <p className="text-lg font-bold text-zinc-50 mt-3">
+          <p className="text-lg font-bold text-[var(--foreground)] mt-3">
             {report.ourScore ?? 0} &ndash; {report.opponentScore ?? 0}
           </p>
         ) : (
@@ -144,7 +145,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                 min="0"
                 value={ourScore}
                 onChange={(e) => setOurScore(e.target.value)}
-                className="w-16 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-sm text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                className="w-16 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div className="flex flex-col gap-0.5">
@@ -154,10 +155,10 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                 min="0"
                 value={opponentScore}
                 onChange={(e) => setOpponentScore(e.target.value)}
-                className="w-16 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-sm text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                className="w-16 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
-            <Button
+            <TouchlineButton
               variant="secondary"
               size="sm"
               disabled={isPending}
@@ -171,7 +172,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
               }
             >
               Save
-            </Button>
+            </TouchlineButton>
           </div>
         )}
 
@@ -182,7 +183,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
             <ul className="flex flex-col gap-1 mt-2">
               {report.goals.map((g) => (
                 <li key={g.id} className="flex items-center gap-2 text-sm text-[var(--text-soft)]">
-                  <span className="font-medium text-zinc-100">{g.playerName ?? "Unknown"}</span>
+                  <span className="font-medium text-[var(--foreground)]">{g.playerName ?? "Unknown"}</span>
                   {g.minute !== null && <span className="text-xs text-[var(--text-muted)]">{g.minute}&apos;</span>}
                   {!isLocked && (
                     <button
@@ -203,7 +204,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
               <select
                 value={newGoalPlayerId}
                 onChange={(e) => setNewGoalPlayerId(e.target.value)}
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               >
                 <option value="">Select scorer</option>
                 {presentPlayers.map((p) => (
@@ -217,9 +218,9 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                 placeholder="Min"
                 value={newGoalMinute}
                 onChange={(e) => setNewGoalMinute(e.target.value)}
-                className="w-14 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                className="w-14 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
-              <Button
+              <TouchlineButton
                 variant="secondary"
                 size="sm"
                 disabled={isPending || !newGoalPlayerId}
@@ -238,7 +239,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                 }
               >
                 Add goal
-              </Button>
+              </TouchlineButton>
             </div>
           )}
         </div>
@@ -250,7 +251,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
             <ul className="flex flex-col gap-1 mt-2">
               {report.assists.map((a) => (
                 <li key={a.id} className="flex items-center gap-2 text-sm text-[var(--text-soft)]">
-                  <span className="font-medium text-zinc-100">{a.playerName}</span>
+                  <span className="font-medium text-[var(--foreground)]">{a.playerName}</span>
                   {!isLocked && (
                     <button
                       className="text-[var(--danger)]/60 hover:text-[var(--danger)] text-xs ml-auto"
@@ -270,14 +271,14 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
               <select
                 value={newAssistPlayerId}
                 onChange={(e) => setNewAssistPlayerId(e.target.value)}
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               >
                 <option value="">Select assist</option>
                 {presentPlayers.map((p) => (
                   <option key={p.playerId} value={p.playerId}>{p.playerName}</option>
                 ))}
               </select>
-              <Button
+              <TouchlineButton
                 variant="secondary"
                 size="sm"
                 disabled={isPending || !newAssistPlayerId}
@@ -286,7 +287,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                 }
               >
                 Add assist
-              </Button>
+              </TouchlineButton>
             </div>
           )}
         </div>
@@ -307,7 +308,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                   <select
                     value={p.attendanceStatus}
                     onChange={(e) => run(() => actions.updateAttendance(p.id, e.target.value))}
-                    className="rounded border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-1 py-0.5 text-[10px] text-zinc-50 focus:outline-none focus:border-[var(--accent)]"
+                    className="rounded border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-1 py-0.5 text-[10px] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                   >
                     <option value="PRESENT">Present</option>
                     <option value="NO_SHOW">No-show</option>
@@ -336,7 +337,7 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
             <select
               value={newPlayerId}
               onChange={(e) => setNewPlayerId(e.target.value)}
-              className="flex-1 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+              className="flex-1 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-2 py-1 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               disabled={isPending}
             >
               <option value="">Add player...</option>
@@ -346,14 +347,14 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
                   <option key={p.id} value={p.id}>{p.name}{p.teamName ? ` (${p.teamName})` : ""}</option>
                 ))}
             </select>
-            <Button
+            <TouchlineButton
               variant="secondary"
               size="sm"
               disabled={isPending || !newPlayerId}
               onClick={() => run(() => actions.addPlayer({ playerId: newPlayerId }), () => setNewPlayerId(""))}
             >
               Add player
-            </Button>
+            </TouchlineButton>
           </div>
         )}
       </Surface>
