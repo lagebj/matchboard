@@ -50,19 +50,19 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Total Moves
           </p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-50">{totalMovementEvents}</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{totalMovementEvents}</p>
         </Surface>
         <Surface variant="default" padding="md">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Draft Moves
           </p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-50">{draftMovementEvents}</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{draftMovementEvents}</p>
         </Surface>
         <Surface variant="default" padding="md">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Finalised Moves
           </p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-50">{finalizedMovementEvents}</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{finalizedMovementEvents}</p>
         </Surface>
       </div>
 
@@ -73,9 +73,9 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-lg font-semibold text-zinc-50">{row.playerName}</p>
+                    <p className="text-lg font-semibold text-[var(--foreground)]">{row.playerName}</p>
                     <Link
-                      className="inline-flex h-8 items-center rounded-md border border-[var(--border-soft)] px-3 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-muted)] hover:text-zinc-50"
+                      className="inline-flex h-8 items-center rounded-md border border-[var(--border-soft)] px-3 text-xs font-medium text-[var(--text-soft)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
                       href={`/players/${row.playerId}`}
                     >
                       Open player
@@ -85,7 +85,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/50 px-3 py-1 text-xs font-medium text-zinc-100">
+                  <span className="inline-flex items-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/50 px-3 py-1 text-xs font-medium text-[var(--foreground)]">
                     {row.movementCount} move{row.movementCount === 1 ? "" : "s"}
                   </span>
                   <span className="inline-flex items-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)]/50 px-3 py-1 text-xs font-medium text-[var(--text-soft)]">
@@ -111,7 +111,7 @@ export function MovementOverview({ rows }: { rows: MovementOverviewRow[] }) {
                         {formatIsoWeekLabel(movement.startsAt)}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm font-medium text-zinc-100">
+                    <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
                       {movement.sourceTeamName} to {movement.targetTeamName}
                     </p>
                     <p className="mt-1 text-sm text-[var(--text-soft)]">

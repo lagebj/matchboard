@@ -13,7 +13,7 @@ import {
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { isSelectionMovementRow } from "@/lib/selection/get-selection-movement";
 import { Surface } from "@/components/ui/surface";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlinePageHeader } from "@/components/touchline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -245,13 +245,13 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
     });
 
   return (
-    <main className="flex min-h-full flex-col gap-6 text-foreground">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
         <Surface variant="raised" padding="lg">
-          <PageHeader
+          <TouchlinePageHeader
             title="History"
-            description="Finalised rounds, movement, and fairness over time."
-            eyebrow="History"
+            context="Finalised rounds, movement, and fairness over time."
           />
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
@@ -260,19 +260,19 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
               <SectionHeader title="Summary" />
               <div className="mt-4 grid gap-3">
                 <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-zinc-100">{totalFinalizedAppearances} finalised appearance(s)</p>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{totalFinalizedAppearances} finalised appearance(s)</p>
                   <p className="text-sm text-[var(--text-soft)]">Latest saved snapshot per match.</p>
                 </Surface>
                 <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-zinc-100">{totalFloatAppearances} floating appearance(s)</p>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{totalFloatAppearances} floating appearance(s)</p>
                   <p className="mt-1 text-sm text-[var(--text-soft)]">Support, development, and floating usage in saved history.</p>
                 </Surface>
                 <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-zinc-100">{recentMovers} player(s) with visible movement history</p>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{recentMovers} player(s) with visible movement history</p>
                   <p className="mt-1 text-sm text-[var(--text-soft)]">Players with recorded movement in saved history.</p>
                 </Surface>
                 <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-zinc-100">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalised match(es)</p>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalised match(es)</p>
                   <p className="mt-1 text-sm text-[var(--text-soft)]">Current match state: draft vs. finalised.</p>
                 </Surface>
               </div>
@@ -285,7 +285,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
             <SectionHeader title="Load check" />
             {mostUsedPlayer ? (
               <Surface variant="default" padding="md" className="mt-4">
-                <p className="text-sm font-semibold text-zinc-100">
+                <p className="text-sm font-semibold text-[var(--foreground)]">
                   {mostUsedPlayer.lastName
                     ? `${mostUsedPlayer.firstName} ${mostUsedPlayer.lastName}`
                     : mostUsedPlayer.firstName}
@@ -314,19 +314,19 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
           <SectionHeader title="Review steps" description="Check the summary, review recent player movement, then open the table for detail." />
           <div className="mt-6 grid gap-3">
             <Surface variant="subtle" padding="md">
-              <p className="text-sm font-semibold text-zinc-100">1. Check the summary</p>
+              <p className="text-sm font-semibold text-[var(--foreground)]">1. Check the summary</p>
               <p className="mt-2 text-sm text-[var(--text-soft)]">
                 {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalised.
               </p>
             </Surface>
             <Surface variant="subtle" padding="md">
-              <p className="text-sm font-semibold text-zinc-100">2. Review recent player movement</p>
+              <p className="text-sm font-semibold text-[var(--foreground)]">2. Review recent player movement</p>
               <p className="mt-2 text-sm text-[var(--text-soft)]">
                 The movement feed below shows one latest visible move per player.
               </p>
             </Surface>
             <Surface variant="subtle" padding="md">
-              <p className="text-sm font-semibold text-zinc-100">3. Open the table for detail</p>
+              <p className="text-sm font-semibold text-[var(--foreground)]">3. Open the table for detail</p>
               <p className="mt-2 text-sm text-[var(--text-soft)]">
                 Use the movement overview for per-player timelines and the table for workload or fairness checks.
               </p>
@@ -358,7 +358,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
               <Surface key={row.playerId} variant="default" padding="md">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-zinc-100">
+                    <p className="text-sm font-semibold text-[var(--foreground)]">
                       {row.lastName ? `${row.firstName} ${row.lastName}` : row.firstName}
                     </p>
                     <p className="mt-1 text-sm text-[var(--text-soft)]">{row.coreTeamName}</p>
@@ -367,7 +367,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
                     {row.latestMovementDate ? formatDate(row.latestMovementDate) : "No move"}
                   </span>
                 </div>
-                <p className="mt-4 text-sm font-medium text-zinc-100">{row.latestMovementSummary}</p>
+                <p className="mt-4 text-sm font-medium text-[var(--foreground)]">{row.latestMovementSummary}</p>
                 <p className="mt-2 text-sm text-[var(--text-muted)]">{row.latestMovementReason}</p>
               </Surface>
             ))

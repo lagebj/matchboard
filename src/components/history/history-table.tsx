@@ -106,47 +106,47 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 lg:grid-cols-4">
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Core History
           </p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-50">{playersWithCoreHistory}</p>
-          <p className="mt-2 text-sm app-copy-soft">
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{playersWithCoreHistory}</p>
+          <p className="mt-2 text-sm text-[var(--text-soft)]">
             Players with at least one finalised core-team appearance in the current locked history.
           </p>
         </div>
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Float History
           </p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-50">{playersWithFloatHistory}</p>
-          <p className="mt-2 text-sm app-copy-soft">
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{playersWithFloatHistory}</p>
+          <p className="mt-2 text-sm text-[var(--text-soft)]">
             Players who have at least one finalised floating appearance in the latest saved match state.
           </p>
         </div>
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Recent Movers
           </p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-50">{recentMovers}</p>
-          <p className="mt-2 text-sm app-copy-soft">
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">{recentMovers}</p>
+          <p className="mt-2 text-sm text-[var(--text-soft)]">
             Players with a visible finalized move between teams in the current locked history.
           </p>
         </div>
-        <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] app-copy-muted">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
             Scan Tip
           </p>
-          <p className="mt-2 text-sm font-medium text-zinc-100">Sort by latest move or why moved first.</p>
-          <p className="mt-2 text-sm app-copy-soft">
+          <p className="mt-2 text-sm font-medium text-[var(--foreground)]">Sort by latest move or why moved first.</p>
+          <p className="mt-2 text-sm text-[var(--text-soft)]">
             That exposes who shifted teams most recently and why without opening player pages.
           </p>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[1.4rem] border app-hairline bg-[rgba(12,15,20,0.45)]">
+      <div className="overflow-x-auto rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)]">
         <table className="w-full min-w-[1440px] border-collapse text-left text-sm">
-          <thead className="border-b app-hairline bg-[rgba(255,255,255,0.04)] text-xs uppercase tracking-wide app-copy-muted">
+          <thead className="border-b border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
             <tr>
               <SortableHeader
                 activeKey={sortKey}
@@ -221,44 +221,44 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
               <th className="px-4 py-3 font-semibold">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y app-hairline">
+          <tbody className="divide-y divide-[var(--border-soft)]">
             {sortedRows.map((row) => (
               <tr key={row.playerId} className="align-top hover:bg-[rgba(255,255,255,0.03)]">
-                <td className="px-4 py-3 font-medium text-zinc-50">{formatPlayerName(row)}</td>
-                <td className="px-4 py-3 app-copy-soft">{row.playerCode}</td>
-                <td className="px-4 py-3 text-zinc-100">{row.coreTeamName}</td>
-                <td className="px-4 py-3 text-zinc-100">{row.totalFinalizedAppearances}</td>
-                <td className="px-4 py-3 app-copy-soft">{row.coreTeamAppearances}</td>
+                <td className="px-4 py-3 font-medium text-[var(--foreground)]">{formatPlayerName(row)}</td>
+                <td className="px-4 py-3 text-[var(--text-soft)]">{row.playerCode}</td>
+                <td className="px-4 py-3 text-[var(--foreground)]">{row.coreTeamName}</td>
+                <td className="px-4 py-3 text-[var(--foreground)]">{row.totalFinalizedAppearances}</td>
+                <td className="px-4 py-3 text-[var(--text-soft)]">{row.coreTeamAppearances}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] ${
                       row.floatCount > 0
-                        ? "border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] text-[var(--warning)]"
-                        : "border-[rgba(202,209,219,0.14)] bg-[rgba(255,255,255,0.04)] text-[var(--text-soft)]"
+                        ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] text-[var(--warning)]"
+                        : "border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] text-[var(--text-soft)]"
                     }`}
                   >
                     {row.floatCount}
                   </span>
                 </td>
-                <td className="px-4 py-3 app-copy-soft">
+                <td className="px-4 py-3 text-[var(--text-soft)]">
                   {row.lastFinalizedMatchDate ? formatDate(row.lastFinalizedMatchDate) : "-"}
                 </td>
-                <td className="max-w-sm px-4 py-3 app-copy-soft">{row.recentSelectionPattern}</td>
+                <td className="max-w-sm px-4 py-3 text-[var(--text-soft)]">{row.recentSelectionPattern}</td>
                 <td className="px-4 py-3">
                   {row.latestMovementDate ? (
-                    <span className="inline-flex rounded-full border border-[rgba(208,176,127,0.26)] bg-[rgba(208,176,127,0.12)] px-3 py-1 text-xs font-medium text-[var(--warning)]">
+                    <span className="inline-flex rounded-full border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] px-3 py-1 text-xs font-medium text-[var(--warning)]">
                       {row.latestMovementSummary}
                     </span>
                   ) : (
-                    <span className="app-copy-soft">-</span>
+                    <span className="text-[var(--text-soft)]">-</span>
                   )}
                 </td>
-                <td className="max-w-md px-4 py-3 app-copy-soft">
+                <td className="max-w-md px-4 py-3 text-[var(--text-soft)]">
                   {row.latestMovementDate ? row.latestMovementReason : "-"}
                 </td>
                 <td className="px-4 py-3">
                   <Link
-                    className="inline-flex h-9 items-center rounded-full border app-hairline px-3 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.06)] hover:text-zinc-50"
+                    className="inline-flex h-9 items-center rounded-full border border-[var(--border-soft)] px-3 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--tl-c-surface-hover)] hover:text-[var(--foreground)]"
                     href={`/players/${row.playerId}`}
                   >
                     Open player
@@ -269,7 +269,7 @@ export function HistoryTable({ rows }: { rows: PlayerHistoryRow[] }) {
 
             {sortedRows.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center app-copy-muted" colSpan={11}>
+                <td className="px-4 py-10 text-center text-[var(--text-muted)]" colSpan={11}>
                   No players in the registry yet.
                 </td>
               </tr>

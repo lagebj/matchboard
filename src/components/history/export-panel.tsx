@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TouchlineButton } from "@/components/touchline";
 
 type ExportFormat = "csv" | "json" | "txt" | "md";
 type VisibilityMode = "coach" | "parent";
@@ -15,15 +16,15 @@ export function ExportPanel() {
   };
 
   return (
-    <div className="rounded-[1.75rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+    <div className="rounded-[var(--tl-c-radius-overlay)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
         Export Finalised Selections
       </p>
-      <h3 className="mt-2 text-lg font-semibold text-zinc-50">Download history</h3>
+      <h3 className="mt-2 text-lg font-semibold text-[var(--foreground)]">Download history</h3>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="text-xs font-medium app-copy-soft mb-2">Format</p>
+          <p className="text-xs font-medium text-[var(--text-soft)] mb-2">Format</p>
           <div className="flex flex-wrap gap-2">
             {(["csv", "json", "txt", "md"] as const).map((f) => (
               <button
@@ -31,8 +32,8 @@ export function ExportPanel() {
                 onClick={() => setFormat(f)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium uppercase transition-colors ${
                   format === f
-                    ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.14)] text-[var(--accent-strong)]"
-                    : "border app-hairline app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                    ? "border-[var(--accent)]/40 bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
+                    : "border border-[var(--border-soft)] text-[var(--text-soft)] hover:bg-[var(--tl-c-surface-hover)] hover:text-[var(--foreground)]"
                 }`}
               >
                 {f}
@@ -42,7 +43,7 @@ export function ExportPanel() {
         </div>
 
         <div>
-          <p className="text-xs font-medium app-copy-soft mb-2">Visibility</p>
+          <p className="text-xs font-medium text-[var(--text-soft)] mb-2">Visibility</p>
           <div className="flex gap-2">
             {(["coach", "parent"] as const).map((v) => (
               <button
@@ -50,15 +51,15 @@ export function ExportPanel() {
                 onClick={() => setVisibility(v)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium uppercase transition-colors ${
                   visibility === v
-                    ? "border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.14)] text-[var(--accent-strong)]"
-                    : "border app-hairline app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                    ? "border-[var(--accent)]/40 bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
+                    : "border border-[var(--border-soft)] text-[var(--text-soft)] hover:bg-[var(--tl-c-surface-hover)] hover:text-[var(--foreground)]"
                 }`}
               >
                 {v}
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs app-copy-muted">
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
             {visibility === "parent"
               ? "Hides internal planning tags, roles, warnings, override reasons"
               : "Includes roles, warnings, movement paths, explanations, override reasons"}
@@ -66,13 +67,9 @@ export function ExportPanel() {
         </div>
       </div>
 
-      <a
-        href={buildUrl()}
-        download
-        className="mt-4 inline-flex h-10 items-center rounded-full border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-5 text-sm font-semibold text-[var(--accent-strong)] hover:bg-[rgba(140,167,146,0.2)]"
-      >
+      <TouchlineButton as="a" href={buildUrl()} download variant="primary" className="mt-4">
         Download {format.toUpperCase()} ({visibility})
-      </a>
+      </TouchlineButton>
     </div>
   );
 }
