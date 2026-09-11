@@ -1,9 +1,8 @@
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { createTeamAction } from "@/app/(app)/teams/actions";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
 import { DecisionBanner } from "@/components/ui/decision-banner";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 
 type NewTeamPageProps = {
   searchParams: Promise<{
@@ -17,10 +16,11 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
   const { error } = await searchParams;
 
   return (
-    <main className="flex min-h-full flex-col gap-8 text-foreground">
-      <PageHeader
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <main className="touchline flex min-h-full flex-col gap-8 text-foreground">
+      <TouchlinePageHeader
         title="Create team"
-        description="Add a team to the registry. Squad limits and support config can be adjusted later from the team detail page."
+        context="Add a team to the registry. Squad limits and support config can be adjusted later from the team detail page."
       />
 
       <Surface variant="default" padding="lg">
@@ -36,7 +36,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
               name="name"
               type="text"
               required
-              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               placeholder="Team name"
             />
           </div>
@@ -53,7 +53,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={11}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -68,7 +68,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={9}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -83,7 +83,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={14}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -98,7 +98,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={8}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -113,7 +113,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={0}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -128,7 +128,7 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={0}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -143,18 +143,18 @@ export default async function NewTeamPage({ params, searchParams }: { params: Pr
                 required
                 min={0}
                 defaultValue={0}
-                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="primary" size="md" type="submit">
+            <TouchlineButton variant="primary" size="md" type="submit">
               Create team
-            </Button>
-            <Button variant="ghost" size="md" as="a" href={`/o/${orgSlug}/teams`}>
+            </TouchlineButton>
+            <TouchlineButton variant="ghost" size="md" as="a" href={`/o/${orgSlug}/teams`}>
               Cancel
-            </Button>
+            </TouchlineButton>
           </div>
         </form>
       </Surface>

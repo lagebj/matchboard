@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { TouchlineButton } from '@/components/touchline';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPill } from '@/components/ui/status-pill';
@@ -76,10 +76,10 @@ function SlotRow({
       <div className="w-20 shrink-0 text-xs text-[var(--text-muted)]">{slot.label}</div>
       <div className="flex-1 min-w-0">
         {assignedName ? (
-          <span className="text-sm font-medium text-zinc-200">{assignedName}</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">{assignedName}</span>
         ) : (
           <select
-            className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-2 py-1 text-zinc-300 max-w-full"
+            className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-2 py-1 text-[var(--text-soft)] max-w-full"
             onChange={(e) => {
               if (e.target.value) onAssign(e.target.value);
             }}
@@ -100,7 +100,7 @@ function SlotRow({
           <>
             <button
               onClick={onToggleLock}
-              className="p-1 rounded hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-zinc-200"
+              className="p-1 rounded hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
               title={slot.locked ? 'Unlock position' : 'Lock position'}
               disabled={isPending}
             >
@@ -108,7 +108,7 @@ function SlotRow({
             </button>
             <button
               onClick={onClear}
-              className="p-1 rounded hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-zinc-200"
+              className="p-1 rounded hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--foreground)]"
               title="Remove player"
               disabled={isPending}
             >
@@ -186,7 +186,7 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
               </label>
               <div className="flex items-center gap-2">
                 <select
-                  className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-3 py-2 text-zinc-300"
+                  className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-3 py-2 text-[var(--text-soft)]"
                   value={selectedFormationId}
                   onChange={(e) => setSelectedFormationId(e.target.value)}
                   disabled={isPending}
@@ -198,14 +198,14 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
                     </option>
                   ))}
                 </select>
-                <Button
+                <TouchlineButton
                   variant="secondary"
                   size="sm"
                   onClick={handleFormationChange}
                   disabled={!selectedFormationId || isPending}
                 >
                   Set formation
-                </Button>
+                </TouchlineButton>
               </div>
             </div>
             {formations.length === 0 && (
@@ -227,12 +227,12 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
       />
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" onClick={handleAutoSelect} disabled={isPending}>
+        <TouchlineButton variant="secondary" size="sm" onClick={handleAutoSelect} disabled={isPending}>
           <RefreshCw className="mr-1 h-4 w-4" />
           Auto-select recommended lineup
-        </Button>
+        </TouchlineButton>
         <select
-          className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-3 py-1.5 text-zinc-300"
+          className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-3 py-1.5 text-[var(--text-soft)]"
           value={selectedFormationId}
           onChange={(e) => {
             setSelectedFormationId(e.target.value);
@@ -247,14 +247,14 @@ export function BestLineupTab({ teamId, lineup, formations, players }: BestLineu
           ))}
         </select>
         {selectedFormationId && selectedFormationId !== lineup.formationId && (
-          <Button variant="ghost" size="sm" onClick={handleFormationChange} disabled={isPending}>
+          <TouchlineButton variant="ghost" size="sm" onClick={handleFormationChange} disabled={isPending}>
             Apply formation
-          </Button>
+          </TouchlineButton>
         )}
-        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isPending}>
+        <TouchlineButton variant="ghost" size="sm" onClick={handleClear} disabled={isPending}>
           <Trash2 className="mr-1 h-4 w-4" />
           Clear lineup
-        </Button>
+        </TouchlineButton>
       </div>
 
       <Surface variant="default" padding="none">

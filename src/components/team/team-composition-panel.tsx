@@ -197,7 +197,7 @@ export function TeamCompositionPanel({
           <select
             value={selectedSeasonId}
             onChange={(e) => setSelectedSeasonId(e.target.value)}
-            className="w-full max-w-xs rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full max-w-xs rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           >
             {leagueSeasons.map((s) => (
               <option key={s.id} value={s.id} disabled={s.status === "FINALIZED"}>
@@ -323,7 +323,7 @@ function ScenarioSelector({
           <select
             value={selectedSeasonId}
             onChange={(e) => onSeasonChange(e.target.value)}
-            className="w-full max-w-xs rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full max-w-xs rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           >
             {leagueSeasons.map((s) => (
               <option key={s.id} value={s.id} disabled={s.status === "FINALIZED"}>
@@ -340,7 +340,7 @@ function ScenarioSelector({
           <select
             value={selectedGameFormat}
             onChange={(e) => onGameFormatChange(e.target.value as GameFormat)}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
           >
             {GAME_FORMATS.map((f) => (
               <option key={f} value={f}>{formatGameFormat(f)} ({GAME_FORMAT_PLAYER_COUNT[f]} players)</option>
@@ -353,7 +353,7 @@ function ScenarioSelector({
             value={selectedFormationId}
             onChange={(e) => onFormationChange(e.target.value)}
             disabled={loadingFormations}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)] disabled:opacity-50"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] disabled:opacity-50"
           >
             <option value="">Default {formatGameFormat(selectedGameFormat)} formation</option>
             {formationOptions.map((f) => (
@@ -386,7 +386,7 @@ function ScenarioSelector({
               }`}
             >
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-zinc-200">{scenario.displayName}</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{scenario.displayName}</p>
                 {gated && <StatusPill variant="warning" size="sm">Policy-gated</StatusPill>}
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-1">{scenario.description}</p>
@@ -537,7 +537,7 @@ function ProposalPreview({
             <Surface key={team.teamId} variant="default" padding="md">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-zinc-200">{team.teamName}</p>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">{team.teamName}</p>
                   <StatusPill
                     variant={team.formationViability === "viable" ? "success" : team.formationViability === "degraded" ? "warning" : "danger"}
                     size="sm"
@@ -636,7 +636,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <Surface variant="default" padding="sm">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
-      <p className="text-lg font-semibold text-zinc-100">{value}</p>
+      <p className="text-lg font-semibold text-[var(--foreground)]">{value}</p>
     </Surface>
   );
 }

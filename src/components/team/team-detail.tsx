@@ -10,9 +10,9 @@ import type { MovementCandidateRationale, MovementCandidateRole, MovementCandida
 import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
 import { RotationPathCard } from "@/components/rules/rotation-path-card";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 import { StatusPill } from "@/components/ui/status-pill";
-import { PageHeader } from "@/components/ui/page-header";
+
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { TabRail } from "@/components/ui/tab-rail";
@@ -340,14 +340,14 @@ function SquadTab({ corePlayers, teamId, unassignedPlayers }: { corePlayers: Pla
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <SectionHeader title="Core players" description={`${corePlayers.length} players assigned to this team`} />
-        <Button variant="secondary" size="sm" onClick={() => setShowAddPlayer(!showAddPlayer)}>
+        <TouchlineButton variant="secondary" size="sm" onClick={() => setShowAddPlayer(!showAddPlayer)}>
           {showAddPlayer ? "Cancel" : "Add player"}
-        </Button>
+        </TouchlineButton>
       </div>
 
       {showAddPlayer && (
         <Surface variant="default" padding="md">
-          <h3 className="text-sm font-semibold text-zinc-100">Add player to team</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Add player to team</h3>
           <p className="mt-1 mb-3 text-xs text-[var(--text-soft)]">
             Select an unassigned player to add to this team as a core player. This sets their core team assignment.
           </p>
@@ -363,7 +363,7 @@ function SquadTab({ corePlayers, teamId, unassignedPlayers }: { corePlayers: Pla
                   onClick={() => handleAddPlayer(p.id)}
                   className="group/add flex items-center justify-between rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm hover:bg-[var(--surface-hover)] disabled:opacity-50"
                 >
-                  <span className="font-medium text-zinc-100 group-hover/add:text-[var(--accent-strong)]">
+                  <span className="font-medium text-[var(--foreground)] group-hover/add:text-[var(--accent-strong)]">
                     {formatPlayerName(p)}
                   </span>
                   <span className="text-[10px] text-[var(--text-muted)]">
@@ -513,7 +513,7 @@ function CurrentRoundTab({
                 href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div>
-                  <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
+                  <span className="font-medium text-[var(--foreground)] group-hover/item:text-[var(--accent-strong)]">
                     {p.playerName}
                   </span>
                   {p.explanation && (
@@ -538,7 +538,7 @@ function CurrentRoundTab({
                 href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
+                  <span className="font-medium text-[var(--foreground)] group-hover/item:text-[var(--accent-strong)]">
                     {p.playerName}
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
@@ -594,7 +594,7 @@ function CurrentRoundTab({
                 href={orgUrl(`/players/${p.playerId}`)}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-zinc-100 group-hover/item:text-[var(--accent-strong)]">
+                  <span className="font-medium text-[var(--foreground)] group-hover/item:text-[var(--accent-strong)]">
                     {p.playerName}
                   </span>
                   <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
@@ -623,7 +623,7 @@ function CurrentRoundTab({
                   description={w.message}
                   action={
                     <Link
-                      className="text-[10px] text-[var(--text-muted)] hover:text-zinc-50"
+                      className="text-[10px] text-[var(--text-muted)] hover:text-[var(--foreground)]"
                       href={orgUrl(`/rounds/${w.matchRoundId}`)}
                     >
                       {w.roundLabel}
@@ -658,7 +658,7 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
-              className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)]"
+              className="text-sm font-medium text-[var(--foreground)] hover:text-[var(--accent-strong)]"
               href={orgUrl(`/players/${entry.playerId}`)}
             >
               {entry.playerName}
@@ -690,7 +690,7 @@ function MovementTab({ movementHistory }: { movementHistory: MovementEntry[] }) 
           )}
           <p className="mt-1 text-[10px] text-[var(--text-muted)]">
             <Link
-              className="hover:text-zinc-50"
+              className="hover:text-[var(--foreground)]"
               href={orgUrl(`/rounds/${entry.matchRoundId}`)}
             >
               {entry.roundLabel}
@@ -721,7 +721,7 @@ function HistoryTab({ finalizedRounds }: { finalizedRounds: HistoryRound[] }) {
           href={orgUrl(`/rounds/${round.matchRoundId}`)}
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium text-zinc-100 group-hover:text-[var(--accent-strong)]">
+            <span className="text-sm font-medium text-[var(--foreground)] group-hover:text-[var(--accent-strong)]">
               {round.roundLabel}
             </span>
             <StatusPill variant="finalized" size="sm">Finalised</StatusPill>
@@ -751,18 +751,18 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
       <div className="flex items-center justify-between">
         <SectionHeader title="Rotation paths" />
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${teamId}/configuration`)}>
+          <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${teamId}/configuration`)}>
             Edit squad settings
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
+          </TouchlineButton>
+          <TouchlineButton variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
             {showCreateForm ? "Cancel" : "Add path"}
-          </Button>
+          </TouchlineButton>
         </div>
       </div>
 
       {showCreateForm && (
         <Surface variant="default" padding="lg">
-          <h3 className="text-sm font-semibold text-zinc-100">Create rotation path</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Create rotation path</h3>
           <p className="mt-1 mb-4 text-xs text-[var(--text-soft)]">Define which teams can send or receive players and in which role.</p>
           <RotationPathCreateForm teams={teamOptions} defaultToTeamId={teamId} />
         </Surface>
@@ -797,9 +797,9 @@ function RulesTab({ rotationPaths, teamId, teamOptions }: { rotationPaths: Rotat
       )}
 
       <div>
-        <Button variant="ghost" size="sm" as="a" href={orgUrl("/rules")}>
+        <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl("/rules")}>
           View global rules
-        </Button>
+        </TouchlineButton>
       </div>
     </div>
   );
@@ -877,7 +877,7 @@ function MovementCandidatesTab({
       <div key={candidate.id} className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <Link
-            className="text-sm font-medium text-zinc-100 hover:text-[var(--accent-strong)] truncate"
+            className="text-sm font-medium text-[var(--foreground)] hover:text-[var(--accent-strong)] truncate"
             href={orgUrl(`/players/${candidate.playerId}`)}
           >
             {candidate.playerLastName
@@ -908,7 +908,7 @@ function MovementCandidatesTab({
         )}
         <div className="mt-2 flex gap-2">
           <button
-            className="text-[10px] text-[var(--text-muted)] hover:text-zinc-50 underline"
+            className="text-[10px] text-[var(--text-muted)] hover:text-[var(--foreground)] underline"
             onClick={() => handleToggleStatus(candidate.id, candidate.status)}
             type="button"
             disabled={isPending}
@@ -932,9 +932,9 @@ function MovementCandidatesTab({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <SectionHeader title="Possible movement" />
-        <Button variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
+        <TouchlineButton variant="secondary" size="sm" onClick={() => setShowCreateForm(!showCreateForm)}>
           {showCreateForm ? "Cancel" : "Add candidate"}
-        </Button>
+        </TouchlineButton>
       </div>
 
       <p className="text-xs text-[var(--text-soft)]">
@@ -943,7 +943,7 @@ function MovementCandidatesTab({
 
       {showCreateForm && (
         <Surface variant="default" padding="lg">
-          <h3 className="text-sm font-semibold text-zinc-100">Create movement candidate</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Create movement candidate</h3>
           <form
             action={createMovementCandidateAction}
             className="mt-4 flex flex-col gap-4"
@@ -951,7 +951,7 @@ function MovementCandidatesTab({
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-rotationPathId">Rotation path</label>
               <select
-                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                 id="mc-rotationPathId"
                 name="rotationPathId"
                 required
@@ -978,7 +978,7 @@ function MovementCandidatesTab({
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-playerId">Player</label>
               <select
-                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                 id="mc-playerId"
                 name="playerId"
                 required
@@ -998,7 +998,7 @@ function MovementCandidatesTab({
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-role">Role</label>
               <select
-                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                 id="mc-role"
                 name="role"
                 required
@@ -1010,7 +1010,7 @@ function MovementCandidatesTab({
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-rationaleCategory">Rationale</label>
               <select
-                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                 id="mc-rationaleCategory"
                 name="rationaleCategory"
                 required
@@ -1023,7 +1023,7 @@ function MovementCandidatesTab({
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-rationaleNote">Note (optional)</label>
               <input
-                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                 id="mc-rationaleNote"
                 name="rationaleNote"
                 type="text"
@@ -1032,15 +1032,15 @@ function MovementCandidatesTab({
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]" htmlFor="mc-reviewBy">Review by (optional)</label>
               <input
-                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+                className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
                 id="mc-reviewBy"
                 name="reviewBy"
                 type="date"
               />
             </div>
-            <Button variant="primary" size="md" type="submit">
+            <TouchlineButton variant="primary" size="md" type="submit">
               Create candidate
-            </Button>
+            </TouchlineButton>
           </form>
         </Surface>
       )}
@@ -1091,47 +1091,57 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
   const [activeTab, setActiveTab] = useState<TabKey>("squad");
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134). TouchlinePageHeader
+    // has no icon slot (unlike the old PageHeader), so the team shield is composed alongside it;
+    // the squad-size line and group link are combined into one `context` node since
+    // TouchlinePageHeader only exposes one quiet context line, not separate description+context.
+    <div className="touchline flex flex-col gap-6">
+      <div className="flex items-start gap-3">
+        <TeamShield teamName={data.teamName} size="lg" />
+        <div className="min-w-0 flex-1">
+      <TouchlinePageHeader
         title={data.teamName}
-        description={`Target ${data.targetSquadSize} · Min ${data.minAcceptedSquadSize} · Max ${data.maxSquadSize} · Min core ${data.minCorePlayers} · Support priority rank (1 is highest): ${data.supportPriority}`}
         context={
-          <Link href={orgUrl(`/groups/${data.groupSlug}`)} className="hover:underline text-[var(--accent-strong)]">
-            {data.groupName}
-          </Link>
+          <span className="flex flex-col gap-0.5">
+            <span>{`Target ${data.targetSquadSize} · Min ${data.minAcceptedSquadSize} · Max ${data.maxSquadSize} · Min core ${data.minCorePlayers} · Support priority rank (1 is highest): ${data.supportPriority}`}</span>
+            <Link href={orgUrl(`/groups/${data.groupSlug}`)} className="w-fit hover:underline text-[var(--accent-strong)]">
+              {data.groupName}
+            </Link>
+          </span>
         }
-        icon={<TeamShield teamName={data.teamName} size="lg" />}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" size="sm" as="a" href={orgUrl(`/groups/${data.groupSlug}?tab=composition`)}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={orgUrl(`/groups/${data.groupSlug}?tab=composition`)}>
               Auto-select teams
-            </Button>
-            <Button variant="secondary" size="sm" as="a" href={orgUrl(`/teams/${data.teamId}/configuration`)}>
+            </TouchlineButton>
+            <TouchlineButton variant="secondary" size="sm" as="a" href={orgUrl(`/teams/${data.teamId}/configuration`)}>
               Squad settings
-            </Button>
+            </TouchlineButton>
             {data.previousTeamId && (
-              <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${data.previousTeamId}`)}>
+              <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${data.previousTeamId}`)}>
                 Previous team
-              </Button>
+              </TouchlineButton>
             )}
             {data.nextTeamId && (
-              <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${data.nextTeamId}`)}>
+              <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${data.nextTeamId}`)}>
                 Next team
-              </Button>
+              </TouchlineButton>
             )}
-            <Button variant="ghost" size="sm" as="a" href={orgUrl(`/groups/${data.groupSlug}`)}>
+            <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl(`/groups/${data.groupSlug}`)}>
               Back to group
-            </Button>
-            <Button variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>
+            </TouchlineButton>
+            <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>
               All teams
-            </Button>
+            </TouchlineButton>
           </div>
         }
       />
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <MetricTile
-          icon={<span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Round</span>}
+          icon={<span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Round</span>}
           label="Round"
           value={data.currentRoundLabel ?? "No active round"}
         />

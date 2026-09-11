@@ -2495,11 +2495,32 @@ in-repo reference once the UI Lab gate is passed.
   documented in ADR-0134) the moment any consuming surface's pin comes off. All moved to
   `--foreground`/`--text-soft` token equivalents with no dark-mode visual change. **Phases 5
   through 9 are now genuinely all complete** (including Phase 9's full original scope, not just
-  Groups/Rules/Settings). Phase 10 hoists
-  `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in `globals.css`. Migrate
-  a surface's *presentation* only — domain/permissions/persistence/audit/validation are frozen
-  (`17_FUNCTIONAL_FREEZE.md`). Compact touch targets must be ≥ 44×44 and the top-bar context
-  detail is hidden below `medium` (WCAG 2.2 2.5.8, learned in #490).
+  Groups/Rules/Settings).
+
+  **Phase 10 gap (discovered, not part of the original spec).** Phase 10 ("remove old visual
+  system") assumes every surface was migrated across Phases 5–9. It wasn't: the original
+  `14_IMPLEMENTATION_PHASES.md` spec never named Teams, Simulation, Workbench, Attention,
+  Organisations, Invite, error boundaries, or (discovered mid-pass) a pre-existing "Assistant
+  Review" family (`round-review-page.tsx`/`match-review-page.tsx`/`team-review-page.tsx` and their
+  shared `cross-team-impact-panel`/`decision-panel`/`recommendation-panel`/`rule-impact-panel`/
+  `team-readiness-card` components, reachable via `/rounds/[id]/review`, `/matches/[id]/review`,
+  `/teams/[id]/review` — a real, live, ARR-0042-documented surface, not dead code, just never
+  listed in the canonical routes table). All of these remain entirely on Product Surface 1.0.
+  Removing PS 1.0's tokens/CSS now would break them. **Teams** (`/teams`, `/teams/new`,
+  `/teams/[teamId]`, `/teams/[teamId]/configuration` — `team-detail.tsx`'s header needed manual
+  composition rather than a raw `TouchlinePageHeader` swap, since it uses `icon`+`description`+
+  `context` together and `TouchlinePageHeader` only exposes one `context` slot and no icon slot;
+  `team-focus-panel.tsx`'s `STATUS_COLORS` was a second instance of the pre-existing raw
+  light-mode-only Tailwind pattern already documented for `football-observation-section.tsx`,
+  token-aligned the same way) is now migrated, closing part of this gap. The Review family,
+  Simulation, Workbench, Attention, Organisations, Invite, and error boundaries remain — Phase 10
+  cannot proceed until they are migrated too (see the maintainer's explicit choice to migrate
+  first, recorded in this session's history, over scoping Phase 10 down instead).
+
+  Phase 10 hoists `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in
+  `globals.css`. Migrate a surface's *presentation* only — domain/permissions/persistence/audit/
+  validation are frozen (`17_FUNCTIONAL_FREEZE.md`). Compact touch targets must be ≥ 44×44 and the
+  top-bar context detail is hidden below `medium` (WCAG 2.2 2.5.8, learned in #490).
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
