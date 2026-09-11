@@ -2749,13 +2749,14 @@ in-repo reference once the UI Lab gate is passed.
   budgets remain absent from this repository / infeasible in a sandbox, unchanged from ADR-0134
   Phase 12's identical finding.
 
-  **Touchline Design Atlas & Composition Convergence (ADR-0136) — Phases 0-3 complete; Phase 4
-  onward gated on human visual approval of the Phase 3 UI Lab (Hard Gate A), not yet given.**
-  This bundle (`.matchboard-work/matchboard_touchline_design_atlas_implementation_followup_2026-09-11/`)
-  is a composition/information-architecture convergence layered on Touchline's material
-  foundation (ADR-0134/0135) - a golden-reference atlas plus per-route composition specs for 31
-  routes, implemented under a strict "implementer, not designer" contract with a 14-step gated
-  execution sequence. See ADR-0136 for the full account.
+  **Touchline Design Atlas & Composition Convergence (ADR-0136) — Phases 0-3 complete, Hard Gate
+  A approved 2026-09-11, Phase 4 ("High-identity routes") in progress.** This bundle
+  (`.matchboard-work/matchboard_touchline_design_atlas_implementation_followup_2026-09-11/`) is a
+  composition/information-architecture convergence layered on Touchline's material foundation
+  (ADR-0134/0135) - a golden-reference atlas plus per-route composition specs for 31 routes,
+  implemented under a strict "implementer, not designer" contract with an 11-phase (0-10), 3-gate
+  (A/B/C) execution sequence (`13_IMPLEMENTATION_PHASES_AND_GATES.md`). See ADR-0136 for the full
+  account.
 
   1. **Golden images are composition authority only, never navigation/domain-data authority** -
      the single most consequential conflict resolved: the goldens' richer sidebars do not expand
@@ -2777,13 +2778,21 @@ in-repo reference once the UI Lab gate is passed.
   4. **Phase 3's UI Lab is route-complete**: all 31 matrix routes plus the Phase 2 gallery render
      under `/dev/ui-lab/atlas/` - dev-only, unauthenticated tooling, no production route touched.
   5. **Hard Gate A is a real stop condition** - the implementing agent never self-certifies visual
-     fidelity; Phases 4-14 (production migration, brand/PWA, transitional-system removal, full
-     regression, final approval) do not start without it.
+     fidelity; Phase 4 onward (production migration, brand/PWA, transitional-system removal, full
+     regression, final approval) does not start without it.
 
   Standard local verification (`npm run validate`'s relevant steps: lint, typecheck, terminology
   check, architecture check, and the new presentation-layer unit tests) passed clean on this
-  branch. Do not begin Phase 4 production migration without a fresh, explicit human approval of
-  the `/dev/ui-lab/atlas` route set.
+  branch. Two rounds of Hard Gate A review feedback followed (#519 → #520, both merged): missing
+  pitch-line markings on `PitchExposure`, a GK/outfield kit colour distinction, an opt-in
+  perspective tilt, `lucide-react`'s `Shirt` icon as the actual token shape, and vertical pitch
+  orientation for Tactics/Lineup/Formations - see `docs/domain/touchline-atlas-provenance.md`
+  §12-§13. **Hard Gate A was approved 2026-09-11.** Phase 4 ("High-identity routes": Today,
+  League, Events, Event detail, Match detail, Players, Player detail, Insights) is now in
+  progress, migrating the real production routes (not UI-Lab copies) to the composition already
+  proven in `/dev/ui-lab/atlas/routes/*`. Do not begin Phase 5 (Round Board, Lineup, Tactics,
+  Rotations, Live Reporting, Follow Live, Post-match) without a fresh, explicit human approval at
+  Human Gate B.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
