@@ -53,9 +53,9 @@ export function EmptyState({
           className="h-32 md:h-40 lg:h-48 w-auto opacity-85 dark:opacity-75"
         />
       )}
-      <p className="text-sm font-medium text-zinc-100">{title}</p>
+      <p className="text-sm font-medium text-[var(--foreground)]">{title}</p>
       {description && (
-        <p className="text-xs text-[var(--text-muted)] max-w-sm">
+        <p className="text-xs text-[var(--text-soft)] max-w-sm">
           {description}
         </p>
       )}

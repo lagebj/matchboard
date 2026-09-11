@@ -493,8 +493,8 @@ export default async function RoundBoardPage({
   }
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 6).
-    <div className="touchline flex flex-col gap-4" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 6).
+    <div className="touchline flex flex-col gap-4">
       {error && (
         <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}

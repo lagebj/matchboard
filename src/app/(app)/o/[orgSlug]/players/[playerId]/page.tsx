@@ -184,8 +184,8 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   }));
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <div className="touchline flex flex-col gap-3" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-3">
       {error && <div className="rounded-md border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-3 py-2 text-xs text-[var(--danger)]">{error}</div>}
       {formatSavedMessage(saved) && <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-3 py-2 text-xs text-[var(--success)]">{formatSavedMessage(saved)}</div>}
 

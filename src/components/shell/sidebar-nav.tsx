@@ -48,7 +48,6 @@ export function SidebarNav({ orgSlug }: { orgSlug: string }) {
   return (
     <nav
       aria-label="Primary"
-      data-theme="dark"
       className="touchline flex h-full flex-col border-r border-[var(--border-soft)] bg-[var(--tl-c-canvas)]"
     >
       <div className="px-5 pt-6 pb-5">

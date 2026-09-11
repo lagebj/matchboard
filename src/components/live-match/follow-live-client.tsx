@@ -256,9 +256,9 @@ export function FollowLiveClient({
   const isConnected = connectionState === "connected";
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134).
     // Read-only "Follow live" scoreboard grammar (bundle 06 §11 map).
-    <div className="touchline flex flex-col gap-4" data-theme="dark">
+    <div className="touchline flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3 pt-1">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">

@@ -768,10 +768,10 @@ export function RoundBoard({
     : [];
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134). Also
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134). Also
     // rendered directly by the org-scoped round page, which island-wraps too; nested
     // `.touchline` is idempotent.
-    <div className="touchline flex flex-col gap-5" data-theme="dark">
+    <div className="touchline flex flex-col gap-5">
       <RoundStatusStrip
         totalTeams={matches.length}
         completeTeams={completeTeams}

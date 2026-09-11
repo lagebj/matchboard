@@ -72,8 +72,8 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
   });
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <div className="touchline flex flex-col gap-3" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-3">
       {created && (
         <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-3 py-2 text-xs font-medium text-[var(--success)]">
           League season created.

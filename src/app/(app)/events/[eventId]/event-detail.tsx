@@ -414,8 +414,8 @@ export function EventDetail({ data }: { data: EventDetailData }) {
     : data.players.filter((p) => p.status === availabilityFilter);
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134).
-    <div className="touchline space-y-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134).
+    <div className="touchline space-y-6">
       <TouchlinePageHeader
         title={data.name}
         context={`${EVENT_TYPE_LABELS[data.eventType] ?? data.eventType} · ${formatGameFormat(data.gameFormat)} · ${formatKickoffDate(new Date(data.startsAt))} · ${EVENT_STATUS_LABELS[data.status] ?? data.status}`}
@@ -1078,7 +1078,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                           >
                             <span>{formatName(p)}</span>
                             {p.participantType === 'GUEST_PLAYER' && <span className="text-[10px] text-[var(--text-muted)]" title="Guest player">Guest</span>}
-                            {p.isGK && <span className="text-[10px] font-medium text-amber-400">GK</span>}
+                            {p.isGK && <span className="text-[10px] font-medium text-[var(--warning)]">GK</span>}
                             {p.primaryPosition && (
                               <span className="text-[10px] text-[var(--text-muted)]">{p.primaryPosition}</span>
                             )}
@@ -1089,7 +1089,7 @@ export function EventDetail({ data }: { data: EventDetailData }) {
                               <span className="text-[10px] text-[var(--text-muted)]">· {p.tertiaryPosition}</span>
                             )}
                             {p.goalkeeperAbility === 'EMERGENCY' && !p.isGK && (
-                              <span className="text-[10px] text-amber-500">Emergency GK</span>
+                              <span className="text-[10px] text-[var(--warning)]">Emergency GK</span>
                             )}
                             {p.positionFitTier && FIT_TIER_LABELS[p.positionFitTier] && (
                               <span className="text-[10px] text-[var(--text-muted)]">{FIT_TIER_LABELS[p.positionFitTier]}</span>

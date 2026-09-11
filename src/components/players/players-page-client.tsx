@@ -87,8 +87,8 @@ export function PlayersPageClient({
     "h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-[var(--text-soft)] outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none";
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <div className="touchline flex flex-col gap-4" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-4">
       <TouchlinePageHeader
         title="Players"
         context="Participation, movement and current planning attention."
@@ -118,7 +118,7 @@ export function PlayersPageClient({
             onClick={() => navigate({ showRemoved: includeRemoved ? undefined : "1" })}
             className={`ml-2 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
               includeRemoved
-                ? "border-amber-700/50 bg-amber-950/30 text-[var(--warning)]"
+                ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] text-[var(--warning)]"
                 : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
             }`}
           >

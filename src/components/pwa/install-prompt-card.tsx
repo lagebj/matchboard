@@ -118,7 +118,7 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
       <Surface variant="subtle" padding="md" className="flex items-center gap-3">
         <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--success)]" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-zinc-100">Matchboard is installed</p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">Matchboard is installed</p>
           <p className="text-xs text-[var(--text-muted)]">You&apos;re using the installed app.</p>
         </div>
       </Surface>
@@ -140,7 +140,7 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
     return (
       <Surface variant="subtle" padding="md" className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-zinc-100">Install Matchboard</p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">Install Matchboard</p>
           <p className="text-xs text-[var(--text-muted)]">
             Use your browser&apos;s install control, or tap Install here — Matchboard opens as its
             own app.
@@ -172,7 +172,7 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
         <div className="flex items-start gap-3">
           <Share className="h-5 w-5 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
           <div>
-            <p className="text-sm font-semibold text-zinc-100">Install Matchboard</p>
+            <p className="text-sm font-semibold text-[var(--foreground)]">Install Matchboard</p>
             <p className="text-xs text-[var(--text-muted)]">
               Tap the Share icon, then &quot;Add to Home Screen&quot;.
             </p>
@@ -191,7 +191,7 @@ export function InstallPwaCard({ dismissible = false }: InstallPwaCardProps) {
       <div className="flex items-start gap-3">
         <Menu className="h-5 w-5 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-zinc-100">Install Matchboard</p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">Install Matchboard</p>
           <p className="text-xs text-[var(--text-muted)]">
             Install from your browser — an install icon in the address bar, or &quot;Install
             app&quot; / &quot;Add to Home screen&quot; in the browser menu. Matchboard then opens as

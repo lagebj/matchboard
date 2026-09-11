@@ -137,8 +137,8 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
 
   if (!report || report.status === "NOT_STARTED") {
     return (
-      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
-      <div className="touchline flex flex-col gap-4" data-theme="dark">
+      // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7).
+      <div className="touchline flex flex-col gap-4">
         <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
           &larr; Back to match
         </Link>
@@ -178,8 +178,8 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
   };
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
-    <div className="touchline flex flex-col gap-5" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7).
+    <div className="touchline flex flex-col gap-5">
       <div className="flex items-center gap-2">
         <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
           &larr; Back to match

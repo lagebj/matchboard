@@ -69,8 +69,8 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
   }
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 6).
-    <div className="touchline max-w-2xl mx-auto space-y-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 6).
+    <div className="touchline max-w-2xl mx-auto space-y-6">
       <TouchlinePageHeader
         title="Create event"
         context="Set up a cup, tournament, or friendly day for squad planning."

@@ -57,7 +57,7 @@ import {
  *
  * All work-item derivation, the situational projection wiring, grouping, and
  * every link/action are unchanged — this is a presentation migration only
- * (`17_FUNCTIONAL_FREEZE.md`). Rendered inside a dark-pinned `.touchline`
+ * (`17_FUNCTIONAL_FREEZE.md`). Rendered inside a theme-aware (no longer dark-pinned) `.touchline`
  * island during the phased rollout.
  */
 
@@ -431,7 +431,7 @@ function NextRoundReadinessSection({
               className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors"
             >
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-sm font-medium text-zinc-100 truncate">{roundName}</span>
+                <span className="text-sm font-medium text-[var(--foreground)] truncate">{roundName}</span>
                 <span className="text-xs text-[var(--text-muted)]">{parts.join(" · ")}</span>
               </div>
               <TouchlineButton
@@ -466,7 +466,7 @@ function WorkRow({
     <li className="flex items-center justify-between gap-3 py-2 px-3 -mx-3 rounded-lg hover:bg-[var(--surface-muted)]/30 transition-colors">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span
-          className={`text-sm font-medium ${dim ? "text-[var(--text-muted)]" : "text-zinc-100"} truncate`}
+          className={`text-sm font-medium ${dim ? "text-[var(--text-muted)]" : "text-[var(--foreground)]"} truncate`}
         >
           {item.title}
         </span>
@@ -755,9 +755,9 @@ export function AssistantCommandCentrePage({
   const upcomingCount = upcoming.length;
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134).
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134).
     // Phase 10 hoists `.touchline` to the app shell and removes this wrapper.
-    <div className="touchline flex flex-col gap-6" data-theme="dark">
+    <div className="touchline flex flex-col gap-6">
       <TouchlinePageHeader
         title="Today"
         context={leagueSeasonName ?? "What needs attention before the next matches."}

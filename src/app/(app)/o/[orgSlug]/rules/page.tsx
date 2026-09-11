@@ -65,8 +65,8 @@ export default async function RulesPage({ params, searchParams }: { params: Prom
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 9).
-    <div className="touchline flex flex-col gap-3" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 9).
+    <div className="touchline flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rules · v{rules.version}</p>

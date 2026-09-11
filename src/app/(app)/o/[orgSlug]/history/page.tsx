@@ -245,8 +245,8 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
     });
 
   return (
-    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
-    <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-6">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
         <Surface variant="raised" padding="lg">
           <TouchlinePageHeader
