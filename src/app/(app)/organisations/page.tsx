@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { setTenantUserId, runWithSystemPrivilege } from "@/lib/tenancy/tenant-async-storage";
+import { TouchlinePageHeader } from "@/components/touchline";
+import { SectionHeader } from "@/components/ui/section-header";
 
 export default async function OrganisationsPage() {
   const session = await auth();
@@ -61,19 +63,15 @@ export default async function OrganisationsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Organisations</h1>
-          <p className="text-sm text-[var(--text-muted)]">
-            Your organisations and pending invitations
-          </p>
-        </div>
-      </div>
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134): this page renders
+    // inside (app)/layout.tsx's no-single-org fallback shell, whose <main> is not itself
+    // .touchline-scoped (only its header is), so it needs its own explicit class.
+    <div className="touchline space-y-6">
+      <TouchlinePageHeader title="Organisations" context="Your organisations and pending invitations" />
 
       {pendingInvitations.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Pending Invitations</h2>
+          <SectionHeader title="Pending Invitations" />
           <div className="space-y-2">
             {pendingInvitations.map((inv) => (
               <div
@@ -99,7 +97,7 @@ export default async function OrganisationsPage() {
       )}
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Your Organisations</h2>
+        <SectionHeader title="Your Organisations" />
         {userOrgs.length === 0 ? (
           <div className="rounded-md border border-[var(--border-soft)] p-8 text-center">
             <p className="text-sm text-[var(--text-muted)]">

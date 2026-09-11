@@ -2517,10 +2517,15 @@ in-repo reference once the UI Lab gate is passed.
   and **Attention** (`/attention`, `attention-client.tsx`) are also now migrated —
   `attention-client.tsx`'s `urgencyStyles` was a third instance of the same pre-existing raw
   light-mode-only Tailwind pattern (`bg-red-50`/`bg-amber-50`/`bg-slate-50`, no dark styling at
-  all), token-aligned the same way as `team-focus-panel.tsx`'s `STATUS_COLORS`. The Review family,
-  Organisations, Invite, and error boundaries remain — Phase 10 cannot proceed until they are
-  migrated too (see the maintainer's explicit choice to migrate first, recorded in this session's
-  history, over scoping Phase 10 down instead).
+  all), token-aligned the same way as `team-focus-panel.tsx`'s `STATUS_COLORS`. **Organisations**
+  (`/organisations`), **Invite** (`/invite/[token]`, `invite-acceptance-form.tsx`), and the three
+  **error boundaries** (`(app)/error.tsx`, `(app)/players/error.tsx`, `(app)/teams/error.tsx` —
+  byte-identical files, fixed identically) are also now migrated. These all render inside
+  `(app)/layout.tsx`'s `<main>`, which is not itself `.touchline`-scoped (only the shell
+  header/nav are) — each needed its own explicit `.touchline` class on its own root, not just a
+  literal fix. The Review family remains — Phase 10 cannot proceed until it is migrated too (see
+  the maintainer's explicit choice to migrate first, recorded in this session's history, over
+  scoping Phase 10 down instead).
 
   Phase 10 hoists `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in
   `globals.css`. Migrate a surface's *presentation* only — domain/permissions/persistence/audit/

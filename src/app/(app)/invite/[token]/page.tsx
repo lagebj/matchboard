@@ -44,7 +44,7 @@ export default async function InvitePage({
 
   if (!invitation) {
     return (
-      <div className="mx-auto max-w-md space-y-4 py-12">
+      <div className="touchline mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Not Found</h1>
         <p className="text-sm text-[var(--text-muted)]">
           This invitation does not exist or has been removed.
@@ -62,7 +62,7 @@ export default async function InvitePage({
 
   if (invitation.status === "REVOKED") {
     return (
-      <div className="mx-auto max-w-md space-y-4 py-12">
+      <div className="touchline mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Revoked</h1>
         <p className="text-sm text-[var(--text-muted)]">
           This invitation has been revoked by the organisation.
@@ -76,7 +76,7 @@ export default async function InvitePage({
 
   if (invitation.status === "DECLINED") {
     return (
-      <div className="mx-auto max-w-md space-y-4 py-12">
+      <div className="touchline mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Declined</h1>
         <p className="text-sm text-[var(--text-muted)]">
           You have already declined this invitation. Contact the organisation to request a new one.
@@ -102,7 +102,7 @@ export default async function InvitePage({
     }
 
     return (
-      <div className="mx-auto max-w-md space-y-4 py-12">
+      <div className="touchline mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Expired</h1>
         <p className="text-sm text-[var(--text-muted)]">
           This invitation expired on {invitation.expiresAt.toLocaleDateString()}.
@@ -116,7 +116,7 @@ export default async function InvitePage({
 
   if (invitation.status !== "PENDING") {
     return (
-      <div className="mx-auto max-w-md space-y-4 py-12">
+      <div className="touchline mx-auto max-w-md space-y-4 py-12">
         <h1 className="text-xl font-bold">Invitation Unavailable</h1>
         <p className="text-sm text-[var(--text-muted)]">
           This invitation is no longer available.
@@ -140,7 +140,7 @@ export default async function InvitePage({
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-6 py-12">
+    <div className="touchline mx-auto max-w-md space-y-6 py-12">
       <div>
         <h1 className="text-xl font-bold">Organisation Invitation</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
