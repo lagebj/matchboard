@@ -6,8 +6,7 @@ import { createPlayerAction } from "@/app/(app)/players/actions";
 import { PlayerEditorForm } from "@/components/players/player-editor-form";
 import { Surface } from "@/components/ui/surface";
 import { DecisionBanner } from "@/components/ui/decision-banner";
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export default async function NewPlayerPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -23,15 +22,16 @@ export default async function NewPlayerPage({ params }: { params: Promise<{ orgS
 
   if (teams.length === 0) {
     return (
-      <main className="flex min-h-full flex-col gap-6 text-foreground">
-        <PageHeader title="Create player" />
+      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+      <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+        <TouchlinePageHeader title="Create player" />
         <DecisionBanner
           variant="decision"
           title="Create at least one team before adding players."
           action={
-            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
               Create a team
-            </Button>
+            </TouchlineButton>
           }
         />
       </main>
@@ -39,10 +39,11 @@ export default async function NewPlayerPage({ params }: { params: Promise<{ orgS
   }
 
   return (
-    <main className="flex min-h-full flex-col gap-6 text-foreground">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+      <TouchlinePageHeader
         title="Create player"
-        description="Add a player to the registry. The player code is generated automatically."
+        context="Add a player to the registry. The player code is generated automatically."
       />
 
       <Surface variant="default" padding="lg">

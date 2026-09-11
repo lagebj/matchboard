@@ -74,7 +74,7 @@ export function PlayerReportSummaryPanel({ player }: PlayerReportSummaryPanelPro
             {summaries.map((cat) => (
               <div key={cat.label} className="flex flex-col items-center gap-px">
                 <span className="text-[var(--text-micro)] font-semibold uppercase tracking-[0.15em] text-[var(--text-muted)]">{cat.label}</span>
-                <span className="text-base font-semibold tabular-nums text-zinc-100 leading-tight">
+                <span className="text-base font-semibold tabular-nums text-[var(--foreground)] leading-tight">
                   {cat.average !== null ? cat.average.toFixed(1) : "—"}
                 </span>
                 <span className="text-[var(--text-micro)] text-[var(--text-muted)]">{cat.ratedCount}/{cat.totalKeys.length}</span>
@@ -91,7 +91,7 @@ export function PlayerReportSummaryPanel({ player }: PlayerReportSummaryPanelPro
             {weakest && weakest !== strongest && (
               <div className="flex items-center gap-1">
                 <span className="text-[var(--text-muted)]">Needs coaching</span>
-                <span className="text-amber-400 font-medium">{weakest}</span>
+                <span className="text-[var(--warning)] font-medium">{weakest}</span>
               </div>
             )}
           </div>

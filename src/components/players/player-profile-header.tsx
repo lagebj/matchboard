@@ -139,7 +139,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
       </div>
       {/* Identity badge */}
       <div className="relative flex flex-col items-center justify-center shrink-0">
-        <div className={`flex items-center justify-center w-12 h-12 rounded-lg text-base font-bold ${isGK ? "bg-amber-500/20 text-[var(--warning)] border border-amber-500/30" : "bg-[var(--surface-muted)] text-zinc-100 border border-[var(--border-soft)]"}`}>
+        <div className={`flex items-center justify-center w-12 h-12 rounded-lg text-base font-bold ${isGK ? "bg-[var(--warning-subtle)] text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]" : "bg-[var(--surface-muted)] text-[var(--foreground)] border border-[var(--border-soft)]"}`}>
           {initials}
         </div>
         {player.shirtNumber != null && (
@@ -152,7 +152,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
       {/* Identity info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-zinc-50 leading-tight">{formatPlayerName(player)}</h1>
+          <h1 className="text-lg font-semibold text-[var(--foreground)] leading-tight">{formatPlayerName(player)}</h1>
           <StatusPill
             variant={AVAILABILITY_VARIANT[player.currentAvailability] ?? "neutral"}
             size="sm"
@@ -185,8 +185,8 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
                 i === 0
                   ? "bg-[var(--accent)]/15 text-[var(--accent)]"
                   : i === 1
-                    ? "bg-zinc-700/50 text-[var(--text-muted)]"
-                    : "bg-zinc-800/50 text-[var(--text-muted)]"
+                    ? "bg-[var(--tl-c-surface-hover)] text-[var(--text-muted)]"
+                    : "bg-[var(--tl-c-surface)] text-[var(--text-muted)]"
               }`}
             >
               {POSITION_SHORT[pos] ?? pos}
@@ -207,7 +207,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
         {planningFlags.length > 0 && (
           <div className="mt-0.5 flex items-center gap-1">
             {planningFlags.map((f) => (
-              <span key={f} className="text-[var(--text-micro)] text-amber-400/70 font-medium">{f}</span>
+              <span key={f} className="text-[var(--text-micro)] text-[var(--warning)]/70 font-medium">{f}</span>
             ))}
           </div>
         )}
@@ -218,7 +218,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
         {previousPlayerId && (
           <Link
             href={`/players/${previousPlayerId}`}
-            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
           >
             ‹
           </Link>
@@ -226,14 +226,14 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
         {nextPlayerId && (
           <Link
             href={`/players/${nextPlayerId}`}
-            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
           >
             ›
           </Link>
         )}
         <Link
           href={orgUrl("/players")}
-          className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors"
+          className="h-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-[var(--text-micro)] font-medium text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors"
         >
           All
         </Link>
@@ -242,7 +242,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="h-6 w-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors flex items-center justify-center"
+            className="h-6 w-6 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors flex items-center justify-center"
             aria-label="Player actions"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -257,7 +257,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
                 type="button"
                 onClick={handleToggleActive}
                 disabled={isPending}
-                className="rounded px-2 py-1 text-[11px] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors text-left disabled:opacity-50"
+                className="rounded px-2 py-1 text-[11px] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors text-left disabled:opacity-50"
               >
                 {player.active ? "Set inactive" : "Set active"}
               </button>
@@ -266,7 +266,7 @@ export function PlayerProfileHeader({ player, previousPlayerId, nextPlayerId, pl
                   type="button"
                   onClick={handleRestore}
                   disabled={isPending}
-                  className="rounded px-2 py-1 text-[11px] text-[var(--success)] hover:bg-emerald-950/30 transition-colors text-left disabled:opacity-50"
+                  className="rounded px-2 py-1 text-[11px] text-[var(--success)] hover:bg-[var(--success-subtle)] transition-colors text-left disabled:opacity-50"
                 >
                   Restore player
                 </button>

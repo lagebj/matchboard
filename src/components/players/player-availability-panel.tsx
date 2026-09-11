@@ -38,14 +38,14 @@ export function PlayerAvailabilityPanel({ player, availabilityOptions, updateFie
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-[var(--text-muted)]">Rotation</span>
           <span className={cn(
-            player.nonRotatable ? "text-[var(--warning)]" : "text-zinc-200",
+            player.nonRotatable ? "text-[var(--warning)]" : "text-[var(--foreground)]",
           )}>
             {player.nonRotatable ? "Non-rotatable" : "Eligible"}
           </span>
         </div>
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-[var(--text-muted)]">Planning constraint</span>
-          <span className="text-zinc-200">
+          <span className="text-[var(--foreground)]">
             {player.reducedMatchLoadAllowed ? "Reduced match involvement" : "Standard"}
           </span>
         </div>

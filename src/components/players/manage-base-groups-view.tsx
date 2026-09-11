@@ -96,9 +96,9 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                 const isUnavailable = player.currentAvailability !== "AVAILABLE";
                 const isRemoved = player.removed === true;
                 return (
-                  <tr key={player.id} className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors ${isUnavailable ? "bg-amber-950/5" : ""} ${isRemoved ? "opacity-60" : ""}`}>
+                  <tr key={player.id} className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors ${isUnavailable ? "bg-[var(--warning-subtle)]" : ""} ${isRemoved ? "opacity-60" : ""}`}>
                     <td className="px-4 py-2">
-                      <Link href={`/players/${player.id}`} className={`font-medium hover:text-zinc-50 ${isRemoved ? "line-through text-[var(--text-muted)]" : "text-zinc-200"}`}>
+                      <Link href={`/players/${player.id}`} className={`font-medium hover:text-[var(--foreground)] ${isRemoved ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]"}`}>
                         {player.firstName}{player.lastName ? ` ${player.lastName}` : ""}
                       </Link>
                       {isRemoved && (
@@ -111,7 +111,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                           <select
                             value={selectedTeamId}
                             onChange={(e) => setSelectedTeamId(e.target.value)}
-                            className="h-7 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+                            className="h-7 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
                             disabled={isPending}
                           >
                             <option value="">Unassigned</option>
@@ -140,7 +140,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                             setEditingPlayerId(player.id);
                             setSelectedTeamId(player.coreTeam?.id ?? "");
                           }}
-                          className="text-left text-[var(--text-muted)] hover:text-zinc-200 group"
+                          className="text-left text-[var(--text-muted)] hover:text-[var(--foreground)] group"
                           title="Click to change core team"
                         >
                           {player.coreTeam ? (
@@ -151,7 +151,7 @@ export function ManageBaseGroupsView({ players, teams }: ManageBaseGroupsViewPro
                         </button>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-zinc-300">
+                    <td className="px-3 py-2 text-[var(--text-soft)]">
                       {player.primaryPosition || "—"}
                     </td>
                     <td className="px-3 py-2">

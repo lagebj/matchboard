@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TouchlineButton } from "@/components/touchline";
 import {
   AvailabilityStatus,
   BestSide,
@@ -45,10 +46,10 @@ function TextField({
   required?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+    <label className="flex flex-col gap-1 text-sm font-medium text-[var(--foreground)]">
       {label}
       <input
-        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
+        className="h-10 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 font-normal text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)]"
         defaultValue={defaultValue}
         name={name}
         placeholder={placeholder}
@@ -68,10 +69,10 @@ function RatingField({
   name: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+    <label className="flex flex-col gap-1 text-sm font-medium text-[var(--foreground)]">
       {label}
       <input
-        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
+        className="h-10 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 font-normal text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)]"
         defaultValue={defaultValue ?? ""}
         min={1}
         max={10}
@@ -97,10 +98,10 @@ function SelectField({
   required?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+    <label className="flex flex-col gap-1 text-sm font-medium text-[var(--foreground)]">
       {label}
       <select
-        className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
+        className="h-10 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 font-normal text-[var(--foreground)] outline-none"
         defaultValue={defaultValue}
         name={name}
         required={required}
@@ -132,10 +133,10 @@ export function PlayerEditorForm({
           required
         />
         <TextField defaultValue={player?.lastName ?? ""} label="Last Name" name="lastName" />
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+        <label className="flex flex-col gap-1 text-sm font-medium text-[var(--foreground)]">
           Shirt Number
           <input
-            className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
+            className="h-10 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 font-normal text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)]"
             defaultValue={player?.shirtNumber ?? ""}
             name="shirtNumber"
             placeholder="Optional"
@@ -144,10 +145,10 @@ export function PlayerEditorForm({
             max={99}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+        <label className="flex flex-col gap-1 text-sm font-medium text-[var(--foreground)]">
           Core Team
           <select
-            className="h-10 rounded-xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 font-normal text-zinc-100 outline-none"
+            className="h-10 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 font-normal text-[var(--foreground)] outline-none"
             defaultValue={player?.coreTeamId ?? teams[0]?.id}
             name="coreTeamId"
             required
@@ -215,25 +216,25 @@ export function PlayerEditorForm({
         />
       </section>
 
-      <div className="grid gap-3 text-sm text-zinc-100 md:grid-cols-2">
-        <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
+      <div className="grid gap-3 text-sm text-[var(--foreground)] md:grid-cols-2">
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-3">
           <input defaultChecked={player?.active ?? true} name="active" type="checkbox" />
           Active
         </label>
-        <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-3">
           <input defaultChecked={player?.nonRotatable ?? false} name="nonRotatable" type="checkbox" />
           Non-rotatable
         </label>
-        <label className="flex items-center gap-2 rounded-xl border app-hairline bg-[rgba(255,255,255,0.025)] px-3 py-3">
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-3">
           <input defaultChecked={player?.reducedMatchLoadAllowed ?? false} name="reducedMatchLoadAllowed" type="checkbox" />
           Reduced match load
         </label>
       </div>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+        <div className="flex flex-col gap-4 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-50">Technical</h2>
+            <h2 className="text-base font-semibold text-[var(--foreground)]">Technical</h2>
             <p className="mt-1 text-sm app-copy-soft">Ball mastery and attacking quality.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -248,9 +249,9 @@ export function PlayerEditorForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+        <div className="flex flex-col gap-4 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-50">Tactical</h2>
+            <h2 className="text-base font-semibold text-[var(--foreground)]">Tactical</h2>
             <p className="mt-1 text-sm app-copy-soft">Positioning, defending, and decisions.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -268,9 +269,9 @@ export function PlayerEditorForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+        <div className="flex flex-col gap-4 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-50">Mental</h2>
+            <h2 className="text-base font-semibold text-[var(--foreground)]">Mental</h2>
             <p className="mt-1 text-sm app-copy-soft">Effort, concentration, and team play.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -284,9 +285,9 @@ export function PlayerEditorForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 rounded-[1.4rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
+        <div className="flex flex-col gap-4 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
           <div>
-            <h2 className="text-base font-semibold text-zinc-50">Physical</h2>
+            <h2 className="text-base font-semibold text-[var(--foreground)]">Physical</h2>
             <p className="mt-1 text-sm app-copy-soft">Speed and strength.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -296,10 +297,10 @@ export function PlayerEditorForm({
         </div>
       </section>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-100">
+      <label className="flex flex-col gap-1 text-sm font-medium text-[var(--foreground)]">
         Notes
         <textarea
-          className="min-h-28 rounded-2xl border app-hairline bg-[rgba(8,10,14,0.32)] px-3 py-2 font-normal text-zinc-100 outline-none placeholder:text-[var(--text-muted)]"
+          className="min-h-28 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 font-normal text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)]"
           defaultValue={player?.notes ?? ""}
           name="notes"
           placeholder="Optional notes about the player."
@@ -307,19 +308,13 @@ export function PlayerEditorForm({
       </label>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-          type="submit"
-        >
+        <TouchlineButton type="submit" variant="primary">
           {submitLabel}
-        </button>
+        </TouchlineButton>
         {cancelHref ? (
-          <Link
-            className="inline-flex h-10 items-center rounded-full border app-hairline px-4 text-sm font-medium app-copy-soft hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
-            href={cancelHref}
-          >
+          <TouchlineButton as={Link} href={cancelHref} variant="secondary">
             Cancel
-          </Link>
+          </TouchlineButton>
         ) : null}
       </div>
     </form>
@@ -328,10 +323,10 @@ export function PlayerEditorForm({
 
 export function PlayerSummaryCard({ player }: { player: PlayerWithCoreTeam }) {
   return (
-    <section className="rounded-[1.6rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+    <section className="rounded-[var(--tl-c-radius-overlay)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-5">
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium uppercase tracking-wide app-copy-muted">Player</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-50">{formatPlayerName(player)}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">{formatPlayerName(player)}</h1>
         <p className="text-sm app-copy-soft">
           {player.coreTeam?.name ?? "Unassigned"} · {formatAvailabilityStatus(player.currentAvailability)}
         </p>
@@ -339,19 +334,19 @@ export function PlayerSummaryCard({ player }: { player: PlayerWithCoreTeam }) {
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <p className="text-xs uppercase tracking-wide app-copy-muted">Primary Position</p>
-          <p className="mt-1 text-sm text-zinc-100">{player.primaryPosition}</p>
+          <p className="mt-1 text-sm text-[var(--foreground)]">{player.primaryPosition}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide app-copy-muted">Secondary Position</p>
-          <p className="mt-1 text-sm text-zinc-100">{player.secondaryPosition ?? "-"}</p>
+          <p className="mt-1 text-sm text-[var(--foreground)]">{player.secondaryPosition ?? "-"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide app-copy-muted">Tertiary Position</p>
-          <p className="mt-1 text-sm text-zinc-100">{player.tertiaryPosition ?? "-"}</p>
+          <p className="mt-1 text-sm text-[var(--foreground)]">{player.tertiaryPosition ?? "-"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide app-copy-muted">Rotation</p>
-          <p className="mt-1 text-sm text-zinc-100">{player.nonRotatable ? "Non-rotatable" : "Eligible"}</p>
+          <p className="mt-1 text-sm text-[var(--foreground)]">{player.nonRotatable ? "Non-rotatable" : "Eligible"}</p>
         </div>
       </div>
     </section>

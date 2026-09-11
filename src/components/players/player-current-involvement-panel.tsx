@@ -40,7 +40,7 @@ export function PlayerCurrentInvolvementPanel({ involvement, maxItems = 8 }: Pla
           <div key={`${entry.matchId}-${entry.role}-${i}`} className="flex items-center justify-between gap-2">
             <Link
               href={`/matches/${entry.matchId}`}
-              className="text-xs text-zinc-100 hover:text-[var(--accent-strong)] transition-colors truncate"
+              className="text-xs text-[var(--foreground)] hover:text-[var(--accent-strong)] transition-colors truncate"
             >
               {formatDate(entry.matchStartsAt)} · {entry.teamName}
               {entry.opponent ? ` vs ${entry.opponent}` : ""}
