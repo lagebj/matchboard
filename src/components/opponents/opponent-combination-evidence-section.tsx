@@ -38,13 +38,13 @@ export function OpponentCombinationEvidenceSection({
   const shown = summaries.filter((s) => s.confidence !== "INSUFFICIENT").slice(0, MAX_ROWS_SHOWN);
 
   return (
-    <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-      <h2 className="text-sm font-semibold text-zinc-50">Combination evidence vs this opponent</h2>
-      <p className="mt-1 text-xs text-zinc-500">
+    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+      <h2 className="text-sm font-semibold text-[var(--foreground)]">Combination evidence vs this opponent</h2>
+      <p className="mt-1 text-xs text-[var(--text-muted)]">
         What actually happened on the pitch across matches against this opponent. Descriptive context, not a chemistry score.
       </p>
       {shown.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-400">No combination evidence recorded yet for matches against this opponent.</p>
+        <p className="mt-3 text-sm text-[var(--text-muted)]">No combination evidence recorded yet for matches against this opponent.</p>
       ) : (
         <div className="mt-3 flex flex-col divide-y divide-[var(--border-soft)]">
           {shown.map((summary) => {

@@ -19,7 +19,7 @@ export function OpponentCombinationSituationalSummary({
 
   return (
     <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-4">
-      <p className="text-xs uppercase tracking-wide text-zinc-500">Situational summary</p>
+      <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Situational summary</p>
       <ul className="mt-2 flex flex-col gap-1">
         {projection.decisions.map((decision) => {
           const names = decision.affectedEntities
@@ -27,8 +27,8 @@ export function OpponentCombinationSituationalSummary({
             .map((e) => playerNameById[e.entityId] ?? "Unknown player")
             .join(" & ");
           return (
-            <li key={decision.id} className="text-xs text-zinc-400">
-              {names ? <span className="text-zinc-300">{names}</span> : null}
+            <li key={decision.id} className="text-xs text-[var(--text-muted)]">
+              {names ? <span className="text-[var(--text-soft)]">{names}</span> : null}
               {names ? " — " : ""}
               {decision.summary}
             </li>
