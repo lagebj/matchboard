@@ -326,7 +326,7 @@ export function EventMatchLineupPanel({
     return (
       <Surface variant="default" padding="md">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Lineup</h4>
         </div>
         <p className="mt-2 text-sm text-[var(--text-muted)]">Loading lineup...</p>
       </Surface>
@@ -337,12 +337,12 @@ export function EventMatchLineupPanel({
     return (
       <Surface variant="default" padding="md">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Lineup</h4>
         </div>
         <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>
         <button
           onClick={loadLineup}
-          className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)]"
+          className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
         >
           Retry
         </button>
@@ -354,7 +354,7 @@ export function EventMatchLineupPanel({
     return (
       <Surface variant="default" padding="md">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Lineup</h4>
           <button
             onClick={() => handleCreate(
               (effectiveFormationId && formations.some((f) => f.id === effectiveFormationId))
@@ -382,7 +382,7 @@ export function EventMatchLineupPanel({
             <select
               onChange={(e) => { if (e.target.value) handleCreate(e.target.value); }}
               disabled={readOnly}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
               defaultValue=""
             >
               <option value="" disabled>Select a formation...</option>
@@ -401,7 +401,7 @@ export function EventMatchLineupPanel({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h4 className="text-sm font-semibold text-zinc-100">Lineup</h4>
+            <h4 className="text-sm font-semibold text-[var(--foreground)]">Lineup</h4>
             {!editable && (
               <span className="rounded bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]" title={editableReason ?? undefined}>
                 Planning closed
@@ -427,7 +427,7 @@ export function EventMatchLineupPanel({
             <button
               onClick={handleClear}
               disabled={readOnly}
-              className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-[var(--surface-hover)] disabled:opacity-50"
+              className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
             >
               Clear
             </button>
@@ -444,7 +444,7 @@ export function EventMatchLineupPanel({
             value={lineup.formationId ?? ''}
             onChange={(e) => { if (e.target.value) handleChangeFormation(e.target.value); }}
             disabled={readOnly}
-            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-zinc-200"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
           >
             <option value="">No formation</option>
             {formations.map((f) => (
@@ -486,7 +486,7 @@ export function EventMatchLineupPanel({
                       "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px]",
                       p.source === 'helper'
                         ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                        : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-zinc-300",
+                        : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-soft)]",
                     )}
                   >
                     {p.displayName}{p.isGK ? ' · GK' : ''}{p.primaryPosition ? ` · ${p.primaryPosition}` : ''}

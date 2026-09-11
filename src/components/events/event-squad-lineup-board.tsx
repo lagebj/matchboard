@@ -93,7 +93,7 @@ export function EventSquadLineupBoard({
                 className={cn(
                   'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs',
                   slot.player
-                    ? 'border-[var(--border-soft)] bg-[var(--surface-muted)] text-zinc-200'
+                    ? 'border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--foreground)]'
                     : 'border-dashed border-[var(--border-soft)] bg-transparent text-[var(--text-muted)]',
                 )}
                 title={slot.player?.selectionReason ?? undefined}
@@ -124,7 +124,7 @@ export function EventSquadLineupBoard({
             {unassignedPlayers.map((p) => (
               <div
                 key={p.playerId}
-                className="inline-flex items-center gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-zinc-200"
+                className="inline-flex items-center gap-1 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-xs text-[var(--foreground)]"
               >
                 <span>{formatName(p)}</span>
                 {p.positionFitTier && FIT_TIER_LABELS[p.positionFitTier] && (

@@ -4,6 +4,7 @@ import { useTransition, useState } from "react";
 import Link from "next/link";
 import { createEventAction } from "@/app/(app)/events/actions";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 
 type Formation = {
   id: string;
@@ -68,16 +69,15 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Create Event</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          Set up a cup, tournament, or friendly day for squad planning
-        </p>
-      </div>
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 6).
+    <div className="touchline max-w-2xl mx-auto space-y-6" data-theme="dark">
+      <TouchlinePageHeader
+        title="Create event"
+        context="Set up a cup, tournament, or friendly day for squad planning."
+      />
 
       {error && (
-        <div className="rounded-md border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-md border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -95,7 +95,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               placeholder="Spring Cup 2026"
             />
           </div>
@@ -109,7 +109,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               name="eventType"
               value={eventType}
               onChange={(e) => setEventType(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
             >
               <option value="CUP">Cup</option>
               <option value="TOURNAMENT">Tournament</option>
@@ -130,7 +130,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
                 required
                 value={startsAt}
                 onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               />
             </div>
             <div>
@@ -143,7 +143,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
                 name="endsAt"
                 value={endsAt}
                 onChange={(e) => setEndsAt(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               />
             </div>
           </div>
@@ -157,7 +157,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               name="gameFormat"
               value={gameFormat}
               onChange={(e) => handleGameFormatChange(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
             >
               {GAME_FORMAT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -176,7 +176,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               name="numberOfHalves"
               value={numberOfHalves}
               onChange={(e) => setNumberOfHalves(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
             >
               <option value="1">1 (single period)</option>
               <option value="2">2 (first/second half)</option>
@@ -198,7 +198,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               max={120}
               value={matchDurationMinutes}
               onChange={(e) => setMatchDurationMinutes(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               placeholder="20"
             />
             <p className="mt-1 text-xs text-[var(--text-muted)]">
@@ -221,7 +221,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
                 max={60}
                 value={breakDurationMinutes}
                 onChange={(e) => setBreakDurationMinutes(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
                 placeholder="1"
               />
               <p className="mt-1 text-xs text-[var(--text-muted)]">
@@ -239,7 +239,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               name="defaultFormationId"
               value={defaultFormationId}
               onChange={(e) => setDefaultFormationId(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
             >
               <option value="">No formation (role template)</option>
               {filteredFormations.length === 0 ? (
@@ -270,7 +270,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               name="selectionPattern"
               value={selectionPattern}
               onChange={(e) => setSelectionPattern(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
             >
               <option value="ALL_BALANCED">All squads balanced</option>
               <option value="ONE_COMPETITIVE_BALANCED_REMAINDER">
@@ -298,7 +298,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
                 max={10}
                 value={squadCount}
                 onChange={(e) => setSquadCount(parseInt(e.target.value) || 2)}
-                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               />
             </div>
             <div>
@@ -313,7 +313,7 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
                 max={18}
                 value={targetSize}
                 onChange={(e) => setTargetSize(parseInt(e.target.value) || 7)}
-                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+                className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               />
             </div>
           </div>
@@ -328,26 +328,19 @@ export function CreateEventForm({ formations }: { formations: Formation[] }) {
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-zinc-200 focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-[var(--surface-base)] border-[var(--border-soft)] text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]"
               placeholder="Optional notes about the event..."
             />
           </div>
         </div>
 
         <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={isPending}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
+          <TouchlineButton type="submit" variant="primary" disabled={isPending}>
             {isPending ? "Creating..." : "Create event"}
-          </button>
-          <Link
-            href={orgUrl("/events")}
-            className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+          </TouchlineButton>
+          <TouchlineButton as={Link} href={orgUrl("/events")} variant="secondary">
             Cancel
-          </Link>
+          </TouchlineButton>
         </div>
       </form>
     </div>
