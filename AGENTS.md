@@ -2620,8 +2620,28 @@ in-repo reference once the UI Lab gate is passed.
     value exactly (removing indirection, not changing appearance), so no committed documentation
     screenshot became inaccurate.
 
+  **The real e2e accessibility suite (`e2e/accessibility.spec.ts`, run against the actual deployed
+  Test slot — the same check that caught the previous two rounds of raw-literal/undefined-class
+  bugs) caught one further genuine, narrow contrast failure on the first CI run of this exact
+  change**: `TestEnvironmentBadge` (`(app)/layout.tsx`, the "Test" pill shown in the header on the
+  `test.` subdomain) measured only 4.3:1 in light theme — `text-[var(--warning)]` on its own
+  `bg-[var(--warning-subtle)]`, composited over the header's specific `--tl-c-canvas-raised`
+  background, falls just short of the 4.5:1 AA minimum because text and background share the same
+  hue (a warmer, more-saturated light background actually *reduces* contrast against
+  same-hued text, the opposite of what adding more tint intuitively suggests). Fixed by keeping
+  the amber border/background for visual identity but switching the *text* to `--foreground`
+  (calibrated for legibility against any of this app's subtle-tinted surfaces, ~14:1 here). This
+  exact `bg-[var(--X-subtle)] text-[var(--X)]` badge pattern is used in ~30 other files across the
+  codebase (`StatusPill`, `TeamShield`, `Button`'s warning variant, `history-table.tsx`, several
+  player/match panels, …) — verified by direct calculation that those pass (narrowly, ~4.53:1) on
+  the *regular* canvas/`Surface` backgrounds they actually render against; only this one badge's
+  specific header context (the slightly warmer canvas-raised tone) tips it under threshold. The
+  pattern is fragile across the board in light theme (several usages sit only narrowly above
+  4.5:1) — a real, disclosed follow-up for a future contrast-hardening pass, not silently fixed
+  here beyond the one element CI actually caught failing.
+
   See ADR-0134 for the full account, including the two verification-pass corrections that preceded
-  this.
+  this and this CI-caught fix.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 

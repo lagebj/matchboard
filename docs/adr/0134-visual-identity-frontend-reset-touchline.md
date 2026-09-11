@@ -218,6 +218,23 @@ Every surface *named so far* was migrated at this point, and this ADR then claim
     this change preserves every existing rendered color value exactly (removing indirection, not
     changing appearance), so no committed documentation screenshot became inaccurate because of it.
 
+  **The real e2e accessibility suite caught one further genuine, narrow contrast failure** on the
+  first CI run of this exact change — `TestEnvironmentBadge` (the "Test" pill shown in the header
+  on the `test.` subdomain) measured 4.3:1 in light theme: `text-[var(--warning)]` on its own
+  `bg-[var(--warning-subtle)]`, composited over the header's specific `--tl-c-canvas-raised`
+  background, falls short of 4.5:1 because text and background share the same hue — a warmer,
+  more-saturated light background *reduces* contrast against same-hued text (verified by direct
+  calculation: doubling the tint's opacity made contrast *worse*, 3.75:1, not better). Fixed by
+  keeping the amber border/background for visual identity but switching the text to
+  `--foreground` (~14:1 against this composite, in either theme). This exact
+  `bg-[var(--X-subtle)] text-[var(--X)]` badge pattern is used in roughly 30 other files
+  (`StatusPill`, `TeamShield`, `Button`'s warning variant, `history-table.tsx`, several
+  player/match panels, …) — verified by the same calculation method that those pass, narrowly
+  (~4.53:1), on the *regular* canvas/`Surface` backgrounds they actually render against; only
+  this one badge's specific header context tips it under threshold. The pattern is fragile
+  across the board in light theme — a real, disclosed follow-up for a future contrast-hardening
+  pass, not silently fixed beyond the one element CI actually caught failing.
+
   The compact bottom nav is **opaque** (a `position: fixed` translucent surface has no determinate
   background for WCAG-AA contrast checking; `04 §12` already mandates a solid fallback).
 

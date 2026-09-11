@@ -17,10 +17,17 @@ import { headers } from "next/headers";
  * src/app/manifest.ts. A distinct Test-marker home-screen icon is separate,
  * owner-approval-adjacent asset work (UX-2.10-01) — this badge doesn't wait
  * on that.
+ *
+ * Text uses --foreground, not --warning: the border/background carry the
+ * amber "test" identity, but text-on-its-own-subtle-tinted-background (same
+ * hue for both) measures only 4.3:1 in light theme against this badge's
+ * specific composited background (caught live in CI, ADR-0134 Phase 10) —
+ * short of the 4.5:1 AA minimum. --foreground is calibrated for legibility
+ * against any of this app's subtle-tinted surfaces, in both themes.
  */
 function TestEnvironmentBadge() {
   return (
-    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--warning)]">
+    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]">
       Test
     </span>
   );
