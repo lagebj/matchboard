@@ -40,14 +40,16 @@ export default function AtlasFormationsPage() {
           </ul>
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="w-full max-w-[380px]">
           <TacticsBoard
             mode="formation-preview"
+            orientation="vertical"
             slots={lineupSlots}
             canAddMore={false}
             readOnly
             onAddSlot={() => {}}
             onEditSlot={() => {}}
+            pitchStyle="perspective"
           />
         </div>
 

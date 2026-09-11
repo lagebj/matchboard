@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 import { POSITION_GRID } from "@/components/ui/position-map";
 import { getBoardPositionPercent } from "@/lib/formations/board-projection";
+import { PitchMarkings } from "@/components/formations/tactics-board";
 
 /**
  * PitchExposure (Touchline Design Atlas `04_WIDGET_COMPONENT_CONTRACTS.md §3`,
@@ -10,6 +11,8 @@ import { getBoardPositionPercent } from "@/lib/formations/board-projection";
  * recorded share, never an inferred ability. Reuses the same `POSITION_GRID`/`getBoardPositionPercent`
  * coordinate lookup `PositionMap` (`src/components/ui/position-map.tsx`) already uses — this is
  * NOT a second hard-coded position map, only a second *rendering* of the same canonical grid.
+ * Pitch-line markings (touchlines, halfway line, centre circle, penalty/goal areas) reuse
+ * `TacticsBoard`'s own `PitchMarkings` — not a second, hand-drawn set of pitch lines.
  */
 export type PitchExposureEntry = {
   code: string;
@@ -33,7 +36,8 @@ export function PitchExposure({ question, entries, className }: PitchExposurePro
 
   return (
     <figure className={cn("flex flex-col gap-2", className)} aria-label={question}>
-      <div className="tl-pitch-surface relative aspect-[105/68] w-full" aria-hidden="true">
+      <div className="tl-pitch-surface relative aspect-[105/68] w-full overflow-hidden" aria-hidden="true">
+        <PitchMarkings orientation="horizontal" />
         {known.map((e) => {
           const { gridX, gridY } = POSITION_GRID[e.code];
           const { x, y } = getBoardPositionPercent(gridX, gridY, {

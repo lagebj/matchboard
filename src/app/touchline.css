@@ -543,7 +543,11 @@
 /* Canonical pitch surface (06 §2) — one field gradient + border + radius. The
  * subtle dark-only depth radial is a per-theme token (`--tl-pitch-atmosphere`,
  * `none` in light) rather than a second rule, so this class needs no media
- * query of its own. No photographic grass, no fake 3D stadium. */
+ * query of its own. No photographic grass. A "fake 3D stadium" (crowd, floodlights,
+ * a rendered venue) is still out of scope; a subtle CSS tilt is not — see
+ * `TacticsBoard`'s opt-in `pitchStyle="perspective"` (Touchline Design Atlas feedback,
+ * `docs/domain/touchline-atlas-provenance.md`), applied as a `transform` on the
+ * pitch-surface element itself, not a change to this shared class. */
 .tl-pitch-surface {
   position: relative;
   overflow: hidden;

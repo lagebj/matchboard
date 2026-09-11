@@ -1,17 +1,26 @@
+import { Shirt } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
  * PitchPlayerToken (Touchline Finish & Visual Convergence follow-up,
- * `06_TACTICS_LINEUP_AND_PITCH.md §3`) — the canonical pitch player
- * representation for lineup/tactics. A simple CSS/SVG shirt-like token, not
- * an external image; shows a shirt number when known, otherwise initials.
- * Name below the token, exact target role below the name in muted text.
+ * `06_TACTICS_LINEUP_AND_PITCH.md §3`; jersey silhouette added by Touchline
+ * Design Atlas feedback, `docs/domain/touchline-atlas-provenance.md`) — the
+ * canonical pitch player representation for lineup/tactics. A CSS/SVG
+ * shirt-shaped token (`lucide-react`'s `Shirt` icon, already an app
+ * dependency — no new icon pack, no generated image asset), not an external
+ * image; shows a shirt number when known, otherwise initials. Name below the
+ * token, exact target role below the name in muted text.
  *
  * No role-colour rainbow: the only state colours are the shared Touchline
  * accent (selected) and status tones (attention / unavailable). No team-kit
- * colour is inferred unless a canonical stored field already exists.
+ * colour is inferred unless a canonical stored field already exists — the
+ * one exception is `kit="goalkeeper"` (Touchline Design Atlas feedback),
+ * which is not an invented per-team colour but the same real
+ * goalkeeper/outfield distinction that already exists as canonical data
+ * (`FormationSlotRoleType.GOALKEEPER`).
  */
 export type PitchPlayerTokenStatus = "normal" | "attention" | "unavailable";
+export type PitchPlayerTokenKit = "outfield" | "goalkeeper";
 
 type Props = {
   name: string;
@@ -21,6 +30,8 @@ type Props = {
   selected?: boolean;
   locked?: boolean;
   status?: PitchPlayerTokenStatus;
+  /** Goalkeeper vs outfield — the one non-arbitrary colour distinction (see above). Default "outfield". */
+  kit?: PitchPlayerTokenKit;
   onClick?: () => void;
   compact?: boolean;
   /** Hide the name/role text below the token — used where a caller renders its own identity block. */
@@ -42,6 +53,7 @@ export function PitchPlayerToken({
   selected = false,
   locked = false,
   status = "normal",
+  kit = "outfield",
   onClick,
   compact = false,
   showLabel = true,
@@ -50,6 +62,14 @@ export function PitchPlayerToken({
   const Tag = onClick ? "button" : "div";
   const sizeClass = compact ? "h-10 w-10" : "h-12 w-12 medium:h-14 medium:w-14";
   const label = number != null && number !== "" ? String(number) : initialsFor(name);
+  const fillColor = selected ? "var(--accent-subtle)" : kit === "goalkeeper" ? "var(--warning-subtle)" : "var(--tl-c-surface-strong)";
+  const strokeColor = selected
+    ? "var(--accent)"
+    : status === "attention"
+      ? "var(--warning)"
+      : kit === "goalkeeper"
+        ? "var(--warning)"
+        : "var(--tl-widget-border)";
 
   return (
     <Tag
@@ -66,21 +86,30 @@ export function PitchPlayerToken({
       <span
         aria-hidden="true"
         className={cn(
-          "relative flex items-center justify-center rounded-[10px] border font-[700] tabular-nums shadow-[0_2px_6px_rgba(0,0,0,0.25)] transition-transform duration-[var(--tl-c-motion-state)]",
+          "relative flex items-center justify-center transition-transform duration-[var(--tl-c-motion-state)]",
           sizeClass,
-          compact ? "text-[13px]" : "text-[15px]",
-          selected
-            ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--foreground)] ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--tl-pitch)]"
-            : "border-[var(--tl-c-surface-strong)] bg-[var(--tl-c-surface-strong)] text-[var(--foreground)]",
-          status === "attention" && !selected && "border-[var(--warning)]",
           onClick && "group-hover:scale-105",
         )}
       >
-        {label}
+        <Shirt
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.3)]"
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={selected ? 2 : 1.5}
+        />
+        <span
+          className={cn(
+            "relative z-[1] mt-[15%] font-[700] tabular-nums text-[var(--foreground)]",
+            compact ? "text-[12px]" : "text-[14px]",
+          )}
+        >
+          {label}
+        </span>
         {locked ? (
           <span
             aria-hidden="true"
-            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--tl-c-canvas-raised)] text-[9px] text-[var(--accent)] ring-1 ring-[var(--border-strong)]"
+            className="absolute -right-1 -top-1 z-[1] flex h-4 w-4 items-center justify-center rounded-full bg-[var(--tl-c-canvas-raised)] text-[9px] text-[var(--accent)] ring-1 ring-[var(--border-strong)]"
           >
             ●
           </span>
@@ -121,19 +150,30 @@ export function PitchEmptySlot({ role, editable = false, onClick, compact = fals
     <Tag
       {...(editable && onClick ? { type: "button" as const, onClick } : {})}
       aria-label={`${role}: empty${editable ? ", tap to assign" : ""}`}
-      className={cn("flex flex-col items-center gap-1 text-center", editable && onClick && "cursor-pointer", className)}
+      className={cn("group flex flex-col items-center gap-1 text-center", editable && onClick && "cursor-pointer", className)}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "relative flex items-center justify-center rounded-[10px] border-2 border-dashed border-[var(--tl-pitch-border)] bg-transparent text-[11px] font-[700] uppercase tracking-[0.04em] text-[var(--text-muted)] transition-colors duration-[var(--tl-c-motion-state)]",
-          sizeClass,
-          editable && onClick && "hover:border-[var(--accent)] hover:text-[var(--accent)]",
-        )}
-      >
-        {role}
+      <span aria-hidden="true" className={cn("relative flex items-center justify-center", sizeClass)}>
+        <Shirt
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 h-full w-full transition-colors duration-[var(--tl-c-motion-state)]",
+            editable && onClick && "group-hover:[stroke:var(--accent)]",
+          )}
+          fill="none"
+          stroke="var(--tl-pitch-border)"
+          strokeWidth={1.5}
+          strokeDasharray="3 2.5"
+        />
+        <span
+          className={cn(
+            "relative z-[1] mt-[15%] text-[11px] font-[700] uppercase tracking-[0.04em] text-[var(--text-muted)] transition-colors duration-[var(--tl-c-motion-state)]",
+            editable && onClick && "group-hover:text-[var(--accent)]",
+          )}
+        >
+          {role}
+        </span>
         {editable ? (
-          <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--tl-c-canvas-raised)] text-[10px] leading-none text-[var(--text-muted)] ring-1 ring-[var(--tl-pitch-border)]">
+          <span className="absolute -bottom-1 -right-1 z-[1] flex h-4 w-4 items-center justify-center rounded-full bg-[var(--tl-c-canvas-raised)] text-[10px] leading-none text-[var(--text-muted)] ring-1 ring-[var(--tl-pitch-border)]">
             +
           </span>
         ) : null}
