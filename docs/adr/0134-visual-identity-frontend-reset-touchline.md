@@ -46,7 +46,33 @@ Accepted (2026-09-10). Implementation in progress:
   Phases 5–9 (not just the five above), this was latent in production already — invisible only
   because every consumer was still dark-pinned at the time. All moved to `--foreground`/
   `--text-soft` equivalents, verified to leave dark-mode appearance unchanged. **Phase 5 through
-  Phase 9 are now genuinely all complete**, including Phase 9's full originally-scoped item list. Phase 10 (remove the superseded Product Surface 1.0 system) is next. The compact bottom nav is
+  Phase 9 are now genuinely all complete**, including Phase 9's full originally-scoped item list.
+
+  **A real Phase 10 scope gap was found and flagged to the maintainer before starting Phase 10**:
+  the original `14_IMPLEMENTATION_PHASES.md` spec (Phases 5–9) never named Teams, Simulation,
+  Workbench, Attention, Organisations, Invite, error boundaries, or a pre-existing "Assistant
+  Review" surface family (`round-review-page.tsx`/`match-review-page.tsx`/`team-review-page.tsx`,
+  `cross-team-impact-panel`/`decision-panel`/`recommendation-panel`/`rule-impact-panel`/
+  `team-readiness-card`, reachable via `/rounds/[id]/review`, `/matches/[id]/review`,
+  `/teams/[id]/review` — confirmed live and intentional via ARR-0042's resolution, not dead code,
+  simply never listed in the canonical routes table). All remain on Product Surface 1.0; removing
+  its tokens/CSS as Phase 10 literally requires would break every one of them. The maintainer
+  chose to migrate these remaining surfaces first rather than scope Phase 10 down. **Teams**
+  (`/teams`, `/teams/new`, `/teams/[teamId]`, `/teams/[teamId]/configuration` —
+  `team-period-selector.tsx`, `rating-badge.tsx` fixed for the same shared-primitive zinc-literal
+  pattern found in the previous pass; `team-detail.tsx`'s header needed hand-composition rather
+  than a direct `TouchlinePageHeader` swap, since the original `PageHeader` usage combined an
+  `icon` + `description` + `context` that `TouchlinePageHeader`'s API (`title`/`context`/
+  `actions` only, no icon slot) can't express directly — the team shield icon is now a sibling
+  element beside the header, and the squad-size description line and group link are combined into
+  one `context` node; `team-focus-panel.tsx`'s `STATUS_COLORS` map was a second, independent
+  instance of the pre-existing raw light-mode-only Tailwind pattern already documented for
+  `football-observation-section.tsx`/`observation-section.tsx` in Phase 7 — `bg-emerald-100`/
+  `bg-blue-100`/`bg-gray-100` with no dark styling at all — token-aligned the same way) is now
+  migrated. The Review family, Simulation, Workbench, Attention, Organisations, Invite, and error
+  boundaries remain open — Phase 10 itself is still blocked pending their migration. Phase 10
+  (remove the superseded Product Surface 1.0 system) follows once that closes. The compact bottom
+  nav is
   **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
   contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
   ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell

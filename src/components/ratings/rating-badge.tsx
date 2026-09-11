@@ -17,7 +17,7 @@ export function RatingBadge({ rating }: { rating: RatingSummary }) {
       title={`${rating.displayValue} (${rating.ratedAttributeCount}/${rating.maxAttributeCount} attributes)`}
     >
       <StarRating overallValue={rating.value} className="text-xs" />
-      <span className="tabular-nums text-zinc-200">{rating.displayValue}</span>
+      <span className="tabular-nums text-[var(--foreground)]">{rating.displayValue}</span>
     </span>
   );
 }
@@ -31,7 +31,7 @@ export function CompactRating({ rating }: { rating: RatingSummary }) {
 
   return (
     <span
-      className="tabular-nums text-xs text-zinc-200"
+      className="tabular-nums text-xs text-[var(--foreground)]"
       title={`${rating.displayValue} (${rating.ratedAttributeCount}/${rating.maxAttributeCount} attributes)`}
     >
       {rating.displayValue}

@@ -7,11 +7,10 @@ import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import type { TeamPeriodResultsRow } from "@/lib/teams/get-teams-results-overview";
 import { TeamPeriodSelector } from "@/components/teams/team-period-selector";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DecisionBanner } from "@/components/ui/decision-banner";
-import { PageHeader } from "@/components/ui/page-header";
 import { TeamShield } from "@/components/ui/team-shield";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 import { RatingBadge } from "@/components/ratings/rating-badge";
 import { Download } from "lucide-react";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -40,7 +39,7 @@ function TeamResultsRow({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: 
   return (
     <tr className="hover:bg-[var(--surface-hover)] transition-colors">
       <td className="px-4 py-2.5">
-        <a href={`/o/${orgSlug}/teams/${row.teamId}`} className="flex items-center gap-2 font-medium text-zinc-200 hover:text-zinc-50">
+        <a href={`/o/${orgSlug}/teams/${row.teamId}`} className="flex items-center gap-2 font-medium text-[var(--text-soft)] hover:text-[var(--foreground)]">
           <TeamShield teamName={row.teamName} size="sm" />
           {row.teamName}
         </a>
@@ -65,7 +64,7 @@ function MobileTeamCard({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: 
   return (
     <Surface variant="default" padding="sm">
       <div className="flex items-center justify-between">
-        <a href={`/o/${orgSlug}/teams/${row.teamId}`} className="flex items-center gap-2 font-medium text-zinc-200 hover:text-zinc-50">
+        <a href={`/o/${orgSlug}/teams/${row.teamId}`} className="flex items-center gap-2 font-medium text-[var(--text-soft)] hover:text-[var(--foreground)]">
           <TeamShield teamName={row.teamName} size="sm" />
           {row.teamName}
         </a>
@@ -127,21 +126,22 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
   }));
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-4">
+      <TouchlinePageHeader
         title="Teams"
-        description={`Results and match record for ${periodLabel}.`}
+        context={`Results and match record for ${periodLabel}.`}
         actions={
           <div className="flex items-center gap-2">
             {selectedPeriodId && (
-              <Button variant="secondary" size="sm" as="a" href={`/o/${orgSlug}/teams/export?leagueSeasonId=${selectedPeriodId}`} download>
+              <TouchlineButton variant="secondary" size="sm" as="a" href={`/o/${orgSlug}/teams/export?leagueSeasonId=${selectedPeriodId}`} download>
                 <Download className="mr-1 h-4 w-4" />
                 Export teams
-              </Button>
+              </TouchlineButton>
             )}
-            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
               Add team
-            </Button>
+            </TouchlineButton>
           </div>
         }
       />
@@ -166,9 +166,9 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
           description="Create a team to start planning squads."
           illustration="emptyPlayers"
           action={
-            <Button variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={`/o/${orgSlug}/teams/new`}>
               Create a team
-            </Button>
+            </TouchlineButton>
           }
         />
       ) : (

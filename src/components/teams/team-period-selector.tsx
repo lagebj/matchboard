@@ -13,7 +13,7 @@ export function TeamPeriodSelector({ leagueSeasons, selectedPeriodId }: PeriodSe
 
   return (
     <label className="flex items-center gap-2">
-      <span className="text-xs text-zinc-500">League season:</span>
+      <span className="text-xs text-[var(--text-muted)]">League season:</span>
       <select
         value={selectedPeriodId}
         onChange={(e) => {
@@ -21,7 +21,7 @@ export function TeamPeriodSelector({ leagueSeasons, selectedPeriodId }: PeriodSe
           params.set("periodId", e.target.value);
           router.push(`/teams?${params.toString()}`);
         }}
-        className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-zinc-300 outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none"
+        className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-[var(--text-soft)] outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none"
       >
         {leagueSeasons.map((p) => (
           <option key={p.id} value={p.id}>{p.label}</option>

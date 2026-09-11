@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Target, Plus, Check, X, RotateCcw, Pencil } from "lucide-react";
 import {
@@ -32,10 +32,14 @@ const STATUS_LABELS: Record<TeamFocusStatus, string> = {
   CLOSED: "Closed",
 };
 
+// Was a pre-existing raw light-mode-only Tailwind outlier (bg-emerald-100/bg-blue-100/bg-gray-100
+// with no dark styling at all — the same pattern already documented for football-observation-
+// section.tsx/observation-section.tsx). Token-aligned here since this component now renders
+// inside team-detail.tsx's Touchline island.
 const STATUS_COLORS: Record<TeamFocusStatus, string> = {
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  COMPLETED: "bg-blue-100 text-blue-800",
-  CLOSED: "bg-gray-100 text-gray-600",
+  ACTIVE: "bg-[var(--accent-subtle)] text-[var(--accent-strong)]",
+  COMPLETED: "bg-[var(--success-subtle)] text-[var(--success)]",
+  CLOSED: "bg-[var(--surface-muted)] text-[var(--text-muted)]",
 };
 
 function formatDate(dateStr: string | null): string {
@@ -134,7 +138,7 @@ export function TeamFocusPanel({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <SectionHeader title="Team focus" />
-        <Button
+        <TouchlineButton
           size="sm"
           variant="secondary"
           onClick={() => {
@@ -146,7 +150,7 @@ export function TeamFocusPanel({
         >
           <Plus className="mr-1 h-4 w-4" />
           Add focus
-        </Button>
+        </TouchlineButton>
       </div>
 
       {activeFocuses.length === 0 && !adding && (
@@ -182,12 +186,12 @@ export function TeamFocusPanel({
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={pending || !newStatement.trim()}>
+            <TouchlineButton size="sm" onClick={handleCreate} disabled={pending || !newStatement.trim()}>
               Save
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAdding(false)} disabled={pending}>
+            </TouchlineButton>
+            <TouchlineButton size="sm" variant="ghost" onClick={() => setAdding(false)} disabled={pending}>
               Cancel
-            </Button>
+            </TouchlineButton>
           </div>
         </Surface>
       )}
@@ -219,12 +223,12 @@ export function TeamFocusPanel({
                 />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => handleEdit(focus.id)} disabled={pending || !editStatement.trim()}>
+                <TouchlineButton size="sm" onClick={() => handleEdit(focus.id)} disabled={pending || !editStatement.trim()}>
                   Save
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} disabled={pending}>
+                </TouchlineButton>
+                <TouchlineButton size="sm" variant="ghost" onClick={() => setEditingId(null)} disabled={pending}>
                   Cancel
-                </Button>
+                </TouchlineButton>
               </div>
             </div>
           ) : (
@@ -245,7 +249,7 @@ export function TeamFocusPanel({
                 </p>
               </div>
               <div className="flex gap-1">
-                <Button
+                <TouchlineButton
                   size="sm"
                   variant="ghost"
                   onClick={() => {
@@ -257,8 +261,8 @@ export function TeamFocusPanel({
                   title="Edit"
                 >
                   <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
+                </TouchlineButton>
+                <TouchlineButton
                   size="sm"
                   variant="ghost"
                   onClick={() => handleComplete(focus.id)}
@@ -266,16 +270,16 @@ export function TeamFocusPanel({
                   title="Mark completed"
                 >
                   <Check className="h-3.5 w-3.5 text-blue-600" />
-                </Button>
-                <Button
+                </TouchlineButton>
+                <TouchlineButton
                   size="sm"
                   variant="ghost"
                   onClick={() => handleClose(focus.id)}
                   disabled={pending}
                   title="Close"
                 >
-                  <X className="h-3.5 w-3.5 text-gray-500" />
-                </Button>
+                  <X className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+                </TouchlineButton>
               </div>
             </div>
           )}
@@ -302,7 +306,7 @@ export function TeamFocusPanel({
                       {focus.closedAt ? ` — closed ${formatDate(focus.closedAt)}` : ""}
                     </p>
                   </div>
-                  <Button
+                  <TouchlineButton
                     size="sm"
                     variant="ghost"
                     onClick={() => handleReopen(focus.id)}
@@ -310,7 +314,7 @@ export function TeamFocusPanel({
                     title="Reopen"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
-                  </Button>
+                  </TouchlineButton>
                 </div>
               </Surface>
             ))}

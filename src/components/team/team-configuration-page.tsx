@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from "react";
 import type { TeamConfiguration } from "@/domain/team-configuration/types";
 import { fetchTeamConfiguration, updateTeamConfigurationAction } from "@/domain/team-configuration/actions";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -74,13 +74,13 @@ function TeamNameForm({ teamId, currentName, onRenamed }: { teamId: string; curr
             type="text"
             value={name}
             onChange={(e) => { setName(e.target.value); setSuccess(false); setError(null); }}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
           />
         </div>
-        <Button variant="secondary" size="sm" disabled={isPending || name.trim() === currentName} onClick={handleSave}>
+        <TouchlineButton variant="secondary" size="sm" disabled={isPending || name.trim() === currentName} onClick={handleSave}>
           {isPending ? "Saving..." : "Rename"}
-        </Button>
+        </TouchlineButton>
       </div>
       {error && <p className="text-xs text-red-400">{error}</p>}
       {success && <p className="text-xs text-[var(--accent-strong)]">Team renamed.</p>}
@@ -130,7 +130,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={targetSquadSize}
             onChange={(e) => setTargetSquadSize(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={1}
           />
         </div>
@@ -140,7 +140,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={minAcceptedSquadSize}
             onChange={(e) => setMinAcceptedSquadSize(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={1}
           />
           <span className="text-[10px] text-[var(--text-muted)]">Minimum to field a team</span>
@@ -151,7 +151,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={maxSquadSize}
             onChange={(e) => setMaxSquadSize(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={targetSquadSize}
           />
           <span className="text-[10px] text-[var(--text-muted)]">Hard ceiling, requires override above</span>
@@ -162,7 +162,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={minCorePlayers}
             onChange={(e) => setMinCorePlayers(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={0}
           />
           <span className="text-[10px] text-[var(--text-muted)]">Minimum core selections before support</span>
@@ -173,7 +173,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={supportPriority}
             onChange={(e) => setSupportPriority(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={0}
           />
           <span className="text-[10px] text-[var(--text-muted)]">1 is highest priority</span>
@@ -184,7 +184,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={minSupportPlayers}
             onChange={(e) => setMinSupportPlayers(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={0}
           />
           <span className="text-[10px] text-[var(--text-muted)]">Required support before development</span>
@@ -195,7 +195,7 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
             type="number"
             value={developmentSlots}
             onChange={(e) => setDevelopmentSlots(Number(e.target.value))}
-            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-[var(--accent)]"
+            className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
             min={0}
           />
           <span className="text-[10px] text-[var(--text-muted)]">Development movement capacity</span>
@@ -203,9 +203,9 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
       </div>
       {error && <DecisionBanner variant="blocked" title={error} />}
       {success && <DecisionBanner variant="success" title="Settings saved." />}
-      <Button variant="secondary" size="sm" disabled={isPending} onClick={handleSave}>
+      <TouchlineButton variant="secondary" size="sm" disabled={isPending} onClick={handleSave}>
         {isPending ? "Saving..." : "Save squad settings"}
-      </Button>
+      </TouchlineButton>
     </div>
   );
 }
@@ -236,29 +236,30 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
   }
 
   if (isPending && !config) {
-    return <div className="p-4 text-sm text-[var(--text-muted)]">Loading team configuration...</div>;
+    return <div className="touchline p-4 text-sm text-[var(--text-muted)]">Loading team configuration...</div>;
   }
 
   if (!config) {
     return (
-      <div className="flex flex-col items-center gap-2 py-8">
+      <div className="touchline flex flex-col items-center gap-2 py-8">
         <p className="text-sm text-[var(--text-soft)]">Team not found.</p>
-        <Button variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>Back to teams</Button>
+        <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl("/teams")}>Back to teams</TouchlineButton>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Team Configuration</p>
-          <h1 className="text-lg font-semibold text-zinc-100">{config.name}</h1>
+          <h1 className="text-lg font-semibold text-[var(--foreground)]">{config.name}</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">Configure squad settings and selection rules for this team.</p>
         </div>
-        <Button variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${teamId}`)}>
+        <TouchlineButton variant="ghost" size="sm" as="a" href={orgUrl(`/teams/${teamId}`)}>
           Back to team
-        </Button>
+        </TouchlineButton>
       </div>
 
       <section className="flex flex-col gap-2">
