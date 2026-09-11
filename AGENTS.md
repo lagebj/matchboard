@@ -2462,11 +2462,14 @@ in-repo reference once the UI Lab gate is passed.
   `TouchlineBottomSheet`. The canonical `MatchPresentation` (ADR-0125) remains the sole owner of
   home/away, score orientation, own-team side, lifecycle, outcome, clock, cancellation, and
   planning/report attention — presentation components consume it.
-- **Migration status**: UI Lab approved. Phases 5–9 complete. `.touchline` is applied
-  **per-surface** as a **`.touchline` island** (`class="touchline"`, initially dark-pinned via
-  `data-theme="dark"` — that pin is removed as of Phase 9's final part for every surface that
-  passed a light-mode audit, see below) — the shell nav/top-bar each carry it, and each migrated
-  page wraps its own root; unmigrated pages stay on Product Surface 1.0, untouched. Migrated so
+- **Migration status**: UI Lab approved. **Phases 5–10 are all complete** (Phase 10's own record
+  is below, after the phase-by-phase migration history). `.touchline` was applied **per-surface**
+  as a **`.touchline` island** throughout Phases 5–9 (`class="touchline"`, initially dark-pinned
+  via `data-theme="dark"` — that pin was removed for every surface that passed a light-mode audit,
+  see below) before Phase 10 hoisted it to the true shell root (`<body>` in the root
+  `layout.tsx`) — every existing per-page `.touchline` class stays exactly where it is (harmless,
+  redundant nesting; the 16 deliberately-pinned files' own `data-theme="dark"` depends on theirs
+  staying put), it is simply no longer the only thing making a page theme-aware. Migrated so
   far: shell nav + top bar, **League** (`/fixtures`), **Today** (`AssistantCommandCentrePage`), **Events** (list + `/events/[eventId]` header + event-day timeline; squad/lineup tabs still Phase 6), **match detail** (`/matches/[matchId]` header + top actions; Lineup/Tactics/Rotations tabs still Phase 6) + **Follow Live**, **Insights** (hub restyled; the 15 sub-route clients are island-wrapped — their per-surface authored-data-story redesign, bundle §8, is a tracked follow-up), **Round Board** (`/rounds/[matchRoundId]` — page island-wrap, `TouchlineButton` swap, de-zinced; drag/drop/touch/move/repair logic frozen), the **match-detail Lineup / Tactics / Rotations tabs + formation editor** (`match-tactics-panel`, `planned-rotation-panel`, `pitch-formation`, `player-picker`, `formations-builder` — `TouchlineButton`/`TouchlinePageHeader` swaps, de-zinced, formation editor island-wrapped; all lineup/rotation/slot mutation + `dnd-kit` logic frozen), **Event squad planning** (`event-detail.tsx` squads/lineup tab bodies, `event-matches-tab`, `event-match-lineup-panel`, `event-squad-lineup-board`, `event-guest-player-pool-panel`, `event-match-availability-panel`, `create-event-form.tsx`; all squad-generation/assignment/support/availability mutation logic frozen), the **live-reporting client** (`live-match-client.tsx`, `planned-rotation-prompt.tsx`, `league-live-match-with-rotation.tsx` — every raw operational-status color token-aligned; all live-session/clock/event-recording/local-sync/realtime mutation logic frozen), **post-match reporting** (`post-match-report-shell.tsx`, `post-match-page.tsx`, `event-match-report-panel.tsx`, `legacy-match-feedback-section.tsx`, `team-reflection-section.tsx`, `match-combination-evidence-panel.tsx`, `football-observation-section.tsx`, `observation-section.tsx`; report/observation mutation logic frozen), **Players list + Player detail** (`/players`, `/players/new`, `/players/[playerId]` and their panel components; `player-table.tsx` confirmed dead/unreferenced, deliberately left untouched), **History** (`/history` — `movement-overview.tsx`, `export-panel.tsx`, `history-table.tsx`; export/read logic frozen), **Opponents** (`/opponents`, `/opponents/[opponentTeamId]` and their section components — `previous-encounters-display`/`previous-encounters-panel` also fixed a genuine ADR-0130 win/loss-colour violation, not just token-aligned; opponent/evidence/encounter reads frozen), **Season** (`/season`, `/season/new` — `season-client.tsx`'s categorical selection-role legend left as literal hues per the `ROLE_COLORS` precedent; severity indicators mapped to danger/warning/success; matrix/movement-path/finalize logic frozen), **Groups** (`/groups`, `/groups/[groupSlug]`, `/groups/new`, `/groups/[groupSlug]/settings` — already nearly token-clean, island-wrap + one Button/danger fix; group mutations frozen), **Rules** (`/rules` — a genuine PS0-era outlier, fully token-aligned; categorical role-badge legends left as literal hues per the `ROLE_COLORS` precedent; five gradient-pill buttons became `TouchlineButton`; rule/rotation-path CRUD frozen), and **Settings** (`/settings` — island-wrapped, de-zinced/de-raw-coloured, a genuinely undefined `var(--surface-1)` token fixed; ships the **Appearance** section with the `AppearanceControl` primitive — functional now for the still-unmigrated PS 1.0 majority of the app). The dark pin is now **removed** from 32 of the 48 migrated files (every surface above except the 15 Insights sub-route clients and `season-client.tsx`, whose literal Tailwind categorical-legend colors were found — via a light-mode `axe-core` scan — to be unreadable on a light background and are deliberately left pinned pending the same token fix already tracked as the bundle §8 Insights-redesign follow-up; see ADR-0134 for the full audit).
 
   Phase 9's own scoped item list (`14_IMPLEMENTATION_PHASES.md` §9: Groups, Rules, Settings, Peer
@@ -2557,13 +2560,68 @@ in-repo reference once the UI Lab gate is passed.
   Tailwind palette names, not this separate convention. All fixed to this app's real tokens.
 
   **Given two independent classes of latent bugs were found by widening the audit twice, Phase 10
-  is not declared unblocked a third time without another verification pass first.** See ADR-0134
-  for the full account.
+  was not declared unblocked a third time without another verification pass first.** That pass
+  (tracing all 113 `(app)/**/page.tsx` files, not just the `o/[orgSlug]/` tree; a full re-sweep for
+  the shadcn-class bug; spot-checking the 16 deliberately-pinned files for the same bug
+  independent of their pin) came back clean, and **Phase 10 has now shipped**:
 
-  Phase 10 hoists `.touchline` to the shell root and deletes the PS 1.0 `:root` layer in
-  `globals.css`. Migrate a surface's *presentation* only — domain/permissions/persistence/audit/
-  validation are frozen (`17_FUNCTIONAL_FREEZE.md`). Compact touch targets must be ≥ 44×44 and the
-  top-bar context detail is hidden below `medium` (WCAG 2.2 2.5.8, learned in #490).
+  - **`.touchline` hoisted to the true shell root** — not `(app)/layout.tsx`'s wrapper (as
+    originally planned) but `<body>` itself in the root `layout.tsx`, since that is the one
+    ancestor common to both the `(app)` and `(auth)` route groups. `(app)/layout.tsx`'s own
+    wrapper divs and `(auth)/layout.tsx`'s pinned wrapper both keep their own `.touchline` class —
+    nested `.touchline` inside an already-`.touchline` ancestor is harmless (CSS custom properties
+    just resolve to the same values), and the ~85 files with their own per-page `.touchline` class
+    were deliberately **not** swept to remove it: zero functional benefit, real risk, and the
+    16 deliberately-pinned files' own `data-theme="dark"` attribute depends on their `.touchline`
+    class staying exactly where it is.
+  - **PS 1.0's `:root` color palette deleted from `globals.css`** (`--background`, `--foreground`,
+    `--surface-*`, `--border-soft`/`--border-strong`, `--text-soft`/`--text-muted`/
+    `--text-disabled`, `--accent*`, `--info*`, `--warning*`, `--danger*`, `--live*`, `--success*`,
+    `--dev*`, `--focus`) — every one of these names is now defined exactly once, by `.touchline`,
+    which is always present. Genuinely non-color structural tokens (radius, motion, spacing,
+    layout constants, the typography scale, `--nav-clearance`'s bare fallback) were **kept** —
+    these were never part of the PS 1.0-vs-Touchline color duality, just shared design constants
+    both systems size themselves against, and hundreds of components still reference them.
+  - **Compat aliases removed, after migrating their last real consumers** — `--surface-tactical`,
+    `--surface-hero`, `--surface` (bare), `--surface-default`, `--border` (bare), `--border-subtle`,
+    `--border-pitch`, `--accent-hover`, `--accent-soft`, `--text-primary`, `--text-strong`,
+    `--text-error`, `--radius-xs/sm/md/lg`, `--transition-fast/smooth/lift` each had a handful of
+    real remaining consumers (`tactics-board.tsx`, `tactical-surface.tsx`, `planned-rotation-panel.tsx`,
+    `player-readiness-panel.tsx`, `player-development-threads-panel.tsx`,
+    `player-outfield-role-suitability-panel.tsx`, `round-board.tsx`, two Event tab files, an
+    opponent-select component, `simulation-client-content.tsx`, `workbench-client-content.tsx`) —
+    all repointed to the exact value each alias already resolved to (a value-preserving removal of
+    indirection, not a color change). `--blocking`/`--blocking-subtle` had zero real consumers
+    (only their own now-removed `@theme inline` mapping) — deleted outright. `--locked`/
+    `--locked-subtle` had 2 real consumers (`issue-marker.tsx`, `status-rail.tsx`) with no existing
+    higher-level alias target — repointed to `--text-disabled` rather than inventing a new token
+    category for two call sites.
+  - **A stale, wrong-hued decorative radial found and fixed**: the bare `body {}` selector in
+    `globals.css` had its own atmosphere radial hardcoded to PS 1.0's old accent color
+    (`rgba(143,180,154,…)` ≈ `#8fb49a`) — sitting, unnoticed, underneath every page once Touchline
+    (with its own, differently-hued `--tl-atmosphere-accent`/`--tl-atmosphere-cool`) became
+    universally active. Touchline's own replacement mechanism, `.touchline-canvas`
+    (`touchline.css`), existed but was wired into **only** the `/dev/ui-lab` preview harness, never
+    the real app shell — so removing the stale PS 1.0 radial without wiring in its replacement
+    would have left every real page with no atmosphere effect at all. Fixed by adding
+    `touchline-canvas` alongside `touchline` on the same root `<body>` element, completing the
+    migration this bundle's own doc comments had described as already done.
+  - **`@theme inline` cleaned up** — the 5 mappings for now-fully-removed names
+    (`--color-blocking`, `--color-locked`, `--color-surface-tactical`, `--color-surface-hero`,
+    `--color-border-pitch`) deleted; none had a Tailwind-utility-class consumer (confirmed:
+    `bg-blocking`, `text-locked`, etc. were never actually used anywhere).
+  - **Deliberately deferred, not done here**: "delete obsolete components" — the vast majority of
+    the codebase still uses the pre-Touchline `Button`/`PageHeader`/`SectionHeader`/`Surface`/etc.
+    primitives (only the surfaces named across Phases 5–10 got an explicit `TouchlineButton`/
+    `TouchlinePageHeader` swap); none of these are actually obsolete yet, so nothing was deleted.
+    A future full-consistency pass (swap every remaining `Button`/`PageHeader` usage to its
+    Touchline equivalent, then delete the PS 1.0 component) is real remaining work, not silently
+    dropped. "Remove dead screenshots" — skipped: this change preserves every existing color
+    value exactly (removing indirection, not changing appearance), so no committed documentation
+    screenshot became inaccurate.
+
+  See ADR-0134 for the full account, including the two verification-pass corrections that preceded
+  this.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 

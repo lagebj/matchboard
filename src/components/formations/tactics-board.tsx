@@ -578,10 +578,10 @@ export function TacticsBoard(props: TacticsBoardProps) {
   if (props.mode === "position-profile") {
     const { markers } = props;
     return (
-      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
+      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-soft)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-base)]")}
         >
           <PitchMarkings orientation={orientation} />
           <svg
@@ -612,10 +612,10 @@ export function TacticsBoard(props: TacticsBoardProps) {
     const isReadOnly = props.mode === "formation-preview" ? true : readOnly;
 
     return (
-      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
+      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-soft)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-base)]")}
         >
           <PitchMarkings orientation={orientation} />
           <FormationBuilderContent
@@ -637,10 +637,10 @@ export function TacticsBoard(props: TacticsBoardProps) {
     const isReadOnly = props.mode === "lineup-readonly" ? true : readOnly;
 
     return (
-      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
+      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-soft)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-base)]")}
         >
           <PitchMarkings orientation={orientation} />
           <LineupContent
@@ -661,10 +661,10 @@ export function TacticsBoard(props: TacticsBoardProps) {
     const { slots, assignments, players } = props;
 
     return (
-      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-pitch)]", props.className)}>
+      <div className={cn("pitch-frame rounded-xl overflow-hidden border border-[var(--border-soft)]", props.className)}>
         <div
           data-testid="pitch-surface"
-          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-tactical)]")}
+          className={cn("pitch-surface relative w-full", aspectClass, "bg-[var(--surface-base)]")}
         >
           <PitchMarkings orientation={orientation} />
           <SelectionPreviewContent

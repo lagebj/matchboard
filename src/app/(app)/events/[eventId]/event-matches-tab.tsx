@@ -337,7 +337,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
             <p className="text-sm text-[var(--text-muted)]">Could not load matches.</p>
             <button
               onClick={loadMatches}
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent)]"
             >
               Retry
             </button>
@@ -371,7 +371,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
           {!showCreateForm && (
             <button
               onClick={() => setShowCreateForm(true)}
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent)]"
             >
               Add match
             </button>
@@ -451,7 +451,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
+                className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--accent)]"
                 disabled={isPending}
               >
                 Create match
@@ -951,7 +951,7 @@ function EventMatchCard({
                         <button
                           onClick={handleAddHelper}
                           disabled={!selectedPlayerId || isPending}
-                          className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                          className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--accent)] disabled:opacity-50"
                         >
                           Add
                         </button>
@@ -1055,7 +1055,7 @@ function EventMatchCard({
             <button
               onClick={() => onSaveEdit(match.id)}
               disabled={isPending}
-              className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+              className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--accent)] disabled:opacity-50"
             >
               Save changes
             </button>

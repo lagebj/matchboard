@@ -112,7 +112,7 @@ export function PlayerQuickObservationsPanel({ playerId, observations: initialOb
         </div>
 
         {showCapture && (
-          <div className="rounded-md border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
+          <div className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2.5">
             <div className="flex flex-col gap-2">
               <textarea
                 placeholder="What did you notice?"
@@ -120,7 +120,7 @@ export function PlayerQuickObservationsPanel({ playerId, observations: initialOb
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={1000}
                 rows={2}
-                className="w-full rounded border border-[var(--border)] bg-[var(--surface-default)] px-2 py-1.5 text-sm"
+                className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1.5 text-sm"
                 disabled={saving}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleCapture();
@@ -138,7 +138,7 @@ export function PlayerQuickObservationsPanel({ playerId, observations: initialOb
         )}
 
         {openObservations.map((obs) => (
-          <div key={obs.id} className="rounded-md border border-[var(--border)] bg-[var(--surface-default)] p-2.5">
+          <div key={obs.id} className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-2.5">
             <p className="text-sm">{obs.note}</p>
 
             {convertingId === obs.id ? (

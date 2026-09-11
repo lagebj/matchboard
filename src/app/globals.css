@@ -1,61 +1,26 @@
 @import "tailwindcss";
 
 /* -----------------------------------------------------------------------------
- * Matchboard — Product Surface 1.0 tokens (ADR-0130)
+ * Matchboard — shared structural tokens
  *
- * Calm, dense-when-scanning, spacious-when-deciding, clearly football-oriented.
- * Solid deep navy/graphite canvas (no repeating pitch-line texture). Hairline
- * borders; background/surface layers do the heavy lifting. Neutral final-score
- * colour — a loss is not a danger state, a win is not a workflow success.
+ * Product Surface 1.0 (ADR-0130) is superseded by Touchline (ADR-0134, Phase
+ * 10). Its color palette and compatibility aliases are removed from this file
+ * — every working token name they defined (background, foreground, surface
+ * names, border-soft/strong, text-soft/muted/disabled, accent names, info,
+ * warning, danger, live, success, dev, focus) is now defined exactly once, by
+ * the `.touchline` class in touchline.css, which
+ * Phase 10 hoists to the app/auth shell roots — there is no longer a route
+ * that renders outside `.touchline` scope, so a second, always-dark bare
+ * `:root` definition of these names would only risk drifting from the real
+ * (theme-aware) values. See ADR-0134 for the full migration history.
  *
- * Values are the normative set from the Productification programme's
- * data/product-surface-tokens.css. Older token names are kept as compatibility
- * aliases (see the block below) so existing consumers keep resolving while
- * surfaces migrate to the new system phase by phase. Do not add new gradient
- * surfaces, neon, saturated fills or a light mode without amending ADR-0130.
+ * What remains here is genuinely shared, non-visual structural scale (radius,
+ * motion, spacing, layout, typography) that was never part of the PS 1.0 vs.
+ * Touchline color duality — both systems' components size/space/round
+ * themselves against these same constants.
  * -------------------------------------------------------------------------- */
 
 :root {
-  --background: #0b0f17;
-  --foreground: #f2f5f7;
-
-  /* Surface hierarchy — solid, background-contrast driven */
-  --surface-base: #101722;
-  --surface-raised: #151e2c;
-  --surface-strong: #1a2535;
-  --surface-hover: #1c2838;
-  --surface-overlay: rgba(8, 12, 18, 0.94);
-
-  /* Borders — cool hairlines */
-  --border-soft: rgba(226, 232, 240, 0.08);
-  --border-strong: rgba(226, 232, 240, 0.14);
-
-  /* Text */
-  --text-soft: #b8c1cd;
-  --text-muted: #7f8b9c;
-  --text-disabled: #566171;
-
-  /* Semantic palette. Own-team identity is a subtle accent, never an outcome. */
-  --accent: #8fb49a;
-  --accent-strong: #d2e1d4;
-  --accent-subtle: rgba(143, 180, 154, 0.14);
-  --info: #79a6e0;
-  --info-subtle: rgba(121, 166, 224, 0.13);
-  --warning: #d4b477;
-  --warning-subtle: rgba(212, 180, 119, 0.13);
-  /* Danger is ONLY destructive/error/blocking — never a loss colour. */
-  --danger: #d2776e;
-  --danger-subtle: rgba(210, 119, 110, 0.13);
-  /* Live has its own explicit colour, distinct from danger. */
-  --live: #ef6464;
-  --live-subtle: rgba(239, 100, 100, 0.13);
-  /* Success is workflow/action success — never a win colour. */
-  --success: #7ebc8d;
-  --success-subtle: rgba(126, 188, 141, 0.12);
-  --dev: #b39add;
-  --dev-subtle: rgba(179, 154, 221, 0.12);
-  --focus: #93b7ff;
-
   /* Radius */
   --radius-micro: 6px;   /* micro / status chips */
   --radius-control: 8px; /* buttons, inputs, controls */
@@ -97,35 +62,11 @@
   --text-score-header: 2.125rem;/* 34px — match-header score */
   --text-value-sm: 1.375rem;   /* legacy alias for --text-value */
 
-  /* Compat aliases — older token names → Product Surface 1.0 values.
-     Prefer the names above in new/migrated code. */
-  --surface-muted: var(--surface-base);
-  --surface-tactical: var(--surface-base);
-  --surface-hero: var(--surface-raised);
-  --surface: var(--surface-base);
-  --surface-default: var(--surface-base);
-  --border: var(--border-soft);
-  --border-subtle: var(--border-soft);
-  --border-pitch: var(--border-soft);
-  --accent-hover: var(--accent);
-  --accent-soft: var(--accent-subtle);
-  --blocking: var(--danger);
-  --blocking-subtle: var(--danger-subtle);
-  --locked: #7b8a9e;
-  --locked-subtle: rgba(123, 138, 158, 0.14);
-  --text-primary: var(--foreground);
-  --text-strong: var(--foreground);
-  --text-error: var(--danger);
-  --radius-xs: var(--radius-micro);
-  --radius-sm: var(--radius-control);
-  --radius-md: var(--radius-object);
-  --radius-lg: var(--radius-overlay);
-  --transition-fast: var(--motion-fast) var(--motion-ease);
-  --transition-smooth: var(--motion-standard) var(--motion-ease);
-  --transition-lift: var(--motion-standard) var(--motion-ease);
-
   /* Clearance for content/sticky actions above the fixed compact bottom nav +
-     the device safe-area inset. Zero at medium+ where the bottom nav is gone. */
+     the device safe-area inset. Zero at medium+ where the bottom nav is gone.
+     Overridden by `.touchline`'s own value once that class is present, which
+     it now always is (Phase 10) — this bare fallback only matters for a
+     render that briefly happens before hydration attaches the class. */
   --nav-clearance: calc(6.75rem + env(safe-area-inset-bottom, 0px));
 }
 
@@ -164,21 +105,16 @@
   --color-danger: var(--danger);
   --color-info: var(--info);
   --color-live: var(--live);
-  --color-blocking: var(--blocking);
   --color-dev: var(--dev);
   --color-success: var(--success);
-  --color-locked: var(--locked);
   --color-focus: var(--focus);
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
   --color-surface-strong: var(--surface-strong);
   --color-surface-muted: var(--surface-muted);
   --color-surface-hover: var(--surface-hover);
-  --color-surface-tactical: var(--surface-tactical);
-  --color-surface-hero: var(--surface-hero);
   --color-border-soft: var(--border-soft);
   --color-border-strong: var(--border-strong);
-  --color-border-pitch: var(--border-pitch);
   --color-text-muted: var(--text-muted);
   --color-text-soft: var(--text-soft);
   --font-sans: var(--font-geist-sans);
@@ -197,12 +133,11 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
-  /* Solid deep navy/graphite canvas with ONE very subtle radial atmosphere
-     (ADR-0130 §4) — no repeating pitch-line texture, no ordinary-card gradients
-     or glows. */
-  background-image:
-    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(143, 180, 154, 0.04), transparent 60%);
-  background-attachment: fixed;
+  /* PS 1.0's own body-level radial atmosphere (a fixed rgba(143,180,154,...) hardcoded to the
+     old accent hue) is removed here — Touchline's `.touchline-canvas` (touchline.css) is the one
+     surviving atmosphere mechanism, theme-aware via --tl-atmosphere-accent/--tl-atmosphere-cool,
+     and applying both simultaneously would layer a stale, wrong-hued ghost radial from the old
+     system underneath every page. */
   font-feature-settings:
     "ss01",
     "cv01",
