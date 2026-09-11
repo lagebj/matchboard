@@ -3,6 +3,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { SeasonOverviewClient } from "@/app/(app)/season/season-client";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { SeasonFinalizeControls } from "@/app/(app)/season/season-finalize-controls";
+import { TouchlineButton } from "@/components/touchline";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export const dynamic = "force-dynamic";
@@ -71,19 +72,17 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
   });
 
   return (
-    <div className="flex flex-col gap-3">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-3" data-theme="dark">
       {created && (
-        <div className="rounded-md border border-emerald-700/40 bg-emerald-950/20 px-3 py-2 text-xs font-medium text-emerald-300">
+        <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-3 py-2 text-xs font-medium text-[var(--success)]">
           League season created.
         </div>
       )}
       <div className="flex items-center gap-3">
-        <a
-          href={`/o/${orgSlug}/season/new`}
-          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--accent)]/30 bg-[var(--accent-subtle)] px-2.5 py-1 text-xs font-medium text-zinc-100 hover:bg-[var(--accent)]/20 transition-colors"
-        >
+        <TouchlineButton as="a" href={`/o/${orgSlug}/season/new`} variant="primary" size="sm">
           Create league season
-        </a>
+        </TouchlineButton>
       </div>
       {activeLeagueSeason && (
         <SeasonFinalizeControls
@@ -104,12 +103,12 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
         />
       )}
       {readinessWarningData.length > 0 && (
-        <div className="rounded-2xl border border-amber-700/30 bg-amber-900/10 px-4 py-3">
-          <p className="text-xs font-medium text-amber-200">Readiness signals requiring attention</p>
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] px-4 py-3">
+          <p className="text-xs font-medium text-[var(--warning)]">Readiness signals requiring attention</p>
           <div className="mt-2 flex flex-col gap-1">
             {readinessWarningData.map((rw, i) => (
-              <a key={i} href={`/o/${orgSlug}/players/${rw.playerId}#readiness`} className="text-[11px] text-amber-300/70 hover:text-amber-200 transition-colors">
-                {rw.playerName} <span className="text-zinc-500">·</span> {rw.teamName} <span className="text-zinc-500">·</span> {rw.label}
+              <a key={i} href={`/o/${orgSlug}/players/${rw.playerId}#readiness`} className="text-[11px] text-[var(--warning)] hover:brightness-110 transition-[filter]">
+                {rw.playerName} <span className="text-[var(--text-muted)]">·</span> {rw.teamName} <span className="text-[var(--text-muted)]">·</span> {rw.label}
               </a>
             ))}
           </div>
