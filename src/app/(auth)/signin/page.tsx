@@ -11,10 +11,10 @@ export default function SignInPage() {
           <div className="mx-auto mb-4 flex items-center justify-center gap-2">
             <MatchboardLogo className="h-9 w-9 text-[var(--accent-strong)]" ariaHidden />
           </div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--foreground)]">
             Sign in to Matchboard
           </h1>
-          <p className="mt-3 text-sm text-zinc-400">
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
             Private squad planning for coaches.
           </p>
         </div>
@@ -26,7 +26,7 @@ export default function SignInPage() {
         >
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-3 rounded-xl border border-[rgba(205,219,210,0.28)] bg-[linear-gradient(180deg,rgba(146,171,151,0.18),rgba(88,110,100,0.12))] px-4 py-3 text-sm font-medium text-zinc-100 transition-colors hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.28),rgba(88,110,100,0.22))] hover:text-white"
+            className="w-full flex items-center justify-center gap-3 rounded-xl border border-[rgba(205,219,210,0.28)] bg-[linear-gradient(180deg,rgba(146,171,151,0.18),rgba(88,110,100,0.12))] px-4 py-3 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.28),rgba(88,110,100,0.22))] hover:text-[var(--foreground)]"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -49,7 +49,7 @@ export default function SignInPage() {
             Sign in with Google
           </button>
         </form>
-        <p className="text-center text-xs text-zinc-500">
+        <p className="text-center text-xs text-[var(--text-disabled)]">
           Access requires an organisation invitation.
         </p>
         </div>

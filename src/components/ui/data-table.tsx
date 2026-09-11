@@ -171,7 +171,7 @@ function Cell({
         muted
           ? "text-[var(--text-muted)]"
           : primary
-            ? "text-zinc-50 font-medium"
+            ? "text-[var(--foreground)] font-medium"
             : "text-[var(--text-soft)]",
         className,
       ]

@@ -6,7 +6,7 @@ import { RefreshCw } from "lucide-react";
 import type { DueDecisionReviewCard } from "@/lib/assistant/types";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import {
   resolveDecisionReviewAction,
@@ -96,16 +96,16 @@ function DecisionReviewRow({ review }: { review: DueDecisionReviewCard }) {
       </div>
       <p className="text-[var(--text-row-title)] text-[var(--foreground)]">{review.decisionText}</p>
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <Button size="sm" variant="primary" onClick={keep} disabled={pending}>
+        <TouchlineButton size="sm" variant="primary" onClick={keep} disabled={pending}>
           Keep
-        </Button>
-        <Button size="sm" variant="secondary" onClick={change} disabled={pending}>
+        </TouchlineButton>
+        <TouchlineButton size="sm" variant="secondary" onClick={change} disabled={pending}>
           Change
-        </Button>
-        <Button size="sm" variant="ghost" onClick={complete} disabled={pending}>
+        </TouchlineButton>
+        <TouchlineButton size="sm" variant="ghost" onClick={complete} disabled={pending}>
           Complete
-        </Button>
-        <Button
+        </TouchlineButton>
+        <TouchlineButton
           size="sm"
           variant="ghost"
           onClick={later}
@@ -113,7 +113,7 @@ function DecisionReviewRow({ review }: { review: DueDecisionReviewCard }) {
           leadingIcon={<RefreshCw className="h-3 w-3" aria-hidden="true" />}
         >
           Later
-        </Button>
+        </TouchlineButton>
       </div>
       {error && <p className="text-[var(--text-meta)] text-[var(--danger)]">{error}</p>}
     </li>

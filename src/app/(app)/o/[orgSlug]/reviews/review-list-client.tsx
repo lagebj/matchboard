@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { ReviewStatus } from '@/generated/prisma/client';
 import { resolveReviewAction, cancelReviewAction } from './actions';
-import { Button } from '@/components/ui/button';
+import { TouchlineButton, TouchlinePageHeader } from '@/components/touchline';
 
 type ReviewRequestRow = {
   id: string;
@@ -104,8 +104,9 @@ export function ReviewListClient({
   }, [reviews, myMembershipId]);
 
   return (
-    <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-bold tracking-tight">Peer reviews</h1>
+    // Touchline island (theme-aware — ADR-0134 Phase 9).
+    <div className="touchline flex flex-col gap-8">
+      <TouchlinePageHeader title="Peer reviews" />
 
       <ReviewSection
         title="Pending for me"
@@ -121,12 +122,12 @@ export function ReviewListClient({
               onChange={(e) => setComment((prev) => ({ ...prev, [review.id]: e.target.value }))}
               disabled={loading === review.id}
             />
-            <Button size="sm" variant="primary" onClick={() => handleResolve(review.id, 'APPROVED')} disabled={loading === review.id}>
+            <TouchlineButton size="sm" variant="primary" onClick={() => handleResolve(review.id, 'APPROVED')} disabled={loading === review.id}>
               Approve
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => handleResolve(review.id, 'CHANGES_REQUESTED')} disabled={loading === review.id}>
+            </TouchlineButton>
+            <TouchlineButton size="sm" variant="secondary" onClick={() => handleResolve(review.id, 'CHANGES_REQUESTED')} disabled={loading === review.id}>
               Request changes
-            </Button>
+            </TouchlineButton>
           </div>
         )}
       />
@@ -136,9 +137,9 @@ export function ReviewListClient({
         empty="You have no open peer review requests."
         rows={requestedByMe}
         renderActions={(review) => (
-          <Button size="sm" variant="ghost" onClick={() => handleCancel(review.id)} disabled={loading === review.id}>
+          <TouchlineButton size="sm" variant="ghost" onClick={() => handleCancel(review.id)} disabled={loading === review.id}>
             Cancel request
-          </Button>
+          </TouchlineButton>
         )}
       />
 

@@ -89,7 +89,7 @@ export function InlineEditSelect({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={pending}
-            className="rounded-md border border-[var(--accent)]/50 bg-[var(--surface-base)] px-2 py-1 text-sm text-zinc-100 outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 min-w-[120px]"
+            className="rounded-md border border-[var(--accent)]/50 bg-[var(--surface-base)] px-2 py-1 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 min-w-[120px]"
             aria-label={label}
           >
             {options.map((o) => (
@@ -136,7 +136,7 @@ export function InlineEditSelect({
       <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] shrink-0">
         {label}
       </span>
-      <span className={cn("text-sm", isEmpty ? "text-[var(--text-muted)] italic" : "text-zinc-100")}>
+      <span className={cn("text-sm", isEmpty ? "text-[var(--text-muted)] italic" : "text-[var(--foreground)]")}>
         {displayValue}
       </span>
       {!disabled && (

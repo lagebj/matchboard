@@ -7,10 +7,10 @@ export default async function AccessDeniedPage() {
     <div className="flex min-h-screen w-full items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--foreground)]">
             Access denied
           </h1>
-          <p className="mt-3 text-sm text-zinc-400">
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
             {session?.user?.email
               ? "You are not a member of any organisation on Matchboard."
               : "You are not authorized to access Matchboard."}
@@ -24,7 +24,7 @@ export default async function AccessDeniedPage() {
             </a>
           )}
           {!session?.user?.email && (
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-[var(--text-disabled)]">
               Contact your organisation owner or admin to request an invitation.
             </p>
           )}
@@ -39,7 +39,7 @@ export default async function AccessDeniedPage() {
             >
               <button
                 type="submit"
-                className="w-full flex justify-center rounded-xl border border-[rgba(205,219,210,0.28)] px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-zinc-50"
+                className="w-full flex justify-center rounded-xl border border-[rgba(205,219,210,0.28)] px-4 py-2.5 text-sm font-medium text-[var(--text-soft)] transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-[var(--foreground)]"
               >
                 Sign out
               </button>
@@ -47,7 +47,7 @@ export default async function AccessDeniedPage() {
           )}
           <a
             href="/signin"
-            className="w-full flex justify-center rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-100"
+            className="w-full flex justify-center rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--foreground)]"
           >
             Sign in with a different account
           </a>

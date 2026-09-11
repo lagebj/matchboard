@@ -67,8 +67,8 @@ export function TabRail<TKey extends string>({
           );
           const classes = `inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 ${
             isActive
-              ? "bg-[var(--accent-subtle)] text-zinc-50"
-              : "text-[var(--text-muted)] hover:text-zinc-100 hover:bg-[var(--surface-hover)]/40"
+              ? "bg-[var(--accent-subtle)] text-[var(--foreground)]"
+              : "text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]/40"
           } ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`;
           if (item.href) {
             return (
@@ -128,8 +128,8 @@ export function TabRail<TKey extends string>({
         );
         const classes = `shrink-0 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 ${
           isActive
-            ? "border-[var(--accent-strong)] text-zinc-50"
-            : "border-transparent text-[var(--text-muted)] hover:text-zinc-100 hover:border-[var(--border-strong)]"
+            ? "border-[var(--accent-strong)] text-[var(--foreground)]"
+            : "border-transparent text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-strong)]"
         } ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`;
         if (item.href) {
           return (

@@ -73,7 +73,7 @@ export function SignalCard({
           >
             {config.label}
           </span>
-          <span className="text-sm font-medium text-zinc-100">{title}</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">{title}</span>
           {rule && (
             <span className="text-[10px] font-mono text-[var(--text-muted)]">
               {rule}

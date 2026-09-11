@@ -96,7 +96,7 @@ function ToastItem({
       onBlur={startTimer}
       className="flex items-center gap-3 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-3 shadow-2xl"
     >
-      <p className="flex-1 text-sm text-zinc-50">{toast.message}</p>
+      <p className="flex-1 text-sm text-[var(--foreground)]">{toast.message}</p>
       {toast.actionLabel && toast.onAction && (
         <button
           type="button"
@@ -112,7 +112,7 @@ function ToastItem({
       <button
         type="button"
         onClick={onDismiss}
-        className="shrink-0 rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+        className="shrink-0 rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
         aria-label="Dismiss"
       >
         <X className="h-3.5 w-3.5" />

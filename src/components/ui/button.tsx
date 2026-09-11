@@ -48,10 +48,10 @@ const variantClasses: Record<ButtonVariant, string> = {
     "active:bg-[color-mix(in_srgb,var(--accent)_28%,transparent)]",
   secondary:
     "bg-[var(--surface-muted)] text-[var(--text-soft)] border border-[var(--border-soft)] " +
-    "hover:bg-[var(--surface-hover)] hover:text-zinc-50 hover:border-[var(--border-strong)]",
+    "hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] hover:border-[var(--border-strong)]",
   ghost:
     "bg-transparent text-[var(--text-soft)] border border-transparent " +
-    "hover:bg-[var(--surface-muted)]/50 hover:text-zinc-50",
+    "hover:bg-[var(--surface-muted)]/50 hover:text-[var(--foreground)]",
   danger:
     "bg-[var(--danger-subtle)] text-[var(--danger)] border border-[var(--danger)]/35 " +
     "hover:bg-[color-mix(in_srgb,var(--danger)_18%,transparent)] hover:border-[var(--danger)]/55",

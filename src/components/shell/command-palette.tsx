@@ -249,7 +249,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 setSelectedIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              className="h-10 flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-[var(--text-disabled)] focus:outline-none"
+              className="h-10 flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-[var(--text-disabled)] focus:outline-none"
             />
             <kbd className="hidden rounded border border-[var(--border-soft)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-muted)] sm:inline-block">
               Esc
@@ -280,8 +280,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                         }}
                         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
                           isActive
-                            ? "bg-[var(--surface-hover)] text-zinc-50"
-                            : "text-zinc-300 hover:bg-[var(--surface-hover)] hover:text-zinc-50"
+                            ? "bg-[var(--surface-hover)] text-[var(--foreground)]"
+                            : "text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                         }`}
                       >
                         <span className="shrink-0 text-[var(--text-muted)]">{item.icon}</span>

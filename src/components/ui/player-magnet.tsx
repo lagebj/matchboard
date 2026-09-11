@@ -116,7 +116,7 @@ export function PlayerMagnet({
 
       {/* Name + position */}
       <div className="min-w-0 flex-1">
-        <div className={cn("truncate text-zinc-100", compact ? "text-xs" : "text-sm font-medium leading-tight")}>
+        <div className={cn("truncate text-[var(--foreground)]", compact ? "text-xs" : "text-sm font-medium leading-tight")}>
           {name}
         </div>
         {(position || teamName) && !compact && (

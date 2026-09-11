@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { requirePageActorContext, canAdmin } from "@/lib/auth/actor-context";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlinePageHeader } from "@/components/touchline";
 import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 
 export const dynamic = "force-dynamic";
@@ -92,8 +92,9 @@ export default async function MorePage({ params }: { params: Promise<{ orgSlug: 
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader title="More" description="Analysis, administration, and secondary destinations." />
+    // Touchline island (theme-aware — ADR-0134 Phase 9).
+    <div className="touchline flex flex-col gap-8">
+      <TouchlinePageHeader title="More" context="Analysis, administration, and secondary destinations." />
 
       <InstallPwaCard />
 

@@ -170,7 +170,7 @@ export function PlayerChip({
           aria-hidden="true"
         />
       )}
-      <span className="truncate text-zinc-100">{name}</span>
+      <span className="truncate text-[var(--foreground)]">{name}</span>
       {position && (
         <span
           className="shrink-0 text-[9px] uppercase tracking-wider text-[var(--text-muted)]"

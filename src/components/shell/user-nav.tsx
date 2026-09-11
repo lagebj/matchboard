@@ -20,7 +20,7 @@ export async function UserNav() {
     <div className="flex items-center gap-2">
       <Link
         href="/organisations"
-        className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-zinc-100 transition-colors"
+        className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-[var(--foreground)] transition-colors"
         title="Organisations"
         aria-label="Organisations"
       >
@@ -42,7 +42,7 @@ export async function UserNav() {
       >
         <button
           type="submit"
-          className="ml-0.5 rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-zinc-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+          className="ml-0.5 rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
           title="Sign out"
           aria-label="Sign out"
         >
