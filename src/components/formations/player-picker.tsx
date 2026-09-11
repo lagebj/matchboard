@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Dialog } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { cn } from "@/lib/cn";
 import type { FormationSlotData } from "@/lib/formations/types";
 import { deriveExactTargetRole } from "@/domain/positions/slot-target";
@@ -135,11 +135,11 @@ export function PlayerPicker({
             {UNSUPPORTED_CONFIRMATION.body(confirmUnsupported.playerName, targetRole ?? slot.label)}
           </p>
           <div className="flex items-center gap-2 pt-1">
-            <Button variant="secondary" size="sm" onClick={() => setConfirmUnsupported(null)}>
+            <TouchlineButton variant="secondary" size="sm" onClick={() => setConfirmUnsupported(null)}>
               {UNSUPPORTED_CONFIRMATION.cancelLabel}
-            </Button>
+            </TouchlineButton>
             <div className="flex-1" />
-            <Button
+            <TouchlineButton
               variant="primary"
               size="sm"
               onClick={() => {
@@ -148,7 +148,7 @@ export function PlayerPicker({
               }}
             >
               {UNSUPPORTED_CONFIRMATION.confirmLabel}
-            </Button>
+            </TouchlineButton>
           </div>
         </div>
       ) : (
@@ -200,13 +200,13 @@ export function PlayerPicker({
           </div>
 
           <div className="mt-3 flex items-center gap-2 border-t border-[var(--border-soft)] pt-3">
-            <Button variant="ghost" size="sm" onClick={onClear} disabled={!currentAssignedPlayer}>
+            <TouchlineButton variant="ghost" size="sm" onClick={onClear} disabled={!currentAssignedPlayer}>
               {currentAssignedPlayer ? `Remove ${currentAssignedPlayer.firstName}` : "Clear slot"}
-            </Button>
+            </TouchlineButton>
             <div className="flex-1" />
-            <Button variant="secondary" size="sm" onClick={onClose}>
+            <TouchlineButton variant="secondary" size="sm" onClick={onClose}>
               Cancel
-            </Button>
+            </TouchlineButton>
           </div>
         </>
       )}

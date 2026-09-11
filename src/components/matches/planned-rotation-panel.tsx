@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Plus, Trash2, ChevronUp, ChevronDown, Pencil, X, ShieldAlert, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -229,13 +229,13 @@ function ChangeForm({
       </div>
 
       <div className="flex items-center gap-2 mt-1">
-        <Button onClick={() => onSubmit(form)} disabled={isPending} size="sm">
+        <TouchlineButton onClick={() => onSubmit(form)} disabled={isPending} size="sm">
           <Plus className="h-3.5 w-3.5 mr-1" />
           {isEditing ? "Save change" : "Add change"}
-        </Button>
-        <Button onClick={onCancel} variant="ghost" size="sm" disabled={isPending}>
+        </TouchlineButton>
+        <TouchlineButton onClick={onCancel} variant="ghost" size="sm" disabled={isPending}>
           Cancel
-        </Button>
+        </TouchlineButton>
       </div>
     </div>
   );
@@ -469,14 +469,14 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
         </div>
         {!readOnly && (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={handleCreate} disabled={isPending} size="sm">
+            <TouchlineButton onClick={handleCreate} disabled={isPending} size="sm">
               <Plus className="h-4 w-4 mr-1.5" />
               Create rotation plan
-            </Button>
-            <Button onClick={handleGenerate} disabled={isPending} variant="secondary" size="sm">
+            </TouchlineButton>
+            <TouchlineButton onClick={handleGenerate} disabled={isPending} variant="secondary" size="sm">
               <Sparkles className="h-4 w-4 mr-1.5" />
               Generate rotation plan
-            </Button>
+            </TouchlineButton>
           </div>
         )}
         {!readOnly && (
@@ -627,10 +627,10 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
               isPending={isPending}
             />
           ) : (
-            <Button onClick={() => setShowAddForm(true)} variant="secondary" size="sm">
+            <TouchlineButton onClick={() => setShowAddForm(true)} variant="secondary" size="sm">
               <Plus className="h-4 w-4 mr-1.5" />
               Add change
-            </Button>
+            </TouchlineButton>
           )}
         </div>
       )}
@@ -641,10 +641,10 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
 
       {isDraft && !readOnly && rotation.changes.length > 0 && (
         <div className="mt-4 flex items-center gap-2">
-          <Button onClick={handleDelete} disabled={isPending} variant="danger" size="sm">
+          <TouchlineButton onClick={handleDelete} disabled={isPending} variant="danger" size="sm">
             <Trash2 className="h-4 w-4 mr-1.5" />
             Delete plan
-          </Button>
+          </TouchlineButton>
         </div>
       )}
 

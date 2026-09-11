@@ -7,9 +7,8 @@ import { GAME_FORMAT_PLAYERS, formatGameFormatShort, isValidGridX, isValidGridY 
 import { suggestSlotDefaults } from "@/lib/formations/slot-defaults";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotData, FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
-import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 
 const GAME_FORMATS: GameFormat[] = ["THREE_A_SIDE", "FIVE_A_SIDE", "SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"];
 
@@ -209,18 +208,19 @@ export function FormationsBuilderClient({
   }));
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 6).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
+      <TouchlinePageHeader
         title={isEditing ? "Edit formation" : "Create formation"}
         actions={
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={isPending}>
+          <TouchlineButton variant="primary" size="sm" onClick={handleSave} disabled={isPending}>
             {isPending ? "Saving..." : "Save"}
-          </Button>
+          </TouchlineButton>
         }
       />
 
       {error && (
-        <div className="rounded-md border border-red-800/30 bg-red-900/15 px-3 py-2 text-xs text-red-300">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-3 py-2 text-xs text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -237,7 +237,7 @@ export function FormationsBuilderClient({
               value={name}
               onChange={(e) => { setName(e.target.value); setError(null); }}
               placeholder="e.g. 2-3-1"
-              className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-[var(--accent)] focus:outline-none"
+              className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none"
             />
           </div>
 
@@ -254,7 +254,7 @@ export function FormationsBuilderClient({
                   setSlots([]);
                   setError(null);
                 }}
-                className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-zinc-100 focus:border-[var(--accent)] focus:outline-none"
+                className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-1.5 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none"
               >
                 {GAME_FORMATS.map((gf) => (
                   <option key={gf} value={gf}>{formatGameFormatShort(gf)}</option>

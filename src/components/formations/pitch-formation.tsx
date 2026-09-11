@@ -6,7 +6,7 @@ import { deriveExactTargetRole } from "@/domain/positions/slot-target";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import {
   TacticsBoard,
   ROLE_COLORS,
@@ -133,16 +133,16 @@ export function SlotEditDialog({ isOpen, onClose, slot, gameFormat: _gameFormat,
       size="md"
       footer={
         <div className="flex items-center gap-2">
-          <Button variant="danger" size="sm" onClick={() => { onRemove(slot.id); onClose(); }}>
+          <TouchlineButton variant="danger" size="sm" onClick={() => { onRemove(slot.id); onClose(); }}>
             Remove
-          </Button>
+          </TouchlineButton>
           <div className="flex-1" />
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <TouchlineButton variant="ghost" size="sm" onClick={onClose}>
             Cancel
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleSave}>
+          </TouchlineButton>
+          <TouchlineButton variant="primary" size="sm" onClick={handleSave}>
             Save
-          </Button>
+          </TouchlineButton>
         </div>
       }
     >
