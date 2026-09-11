@@ -76,10 +76,19 @@ Accepted (2026-09-10). Implementation in progress:
   `attention-client.tsx`'s `urgencyStyles` map was a third, independent instance of the same
   pre-existing raw light-mode-only Tailwind pattern (`bg-red-50`/`bg-amber-50`/`bg-slate-50`, no
   dark styling at all — the same root cause already found twice, in Phase 7's observation
-  sections and Teams' `team-focus-panel.tsx`), token-aligned the same way. The Review family,
-  Organisations, Invite, and error boundaries remain open — Phase 10 itself is still blocked
-  pending their migration. Phase 10 (remove the superseded Product Surface 1.0 system) follows
-  once that closes. The compact bottom nav is
+  sections and Teams' `team-focus-panel.tsx`), token-aligned the same way. **Organisations**
+  (`/organisations`), **Invite** (`/invite/[token]`, `invite-acceptance-form.tsx` — the latter's
+  error-message `text-red-500` moved to `--danger`), and the three **error boundaries**
+  (`(app)/error.tsx`, `(app)/players/error.tsx`, `(app)/teams/error.tsx` — byte-identical files,
+  each fixed identically) are also now migrated. None of these had raw color literals in the
+  Teams/Simulation/Workbench/Attention sense — the real fix each needed was structural: they all
+  render inside `(app)/layout.tsx`'s `<main>`, which is not itself `.touchline`-scoped (only the
+  shell header/nav carry the class), so each page's own root needed an explicit `.touchline` class
+  or its tokens would keep resolving to plain, non-dual-theme `globals.css` values regardless of
+  the viewer's theme — the same root cause already found once for `help-drawer.tsx`'s portal root
+  in the previous PR. The Review family remains open — Phase 10 itself is still blocked pending
+  its migration. Phase 10 (remove the superseded Product Surface 1.0 system) follows once that
+  closes. The compact bottom nav is
   **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
   contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
   ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell
