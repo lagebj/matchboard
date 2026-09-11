@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { TouchlineButton } from "@/components/touchline";
 import { RulesForm } from "@/components/rules/rules-form";
 import { RotationPathCreateForm } from "@/components/rules/rotation-path-create-form";
 import { RotationPathCard } from "@/components/rules/rotation-path-card";
@@ -64,22 +65,23 @@ export default async function RulesPage({ params, searchParams }: { params: Prom
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
 
   return (
-    <div className="flex flex-col gap-3">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 9).
+    <div className="touchline flex flex-col gap-3" data-theme="dark">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Rules · v{rules.version}</p>
-          <span className="text-[10px] text-zinc-500">{rules.minDaysBetweenAnyMatches}d spacing</span>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rules · v{rules.version}</p>
+          <span className="text-[10px] text-[var(--text-muted)]">{rules.minDaysBetweenAnyMatches}d spacing</span>
         </div>
         <div className="flex gap-1.5">
           <Link
-            className="h-6 rounded border border-zinc-700/50 bg-zinc-800/30 px-2 text-[10px] font-medium text-zinc-400 hover:text-zinc-200"
+            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-2 text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--foreground)]"
             href="/api/rules"
             download
           >
             Export
           </Link>
           <Link
-            className="h-6 rounded border border-zinc-700/50 bg-zinc-800/30 px-2 text-[10px] font-medium text-zinc-400 hover:text-zinc-200"
+            className="h-6 rounded border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-2 text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--foreground)]"
             href="#rule-import-section"
           >
             Import
@@ -87,28 +89,28 @@ export default async function RulesPage({ params, searchParams }: { params: Prom
         </div>
       </div>
 
-      {error && <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>}
-      {imported && <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">Rules imported successfully.</div>}
+      {error && <div className="rounded-md border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-3 py-2 text-xs text-[var(--danger)]">{error}</div>}
+      {imported && <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-3 py-2 text-xs text-[var(--success)]">Rules imported successfully.</div>}
 
       {(validation.errors.length > 0 || validation.warnings.length > 0) && (
         <div className="flex flex-col gap-1.5">
           {validation.errors.map((err) => (
-            <div key={err.code} className="rounded-md border border-red-800/30 bg-red-900/15 px-3 py-2 text-xs text-red-300">
+            <div key={err.code} className="rounded-md border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-3 py-2 text-xs text-[var(--danger)]">
               <span className="font-medium">{err.field}:</span> {err.message}
             </div>
           ))}
           {validation.warnings.map((warn) => (
-            <div key={warn.code} className="rounded-md border border-amber-700/30 bg-amber-900/15 px-3 py-2 text-xs text-amber-300">
+            <div key={warn.code} className="rounded-md border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] px-3 py-2 text-xs text-[var(--warning)]">
               <span className="font-medium">{warn.field}:</span> {warn.message}
             </div>
           ))}
         </div>
       )}
 
-      <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
+      <div className="rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Rotation paths</p>
-          <span className="text-[10px] text-zinc-500">{rotationPathItems.length} active</span>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Rotation paths</p>
+          <span className="text-[10px] text-[var(--text-muted)]">{rotationPathItems.length} active</span>
         </div>
 
         {teamOptions.length > 0 && (
@@ -134,38 +136,35 @@ export default async function RulesPage({ params, searchParams }: { params: Prom
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-xs text-zinc-500">No rotation paths. Add paths to enable support, development, or squad repair movement between teams.</p>
+          <p className="mt-2 text-xs text-[var(--text-muted)]">No rotation paths. Add paths to enable support, development, or squad repair movement between teams.</p>
         )}
 
         <details className="mt-2">
-          <summary className="cursor-pointer text-[10px] font-medium text-zinc-400 hover:text-zinc-200">Add rotation path</summary>
+          <summary className="cursor-pointer text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--foreground)]">Add rotation path</summary>
           <div className="mt-2">
             <RotationPathCreateForm teams={teamOptions} />
           </div>
         </details>
       </div>
 
-      <div className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Configuration</p>
+      <div className="rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Configuration</p>
         <RulesForm rules={rules} saved={saved === "1"} />
       </div>
 
-      <div id="rule-import-section" className="rounded-md border border-zinc-700/40 bg-zinc-800/20 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Import rules</p>
-        <p className="mt-1 text-xs text-zinc-500">Paste a previously exported rule configuration JSON.</p>
+      <div id="rule-import-section" className="rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Import rules</p>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">Paste a previously exported rule configuration JSON.</p>
         <form action="/api/rules" method="POST" className="mt-2 flex flex-col gap-2">
           <textarea
             name="rulesJson"
             rows={4}
             placeholder="Paste rule configuration JSON..."
-            className="rounded-md border border-zinc-700/40 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
+            className="rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-xs text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none"
           />
-          <button
-            type="submit"
-            className="h-7 rounded-md border border-blue-700/30 bg-blue-900/20 px-3 text-xs font-medium text-blue-300 hover:bg-blue-900/30"
-          >
+          <TouchlineButton type="submit" variant="primary" size="sm">
             Validate and import
-          </button>
+          </TouchlineButton>
         </form>
       </div>
     </div>

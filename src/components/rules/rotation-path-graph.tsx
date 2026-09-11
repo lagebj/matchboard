@@ -101,7 +101,7 @@ export function RotationPathGraph({ teams, paths }: RotationPathGraphProps) {
         ))}
       </svg>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 text-[10px] text-zinc-500">
+      <div className="flex flex-wrap items-center justify-center gap-3 text-[10px] text-[var(--text-muted)]">
         {(Object.entries(ROLE_LABELS) as [RotationGraphRole, string][]).map(([role, label]) => (
           <span key={role} className="flex items-center gap-1">
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ROLE_COLORS[role] }} />
@@ -110,7 +110,7 @@ export function RotationPathGraph({ teams, paths }: RotationPathGraphProps) {
         ))}
       </div>
 
-      <p className="min-h-[1.25rem] text-center text-[10px] text-zinc-400">
+      <p className="min-h-[1.25rem] text-center text-[10px] text-[var(--text-muted)]">
         {hoveredEdge
           ? `${hoveredEdge.fromName} → ${hoveredEdge.toName} · ${ROLE_LABELS[hoveredEdge.role]}${
               hoveredEdge.priority != null ? ` · priority ${hoveredEdge.priority}` : ""
