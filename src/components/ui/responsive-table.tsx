@@ -71,8 +71,8 @@ export function ResponsiveTableCard({
   actions?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border app-hairline bg-[rgba(12,15,20,0.45)] p-3">
-      <div className="font-medium text-zinc-50">
+    <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-3">
+      <div className="font-medium text-[var(--foreground)]">
         {titleHref ? (
           <Link href={titleHref} className="hover:underline">
             {title}
@@ -84,7 +84,7 @@ export function ResponsiveTableCard({
       <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
         {fields.map((field) => (
           <div key={field.label} className="flex flex-col">
-            <dt className="app-copy-muted uppercase tracking-[0.12em] text-[10px]">{field.label}</dt>
+            <dt className="app-copy-soft uppercase tracking-[0.12em] text-[10px]">{field.label}</dt>
             <dd className="app-copy-soft">{field.value}</dd>
           </div>
         ))}
