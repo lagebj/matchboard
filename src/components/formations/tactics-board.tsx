@@ -469,7 +469,7 @@ function LineupContent({
             className={cn(
               "absolute z-10 flex flex-col items-center justify-center rounded-lg border-2 px-1 py-0.5 text-xs font-semibold transition-transform min-w-[3.5rem]",
               player
-                ? "bg-[var(--accent)]/20 border-[var(--accent)] text-zinc-100 hover:scale-105 cursor-pointer"
+                ? "bg-[var(--accent)]/20 border-[var(--accent)] text-[var(--foreground)] hover:scale-105 cursor-pointer"
                 : cn("border-2 cursor-pointer hover:scale-105", ROLE_COLORS[slot.roleType], "opacity-60 hover:opacity-80"),
               assignment?.locked && "ring-1 ring-[var(--accent)]",
               readOnly && "cursor-default hover:scale-100",

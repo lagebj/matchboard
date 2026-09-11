@@ -4,7 +4,7 @@ import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PitchLineupView } from "@/components/formations/pitch-formation";
 import { PlayerPicker } from "@/components/formations/player-picker";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -403,7 +403,7 @@ export function MatchTacticsPanel({
       <Surface padding="md">
         <DecisionBanner variant="blocked" title="Error" description={error} />
         <div className="mt-3">
-          <Button variant="ghost" size="sm" onClick={handleLoad}>Retry</Button>
+          <TouchlineButton variant="ghost" size="sm" onClick={handleLoad}>Retry</TouchlineButton>
         </div>
       </Surface>
     );
@@ -416,7 +416,7 @@ export function MatchTacticsPanel({
         {suggestion && (
           <Surface padding="sm" className="mt-3 border-[var(--accent)]/30 bg-[var(--accent-subtle)]">
             <p className="text-xs text-[var(--text-soft)]">
-              Suggested formation: <strong className="text-zinc-100">{suggestion.formationName}</strong>
+              Suggested formation: <strong className="text-[var(--foreground)]">{suggestion.formationName}</strong>
               <span className="ml-2 text-[var(--text-muted)]">
                 ({suggestion.confidence} confidence)
               </span>
@@ -445,7 +445,7 @@ export function MatchTacticsPanel({
                     : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--border-strong)]"
                 )}
               >
-                <span className="text-sm font-medium text-zinc-100">{f.name}</span>
+                <span className="text-sm font-medium text-[var(--foreground)]">{f.name}</span>
                 <span className="mt-0.5 block text-[10px] text-[var(--text-muted)]">
                   {f.source === "CUSTOM" ? "Custom" : "System"} · {f.slots.length} slots
                 </span>
@@ -455,18 +455,18 @@ export function MatchTacticsPanel({
         </div>
         {selectedFormationId && (
           <div className="mt-4">
-            <Button variant="primary" fullWidth disabled={isPending} onClick={handleCreateLineup}>
+            <TouchlineButton variant="primary" fullWidth disabled={isPending} onClick={handleCreateLineup}>
               {isPending ? "Creating…" : "Create lineup"}
-            </Button>
+            </TouchlineButton>
           </div>
         )}
         <div className="mt-4 flex items-center gap-2 border-t border-[var(--border-soft)] pt-3">
-          <Button variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
+          <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
             Create formation
-          </Button>
-          <Button variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
+          </TouchlineButton>
+          <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
             Manage formations
-          </Button>
+          </TouchlineButton>
         </div>
       </Surface>
     );
@@ -508,22 +508,22 @@ export function MatchTacticsPanel({
         <div className="mt-3 flex flex-wrap gap-2">
           {!isConfirmed && (
             <>
-              <Button variant="secondary" size="sm" disabled={isPending} onClick={handleSuggestLineup}>
+              <TouchlineButton variant="secondary" size="sm" disabled={isPending} onClick={handleSuggestLineup}>
                 Suggest lineup
-              </Button>
-              <Button variant="secondary" size="sm" disabled={isPending} onClick={handleGenerateIntegrated}>
+              </TouchlineButton>
+              <TouchlineButton variant="secondary" size="sm" disabled={isPending} onClick={handleGenerateIntegrated}>
                 Generate lineup &amp; rotation plan
-              </Button>
-              <Button variant="ghost" size="sm" disabled={isPending} onClick={handleUseBestLineup}>
+              </TouchlineButton>
+              <TouchlineButton variant="ghost" size="sm" disabled={isPending} onClick={handleUseBestLineup}>
                 <Copy className="mr-1 h-3.5 w-3.5" />
                 Use team's recommended lineup
-              </Button>
-              <Button variant="ghost" size="sm" disabled={isPending} onClick={handleFillEmpty}>
+              </TouchlineButton>
+              <TouchlineButton variant="ghost" size="sm" disabled={isPending} onClick={handleFillEmpty}>
                 Fill empty slots
-              </Button>
-              <Button variant="ghost" size="sm" disabled={isPending} onClick={handleClearSuggestions}>
+              </TouchlineButton>
+              <TouchlineButton variant="ghost" size="sm" disabled={isPending} onClick={handleClearSuggestions}>
                 Clear suggestions
-              </Button>
+              </TouchlineButton>
             </>
           )}
         </div>
@@ -543,7 +543,7 @@ export function MatchTacticsPanel({
                       className={cn(
                         "rounded-md border px-3 py-2 text-left text-xs transition-colors",
                         f.id === lineup.formationId
-                          ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-zinc-100 cursor-default"
+                          ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--foreground)] cursor-default"
                           : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--border-strong)] text-[var(--text-soft)]"
                       )}
                     >
@@ -555,17 +555,17 @@ export function MatchTacticsPanel({
               </div>
             )}
             <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-soft)]">
-              <Button variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
+              <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
                 Create formation
-              </Button>
+              </TouchlineButton>
               {lineup.formationId && (
-                <Button variant="ghost" size="sm" as="a" href={`/formations/new?duplicateFrom=${lineup.formationId}&returnTo=/matches/${matchId}?tab=tactics`}>
+                <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?duplicateFrom=${lineup.formationId}&returnTo=/matches/${matchId}?tab=tactics`}>
                   Duplicate current formation
-                </Button>
+                </TouchlineButton>
               )}
-              <Button variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
+              <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
                 Manage formations
-              </Button>
+              </TouchlineButton>
             </div>
           </div>
         )}
@@ -574,18 +574,18 @@ export function MatchTacticsPanel({
           <Surface padding="sm" className="mt-3 border-[var(--accent)]/30 bg-[var(--accent-subtle)]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-zinc-100">Suggested lineup</p>
+                <p className="text-xs font-medium text-[var(--foreground)]">Suggested lineup</p>
                 <p className="text-[10px] text-[var(--text-muted)]">
                   {lineupSuggestion.assignments.filter((a) => a.playerId).length} players assigned · {lineupSuggestion.benchPlayerIds.length} on bench
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="primary" size="sm" disabled={isPending} onClick={handleApplySuggestion}>
+                <TouchlineButton variant="primary" size="sm" disabled={isPending} onClick={handleApplySuggestion}>
                   Apply
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setLineupSuggestion(null)}>
+                </TouchlineButton>
+                <TouchlineButton variant="ghost" size="sm" onClick={() => setLineupSuggestion(null)}>
                   Dismiss
-                </Button>
+                </TouchlineButton>
               </div>
             </div>
             {lineupSuggestion.warnings.length > 0 && (
