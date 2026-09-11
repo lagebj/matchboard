@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 
@@ -160,7 +160,8 @@ export function WorkbenchPageContent() {
   const selectedFixtureData = fixtures.find((f) => f.id === selectedFixture);
 
   return (
-    <div className="space-y-6">
+    // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134).
+    <div className="touchline space-y-6">
       <SectionHeader
         title="Policy and Generation Workbench"
         description="Dry-run policy and generation behavior without changing event, league, lineup, or report data."
@@ -173,7 +174,7 @@ export function WorkbenchPageContent() {
 
       {diagnostics && (
         <Surface variant="default" padding="md">
-          <h3 className="text-sm font-semibold text-zinc-100 mb-3">Runtime Status</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Runtime Status</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-[var(--text-muted)]">Policy version</span>
@@ -198,12 +199,12 @@ export function WorkbenchPageContent() {
       )}
 
       <Surface variant="default" padding="md">
-        <h3 className="text-sm font-semibold text-zinc-100 mb-3">Configuration</h3>
+        <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Configuration</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm text-[var(--text-muted)]">Fixture</label>
             <select
-              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-zinc-100"
+              className="mt-1 w-full h-8 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)]"
               value={selectedFixture}
               onChange={(e) => setSelectedFixture(e.target.value)}
             >
@@ -227,9 +228,9 @@ export function WorkbenchPageContent() {
             </label>
           </div>
           <div className="flex items-end">
-            <Button onClick={handleRun} disabled={!selectedFixture || loading}>
+            <TouchlineButton onClick={handleRun} disabled={!selectedFixture || loading}>
               {loading ? "Running..." : "Run dry-run"}
-            </Button>
+            </TouchlineButton>
           </div>
         </div>
         {selectedFixtureData && (
@@ -246,7 +247,7 @@ export function WorkbenchPageContent() {
       {result && (
         <>
           <Surface variant="default" padding="md">
-            <h3 className="text-sm font-semibold text-zinc-100 mb-3">Input Summary</h3>
+            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Input Summary</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div><span className="text-[var(--text-muted)]">Mode</span><p className="font-medium">{result.inputSummary.contextMode}</p></div>
               <div><span className="text-[var(--text-muted)]">Decision type</span><p className="font-medium">{DECISION_TYPE_LABELS[result.inputSummary.decisionType] ?? result.inputSummary.decisionType}</p></div>
@@ -315,7 +316,7 @@ function PolicyRunPanel({ title, run }: { title: string; run: WorkbenchPolicyRun
   return (
     <Surface variant="default" padding="md">
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
+        <h3 className="text-sm font-semibold text-[var(--foreground)]">{title}</h3>
         <span className="text-xs text-[var(--text-muted)]">
           {run.evaluationDurationMs}ms | v{run.policyVersion}
         </span>
@@ -407,7 +408,7 @@ function DiffPanel({ diff }: { diff: PolicyDiff }) {
 
   return (
     <Surface variant={hasChanges ? "warning" : "success"} padding="md">
-      <h3 className="text-sm font-semibold text-zinc-100 mb-3">
+      <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">
         Diff: Default vs Rego
         {!hasChanges && <span className="ml-2 text-xs text-[var(--accent)]">No changes from Rego</span>}
       </h3>
