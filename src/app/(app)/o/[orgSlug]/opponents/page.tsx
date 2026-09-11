@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui/page-header";
+import { TouchlinePageHeader } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { ResponsiveTable, ResponsiveTableCard } from "@/components/ui/responsive-table";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -34,15 +34,16 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
   });
 
   return (
-    <main className="flex min-h-full flex-col gap-6 text-foreground">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <main className="touchline flex min-h-full flex-col gap-6" data-theme="dark">
+      <TouchlinePageHeader
         title="Opponent teams"
-        description="Encountered opponents created from completed post-match reports."
+        context="Encountered opponents created from completed post-match reports."
       />
 
       {opponentTeams.length === 0 ? (
         <Surface variant="default" padding="lg">
-          <p className="text-sm text-zinc-400">No opponent teams yet. Opponent profiles are created automatically when post-match reports are completed.</p>
+          <p className="text-sm text-[var(--text-muted)]">No opponent teams yet. Opponent profiles are created automatically when post-match reports are completed.</p>
         </Surface>
       ) : (
         <Surface variant="default" padding="none">
@@ -62,16 +63,16 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
                   </thead>
                   <tbody className="divide-y divide-[var(--border-soft)]">
                     {opponentTeams.map((ot) => (
-                      <tr key={ot.id} className="text-zinc-200 hover:bg-[var(--surface-hover)]">
+                      <tr key={ot.id} className="text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
                         <td className="px-4 py-3 pr-4">
                           <Link href={`/o/${orgSlug}/opponents/${ot.id}`} className="text-[var(--accent-strong)] hover:underline">
                             {ot.displayName}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 pr-4 text-zinc-300">
+                        <td className="px-4 py-3 pr-4 text-[var(--text-soft)]">
                           {ot._count.matches}
                         </td>
-                        <td className="px-4 py-3 text-zinc-300">
+                        <td className="px-4 py-3 text-[var(--text-soft)]">
                           {ot._count.eventMatches}
                         </td>
                       </tr>

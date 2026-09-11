@@ -113,7 +113,7 @@ export function OpponentTeamSelect({
           }}
           required
           placeholder="Select existing or type opponent name"
-          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none w-full"
+          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none w-full"
         />
 
         {isOpen && filtered.length > 0 && (
@@ -129,8 +129,8 @@ export function OpponentTeamSelect({
                 aria-selected={team.id === selectedId}
                 className={`cursor-pointer px-3 py-2 text-sm ${
                   idx === highlightIndex
-                    ? "bg-[var(--accent-strong)] text-zinc-900"
-                    : "text-zinc-100 hover:bg-[var(--accent-soft)]"
+                    ? "bg-[var(--accent-strong)] text-[var(--tl-c-accent-on-fill)]"
+                    : "text-[var(--foreground)] hover:bg-[var(--accent-soft)]"
                 }`}
                 onMouseDown={() => handleSelect(team)}
                 onMouseEnter={() => setHighlightIndex(idx)}
@@ -146,7 +146,7 @@ export function OpponentTeamSelect({
       <input type="hidden" name="opponentTeamId" value={selectedId ?? ""} />
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-[var(--danger)]">{error}</p>
       )}
       <p className="text-[11px] text-[var(--text-muted)]">
         Select an existing opponent team or type a new name. New opponents are linked when the post-match report is completed.

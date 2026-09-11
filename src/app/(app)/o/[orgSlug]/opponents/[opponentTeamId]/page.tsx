@@ -186,7 +186,8 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-6" data-theme="dark">
       <div>
         <Link href="/fixtures" className="text-sm text-[var(--accent-strong)] hover:underline">
           &larr; Fixtures
@@ -194,28 +195,28 @@ export default async function OpponentDetailPage({ params }: PageProps) {
       </div>
 
       <div>
-        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-zinc-50">{opponentTeam.displayName}</h1>
-        <p className="mt-2 text-sm text-zinc-400">
+        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">{opponentTeam.displayName}</h1>
+        <p className="mt-2 text-sm text-[var(--text-muted)]">
           Encounter history recorded by coaches. Observations describe individual matches and must not be treated as fixed labels.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">Encounters recorded</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-50">{totalEncounters}</p>
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+          <p className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Encounters recorded</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--foreground)]">{totalEncounters}</p>
         </div>
-        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">Observations recorded</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-50">{observationsRecorded}</p>
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+          <p className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Observations recorded</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--foreground)]">{observationsRecorded}</p>
         </div>
-        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">Environment concerns</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-50">{concernEncounters}</p>
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+          <p className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Environment concerns</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--foreground)]">{concernEncounters}</p>
         </div>
-        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">Latest concern</p>
-          <p className="mt-1 text-sm text-zinc-50">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+          <p className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Latest concern</p>
+          <p className="mt-1 text-sm text-[var(--foreground)]">
             {latestConcernDate ? latestConcernDate.toLocaleDateString() : "\u2014"}
           </p>
         </div>
@@ -240,10 +241,10 @@ export default async function OpponentDetailPage({ params }: PageProps) {
       />
 
       {matches.length === 0 ? (
-        <p className="text-sm text-zinc-400">No encounter observations recorded for this opponent.</p>
+        <p className="text-sm text-[var(--text-muted)]">No encounter observations recorded for this opponent.</p>
       ) : (
         <div>
-          <h2 className="text-xl font-semibold text-zinc-50 mb-3">Encounter history</h2>
+          <h2 className="text-xl font-semibold text-[var(--foreground)] mb-3">Encounter history</h2>
           <ResponsiveTable
             items={matches}
             getKey={(match) => match.id}
@@ -251,7 +252,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-zinc-500">
+                    <tr className="border-b border-[var(--border-soft)] text-left text-xs uppercase tracking-wider text-[var(--text-muted)]">
                       <th className="pb-2 pr-4">Date</th>
                       <th className="pb-2 pr-4">Our team</th>
                       <th className="pb-2 pr-4">Opponent</th>
@@ -270,7 +271,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                       const obs = match.opponentObservation;
                       const result = postMatchResults[match.id];
                       return (
-                        <tr key={match.id} className="text-zinc-200">
+                        <tr key={match.id} className="text-[var(--foreground)]">
                           <td className="py-2 pr-4 whitespace-nowrap">
                             <Link href={`/matches/${match.id}`} className="text-[var(--accent-strong)] hover:underline">
                               {formatKickoffDate(match.startsAt)}
@@ -283,7 +284,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                             {result && result.homeGoals !== null ? `${result.homeGoals}\u2013${result.awayGoals}` : "\u2014"}
                           </td>
                           <td className="py-2 pr-4">
-                            <span className={match.matchFit !== "UNKNOWN" ? "text-zinc-100" : "text-zinc-500"}>
+                            <span className={match.matchFit !== "UNKNOWN" ? "text-[var(--foreground)]" : "text-[var(--text-muted)]"}>
                               {MATCH_FIT_LABELS[match.matchFit as keyof typeof MATCH_FIT_LABELS] ?? "Not assessed"}
                             </span>
                           </td>

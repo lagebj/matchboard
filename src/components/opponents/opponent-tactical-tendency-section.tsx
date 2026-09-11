@@ -29,13 +29,13 @@ export function OpponentTacticalTendencySection({
   const outcomeByTag = new Map(outcomes.map((o) => [o.tag, o]));
 
   return (
-    <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-base)] p-4">
-      <h2 className="text-sm font-semibold text-zinc-50">Tactical tendencies</h2>
-      <p className="mt-1 text-xs text-zinc-500">
+    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+      <h2 className="text-sm font-semibold text-[var(--foreground)]">Tactical tendencies</h2>
+      <p className="mt-1 text-xs text-[var(--text-muted)]">
         Recent observations recorded by coaches after matches against this opponent. Not a prediction, and not the same as sporting level.
       </p>
       {shown.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-400">Not enough observations recorded yet to describe a repeated tendency.</p>
+        <p className="mt-3 text-sm text-[var(--text-muted)]">Not enough observations recorded yet to describe a repeated tendency.</p>
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
           {shown.map((tendency) => {
@@ -45,16 +45,16 @@ export function OpponentTacticalTendencySection({
             return (
               <li
                 key={tendency.tag}
-                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-zinc-200"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)]"
               >
-                <span className="font-medium text-zinc-100">{label}</span>
-                <span className="text-zinc-500"> · {confidenceLabel}</span>
-                <div className="mt-0.5 text-xs text-zinc-500">
+                <span className="font-medium text-[var(--foreground)]">{label}</span>
+                <span className="text-[var(--text-muted)]"> · {confidenceLabel}</span>
+                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                   Recent observations repeatedly show this in {tendency.occurrences} recorded encounter{tendency.occurrences === 1 ? "" : "s"}
                   {" "}(last seen {tendency.lastObservedAt.toLocaleDateString()}).
                 </div>
                 {outcome && (
-                  <div className="mt-0.5 text-xs text-zinc-500">
+                  <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                     In those {outcome.matchCount} match{outcome.matchCount === 1 ? "" : "es"}, the team recorded {outcome.goalsFor} goal
                     {outcome.goalsFor === 1 ? "" : "s"} for and {outcome.goalsAgainst} against.
                   </div>
