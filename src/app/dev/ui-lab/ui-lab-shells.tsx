@@ -29,13 +29,18 @@ export function UiLabShell({
   children,
   contentWidthClass = "max-w-[1180px]",
   compactPadClass = "px-4 pt-4",
+  navBuilder = uiLabNav,
 }: {
   activeKey: TouchlineNavKey;
   children: ReactNode;
   contentWidthClass?: string;
   compactPadClass?: string;
+  /** Defaults to the original UI Lab's nav (routes under /dev/ui-lab/*); the Atlas follow-up
+   * passes `atlasNav` (`src/app/dev/ui-lab/atlas/fixtures.ts`) to route under /dev/ui-lab/atlas/*
+   * instead, without a second shell implementation. */
+  navBuilder?: (activeKey: TouchlineNavKey) => { items: ReturnType<typeof uiLabNav>["items"]; activeKey: TouchlineNavKey };
 }) {
-  const { items, activeKey: active } = uiLabNav(activeKey);
+  const { items, activeKey: active } = navBuilder(activeKey);
 
   return (
     <div className="flex min-h-screen">

@@ -14,7 +14,12 @@ type PositionMapProps = {
   className?: string;
 };
 
-const POSITION_GRID: Record<string, { gridX: number; gridY: number }> = {
+/**
+ * Exported so other position-exposure consumers (e.g. `PitchExposure`,
+ * Touchline Design Atlas `04_WIDGET_COMPONENT_CONTRACTS.md §3`) can reuse the same grid-position
+ * lookup instead of re-declaring a second hard-coded position map.
+ */
+export const POSITION_GRID: Record<string, { gridX: number; gridY: number }> = {
   GK: { gridX: 2, gridY: 5 },
   CB: { gridX: 2, gridY: 4 },
   LB: { gridX: 0, gridY: 4 },

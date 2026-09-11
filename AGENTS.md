@@ -2748,6 +2748,42 @@ in-repo reference once the UI Lab gate is passed.
   `playwright.config.ts`). Visual regression, real-device acceptance, and Lighthouse/performance
   budgets remain absent from this repository / infeasible in a sandbox, unchanged from ADR-0134
   Phase 12's identical finding.
+
+  **Touchline Design Atlas & Composition Convergence (ADR-0136) — Phases 0-3 complete; Phase 4
+  onward gated on human visual approval of the Phase 3 UI Lab (Hard Gate A), not yet given.**
+  This bundle (`.matchboard-work/matchboard_touchline_design_atlas_implementation_followup_2026-09-11/`)
+  is a composition/information-architecture convergence layered on Touchline's material
+  foundation (ADR-0134/0135) - a golden-reference atlas plus per-route composition specs for 31
+  routes, implemented under a strict "implementer, not designer" contract with a 14-step gated
+  execution sequence. See ADR-0136 for the full account.
+
+  1. **Golden images are composition authority only, never navigation/domain-data authority** -
+     the single most consequential conflict resolved: the goldens' richer sidebars do not expand
+     the real 5-item Today/League/Events/Players/More navigation (Phase 2.4 stands). 17 such
+     corrections and a `PROHIBITED_ILLUSTRATIVE` register (team logos, opponent-strength
+     percentages, an external standings table, an accent-colour picker, player photos, a live map,
+     fabricated attributes) are recorded in `docs/domain/touchline-atlas-provenance.md`.
+  2. **One provenance path for every new field**: canonical data -> a pure, DB-free,
+     unit-tested presentation view-model builder (`src/lib/touchline/presentation/`, 15 modules,
+     33 tests) -> a semantic widget -> route composition. Every field is classified
+     `EXISTING_DIRECT`/`EXISTING_QUERYABLE`/`DERIVED_PRESENTATION`/`CONDITIONAL`.
+  3. **The widget/viz library extends, never duplicates, Touchline Finish's primitives** - 13
+     new widgets (`src/components/touchline/widgets/`) and 10 viz primitives
+     (`src/components/touchline/viz/`, including ADR-0125's originally unbuilt `DotComparison`)
+     either wrap an existing production component (lineup/tactics/formations composition reuses
+     the real `TacticsBoard`/`PitchPlayerToken`/`BenchRail`/`PositionFitList`, never a second
+     pitch) or compose `TouchlineWidget` (now with `hero`/`feature`/`support`/`scan` tones,
+     reconciled with its original three as aliases).
+  4. **Phase 3's UI Lab is route-complete**: all 31 matrix routes plus the Phase 2 gallery render
+     under `/dev/ui-lab/atlas/` - dev-only, unauthenticated tooling, no production route touched.
+  5. **Hard Gate A is a real stop condition** - the implementing agent never self-certifies visual
+     fidelity; Phases 4-14 (production migration, brand/PWA, transitional-system removal, full
+     regression, final approval) do not start without it.
+
+  Standard local verification (`npm run validate`'s relevant steps: lint, typecheck, terminology
+  check, architecture check, and the new presentation-layer unit tests) passed clean on this
+  branch. Do not begin Phase 4 production migration without a fresh, explicit human approval of
+  the `/dev/ui-lab/atlas` route set.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
