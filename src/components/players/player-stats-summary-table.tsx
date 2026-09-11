@@ -44,27 +44,27 @@ export function PlayerStatsSummaryTable({
                 <>
                   {([categoryStats.league, categoryStats.cup, categoryStats.other] as const).map((line) => (
                     <tr key={line.category} className="border-b border-[var(--border-soft)]/40">
-                      <td className="py-1 pr-3 text-zinc-200">{MATCH_CATEGORY_LABELS[line.category]}</td>
-                      <td className="text-right py-1 px-2 tabular-nums text-zinc-200">{line.appearances}</td>
-                      <td className="text-right py-1 px-2 tabular-nums text-zinc-200">{line.goals}</td>
-                      <td className="text-right py-1 px-2 tabular-nums text-zinc-200">{line.assists}</td>
+                      <td className="py-1 pr-3 text-[var(--foreground)]">{MATCH_CATEGORY_LABELS[line.category]}</td>
+                      <td className="text-right py-1 px-2 tabular-nums text-[var(--foreground)]">{line.appearances}</td>
+                      <td className="text-right py-1 px-2 tabular-nums text-[var(--foreground)]">{line.goals}</td>
+                      <td className="text-right py-1 px-2 tabular-nums text-[var(--foreground)]">{line.assists}</td>
                     </tr>
                   ))}
                 </>
               )}
               <tr className="font-semibold">
-                <td className="py-1 pr-3 text-zinc-100">Total</td>
-                <td className="text-right py-1 px-2 tabular-nums text-zinc-100">
+                <td className="py-1 pr-3 text-[var(--foreground)]">Total</td>
+                <td className="text-right py-1 px-2 tabular-nums text-[var(--foreground)]">
                   {hasCategoryData && categoryStats
                     ? categoryStats.total.appearances
                     : stats.actualAppearances}
                 </td>
-                <td className="text-right py-1 px-2 tabular-nums text-zinc-100">
+                <td className="text-right py-1 px-2 tabular-nums text-[var(--foreground)]">
                   {hasCategoryData && categoryStats
                     ? categoryStats.total.goals
                     : stats.goals}
                 </td>
-                <td className="text-right py-1 px-2 tabular-nums text-zinc-100">
+                <td className="text-right py-1 px-2 tabular-nums text-[var(--foreground)]">
                   {hasCategoryData && categoryStats
                     ? categoryStats.total.assists
                     : stats.assists}

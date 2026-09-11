@@ -83,7 +83,7 @@ export function PlayerReadinessPanel({ playerId, signals: initialSignals }: Play
             const validValues = READINESS_SIGNAL_VALID_VALUES[type];
             return (
               <div key={type} className="flex flex-col gap-1.5 py-1.5 px-2 rounded bg-[var(--surface-muted)]/40">
-                <span className="text-xs font-medium text-zinc-200">{label}</span>
+                <span className="text-xs font-medium text-[var(--foreground)]">{label}</span>
                 <select
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value as ReadinessSignalValue)}
@@ -118,7 +118,7 @@ export function PlayerReadinessPanel({ playerId, signals: initialSignals }: Play
             return (
               <div key={type} className="flex items-center justify-between gap-3 py-1.5 px-2 rounded hover:bg-[var(--surface-muted)]/30">
                 <div className="flex min-w-0 flex-col">
-                  <span className="text-xs font-medium text-zinc-200">{label}</span>
+                  <span className="text-xs font-medium text-[var(--foreground)]">{label}</span>
                   {existing.note && <span className="text-[var(--text-micro)] text-[var(--text-muted)] line-clamp-1">{existing.note}</span>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

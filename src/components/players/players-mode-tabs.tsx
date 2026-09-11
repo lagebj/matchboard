@@ -26,7 +26,7 @@ export function PlayersModeTabs({ mode, onModeChange }: PlayersModeTabsProps) {
           onClick={() => onModeChange(tab.mode)}
           className={`shrink-0 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px sm:px-4 ${
             mode === tab.mode
-              ? "border-[var(--accent-strong)] text-zinc-100"
+              ? "border-[var(--accent-strong)] text-[var(--foreground)]"
               : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-soft)] hover:border-[var(--border-strong)]"
           }`}
         >

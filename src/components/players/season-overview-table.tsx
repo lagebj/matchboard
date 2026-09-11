@@ -165,13 +165,13 @@ export function SeasonOverviewTable({
           placeholder="Search players..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Search players"
         />
         <select
           value={teamFilter}
           onChange={(e) => setTeamFilter(e.target.value)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Filter by team"
         >
           <option value="all">All teams</option>
@@ -182,7 +182,7 @@ export function SeasonOverviewTable({
         <select
           value={movementFilter}
           onChange={(e) => setMovementFilter(e.target.value as MovementFilter)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Filter by movement"
         >
           <option value="all">All movement</option>
@@ -195,7 +195,7 @@ export function SeasonOverviewTable({
         <select
           value={loadFilter}
           onChange={(e) => setLoadFilter(e.target.value as LoadFilter)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Filter by load"
         >
           <option value="all">All load</option>
@@ -205,7 +205,7 @@ export function SeasonOverviewTable({
         <select
           value={attendanceFilter}
           onChange={(e) => setAttendanceFilter(e.target.value as AttendanceFilter)}
-          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
+          className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-strong)]"
           aria-label="Filter by attendance"
         >
           <option value="all">All attendance</option>
@@ -219,7 +219,7 @@ export function SeasonOverviewTable({
             type="checkbox"
             checked={includeDrafts}
             onChange={(e) => setIncludeDrafts(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-800 text-[var(--accent-strong)] focus:ring-[var(--accent-strong)]"
+            className="h-3.5 w-3.5 rounded border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--accent-strong)] focus:ring-[var(--accent-strong)]"
           />
           Include drafts
         </label>
@@ -227,7 +227,7 @@ export function SeasonOverviewTable({
 
       {(() => {
         const renderMovement = (row: PlayerSeasonOverviewRow) => (
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-300">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--text-soft)]">
             <span className="text-[var(--text-muted)] font-medium">Movement:</span>
             {row.roundAssignments.length === 0 ? (
               <span className="text-[var(--text-muted)]">No assignments in this period</span>
@@ -236,7 +236,7 @@ export function SeasonOverviewTable({
                 <span key={ra.roundId} className="flex items-center gap-1">
                   <span className="text-[var(--text-muted)]">{ra.roundName || ra.roundId}</span>
                   {ra.role === "CORE" && <span className="text-[var(--success)]">Core</span>}
-                  {ra.role === "SUPPORT" && <span className="text-amber-400">Support</span>}
+                  {ra.role === "SUPPORT" && <span className="text-[var(--warning)]">Support</span>}
                   {ra.role === "DEVELOPMENT" && <span className="text-sky-400">Dev</span>}
                   {ra.teamName && <span className="text-[var(--text-muted)]">→ {ra.teamName}</span>}
                   {ra.isDraft && <span className="text-[var(--text-disabled)] italic">(draft)</span>}
@@ -276,37 +276,37 @@ export function SeasonOverviewTable({
                     {filteredRows.map((row) => (
                       <Fragment key={row.playerId}>
                         <tr
-                          className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer${row.draftSelections > 0 && includeDrafts ? " bg-zinc-900/30" : ""}`}
+                          className={`hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer${row.draftSelections > 0 && includeDrafts ? " bg-[var(--tl-c-surface-hover)]" : ""}`}
                           onClick={() => setExpandedPlayer(expandedPlayer === row.playerId ? null : row.playerId)}
                         >
                         <td className="px-4 py-2">
                           <span className="inline-flex items-center gap-1">
                             <span className="text-[var(--text-micro)] text-[var(--text-disabled)]">{expandedPlayer === row.playerId ? "▾" : "▸"}</span>
-                            <Link href={`/players/${row.playerId}`} className="font-medium text-zinc-200 hover:text-zinc-50" onClick={(e) => e.stopPropagation()}>
+                            <Link href={`/players/${row.playerId}`} className="font-medium text-[var(--foreground)] hover:text-[var(--foreground)]" onClick={(e) => e.stopPropagation()}>
                               {row.displayName}
                             </Link>
                           </span>
                         </td>
                         <td className="px-3 py-2 text-[var(--text-muted)]">
                           {row.coreTeam ? (
-                            <Link href={`/teams/${row.coreTeam.id}`} className="hover:text-zinc-200">
+                            <Link href={`/teams/${row.coreTeam.id}`} className="hover:text-[var(--foreground)]">
                               {row.coreTeam.name}
                             </Link>
                           ) : (
                             <span className="text-[var(--text-muted)]">Unassigned</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-zinc-200 tabular-nums">{row.actualAppearances}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.goals}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.assists}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.coreAppearances}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.supportAppearances}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{row.developmentAppearances}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.matchdayAdditions)}</td>
-                        <td className="px-3 py-2 text-zinc-300 tabular-nums">{numCell(row.plannedButAbsent)}</td>
+                        <td className="px-3 py-2 text-[var(--foreground)] tabular-nums">{row.actualAppearances}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{row.goals}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{row.assists}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{row.coreAppearances}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{row.supportAppearances}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{row.developmentAppearances}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{numCell(row.matchdayAdditions)}</td>
+                        <td className="px-3 py-2 text-[var(--text-soft)] tabular-nums">{numCell(row.plannedButAbsent)}</td>
                       </tr>
                       {expandedPlayer === row.playerId && (
-                        <tr className="bg-zinc-900/40">
+                        <tr className="bg-[var(--tl-c-surface-hover)]">
                           <td colSpan={10} className="px-4 py-3">
                             {renderMovement(row)}
                           </td>
@@ -333,7 +333,7 @@ export function SeasonOverviewTable({
                 row.plannedButAbsent > 0 ? `${row.plannedButAbsent} planned absent` : null,
               ].filter(Boolean);
               return (
-                <div className="rounded-xl border app-hairline bg-[rgba(12,15,20,0.45)] p-3">
+                <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-3">
                   {/* A <button> cannot contain the player-name <a> — nested interactive
                       controls fail WCAG 4.1.2 (axe: nested-interactive). The chevron is its
                       own real toggle button; the link is a sibling, not a descendant. */}
@@ -350,7 +350,7 @@ export function SeasonOverviewTable({
                       </button>
                       <Link
                         href={`/players/${row.playerId}`}
-                        className="app-row-title truncate text-zinc-200 hover:text-zinc-50"
+                        className="app-row-title truncate text-[var(--foreground)] hover:text-[var(--foreground)]"
                       >
                         {row.displayName}
                       </Link>
@@ -370,7 +370,7 @@ export function SeasonOverviewTable({
                   {loadNotes.length > 0 && (
                     <p className="mt-0.5 text-[11px] text-[var(--text-muted)] tabular-nums">{loadNotes.join(" · ")}</p>
                   )}
-                  {isExpanded && <div className="mt-2.5 border-t app-hairline pt-2.5">{renderMovement(row)}</div>}
+                  {isExpanded && <div className="mt-2.5 border-t border-[var(--border-soft)] pt-2.5">{renderMovement(row)}</div>}
                 </div>
               );
             }}

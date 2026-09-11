@@ -8,8 +8,7 @@ import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow } from "@/lib/players/get-players-overview";
 import type { RatingSummary } from "@/lib/ratings/player-rating";
 import { formatLeagueSeasonDisplay } from "@/lib/date/format-phase-display";
-import { PageHeader } from "@/components/ui/page-header";
-import { Button } from "@/components/ui/button";
+import { TouchlinePageHeader, TouchlineButton } from "@/components/touchline";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { MetricTile } from "@/components/ui/metric-tile";
 import { Users } from "lucide-react";
@@ -85,18 +84,19 @@ export function PlayersPageClient({
   }
 
   const selectClass =
-    "h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-zinc-300 outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none";
+    "h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-[var(--text-soft)] outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none";
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-4" data-theme="dark">
+      <TouchlinePageHeader
         title="Players"
-        description="Participation, movement and current planning attention."
+        context="Participation, movement and current planning attention."
         actions={
           teams.length > 0 ? (
-            <Button variant="primary" size="sm" as="a" href={orgUrl("/players/new")}>
+            <TouchlineButton variant="primary" size="sm" as="a" href={orgUrl("/players/new")}>
               Add player
-            </Button>
+            </TouchlineButton>
           ) : undefined
         }
       />
@@ -119,7 +119,7 @@ export function PlayersPageClient({
             className={`ml-2 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
               includeRemoved
                 ? "border-amber-700/50 bg-amber-950/30 text-[var(--warning)]"
-                : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50"
+                : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
             }`}
           >
             {includeRemoved ? "Hide removed" : `Show removed (${removedPlayerCount})`}

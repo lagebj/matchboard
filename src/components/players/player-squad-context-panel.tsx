@@ -82,7 +82,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
           <div className="flex flex-col gap-0.5">
             {rotationPaths.map((path) => (
               <div key={path.id} className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="text-zinc-300">
+                <span className="text-[var(--text-soft)]">
                   {path.fromTeamName} → {path.toTeamName}
                 </span>
                 <div className="flex items-center gap-1">
@@ -105,7 +105,7 @@ export function PlayerSquadContextPanel({ rotationPaths, movementCandidates, cor
           <div className="flex flex-col gap-0.5">
             {movementCandidates.map((cand) => (
               <div key={cand.id} className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="text-zinc-300">
+                <span className="text-[var(--text-soft)]">
                   {cand.fromTeamName} → {cand.toTeamName}
                 </span>
                 <div className="flex items-center gap-1">

@@ -184,9 +184,10 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
   }));
 
   return (
-    <div className="flex flex-col gap-3">
-      {error && <div className="rounded-md border border-red-900/40 bg-red-950/20 px-3 py-2 text-xs text-red-200">{error}</div>}
-      {formatSavedMessage(saved) && <div className="rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">{formatSavedMessage(saved)}</div>}
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 8).
+    <div className="touchline flex flex-col gap-3" data-theme="dark">
+      {error && <div className="rounded-md border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-3 py-2 text-xs text-[var(--danger)]">{error}</div>}
+      {formatSavedMessage(saved) && <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-3 py-2 text-xs text-[var(--success)]">{formatSavedMessage(saved)}</div>}
 
       <PlayerProfileHeader
         player={player}
