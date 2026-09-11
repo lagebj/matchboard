@@ -1,4 +1,5 @@
 import { saveRulesAction } from "@/app/(app)/rules/actions";
+import { TouchlineButton } from "@/components/touchline";
 import type { MatchboardRuleConfig } from "@/lib/rules/get-rules";
 
 function RuleSection({
@@ -11,9 +12,9 @@ function RuleSection({
   title: string;
 }) {
   return (
-    <section className="rounded-[1.5rem] border app-hairline bg-[rgba(255,255,255,0.025)] p-5">
+    <section className="rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-5">
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-zinc-50">{title}</h2>
+        <h2 className="text-base font-semibold text-[var(--foreground)]">{title}</h2>
         <p className="mt-1 text-sm app-copy-soft">{description}</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
@@ -33,10 +34,10 @@ function NumberField({
   name: string;
 }) {
   return (
-    <label className="flex flex-col gap-2 rounded-2xl border app-hairline bg-[rgba(255,255,255,0.03)] p-4 text-sm font-medium text-zinc-100">
+    <label className="flex flex-col gap-2 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] p-4 text-sm font-medium text-[var(--foreground)]">
       <span>{label}</span>
       <input
-        className="h-10 rounded-xl border app-hairline bg-[rgba(255,255,255,0.03)] px-3 font-normal text-zinc-50"
+        className="h-10 rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 font-normal text-[var(--foreground)]"
         defaultValue={defaultValue}
         min={0}
         name={name}
@@ -58,7 +59,7 @@ export function RulesForm({
   return (
     <form action={saveRulesAction} className="flex flex-col gap-6">
       {saved ? (
-        <div className="rounded-2xl border border-[rgba(140,167,146,0.3)] bg-[rgba(140,167,146,0.12)] px-4 py-3 text-sm text-zinc-100">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-4 py-3 text-sm text-[var(--foreground)]">
           Rule configuration saved.
         </div>
       ) : null}
@@ -82,12 +83,9 @@ export function RulesForm({
       </RuleSection>
 
       <div className="flex">
-        <button
-          className="h-10 rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-          type="submit"
-        >
+        <TouchlineButton type="submit" variant="primary">
           Save rules
-        </button>
+        </TouchlineButton>
       </div>
     </form>
   );
