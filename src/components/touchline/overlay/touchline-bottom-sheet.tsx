@@ -6,20 +6,28 @@ import { cn } from "@/lib/cn";
 
 /**
  * TouchlineBottomSheet (bundle `10_RESPONSIVE_AND_TOUCH_CONTRACT.md §8`,
- * `12_COMPONENT_CONTRACTS.md §14`).
+ * `12_COMPONENT_CONTRACTS.md §14`; anatomy widened by the Touchline Finish
+ * follow-up `03_CODE_CHANGE_MAP.md §K`).
  *
- * One shared compact sheet behaviour — max 88vh, 16 px top radius,
- * control-layer material, a visible close control, keyboard-safe, independent
- * body scroll, safe-area respected. Swipe-down is not required for the sheet to
- * be fully usable; the X (or a Cancel action in `footer`) always works. Do not
- * fork route-specific modal implementations that share these semantics.
+ * One shared compact sheet behaviour — max 88vh, 24 px top radius,
+ * control-glass material at >=94% opacity (or an opaque widget background
+ * where content density requires it), a 48×4 drag handle, a 44×44 close
+ * target, a visible close control, keyboard-safe, independent body scroll,
+ * safe-area respected. Swipe-down is not required for the sheet to be fully
+ * usable; the X (or a Cancel action in `footer`) always works. Do not fork
+ * route-specific modal implementations that share these semantics.
  */
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   title: ReactNode;
   description?: ReactNode;
+  /** Optional feature slot above title/body — e.g. a hero identity block. */
+  hero?: ReactNode;
+  /** "utility" (default) is a compact functional sheet; "context" is a feature sheet with a larger title. */
+  tone?: "utility" | "context";
   children?: ReactNode;
+  /** Sticky, full-width on compact when the sheet needs one dominant commit action. */
   footer?: ReactNode;
   ariaLabel?: string;
 };
@@ -29,6 +37,8 @@ export function TouchlineBottomSheet({
   onClose,
   title,
   description,
+  hero,
+  tone = "utility",
   children,
   footer,
   ariaLabel,
@@ -71,14 +81,22 @@ export function TouchlineBottomSheet({
         aria-labelledby={ariaLabel ? undefined : "tl-sheet-title"}
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         className={cn(
-          "relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-[var(--tl-c-radius-overlay)] border-t border-[var(--border-strong)] bg-[var(--tl-c-canvas-raised)] shadow-[var(--tl-c-shadow-overlay)] transition-transform duration-[var(--tl-c-motion-panel)] ease-[var(--tl-c-motion-ease)]",
+          "relative z-10 flex max-h-[88vh] w-full flex-col rounded-t-[var(--tl-radius-sheet)] border-t border-[var(--tl-control-glass-border)] shadow-[var(--tl-control-glass-shadow)] transition-transform duration-[var(--tl-c-motion-panel)] ease-[var(--tl-c-motion-ease)]",
+          tone === "context" ? "bg-[var(--tl-control-glass)]" : "bg-[var(--tl-widget)]",
           entered ? "translate-y-0" : "translate-y-full",
         )}
       >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--border-strong)]" aria-hidden="true" />
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--border-soft)] px-5 py-3.5">
+        <div className="mx-auto mt-2.5 h-1 w-12 shrink-0 rounded-full bg-[var(--border-strong)]" aria-hidden="true" />
+        {hero ? <div className="px-5 pt-3">{hero}</div> : null}
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--border-soft)] px-5 py-4">
           <div className="min-w-0">
-            <h2 id="tl-sheet-title" className="text-[16px] font-[620] text-[var(--foreground)]">
+            <h2
+              id="tl-sheet-title"
+              className={cn(
+                "font-[650] text-[var(--foreground)]",
+                tone === "context" ? "text-[22px]" : "text-[18px]",
+              )}
+            >
               {title}
             </h2>
             {description ? <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{description}</p> : null}
@@ -88,14 +106,14 @@ export function TouchlineBottomSheet({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-[var(--tl-c-radius-control)] p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--tl-c-surface-hover)] hover:text-[var(--foreground)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--tl-c-surface-hover)] hover:text-[var(--foreground)]"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         {children ? <div className="flex flex-col gap-3 overflow-y-auto px-5 py-4">{children}</div> : null}
         {footer ? (
-          <div className="flex items-center justify-end gap-2 border-t border-[var(--border-soft)] px-5 py-3">
+          <div className="sticky bottom-0 flex items-center gap-2 border-t border-[var(--border-soft)] bg-inherit px-5 py-3 medium:justify-end">
             {footer}
           </div>
         ) : null}

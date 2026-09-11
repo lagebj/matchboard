@@ -5,6 +5,7 @@
  */
 export { TouchlineMark } from "./brand/touchline-mark";
 export { TouchlineWordmark } from "./brand/touchline-wordmark";
+export { TouchlineBrandTile } from "./brand/touchline-brand-tile";
 
 export { TouchlineButton } from "./controls/touchline-button";
 export type { TouchlineButtonVariant, TouchlineButtonSize } from "./controls/touchline-button";
@@ -45,6 +46,28 @@ export { WorkbenchToolbar } from "./workbench/workbench-toolbar";
 export { RosterColumn } from "./workbench/roster-column";
 export { RosterRow } from "./workbench/roster-row";
 export { TouchlineInspector, InspectorFact } from "./workbench/touchline-inspector";
+export { WorkbenchSummaryStrip } from "./workbench/workbench-summary-strip";
+export type { WorkbenchSummaryItem } from "./workbench/workbench-summary-strip";
+export { BenchRail } from "./workbench/bench-rail";
+export type { BenchRailPlayer } from "./workbench/bench-rail";
+export { PositionFitList } from "./workbench/position-fit-list";
+export type { PositionFitEntry } from "./workbench/position-fit-list";
+export { PlayerContextHeader } from "./workbench/player-context-header";
 
 export { TouchlineBottomSheet } from "./overlay/touchline-bottom-sheet";
 export { AppearanceControl } from "./theme/appearance-control";
+
+export { TouchlineWidget } from "./widget/touchline-widget";
+export type { TouchlineWidgetTone, TouchlineWidgetPadding } from "./widget/touchline-widget";
+export { WidgetHeader } from "./widget/widget-header";
+export { MetricStrip } from "./widget/metric-strip";
+export type { MetricStripItem } from "./widget/metric-strip";
+export { CapacityBar } from "./widget/capacity-bar";
+export { QuickActionGrid } from "./widget/quick-action-grid";
+export type { QuickAction } from "./widget/quick-action-grid";
+
+export { PitchPlayerToken, PitchEmptySlot } from "./pitch/pitch-player-token";
+export type { PitchPlayerTokenStatus } from "./pitch/pitch-player-token";
+
+export { LiveActionGrid } from "./live/live-action-grid";
+export type { LiveAction, LiveActionTone } from "./live/live-action-grid";
