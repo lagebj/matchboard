@@ -89,7 +89,7 @@ export function MatchCombinationEvidencePanel({ evidence, players }: MatchCombin
       <ul className="mt-2 flex flex-col gap-2">
         {rows.map((row) => (
           <li key={row.id} className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm">
-            <p className="font-medium text-zinc-100">{describe(row, nameById)}</p>
+            <p className="font-medium text-[var(--foreground)]">{describe(row, nameById)}</p>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">{outcomeLine(row)}</p>
           </li>
         ))}

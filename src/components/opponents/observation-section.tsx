@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useId, useActionState } from "react";
+import { TouchlineButton } from "@/components/touchline";
 import { saveObservationAction, updateMatchFitAction } from "@/app/(app)/matches/[matchId]/post-match/observation-actions";
 import {
   ENVIRONMENT_OBSERVATION_LABELS,
@@ -112,18 +113,18 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
   if (isLocked) {
     return (
       <section className="space-y-4">
-        <h3 className="text-lg font-semibold text-zinc-50">Opponent and match environment</h3>
-        <p className="text-sm text-zinc-400">
+        <h3 className="text-lg font-semibold text-[var(--foreground)]">Opponent and match environment</h3>
+        <p className="text-sm text-[var(--text-muted)]">
           This report is locked. Observations cannot be edited.
         </p>
-        <div className="space-y-2 text-sm text-zinc-300">
-          <p><span className="text-zinc-400">Sporting match fit:</span> {MATCH_FIT_LABELS[matchFitValue as MatchFit] ?? "Not assessed"}</p>
-          <p><span className="text-zinc-400">Overall environment:</span> {existingObservation ? (ENVIRONMENT_OBSERVATION_LABELS[existingObservation.overallEnvironment as MatchEnvironmentObservation] ?? existingObservation.overallEnvironment) : "Not assessed"}</p>
-          {existingObservation?.factualSummary && <p><span className="text-zinc-400">Summary:</span> {existingObservation.factualSummary}</p>}
-          {existingObservation && existingObservation.followUp !== "NONE" && <p><span className="text-zinc-400">Follow-up:</span> {FOLLOW_UP_LABELS[existingObservation.followUp as OpponentObservationFollowUp] ?? existingObservation.followUp}</p>}
+        <div className="space-y-2 text-sm text-[var(--text-soft)]">
+          <p><span className="text-[var(--text-muted)]">Sporting match fit:</span> {MATCH_FIT_LABELS[matchFitValue as MatchFit] ?? "Not assessed"}</p>
+          <p><span className="text-[var(--text-muted)]">Overall environment:</span> {existingObservation ? (ENVIRONMENT_OBSERVATION_LABELS[existingObservation.overallEnvironment as MatchEnvironmentObservation] ?? existingObservation.overallEnvironment) : "Not assessed"}</p>
+          {existingObservation?.factualSummary && <p><span className="text-[var(--text-muted)]">Summary:</span> {existingObservation.factualSummary}</p>}
+          {existingObservation && existingObservation.followUp !== "NONE" && <p><span className="text-[var(--text-muted)]">Follow-up:</span> {FOLLOW_UP_LABELS[existingObservation.followUp as OpponentObservationFollowUp] ?? existingObservation.followUp}</p>}
           {existingObservation && existingObservation.playingStyleTags.length > 0 && (
             <div>
-              <span className="text-zinc-400">Playing style tags: </span>
+              <span className="text-[var(--text-muted)]">Playing style tags: </span>
               {existingObservation.playingStyleTags.map((tag) => PLAYING_STYLE_TAG_LABELS[tag as PlayingStyleTag] ?? tag).join(", ")}
             </div>
           )}
@@ -135,14 +136,14 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
   return (
     <section className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-50">Opponent and match environment</h3>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h3 className="text-lg font-semibold text-[var(--foreground)]">Opponent and match environment</h3>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           Record the Fair Play experience around this match using observable conditions only.
         </p>
       </div>
 
       {observationState.error && (
-        <div className="rounded-2xl border border-[rgba(185,128,119,0.36)] bg-[rgba(185,128,119,0.14)] px-4 py-3 text-sm text-[var(--foreground)]">
+        <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-4 py-3 text-sm text-[var(--danger)]">
           {observationState.error}
         </div>
       )}
@@ -153,8 +154,8 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
         {/* A. Sporting match fit */}
         <form action={matchFitFormAction} className="space-y-2">
           <input type="hidden" name="matchId" value={matchId} />
-          <h4 className="text-sm font-semibold text-zinc-50">Sporting match fit</h4>
-          <p className="text-xs text-zinc-400">
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Sporting match fit</h4>
+          <p className="text-xs text-[var(--text-muted)]">
             Assess the football challenge for the squad that played in this match. This describes this encounter, not a fixed level or rating of the opponent.
           </p>
           <div className="flex items-center gap-3">
@@ -163,7 +164,7 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
               value={matchFitValue}
               onChange={(e) => setMatchFitValue(e.target.value)}
               disabled={isLocked}
-              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none flex-1 disabled:opacity-60"
+              className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none flex-1 disabled:opacity-60"
             >
               {MATCH_FIT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -172,33 +173,30 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
               ))}
             </select>
             {!isLocked && (
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-4 text-xs font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
-              >
+              <TouchlineButton type="submit" variant="primary" size="sm">
                 Save
-              </button>
+              </TouchlineButton>
             )}
           </div>
           {matchFitState.error && (
-            <p className="text-xs text-red-400">{matchFitState.error}</p>
+            <p className="text-xs text-[var(--danger)]">{matchFitState.error}</p>
           )}
           {matchFitState.success && matchFit !== matchFitValue && (
-            <p className="text-xs text-emerald-400">Match fit updated.</p>
+            <p className="text-xs text-[var(--success)]">Match fit updated.</p>
           )}
         </form>
 
         {/* B. Match environment */}
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-zinc-50">Match environment</label>
-          <p className="text-xs text-zinc-400">
+          <label className="text-sm font-semibold text-[var(--foreground)]">Match environment</label>
+          <p className="text-xs text-[var(--text-muted)]">
             Record the Fair Play experience around this match using observable conditions only.
           </p>
           <select
             name="overallEnvironment"
             value={overallEnvironment}
             onChange={(e) => setOverallEnvironment(e.target.value)}
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none w-full"
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none w-full"
           >
             {ENVIRONMENT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -210,7 +208,7 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
 
         {/* C. Areas observed */}
         <div className="space-y-3">
-          <label className="text-sm font-semibold text-zinc-50">Areas observed</label>
+          <label className="text-sm font-semibold text-[var(--foreground)]">Areas observed</label>
           <div className="space-y-3">
             {(
               [
@@ -220,12 +218,12 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
               ] as const
             ).map(({ key, label, value, setter }) => (
               <div key={key} className="space-y-1">
-                <label className="text-xs text-zinc-400">{label}</label>
+                <label className="text-xs text-[var(--text-muted)]">{label}</label>
                 <select
                   name={key}
                   value={value}
                   onChange={(e) => setter(e.target.value)}
-                  className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none w-full"
+                  className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none w-full"
                 >
                   {ENVIRONMENT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -241,13 +239,13 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
         {/* D. Concern categories */}
         {showConcernCategories && (
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-zinc-50">Observed concern categories</label>
-            <p className="text-xs text-zinc-400">
+            <label className="text-sm font-semibold text-[var(--foreground)]">Observed concern categories</label>
+            <p className="text-xs text-[var(--text-muted)]">
               Select all that apply. Describe what was observed, not who caused it.
             </p>
             <div className="space-y-2">
               {CONCERN_CATEGORY_OPTIONS.map((opt) => (
-                <label key={opt.value} className="flex items-start gap-2 text-sm text-zinc-200">
+                <label key={opt.value} className="flex items-start gap-2 text-sm text-[var(--foreground)]">
                   <input
                     type="checkbox"
                     name="concernCategories"
@@ -266,14 +264,14 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
         {/* E. Playing style tags */}
         <div className="space-y-3">
           <div>
-            <label className="text-sm font-semibold text-zinc-50">Opponent playing style</label>
-            <p className="text-xs text-zinc-400">
+            <label className="text-sm font-semibold text-[var(--foreground)]">Opponent playing style</label>
+            <p className="text-xs text-[var(--text-muted)]">
               Describe the opponent's observed playing style in this encounter. This describes this match, not a fixed trait. Select up to 5.
             </p>
           </div>
           {PLAYING_STYLE_TAG_GROUPS.map((group) => (
             <div key={group.label} className="space-y-1.5">
-              <p className="text-xs font-medium text-zinc-400">{group.label}</p>
+              <p className="text-xs font-medium text-[var(--text-muted)]">{group.label}</p>
               <div className="flex flex-wrap gap-2">
                 {group.tags.map((tag) => {
                   const isSelected = selectedStyleTags.includes(tag);
@@ -284,8 +282,8 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
                       onClick={() => toggleStyleTag(tag)}
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                         isSelected
-                          ? "bg-[var(--accent-strong)] text-zinc-900"
-                          : "bg-[var(--surface-base)] border border-[var(--border-soft)] text-zinc-300 hover:border-[var(--accent-strong)]"
+                          ? "bg-[var(--accent-strong)] text-[var(--tl-c-accent-on-fill)]"
+                          : "bg-[var(--surface-base)] border border-[var(--border-soft)] text-[var(--text-soft)] hover:border-[var(--accent-strong)]"
                       }`}
                     >
                       {PLAYING_STYLE_TAG_LABELS[tag]}
@@ -302,11 +300,11 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
 
         {/* F. Factual summary */}
         <div className="space-y-2">
-          <label htmlFor={`summary-${formId}`} className="text-sm font-semibold text-zinc-50">
+          <label htmlFor={`summary-${formId}`} className="text-sm font-semibold text-[var(--foreground)]">
             Brief factual summary
-            {summaryRequired && <span className="text-red-400 ml-1">*</span>}
+            {summaryRequired && <span className="text-[var(--danger)] ml-1">*</span>}
           </label>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[var(--text-muted)]">
             {FACTUAL_SUMMARY_HELPER}
           </p>
           <textarea
@@ -318,20 +316,20 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
             rows={3}
             required={summaryRequired}
             placeholder={summaryRequired ? "Required for serious concern observations..." : "Optional..."}
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none w-full resize-y"
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none w-full resize-y"
           />
-          <p className="text-xs text-zinc-500">{summaryChars}/500 characters</p>
+          <p className="text-xs text-[var(--text-muted)]">{summaryChars}/500 characters</p>
         </div>
 
         {/* G. Follow-up */}
         <div className="space-y-2">
-          <label htmlFor={`followup-${formId}`} className="text-sm font-semibold text-zinc-50">Follow-up</label>
+          <label htmlFor={`followup-${formId}`} className="text-sm font-semibold text-[var(--foreground)]">Follow-up</label>
           <select
             id={`followup-${formId}`}
             name="followUp"
             value={followUp}
             onChange={(e) => setFollowUp(e.target.value)}
-            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-zinc-100 focus:border-[var(--accent-strong)] focus:outline-none w-full"
+            className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none w-full"
           >
             {FOLLOW_UP_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -343,19 +341,16 @@ export function ObservationSection({ matchId, existingObservation, isLocked, mat
 
         {/* H. Serious concern callout */}
         {overallIsSerious && (
-          <div className="rounded-2xl border border-[rgba(185,128,119,0.5)] bg-[rgba(185,128,119,0.12)] px-4 py-3">
-            <p className="text-sm text-zinc-200 font-medium">
+          <div className="rounded-[var(--tl-c-radius-object)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[var(--danger-subtle)] px-4 py-3">
+            <p className="text-sm text-[var(--foreground)] font-medium">
               {SERIOUS_CONCERN_CALLOUT}
             </p>
           </div>
         )}
 
-        <button
-          type="submit"
-          className="inline-flex h-11 items-center justify-center rounded-full border border-[rgba(205,219,210,0.32)] bg-[linear-gradient(180deg,rgba(146,171,151,0.26),rgba(88,110,100,0.18))] px-5 text-sm font-semibold text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[linear-gradient(180deg,rgba(146,171,151,0.34),rgba(88,110,100,0.26))]"
-        >
+        <TouchlineButton type="submit" variant="primary" size="lg">
           Save post-match observation
-        </button>
+        </TouchlineButton>
       </form>
     </section>
   );

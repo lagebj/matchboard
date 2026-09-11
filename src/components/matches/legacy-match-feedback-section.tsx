@@ -32,8 +32,8 @@ export function LegacyMatchFeedbackSection({ feedback, players }: LegacyMatchFee
   if (feedback.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border app-hairline bg-[rgba(255,255,255,0.025)] p-4">
-      <h3 className="text-sm font-semibold text-zinc-200 mb-1">Post-match feedback (legacy)</h3>
+    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] p-4">
+      <h3 className="text-sm font-semibold text-[var(--foreground)] mb-1">Post-match feedback (legacy)</h3>
       <p className="text-[10px] text-[var(--text-muted)] mb-3">
         Recorded before this was consolidated into Football observations below. Preserved as history; no longer editable here.
       </p>
@@ -42,14 +42,14 @@ export function LegacyMatchFeedbackSection({ feedback, players }: LegacyMatchFee
         {feedback.map((f) => {
           const player = players.find((p) => p.id === f.playerId);
           return (
-            <div key={f.id} className="flex items-start gap-2 rounded-md border border-zinc-700/40 bg-zinc-800/20 px-3 py-2">
+            <div key={f.id} className="flex items-start gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2">
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-200">
+                <p className="text-xs text-[var(--foreground)]">
                   <span className="font-medium">{player?.name ?? f.playerId}</span>
-                  <span className="text-zinc-500 mx-1">·</span>
+                  <span className="text-[var(--text-muted)] mx-1">·</span>
                   <span className="text-[var(--text-muted)]">{FEEDBACK_CATEGORY_LABELS[f.category as FeedbackCategory] ?? f.category}</span>
-                  <span className="text-zinc-500 mx-1">·</span>
-                  <span className={f.value === "POSITIVE" ? "text-emerald-400" : f.value === "NEEDS_ATTENTION" ? "text-amber-400" : "text-zinc-300"}>
+                  <span className="text-[var(--text-muted)] mx-1">·</span>
+                  <span className={f.value === "POSITIVE" ? "text-[var(--success)]" : f.value === "NEEDS_ATTENTION" ? "text-[var(--warning)]" : "text-[var(--text-soft)]"}>
                     {formatFeedbackValue(f.value)}
                   </span>
                 </p>
@@ -57,10 +57,10 @@ export function LegacyMatchFeedbackSection({ feedback, players }: LegacyMatchFee
                   <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{f.observableBehavior}</p>
                 )}
                 {f.nextAction && f.nextAction !== "NO_ACTION" && (
-                  <p className="text-[10px] text-blue-400 mt-0.5">Next: {formatNextAction(f.nextAction)}</p>
+                  <p className="text-[10px] text-[var(--accent-strong)] mt-0.5">Next: {formatNextAction(f.nextAction)}</p>
                 )}
                 {f.note && (
-                  <p className="text-[10px] text-zinc-500 mt-0.5">{f.note}</p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{f.note}</p>
                 )}
               </div>
             </div>
