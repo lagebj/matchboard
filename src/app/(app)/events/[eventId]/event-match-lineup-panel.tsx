@@ -362,7 +362,7 @@ export function EventMatchLineupPanel({
                 : formations[0]?.id,
             )}
             disabled={readOnly || formations.length === 0}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent)] disabled:opacity-50"
             title="Uses the squad's own formation, or the Event default, when set"
           >
             Create lineup
@@ -420,7 +420,7 @@ export function EventMatchLineupPanel({
             <button
               onClick={handleAutoFill}
               disabled={readOnly}
-              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent)] disabled:opacity-50"
             >
               Auto-fill
             </button>

@@ -32,7 +32,7 @@ const typeConfig: Record<IssueMarkerType, { dotClass: string; textClass: string;
     bgClass: "bg-[var(--warning-subtle)] border-[var(--warning)]/25",
   },
   note: {
-    dotClass: "bg-[var(--locked)]",
+    dotClass: "bg-[var(--text-disabled)]",
     textClass: "text-[var(--text-soft)]",
     bgClass: "bg-[var(--surface-muted)]/40 border-[var(--border-soft)]",
   },

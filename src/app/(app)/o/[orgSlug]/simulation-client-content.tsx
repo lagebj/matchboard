@@ -204,7 +204,7 @@ export function SimulationPageContent() {
         title="Season Planning Simulation"
         description="Dry-run planning across league rounds and events without committing changes."
       />
-      <p className="text-xs text-[var(--text-muted)] border border-[var(--border-subtle)] rounded px-2 py-1 bg-[var(--surface-muted)]">
+      <p className="text-xs text-[var(--text-muted)] border border-[var(--border-soft)] rounded px-2 py-1 bg-[var(--surface-muted)]">
         Simulation creates draft selections for non-finalized rounds. Existing drafts will be replaced. No finalized history is created.
         {" "}
         <a href="/workbench" className="text-[var(--accent)] hover:underline">Policy Workbench →</a>
@@ -244,7 +244,7 @@ export function SimulationPageContent() {
                 type="checkbox"
                 checked={includeLeague}
                 onChange={(e) => setIncludeLeague(e.target.checked)}
-                className="rounded border-[var(--border)]"
+                className="rounded border-[var(--border-soft)]"
               />
               Include league
             </label>
@@ -253,7 +253,7 @@ export function SimulationPageContent() {
                 type="checkbox"
                 checked={includeEvents}
                 onChange={(e) => setIncludeEvents(e.target.checked)}
-                className="rounded border-[var(--border)]"
+                className="rounded border-[var(--border-soft)]"
               />
               Include events
             </label>

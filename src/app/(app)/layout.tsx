@@ -17,10 +17,17 @@ import { headers } from "next/headers";
  * src/app/manifest.ts. A distinct Test-marker home-screen icon is separate,
  * owner-approval-adjacent asset work (UX-2.10-01) — this badge doesn't wait
  * on that.
+ *
+ * Text uses --foreground, not --warning: the border/background carry the
+ * amber "test" identity, but text-on-its-own-subtle-tinted-background (same
+ * hue for both) measures only 4.3:1 in light theme against this badge's
+ * specific composited background (caught live in CI, ADR-0134 Phase 10) —
+ * short of the 4.5:1 AA minimum. --foreground is calibrated for legibility
+ * against any of this app's subtle-tinted surfaces, in both themes.
  */
 function TestEnvironmentBadge() {
   return (
-    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--warning)]">
+    <span className="shrink-0 rounded-md border border-[var(--warning)]/40 bg-[var(--warning-subtle)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]">
       Test
     </span>
   );
@@ -42,13 +49,11 @@ export default async function AppLayout({
     // /invite/[token] live inside this same (app) group and must stay
     // reachable in this state, or redirecting to them here loops forever.
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        {/* Shell chrome renders inside a `.touchline` island (theme-aware, no longer dark-pinned
-            as of Phase 9). Page content (`{children}`) stays on Product Surface 1.0
-            until its own migration phase wraps it — see ADR-0134's phased
-            model. */}
+      // Touchline hoisted to the shell root (ADR-0134 Phase 10) — every route now renders inside
+      // this scope, so PS 1.0's old bare-:root color tokens were removed from globals.css.
+      <div className="touchline flex min-h-screen flex-col bg-background">
         <header
-          className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
+          className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
         >
           <div className="flex flex-1 min-w-0 items-center gap-2 px-4 py-3">
             <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground)]">
@@ -80,10 +85,10 @@ export default async function AppLayout({
   const content = (
     <OrgSlugProvider orgSlug={orgSlug}>
       <OrgSlugCookieSetter orgSlug={orgSlug} />
-      {/* The nav / top bar are `.touchline` islands (theme-aware, no longer dark-pinned); page content
-          stays on Product Surface 1.0 until its own migration phase. Phase 10
-          hoists `.touchline` to this wrapper and deletes the PS 1.0 layer. */}
-      <div className="app-shell flex min-h-screen bg-background">
+      {/* Touchline hoisted to the shell root (ADR-0134 Phase 10) — every route now renders
+          inside this scope; PS 1.0's old bare-:root color tokens were removed from
+          globals.css since nothing renders outside `.touchline` anymore. */}
+      <div className="touchline app-shell flex min-h-screen bg-background">
         <aside className="sticky top-0 z-30 hidden h-screen w-[var(--rail-width)] shrink-0 flex-col medium:flex expanded:hidden">
           <NavigationRail orgSlug={orgSlug} />
         </aside>
@@ -92,7 +97,7 @@ export default async function AppLayout({
         </aside>
         <div className="flex min-h-screen flex-1 flex-col">
           <header
-            className="touchline sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
+            className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
           >
             <div className="min-w-0 flex-1">
               <TopContextBar />

@@ -166,7 +166,7 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
         </div>
 
         {showNew && (
-          <div className="rounded-md border border-[var(--border)] bg-[var(--surface-raised)] p-2.5">
+          <div className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-raised)] p-2.5">
             <div className="flex flex-col gap-2">
               <input
                 type="text"
@@ -174,13 +174,13 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
                 value={newFocus}
                 onChange={(e) => setNewFocus(e.target.value)}
                 maxLength={200}
-                className="w-full rounded border border-[var(--border)] bg-[var(--surface-default)] px-2 py-1.5 text-sm"
+                className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1.5 text-sm"
                 disabled={saving}
               />
               <select
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value as DevelopmentFocusCategory | '')}
-                className="w-full rounded border border-[var(--border)] bg-[var(--surface-default)] px-2 py-1.5 text-sm"
+                className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1.5 text-sm"
                 disabled={saving}
               >
                 <option value="">No category</option>
@@ -196,7 +196,7 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
                 onChange={(e) => setNewRationale(e.target.value)}
                 maxLength={1000}
                 rows={2}
-                className="w-full rounded border border-[var(--border)] bg-[var(--surface-default)] px-2 py-1.5 text-sm"
+                className="w-full rounded border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1.5 text-sm"
                 disabled={saving}
               />
               <Button size="sm" onClick={handleCreate} disabled={saving || !newFocus.trim()}>
@@ -213,7 +213,7 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
         )}
 
         {displayedThreads.map((thread) => (
-          <div key={thread.id} className="rounded-md border border-[var(--border)] bg-[var(--surface-default)] p-2.5">
+          <div key={thread.id} className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-2.5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <div className="flex items-center gap-1.5">
@@ -260,7 +260,7 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
             {expandedThread === thread.id && (
               <div className="mt-2 flex flex-col gap-1.5">
                 {thread.observations.map((obs) => (
-                  <div key={obs.id} className="flex items-start justify-between rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-1.5">
+                  <div key={obs.id} className="flex items-start justify-between rounded border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1.5">
                     <div className="flex-1">
                       <p className="text-sm">{obs.evidence}</p>
                       {obs.context && <p className="text-xs text-[var(--text-muted)]">{obs.context}</p>}
@@ -286,7 +286,7 @@ export function PlayerDevelopmentThreadsPanel({ playerId, threads: initialThread
                       value={obsInput[thread.id] ?? ''}
                       onChange={(e) => setObsInput((prev) => ({ ...prev, [thread.id]: e.target.value }))}
                       maxLength={1000}
-                      className="flex-1 rounded border border-[var(--border)] bg-[var(--surface-default)] px-2 py-1 text-sm"
+                      className="flex-1 rounded border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
                       disabled={isPending}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleAddObservation(thread.id);

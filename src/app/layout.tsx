@@ -90,7 +90,17 @@ export default async function RootLayout({
             wrong appearance (ADR-0134 §3). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full bg-background font-sans text-foreground">
+      {/* Touchline hoisted to the true shell root (ADR-0134 Phase 10) — <body> is the one
+          ancestor common to both the (app) and (auth) route groups, and PS 1.0's old
+          bare-:root color tokens were removed from globals.css, so this class must live here
+          rather than only on each route group's own layout wrapper. Neither route group's own
+          `.touchline` (still present on each) is redundant in a way worth stripping — the
+          (auth) layout's carries its own deliberate `data-theme="dark"` pin. `touchline-canvas`
+          is Touchline's theme-aware atmosphere radial (touchline.css) — previously wired only
+          into the /dev/ui-lab preview harness, never the real shell, which would have left every
+          real page with no atmosphere effect at all once PS 1.0's own (stale, wrong-hued) body
+          radial was removed below. */}
+      <body className="touchline touchline-canvas min-h-full bg-background font-sans text-foreground">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             {children}

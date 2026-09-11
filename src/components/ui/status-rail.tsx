@@ -37,8 +37,8 @@ const statusConfig: Record<
   },
   locked: {
     text: "Locked",
-    dotClass: "bg-[var(--locked)]",
-    textClass: "text-[var(--locked)]",
+    dotClass: "bg-[var(--text-disabled)]",
+    textClass: "text-[var(--text-disabled)]",
   },
   blocked: {
     text: "Blocked",

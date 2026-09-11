@@ -130,7 +130,7 @@ export function OpponentTeamSelect({
                 className={`cursor-pointer px-3 py-2 text-sm ${
                   idx === highlightIndex
                     ? "bg-[var(--accent-strong)] text-[var(--tl-c-accent-on-fill)]"
-                    : "text-[var(--foreground)] hover:bg-[var(--accent-soft)]"
+                    : "text-[var(--foreground)] hover:bg-[var(--accent-subtle)]"
                 }`}
                 onMouseDown={() => handleSelect(team)}
                 onMouseEnter={() => setHighlightIndex(idx)}

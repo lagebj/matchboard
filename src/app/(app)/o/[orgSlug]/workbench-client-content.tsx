@@ -166,7 +166,7 @@ export function WorkbenchPageContent() {
         title="Policy and Generation Workbench"
         description="Dry-run policy and generation behavior without changing event, league, lineup, or report data."
       />
-      <p className="text-xs text-[var(--text-muted)] border border-[var(--border-subtle)] rounded px-2 py-1 bg-[var(--surface-muted)]">
+      <p className="text-xs text-[var(--text-muted)] border border-[var(--border-soft)] rounded px-2 py-1 bg-[var(--surface-muted)]">
         Currently available to all logged-in users. Intended to move behind an admin permission when admin roles exist.
         {" "}
         <a href="/simulation" className="text-[var(--accent)] hover:underline">Season Planning Simulation →</a>
@@ -222,7 +222,7 @@ export function WorkbenchPageContent() {
                 type="checkbox"
                 checked={compareRego}
                 onChange={(e) => setCompareRego(e.target.checked)}
-                className="rounded border-[var(--border)]"
+                className="rounded border-[var(--border-soft)]"
               />
               Compare default vs Rego
             </label>

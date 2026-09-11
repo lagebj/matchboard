@@ -1117,7 +1117,7 @@ export function RoundBoard({
           </TouchlineButton>
         }
       >
-        {repairError && <p className="text-sm text-[var(--text-error)]">{repairError}</p>}
+        {repairError && <p className="text-sm text-[var(--danger)]">{repairError}</p>}
         {!repairError && repairOptions === null && (
           <p className="text-sm text-[var(--text-muted)]">Generating options…</p>
         )}

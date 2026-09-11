@@ -143,15 +143,100 @@ Every surface *named so far* was migrated at this point, and this ADR then claim
   `var(--surface-1)` undefined-token bug already found once in Settings' Phase 9 pass — fixed to
   `--surface-base`.
 
-  **Given two independent classes of latent, already-shipped bugs were found by widening the
-  audit method twice, Phase 10 is not yet declared unblocked a third time without another
-  verification pass first.** Phase 10 (remove the superseded Product Surface 1.0 system) remains
-  the next piece of work, contingent on that pass finding nothing further. The compact bottom nav
-  is
-  **opaque** (a `position: fixed` translucent surface has no determinate background for WCAG-AA
-  contrast checking; `04 §12` already mandates a solid fallback). Phase 9 removes the pins +
-  ships the appearance control after a light AA audit; Phase 10 hoists `.touchline` to the shell
-  root and deletes the PS 1.0 `:root` layer.
+  Given two independent classes of latent, already-shipped bugs were found by widening the audit
+  method twice, Phase 10 was not declared unblocked a third time without another verification pass
+  first. That pass — tracing all 113 `(app)/**/page.tsx` files (not just the `o/[orgSlug]/` tree,
+  in case the assumption that every non-namespaced route was a trivial redirect missed a real
+  content page: it hadn't — the two flagged pages both turned out to use a differently-named
+  redirect helper, `resolveOrgSlugForLayout()`, that the earlier script's redirect-detection had
+  missed), a full codebase re-sweep for the shadcn-convention bug (zero remaining), and a spot
+  check of the 16 deliberately-pinned files for that same bug independent of their pin reason
+  (also clean) — came back clean, and **Phase 10 has now shipped**:
+
+  - `.touchline` is hoisted to the true shell root — not `(app)/layout.tsx`'s wrapper as this ADR
+    originally described, but `<body>` itself in the root `layout.tsx`, discovered to be the one
+    ancestor genuinely common to both the `(app)` and `(auth)` route groups. (`(app)/layout.tsx`'s
+    own wrapper divs previously only carried `.touchline` on their `<header>`; the outer
+    `app-shell`/no-org-fallback wrapper divs used `bg-background` directly and were **not**
+    themselves inside any `.touchline` scope — a real gap that would have broken the shell's own
+    background the moment the bare `:root` color tokens were removed, caught by tracing the
+    render tree by hand rather than assuming the per-page-island model already covered
+    everything.) Every existing per-page `.touchline` class (~85 files) is left exactly where it
+    is — nested `.touchline` inside an already-`.touchline` ancestor is harmless, and the 16
+    deliberately-pinned files' `data-theme="dark"` attribute depends on their own class staying
+    put; stripping them would be pure, high-risk, zero-benefit churn.
+  - PS 1.0's `:root` color palette (`--background`, `--foreground`, `--surface-*`,
+    `--border-soft`/`--border-strong`, `--text-soft`/`--text-muted`/`--text-disabled`, `--accent*`,
+    `--info*`, `--warning*`, `--danger*`, `--live*`, `--success*`, `--dev*`, `--focus`) is deleted
+    from `globals.css` — every one of these names is now defined exactly once, by `.touchline`,
+    which is always present. Genuinely non-color structural tokens (radius, motion, spacing,
+    layout constants, the typography scale) are **kept** on bare `:root` — never part of the PS
+    1.0-vs-Touchline color duality, just shared constants both systems size themselves against,
+    with hundreds of real consumers still.
+  - Compat aliases are removed, after migrating their handful of real remaining consumers to the
+    exact value each alias already resolved to (value-preserving, not a color change):
+    `--surface-tactical`/`--surface-hero`/`--surface` (bare)/`--surface-default` → `--surface-base`
+    or `--surface-raised`; `--border` (bare)/`--border-subtle`/`--border-pitch` → `--border-soft`;
+    `--accent-hover` → `--accent`; `--accent-soft` → `--accent-subtle`; `--text-primary`/
+    `--text-strong` → `--foreground`; `--text-error` → `--danger`. Affected files:
+    `tactics-board.tsx`, `tactical-surface.tsx`, `planned-rotation-panel.tsx`,
+    `player-readiness-panel.tsx`, `player-development-threads-panel.tsx`,
+    `player-outfield-role-suitability-panel.tsx`, `round-board.tsx`, `event-match-lineup-panel.tsx`,
+    `event-matches-tab.tsx`, `opponent-team-select.tsx`, and (already fixed once in the previous
+    PR for a different reason, one further stray reference each) `simulation-client-content.tsx`/
+    `workbench-client-content.tsx`. `--blocking`/`--blocking-subtle` had zero real consumers
+    (only their own now-removed `@theme inline` mapping) — deleted outright. `--locked`/
+    `--locked-subtle` had 2 real consumers (`issue-marker.tsx`, `status-rail.tsx`) with no existing
+    higher-level alias target — repointed to `--text-disabled` rather than inventing a new token
+    category for two call sites. `--radius-xs/sm/md/lg`/`--transition-fast/smooth/lift` had zero
+    real consumers anywhere — deleted outright.
+  - A **stale, wrong-hued decorative radial** was found and fixed: the bare `body {}` selector's
+    own atmosphere gradient was hardcoded to PS 1.0's old accent color
+    (`rgba(143,180,154,…)` ≈ `#8fb49a`), sitting unnoticed underneath every page once Touchline
+    (with its own, differently-hued `--tl-atmosphere-accent`/`--tl-atmosphere-cool`) became
+    universally active. Touchline's own replacement, `.touchline-canvas` (`touchline.css`),
+    existed but was wired into **only** the `/dev/ui-lab` preview harness, never the real app
+    shell — removing the stale radial without wiring in its replacement would have left every real
+    page with no atmosphere effect at all. Fixed by adding `touchline-canvas` alongside
+    `touchline` on the root `<body>` element.
+  - `@theme inline`'s 5 mappings for now-fully-removed names (`--color-blocking`, `--color-locked`,
+    `--color-surface-tactical`, `--color-surface-hero`, `--color-border-pitch`) are deleted — none
+    had a Tailwind-utility-class consumer (`bg-blocking`, `text-locked`, etc. were never actually
+    used anywhere in the codebase).
+  - A CSS syntax bug was introduced and caught by the build itself, not by any lint tool: an early
+    draft of this file's own doc comment contained a literal `*/` inside prose describing token
+    names, which prematurely closed the CSS comment mid-sentence and turned the rest of the
+    comment into invalid, unparseable CSS. `npm run build`'s Turbopack/PostCSS step failed with a
+    `CssSyntaxError` naming the exact line — caught before merge, not after.
+  - **Deliberately deferred, not done in this pass**: "delete obsolete components." The vast
+    majority of the codebase still uses the pre-Touchline `Button`/`PageHeader`/`SectionHeader`/
+    `Surface`/etc. primitives — only the surfaces named across Phases 5–10 received an explicit
+    `TouchlineButton`/`TouchlinePageHeader` swap. None of the PS 1.0 primitive components are
+    actually obsolete yet; deleting any of them now would break the majority of the app. A future
+    full-consistency pass (swap every remaining usage, then delete the PS 1.0 component) is real,
+    disclosed remaining work, not silently dropped. "Remove dead screenshots" is also skipped:
+    this change preserves every existing rendered color value exactly (removing indirection, not
+    changing appearance), so no committed documentation screenshot became inaccurate because of it.
+
+  **The real e2e accessibility suite caught one further genuine, narrow contrast failure** on the
+  first CI run of this exact change — `TestEnvironmentBadge` (the "Test" pill shown in the header
+  on the `test.` subdomain) measured 4.3:1 in light theme: `text-[var(--warning)]` on its own
+  `bg-[var(--warning-subtle)]`, composited over the header's specific `--tl-c-canvas-raised`
+  background, falls short of 4.5:1 because text and background share the same hue — a warmer,
+  more-saturated light background *reduces* contrast against same-hued text (verified by direct
+  calculation: doubling the tint's opacity made contrast *worse*, 3.75:1, not better). Fixed by
+  keeping the amber border/background for visual identity but switching the text to
+  `--foreground` (~14:1 against this composite, in either theme). This exact
+  `bg-[var(--X-subtle)] text-[var(--X)]` badge pattern is used in roughly 30 other files
+  (`StatusPill`, `TeamShield`, `Button`'s warning variant, `history-table.tsx`, several
+  player/match panels, …) — verified by the same calculation method that those pass, narrowly
+  (~4.53:1), on the *regular* canvas/`Surface` backgrounds they actually render against; only
+  this one badge's specific header context tips it under threshold. The pattern is fragile
+  across the board in light theme — a real, disclosed follow-up for a future contrast-hardening
+  pass, not silently fixed beyond the one element CI actually caught failing.
+
+  The compact bottom nav is **opaque** (a `position: fixed` translucent surface has no determinate
+  background for WCAG-AA contrast checking; `04 §12` already mandates a solid fallback).
 
 ## Context
 
@@ -301,9 +386,12 @@ is never called "Touchline" in user-facing or public documentation.
 ## Consequences
 
 - A second visual token layer (`src/app/touchline.css`, activation class `.touchline`) and a
-  `src/components/touchline/` primitive namespace coexist with the Product Surface 1.0 system
-  during Phases 5–9. Phase 10 removes the old tokens, compat aliases, and obsolete components;
-  no `Old`/`V2`/`Legacy` visual component families remain in production.
+  `src/components/touchline/` primitive namespace coexisted with the Product Surface 1.0 system
+  during Phases 5–9. Phase 10 removed the old tokens and compat aliases (see its own record
+  above) — **but not** the old component families themselves: `Button`/`PageHeader`/
+  `SectionHeader`/`Surface`/etc. are still the majority-consumed primitives across the codebase,
+  a disclosed, deliberate deferral (component-by-component consolidation is real remaining work,
+  not something this ADR claims is already done).
 - The final production app must look materially different from Product Surface 1.0 at first
   glance. An incremental token swap does not satisfy this programme.
 - Icon derivatives generated: dark/light tile treatments, monochrome variant, favicon sizes,

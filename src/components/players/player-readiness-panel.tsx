@@ -87,7 +87,7 @@ export function PlayerReadinessPanel({ playerId, signals: initialSignals }: Play
                 <select
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value as ReadinessSignalValue)}
-                  className="text-sm bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1"
+                  className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-2 py-1"
                 >
                   {validValues.map((v) => (
                     <option key={v} value={v}>{READINESS_VALUE_LABELS[v]}</option>
@@ -98,7 +98,7 @@ export function PlayerReadinessPanel({ playerId, signals: initialSignals }: Play
                   placeholder="Optional note"
                   value={editNote}
                   onChange={(e) => setEditNote(e.target.value)}
-                  className="text-sm bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1"
+                  className="text-sm bg-[var(--surface-base)] border border-[var(--border-soft)] rounded px-2 py-1"
                 />
                 <div className="flex items-center gap-2">
                   <Button size="sm" onClick={() => handleSet(type)} disabled={saving}>

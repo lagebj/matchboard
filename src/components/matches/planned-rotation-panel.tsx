@@ -104,14 +104,14 @@ function ChangeForm({
   const [form, setForm] = useState<ChangeFormData>(initialData);
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-3">
+    <div className="flex flex-col gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-3">
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <input
             type="checkbox"
             checked={form.positionOnly}
             onChange={(e) => setForm((f) => ({ ...f, positionOnly: e.target.checked }))}
-            className="rounded border-[var(--border-subtle)]"
+            className="rounded border-[var(--border-soft)]"
           />
           Position swap
         </label>
@@ -133,7 +133,7 @@ function ChangeForm({
                 outPosition: playerId ? (f.outPosition || player?.primaryPosition || "") : "",
               }));
             }}
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
             <option value="">Select player</option>
             {squadPlayers.map((p) => (
@@ -150,7 +150,7 @@ function ChangeForm({
             <select
               value={form.outPosition}
               onChange={(e) => setForm((f) => ({ ...f, outPosition: e.target.value }))}
-              className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
             >
               <option value="">Auto</option>
               {POSITION_OPTIONS.map((pos) => (
@@ -177,7 +177,7 @@ function ChangeForm({
                 inPosition: playerId ? (f.inPosition || player?.primaryPosition || "") : "",
               }));
             }}
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
             <option value="">Select player</option>
             {squadPlayers.map((p) => (
@@ -195,7 +195,7 @@ function ChangeForm({
           <select
             value={form.inPosition}
             onChange={(e) => setForm((f) => ({ ...f, inPosition: e.target.value }))}
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
             <option value="">Auto</option>
             {POSITION_OPTIONS.map((pos) => (
@@ -213,7 +213,7 @@ function ChangeForm({
             placeholder="e.g. 1500 (25')"
             value={form.approximateMatchSeconds}
             onChange={(e) => setForm((f) => ({ ...f, approximateMatchSeconds: e.target.value.replace(/[^0-9]/g, "") }))}
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           />
         </div>
         <div>
@@ -223,7 +223,7 @@ function ChangeForm({
             placeholder="Optional notes"
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           />
         </div>
       </div>
@@ -486,7 +486,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
             generated change.
           </p>
         )}
-        {error && <p className="mt-2 text-sm text-[var(--text-error)]">{error}</p>}
+        {error && <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>}
       </Surface>
     );
   }
@@ -515,7 +515,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
             return (
               <div
                 key={change.id}
-                className="flex items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-3 py-2"
+                className="flex items-center gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2"
               >
                 {isDraft && !readOnly && (
                   <div className="flex flex-col gap-0.5 shrink-0">
@@ -589,7 +589,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
                     <button
                       onClick={() => handleRemoveChange(change.id)}
                       disabled={isPending}
-                      className="text-[var(--text-muted)] hover:text-[var(--text-error)] disabled:opacity-30"
+                      className="text-[var(--text-muted)] hover:text-[var(--danger)] disabled:opacity-30"
                       aria-label="Remove change"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -648,14 +648,14 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-[var(--text-error)]">{error}</p>}
+      {error && <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>}
 
       {validationIssues.length > 0 && (
         <div className="mt-3 flex flex-col gap-1">
           {validationIssues.map((issue, index) => (
             <p
               key={index}
-              className={`text-sm ${issue.type === "error" ? "text-[var(--text-error)]" : "text-[var(--text-muted)]"}`}
+              className={`text-sm ${issue.type === "error" ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}
             >
               {issue.changeIndex !== null ? `Change ${issue.changeIndex + 1}: ` : ""}
               {issue.message}
@@ -671,7 +671,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       )}
 
       {generationDiagnostics.length > 0 && (
-        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-3">
+        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-3">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-soft)]">
             <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
             Generation notes
@@ -689,7 +689,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       )}
 
       {coverageIssues.length > 0 && (
-        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-3">
+        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-3">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-soft)]">
             <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
             Coverage check
@@ -754,7 +754,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
             .map((transition, index) => (
               <div
                 key={index}
-                className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2.5"
+                className="rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-2.5"
               >
                 <p className="text-xs font-medium text-[var(--text-soft)]">
                   At ~{formatSeconds(transition.atSeconds)}

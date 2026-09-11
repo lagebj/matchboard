@@ -75,7 +75,7 @@ export function PlayerOutfieldRoleSuitabilityPanel({
         {outfieldRoles.map((row) => (
           <div key={row.role} className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <span className="text-[11px] font-medium text-[var(--text-strong)]">{ROLE_LABEL[row.role]}</span>
+              <span className="text-[11px] font-medium text-[var(--foreground)]">{ROLE_LABEL[row.role]}</span>
               <p className="text-[var(--text-micro)] text-[var(--text-soft)]">{row.explanation}</p>
             </div>
             <StatusPill variant={TIER_VARIANT[row.tier]} size="sm">
