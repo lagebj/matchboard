@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition } from "react";
 import { Play, SkipForward, ChevronRight, Clock, ArrowLeftRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 
 type PlannedChange = {
@@ -150,7 +150,7 @@ export function PlannedRotationPrompt({
   return (
     <Surface padding="sm">
       <div className="flex items-center gap-2 mb-1.5">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-primary)]">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)]">
           <ChevronRight className="h-3.5 w-3.5 text-[var(--accent)]" />
           Next planned change
         </div>
@@ -160,11 +160,11 @@ export function PlannedRotationPrompt({
           </span>
         )}
         {nextChange.status === "DELAYED" && (
-          <span className="text-xs text-[var(--text-warning,#b45309)]">Delayed</span>
+          <span className="text-xs text-[var(--warning)]">Delayed</span>
         )}
       </div>
 
-      <div className="text-sm text-[var(--text-primary)] mb-2">
+      <div className="text-sm text-[var(--foreground)] mb-2">
         {isPositionSwap ? (
           <span>
             <span className="font-medium">{outPlayerName}</span>
@@ -191,15 +191,15 @@ export function PlannedRotationPrompt({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button
+        <TouchlineButton
           size="sm"
           onClick={() => handleApply()}
           disabled={isPending}
         >
           <Play className="h-3.5 w-3.5 mr-1" />
           Apply
-        </Button>
-        <Button
+        </TouchlineButton>
+        <TouchlineButton
           size="sm"
           variant="ghost"
           onClick={handleDelay}
@@ -208,9 +208,9 @@ export function PlannedRotationPrompt({
         >
           <Clock className="h-3.5 w-3.5 mr-1" />
           Delay
-        </Button>
+        </TouchlineButton>
         {nextChange.outPlayerId && nextChange.inPlayerId && (
-          <Button
+          <TouchlineButton
             size="sm"
             variant="ghost"
             onClick={handleChangeDirection}
@@ -219,9 +219,9 @@ export function PlannedRotationPrompt({
           >
             <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
             Change
-          </Button>
+          </TouchlineButton>
         )}
-        <Button
+        <TouchlineButton
           size="sm"
           variant="ghost"
           onClick={handleSkip}
@@ -229,10 +229,10 @@ export function PlannedRotationPrompt({
         >
           <SkipForward className="h-3.5 w-3.5 mr-1" />
           Skip
-        </Button>
+        </TouchlineButton>
       </div>
 
-      {error && <p className="mt-1.5 text-xs text-[var(--text-error)]">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-[var(--danger)]">{error}</p>}
 
       <div className="mt-1.5 text-xs text-[var(--text-muted)]">
         {pendingChanges.length} planned change{pendingChanges.length !== 1 ? "s" : ""} remaining

@@ -242,9 +242,9 @@ function PlayerButton({
   variant?: "default" | "selected" | "highlight";
 }) {
   const bg = variant === "selected"
-    ? "bg-blue-800 text-blue-100"
+    ? "bg-[var(--accent)] text-[var(--tl-c-accent-on-fill)]"
     : variant === "highlight"
-      ? "bg-emerald-800/60 text-emerald-100"
+      ? "bg-[var(--success-subtle)] text-[var(--success)]"
       : onField
         ? "bg-[var(--surface-hover)] text-[var(--text-soft)]"
         : "bg-[var(--surface-hover)]/60 text-[var(--text-muted)]";
@@ -271,7 +271,7 @@ function ConfirmDialog({ open, onConfirm, onCancel, title, children }: { open: b
         <div className="text-sm text-[var(--text-soft)] mb-4">{children}</div>
         <div className="flex gap-3">
           <button onClick={onCancel} className="flex-1 py-3 px-4 rounded-lg bg-[var(--surface-hover)] text-[var(--text-soft)] font-medium min-h-[48px]">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 py-3 px-4 rounded-lg bg-red-600 text-white font-medium min-h-[48px]">Confirm</button>
+          <button onClick={onConfirm} className="flex-1 py-3 px-4 rounded-lg bg-[var(--danger)] text-white font-medium min-h-[48px]">Confirm</button>
         </div>
       </div>
     </div>
@@ -291,7 +291,7 @@ function SyncStatusIndicator({ status, pendingCount }: { status: SyncStatus; pen
         ? "Sync issue — data saved locally"
         : null;
   if (!label) return null;
-  const color = status === "offline" ? "text-amber-400" : status === "error" ? "text-red-400" : "text-[var(--text-muted)]";
+  const color = status === "offline" ? "text-[var(--warning)]" : status === "error" ? "text-[var(--danger)]" : "text-[var(--text-muted)]";
   return <div className={`text-[var(--text-micro)] ${color} text-center py-0.5`}>{label}</div>;
 }
 
@@ -832,7 +832,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // --- Render ---
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] bg-[var(--background)]">
+      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
+      <div className="touchline flex items-center justify-center min-h-[100dvh] bg-[var(--background)]" data-theme="dark">
         <p className="text-[var(--text-muted)]">Loading match data...</p>
       </div>
     );
@@ -840,7 +841,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   if (!sessionActive) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-[var(--background)] p-6 space-y-6" style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
+      // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
+      <div className="touchline flex flex-col items-center justify-center min-h-[100dvh] bg-[var(--background)] p-6 space-y-6" data-theme="dark" style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="text-center">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">{teamName}</h1>
           <p className="text-[var(--text-muted)] mt-1 text-lg">vs {opponentName}</p>
@@ -848,17 +850,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </div>
         <button
           onClick={handleStartSession}
-          className="w-full max-w-xs px-8 py-5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-lg font-semibold rounded-xl transition-colors min-h-[56px]"
+          className="w-full max-w-xs px-8 py-5 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 text-lg font-semibold rounded-xl transition-[filter] min-h-[56px]"
         >
           Start live reporting
         </button>
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-[var(--danger)] text-sm">{error}</p>}
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7).
+    <div className="touchline min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col" data-theme="dark" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       {/* Scoreboard — canonical football home→away order (ADR-0125). Deliberately a
           compact operational-focus density (one row, sticky) rather than the full
           MatchHeader: the live action buttons must stay above the fold. Our team is
@@ -891,7 +894,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             isOver
               ? "bg-[var(--surface-hover)] text-[var(--text-muted)] cursor-not-allowed"
               : isPlayingPeriod(clock.period, periodConfig)
-                ? "bg-amber-900/60 text-amber-200 hover:bg-amber-800/60 active:bg-amber-900/80"
+                ? "bg-[var(--warning-subtle)] text-[var(--warning)] hover:brightness-110 active:brightness-95"
                 : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)]"
           }`}
         >
@@ -901,12 +904,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
       {/* Last action feedback */}
       {lastAction && (
-        <div className="mx-3 mt-2 px-3 py-2 bg-emerald-900/40 border border-emerald-700/50 rounded-lg flex items-center justify-between gap-2">
-          <span className="text-sm text-emerald-200">{lastAction.label}</span>
+        <div className="mx-3 mt-2 px-3 py-2 bg-[var(--success-subtle)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] rounded-lg flex items-center justify-between gap-2">
+          <span className="text-sm text-[var(--success)]">{lastAction.label}</span>
           {lastAction.undoLabel && lastAction.undoEventId !== undefined && (
             <button
               onClick={() => handleUndo(lastAction.undoEventId!)}
-              className="text-xs text-amber-300 hover:text-amber-200 font-semibold whitespace-nowrap min-h-[36px] px-2"
+              className="text-xs text-[var(--warning)] hover:opacity-80 font-semibold whitespace-nowrap min-h-[36px] px-2"
             >
               {lastAction.undoLabel}
             </button>
@@ -918,7 +921,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-3 flex gap-2">
         <button
           onClick={handleGoalFor}
-          className="flex-1 py-4 bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white rounded-xl font-bold text-base min-h-[64px] transition-colors"
+          className="flex-1 py-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 rounded-xl font-bold text-base min-h-[64px] transition-[filter]"
         >
           Goal for us
         </button>
@@ -935,14 +938,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         <button
           onClick={handleStartRotation}
           className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors ${
-            rotationMode ? "bg-blue-800/80 text-blue-200" : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)]"
+            rotationMode ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]" : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)]"
           }`}
         >
           Rotation
         </button>
         <button
           onClick={() => handleFairPlayStart(true)}
-          className="flex-1 py-2.5 bg-green-900/50 text-green-300 hover:bg-green-800/50 active:bg-green-900/70 rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
         >
           Fair play +
         </button>
@@ -958,7 +961,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-1">
         <button
           onClick={() => handleFairPlayStart(false)}
-          className="w-full py-2 text-sm text-red-400 bg-red-950/40 hover:bg-red-900/40 rounded-lg min-h-[44px] transition-colors"
+          className="w-full py-2 text-sm text-[var(--danger)] bg-[var(--danger-subtle)] hover:brightness-110 rounded-lg min-h-[44px] transition-[filter]"
         >
           Fair play concern
         </button>
@@ -973,7 +976,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           </div>
           <div className="flex flex-wrap gap-1">
             {onFieldPlayers.map((p) => (
-              <span key={p.playerId} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-emerald-900/40 text-emerald-200 rounded">
+              <span key={p.playerId} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-[var(--success-subtle)] text-[var(--success)] rounded">
                 {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
                 {p.playerName}
               </span>
@@ -1008,8 +1011,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
                       <span className="text-[var(--text-micro)] font-mono text-[var(--text-muted)] shrink-0">{formatElapsedMs(event.matchSeconds)}</span>
                     )}
                     <span className="text-[var(--text-soft)]">{displayText}</span>
-                    {event.isReversed && <span className="text-red-400 ml-1 text-[var(--text-micro)]">reversed</span>}
-                    {event.isCorrected && <span className="text-amber-400 ml-1 text-[var(--text-micro)]">corrected</span>}
+                    {event.isReversed && <span className="text-[var(--danger)] ml-1 text-[var(--text-micro)]">reversed</span>}
+                    {event.isCorrected && <span className="text-[var(--warning)] ml-1 text-[var(--text-micro)]">corrected</span>}
                   </div>
                   {!event.isReversed && LIVE_EVENT_TYPES_THAT_ARE_CORRECTABLE.has(event.eventType) && (
                     <button
@@ -1038,9 +1041,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
       {/* Error display */}
       {error && (
-        <div className="px-3 py-2 bg-red-900/30 border-t border-red-800" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
-          <p className="text-red-400 text-sm">{error}</p>
-          <button onClick={() => setError(null)} className="text-xs text-red-300 hover:text-red-100">Dismiss</button>
+        <div className="px-3 py-2 bg-[var(--danger-subtle)] border-t border-[color-mix(in_srgb,var(--danger)_35%,transparent)]" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))" }}>
+          <p className="text-[var(--danger)] text-sm">{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-[var(--danger)] hover:opacity-80">Dismiss</button>
         </div>
       )}
 
@@ -1109,8 +1112,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             <button
               key={cat}
               onClick={() => handleFairPlayCategory(cat)}
-              className={`w-full py-3 px-4 rounded-lg text-sm font-medium min-h-[48px] text-left transition-colors ${
-                isPositive ? "bg-green-900/40 text-green-300 hover:bg-green-800/40" : "bg-red-900/40 text-red-300 hover:bg-red-800/40"
+              className={`w-full py-3 px-4 rounded-lg text-sm font-medium min-h-[48px] text-left transition-[filter] ${
+                isPositive ? "bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110" : "bg-[var(--danger-subtle)] text-[var(--danger)] hover:brightness-110"
               }`}
             >
               {getFairPlayCategoryLabel(cat)}
@@ -1138,7 +1141,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         <div className="space-y-1">
           <p>Score: <span className="font-bold">{teamName} {goalsFor} – {goalsAgainst} {opponentName}</span></p>
           <p>Period: {currentPeriodLabel}</p>
-          {unsyncedCount > 0 && <p className="text-amber-400">{unsyncedCount} event{unsyncedCount > 1 ? "s" : ""} waiting to sync</p>}
+          {unsyncedCount > 0 && <p className="text-[var(--warning)]">{unsyncedCount} event{unsyncedCount > 1 ? "s" : ""} waiting to sync</p>}
         </div>
       </ConfirmDialog>
     </div>

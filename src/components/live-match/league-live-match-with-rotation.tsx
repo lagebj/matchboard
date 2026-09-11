@@ -71,7 +71,10 @@ export function LeagueLiveMatchWithRotation({ matchId, matchInfo, plannedRotatio
   }, []);
 
   return (
-    <div className="flex flex-col gap-3">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 7). The prompt
+    // renders as a sibling above LeagueLiveMatchClient, which is itself island-wrapped inside
+    // LiveMatchClient — wrapping here too keeps the composition visually seamless.
+    <div className="touchline flex flex-col gap-3" data-theme="dark">
       {rotation && (rotation.status === "DRAFT" || rotation.status === "APPLIED") && (
         <PlannedRotationPrompt
           matchId={matchId}
