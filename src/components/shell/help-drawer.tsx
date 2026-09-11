@@ -66,7 +66,11 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   // for `position: fixed` descendants -- without the portal, this drawer's "fixed inset-0" was
   // sizing itself to the ~52px header box instead of the viewport, collapsing the whole panel.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end">
+    // Touchline island (theme-aware — ADR-0134 Phase 9): portalled to document.body (see the
+    // comment above), so it needs its own `.touchline` scope rather than inheriting one from an
+    // ancestor — without it, the tokens below would resolve to the plain (always-dark) globals.css
+    // values instead of adapting to the viewer's theme.
+    <div className="touchline fixed inset-0 z-50 flex justify-end">
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
@@ -84,14 +88,14 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-soft)] px-4 py-3 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <HelpCircle className="h-4 w-4 shrink-0 text-[var(--accent-strong)]" aria-hidden="true" />
-            <span className="truncate text-sm font-semibold text-zinc-50">Help — {target.label}</span>
+            <span className="truncate text-sm font-semibold text-[var(--foreground)]">Help — {target.label}</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <a
               href={target.docsPath}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
             >
               Open full documentation
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
@@ -100,7 +104,7 @@ export function HelpDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               ref={closeRef}
               type="button"
               onClick={onClose}
-              className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+              className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
               aria-label="Close help"
             >
               <X className="h-4 w-4" />
@@ -125,7 +129,7 @@ export function HelpButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-md border border-[var(--border-soft)] px-2.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 medium:min-h-9 medium:min-w-0"
+      className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-md border border-[var(--border-soft)] px-2.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 medium:min-h-9 medium:min-w-0"
       aria-label="Open help"
     >
       <HelpCircle className="h-4 w-4" aria-hidden="true" />

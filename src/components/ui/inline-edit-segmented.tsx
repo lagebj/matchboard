@@ -68,7 +68,7 @@ export function InlineEditSegmented({
                 "focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40",
                 isSelected
                   ? cn(toneClasses[tone], "ring-1 ring-inset")
-                  : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-zinc-200",
+                  : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--foreground)]",
                 disabled && "opacity-50 cursor-not-allowed",
                 pending && "opacity-60",
               )}

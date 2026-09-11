@@ -58,7 +58,7 @@ export function MetricTile({
           {label}
         </span>
       </div>
-      <p className={cn("text-xl font-semibold tabular-nums", tone === "neutral" ? "text-zinc-100" : toneTextClasses[tone])}>
+      <p className={cn("text-xl font-semibold tabular-nums", tone === "neutral" ? "text-[var(--foreground)]" : toneTextClasses[tone])}>
         {value}
       </p>
       {description && (

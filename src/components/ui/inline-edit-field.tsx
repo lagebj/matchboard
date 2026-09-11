@@ -100,7 +100,7 @@ export function InlineEditField({
             disabled={pending}
             min={min}
             max={max}
-            className="rounded-md border border-[var(--accent)]/50 bg-[var(--surface-base)] px-2 py-1 text-sm text-zinc-100 outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 min-w-[80px]"
+            className="rounded-md border border-[var(--accent)]/50 bg-[var(--surface-base)] px-2 py-1 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 min-w-[80px]"
             aria-label={label}
           />
           <button
@@ -143,7 +143,7 @@ export function InlineEditField({
       <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] shrink-0">
         {label}
       </span>
-      <span className={cn("text-sm", isEmpty ? "text-[var(--text-muted)] italic" : "text-zinc-100")}>
+      <span className={cn("text-sm", isEmpty ? "text-[var(--text-muted)] italic" : "text-[var(--foreground)]")}>
         {renderValue ? renderValue(value) : displayValue}
       </span>
       {!disabled && (

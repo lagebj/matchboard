@@ -89,7 +89,7 @@ export function BottomSheet({
         />
         <div className="flex items-start justify-between gap-3 border-b border-[var(--border-soft)] px-5 py-3.5 shrink-0">
           <div className="min-w-0 flex flex-col gap-0.5">
-            <h2 id={headingId} className="text-base font-semibold text-zinc-50">
+            <h2 id={headingId} className="text-base font-semibold text-[var(--foreground)]">
               {title}
             </h2>
             {description && (
@@ -100,7 +100,7 @@ export function BottomSheet({
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-zinc-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+            className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
             aria-label="Close"
           >
             <X className="h-4 w-4" />

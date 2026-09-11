@@ -41,7 +41,7 @@ export function IntentCard({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "font-medium text-zinc-100 leading-snug",
+            "font-medium text-[var(--foreground)] leading-snug",
             compact ? "text-[11px]" : "text-sm",
           )}
         >
