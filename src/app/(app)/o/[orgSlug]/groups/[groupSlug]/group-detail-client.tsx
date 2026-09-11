@@ -125,7 +125,8 @@ export function GroupDetailClient({
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
-    <div className="space-y-6">
+    // Touchline island (dark-pinned during the phased migration — ADR-0134 Phase 9).
+    <div className="touchline space-y-6" data-theme="dark">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">

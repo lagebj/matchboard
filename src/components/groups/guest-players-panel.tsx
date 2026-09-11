@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
+import { TouchlineButton } from "@/components/touchline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { UserPlus, Pencil, RotateCcw, Ban } from "lucide-react";
 import {
@@ -153,7 +153,7 @@ export function GuestPlayersPanel({
           title="Guest players"
           description="Reusable external players for this Group's Events and League Rounds. Not tracked long-term."
         />
-        <Button
+        <TouchlineButton
           size="sm"
           variant="secondary"
           onClick={() => {
@@ -167,11 +167,11 @@ export function GuestPlayersPanel({
         >
           <UserPlus className="mr-1 h-4 w-4" />
           Add guest player
-        </Button>
+        </TouchlineButton>
       </div>
 
       {error && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-[var(--danger)]" role="alert">
           {error}
         </p>
       )}
@@ -220,12 +220,12 @@ export function GuestPlayersPanel({
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={pending || !newName.trim()}>
+            <TouchlineButton size="sm" onClick={handleCreate} disabled={pending || !newName.trim()}>
               Save
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAdding(false)} disabled={pending}>
+            </TouchlineButton>
+            <TouchlineButton size="sm" variant="ghost" onClick={() => setAdding(false)} disabled={pending}>
               Cancel
-            </Button>
+            </TouchlineButton>
           </div>
         </Surface>
       )}
@@ -268,12 +268,12 @@ export function GuestPlayersPanel({
                 />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => handleEdit(guestPlayer.id)} disabled={pending || !editName.trim()}>
+                <TouchlineButton size="sm" onClick={() => handleEdit(guestPlayer.id)} disabled={pending || !editName.trim()}>
                   Save
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} disabled={pending}>
+                </TouchlineButton>
+                <TouchlineButton size="sm" variant="ghost" onClick={() => setEditingId(null)} disabled={pending}>
                   Cancel
-                </Button>
+                </TouchlineButton>
               </div>
             </div>
           ) : (
@@ -292,7 +292,7 @@ export function GuestPlayersPanel({
                 )}
               </div>
               <div className="flex gap-1">
-                <Button
+                <TouchlineButton
                   size="sm"
                   variant="ghost"
                   onClick={() => {
@@ -306,8 +306,8 @@ export function GuestPlayersPanel({
                   title="Edit guest player"
                 >
                   <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
+                </TouchlineButton>
+                <TouchlineButton
                   size="sm"
                   variant="ghost"
                   onClick={() => handleToggleActive(guestPlayer.id, false)}
@@ -315,7 +315,7 @@ export function GuestPlayersPanel({
                   title="Deactivate"
                 >
                   <Ban className="h-3.5 w-3.5 text-gray-500" />
-                </Button>
+                </TouchlineButton>
               </div>
             </div>
           )}
@@ -350,7 +350,7 @@ export function GuestPlayersPanel({
                         </span>
                       )}
                     </div>
-                    <Button
+                    <TouchlineButton
                       size="sm"
                       variant="ghost"
                       onClick={() => handleToggleActive(guestPlayer.id, true)}
@@ -358,7 +358,7 @@ export function GuestPlayersPanel({
                       title="Reactivate"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
-                    </Button>
+                    </TouchlineButton>
                   </div>
                 </Surface>
               ))
