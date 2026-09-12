@@ -150,11 +150,26 @@ comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary
 
 ## Disposition
 
-Pending. This branch resolves the two known write-path instances (League match create, Event
-match edit) using the already-correct convention (browser-side computation), removing the
-immediate "Start live reporting" symptom's root cause for newly created/rescheduled matches. The
-display-side half, and a real per-organisation/user timezone model to remove the "must render in
-the coach's own browser" constraint entirely, remain open and need a maintainer decision.
+Pending, with one explicit maintainer decision recorded. This branch resolves the two known
+write-path instances (League match create, Event match edit) using the already-correct
+convention (browser-side computation), removing the immediate "Start live reporting" symptom's
+root cause for newly created/rescheduled matches. The display-side half, and a real
+per-organisation/user timezone model to remove the "must render in the coach's own browser"
+constraint entirely, remain open and need a maintainer decision.
+
+**Historical data — explicitly not remediated (maintainer decision, 2026-09-12).** Existing
+matches whose `startsAt` was written via the pre-fix buggy path keep that skewed value; no
+backfill/remediation script was requested or run. This is deliberate, not an oversight: the
+originally-reported symptom ("Start live reporting" hard to find) is fully and independently
+resolved for every existing match by the separate `canStartLiveReporting()` fix (this branch's
+first commit), which no longer depends on kickoff-time accuracy at all — so remediating historical
+`startsAt` values buys nothing for that problem. The only residual effect of leaving old data
+unremediated is on ADR-0109's automatic planning-boundary closure and `hasLeagueMatchPassed`'s
+day check for a still-*unplayed* existing match, which may stay timed up to ~1-2h later than real
+kickoff — assessed and accepted as low-consequence (not a visible break, not a data-integrity
+risk) rather than worth the risk of a bulk correction with no reliable way to distinguish an
+already-correctly-rescheduled match from a still-buggy one (see "Impact"). Revisit only if a
+concrete need for precise historical kickoff timing on an existing match actually arises.
 
 ## Related decisions
 
@@ -201,3 +216,7 @@ could introduce (a Server Component now showing a shifted time for a newly-creat
 and fixed one concrete instance (`handover/page.tsx`). The remaining open display call sites were
 re-classified by actual risk (date-only vs. time-of-day; touched vs. untouched field) rather than
 left as one undifferentiated list.
+
+Second follow-up the same day: maintainer explicitly decided not to remediate historical
+`startsAt` data, since the "Start live reporting" visibility fix works for existing matches
+independent of kickoff-time accuracy. Recorded under "Disposition" above.
