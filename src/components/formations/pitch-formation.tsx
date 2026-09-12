@@ -177,17 +177,27 @@ export function SlotEditDialog({ isOpen, onClose, slot, gameFormat: _gameFormat,
               <option key={rt} value={rt}>{ROLE_TYPE_LABELS[rt]}</option>
             ))}
           </select>
-          {/* ADR-0129 §4: the exact role automatic lineup/rotation planning derives from
-              roleType + lane. A FREE slot derives none — it is manual-only for automatic
-              planning. Free-form label strings are never parsed. */}
+          {/* ADR-0129 §4 (Touchline Design Atlas, ADR-0136 Phase 7,
+              `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A`): the exact role automatic
+              lineup/rotation planning derives from roleType + lane. A FREE slot derives none —
+              it is manual-only for automatic planning, shown verbatim. Free-form label strings
+              are never parsed. Split into the golden's own four facts (role type is the select
+              above; exact derived target role, lane, and the automatic-eligibility meaning
+              follow) — previously collapsed into one sentence that omitted the eligibility-tier
+              requirement entirely. */}
           {(() => {
             const exact = deriveExactTargetRole(roleType as FormationSlotRoleType, slot.gridX);
+            if (!exact) {
+              return (
+                <p className="text-[var(--text-micro)] text-[var(--text-muted)]">Manual-only for automatic planning</p>
+              );
+            }
             return (
-              <p className="text-[var(--text-micro)] text-[var(--text-muted)]">
-                {exact
-                  ? `Automatic planning targets ${exact} (${WIDTH_LANE_LABELS[slot.gridX]}).`
-                  : "Manual-only for automatic planning"}
-              </p>
+              <div className="flex flex-col gap-0.5 text-[var(--text-micro)] text-[var(--text-muted)]">
+                <p>Exact derived target role: {exact}</p>
+                <p>Lane: {WIDTH_LANE_LABELS[slot.gridX]}</p>
+                <p>A player needs Natural, Strong, or Plausible fit for automatic assignment to this role.</p>
+              </div>
             );
           })()}
         </div>
