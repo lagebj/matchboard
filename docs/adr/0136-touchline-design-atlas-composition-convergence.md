@@ -64,8 +64,8 @@ invitation) — but Phase 6's own completion is still reported back for confirma
 begins, matching this programme's practice of checking in at every phase boundary rather than
 chaining phases unattended purely because a named gate is absent.
 
-**Phase 6 progress: History, Opponents (list + detail), Teams (overview + detail), and Season
-migrated (4 of 5).** All are the real production routes, not UI-Lab copies. History: every existing
+**Phase 6 complete: History, Opponents (list + detail), Teams (overview + detail), Season, and the
+evidence detail routes — all 5 of 5.** All are the real production routes, not UI-Lab copies. History: every existing
 all-time (not single-league-season) query this page ran is preserved unchanged — a real
 architectural fork (whether to switch to the league-season-scoped `getSeasonPlayerRoundMatrix()`/
 `getMovementPathSummary()` canonical sources named in `history-view-model.ts`'s own doc comment)
@@ -91,9 +91,25 @@ coverage) had no production caller — both layered above the existing content, 
 own "new summary layer above existing content" pattern. An evidence-spotlight widget and a
 recent/upcoming-matches list were deliberately **not** added — the former would reintroduce the
 exact unbatched-query performance risk already diagnosed and reverted from Today (§14); the
-latter would duplicate what Today/League already own. Full account:
+latter would duplicate what Today/League already own. **Evidence detail routes**: a read-only
+compliance survey of all 14 `/insights/*` sub-route clients against
+`07_ROUTE_COMPOSITION_PLAYERS_INSIGHTS.md §D`'s six composition bullets found **14 of 14 already
+compliant — no code change made**. Each has exactly one stated question, one table/matrix
+visualization (matching AGENTS.md's own "matrix is primary" pattern for these exact routes),
+factual disclaimer-style explanation text, evidence/sample detail, and contributing data; every
+summary-tile row found is a direct same-question summary, not an unrelated metric. This is a
+genuine, verified "already substantially covered" finding (the same class as Live Reporting §25
+and Team Detail's tabs §29), not a skipped audit — and resolves the composition half of the
+Touchline material-migration record's own "bundle §8... tracked follow-up" note (AGENTS.md); the
+separate light-mode dark-pin/token concern that note also named remains open. Full account:
 `docs/domain/touchline-atlas-provenance.md` §27 (History), §28 (Opponents), §29 (Teams), §30
-(Season).
+(Season), §31 (evidence detail routes, completing Phase 6).
+
+**Phase 6 is now complete.** Per `13_IMPLEMENTATION_PHASES_AND_GATES.md`, no human gate is named
+between Phase 6 and Phase 7 (Formations, Groups, Rules, Settings, More, Peer reviews, invitation)
+— but, matching this programme's practice of checking in at every phase boundary rather than
+chaining phases unattended purely because a named gate is absent, Phase 7 work does not begin
+without reporting this completion back first.
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
