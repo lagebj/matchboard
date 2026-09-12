@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatKickoffTime } from "@/lib/date-utils";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
-import { buildMatchPresentation } from "@/lib/matches/match-presentation";
+import { todayMatchPresentation, resolveFeaturedUpcomingMatch } from "@/lib/matches/today-match-presentation";
+import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import {
   TouchlinePageHeader,
   TouchlineButton,
@@ -12,6 +13,12 @@ import {
   TouchlineTimeline as OperationalTimeline,
   TimelineItem,
 } from "@/components/touchline";
+import {
+  NextMatchHero,
+  SquadReadinessWidget,
+  RecentFootballWidget,
+} from "@/components/touchline/widgets";
+import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import type { TimelineNodeState } from "@/components/touchline/timeline/touchline-timeline";
 import type {
   CoachSituationProjection,
@@ -536,38 +543,6 @@ function GroupedReports({
   );
 }
 
-/** Build the canonical match presentation for a Today timeline row. A played
- * match with a post-match report shows its scoreline + W/D/L; a live match with
- * no report row yet shows state + time (its "Follow live" action is the value). */
-function todayMatchPresentation(match: TodayMatch, href: string) {
-  const isHome = match.homeAway === "HOME";
-  const hasScore = match.homeScore != null && match.awayScore != null;
-  // TodayMatch scores are home/away oriented; buildMatchPresentation wants them
-  // our-team-relative and re-orients with isHome.
-  const ownGoals = !hasScore ? null : isHome ? match.homeScore : match.awayScore;
-  const opponentGoals = !hasScore ? null : isHome ? match.awayScore : match.homeScore;
-  const outcome =
-    ownGoals == null || opponentGoals == null
-      ? null
-      : ownGoals > opponentGoals
-        ? "WON"
-        : ownGoals < opponentGoals
-          ? "LOST"
-          : "DRAWN";
-  return buildMatchPresentation({
-    id: match.matchId,
-    href,
-    teamName: match.teamName,
-    opponentName: match.opponent,
-    isHome,
-    kickoffAt: match.startsAt,
-    lifecycleStatus: match.lifecycleStatus,
-    ownGoals,
-    opponentGoals,
-    outcome,
-  });
-}
-
 /**
  * Today's operational timeline (ADR-0125). One chronological rail: today's
  * matches as `MatchScoreRow` items with now/next/later treatment. A match that
@@ -591,10 +566,9 @@ function TodayOperationalTimeline({
 
   if (sorted.length === 0) return null;
 
-  // First still-upcoming (not live, not played) match is NEXT; the rest LATER.
-  const firstUpcomingId = sorted.find(
-    (m) => m.lifecycleStatus === "planning_open" || m.lifecycleStatus === "planning_closed",
-  )?.matchId;
+  // First still-upcoming (not live, not played) match is NEXT; the rest LATER. Same selection
+  // the Today Atlas hero features (`resolveFeaturedUpcomingMatch()`).
+  const firstUpcomingId = resolveFeaturedUpcomingMatch(matches)?.matchId;
 
   const liveCount = matches.filter((m) => m.hasActiveLiveSession).length;
   const rows: ReactNode[] = [];
@@ -728,6 +702,8 @@ export function AssistantCommandCentrePage({
   commandCentre,
   projection,
   weeklyContext,
+  recentMatches,
+  squadStatus,
 }: {
   commandCentre: AssistantCommandCentre;
   /** Situational projection (ADR-0107, docs/domain/situational-decision-support.md). When
@@ -738,6 +714,13 @@ export function AssistantCommandCentrePage({
    * component remains usable without it (e.g. tests, or a caller with no projection at all —
    * the section also needs `projection.situation.primarySituation` to know how to present). */
   weeklyContext?: WeeklyCoachingContextResult;
+  /** Touchline Design Atlas additions (ADR-0136, `docs/domain/touchline-atlas-provenance.md`) —
+   * genuinely new content the previous page never showed, not a replacement for anything above.
+   * All optional so the component remains usable without them (e.g. existing tests). No
+   * `evidenceSpotlight` prop — that addition was deliberately dropped before shipping; see
+   * `today/page.tsx`'s own comment and `docs/domain/touchline-atlas-provenance.md` §14. */
+  recentMatches?: MatchPresentation[];
+  squadStatus?: TodaySquadStatus | null;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -746,6 +729,16 @@ export function AssistantCommandCentrePage({
   const nextAction = resolveNextAction(actionable, projection);
   const deferredWorkItemIds = computeDeferredWorkItemIds(actionable, projection);
   const readyState = readyStateCopy(projection?.status);
+  // Touchline Design Atlas hero (ADR-0136): when there is no decision urgent enough to force-
+  // feature (nextAction undefined), the upcoming match becomes the hero instead of a bare empty
+  // state — the same match `TodayOperationalTimeline` marks NEXT, never a second, competing
+  // selection. Still falls back to the plain empty state when there's genuinely no match either.
+  const featuredMatch = !nextAction ? resolveFeaturedUpcomingMatch(commandCentre.todayMatches) : undefined;
+  const featuredMatchHref = featuredMatch
+    ? featuredMatch.squadStatus === "not_generated"
+      ? orgUrl("/fixtures")
+      : orgUrl(`/matches/${featuredMatch.matchId}`)
+    : undefined;
 
   // Metric aggregates
   const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);
@@ -783,6 +776,36 @@ export function AssistantCommandCentrePage({
       {/* Next action hero — dominant, before any detached metrics */}
       {nextAction ? (
         <NextActionCard item={nextAction} status={projection?.status} />
+      ) : featuredMatch ? (
+        <div className="grid grid-cols-1 gap-5 expanded:grid-cols-12">
+          <div className="expanded:col-span-8">
+            <NextMatchHero
+              presentation={todayMatchPresentation(featuredMatch, featuredMatchHref!)}
+              contextLabel={leagueSeasonName ?? undefined}
+              contextLine={featuredMatch.matchRoundName}
+              primaryAction={
+                <TouchlineButton
+                  as={Link}
+                  href={featuredMatchHref!}
+                  variant="primary"
+                  trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
+                >
+                  Match details
+                </TouchlineButton>
+              }
+            />
+          </div>
+          {squadStatus ? (
+            <div className="expanded:col-span-4">
+              <SquadReadinessWidget
+                available={squadStatus.available}
+                doubtful={squadStatus.doubtful}
+                unavailable={squadStatus.unavailable}
+                exceptions={squadStatus.notAvailable}
+              />
+            </div>
+          ) : null}
+        </div>
       ) : (
         <EmptyState
           tone="info"
@@ -801,6 +824,17 @@ export function AssistantCommandCentrePage({
           }
         />
       )}
+
+      {/* Recent football — new Touchline Design Atlas content (ADR-0136), never shown when the
+          data doesn't exist (no invented sample). An evidence-spotlight companion was deliberately
+          dropped before shipping — see this component's own prop doc comment above. */}
+      {recentMatches && recentMatches.length > 0 ? (
+        <div className="grid grid-cols-1 gap-5 expanded:grid-cols-12">
+          <div className="expanded:col-span-7">
+            <RecentFootballWidget matches={recentMatches} viewAllHref={orgUrl("/fixtures")} />
+          </div>
+        </div>
+      ) : null}
 
       {/* Operational timeline — today's football in order, directly after Next Action */}
       <TodayOperationalTimeline matches={commandCentre.todayMatches} orgUrl={orgUrl} />
