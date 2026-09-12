@@ -898,3 +898,55 @@ Worker locally purely to screenshot a list-wrapper swap was judged disproportion
 risk. Confidence instead rests on: the identical presentational primitive already screenshot-
 verified twice this phase (Rotations, and originally Today), a clean `tsc`/`eslint` pass, and the
 full test suite passing with the shared `TouchlineTimeline` component's own existing tests intact.
+
+## 26. Phase 5 — Post-match production migration, completing all seven named routes (2026-09-12)
+
+Seventh and final of Phase 5's named routes. The real production report surface
+(`src/components/matches/post-match-report-shell.tsx` — shared by both League's
+`src/components/assistant/post-match-page.tsx` and Event's
+`src/app/(app)/events/[eventId]/event-match-report-panel.tsx`, per ARR-0034's "one owning
+implementation, multiple adapters"). Every existing mutation (complete/reopen, goal/assist
+add-remove, attendance, add/remove player, team notes, planned-squad absence marking, player
+stats) is **frozen, completely untouched** — only presentation/composition order changed.
+
+`06_ROUTE_COMPOSITION_EVENTS_MATCHDAY.md §H` specifies a strict order: final score → report
+status → participation corrections → goals/assists → team reflection → player observations →
+**submit** (last). Two real, disclosed gaps were found against this:
+
+1. **The Complete/Reopen submit action was rendered in the shell's header, first, not last.**
+   Moved to the bottom of the shell, after every correction section (`extraSections`) and the
+   completion banner — matching the golden's "submit is the final deliberate action, after
+   reviewing everything above it" intent. The header now carries only team identity and the
+   report-status pill. No handler changed: `actions.complete`/`actions.reopen` are called
+   identically, only their button's position moved. Locked in with 4 new component tests
+   (`post-match-report-shell.test.tsx`) asserting the buttons render after `extraSections` in DOM
+   order and still invoke the same action on click.
+2. **League's page composition rendered `FootballObservationSection` (player observations, spec
+   item 6) before `TeamReflectionSection` (team reflection, item 5)** — the reverse of the
+   golden's order.  Event's own `EventMatchReportPanel` already rendered these two sections in
+   the *correct* order (team reflection before football observations) — this was a League-only
+   composition bug, not a shared-shell issue. Fixed by swapping the two elements in
+   `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`; no other page renders both
+   sections, confirmed by search.
+
+**Deliberately left as-is, a disclosed decision**: the shell's internal grouping of Result (final
+score) + Goals + Assists inside one `<Surface>`, with the separate Attendance `<Surface>`
+following it, is not reordered to strictly interleave "final score, then participation, then
+goals/assists" as a literal three-step sequence. Score and its goal/assist events are one
+cohesive "match facts" surface a coach reads together; splitting them apart to chase the spec's
+exact numbered order would fragment that cohesion for no clear coach-facing benefit, unlike the
+two changes above which were genuine ordering mistakes (a submit button appearing before the
+content it submits; player observations appearing before the team reflection that usually frames
+them). This mirrors the same judgement call already applied to Rotations' three separate
+diagnostic boxes (§24) — matching the golden's literal step order is not an end in itself where
+doing so would blur a currently-coherent grouping of related facts.
+
+Verified: full `npm run validate` (14/14), 4 new component tests, and real screenshots (desktop +
+mobile) captured against the locally-seeded Fjordvik FK dataset's connected-story match (Fjordvik
+Rød vs Bergstad IF, a real `LOCKED` report with goals, an assist, an own goal, and a seeded
+football observation) via the test-agent auth flow — confirming both fixes render correctly:
+"Reopen report" now appears below the completion banner and every correction section, and "Team
+reflection" now renders before "Football observations".
+
+**This completes all seven named Phase 5 routes** (Round Board, Lineup, Tactics, Rotations, Live
+Reporting, Follow Live, Post-match). See ADR-0136 for the Human Gate C status this triggers.
