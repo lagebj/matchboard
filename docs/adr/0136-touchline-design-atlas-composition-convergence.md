@@ -32,10 +32,17 @@ unblocks **Phase 5 — football work surfaces** (Round Board, Lineup, Tactics, R
 Reporting, Follow Live, Post-match), which stops again at **Human Gate C** before Phases 6–10
 (historical/intelligence routes, utility/config/collaboration routes, brand asset convergence,
 transitional-design removal, full validation and final sign-off).
-**Phase 5 progress: Round Board, Lineup+Tactics, and Rotations migrated (3 of 7).** All are the
-real production routes, not UI-Lab copies; every existing mutation is frozen, completely
-untouched. Full account: `docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23
-(Lineup + Tactics), §24 (Rotations).
+**Phase 5 progress: Round Board, Lineup+Tactics, Rotations, and Live Reporting/Follow Live
+addressed (4 of 7 PRs; 5 of 7 named items — Round Board, Lineup, Tactics, Rotations, and Live
+Reporting/Follow Live together as one pair).** All are the real production routes, not UI-Lab
+copies; every existing mutation is frozen, completely untouched. Live Reporting itself received
+**no code change** — a deliberate, disclosed finding, not a gap: its scoreboard/control-grid
+composition is already an incident-hardened design (ADR-0133) that already matches the golden
+reference's intent, achieved during ADR-0134's earlier material migration. Only its read-only
+sibling, Follow Live, needed a (narrow, presentational-only) change. Only **Post-match** remains
+before Phase 5 is complete and Human Gate C can be requested. Full account:
+`docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23 (Lineup + Tactics), §24
+(Rotations), §25 (Live Reporting — no change — and Follow Live).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,

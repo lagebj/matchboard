@@ -848,3 +848,53 @@ and a real screenshot (desktop + mobile) confirming the timeline renders correct
 applied change ("Elias ↔ Theo, pos. swap" at "~30'00″") shown as a "done"-state timeline item,
 with every existing control (move arrows, edit/remove buttons, "Add change", "Delete plan", the
 existing rotation-pattern evidence panel) unchanged below it.
+
+## 25. Phase 5 — Live Reporting (no change, documented) and Follow Live production migration (2026-09-12)
+
+Fourth and fifth of the seven Phase 5 routes, addressed together since one is a deliberate
+"already covered" finding about the other's sibling surface — matching the Players/Player-detail
+combined-verdict precedent from Phase 4.
+
+**Live Reporting (`src/components/live-match/live-match-client.tsx`) — no code change.** This is
+the highest-stakes surface touched by the Atlas programme: ADR-0133 documents a real production
+incident (Rød v Drammens BK, 2026-09-09) that drove a durability-hardening pass (H1–H6) across the
+live-session clock, event recording, local-first sync, and realtime reconciliation logic —
+explicitly **frozen** here per that same discipline. The component's own doc comment above its
+scoreboard states the current compact layout is deliberate: *"a compact operational-focus density
+(one row, sticky) rather than the full MatchHeader: the live action buttons must stay above the
+fold."* Its primary/secondary control grid (`min-h-[64px]`/`min-h-[48px]` touch targets) is
+similarly tuned, not incidental. Swapping in the Atlas `MatchLiveStrip`/`LiveActionGrid` widgets
+here would replace an already-hardened, incident-informed interaction surface with a generic one
+for a purely cosmetic gain — the opposite of this programme's "implementer, not designer"
+contract, and exactly the kind of forced widget substitution the mandatory coding-agent workflow
+warns against. No production code was changed. This is recorded as the deliberate outcome, not a
+gap: Live Reporting is already substantially composed per the golden reference's own scoreboard/
+action-grouping intent, achieved independently during ADR-0134 Phase 7/9's earlier material
+migration (AGENTS.md: "all live-session/clock/event-recording/local-sync/realtime mutation logic
+frozen").
+
+**Follow Live (`src/components/live-match/follow-live-client.tsx`) — real, narrow change.** This
+sibling read-only viewer (never calls `recordEvent`/`endSession`, no mutation controls at all —
+its own doc comment: *"defense in depth"*) had the same flat, plain divide-y "Match events" list
+already fixed elsewhere this phase. Replaced with the same `TouchlineTimeline`/`TimelineItem`
+primitives Rotations and Today already use: the most recent event (`projection.recentEvents`'
+current chronological ordering is unchanged — `events.slice(-50)` keeps oldest-first/newest-last,
+so the last array item is genuinely the most recent) renders as the `"current"` node, every
+earlier one `"done"`. No new query — `eventSummaries` was already fully derived from the existing
+`LiveMatchProjection`. The scoreboard (`MatchScoreHeader`), on-field list, and connection-state
+banner are unchanged. The now-unused `cn` import was removed as part of the same edit.
+
+No new pure-logic module was extracted — unlike Rotations' multi-branch status mapping, the
+state rule here is a single inline ternary (`i === eventSummaries.length - 1 ? "current" :
+"done"`), too small to warrant its own tested unit alongside the already-tested shared
+`TouchlineTimeline` primitive.
+
+Verified: full `npm run validate` (14/14 — lint, typecheck, the full unit + component suite,
+build, and every other gate). **Screenshot capture was not performed for this specific change**:
+Follow Live only renders meaningful content once connected, via realtime WebSocket ticket, to an
+active `MatchSessionObject` Durable Object session in the separate Cloudflare Worker
+(`workers/live-match/`) — no committed seed script creates a live session, and standing up the
+Worker locally purely to screenshot a list-wrapper swap was judged disproportionate to the change's
+risk. Confidence instead rests on: the identical presentational primitive already screenshot-
+verified twice this phase (Rotations, and originally Today), a clean `tsc`/`eslint` pass, and the
+full test suite passing with the shared `TouchlineTimeline` component's own existing tests intact.
