@@ -1,35 +1,27 @@
 import { describe, it, expect } from "vitest";
+import { computeMatchOutcome } from "@/lib/opponents/match-outcome";
 
-describe("Opponent history result calculation", () => {
+/**
+ * `getOpponentHistory()`'s own match-outcome branching was extracted to the pure
+ * `computeMatchOutcome()` (ADR-0136 Phase 6, `src/lib/opponents/match-outcome.ts`) so it could be
+ * reused by the Opponents list/detail pages without `getOpponentHistory()`'s own
+ * `footballGroupId` scoping. This test now exercises the real extracted function directly instead
+ * of re-deriving the same ternary inline — a more direct regression guard than before.
+ */
+describe("Opponent history result calculation (via computeMatchOutcome)", () => {
   it("correctly determines home win", () => {
-    const isHome = true;
-    const homeGoals = 3;
-    const awayGoals = 1;
-    const result = homeGoals > awayGoals ? (isHome ? "won" : "lost") : homeGoals < awayGoals ? (isHome ? "lost" : "won") : "drawn";
-    expect(result).toBe("won");
+    expect(computeMatchOutcome("HOME", 3, 1)).toBe("won");
   });
 
   it("correctly determines away win", () => {
-    const isHome = false;
-    const homeGoals = 1;
-    const awayGoals = 3;
-    const result = homeGoals > awayGoals ? (isHome ? "won" : "lost") : homeGoals < awayGoals ? (isHome ? "lost" : "won") : "drawn";
-    expect(result).toBe("won");
+    expect(computeMatchOutcome("AWAY", 1, 3)).toBe("won");
   });
 
   it("correctly determines home loss", () => {
-    const isHome = true;
-    const homeGoals = 1;
-    const awayGoals = 3;
-    const result = homeGoals > awayGoals ? (isHome ? "won" : "lost") : homeGoals < awayGoals ? (isHome ? "lost" : "won") : "drawn";
-    expect(result).toBe("lost");
+    expect(computeMatchOutcome("HOME", 1, 3)).toBe("lost");
   });
 
   it("correctly determines draw", () => {
-    const isHome = true;
-    const homeGoals = 2;
-    const awayGoals = 2;
-    const result = homeGoals > awayGoals ? (isHome ? "won" : "lost") : homeGoals < awayGoals ? (isHome ? "lost" : "won") : "drawn";
-    expect(result).toBe("drawn");
+    expect(computeMatchOutcome("HOME", 2, 2)).toBe("drawn");
   });
 });

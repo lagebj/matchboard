@@ -8,6 +8,7 @@ import { PLAYING_STYLE_TAG_LABELS } from "@/lib/opponents/playing-style-tags";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
 import { getOpponentSportingEvidence } from "@/lib/opponents/sporting-level-recording";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
+import { computeMatchOutcome } from "@/lib/opponents/match-outcome";
 import { getOpponentCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { getOpponentTacticalTendencies, getOpponentTendencyOutcomes } from "@/lib/opponents/playing-style-query";
 import { SportingLevelSection } from "@/components/opponents/sporting-level-section";
@@ -102,6 +103,23 @@ export default async function OpponentDetailPage({ params }: PageProps) {
   for (const r of reportIds) {
     postMatchResults[r.matchId] = { homeGoals: r.homeGoals, awayGoals: r.awayGoals };
   }
+
+  // Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_SEASON.md
+  // §B`): a real, previously-missing content gap -- this page had no Won/Drawn/Lost record
+  // anywhere. Computed from the already-loaded `matches`/`postMatchResults` above, zero new
+  // queries, via the same `computeMatchOutcome()` extracted for the Opponents list page.
+  const record = matches.reduce(
+    (acc, match) => {
+      const result = postMatchResults[match.id]
+        ? computeMatchOutcome(match.homeAway, postMatchResults[match.id]!.homeGoals, postMatchResults[match.id]!.awayGoals)
+        : null;
+      if (result === "won") acc.wins += 1;
+      else if (result === "drawn") acc.draws += 1;
+      else if (result === "lost") acc.losses += 1;
+      return acc;
+    },
+    { wins: 0, draws: 0, losses: 0 },
+  );
 
   let sportingLevelData: {
     aggregate: {
@@ -199,6 +217,21 @@ export default async function OpponentDetailPage({ params }: PageProps) {
         <p className="mt-2 text-sm text-[var(--text-muted)]">
           Encounter history recorded by coaches. Observations describe individual matches and must not be treated as fixed labels.
         </p>
+      </div>
+
+      {/* Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_
+          SEASON.md §B`): Won/Drawn/Lost record -- previously absent from this page entirely. */}
+      <div className="grid max-w-[420px] grid-cols-3 gap-3">
+        {[
+          { label: "Won", value: record.wins },
+          { label: "Drawn", value: record.draws },
+          { label: "Lost", value: record.losses },
+        ].map((r) => (
+          <div key={r.label} className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-3 text-center">
+            <p className="tl-sport text-[20px] font-[650] text-[var(--foreground)]">{r.value}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{r.label}</p>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
