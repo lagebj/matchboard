@@ -113,6 +113,19 @@ type LineupRenderProps = {
     slotId: string,
     playerId: string | null,
   ) => void;
+  /**
+   * Touchline Design Atlas (ADR-0136, Phase 5): a purely informational "which player is here"
+   * signal, fired on every slot click regardless of `readOnly` -- distinct from `onSlotClick`,
+   * which stays gated by `readOnly` exactly as before (it drives the assignment/edit action).
+   * Optional and additive: omitting it changes nothing for any existing caller. Lets a
+   * read-only "selected-player inspector" (e.g. the Tactics tab's positional-fit panel) work
+   * even once planning has closed, without weakening the existing readOnly edit gate at all.
+   */
+  onSlotView?: (
+    assignmentId: string | null,
+    slotId: string,
+    playerId: string | null,
+  ) => void;
 };
 
 type SelectionPreviewRenderProps = {
@@ -469,6 +482,7 @@ function LineupContent({
   players,
   readOnly,
   onSlotClick,
+  onSlotView,
   orientation,
   attackingDirection,
   size,
@@ -491,8 +505,11 @@ function LineupContent({
           : null;
         const boardPos = getBoardPositionPercent(slot.gridX, slot.gridY, projectionOpts);
         const canEdit = !readOnly && onSlotClick;
-        const handleClick = () =>
-          onSlotClick?.(assignment?.id ?? null, slot.id, assignment?.playerId ?? null);
+        const canView = canEdit || onSlotView;
+        const handleClick = () => {
+          if (canEdit) onSlotClick?.(assignment?.id ?? null, slot.id, assignment?.playerId ?? null);
+          onSlotView?.(assignment?.id ?? null, slot.id, assignment?.playerId ?? null);
+        };
 
         return (
           <div
@@ -513,7 +530,7 @@ function LineupContent({
                 selected={false}
                 kit={slot.roleType === "GOALKEEPER" ? "goalkeeper" : "outfield"}
                 compact={compact}
-                onClick={canEdit ? handleClick : undefined}
+                onClick={canView ? handleClick : undefined}
               />
             ) : (
               <PitchEmptySlot
@@ -655,7 +672,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
   }
 
   if (props.mode === "lineup-assignment" || props.mode === "lineup-readonly") {
-    const { slots, assignments, players, readOnly, onSlotClick } = props;
+    const { slots, assignments, players, readOnly, onSlotClick, onSlotView } = props;
     const isReadOnly = props.mode === "lineup-readonly" ? true : readOnly;
 
     return (
@@ -672,6 +689,7 @@ export function TacticsBoard(props: TacticsBoardProps) {
             players={players}
             readOnly={isReadOnly}
             onSlotClick={onSlotClick}
+            onSlotView={onSlotView}
             orientation={orientation}
             attackingDirection={attackingDirection}
             size={size}

@@ -14,6 +14,9 @@ import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/type
 import { GAME_FORMAT_PLAYERS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
 import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
 import { Copy } from "lucide-react";
+import { TouchlineInspector } from "@/components/touchline/workbench/touchline-inspector";
+import { PositionFitList } from "@/components/touchline/workbench/position-fit-list";
+import { computePlayerPositionFitEntries } from "@/domain/positions/position-fit-entries";
 
 type LineupData = {
   id: string;
@@ -86,6 +89,11 @@ export function MatchTacticsPanel({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [pickerState, setPickerState] = useState<{ assignmentId: string | null; slotId: string; slotLabel: string; acceptedPositions: BroadPosition[] } | null>(null);
+  /** Touchline Design Atlas (ADR-0136, Phase 5): the "selected-player inspector" target
+   * (`08_ROUTE_COMPOSITION_PLANNING_TACTICS.md §C`). Set from the same slot-click signal that
+   * already opens the assignment picker -- a purely additive read of already-passed data, not a
+   * new interaction. Persists after the picker closes so the inspector stays visible. */
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   /** Eligible players for tactical selection — absent/no-show players are excluded.
    * The tactics board answers "Who is currently eligible to play?", not "Who belongs to this
@@ -100,6 +108,18 @@ export function MatchTacticsPanel({
     secondaryPosition: s.secondaryPosition,
     coreTeamName: s.coreTeamName,
   }));
+
+  // Touchline Design Atlas (ADR-0136, Phase 5): "selected-player inspector" data, computed
+  // entirely from already-loaded `selections` -- no new query. `tertiaryPosition`/`bestSide`
+  // are not yet loaded onto `selections`, so the fit computation is based on primary/secondary
+  // declarations only -- a disclosed, deliberate scope reduction (see the provenance doc).
+  const selectedPlayer = selections.find((s) => s.playerId === selectedPlayerId) ?? null;
+  const selectedPlayerFitEntries = selectedPlayer
+    ? computePlayerPositionFitEntries({
+        primaryPosition: selectedPlayer.primaryPosition,
+        secondaryPosition: selectedPlayer.secondaryPosition,
+      })
+    : [];
 
   const refreshLineup = useCallback(async () => {
     const { getMatchLineup } = await import("@/app/(app)/matches/lineup-actions");
@@ -278,6 +298,13 @@ export function MatchTacticsPanel({
       acceptedPositions: (slot?.acceptedPositionIds ?? []) as BroadPosition[],
     });
   }, [lineup, slots]);
+  /** Touchline Design Atlas (ADR-0136, Phase 5): fires on every slot click regardless of
+   * whether editing is currently allowed -- see `TacticsBoard`'s `onSlotView` doc comment. This
+   * is what lets the "selected-player inspector" work even once planning has closed, without
+   * touching `handleSlotClick`'s own existing edit gating above at all. */
+  const handleSlotView = useCallback((_assignmentId: string | null, _slotId: string, playerId: string | null) => {
+    setSelectedPlayerId(playerId);
+  }, []);
   const handlePlayerSelect = useCallback((playerId: string) => {
     if (!pickerState || !lineup) return;
     startTransition(async () => {
@@ -614,6 +641,7 @@ export function MatchTacticsPanel({
                 }))}
                 players={playerPool}
                 onSlotClick={handleSlotClick}
+                onSlotView={handleSlotView}
                 readOnly={isConfirmed}
                 orientation="horizontal"
               />
@@ -634,6 +662,11 @@ export function MatchTacticsPanel({
           </Surface>
 
           <aside className="flex flex-col gap-3">
+            {selectedPlayer && (
+              <TouchlineInspector title={selectedPlayer.playerName} headline={selectedPlayer.primaryPosition}>
+                <PositionFitList entries={selectedPlayerFitEntries} />
+              </TouchlineInspector>
+            )}
             <Surface padding="md">
               <SectionHeader title="Squad" eyebrow={`${selections.length} available`} />
               <div className="mt-2 flex flex-col gap-1">
