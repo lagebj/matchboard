@@ -5,6 +5,8 @@ import { formatKickoffTime } from '@/lib/date-utils';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TouchlinePageHeader, TouchlineButton } from '@/components/touchline';
 import { formatEventType } from "@/lib/formatters/event-labels";
+import { buildEventListViewModel } from '@/lib/touchline/presentation/event-view-model';
+import { toEventListRowInput, readinessLabel } from '@/lib/events/event-list-presentation';
 
 type EventListItem = Awaited<ReturnType<typeof getEvents>>[number];
 
@@ -22,14 +24,6 @@ function groupByMonth(events: EventListItem[]): Array<{ month: string; events: E
     else groups.push({ month: key, events: [event] });
   }
   return groups;
-}
-
-/** One readiness / next-action line — never a row of equal-weight counters. */
-function readinessLabel(event: EventListItem): string {
-  if (event.status === 'FINALIZED') return 'Done';
-  if (event.squads.length === 0) return 'No squads planned';
-  if (event.squads.every((s) => s.status === 'LOCKED')) return 'Squads ready';
-  return 'Draft squads';
 }
 
 function EventRow({ event, orgSlug }: { event: EventListItem; orgSlug: string }) {
@@ -74,6 +68,13 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
   const past = events
     .filter((e) => new Date(e.startsAt) < startOfToday)
     .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+
+  // Touchline Design Atlas (ADR-0136): a "Next event" feature widget above the grouped lists —
+  // the same already-built `buildEventListViewModel()` used in the UI Lab, wired to real data
+  // for the first time. The featured event still also appears normally in its month group below
+  // (the same "shown twice, once as a shortcut" pattern as Today's hero and League's toolbar).
+  const nextEvent = buildEventListViewModel(events.map(toEventListRowInput), new Date().toISOString()).nextEvent;
+
   const upcomingGroups = groupByMonth(upcoming);
   const pastGroups = groupByMonth(past);
 
@@ -89,6 +90,20 @@ export default async function EventsPage({ params }: { params: Promise<{ orgSlug
           </TouchlineButton>
         }
       />
+
+      {nextEvent ? (
+        <Link
+          href={`/o/${orgSlug}/events/${nextEvent.eventId}`}
+          className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget-strong)] p-4 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--accent)]">Next event</p>
+          <p className="mt-1 text-[18px] font-[650] text-[var(--foreground)]">{nextEvent.name}</p>
+          <p className="mt-0.5 text-[13px] text-[var(--text-soft)]">
+            {new Date(nextEvent.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+            {nextEvent.opponentSummary ? ` · ${nextEvent.opponentSummary}` : ''} · {nextEvent.readiness}
+          </p>
+        </Link>
+      ) : null}
 
       {events.length === 0 ? (
         <EmptyState
