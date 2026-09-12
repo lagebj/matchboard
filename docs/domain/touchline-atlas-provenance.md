@@ -462,3 +462,48 @@ Verified: full `npm run validate` (14/14), 9 new unit tests across the two new p
 (`event-list-presentation.test.ts`, `event-squad-readiness.test.ts`), and a real screenshot
 (Events list + Event detail, desktop + mobile) captured against the seeded Fjordvik FK dataset via
 the existing test-agent auth flow.
+
+## 17. Phase 4 follow-up — Today "Latest matches" performance fix (2026-09-12)
+
+A real, measured regression found and fixed after Today's migration (§14) merged: PR #522's
+"Deploy PR to Test slot" acceptance job (not a required merge check, but a genuine E2E signal)
+failed identically three times — `page.goto` exceeding a 30s timeout on `/today`, across 13 of
+the same Playwright tests each time — even after removing the evidence-spotlight story (§14's own
+disclosed reduction). League's PR (#523), whose own new code added zero queries, failed
+**identically** on a completely fresh (non-reused) per-PR Neon branch, ruling out "accumulated
+test data on a reused branch" as the cause. The one thing every failing deploy has in common:
+Today's page (merged into `main` since #522) unconditionally calls `getFixturesOverview()` for its
+"Latest matches" widget.
+
+`getFixturesOverview()` (`src/domain/fixtures/service.ts`) loads **every** `Season` →
+`LeagueSeason` → `MatchRound` → `Match` row for the organisation, unbounded, plus a batched
+selection/report/live-session query across every resulting match ID — the correct, appropriate
+cost for League's own page, visited deliberately once per League-planning session. Today is very
+likely the single highest-traffic page in the whole app (the default post-login landing surface,
+and the target of the situational-decision-support redirect) — calling that same unbounded
+whole-season query from Today as well roughly doubles its total cost across every concurrent
+request the Playwright suite fires, which is exactly what pushed some requests over the 30s
+navigation timeout under CI's concurrent multi-project load.
+
+**Fix**: a new, deliberately narrow, bounded query — `getRecentCompletedMatches()`
+(`src/lib/matches/get-recent-completed-matches.ts`) — replaces `getFixturesOverview()` on Today.
+It queries only the `limit * 3` most-recently-kicked-off, non-cancelled matches org-wide (using
+the existing `[startsAt, createdAt]` index), then looks up which of those have a REPORTED/LOCKED
+`PostMatchReport` (there is no Prisma relation between `Match` and `PostMatchReport` to join
+directly — `getFixturesOverview()` itself does the same two-step lookup, just after first loading
+the entire season tree). No season/round tree is loaded at all. `deriveMatchLifecycleStatus()` is
+reused unchanged for lifecycle correctness — since every result already carries a REPORTED/LOCKED
+report and a non-CANCELLED match status, its `isLive`/`hasPassed`/`roundStatus`/`planningClosedAt`
+branches are provably unreached, so those params are passed as documented placeholders rather than
+threaded through a second, redundant query.
+
+This is a correctness-preserving performance fix, not a behaviour change — Today's "Latest
+matches" widget shows the exact same data (the last 5 completed matches, own-team perspective),
+just computed far more cheaply. Locked in with 5 new DB-backed tests
+(`get-recent-completed-matches.test.ts`): empty when nothing is reported, DRAFT reports excluded,
+own-team goals/outcome computed from the HOME/AWAY perspective correctly, the `limit` parameter
+respected, and organisation isolation (never returns another org's matches).
+
+Verified: full `npm run validate` (14/14), 5 new tests, all pre-existing tests (including
+`today-match-presentation.test.ts` and the `AssistantCommandCentrePage` component tests) passing
+unchanged.
