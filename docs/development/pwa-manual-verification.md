@@ -44,8 +44,9 @@ For each row, record: date, app version, tester, and PASS/FAIL + notes per check
    to Home Screen" (iOS). Matchboard's in-app "Install Matchboard" card points at this path; it
    is a helper, not the installer.
 2. **Install completes** without error.
-3. **Correct icon** on the desktop/home screen: the Matchboard mark on an opaque brand-green
-   background. iOS and Android/desktop icons visually match. Test installs read "Matchboard Test".
+3. **Correct icon** on the desktop/home screen: the Matchboard mark on an opaque Touchline accent
+   (lime) background (ADR-0136 Phase 8). iOS and Android/desktop icons visually match. Test
+   installs read "Matchboard Test".
 4. **Launching from the installed icon** opens Matchboard in a standalone window/app (no browser
    tab strip / address bar).
 5. **Standalone presentation** is correct — no content hidden behind the status bar or the iOS

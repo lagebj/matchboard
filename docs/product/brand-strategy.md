@@ -43,6 +43,15 @@ The following require **separate, explicit owner approval** before they can be t
 
 Until each gate above is explicitly approved, treat its current state as the working default, not as settled.
 
+**Note on gate 2 (ADR-0136 Phase 8, 2026-09-12):** the app icons' background/mark colours were
+updated to match the app's own Touchline theme tokens (`#144937` brand-green + white mark →
+`#C7F54A` Touchline accent + `#101500` near-black mark, `scripts/generate-pwa-icons.sh`). This is
+a colour-only derivative of the unchanged existing mark — ADR-0136's own Accepted status and
+explicit Phase 8 scope ("Create minor icon variants from existing mark") is the owner approval
+for this narrow change, not a fresh, standalone brand decision. Gate 2 remains open for any
+*further* icon change beyond matching the app's existing, already-approved token set (a new
+mark, a new colour outside the current theme, or a product rename).
+
 ## Implementation rules while naming is open
 
 - Preserve `Matchboard` as the working identity in code, copy, and documentation.
