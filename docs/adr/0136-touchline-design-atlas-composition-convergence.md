@@ -54,6 +54,24 @@ approval at Human Gate C** — mirroring exactly how Human Gate B was required b
 itself began. The implementing agent does not self-certify visual fidelity or scope completeness
 as a substitute for that approval.
 
+**Human Gate C: approved 2026-09-12.** The maintainer confirmed all 5 Phase 5 PRs (#531–#535,
+covering all 7 named routes) and explicitly authorised proceeding into Phase 6. This unblocks
+**Phase 6 — historical/intelligence routes** (History, Opponents, Teams, Season, evidence detail
+routes), migrated with the same "freeze existing mutation logic, verify before claiming done"
+discipline applied throughout Phases 4–5. `13_IMPLEMENTATION_PHASES_AND_GATES.md` names no further
+human gate between Phase 6 and Phase 7 (Formations, Groups, Rules, Settings, More, Peer reviews,
+invitation) — but Phase 6's own completion is still reported back for confirmation before Phase 7
+begins, matching this programme's practice of checking in at every phase boundary rather than
+chaining phases unattended purely because a named gate is absent.
+
+**Phase 6 progress: History migrated (1 of 5).** The real production route, not a UI-Lab copy;
+every existing all-time (not single-league-season) query this page ran is preserved unchanged —
+a real architectural fork (whether to switch to the league-season-scoped
+`getSeasonPlayerRoundMatrix()`/`getMovementPathSummary()` canonical sources named in
+`history-view-model.ts`'s own doc comment) was found and deliberately rejected, since doing so
+would have silently narrowed History's scope to one season. Full account:
+`docs/domain/touchline-atlas-provenance.md` §27.
+
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
   next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching context,
