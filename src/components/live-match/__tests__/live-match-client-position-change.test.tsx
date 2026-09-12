@@ -26,6 +26,7 @@ import { LEAGUE_PERIOD_CONFIG } from "@/lib/live-match/period-config";
 const SQUAD: SquadPlayer[] = [
   { playerId: "p1", playerName: "Alice", position: "CM", shirtNumber: 8, role: "CORE", availability: "AVAILABLE", startingOnField: true, slotLabel: "CM" },
   { playerId: "p2", playerName: "Bea", position: "CB", shirtNumber: 4, role: "CORE", availability: "AVAILABLE", startingOnField: true, slotLabel: "CB" },
+  { playerId: "p3", playerName: "Carl", position: null, shirtNumber: 12, role: "CORE", availability: "AVAILABLE", startingOnField: true, slotLabel: null },
 ];
 
 function makeActions(overrides: Partial<LiveMatchActions> = {}): LiveMatchActions {
@@ -48,7 +49,10 @@ describe("LiveMatchClient — Position action (manual POSITIONS_CHANGED)", () =>
     vi.clearAllMocks();
   });
 
-  it("records a POSITIONS_CHANGED event for the chosen on-field player and new role", async () => {
+  it("swaps both players when the chosen position is already held by another on-field player", async () => {
+    // Regression test: recording only the mover's event would leave the backend state with two
+    // players labelled at the target position and nobody at the vacated one. Bea already holds
+    // "CB" here, so moving Alice there must also move Bea to Alice's old position ("CM").
     const recordEvent = vi.fn().mockResolvedValue({ success: true, data: {} });
     const actions = makeActions({ recordEvent });
 
@@ -63,19 +67,46 @@ describe("LiveMatchClient — Position action (manual POSITIONS_CHANGED)", () =>
     const roleSheet = await screen.findByRole("dialog", { name: /New position for Alice/ });
     fireEvent.click(within(roleSheet).getByText("CB"));
 
-    await waitFor(() => expect(recordEvent).toHaveBeenCalled());
-    const call = recordEvent.mock.calls.find((c) => c[0].eventType === "POSITIONS_CHANGED");
-    expect(call).toBeDefined();
-    expect(call![0]).toMatchObject({
-      eventType: "POSITIONS_CHANGED",
-      playerId: "p1",
-      payload: { fromPosition: "CM", toPosition: "CB" },
-    });
+    await waitFor(() => expect(recordEvent).toHaveBeenCalledTimes(2));
+    const positionsChangedCalls = recordEvent.mock.calls.filter((c) => c[0].eventType === "POSITIONS_CHANGED");
+    expect(positionsChangedCalls).toHaveLength(2);
+    expect(positionsChangedCalls).toEqual(
+      expect.arrayContaining([
+        [expect.objectContaining({ playerId: "p1", payload: { fromPosition: "CM", toPosition: "CB" } })],
+        [expect.objectContaining({ playerId: "p2", payload: { fromPosition: "CB", toPosition: "CM" } })],
+      ]),
+    );
 
-    // The "On field" overview reflects the new position immediately, without a server round-trip
-    // (the sheets are closed by now, so "Alice" only matches the overview chip).
+    // The "On field" overview reflects both new positions immediately, without a server
+    // round-trip (the sheets are closed by now, so each name only matches its overview chip).
     const aliceChip = (await screen.findByText("Alice")).closest("span");
     expect(aliceChip?.textContent).toContain("CB");
+    const beaChip = (await screen.findByText("Bea")).closest("span");
+    expect(beaChip?.textContent).toContain("CM");
+  });
+
+  it("moves a single player with no swap when the target position is vacant", async () => {
+    const recordEvent = vi.fn().mockResolvedValue({ success: true, data: {} });
+    const actions = makeActions({ recordEvent });
+
+    render(
+      <LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />,
+    );
+    await waitFor(() => expect(actions.getPreMatchPackage).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByText("Position"));
+    const playerSheet = await screen.findByRole("dialog", { name: "Who changed position?" });
+    fireEvent.click(within(playerSheet).getByText("Carl"));
+    const roleSheet = await screen.findByRole("dialog", { name: /New position for Carl/ });
+    fireEvent.click(within(roleSheet).getByText("ST"));
+
+    await waitFor(() => expect(recordEvent).toHaveBeenCalledTimes(1));
+    const positionsChangedCalls = recordEvent.mock.calls.filter((c) => c[0].eventType === "POSITIONS_CHANGED");
+    expect(positionsChangedCalls).toHaveLength(1);
+    expect(positionsChangedCalls[0][0]).toMatchObject({
+      playerId: "p3",
+      payload: { fromPosition: null, toPosition: "ST" },
+    });
   });
 
   it("does not record an event when the chosen position matches the player's current position", async () => {

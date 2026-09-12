@@ -811,26 +811,54 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   const handlePositionChangeSelectRole = useCallback((newPosition: string) => {
     if (!positionChangePlayerId) return;
-    const fromPosition = getCurrentPosition(positionChangePlayerId);
+    const moverId = positionChangePlayerId;
+    const fromPosition = getCurrentPosition(moverId);
     if (fromPosition === newPosition) {
       setPositionChangePlayerId(null);
       setSheet(null);
       return;
     }
+
+    // If another on-field player already holds the target position, this is a genuine swap, not
+    // a one-sided move — recording only the mover's event would leave two players labelled at
+    // `newPosition` and nobody at `fromPosition`. Record both sides atomically, mirroring
+    // planned-rotation-live-actions.ts's existing positionOnly swap handling.
+    const occupant = fromPosition
+      ? onFieldPlayers.find((p) => p.playerId !== moverId && getCurrentPosition(p.playerId) === newPosition)
+      : undefined;
+
     recordEventLocal("POSITIONS_CHANGED", {
-      playerId: positionChangePlayerId,
+      playerId: moverId,
       period: clock.period,
       matchSeconds: getElapsedMs(clock, Date.now()),
       payload: { fromPosition, toPosition: newPosition },
     });
-    setPositionOverrides((prev) => ({ ...prev, [positionChangePlayerId]: newPosition }));
-    const playerName = squad.find((p) => p.playerId === positionChangePlayerId)?.playerName ?? "Player";
-    setLastAction({ label: `${playerName} moved to ${newPosition}` });
+    if (occupant) {
+      recordEventLocal("POSITIONS_CHANGED", {
+        playerId: occupant.playerId,
+        period: clock.period,
+        matchSeconds: getElapsedMs(clock, Date.now()),
+        payload: { fromPosition: newPosition, toPosition: fromPosition },
+      });
+    }
+
+    setPositionOverrides((prev) => {
+      const next = { ...prev, [moverId]: newPosition };
+      if (occupant && fromPosition) next[occupant.playerId] = fromPosition;
+      return next;
+    });
+
+    const moverName = squad.find((p) => p.playerId === moverId)?.playerName ?? "Player";
+    setLastAction({
+      label: occupant
+        ? `${moverName} and ${occupant.playerName} swapped positions (${fromPosition} ↔ ${newPosition})`
+        : `${moverName} moved to ${newPosition}`,
+    });
     if (lastActionTimerRef.current !== null) clearTimeout(lastActionTimerRef.current);
     lastActionTimerRef.current = setTimeout(() => setLastAction(null), 8000);
     setPositionChangePlayerId(null);
     setSheet(null);
-  }, [positionChangePlayerId, getCurrentPosition, clock, recordEventLocal, squad]);
+  }, [positionChangePlayerId, getCurrentPosition, clock, recordEventLocal, squad, onFieldPlayers]);
 
   // Merged events: server events + local-only events (not yet synced or synced but not yet in server poll)
   const mergedEvents = useMemo(() => {
