@@ -88,9 +88,51 @@ describe("FixturesPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Spring 2025")).toBeInTheDocument();
-      expect(screen.getByText("Round 1")).toBeInTheDocument();
+      // "Round 1" legitimately appears twice: once in its own scorebook section, once again in
+      // the Touchline Design Atlas "feature round" toolbar shortcut above it (ADR-0136,
+      // docs/domain/touchline-atlas-provenance.md §14/§15 — same "shown twice" pattern already
+      // used for Today's match hero, never removed from its normal position).
+      expect(screen.getAllByText("Round 1").length).toBeGreaterThan(0);
       expect(screen.getByText("Bla")).toBeInTheDocument();
     });
+  });
+
+  it("features the first non-finalized round as a shortcut toolbar (Touchline Design Atlas, ADR-0136)", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [makePeriod({
+        rounds: [
+          makeRound({ id: "r1", title: "Round 1", selectionState: "FINALIZED" }),
+          makeRound({ id: "r2", title: "Round 2", selectionState: "DRAFT" }),
+        ],
+      })],
+    });
+
+    await act(() => {
+      render(<FixturesPage orgSlug="test-org" />);
+    });
+
+    await waitFor(() => {
+      const toolbarLink = screen.getByRole("link", { name: /open round board/i });
+      expect(toolbarLink).toBeInTheDocument();
+      expect(toolbarLink).toHaveAttribute("href", "/rounds/r2");
+    });
+  });
+
+  it("shows no feature toolbar when every round is already finalized", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [makePeriod({
+        rounds: [makeRound({ id: "r1", title: "Round 1", selectionState: "FINALIZED" })],
+      })],
+    });
+
+    await act(() => {
+      render(<FixturesPage orgSlug="test-org" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Round 1")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("link", { name: /open round board/i })).not.toBeInTheDocument();
   });
 
   it("defaults to the period marked isCurrent, not periods[0] (2026-08-24 League-default regression)", async () => {
@@ -211,7 +253,10 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: /round board/i })).toBeInTheDocument();
+      // Two legitimate "round board" links for a single non-finalized round: the round's own
+      // scorebook-section link, and the Touchline Design Atlas feature-round toolbar shortcut
+      // above it (ADR-0136) — never a single-link assumption once that toolbar exists.
+      expect(screen.getAllByRole("link", { name: /round board/i }).length).toBeGreaterThan(0);
       expect(screen.queryByText("Finalise in board")).not.toBeInTheDocument();
     });
   });

@@ -368,3 +368,44 @@ New `PROHIBITED_ILLUSTRATIVE` entry:
 | Route | Requested illustrative content | Missing owner | Resolution |
 |---|---|---|---|
 | Today | "Training" schedule row (time + pitch) | No training-session model anywhere in the schema | Omit; schedule/timeline content stays real-match-only via the existing `TodayOperationalTimeline`. |
+
+## 15. Phase 4 — League production migration (2026-09-11)
+
+Second of the eight Phase 4 routes. The production `(app)/o/[orgSlug]/fixtures/page.tsx` +
+`src/components/fixtures/fixtures-page.tsx` was already substantially Touchline-compliant (its own
+golden, `touchline-v1-league-desktop.png`, is a Touchline Finish-era reference already
+implemented faithfully — dense `ScorebookRoundSection`/`ScorebookMatchRow` rows, "Generate all
+draft squads", the league-season selector). All of that — round/period generation, plan-integrity
+counts, populate-all, the league-season selector — is **frozen, unchanged**.
+
+**New, real addition**: the Atlas bundle's `05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §B`
+explicitly calls for "current/upcoming round as feature section" above the dense scorebook
+history. `buildLeagueViewModel()` (already built, Phase 1) already computed a `featureRound`; this
+pass wires it into real data via `toLeagueRoundInput()` (`FixtureRound` → `LeagueRoundInput`) and
+renders it as a `WorkbenchToolbar` — round title + state + a prominent "Open Round Board →"
+action — above the round list. The featured round still appears in its own normal scorebook
+section below too (never removed from the list) — the same "shown twice, once as a shortcut"
+pattern already used for Today's match hero.
+
+`LeagueRoundInput.isCurrent` has no real backing field on `FixtureRound` (no round-level "is this
+happening now" concept exists in this domain) — the adapter always passes `false`, honestly, and
+`buildLeagueViewModel()`'s "first non-finalized round" fallback still resolves the feature round
+correctly without it.
+
+**Deliberately omitted**: the spec's "optional 3-column support rail only for current planning
+attention" — the existing per-round summary line already surfaces blocker/decision counts inline;
+a separate rail would duplicate that, not add new information, so it wasn't built (optional per
+the spec's own wording).
+
+**Real bug found and fixed while wiring real data**: `buildLeagueViewModel()`'s original fallback
+chain ended in an unconditional `rounds[0]`, which — when every round in a period was already
+`FINALIZED` — would still "feature" the first round as if it needed action, misleadingly
+presenting a finished round as current/upcoming. This never surfaced in the UI-Lab fixture (which
+always included a non-finalized round) or existing tests (none covered the all-finalized case). A
+new regression test (`league-view-model.test.ts`) locks in the fix: featureRound is `null` when
+every round is finalized.
+
+Verified: full `npm run validate` (14/14), all pre-existing `FixturesPage`/`buildLeagueViewModel`
+tests updated for the intentional "shown twice" duplication and passing, 3 new tests (2 for the
+feature-toolbar behaviour, 1 regression for the all-finalized bug), and a real screenshot against
+the seeded Fjordvik FK dataset.

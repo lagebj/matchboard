@@ -62,10 +62,12 @@ export function buildLeagueViewModel(periods: LeaguePeriodInput[]): LeagueViewMo
   const activePeriod = periods.find((p) => p.isCurrent) ?? periods[0] ?? null;
   const rounds = activePeriod?.rounds ?? [];
 
+  // No unconditional `rounds[0]` fallback: when every round is already finalized there is
+  // genuinely nothing to feature as "current/upcoming" (05§B) — falling back to the first round
+  // regardless of its state would misleadingly present a finished round as needing attention.
   const featureRound =
     rounds.find((r) => r.isCurrent) ??
     rounds.find((r) => r.selectionState !== "FINALIZED") ??
-    rounds[0] ??
     null;
 
   const historyRounds = rounds.filter((r) => r.id !== featureRound?.id);
