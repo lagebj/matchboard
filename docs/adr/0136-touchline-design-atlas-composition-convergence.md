@@ -121,16 +121,21 @@ completion criterion, "Human final visual sign-off required," is not a self-impo
 decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
 and stays in force as written.
 
-**Phase 7 progress: Formations migrated (1 of 7).** The real production create/edit route, not a
-UI-Lab copy; every existing slot-mutation/save/list action is frozen, completely untouched.
-`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected slot details" facts —
-three (role type, exact derived target role, lane) were already implemented via the existing
-`deriveExactTargetRole()` call; only the automatic-planning eligibility-tier meaning was missing,
-now added as one new sentence. The golden's 3-column desktop layout and a live-synced persistent
-inspector were both deliberately not built — genuine, disclosed, interaction-model-driven
-decisions (a real two-page list/edit navigation split predates this pass; `SlotEditDialog`'s own
-local state would need lifting for a live-synced external panel, a larger refactor than this fix
-warrants). Full account: `docs/domain/touchline-atlas-provenance.md` §32.
+**Phase 7 progress: Formations and Groups migrated (2 of 7).** Formations: the real production
+create/edit route, not a UI-Lab copy; every existing slot-mutation/save/list action is frozen,
+completely untouched. `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected
+slot details" facts — three (role type, exact derived target role, lane) were already
+implemented via the existing `deriveExactTargetRole()` call; only the automatic-planning
+eligibility-tier meaning was missing, now added as one new sentence. The golden's 3-column
+desktop layout and a live-synced persistent inspector were both deliberately not built — genuine,
+disclosed, interaction-model-driven decisions (a real two-page list/edit navigation split
+predates this pass; `SlotEditDialog`'s own local state would need lifting for a live-synced
+external panel, a larger refactor than this fix warrants). Groups: the Group detail page's
+identity/tabs/dense-table/edit-action were already correct (already the real 6-tab set named in
+provenance §0 item 11); the one genuine gap was a missing "Guest players" count tile in the
+top summary strip, even though the Guest players tab and its data were already present — added as
+a 5th tile, zero new queries. Full account: `docs/domain/touchline-atlas-provenance.md` §32
+(Formations), §33 (Groups).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
