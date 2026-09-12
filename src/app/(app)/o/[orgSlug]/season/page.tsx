@@ -3,8 +3,12 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { SeasonOverviewClient } from "@/app/(app)/season/season-client";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { SeasonFinalizeControls } from "@/app/(app)/season/season-finalize-controls";
-import { TouchlineButton } from "@/components/touchline";
+import { TouchlinePageHeader, TouchlineButton } from "@/components/touchline";
+import { CapacityBar } from "@/components/touchline/widget/capacity-bar";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getSeasonPlayerRoundMatrix } from "@/lib/selection/get-season-overview";
+import { buildSeasonViewModel } from "@/lib/touchline/presentation/season-view-model";
+import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +35,36 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
   });
 
   const activeLeagueSeason = leagueSeasons[0] ?? null;
+
+  // Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_SEASON.md
+  // §E`): "season progress by rounds/dates" + "participation coverage" -- previously absent
+  // entirely; the rich player x round matrix/movement/drill-down content below (a real,
+  // AGENTS.md-documented product decision, correctly left untouched) is fetched client-side by
+  // `SeasonOverviewClient` via its own `/api/season/matrix` route, so this is a genuine second
+  // call to the same already-established `getSeasonPlayerRoundMatrix()` (also used by that API
+  // route) -- not the flagged, unbatched `getTeamSeasonMatchPhasePatterns()` that caused a real
+  // CI performance regression when wired into Today (provenance §14); no such risk here.
+  const seasonMatrix = activeLeagueSeason
+    ? await getSeasonPlayerRoundMatrix(activeLeagueSeason.id, false)
+    : null;
+
+  const seasonSummary =
+    activeLeagueSeason && seasonMatrix
+      ? buildSeasonViewModel({
+          leagueSeasonId: activeLeagueSeason.id,
+          displayLabel: formatPhaseDisplay({
+            seasonName: activeLeagueSeason.name,
+            phaseName: activeLeagueSeason.name,
+            startDate: new Date(activeLeagueSeason.startDate),
+            endDate: new Date(activeLeagueSeason.endDate),
+          }).combinedLabel,
+          status: activeLeagueSeason.status,
+          roundCount: seasonMatrix.roundCount,
+          finalizedRoundCount: seasonMatrix.finalizedRoundCount,
+          playersWithAppearance: seasonMatrix.players.filter((p) => p.totalSelections > 0).length,
+          totalCorePlayers: seasonMatrix.players.length,
+        })
+      : null;
 
   const leagueSeasonIntent = activeLeagueSeason
     ? await db.coachingIntent.findFirst({
@@ -74,6 +108,35 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
   return (
     // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
     <div className="touchline flex flex-col gap-3">
+      {/* Touchline Design Atlas (ADR-0136 Phase 6, §E): a real, previously-missing gap -- this
+          page had no page header/title anywhere, despite AGENTS.md's own explicit "Header:
+          'Season' with subtitle 'Track load, movement, and fairness across the league
+          season.'" requirement. */}
+      <TouchlinePageHeader title="Season" context="Track load, movement, and fairness across the league season." />
+
+      {seasonSummary && (
+        <div className="grid grid-cols-1 gap-3 medium:grid-cols-2">
+          <div className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4">
+            <p className="text-[12px] text-[var(--text-muted)]">Round progress</p>
+            <p className="mt-1 tl-sport text-[22px] font-[650] text-[var(--foreground)]">
+              {seasonSummary.finalizedRoundCount}/{seasonSummary.roundCount} rounds
+            </p>
+            <div className="mt-2">
+              <CapacityBar value={seasonSummary.finalizedRoundCount} max={Math.max(1, seasonSummary.roundCount)} />
+            </div>
+          </div>
+          <div className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4">
+            <p className="text-[12px] text-[var(--text-muted)]">Participation coverage</p>
+            <p className="mt-1 tl-sport text-[22px] font-[650] text-[var(--foreground)]">
+              {seasonSummary.participationCoveragePercent}%
+            </p>
+            <p className="mt-1 text-[12px] text-[var(--text-muted)]">
+              {seasonSummary.playersWithAppearance}/{seasonSummary.totalCorePlayers} players with a finalized appearance
+            </p>
+          </div>
+        </div>
+      )}
+
       {created && (
         <div className="rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] bg-[var(--success-subtle)] px-3 py-2 text-xs font-medium text-[var(--success)]">
           League season created.

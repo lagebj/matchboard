@@ -1115,3 +1115,52 @@ new Attention column (a genuine plan-integrity signal and/or active TeamFocus fr
 current round, not a fabricated value) while the other two teams correctly show none, and
 Fjordvik Rød's new "Record 1-1-1" tile on its detail page matches the exact same figure already
 shown for that team on the Teams overview page.
+
+## 30. Phase 6 — Season production migration (2026-09-12)
+
+Fourth of Phase 6's five named routes. The real production route
+(`src/app/(app)/o/[orgSlug]/season/page.tsx`) — not a UI-Lab copy, and the existing rich
+player × round matrix / movement-path / drill-down content (`SeasonOverviewClient`,
+`src/app/(app)/season/season-client.tsx`) is **frozen, completely untouched** — a real,
+deliberate, AGENTS.md-documented product decision (matrix as PRIMARY view, movement path
+summary, drill-downs, season fairness warnings), correctly left alone rather than force-flattened
+into the golden's simpler bullet list, matching the Team Detail tabs precedent from §29.
+
+**Two real, previously-missing gaps, both additive — layered above the existing rich content,
+never replacing it** (the same "new summary layer above existing content" pattern Today
+established in Phase 4):
+
+1. **No page header at all.** `SeasonOverviewClient` renders no "Season" title anywhere — a real
+   miss against AGENTS.md's own explicit "Header: `Season` heading with subtitle `Track load,
+   movement, and fairness across the league season.`" requirement. Added via
+   `TouchlinePageHeader`.
+2. **"Season progress by rounds/dates" + "participation coverage"** (§E) had no production
+   caller — `buildSeasonViewModel()` (the pure, already-tested Phase 1/3 builder) was, like every
+   other route this phase, built but unwired. Wired in via one new server-side call to
+   `getSeasonPlayerRoundMatrix(leagueSeasonId, false)` — the exact same canonical function
+   `SeasonOverviewClient`'s own `/api/season/matrix` route already calls (a second, small,
+   disclosed query cost on this one page, not a novel or risky one) — deriving round progress
+   (`CapacityBar`) and participation coverage (players with ≥1 finalized appearance ÷ total core
+   players).
+
+**Deliberately not added, both disclosed**:
+- **Evidence spotlight.** The golden shows one. Its natural source, `getTeamSeasonMatchPhasePatterns()`,
+  is the *exact* function whose unbatched per-match query caused a real, documented CI
+  performance regression (30s navigation timeouts) when wired into Today (§14) — reverted there
+  specifically because the fix belongs in that function itself, not at any new call site. Adding
+  it here would reintroduce the identical, already-diagnosed risk on a second page before that
+  prerequisite fix exists.
+- **Recent/upcoming matches.** Today and League already own "what's coming up / what just
+  happened" for the whole organisation; a second, season-scoped rendering of the same matches
+  here would be exactly the kind of duplicated match-display concern this program avoids
+  elsewhere (see Today's own "deliberately omitted... a separate 'Today's schedule' widget"
+  reasoning, §14).
+- **Active TeamFocus/season intent** needed no new work — `CoachingIntentSelector` for
+  `LEAGUE_SEASON` scope already existed on this page, already satisfying this spec bullet.
+
+Verified: full `npm run validate` (14/14), and real screenshots (desktop + mobile) against the
+locally-seeded Fjordvik FK dataset, confirming the new header and both summary widgets (5/6
+rounds, 92% · 24/26 players) render correctly in the page's own light theme, layered cleanly
+above the existing, deliberately dark-pinned matrix/movement-path content (`season-client.tsx`'s
+own `data-theme="dark"`, an unrelated pre-existing decision from ADR-0134 — not touched, not a
+bug this pass introduced or needed to fix).

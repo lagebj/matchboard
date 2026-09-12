@@ -64,8 +64,8 @@ invitation) — but Phase 6's own completion is still reported back for confirma
 begins, matching this programme's practice of checking in at every phase boundary rather than
 chaining phases unattended purely because a named gate is absent.
 
-**Phase 6 progress: History, Opponents (list + detail), and Teams (overview + detail) migrated
-(3 of 5).** All are the real production routes, not UI-Lab copies. History: every existing
+**Phase 6 progress: History, Opponents (list + detail), Teams (overview + detail), and Season
+migrated (4 of 5).** All are the real production routes, not UI-Lab copies. History: every existing
 all-time (not single-league-season) query this page ran is preserved unchanged — a real
 architectural fork (whether to switch to the league-season-scoped `getSeasonPlayerRoundMatrix()`/
 `getMovementPathSummary()` canonical sources named in `history-view-model.ts`'s own doc comment)
@@ -82,8 +82,18 @@ each — "unresolved planning attention" on the overview (a dedicated view-model
 production caller, now fed by a new batched-per-distinct-round derivation, never per-team) and a
 season Won/Drawn/Lost record on the detail page (absent entirely; the page's existing 7-tab
 structure was correctly left alone as already substantially matching spec intent, richer than the
-golden's flat "grid," per AGENTS.md's own documented tab design). Full account:
-`docs/domain/touchline-atlas-provenance.md` §27 (History), §28 (Opponents), §29 (Teams).
+golden's flat "grid," per AGENTS.md's own documented tab design). Season: also **no fork** — its
+rich player × round matrix/movement-path/drill-down content (`SeasonOverviewClient`) is a real,
+AGENTS.md-documented product decision, correctly left untouched. Two small, additive,
+previously-missing gaps found instead: no page header/title existed anywhere (a direct AGENTS.md
+"Header: `Season`..." miss), and `buildSeasonViewModel()` (round progress + participation
+coverage) had no production caller — both layered above the existing content, matching Today's
+own "new summary layer above existing content" pattern. An evidence-spotlight widget and a
+recent/upcoming-matches list were deliberately **not** added — the former would reintroduce the
+exact unbatched-query performance risk already diagnosed and reverted from Today (§14); the
+latter would duplicate what Today/League already own. Full account:
+`docs/domain/touchline-atlas-provenance.md` §27 (History), §28 (Opponents), §29 (Teams), §30
+(Season).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
