@@ -222,6 +222,9 @@ type PitchLineupViewProps = {
   assignments: { id: string; slotId: string; playerId: string | null; locked: boolean; source: string }[];
   players: { id: string; firstName: string; lastName: string | null; primaryPosition: string }[];
   onSlotClick?: (assignmentId: string | null, slotId: string, playerId: string | null) => void;
+  /** See `TacticsBoard`'s own doc comment (ADR-0136, Phase 5): fires on every slot click
+   * regardless of `readOnly`, distinct from `onSlotClick`. Optional and additive. */
+  onSlotView?: (assignmentId: string | null, slotId: string, playerId: string | null) => void;
   readOnly?: boolean;
   orientation?: "horizontal" | "vertical";
   attackingDirection?: "left-to-right" | "right-to-left";
@@ -233,6 +236,7 @@ export function PitchLineupView({
   assignments,
   players,
   onSlotClick,
+  onSlotView,
   readOnly = false,
   orientation = "vertical",
   attackingDirection = "left-to-right",
@@ -273,6 +277,7 @@ export function PitchLineupView({
       assignments={boardAssignments}
       players={boardPlayers}
       onSlotClick={onSlotClick}
+      onSlotView={onSlotView}
       readOnly={readOnly}
     />
   );

@@ -734,3 +734,74 @@ The captured round's planning boundary happened to already be closed (kickoff ha
 component tests rather than a second live screenshot of the open-boundary case — a reasonable,
 disclosed trade-off given the change to that code path is a pure layout wrap with unchanged
 conditional logic and handlers.
+
+## 23. Phase 5 — Lineup + Tactics production migration (2026-09-12)
+
+Second of the seven Phase 5 routes. `08_ROUTE_COMPOSITION_PLANNING_TACTICS.md §B` ("Lineup") and
+§C ("Tactics") both map onto the **same single production surface** — the match detail Tactics
+tab (`src/components/matches/match-tactics-panel.tsx`), which already served the golden's
+"Lineup" concept (editable pitch + formation controls + bench/candidate assignment). §C's
+"selected-player inspector" — identity, exact current role, positional fit — was the one
+genuinely missing piece, not built anywhere in this codebase before this pass.
+
+**All existing mutation logic is frozen, completely untouched**: formation selection, "Suggest
+lineup"/apply, per-slot player assignment (`assignPlayerToSlot`), the `PlayerPicker` dialog flow,
+partnership evidence, planning-boundary gating. The only new capability is a read-only
+"Positional fit" inspector, rendered in the existing `aside` column beside the pitch, using two
+already-built Phase 2 widgets (`TouchlineInspector`, `PositionFitList`) and one new, pure,
+unit-tested domain function, `computePlayerPositionFitEntries()`
+(`src/domain/positions/position-fit-entries.ts`) — groups a player's exact-role suitability
+(ADR-0129) across the 11 outfield exact roles by tier, via `classifyExactSuitability()` (already
+existed, already used elsewhere for the same matrix). "GK" is excluded from the grouping,
+matching the same goalkeeper-boundary precedent `OutfieldStructuralRole` already established
+(Bundle 5, ADR-0116, D-011). `tertiaryPosition`/`bestSide` are not yet loaded onto the panel's
+`selections` prop, so the fit computation uses primary/secondary declarations only — a
+disclosed, deliberate scope reduction (the same "prefer zero new queries" discipline as Match
+detail's own deferred "Availability" widget, §19); a future pass can widen the existing query.
+
+**A real, non-trivial shared-primitive problem found and fixed while wiring this in**: the
+pitch's slot-click handler (`TacticsBoard`/`PitchLineupView`, shared by Round... by Match detail's
+Tactics tab *and* Event's match lineup panel) gates its `onClick` entirely on `!readOnly` — so a
+click does nothing at all once a match's planning boundary has closed. This is *correct* for the
+existing assignment flow (a closed lineup must not be editable), but it also meant the new
+inspector could never work on exactly the state where reviewing a locked lineup's positional
+detail matters most. Fixed by adding a new, additive, optional `onSlotView` callback to
+`TacticsBoard`'s `LineupRenderProps` (and threading it through `PitchLineupView`) that fires on
+every occupied-slot click *regardless of* `readOnly`, entirely separate from the existing
+`onSlotClick` (which keeps its exact original `!readOnly` gate, unchanged) — an occupied slot is
+now clickable whenever *either* editing is allowed *or* a view-only inspector is wired up; an
+empty slot's click/edit affordance is untouched (there is nothing useful to inspect in an empty
+slot). Omitting the new prop changes nothing for any existing caller — verified directly: Event's
+`event-match-lineup-panel.tsx` does not pass `onSlotView` and its own `handleSlotClick` has no
+independent `readOnly` check of its own, so it depends entirely on the shared primitive's
+existing gate remaining exactly as strict as before.
+
+**This exact risk was concretely caught, not just reasoned about**: the new component test suite
+(`tactics-board.test.tsx`) caught two real bugs in the first draft of this change before it ever
+reached a screenshot — (1) the outer `TacticsBoard` dispatcher's `lineup-assignment`/
+`lineup-readonly` branch destructured `onSlotClick` from its props but forgot to also destructure
+and forward the new `onSlotView`, so it silently never reached `LineupContent` at all; (2) once
+that was fixed, the shared click handler fired `onSlotClick` *unconditionally* whenever the
+button was clickable at all (i.e., whenever `onSlotView` made it clickable), which would have
+meant a read-only board with `onSlotView` wired up could still trigger the *assignment* callback
+— exactly the mutation-safety regression this whole exercise had to avoid. Both were fixed and
+are now locked in by name: "does NOT fire onSlotClick on a read-only board (existing edit-gating
+behaviour, unchanged)" and "DOES fire onSlotView on a read-only board (the new, additive
+capability)".
+
+Verified: full `npm run validate` (14/14), 5 new unit tests for `computePlayerPositionFitEntries()`
+(including a normative regression lock for ADR-0129's own worked example, "CM → LW/RW is
+DEVELOPMENTAL"), 4 new component tests for `TacticsBoard`'s `onSlotClick`/`onSlotView` split (the
+two bug-catching tests above plus a baseline editable-mode test and a no-callbacks-supplied
+render test), and a real screenshot confirming the inspector renders correctly — clicking "Luca
+Moretti" (declared CM) on a **planning-closed** (read-only) match's Tactics tab correctly shows
+"Natural fit: CM · Strong fit: DM, AM · Plausible fit: CB, LM, RM · Developmental positional fit:
+LB, RB, LW, RW, ST" in a new "Inspector" panel, with the existing pitch/Squad/Empty-slots panels
+completely unaffected.
+
+**Deliberately deferred, not silently dropped**: the spec's mobile "selected-player bottom sheet"
+(item 4 of §C's mobile order) — the inspector currently renders as a stacked, full-width panel on
+compact viewports (the existing `aside` column's own responsive behaviour), functional but not
+the dedicated bottom-sheet interaction pattern the golden shows. A future pass can adopt the
+existing `BottomSheet` primitive (already used elsewhere, e.g. Round Board) for this specific
+surface without needing to touch any of the mutation/inspector logic built in this pass.

@@ -32,10 +32,10 @@ unblocks **Phase 5 — football work surfaces** (Round Board, Lineup, Tactics, R
 Reporting, Follow Live, Post-match), which stops again at **Human Gate C** before Phases 6–10
 (historical/intelligence routes, utility/config/collaboration routes, brand asset convergence,
 transitional-design removal, full validation and final sign-off).
-**Phase 5 progress: Round Board migrated (1 of 7).** The real production route, not a UI-Lab
-copy; every existing mutation (drag/drop/touch/move, generate/regenerate/clear, emergency
-repair) is frozen, completely untouched. Full account:
-`docs/domain/touchline-atlas-provenance.md` §22.
+**Phase 5 progress: Round Board and Lineup+Tactics migrated (2 of 7).** Both are the real
+production routes, not UI-Lab copies; every existing mutation is frozen, completely untouched.
+Full account: `docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23 (Lineup +
+Tactics).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -139,6 +139,24 @@ repair) is frozen, completely untouched. Full account:
   pre-existing `round-board.test.tsx` tests (including the dedicated open/closed-boundary
   Regenerate/Clear visibility tests) passing unchanged, and a real screenshot against the seeded
   dataset. Full account: `docs/domain/touchline-atlas-provenance.md` §22.
+- **Lineup + Tactics** (`src/components/matches/match-tactics-panel.tsx`): the spec's "Lineup"
+  and "Tactics" sections both map onto this one existing tab, which already served "Lineup"
+  (editable pitch/formation/assignment). The genuinely missing piece was "Tactics"'s
+  selected-player inspector (identity, exact role, positional fit) — added via two already-built
+  widgets and one new pure function, `computePlayerPositionFitEntries()`
+  (`src/domain/positions/position-fit-entries.ts`). Found and fixed a real shared-primitive
+  problem while wiring it in: the pitch's slot click was gated entirely on `!readOnly`, so the
+  inspector could never work on a closed/locked lineup — exactly when reviewing positional detail
+  matters most. Added a new, additive `onSlotView` callback to `TacticsBoard`
+  (`src/components/formations/tactics-board.tsx`), fired regardless of `readOnly`, fully separate
+  from the existing `onSlotClick` (unchanged gate) — verified not to affect Event's own lineup
+  panel, which relies on that exact gate with no independent check of its own. New component
+  tests caught two real bugs in the first draft before a screenshot was ever taken: a missing
+  prop-forward in `TacticsBoard`'s dispatcher, and `onSlotClick` firing unconditionally once
+  `onSlotView` made a slot clickable at all (a real mutation-safety regression, now locked in by a
+  dedicated test). Verified: full `npm run validate` (14/14), 5 new unit tests + 4 new component
+  tests, and a real screenshot of the inspector rendering correctly on a **planning-closed**
+  match. Full account: `docs/domain/touchline-atlas-provenance.md` §23.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish
