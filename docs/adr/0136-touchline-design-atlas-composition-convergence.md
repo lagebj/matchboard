@@ -21,7 +21,8 @@ validation and final sign-off) remain unstarted and ungated until their own turn
 **Phase 4 progress: Today, League, and Events migrated (3 of 8).** All are the real production
 routes, not UI-Lab copies; each freezes all existing domain/business logic and is additive
 composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today), §15
-(League), §16 (Events), §17 (Today follow-up performance fix).
+(League), §16 (Events), §17 (Today performance follow-up), §18 (Today squad-status placement
+follow-up).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -48,6 +49,10 @@ composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14
   with a new, deliberately narrow, bounded query, `getRecentCompletedMatches()`
   (`src/lib/matches/get-recent-completed-matches.ts`) — same displayed data, far cheaper. 5 new
   DB-backed tests. See the provenance doc's §17 for the full account.
+  **Follow-up fix (§18):** `SquadReadinessWidget` was nested inside the `featuredMatch` branch
+  only, so it almost never rendered for an active coach (a real `nextAction` is the more common
+  case) — found while capturing verification screenshots. Moved out to render independently of
+  which hero branch is active, alongside `RecentFootballWidget`. New regression test locks it in.
 - **League** (`(app)/o/[orgSlug]/fixtures/page.tsx` + `fixtures-page.tsx`): round/period
   generation, plan-integrity counts, and populate-all are frozen, unchanged. New: a
   `WorkbenchToolbar` "Open Round Board →" shortcut for the current/upcoming round
