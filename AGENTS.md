@@ -3293,6 +3293,11 @@ Filters:
 Season page layout:
 
 - Header: "Season" with subtitle "Track load, movement, and fairness across the league season."
+- Round progress / participation coverage strip (added ADR-0136 Phase 6): two widgets ahead of
+  the matrix — finalized-vs-total round count (capacity bar) and percentage of core players with
+  at least one finalized appearance (`buildSeasonViewModel()`,
+  `src/lib/touchline/presentation/season-view-model.ts`) — layered above the matrix, never
+  replacing it.
 - Controls: league season selector, finalized/draft toggle, filters
 - Top summary strip: total rounds, finalized rounds, draft rounds, players with plan integrity signals, highest support burden, legacy additional assignment count
 - Main: player × round matrix
