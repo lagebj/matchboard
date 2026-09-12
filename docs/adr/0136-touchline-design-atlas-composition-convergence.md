@@ -18,9 +18,10 @@ Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/i
 utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
 validation and final sign-off) remain unstarted and ungated until their own turn.
 
-**Phase 4 progress: Today and League migrated (2 of 8).** Both are the real production routes,
-not UI-Lab copies; both freeze all existing domain/business logic and are additive composition
-only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today) and §15 (League).
+**Phase 4 progress: Today, League, and Events migrated (3 of 8).** All are the real production
+routes, not UI-Lab copies; each freezes all existing domain/business logic and is additive
+composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today), §15
+(League), §16 (Events).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -49,6 +50,16 @@ only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today) and
   would "feature" an already-finished round as if it needed action when every round in a period
   was finalized — a new regression test locks in the fix. Verified: full `npm run validate`
   (14/14), 3 new/updated tests, and a real screenshot against the same seeded dataset.
+- **Events** (`(app)/o/[orgSlug]/events/page.tsx` + `(app)/events/[eventId]/event-detail.tsx`):
+  squad generation, fill/regenerate, guest-player, availability, match, and finalization
+  behaviour are frozen, unchanged. New: a "Next event" feature widget on the Events list (same
+  "shown twice" pattern) and a `SquadReadinessWidget` on Event detail's Overview tab, both computed
+  entirely from already-loaded data — no new query added, deliberately, after the Today
+  performance lesson. Both mappings were extracted to new pure, unit-tested modules
+  (`src/lib/events/event-list-presentation.ts`, `event-squad-readiness.ts`). The UI-Lab
+  reference's "Next match" and "Helpers" widgets on Event detail were deliberately deferred, not
+  built — both would need a genuinely new query this pass intentionally avoided. Verified: full
+  `npm run validate` (14/14), 9 new unit tests, and real screenshots against the seeded dataset.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish

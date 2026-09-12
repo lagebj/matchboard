@@ -44,6 +44,8 @@ import { RatingBadge } from '@/components/ratings/rating-badge';
 import { EventGuestPlayerPoolPanel } from '@/components/events/event-guest-player-pool-panel';
 import { EventMatchAvailabilityPanel } from '@/components/events/event-match-availability-panel';
 import { EventDayTimeline } from '@/components/events/event-day-timeline';
+import { SquadReadinessWidget } from '@/components/touchline/widgets';
+import { computeEventSquadReadiness } from '@/lib/events/event-squad-readiness';
 
 type FormationSlotDisplay = { id: string; roleType: FormationSlotRoleType; label: string; shortLabel: string; acceptedPositionIds: string[]; gridX: number; gridY: number; sortOrder: number };
 
@@ -272,6 +274,12 @@ export function EventDetail({ data }: { data: EventDetailData }) {
   const totalAvailable = data.availablePlayers.length;
   const totalUnassigned = data.unassignedPlayers.length;
   const poolIsEmpty = data.players.length === 0;
+
+  // Touchline Design Atlas (ADR-0136): squad readiness widget, computed entirely from
+  // already-loaded `data.squads` -- no new query. Mirrors the UI-Lab reference composition
+  // (`/dev/ui-lab/atlas/routes/event-detail`) exactly: available/unavailable map to
+  // assigned/missing-from-target counts, exceptions list squads short of their target.
+  const squadReadiness = computeEventSquadReadiness(data.squads);
 
   function handleGenerate() {
     if (poolIsEmpty) {
@@ -580,6 +588,17 @@ export function EventDetail({ data }: { data: EventDetailData }) {
             eventId={data.id}
             squadNames={Object.fromEntries(data.squads.map((s) => [s.id, s.name]))}
           />
+          {squadReadiness.length > 0 && (
+            <SquadReadinessWidget
+              title={`${totalAssigned} assigned across ${data.squads.length} squad${data.squads.length !== 1 ? 's' : ''}`}
+              available={totalAssigned}
+              doubtful={0}
+              unavailable={squadReadiness.reduce((sum, r) => sum + r.missingCount, 0)}
+              exceptions={squadReadiness
+                .filter((r) => r.missingCount > 0)
+                .map((r) => ({ playerId: r.squadId, displayName: r.squadName, reason: `${r.missingCount} short of target` }))}
+            />
+          )}
           <Surface variant="default" padding="md">
             <SectionHeader title="Event details" />
             <div className="mt-3 grid gap-3 medium:grid-cols-2">

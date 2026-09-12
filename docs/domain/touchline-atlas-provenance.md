@@ -409,3 +409,56 @@ Verified: full `npm run validate` (14/14), all pre-existing `FixturesPage`/`buil
 tests updated for the intentional "shown twice" duplication and passing, 3 new tests (2 for the
 feature-toolbar behaviour, 1 regression for the all-finalized bug), and a real screenshot against
 the seeded Fjordvik FK dataset.
+
+## 16. Phase 4 — Events production migration (2026-09-11)
+
+Third of the eight Phase 4 routes. Both the production `(app)/o/[orgSlug]/events/page.tsx`
+(Events list) and `(app)/events/[eventId]/event-detail.tsx` (Event detail, via
+`components/events/event-detail.tsx`'s `EventDetail` client component) — not UI-Lab copies. All
+existing squad generation, fill/regenerate, guest-player, availability, match, and finalization
+behaviour is **frozen, unchanged**. Unlike Today and League, Event detail already had substantial
+pre-existing Atlas-shaped composition from an earlier phase (`EventDayTimeline` leading the
+Overview tab per ADR-0125, plus a `MetricTile` row and an "Event details" facts panel) — this pass
+adds only the pieces genuinely missing, not a rebuild.
+
+**Events list — new**: a "Next event" feature widget above the existing month-grouped
+upcoming/past lists, wired from the already-built `buildEventListViewModel()`
+(`src/lib/touchline/presentation/event-view-model.ts`, Phase 1) into real `getEvents()` data for
+the first time. The featured event still also appears normally in its month group below — the
+same "shown twice, once as a shortcut" pattern Today's hero and League's toolbar already
+established. The mapping from a real event row to the view model's `EventListRowInput` was
+extracted to a new pure module, `src/lib/events/event-list-presentation.ts`
+(`toEventListRowInput()`, `readinessLabel()` — the exact pre-existing readiness rule, reused
+verbatim, not re-derived), so it is directly unit-tested without needing to render the async
+Server Component page — the same extraction discipline `today-match-presentation.ts` established.
+
+**Event detail — new**: a `SquadReadinessWidget` (Phase 2) rendered on the Overview tab, directly
+below the existing `EventDayTimeline`. Computed entirely from `data.squads` — already loaded by
+the existing page query, no new query added. `available`/`unavailable` map to
+assigned/missing-from-target counts and `exceptions` lists squads short of their target, exactly
+mirroring the UI-Lab reference composition at `/dev/ui-lab/atlas/routes/event-detail`. Extracted
+to `src/lib/events/event-squad-readiness.ts` (`computeEventSquadReadiness()`) for the same
+unit-testability reason as the Events list adapter above — `event-detail.tsx` is a large
+`"use client"` component with a substantial server-action surface, not a convenient place to unit
+test a pure computation directly.
+
+**Deliberately deferred, not silently dropped** (a real, disclosed scope reduction — same
+discipline as Today's evidence-spotlight removal):
+- **`opponentSummary` on the Events list** is always `null`. `getEvents()` loads squads/players
+  per event, not per-event match/opponent rows; deriving a real opponent summary would need either
+  a new per-event query (an N+1 risk across the whole list, the exact category of issue that
+  slowed Today under CI load) or a broader change to `getEvents()`'s own query shape. Left for a
+  future pass once there's a batched way to get it.
+- **The Event-detail "Next match" and "Helpers" widgets** shown in the UI-Lab reference
+  (`/dev/ui-lab/atlas/routes/event-detail`) were not built in this pass. "Next match" needs a
+  per-event-match query the current `EventDetailData` does not load (Event matches have no
+  `MatchPresentation` equivalent — a separate `EventMatch` model, per the UI-Lab route's own doc
+  comment) and is already well covered by the existing, frozen `EventDayTimeline`. "Helpers"
+  needs a genuinely new cross-match aggregation over `EventMatchSupportAssignment` that nothing on
+  this page currently loads. Both are real, addressable follow-ups, not abandoned — deferred here
+  specifically to keep this PR's new-query surface at zero, after the Today CI-performance lesson.
+
+Verified: full `npm run validate` (14/14), 9 new unit tests across the two new pure modules
+(`event-list-presentation.test.ts`, `event-squad-readiness.test.ts`), and a real screenshot
+(Events list + Event detail, desktop + mobile) captured against the seeded Fjordvik FK dataset via
+the existing test-agent auth flow.
