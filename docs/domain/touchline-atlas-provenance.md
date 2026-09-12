@@ -1442,3 +1442,58 @@ requester name rendering (present, and the neutral "a teammate" fallback when a 
 resolved) and the existing three-section placement/action behaviour, run via
 `vitest run --config vitest.config.components.ts` (5/5 pass). `tsc --noEmit` passed clean.
 `npm run lint` reported no issues on the changed files.
+
+## 38. Phase 7 — Invitation production migration, completing Phase 7 (2026-09-12)
+
+Seventh and last of Phase 7's named routes. The real production `/invite/[token]` route
+(`src/app/(app)/invite/[token]/page.tsx` + `invite-acceptance-form.tsx`) — not a UI-Lab copy.
+Every existing invitation-lifecycle mutation (accept, decline, the six status-specific read-only
+screens for Not Found/Revoked/Declined/Expired/Unavailable) is **frozen, completely untouched**.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §H` requires "current invitation facts only":
+organisation identity, invitation meaning, accept, and **use another account** — plus "no
+marketing feature list unless the invited scope actually grants it." The golden reference
+(`atlas-route-and-state-coverage.png`, panel 5) illustrates a "Join your team on Matchboard to
+get access to events, matches, and more" checklist of three generic benefit bullets — this is
+exactly the marketing feature list §H's own text prohibits (this codebase has no concept of an
+invitation-scoped feature grant to check it against), so it was **not** added; the golden's
+member/team-count line (`7 members • 3 teams`) was similarly not added — `Organisation` has no
+denormalized member/team counts, and the invitation targets an organisation, never a football
+group (`Organisation`/`OrganisationInvitation` schema confirmed no group linkage), so "group
+identity" beyond the already-shown organisation name/role has no real data to show. Organisation
+identity, invitation meaning ("invited to join X as Y"), and accept were all **already correct**.
+
+The one genuine, load-bearing gap: **"use another account" did not exist at all.** An invitation
+is addressed to one specific email; a coach's browser may already be signed into Matchboard with
+a different Google account, and there was previously no way to switch without navigating away
+from the invite flow entirely (sign out via the user menu, lose the invite link, dig the original
+email back out). Added `useAnotherAccountAction()` — signs the current session out, then
+re-initiates Google sign-in with the account chooser forced open (`prompt: "select_account"`),
+returning to this exact `/invite/{token}` URL on completion — self-contained within the invite
+route's own new server-action file, calling `signIn`/`signOut` directly rather than round-tripping
+through the shared `/signin` page or global auth middleware.
+
+**Disclosed, deliberately out of scope**: a separate, real, lower-severity defect was found while
+investigating this — the global unauthenticated redirect (`src/proxy.ts`'s middleware) sends an
+unauthenticated visitor to a bare `/signin` with no `callbackUrl`, and the custom `/signin` page
+ignores any `callbackUrl` it is given regardless, hardcoding `redirectTo: "/"`. A brand-new coach
+who is not yet signed into Matchboard at all and clicks an invite email link is bounced to
+sign-in, then lands on `/` (not back at `/invite/{token}`) after authenticating — not a hard
+failure (their pending invitation is still there; re-clicking the same email link, now
+authenticated, reaches the invite page correctly and completes normally), but a real, avoidable
+round-trip. Fixing it properly needs safe-relative-path validation against open-redirect abuse
+(a client-supplied `callbackUrl` on the public, unauthenticated `/signin` route) and touches
+global authentication middleware/the shared sign-in page shared by every protected route in the
+app — a materially larger, higher-risk security surface than this composition-only pass, and
+`useAnotherAccountAction()` above needed no part of it (it calls `signIn` directly with a
+hardcoded, server-controlled `redirectTo`, never a client-supplied one). Left for a dedicated
+follow-up rather than folded into this route's own narrow fix.
+
+Verified: a new component test (`__tests__/invite-acceptance-form.test.tsx`, 6 cases) locks in the
+new action's presence, its call with the correct token, the busy/disable state while switching,
+its neutral failure-path error message, and that accept/decline are unaffected — run via
+`vitest run --config vitest.config.components.ts` (6/6 pass). `tsc --noEmit` passed clean.
+`npm run lint` reported no issues on the changed files.
+
+**Phase 7 is now complete — all seven named routes addressed** (Formations §32, Groups §33, Rules
+§34, Settings §35, More §36, Peer reviews §37, Invitation §38).
