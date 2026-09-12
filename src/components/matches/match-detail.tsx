@@ -46,6 +46,9 @@ import { MetricTile } from "@/components/ui/metric-tile";
 import { COACHING_INTENT_LABELS, type CoachingIntentCategory } from "@/lib/coaching/types";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
+import { WidgetHeader } from "@/components/touchline/widget/widget-header";
+import { buildMatchPlanningHubViewModel } from "@/lib/matches/get-match-planning-hub-view-model";
 
 type SelectionRow = {
   id: string;
@@ -125,6 +128,9 @@ type MatchData = {
   phaseEndDate?: Date;
   plannedRotation?: PlannedRotationWithChanges | null;
   isCancelled?: boolean;
+  /** Whether a MatchLineup row exists for this match — feeds the "Preparation" checklist
+   * (Touchline Design Atlas, ADR-0136). Lineup content itself is untouched here. */
+  hasLineup?: boolean;
 };
 
 const roleOrder = [
@@ -268,6 +274,26 @@ export function MatchDetail({ match }: { match: MatchData }) {
     (w) => w.severity !== "HARD_BLOCK" && w.severity !== "REQUIRES_OVERRIDE",
   );
 
+  // Touchline Design Atlas (ADR-0136): planning-hub summary widgets, computed entirely from
+  // already-loaded/already-computed data (selections, warnings, report/lineup existence) — no
+  // new selection-engine logic, matching AGENTS.md's "do not duplicate selection-engine logic in
+  // UI components." "Availability" (per-selected-player currentAvailability) was deliberately
+  // deferred — the existing selections query doesn't load it, and this pass keeps its new-query
+  // surface to the one lineup-existence check already added — see the provenance doc.
+  const matchViewModel = buildMatchPlanningHubViewModel({
+    matchId: match.id,
+    teamName: match.teamName,
+    opponent: match.opponent,
+    startsAt: match.startsAt?.toISOString() ?? null,
+    venue: formatVenue(match.homeAway),
+    lifecycleStatus: match.lifecycleStatus ?? "planning_open",
+    selections: match.selections,
+    priorityWarnings: [...blockingWarnings, ...requiresOverrideWarnings],
+    formatWarningTitle: formatWarningCode,
+    postMatchStatus: match.postMatchStatus,
+    hasLineup: Boolean(match.hasLineup),
+  });
+
   const matchFinalized = isMatchFinalized(match.selections);
   const roundFinalizedFlag = match.matchRoundStatus === "FINALIZED";
 
@@ -410,6 +436,56 @@ export function MatchDetail({ match }: { match: MatchData }) {
             currentIntentId={match.coachingIntentId}
           />
         </div>
+      </div>
+
+      {/* Planning-hub summary widgets (Touchline Design Atlas, ADR-0136) — top-level
+          identity/header/summary composition only; every tab below is unchanged. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <TouchlineWidget>
+            <WidgetHeader eyebrow="Squad" title={`${matchViewModel.squadTotal} planned`} />
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+              {[
+                { label: "Core", value: matchViewModel.squadBalance.core },
+                { label: "Support", value: matchViewModel.squadBalance.support },
+                { label: "Development", value: matchViewModel.squadBalance.development },
+                { label: "Matchday", value: matchViewModel.squadBalance.matchday },
+              ].map((b) => (
+                <div key={b.label}>
+                  <p className="tl-sport text-[18px] font-[650] text-[var(--foreground)]">{b.value}</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">{b.label}</p>
+                </div>
+              ))}
+            </div>
+          </TouchlineWidget>
+        </div>
+        <div className="lg:col-span-4">
+          <TouchlineWidget>
+            <WidgetHeader
+              eyebrow="Preparation"
+              title={`${matchViewModel.preparationCompleteCount}/${matchViewModel.preparationTotalCount} complete`}
+            />
+            <ul className="mt-3 flex flex-col gap-2 text-[13px]">
+              {matchViewModel.checks.map((c) => (
+                <li key={c.key} className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-1.5 rounded-full ${c.complete ? "bg-[var(--accent)]" : "bg-[var(--border-strong)]"}`}
+                  />
+                  <span className={c.complete ? "text-[var(--foreground)]" : "text-[var(--text-muted)]"}>{c.label}</span>
+                </li>
+              ))}
+            </ul>
+          </TouchlineWidget>
+        </div>
+        {matchViewModel.planningAttention.length > 0 ? (
+          <div className="lg:col-span-4">
+            <TouchlineWidget>
+              <WidgetHeader eyebrow="Planning attention" title={matchViewModel.planningAttention[0].title} />
+              <p className="mt-2 text-[13px] text-[var(--text-soft)]">{matchViewModel.planningAttention[0].detail}</p>
+            </TouchlineWidget>
+          </div>
+        ) : null}
       </div>
 
       <TabRail

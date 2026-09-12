@@ -531,3 +531,53 @@ matches both render when a real `nextAction` work item is present (previously th
 Verified: full `npm run validate` (14/14), the new regression test plus all 26 pre-existing
 component tests passing unchanged, and a real screenshot against the seeded Fjordvik FK dataset
 confirming the widget now renders alongside the existing "Fjord Cup: lineup needed" hero.
+
+## 19. Phase 4 — Match detail production migration (2026-09-12)
+
+Fourth of the eight Phase 4 routes. The production `(app)/o/[orgSlug]/matches/[matchId]/page.tsx`
++ `components/matches/match-detail.tsx`'s `MatchDetail` client component — not a UI-Lab copy.
+Scope is deliberately narrow, per the bundle's own phase note: **top-level match identity/header/
+summary composition only.** Every existing tab (Squad, Tactics, Rotations, After match, Opponent
+context, Review) and every mutation inside them (selection editing, absence control, matchday
+responsibility, helpers, guest players, lineup/tactics/rotation planning, live reporting,
+post-match reporting) is **frozen, completely untouched** — those are Phase 5 scope, not this
+route's.
+
+**New, additive, in the header area only (before the existing `TabRail`)**:
+- A **Squad** widget — `{core, support, development, matchday}` counts, computed entirely from
+  `match.selections` (already loaded by the existing page query) via a new pure function,
+  `computeMatchSquadBalance()` (`src/lib/matches/get-match-squad-balance.ts`). Legacy `BACKFILL`
+  rows bucket with `SUPPORT` (new generation never produces `BACKFILL`, AGENTS.md "Squad repair
+  rules"); the synthetic `"HELPER"` role match-detail.tsx already assigns to
+  `MatchHelperAssignment` rows (not real `Selection` rows) buckets as `matchday`.
+- A **Preparation** checklist — three real booleans (`squad`/`lineup`/`report`), never an
+  invented fixed count. `squad`/`report` come from data the page already loads
+  (`selections.length > 0`, `postMatchStatus` in REPORTED/LOCKED). `lineup` needed one new,
+  deliberately narrow, single-row existence check (`db.matchLineup.findFirst({ where: { matchId
+  }, select: { id: true } })`) — not the unbounded-tree class of query that caused the Today
+  regression (§17); lineup *content* is never read or rendered here.
+- A **Planning attention** widget — the single highest-priority existing warning (from
+  `match.warnings`, already loaded; the same `blockingWarnings`/`requiresOverrideWarnings` arrays
+  the Squad tab's own banners already use), shown only when one exists. Reuses the existing
+  `formatWarningCode()` formatter — no new wording invented.
+
+All three are assembled by one new pure function, `buildMatchPlanningHubViewModel()`
+(`src/lib/matches/get-match-planning-hub-view-model.ts`), which itself calls the already-built-but-
+previously-untested `buildMatchViewModel()` (`src/lib/touchline/presentation/match-view-model.ts`,
+Phase 1) — closing a real, disclosed gap found while starting this work: that module (and 4 of
+its 15 view-model-module siblings) had never actually had a unit test written, unlike the 6
+modules already wired into Today/League/Events. Added now that it has a real caller: 7 new tests
+(`match-view-model.test.ts`).
+
+**Deliberately deferred, not silently dropped**: the UI-Lab reference's "Availability" widget
+(per-selected-player `currentAvailability`, available/doubtful/unavailable) needs the existing
+`selections` query's `player: { select: {...} } }` widened by one field and `MatchData`'s type
+threaded through — a real, low-risk change, but this pass kept its new-query/new-field surface to
+the single lineup-existence check above, matching the "prefer zero new queries" discipline learned
+from §17. A future pass can add it directly onto the same `matchViewModel` assembly.
+
+Verified: full `npm run validate` (14/14), 7 new tests for `buildMatchViewModel()`
+(previously-missing coverage), 4 new tests for `computeMatchSquadBalance()`, 6 new tests for
+`buildMatchPlanningHubViewModel()` (17 new tests total), and a real screenshot (desktop + mobile)
+against the seeded Fjordvik FK dataset confirming the Squad (10 planned: 8 Core / 2 Support) and
+Preparation (1/3 complete) widgets render correctly above the unchanged Squad tab.
