@@ -21,7 +21,7 @@ validation and final sign-off) remain unstarted and ungated until their own turn
 **Phase 4 progress: Today, League, and Events migrated (3 of 8).** All are the real production
 routes, not UI-Lab copies; each freezes all existing domain/business logic and is additive
 composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today), §15
-(League), §16 (Events).
+(League), §16 (Events), §17 (Today follow-up performance fix).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -41,6 +41,13 @@ composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14
   (`today-match-presentation.test.ts`), 2 new component tests plus all 24 pre-existing ones
   passing unchanged, and a real screenshot captured against the seeded Fjordvik FK dataset via
   the existing test-agent auth flow (not a fixture).
+  **Follow-up fix (§16):** "Latest matches" originally reused League's `getFixturesOverview()` —
+  fine for League's own page, but that function loads every season/round/match org-wide
+  unbounded, and calling it a *second* time from Today (very likely the single highest-traffic
+  page) measurably compounded CI load even after the evidence-spotlight removal above. Replaced
+  with a new, deliberately narrow, bounded query, `getRecentCompletedMatches()`
+  (`src/lib/matches/get-recent-completed-matches.ts`) — same displayed data, far cheaper. 5 new
+  DB-backed tests. See the provenance doc's §17 for the full account.
 - **League** (`(app)/o/[orgSlug]/fixtures/page.tsx` + `fixtures-page.tsx`): round/period
   generation, plan-integrity counts, and populate-all are frozen, unchanged. New: a
   `WorkbenchToolbar` "Open Round Board →" shortcut for the current/upcoming round
