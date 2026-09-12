@@ -111,6 +111,27 @@ between Phase 6 and Phase 7 (Formations, Groups, Rules, Settings, More, Peer rev
 chaining phases unattended purely because a named gate is absent, Phase 7 work does not begin
 without reporting this completion back first.
 
+**Maintainer decision (2026-09-12): no further check-in stops for the remainder of the
+programme.** Asked directly, the maintainer confirmed Phases 7–9 (Formations/Groups/Rules/
+Settings/More/Peer reviews/invitation; brand asset convergence; transitional-design removal) may
+proceed back-to-back without a check-in between each, since `13_IMPLEMENTATION_PHASES_AND_GATES.md`
+names no human gate across any of that span — this removes the session's own self-imposed
+practice above, it is not a change to the spec's own gate structure. Phase 10's own stated
+completion criterion, "Human final visual sign-off required," is not a self-imposed check-in this
+decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
+and stays in force as written.
+
+**Phase 7 progress: Formations migrated (1 of 7).** The real production create/edit route, not a
+UI-Lab copy; every existing slot-mutation/save/list action is frozen, completely untouched.
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected slot details" facts —
+three (role type, exact derived target role, lane) were already implemented via the existing
+`deriveExactTargetRole()` call; only the automatic-planning eligibility-tier meaning was missing,
+now added as one new sentence. The golden's 3-column desktop layout and a live-synced persistent
+inspector were both deliberately not built — genuine, disclosed, interaction-model-driven
+decisions (a real two-page list/edit navigation split predates this pass; `SlotEditDialog`'s own
+local state would need lifting for a live-synced external panel, a larger refactor than this fix
+warrants). Full account: `docs/domain/touchline-atlas-provenance.md` §32.
+
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
   next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching context,

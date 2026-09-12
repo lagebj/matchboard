@@ -1215,3 +1215,59 @@ changed. Per the "Version management is mandatory" classification rules, this is
 change (purely explanatory documentation of a verified finding, no releasable behaviour change) —
 no version bump accompanies it, the first Phase 5/6 change this programme where that classification
 applies. See ADR-0136 for the Phase 7 status this triggers.
+
+## 32. Phase 7 — Formations production migration (2026-09-12)
+
+First of Phase 7's seven named routes (Formations, Groups, Rules, Settings, More, Peer reviews,
+invitation), following the maintainer's decision that no further check-in stop is needed for the
+remainder of the programme (recorded in ADR-0136). The real production Formations create/edit
+route (`src/components/formations/formations-builder.tsx` → `PitchFormationBuilder`/
+`SlotEditDialog` in `src/components/formations/pitch-formation.tsx`) — not a UI-Lab copy. Every
+existing slot add/edit/remove/save mutation, and the formation list page's own
+create/duplicate/archive actions, is **frozen, completely untouched** — this is a text-only
+addition to an existing, already-derived-fact display, not a new capability.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected slot details" facts:
+role type, exact derived target role, lane, and the automatic-planning eligibility meaning
+(`FREE` shows "Manual-only for automatic planning" verbatim, per ADR-0129). Three of these four
+were **already implemented** — `SlotEditDialog` already showed the role-type select and a
+one-sentence derived-role/lane summary ("Automatic planning targets ST (Right).") via the exact
+`deriveExactTargetRole()` domain function (ADR-0129 §4), and already showed the FREE-slot verbatim
+text. The one genuine, narrow gap: **the automatic-planning eligibility-tier meaning was never
+stated** — the existing sentence named which exact role a slot targets, but never that a player
+needs `NATURAL`/`STRONG`/`PLAUSIBLE` fit to be automatically eligible for it. Fixed by splitting
+the existing single sentence into the golden's own four facts as separate lines and adding the
+eligibility-tier sentence ("A player needs Natural, Strong, or Plausible fit for automatic
+assignment to this role.") — neutral terminology matching ADR-0129's own established fit-tier
+labels, no new domain logic, same `deriveExactTargetRole()` call already there.
+
+**Deliberately not restructured, both disclosed, interaction-model-driven decisions** (matching
+the Post-match/History precedent of adapting to an already-correct different composition rather
+than forcing literal spec text):
+- **The golden's 3-column desktop layout ("formation list left; pitch editor centre; selected
+  slot details right") is not built.** Production genuinely has two separate routes — a list page
+  (`/formations`, card grid, filter by game format, create/duplicate/archive) and a
+  create/edit page (`/formations/new`, `/formations/[id]/edit`, the pitch editor) — an
+  established, working, deliberate navigation split, not an oversight. Merging them into one
+  combined view would be a real routing/navigation restructuring, not a composition-only fix, and
+  risks breaking existing bookmarks/links/flows for no clearly stated benefit over the current
+  working two-page model.
+- **The four facts render inside the existing `SlotEditDialog` modal, not a separate persistent
+  third-column inspector.** `SlotEditDialog` manages its own local `roleType` state
+  (`useState`), so a live-synced external panel showing derived facts *as the coach picks a role
+  type* would require lifting that state up to the parent — a larger, riskier refactor than this
+  composition pass warrants. Showing the facts inside the same dialog, at the exact moment the
+  coach is choosing a role type, delivers the same substance in the already-correct place.
+
+Verified: full `npm run validate` (14/14), and the existing 3-test suite (`slot-edit-dialog.test.tsx`)
+rewritten to 5 tests directly exercising `SlotEditDialog` (not screenshot-dependent) — asserting
+the exact split-line text for a lane-resolved slot (target role, lane, eligibility sentence) and
+the unchanged FREE-slot verbatim text with no eligibility sentence. **Screenshot capture was
+attempted but not completed for this specific change**: the pitch editor's click-to-edit-a-slot
+interaction proved unreliable to drive via Playwright in this pass (multiple coordinate-based and
+accessible-role-based click strategies against the confirmed correct DOM button all failed to
+open the dialog, for reasons not conclusively diagnosed in the time available) — confidence
+instead rests on the 5 passing component tests directly rendering `<SlotEditDialog>` with
+controlled props, which is stronger evidence of correctness for a pure text-content change than a
+screenshot would add, matching the Follow Live precedent (§25) for skipping a screenshot with a
+disclosed reason rather than a flaky one.
