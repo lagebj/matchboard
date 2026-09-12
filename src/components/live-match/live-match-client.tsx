@@ -15,6 +15,10 @@ import {
 import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
 import type { LiveEventSummary, MatchClockState } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
+// The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
+// the "Position" live-reporting action (recording a POSITIONS_CHANGED event for an on-field
+// player who moves without a substitution).
+import { EXACT_ROLES } from "@/domain/positions";
 import {
   reconcileFromServerEvents,
 } from "@/lib/live-match/live-match-reconciliation";
@@ -154,7 +158,7 @@ const FAIR_PLAY_CONCERN_CATEGORIES = [
 
 type GoalFlowStep = "idle" | "scorer_select" | "assist_select";
 type FairPlayFlowStep = "idle" | "player_select" | "category_select";
-type SheetContent = "scorer" | "assist" | "rotation_out" | "rotation_in" | "fair_play_player" | "fair_play_category" | "period_confirm" | "end_confirm" | null;
+type SheetContent = "scorer" | "assist" | "rotation_out" | "rotation_in" | "position_change_player" | "position_change_role" | "fair_play_player" | "fair_play_category" | "period_confirm" | "end_confirm" | null;
 
 function generateClientEventId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -329,6 +333,11 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [isPositive, setIsPositive] = useState(true);
   const [rotationMode, setRotationMode] = useState(false);
   const [outPlayerId, setOutPlayerId] = useState<string | null>(null);
+  const [positionChangePlayerId, setPositionChangePlayerId] = useState<string | null>(null);
+  // Local-only tracking of an on-field player's current position after a POSITIONS_CHANGED event
+  // this session recorded, so the "On field" overview and the picker reflect reality immediately
+  // without waiting on a server round-trip. Falls back to the squad's own planned `position`.
+  const [positionOverrides, setPositionOverrides] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetContent>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ type: "period" | "end"; nextPeriod?: string } | null>(null);
@@ -782,6 +791,47 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     setSheet("rotation_out");
   }, []);
 
+  // --- Position change (no substitution — an on-field player takes a different position,
+  // e.g. a formation reshuffle). Records a POSITIONS_CHANGED event, the same canonical event
+  // type already produced when a planned position-only rotation change is applied
+  // (planned-rotation-live-actions.ts) — this is the manual live-reporting equivalent of that.
+  const getCurrentPosition = useCallback((playerId: string): string | null => {
+    return positionOverrides[playerId] ?? squad.find((p) => p.playerId === playerId)?.position ?? null;
+  }, [positionOverrides, squad]);
+
+  const handleStartPositionChange = useCallback(() => {
+    setPositionChangePlayerId(null);
+    setSheet("position_change_player");
+  }, []);
+
+  const handlePositionChangeSelectPlayer = useCallback((playerId: string) => {
+    setPositionChangePlayerId(playerId);
+    setSheet("position_change_role");
+  }, []);
+
+  const handlePositionChangeSelectRole = useCallback((newPosition: string) => {
+    if (!positionChangePlayerId) return;
+    const fromPosition = getCurrentPosition(positionChangePlayerId);
+    if (fromPosition === newPosition) {
+      setPositionChangePlayerId(null);
+      setSheet(null);
+      return;
+    }
+    recordEventLocal("POSITIONS_CHANGED", {
+      playerId: positionChangePlayerId,
+      period: clock.period,
+      matchSeconds: getElapsedMs(clock, Date.now()),
+      payload: { fromPosition, toPosition: newPosition },
+    });
+    setPositionOverrides((prev) => ({ ...prev, [positionChangePlayerId]: newPosition }));
+    const playerName = squad.find((p) => p.playerId === positionChangePlayerId)?.playerName ?? "Player";
+    setLastAction({ label: `${playerName} moved to ${newPosition}` });
+    if (lastActionTimerRef.current !== null) clearTimeout(lastActionTimerRef.current);
+    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 8000);
+    setPositionChangePlayerId(null);
+    setSheet(null);
+  }, [positionChangePlayerId, getCurrentPosition, clock, recordEventLocal, squad]);
+
   // Merged events: server events + local-only events (not yet synced or synced but not yet in server poll)
   const mergedEvents = useMemo(() => {
     const localOnly = localEvents.filter((e) => {
@@ -944,6 +994,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           Rotation
         </button>
         <button
+          onClick={handleStartPositionChange}
+          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+        >
+          Position
+        </button>
+      </div>
+      <div className="px-3 pt-2 flex gap-2">
+        <button
           onClick={() => handleFairPlayStart(true)}
           className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
         >
@@ -975,12 +1033,16 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             <span className="text-[var(--text-micro)] text-[var(--text-muted)]">{benchPlayers.length} bench</span>
           </div>
           <div className="flex flex-wrap gap-1">
-            {onFieldPlayers.map((p) => (
-              <span key={p.playerId} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-[var(--success-subtle)] text-[var(--success)] rounded">
-                {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
-                {p.playerName}
-              </span>
-            ))}
+            {onFieldPlayers.map((p) => {
+              const currentPosition = getCurrentPosition(p.playerId);
+              return (
+                <span key={p.playerId} className="inline-flex items-center px-1.5 py-0.5 text-[var(--text-micro)] bg-[var(--success-subtle)] text-[var(--success)] rounded">
+                  {p.shirtNumber != null && <span className="mr-0.5 opacity-70">{p.shirtNumber}</span>}
+                  {p.playerName}
+                  {currentPosition && <span className="ml-0.5 opacity-70">({currentPosition})</span>}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1089,6 +1151,36 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         <div className="space-y-1.5">
           {benchPlayers.map((p) => (
             <PlayerButton key={p.playerId} player={p} onField={false} onClick={() => handleRotationIn(p.playerId)} />
+          ))}
+        </div>
+      </BottomSheet>
+
+      {/* Position change: player select */}
+      <BottomSheet open={sheet === "position_change_player"} onClose={() => { setPositionChangePlayerId(null); setSheet(null); }} title="Who changed position?">
+        <div className="space-y-1.5">
+          {onFieldPlayers.length > 0 ? onFieldPlayers.map((p) => (
+            <PlayerButton key={p.playerId} player={p} onField={true} onClick={() => handlePositionChangeSelectPlayer(p.playerId)} variant="highlight" />
+          )) : (
+            <p className="text-sm text-[var(--text-muted)] px-3 py-2">No players on field yet.</p>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* Position change: new position select */}
+      <BottomSheet
+        open={sheet === "position_change_role"}
+        onClose={() => { setPositionChangePlayerId(null); setSheet(null); }}
+        title={`New position for ${squad.find((p) => p.playerId === positionChangePlayerId)?.playerName ?? "player"}`}
+      >
+        <div className="grid grid-cols-4 gap-1.5">
+          {EXACT_ROLES.map((role) => (
+            <button
+              key={role}
+              onClick={() => handlePositionChangeSelectRole(role)}
+              className="py-3 rounded-lg text-sm font-semibold bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] min-h-[44px]"
+            >
+              {role}
+            </button>
           ))}
         </div>
       </BottomSheet>
