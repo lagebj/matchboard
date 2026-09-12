@@ -32,6 +32,10 @@ unblocks **Phase 5 — football work surfaces** (Round Board, Lineup, Tactics, R
 Reporting, Follow Live, Post-match), which stops again at **Human Gate C** before Phases 6–10
 (historical/intelligence routes, utility/config/collaboration routes, brand asset convergence,
 transitional-design removal, full validation and final sign-off).
+**Phase 5 progress: Round Board migrated (1 of 7).** The real production route, not a UI-Lab
+copy; every existing mutation (drag/drop/touch/move, generate/regenerate/clear, emergency
+repair) is frozen, completely untouched. Full account:
+`docs/domain/touchline-atlas-provenance.md` §22.
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -116,6 +120,25 @@ transitional-design removal, full validation and final sign-off).
   `/insights/player-pathways`, a fully-built canonical Insights surface, was entirely absent from
   the hub's card list — added. Verified: full `npm run validate` (14/14), 9 new unit tests, and
   real screenshots against the seeded dataset. **This completes Phase 4.**
+
+**Phase 5 — football work surfaces:**
+
+- **Round Board** (`src/components/round/round-board.tsx`): every existing mutation (drag/drop/
+  touch/move, generate/regenerate/clear, emergency repair) is frozen, completely untouched — the
+  spec's own instruction ("keep as dense professional workbench... no decorative dashboard
+  widgets above the work area") describes what was already there, not a call to add anything to
+  the main work area. Two Touchline Finish primitives (ADR-0135) — `WorkbenchToolbar` and
+  `WorkbenchSummaryStrip` — were purpose-built for exactly this spot but never actually wired
+  into production until now. `WorkbenchSummaryStrip` replaces `RoundStatusStrip`'s `MetricTile`
+  grid (the "dashboard card" pattern the spec calls out) with a 1:1 port of the exact same
+  conditional facts via a new pure function, `buildRoundWorkbenchSummaryItems()`
+  (`src/lib/rounds/get-round-workbench-summary.ts`) — no new query, no logic change.
+  `WorkbenchToolbar` wraps the existing Regenerate/Clear buttons with a context label — same
+  handlers, only the layout wrapper changes. `round-status-strip.tsx` removed as dead code (its
+  only consumer). Verified: full `npm run validate` (14/14), 7 new unit tests, all 17
+  pre-existing `round-board.test.tsx` tests (including the dedicated open/closed-boundary
+  Regenerate/Clear visibility tests) passing unchanged, and a real screenshot against the seeded
+  dataset. Full account: `docs/domain/touchline-atlas-provenance.md` §22.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish

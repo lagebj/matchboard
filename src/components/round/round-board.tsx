@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import { generateEmergencyRepairOptionsAction } from "@/app/(app)/matches/emergency-repair-actions";
 import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-options";
-import { RoundStatusStrip } from "@/components/round/round-status-strip";
+import { WorkbenchSummaryStrip } from "@/components/touchline/workbench/workbench-summary-strip";
+import { WorkbenchToolbar } from "@/components/touchline/workbench/workbench-toolbar";
+import { buildRoundWorkbenchSummaryItems } from "@/lib/rounds/get-round-workbench-summary";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-automatic-role";
 import { renderReason } from "@/lib/formatters/recommendation-reason-text";
@@ -772,43 +774,57 @@ export function RoundBoard({
     // rendered directly by the org-scoped round page, which island-wraps too; nested
     // `.touchline` is idempotent.
     <div className="touchline flex flex-col gap-5">
-      <RoundStatusStrip
-        totalTeams={matches.length}
-        completeTeams={completeTeams}
-        teamsNeedingSupport={teamsNeedingSupport}
-        squadRepairNeeded={squadRepairNeeded}
-        blockedCount={blockedCount}
-        decisionRequiredCount={decisionRequiredCount}
-        totalSelected={totalSelected}
-        totalTarget={totalTarget}
+      {/* Touchline Design Atlas (ADR-0136, Phase 5): `WorkbenchSummaryStrip` -- a Touchline
+          Finish primitive (ADR-0135) purpose-built for exactly this spot but never actually
+          wired in until now. Same facts, same conditions as the previous `RoundStatusStrip`/
+          `MetricTile`-grid rendering it replaces -- no new query, no logic change. */}
+      <WorkbenchSummaryStrip
+        items={buildRoundWorkbenchSummaryItems({
+          totalTeams: matches.length,
+          completeTeams,
+          teamsNeedingSupport,
+          squadRepairNeeded,
+          blockedCount,
+          decisionRequiredCount,
+          totalSelected,
+          totalTarget,
+        })}
       />
 
+      {/* Touchline Design Atlas (ADR-0136, Phase 5): `WorkbenchToolbar` -- "toolbar/context" is
+          the first item in the spec's desktop composition. Same Regenerate/Clear buttons, same
+          handlers, only the wrapping layout changes (context label + right-aligned actions). */}
       {planningBoundaryOpen && (
-        <div className="flex flex-wrap items-center gap-2">
-          <TouchlineButton
-            variant="secondary"
-            disabled={isPending}
-            leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-            onClick={() => {
-              startTransition(async () => {
-                const fd = new FormData();
-                fd.set("matchRoundId", matchRoundId);
-                await regenerateRoundAction({ error: "" }, fd);
-                router.refresh();
-              });
-            }}
-          >
-            Regenerate
-          </TouchlineButton>
-          <TouchlineButton
-            variant="danger"
-            disabled={isPending}
-            leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
-            onClick={() => setShowClearRoundDialog(true)}
-          >
-            Clear
-          </TouchlineButton>
-        </div>
+        <WorkbenchToolbar
+          context={<span className="font-[650] text-[var(--foreground)]">{roundLabel}</span>}
+          actions={
+            <>
+              <TouchlineButton
+                variant="secondary"
+                disabled={isPending}
+                leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+                onClick={() => {
+                  startTransition(async () => {
+                    const fd = new FormData();
+                    fd.set("matchRoundId", matchRoundId);
+                    await regenerateRoundAction({ error: "" }, fd);
+                    router.refresh();
+                  });
+                }}
+              >
+                Regenerate
+              </TouchlineButton>
+              <TouchlineButton
+                variant="danger"
+                disabled={isPending}
+                leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                onClick={() => setShowClearRoundDialog(true)}
+              >
+                Clear
+              </TouchlineButton>
+            </>
+          }
+        />
       )}
 
       {!planningBoundaryOpen && (

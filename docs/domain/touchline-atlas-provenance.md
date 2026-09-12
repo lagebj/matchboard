@@ -683,3 +683,54 @@ follow-up fixes discovered and resolved along the way (§17, §18, and the playe
 above). Per ADR-0136/`13_IMPLEMENTATION_PHASES_AND_GATES.md`, Phase 4 stops here for **Human Gate
 B** — Phase 5 (Round Board, Lineup, Tactics, Rotations, Live Reporting, Follow Live, Post-match)
 does not begin without a fresh, explicit human approval.
+
+## 22. Phase 5 — Round Board production migration, first of the football work surfaces (2026-09-12)
+
+First of the seven Phase 5 routes (`13_IMPLEMENTATION_PHASES_AND_GATES.md`), following Human Gate
+B's approval (2026-09-12). The real production Round Board (`src/components/round/round-board.tsx`,
+1250+ lines) — not a UI-Lab copy.
+
+`08_ROUTE_COMPOSITION_PLANNING_TACTICS.md §A`'s own instruction — "Keep as dense professional
+workbench... no decorative dashboard widgets above the work area. Support widgets are allowed
+only in an inspector/context rail" — describes what Round Board already is, not a call to add
+anything new to the main work area. Every existing mutation (drag/drop/touch move, per-match
+generate, round-level regenerate/clear, emergency repair options, manual add/remove) is **frozen,
+completely untouched** — verified by all 17 pre-existing `round-board.test.tsx` tests passing
+unchanged, including the two tests dedicated specifically to the Regenerate/Clear open/closed-
+boundary visibility logic this pass touches the surrounding layout of.
+
+**What changed — a material swap, not a composition addition.** Two Touchline Finish primitives
+(ADR-0135) already existed in `src/components/touchline/workbench/` —
+`WorkbenchToolbar`/`WorkbenchSummaryStrip` — purpose-built for exactly this route (their own doc
+comments cite Round Board directly), proven in the Phase 3 UI-Lab route
+(`/dev/ui-lab/atlas/routes/round-board`), and already used in production by League's own
+"Open Round Board" feature toolbar (`WorkbenchToolbar`, §15) — but never actually wired into the
+real Round Board page itself until now.
+
+- **`WorkbenchSummaryStrip` replaces `RoundStatusStrip`**. The old component rendered a
+  `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6` of `MetricTile`s — exactly the "dashboard card"
+  pattern the bundle spec warns against elsewhere (Insights §21's identical anti-pattern). The
+  replacement is a 1:1 port of the *exact same conditional facts* (Squads filled always;
+  Support needed/Squad repair/Blocked/Decisions each only when > 0; Squad places always) into a
+  new pure function, `buildRoundWorkbenchSummaryItems()`
+  (`src/lib/rounds/get-round-workbench-summary.ts`) — no new query, no threshold change, no
+  wording change beyond what the tone vocabulary requires (`WorkbenchSummaryItem`'s
+  `"neutral"|"attention"|"danger"` is narrower than `MetricTile`'s own tone set; the two
+  `"success"` cases collapse to `"neutral"`, a disclosed, cosmetic simplification only).
+- **`WorkbenchToolbar` wraps the existing Regenerate/Clear buttons.** Same
+  `regenerateRoundAction()`/`setShowClearRoundDialog()` handlers, unchanged; only the surrounding
+  layout changes from a bare `flex flex-wrap` row to the toolbar's context-left/actions-right
+  grammar, with the round label as the context.
+- **`round-status-strip.tsx` removed** — its only consumer was `round-board.tsx`; this is now
+  dead code per the mandatory cleanup rule.
+
+Verified: full `npm run validate` (14/14), 7 new unit tests
+(`get-round-workbench-summary.test.ts`) covering every conditional inclusion rule and the
+deterministic ordering, all 17 pre-existing `round-board.test.tsx` tests passing unchanged, and a
+real screenshot (desktop + mobile) against the seeded Fjordvik FK dataset confirming
+`WorkbenchSummaryStrip` renders correctly ("1/3 Squads filled · 1 Blocked · 26/27 Squad places").
+The captured round's planning boundary happened to already be closed (kickoff had passed), so
+`WorkbenchToolbar`'s Regenerate/Clear rendering was verified via the existing dedicated
+component tests rather than a second live screenshot of the open-boundary case — a reasonable,
+disclosed trade-off given the change to that code path is a pure layout wrap with unchanged
+conditional logic and handlers.
