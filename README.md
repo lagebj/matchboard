@@ -390,9 +390,15 @@ publishes a standards-compliant web app manifest and icons and does not interfer
 - **iPhone / iPad — Safari**: Share → "Add to Home Screen".
 
 Once installed, Matchboard launches in its own window at the Today page and Google sign-in works
-from the installed app. There is **no offline mode** — authenticated and live-match data always
-comes from the server, so nothing goes stale in a cache. The Test environment installs as
-"Matchboard Test" and shows a Test marker in the app so it can't be confused with Production.
+from the installed app. Matchboard remains network-first for ordinary authenticated
+application data — nothing there goes stale in a cache. The one deliberate exception (ADR-0138,
+in progress) is an **already-established live match reporting session**: once a coach has opened
+live reporting for a match while online, that session can keep recording goals, rotations, and
+other match events through a temporary connectivity loss, and those actions are saved on the
+device and synchronised automatically once the connection returns. This does not make the rest of
+Matchboard offline-capable, and a match that was never opened for live reporting while online
+cannot be prepared from an offline device. The Test environment installs as "Matchboard Test" and
+shows a Test marker in the app so it can't be confused with Production.
 
 ## Access model
 

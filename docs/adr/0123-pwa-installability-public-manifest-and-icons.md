@@ -9,6 +9,13 @@ section) — the mark geometry, public-route/manifest architecture, and every ot
 ADR records are unchanged and remain in force. This ADR's own body is left as the historical
 record of the original colour choice, per this repository's append-only ADR convention.
 
+**Point 5 ("No service worker, no offline caching") narrowed by ADR-0138 (2026-09-12):** the
+Canonical Live Operations & Delayed-Concurrency programme introduces a service worker and scoped
+offline continuation for an already-established live match reporting session only — everything
+else in this ADR, and Point 5's general principle that Matchboard remains an installable shell
+with normal network semantics for ordinary authenticated application data, is unchanged and
+remains in force. See ADR-0138 for the exact scope of the exception.
+
 ## Context
 
 Matchboard ships a Next.js App Router dynamic manifest (`src/app/manifest.ts`), an
