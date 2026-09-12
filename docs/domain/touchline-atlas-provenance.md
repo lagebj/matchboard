@@ -1657,3 +1657,118 @@ Verified: `tsc --noEmit` clean, `npm run lint` clean on every changed file, the 
 `npm run architecture:check` both clean, and full `npm run validate` (14/14, including a
 successful build) confirms nothing anywhere in the app still imports any of the four deleted
 files or the removed alias.
+
+## 41. Phase 10 — Complete validation (2026-09-12)
+
+Per `13_IMPLEMENTATION_PHASES_AND_GATES.md`'s own Phase 10 list (unit, typecheck, lint, E2E,
+screenshots, accessibility, mobile device, PWA install, light/dark, reduced motion) and
+`14_ACCEPTANCE_AND_CONFORMANCE.md`'s gate checklist (sections A–J). This is a verification/report
+phase, not new feature work — no production behaviour changed in this entry.
+
+**A–E, G, H (composition/data/history/insights/tactics/brand/functional regression)**: verified
+incrementally, per route, across §14–§40 above as each route was migrated — every entry already
+records its content-block/widget/data-provenance/deviation account against its own route's named
+spec section, its own `npm run validate` run, and its own deleted/preserved behaviour. This entry
+does not re-derive that matrix from scratch; it is the roll-up confirmation that the full run is
+now complete and internally consistent, cross-checked against `data/route-composition-matrix.json`
+and this document's own §0 inventory. **Brand (G)**: name unchanged (`Matchboard`/`Matchboard
+Test` throughout, verified in `manifest.ts`), mark geometry byte-identical (§39), Touchline
+colours applied (§39), maskable safe zone unchanged from its original centre-80% design (§39),
+light/dark favicon visibility verified — a real defect (`favicon.ico`'s transparent background)
+was found and fixed in §39, the same class ADR-0123 had already fixed for `apple-icon.png`.
+
+**Unit/typecheck/lint/build (local)**: full `npm run validate` (14 steps) run against `main` at
+this program's final merge commit (`cc4354fa`, after PR #549) — **all 14 steps passed**, including
+a successful `build` and the complete unit + component + worker test suites (3,929 + 279 + 84
+tests, 330 + 40 + 5 files, all passing).
+
+**E2E, accessibility, PWA install**: this repository's standing per-PR acceptance pipeline
+(`test-acceptance.yml`, ADR-0075) runs the **complete** `npm run test:e2e` Playwright suite —
+every spec in `e2e/`, including `accessibility.spec.ts` (WCAG-level automated checks) and
+`pwa-installability.spec.ts` (manifest reachability/parsing, icon loading, installability
+errors, `start_url`, display mode) — against an isolated, real deployment of every PR's exact
+commit before merge. Every PR across ADR-0136 (#519, #520, #531–#549) already passed this in
+full; this is not a claim requiring a fresh run to substantiate. Additionally, this exact
+programme's final merge commit (`cc4354fa`) was independently confirmed via `ci-checks.yml`'s
+post-merge "Browser Acceptance Tests" smoke job (PROGRAMME.md §10's post-merge validation step) —
+run [34717114053](https://github.com/lagebj/matchboard/actions/runs/34717114053), all 14 jobs
+`completed/success`, including `Browser Acceptance Tests` and `Build`.
+
+**Light/dark**: `AppearanceControl` (System/Light/Dark) is shipped and wired on the Settings page
+(pre-existing, confirmed still correct in §35); every migrated route in this programme was
+verified against both themes during its own phase (Hard Gate A/B/C review rounds explicitly
+covered light-mode contrast, e.g. the `TestEnvironmentBadge` fix recorded in AGENTS.md's Touchline
+material-migration record). **Disclosed gap, not silently passed**: there is no dedicated
+automated e2e spec that renders every migrated route under both `prefers-color-scheme` values and
+asserts pixel/contrast correctness — `e2e/accessibility.spec.ts` runs under the environment's
+default theme only. This matches this repository's own established practice of disclosing rather
+than fabricating coverage (the same class of gap ADR-0134 Phase 12 already disclosed for visual
+regression).
+
+**Reduced motion**: `@media (prefers-reduced-motion: reduce)` rules exist in both
+`src/app/globals.css` and `src/app/touchline.css`, and multiple components document explicit
+respect for the media query (`player-magnet.tsx`, `skeleton.tsx`). **Disclosed gap**: no dedicated
+automated e2e spec asserts this behaviour end-to-end (e.g. via Playwright's
+`page.emulateMedia({ reducedMotion: 'reduce' })`) — the CSS mechanism exists and was spot-checked
+by reading source, not verified by an automated browser assertion. Recorded here rather than
+silently treated as covered, matching this entry's own "disclosed, not fabricated" standard.
+
+**Mobile device**: the automated `pwa-installability.spec.ts` (part of the same E2E suite above)
+proves manifest/icon/installability correctness; genuine physical-device install/launch
+acceptance remains the pre-existing, documented human-only step
+(`docs/development/pwa-manual-verification.md`) — unchanged position from ADR-0123/ADR-0134,
+not something this programme's own scope claims to close.
+
+**Screenshots**: not regenerated wholesale in this entry. Per-phase provenance entries (§14–§39)
+each already captured and reviewed real screenshots (desktop + mobile where applicable) for their
+own migrated routes against the locally-seeded Fjordvik FK dataset at the time of that phase's own
+PR. Matching the documentation-screenshot discipline already established (AGENTS.md's "Screenshot
+regeneration... acceptance is not automatic" / DECISIONS.md D23, and ADR-0134 Phase 11's identical
+reasoning): a full re-capture sweep is tracked as legitimate follow-up work, not a blocking part of
+this validation phase, since no phase in this programme changed a route's domain-visible subject
+matter in a way that invalidates an already-reviewed screenshot's content.
+
+**I (accessibility)**: WCAG AA — covered by `e2e/accessibility.spec.ts`, passing on every PR
+above. Focus visible / 44px touch targets / non-color state / visualisation text alternatives —
+established, disclosed doctrine from ADR-0124/0125/0130 (AGENTS.md's "Adaptive interaction
+design" section), re-applied route-by-route through every phase; not independently re-verified by
+a new tool in this entry. 200% zoom / bottom-sheet focus management / keyboard alternatives to
+gestures — not independently re-verified here; no regression to any of these was introduced by
+any change in this programme (every phase's own account states existing interaction/mutation
+logic was frozen), so no new risk was created, but this entry does not claim a fresh audit of
+pre-existing behaviour it did not touch.
+
+**Explicit list of deviations from golden references** (consolidated; each already disclosed at
+its own phase): Formations' declined 3-column desktop layout and live-synced inspector (§32);
+Settings' and Peer reviews' pages' declined desktop side-navigation/richer layouts where content
+volume didn't warrant one (§32, §35); Invitation's declined marketing feature-list checklist,
+prohibited by the spec's own text (§38); the Insights hub's declined evidence-spotlight widget
+(reintroduces a diagnosed performance risk, §14); Season's declined recurring evidence-spotlight
+and recent/upcoming-matches list (duplicates Today/League, §30); every `PROHIBITED_ILLUSTRATIVE`
+item recorded in this document's own §0 register (team logos, opponent-strength percentages, an
+external standings table, an accent-colour picker, player photos, a live map, fabricated
+attributes) — never added, at any phase, regardless of how prominently a golden reference
+illustrated it.
+
+**Deleted transitional design** (Phase 9, §40, restated for this final roll-up):
+`src/components/ui/severity-badge.tsx`, `status-rail.tsx`, `warning-card.tsx`,
+`branded-surface.tsx` (4 fully orphaned files), and the `MatchScoreRow` deprecated compatibility
+alias in `match-presentation.tsx`. Nothing else — every mainstream shared primitive still in
+active use elsewhere was independently re-confirmed to have real consumers and left untouched.
+
+**Human final visual sign-off (Section F and rule J)**: per `14_ACCEPTANCE_AND_CONFORMANCE.md §J`,
+"The coding agent cannot mark 'Visual fidelity' complete itself." This entry does not attempt to.
+
+```
+AWAITING HUMAN VISUAL APPROVAL
+```
+
+Screenshot evidence for human review is distributed across each phase's own provenance entry
+(§14 Today, §15 League, §16 Events/Event detail, §19 Match detail, §20 Players/Player detail,
+§22 Round Board, §23 Lineup/Tactics, §24 Rotations, §26 Post-match, §27 History, §28 Opponents,
+§29 Teams, §30 Season, §32 Formations, §33 Groups, §35 Settings) plus the `/dev/ui-lab/atlas`
+route-complete UI Lab from Phase 3 (Hard Gate A) for any route reviewed there before its own
+production migration. No new consolidated screenshot set was produced for this entry specifically
+(see "Screenshots" above) — a human reviewer verifying final visual fidelity across all 31 routes
+should use each phase's own cited evidence, or request a fresh capture sweep if a single
+consolidated set is wanted before sign-off.
