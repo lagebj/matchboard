@@ -70,13 +70,27 @@ comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary
 - `src/app/(app)/events/[eventId]/event-matches-tab.tsx` — `handleEditSave`'s `editStartsAt`
   handling, fixed on this branch to convert to an absolute instant in the browser before sending.
 - `src/lib/date-utils.ts` — `formatKickoffDate`/`formatKickoffTime`/`formatKickoffDateTime`/
-  `getKickoffDateInputValue`/`getKickoffTimeInputValue`, all local-getter-based, still called
-  from Server Components (unresolved half):
-  - `src/app/(app)/o/[orgSlug]/opponents/page.tsx`
-  - `src/app/(app)/o/[orgSlug]/opponents/[opponentTeamId]/page.tsx`
-  - `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx`
-  - `src/app/(app)/o/[orgSlug]/events/page.tsx`
-  - `src/components/opponents/previous-encounters-panel.tsx`
+  `getKickoffDateInputValue`/`getKickoffTimeInputValue`, all local-getter-based. Auditing every
+  call site against server/client boundary found:
+  - **Fixed on this branch** (a genuine, concrete regression the write-side fix would otherwise
+    have introduced): `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` computed
+    `formatKickoffTime(match.startsAt)` server-side and passed the baked string to the client
+    `CoachHandoverView` — for any match written via the now-corrected create-form path, this
+    would have displayed a kickoff time shifted by the org's UTC offset on the exact page a coach
+    uses on matchday. Moved into `coach-handover-view.tsx` (already a client component) to format
+    `match.startsAt` itself, matching the pattern `match-edit-form.tsx` already used correctly.
+  - **Still open, but time-of-day is not actually displayed** (only `formatKickoffDate`, a
+    date-only function — a day-boundary risk only, matching ADR-0133 H4's already-disclosed,
+    narrower gap, not a multi-hour one):
+    `src/app/(app)/o/[orgSlug]/opponents/page.tsx`,
+    `src/app/(app)/o/[orgSlug]/opponents/[opponentTeamId]/page.tsx`,
+    `src/components/opponents/previous-encounters-panel.tsx` (all show past-encounter dates).
+  - **Still open, `formatKickoffTime` used server-side**, but on `Event.startDate`/`endDate` (the
+    event-level date range), a field this branch's write-side fix never touched — Event-level
+    start/end still uses whichever convention it always did, so this call site's correctness is
+    unchanged by this branch either way: `src/app/(app)/o/[orgSlug]/events/page.tsx`. Event-level
+    date/time write-path timezone correctness (create-event-form.tsx) was not audited as part of
+    this ARR and may have its own instance of this same residue — not confirmed either way.
 - `src/lib/matches/can-live-report.ts` / ADR-0133 H5 — the concrete symptom that surfaced this:
   "Start live reporting" stayed hidden until roughly the coach's own UTC offset *after* real
   kickoff, because the League match's `startsAt` (created via the buggy server-side path) held an
@@ -92,10 +106,13 @@ comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary
 - Every comparison against real "now" for such a match — the planning boundary auto-closing at
   kickoff (ADR-0109), `hasLeagueMatchPassed`, `canStartLiveReporting` — is wrong by that same
   offset, always in the direction of believing the match is later than it really is.
-- Once the write side is fixed (this branch), any Server-Component kickoff display listed above
-  will show the coach a time offset **earlier** than reality by the same amount, for any
-  organisation not physically in UTC+0 — a new, currently live but less severe, user-facing
-  symptom (a displayed time, not a hidden action).
+- Once the write side is fixed, any Server-Component kickoff-**time** display would show the
+  coach a time offset **earlier** than reality by the same amount, for any organisation not
+  physically in UTC+0. One concrete instance of this (`handover/page.tsx`) was found and fixed
+  on this branch, before shipping, precisely because it is a real regression class the write-side
+  fix would otherwise introduce. The remaining open call sites are date-only (a narrower,
+  already-disclosed day-boundary risk) or on a field this branch does not touch (Event-level
+  start/end).
 - This deepens, rather than duplicates, ADR-0133's already-disclosed "no per-organisation
   timezone model" gap: that ADR named only a narrower day-boundary bucketing symptom (Today's
   window near midnight); this ARR documents that the same root cause (no real per-org/user
@@ -153,6 +170,10 @@ the coach's own browser" constraint entirely, remain open and need a maintainer 
 - `src/components/matches/match-create-form.tsx` — browser-computed `startsAtIso`.
 - `src/app/(app)/events/[eventId]/event-matches-tab.tsx` — `startEditMatch()` /
   `handleEditSave()`.
+- `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` /
+  `src/components/matches/coach-handover-view.tsx` — moved kickoff-time formatting from the
+  server page into the client view, closing the one concrete display-side regression the
+  write-side fix would otherwise have introduced.
 - `src/lib/matches/can-live-report.ts` — the "Start live reporting" gating fix that surfaced this.
 - `src/test/setup-registry.test.ts` — regression tests proving `startsAtIso` precedence and the
   documented fallback behaviour.
@@ -173,3 +194,10 @@ Record created. Confirmed via code inspection while fixing the reported "Start l
 stays hidden right up until kickoff" bug; the two known write-path instances (League match
 create, Event match edit) fixed on the same branch. Display-side half and a real
 per-organisation/user timezone model left open, pending a maintainer decision.
+
+Follow-up the same day, prompted by the maintainer asking directly whether existing matches would
+need remediation: auditing the display side for the *specific* regression the write-side fix
+could introduce (a Server Component now showing a shifted time for a newly-created match) found
+and fixed one concrete instance (`handover/page.tsx`). The remaining open display call sites were
+re-classified by actual risk (date-only vs. time-of-day; touched vs. untouched field) rather than
+left as one undifferentiated list.
