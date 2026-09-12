@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AppearanceControl } from "@/components/touchline";
+import { APP_VERSION } from "@/lib/version";
 import {
   createMachinePrincipalAction,
   revokeMachinePrincipalAction,
@@ -283,6 +284,15 @@ export function OrgSettingsClient({
           )}
         </section>
       )}
+
+      {/* Touchline Design Atlas (ADR-0136 Phase 7, `10_ROUTE_COMPOSITION_CONFIG_MORE_
+          REVIEWS_AUTH.md §D`): "About" -- a real, previously-missing named section. Reuses the
+          same APP_VERSION constant already shown in the sidebar (src/lib/version), not a second
+          version source. */}
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">About</h2>
+        <p className="text-sm text-[var(--text-muted)]">Matchboard v{APP_VERSION}</p>
+      </section>
     </div>
   );
 }
