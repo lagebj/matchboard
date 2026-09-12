@@ -291,6 +291,10 @@ export default async function PostMatchRoute({ params }: PageProps) {
         isLocked={initialReport?.status === "LOCKED"}
         matchFit={match.matchFit}
       />
+      {/* Touchline Design Atlas (ADR-0136 Phase 5, §H): team reflection before player
+          observations, matching the golden's order (5 → 6) -- Event's own report panel already
+          rendered these in this order; League's had them reversed. */}
+      <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
       <FootballObservationSection
         matchId={matchId}
         players={playerOptions}
@@ -298,7 +302,6 @@ export default async function PostMatchRoute({ params }: PageProps) {
         isLocked={initialReport?.status === "LOCKED"}
       />
       <LegacyMatchFeedbackSection feedback={feedbackData} players={playerOptions} />
-      <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
       <MatchCombinationEvidencePanel evidence={combinationEvidence} players={playerOptions} />
     </div>
   );

@@ -32,17 +32,27 @@ unblocks **Phase 5 — football work surfaces** (Round Board, Lineup, Tactics, R
 Reporting, Follow Live, Post-match), which stops again at **Human Gate C** before Phases 6–10
 (historical/intelligence routes, utility/config/collaboration routes, brand asset convergence,
 transitional-design removal, full validation and final sign-off).
-**Phase 5 progress: Round Board, Lineup+Tactics, Rotations, and Live Reporting/Follow Live
-addressed (4 of 7 PRs; 5 of 7 named items — Round Board, Lineup, Tactics, Rotations, and Live
-Reporting/Follow Live together as one pair).** All are the real production routes, not UI-Lab
-copies; every existing mutation is frozen, completely untouched. Live Reporting itself received
-**no code change** — a deliberate, disclosed finding, not a gap: its scoreboard/control-grid
-composition is already an incident-hardened design (ADR-0133) that already matches the golden
-reference's intent, achieved during ADR-0134's earlier material migration. Only its read-only
-sibling, Follow Live, needed a (narrow, presentational-only) change. Only **Post-match** remains
-before Phase 5 is complete and Human Gate C can be requested. Full account:
-`docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23 (Lineup + Tactics), §24
-(Rotations), §25 (Live Reporting — no change — and Follow Live).
+**Phase 5 complete: all seven named routes addressed (Round Board, Lineup, Tactics, Rotations,
+Live Reporting, Follow Live, Post-match) across 5 PRs.** All are the real production routes, not
+UI-Lab copies; every existing mutation (draft generation, lineup/tactics/rotation editing, live
+session/clock/event-recording, and post-match report completion) is frozen, completely untouched
+— only presentation and, where a genuine ordering mismatch was found, composition order changed.
+Live Reporting itself received **no code change** — a deliberate, disclosed finding, not a gap:
+its scoreboard/control-grid composition is already an incident-hardened design (ADR-0133) that
+already matches the golden reference's intent, achieved during ADR-0134's earlier material
+migration. Post-match had two real, disclosed ordering bugs fixed (the submit action moved from
+the shell's header to its correct last position; League's page had team reflection and player
+observations in the wrong relative order, unlike Event's own panel, which was already correct).
+Full account: `docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23 (Lineup +
+Tactics), §24 (Rotations), §25 (Live Reporting — no change — and Follow Live), §26 (Post-match,
+completing Phase 5).
+
+**Phase 5 is now complete. Per `13_IMPLEMENTATION_PHASES_AND_GATES.md`, Phases 6–10 (historical/
+intelligence routes, utility/config/collaboration routes, brand asset convergence, transitional-
+design removal, full validation and final sign-off) do not begin without a fresh, explicit human
+approval at Human Gate C** — mirroring exactly how Human Gate B was required before Phase 5
+itself began. The implementing agent does not self-certify visual fidelity or scope completeness
+as a substitute for that approval.
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,

@@ -76,8 +76,42 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
 
   const presentPlayers = report.players.filter((p) => p.attendanceStatus === "PRESENT");
 
+  const submitAction = (isDraft || isReported) && (
+    <TouchlineButton
+      variant="primary"
+      size="sm"
+      disabled={isPending}
+      onClick={() => {
+        if (!confirm("Complete this post-match report? It will be locked and cannot be further edited.")) return;
+        run(actions.complete);
+      }}
+    >
+      Complete report
+    </TouchlineButton>
+  );
+
+  const reopenAction = isLocked && (
+    <TouchlineButton
+      variant="secondary"
+      size="sm"
+      disabled={isPending}
+      className="bg-[var(--warning-subtle)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] hover:brightness-110"
+      onClick={() => {
+        if (!confirm("Reopen this report for correction?")) return;
+        run(() => actions.reopen("DRAFT"));
+      }}
+    >
+      Reopen report
+    </TouchlineButton>
+  );
+
   return (
     <div className="flex flex-col gap-5">
+      {/* Touchline Design Atlas (ADR-0136 Phase 5, `06_ROUTE_COMPOSITION_EVENTS_MATCHDAY.md §H`):
+          final score → report status → participation → goals/assists → reflection →
+          observations → submit. The header now carries only identity + report status (the
+          lifecycle pill); the Complete/Reopen action itself moved to the bottom of the shell,
+          after every correction section, matching the golden's "submit" as the final step. */}
       <Surface variant="default" padding="lg">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -88,36 +122,6 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
           <StatusPill variant={STATUS_VARIANT_MAP[status] ?? "neutral"} size="md">
             {STATUS_LABEL[status] ?? status}
           </StatusPill>
-        </div>
-
-        <div className="flex items-center gap-2 mt-3">
-          {(isDraft || isReported) && (
-            <TouchlineButton
-              variant="primary"
-              size="sm"
-              disabled={isPending}
-              onClick={() => {
-                if (!confirm("Complete this post-match report? It will be locked and cannot be further edited.")) return;
-                run(actions.complete);
-              }}
-            >
-              Complete report
-            </TouchlineButton>
-          )}
-          {isLocked && (
-            <TouchlineButton
-              variant="secondary"
-              size="sm"
-              disabled={isPending}
-              className="bg-[var(--warning-subtle)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] hover:brightness-110"
-              onClick={() => {
-                if (!confirm("Reopen this report for correction?")) return;
-                run(() => actions.reopen("DRAFT"));
-              }}
-            >
-              Reopen report
-            </TouchlineButton>
-          )}
         </div>
       </Surface>
 
@@ -366,6 +370,13 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
           variant="success"
           title={`Report complete${report.completedBy ? ` by ${report.completedBy}` : ""} on ${new Date(report.completedAt).toLocaleDateString()}.`}
         />
+      )}
+
+      {(submitAction || reopenAction) && (
+        <div className="flex items-center gap-2">
+          {submitAction}
+          {reopenAction}
+        </div>
       )}
     </div>
   );
