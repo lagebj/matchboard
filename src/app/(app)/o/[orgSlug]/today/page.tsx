@@ -18,14 +18,8 @@ import type { DecisionCandidateProvider } from "@/lib/situational/situation-type
 import { getFixturesOverview } from "@/domain/fixtures/service";
 import type { FixtureMatch } from "@/domain/fixtures/types";
 import { getOrgActivePlayerAvailability } from "@/lib/players/get-org-active-player-availability";
-import { resolveFeaturedUpcomingMatch } from "@/lib/matches/today-match-presentation";
 import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/match-presentation";
-import { summarizeSquadStatus, type TodayEvidenceSpotlightInput } from "@/lib/touchline/presentation/today-view-model";
-import {
-  getTeamSeasonMatchPhasePatterns,
-  classifyMatchPhaseConfidence,
-} from "@/lib/evidence/match-phase-pattern-evidence";
-import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { summarizeSquadStatus } from "@/lib/touchline/presentation/today-view-model";
 
 /**
  * "Latest matches" (Touchline Design Atlas, ADR-0136): the last 5 completed results across every
@@ -55,40 +49,6 @@ function buildRecentMatches(overview: Awaited<ReturnType<typeof getFixturesOverv
       outcome: result ? result.outcome : null,
     });
   });
-}
-
-/**
- * Evidence spotlight (Touchline Design Atlas, ADR-0136): one factual "opening 10 minutes" story
- * for the featured match's own team — never an arbitrary team pick, since it's scoped to whatever
- * team the hero above is already about. A count-based statement ("N goals conceded in the
- * opening 10 minutes across M matches"), not a percentage — computing "% of all goals" correctly
- * would require reconciling overlapping phase windows (OPENING_5 sits inside OPENING_10, etc.),
- * which `getTeamSeasonMatchPhasePatterns()`'s per-window rows don't disambiguate; a percentage
- * risks being subtly wrong rather than just less punchy, so it's not attempted here.
- */
-async function buildEvidenceSpotlight(
-  leagueSeasonId: string | null,
-  teamId: string | undefined,
-  orgFilter: OrgFilterMode,
-  detailHref: string,
-): Promise<TodayEvidenceSpotlightInput | null> {
-  if (!leagueSeasonId || !teamId) return null;
-  const rows = await getTeamSeasonMatchPhasePatterns(leagueSeasonId, teamId, orgFilter);
-  const openingRows = rows.filter((r) => r.phase === "OPENING_10");
-  const matches = openingRows.reduce((sum, r) => sum + r.matches, 0);
-  const goalsAgainst = openingRows.reduce((sum, r) => sum + r.goalsAgainst, 0);
-  const confidence = classifyMatchPhaseConfidence(matches);
-  if (confidence === "INSUFFICIENT") return null;
-  return {
-    question: "How often does this team concede in the opening minutes?",
-    label: "Opening 10 minutes",
-    title: "Goals conceded in the opening 10 minutes",
-    value: String(goalsAgainst),
-    valueCaption: goalsAgainst === 1 ? "goal conceded" : "goals conceded",
-    sample: `${matches} match${matches === 1 ? "" : "es"} this season`,
-    confidence,
-    detailHref,
-  };
 }
 
 export default async function TodayPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -157,19 +117,14 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   const recentMatches = buildRecentMatches(fixturesOverview, orgUrl);
   const squadStatus = orgPlayerAvailability.length > 0 ? summarizeSquadStatus(orgPlayerAvailability) : null;
 
-  const featuredMatch = resolveFeaturedUpcomingMatch(commandCentre.todayMatches);
-  const featuredTeamId = featuredMatch
-    ? fixturesOverview.periods
-        .flatMap((p) => p.rounds)
-        .flatMap((r) => r.matches)
-        .find((m) => m.id === featuredMatch.matchId)?.teamId
-    : undefined;
-  const evidenceSpotlight = await buildEvidenceSpotlight(
-    commandCentre.leagueSeasonId,
-    featuredTeamId,
-    ctx.orgFilter,
-    orgUrl("/insights/match-phase-patterns"),
-  );
+  // Evidence spotlight (a `getTeamSeasonMatchPhasePatterns()` story) was deliberately dropped
+  // from this page for now — that function's own doc comment already discloses it issues one
+  // goal-attribution query per completed match rather than a single batched query, "acceptable
+  // at the youth-league scale this product targets... flagged here for a future optimisation
+  // pass if profiling ever shows otherwise." Wiring it into Today (the single highest-traffic
+  // page) is exactly the profiling signal that comment anticipated: it measurably slowed Today's
+  // page load under concurrent load in CI. See docs/domain/touchline-atlas-provenance.md §14 for
+  // the full account — a real, disclosed scope reduction, not a silent regression.
 
   return (
     <AssistantCommandCentrePage
@@ -178,7 +133,6 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
       weeklyContext={weeklyContext}
       recentMatches={recentMatches}
       squadStatus={squadStatus}
-      evidenceSpotlight={evidenceSpotlight}
     />
   );
 }

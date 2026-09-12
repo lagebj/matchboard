@@ -17,9 +17,8 @@ import {
   NextMatchHero,
   SquadReadinessWidget,
   RecentFootballWidget,
-  EvidenceSpotlightWidget,
 } from "@/components/touchline/widgets";
-import type { TodaySquadStatus, TodayEvidenceSpotlightInput } from "@/lib/touchline/presentation/today-view-model";
+import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import type { TimelineNodeState } from "@/components/touchline/timeline/touchline-timeline";
 import type {
   CoachSituationProjection,
@@ -705,7 +704,6 @@ export function AssistantCommandCentrePage({
   weeklyContext,
   recentMatches,
   squadStatus,
-  evidenceSpotlight,
 }: {
   commandCentre: AssistantCommandCentre;
   /** Situational projection (ADR-0107, docs/domain/situational-decision-support.md). When
@@ -718,10 +716,11 @@ export function AssistantCommandCentrePage({
   weeklyContext?: WeeklyCoachingContextResult;
   /** Touchline Design Atlas additions (ADR-0136, `docs/domain/touchline-atlas-provenance.md`) —
    * genuinely new content the previous page never showed, not a replacement for anything above.
-   * All optional so the component remains usable without them (e.g. existing tests). */
+   * All optional so the component remains usable without them (e.g. existing tests). No
+   * `evidenceSpotlight` prop — that addition was deliberately dropped before shipping; see
+   * `today/page.tsx`'s own comment and `docs/domain/touchline-atlas-provenance.md` §14. */
   recentMatches?: MatchPresentation[];
   squadStatus?: TodaySquadStatus | null;
-  evidenceSpotlight?: TodayEvidenceSpotlightInput | null;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -826,29 +825,14 @@ export function AssistantCommandCentrePage({
         />
       )}
 
-      {/* Recent football + evidence — new Touchline Design Atlas content (ADR-0136), never
-          shown when the data doesn't exist (no invented sample). */}
-      {(recentMatches && recentMatches.length > 0) || evidenceSpotlight ? (
+      {/* Recent football — new Touchline Design Atlas content (ADR-0136), never shown when the
+          data doesn't exist (no invented sample). An evidence-spotlight companion was deliberately
+          dropped before shipping — see this component's own prop doc comment above. */}
+      {recentMatches && recentMatches.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 expanded:grid-cols-12">
-          {recentMatches && recentMatches.length > 0 ? (
-            <div className="expanded:col-span-7">
-              <RecentFootballWidget matches={recentMatches} viewAllHref={orgUrl("/fixtures")} />
-            </div>
-          ) : null}
-          {evidenceSpotlight ? (
-            <div className="expanded:col-span-5">
-              <EvidenceSpotlightWidget
-                question={evidenceSpotlight.question}
-                label={evidenceSpotlight.label}
-                title={evidenceSpotlight.title}
-                value={evidenceSpotlight.value}
-                valueCaption={evidenceSpotlight.valueCaption}
-                sample={evidenceSpotlight.sample}
-                confidence={evidenceSpotlight.confidence}
-                detailHref={evidenceSpotlight.detailHref}
-              />
-            </div>
-          ) : null}
+          <div className="expanded:col-span-7">
+            <RecentFootballWidget matches={recentMatches} viewAllHref={orgUrl("/fixtures")} />
+          </div>
         </div>
       ) : null}
 

@@ -28,9 +28,12 @@ composition only:
 - A real match hero (`NextMatchHero`) now appears when no decision is urgent enough to
   force-feature and a real upcoming match exists — previously this state showed only a generic
   empty state, never the match itself.
-- Squad status (org-wide `Player.currentAvailability`), latest results (last 5 completed
-  matches), and one evidence-spotlight story (opening-10-minutes goals conceded, scoped to the
-  featured match's own team) are new, real, database-backed additions.
+- Squad status (org-wide `Player.currentAvailability`) and latest results (last 5 completed
+  matches) are new, real, database-backed additions. An evidence-spotlight story was built, then
+  removed before shipping after it measurably slowed Today under concurrent CI load — a real,
+  disclosed performance finding, not a design change of mind (`getTeamSeasonMatchPhasePatterns()`'s
+  own doc comment already discloses its unbatched per-match query pattern); see the provenance
+  doc's §14 for the full account.
 - The golden's illustrative "Training" schedule row and a redundant second rendering of today's
   matches were deliberately not built — see the provenance doc's new `PROHIBITED_ILLUSTRATIVE`
   entry and its "deliberately omitted" reasoning.

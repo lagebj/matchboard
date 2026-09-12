@@ -323,14 +323,24 @@ an additive composition change, not a rewrite of production behaviour.
 - **Latest matches** (`RecentFootballWidget`) — last 5 completed results org-wide, reusing
   `getFixturesOverview()`'s already-computed report state exactly like the League page does
   (no second results query).
-- **Evidence spotlight** (`EvidenceSpotlightWidget`) — one factual "goals conceded in the opening
-  10 minutes" story, scoped to the *featured match's own team* (never an arbitrary team pick —
-  it's the same team the hero above is already about), via `getTeamSeasonMatchPhasePatterns()`.
-  Phrased as a count ("N goals conceded ... across M matches"), deliberately **not** a percentage
-  — computing "% of all goals conceded" correctly would require reconciling overlapping phase
-  windows (`OPENING_5` sits inside `OPENING_10`, etc.) that `getTeamSeasonMatchPhasePatterns()`'s
-  rows don't disambiguate; a wrong percentage is worse than a plainer true count, so it wasn't
-  attempted.
+
+**Built, then reverted before shipping — a real performance finding, not a design change of
+mind**: an evidence-spotlight story (`EvidenceSpotlightWidget`, one factual "goals conceded in the
+opening 10 minutes" count for the featured match's own team, via
+`getTeamSeasonMatchPhasePatterns()`) was implemented, then removed after PR #522's CI
+(`Deploy PR to Test slot`) failed twice with widespread 30s navigation timeouts, consistently and
+only on pages that load Today. `getTeamSeasonMatchPhasePatterns()`'s own doc comment already
+discloses "issues one goal-attribution query per completed match rather than a single batched
+query — acceptable at the youth-league scale this product targets... flagged here for a future
+optimisation pass if profiling ever shows otherwise." Wiring an unbatched per-match query into
+Today — the single highest-traffic page, hit by every authenticated Playwright project
+concurrently in CI — is exactly the profiling signal that comment anticipated. Rather than ship a
+page that measurably slows under concurrent load, the evidence-spotlight addition (and its
+supporting `buildEvidenceSpotlight()` helper, and the now-unused `evidenceSpotlight` prop on
+`AssistantCommandCentrePage`) was removed before merge. This is a disclosed scope reduction driven
+by real evidence, not a silent regression — reinstating it needs `getTeamSeasonMatchPhasePatterns()`
+itself to batch its goal-attribution query first (the function's own documented follow-up), not
+just re-adding the Today call site.
 
 **Deliberately omitted, not silently dropped**:
 - **External "League table"** — as documented in §0.5/§10, no standings model exists.
