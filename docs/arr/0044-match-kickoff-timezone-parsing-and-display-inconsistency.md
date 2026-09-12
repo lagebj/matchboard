@@ -2,7 +2,7 @@
 
 ## State
 
-Confirmed
+Resolved
 
 ## Identified
 
@@ -72,25 +72,29 @@ comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary
 - `src/lib/date-utils.ts` — `formatKickoffDate`/`formatKickoffTime`/`formatKickoffDateTime`/
   `getKickoffDateInputValue`/`getKickoffTimeInputValue`, all local-getter-based. Auditing every
   call site against server/client boundary found:
-  - **Fixed on this branch** (a genuine, concrete regression the write-side fix would otherwise
-    have introduced): `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` computed
+  - **Fixed**: `src/app/(app)/o/[orgSlug]/matches/[matchId]/handover/page.tsx` computed
     `formatKickoffTime(match.startsAt)` server-side and passed the baked string to the client
     `CoachHandoverView` — for any match written via the now-corrected create-form path, this
     would have displayed a kickoff time shifted by the org's UTC offset on the exact page a coach
     uses on matchday. Moved into `coach-handover-view.tsx` (already a client component) to format
     `match.startsAt` itself, matching the pattern `match-edit-form.tsx` already used correctly.
-  - **Still open, but time-of-day is not actually displayed** (only `formatKickoffDate`, a
-    date-only function — a day-boundary risk only, matching ADR-0133 H4's already-disclosed,
-    narrower gap, not a multi-hour one):
-    `src/app/(app)/o/[orgSlug]/opponents/page.tsx`,
-    `src/app/(app)/o/[orgSlug]/opponents/[opponentTeamId]/page.tsx`,
-    `src/components/opponents/previous-encounters-panel.tsx` (all show past-encounter dates).
-  - **Still open, `formatKickoffTime` used server-side**, but on `Event.startDate`/`endDate` (the
-    event-level date range), a field this branch's write-side fix never touched — Event-level
-    start/end still uses whichever convention it always did, so this call site's correctness is
-    unchanged by this branch either way: `src/app/(app)/o/[orgSlug]/events/page.tsx`. Event-level
-    date/time write-path timezone correctness (create-event-form.tsx) was not audited as part of
-    this ARR and may have its own instance of this same residue — not confirmed either way.
+  - **Fixed (ADR-0137)**: `src/app/(app)/o/[orgSlug]/opponents/page.tsx` and
+    `.../opponents/[opponentTeamId]/page.tsx` — genuine Server Components showing a match's
+    calendar date via `formatKickoffDate` (a day-boundary risk, matching ADR-0133 H4's
+    already-disclosed narrower gap). Both moved to the new `formatDateInDisplayTimezone()`
+    (`src/lib/date-utils.ts`), resolved deterministically against the fixed
+    `MATCHBOARD_DISPLAY_TIMEZONE` ("Europe/Oslo") regardless of the rendering server's own
+    runtime timezone.
+  - **Deleted**: `src/components/opponents/previous-encounters-panel.tsx` — confirmed dead code
+    (zero importers anywhere in the codebase; its live counterpart,
+    `previous-encounters-display.tsx`, is already a Client Component and was never affected).
+  - **Audited, found out of scope**: `src/app/(app)/o/[orgSlug]/events/page.tsx`'s
+    `formatKickoffTime` call and `create-event-form.tsx`'s write path both operate on
+    `Event.startsAt`/`endsAt`, which are plain `type="date"` inputs with **no time-of-day
+    component at all** — `new Date("YYYY-MM-DD")` always parses as UTC midnight, deterministically,
+    regardless of execution environment, so there is no browser-vs-server instant-computation bug
+    here to fix. (Whether an all-day event range should carry a real time-of-day at all is a
+    separate, pre-existing product question, not this ARR's residue.)
 - `src/lib/matches/can-live-report.ts` / ADR-0133 H5 — the concrete symptom that surfaced this:
   "Start live reporting" stayed hidden until roughly the coach's own UTC offset *after* real
   kickoff, because the League match's `startsAt` (created via the buggy server-side path) held an
@@ -108,11 +112,10 @@ comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary
   offset, always in the direction of believing the match is later than it really is.
 - Once the write side is fixed, any Server-Component kickoff-**time** display would show the
   coach a time offset **earlier** than reality by the same amount, for any organisation not
-  physically in UTC+0. One concrete instance of this (`handover/page.tsx`) was found and fixed
-  on this branch, before shipping, precisely because it is a real regression class the write-side
-  fix would otherwise introduce. The remaining open call sites are date-only (a narrower,
-  already-disclosed day-boundary risk) or on a field this branch does not touch (Event-level
-  start/end).
+  physically in UTC+0. The one concrete instance of this (`handover/page.tsx`) was found and
+  fixed before shipping. The remaining date-only Server-Component call sites (a narrower,
+  already-disclosed day-boundary risk) are now resolved deterministically via ADR-0137's fixed
+  display timezone rather than left as an undefined, coincidentally-correct state.
 - This deepens, rather than duplicates, ADR-0133's already-disclosed "no per-organisation
   timezone model" gap: that ADR named only a narrower day-boundary bucketing symptom (Today's
   window near midnight); this ARR documents that the same root cause (no real per-org/user
@@ -128,34 +131,43 @@ comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary
 - Do not add a new Server Component call to `formatKickoffDate`/`formatKickoffTime`/
   `formatKickoffDateTime`/`getKickoffDateInputValue`/`getKickoffTimeInputValue` (or an equivalent
   local-getter-based formatter) for a value that should reflect the coach's real local time. Move
-  the render into a client component, or resolve this ARR first.
-- Do not silently "fix" the existing Server-Component display call sites by re-applying an
-  arbitrary fixed offset (e.g. hardcoding `Europe/Oslo`) — that is a real product/architecture
-  decision (a per-organisation or per-user timezone model, or a documented single-timezone
-  assumption) and belongs in an ADR, not an ad hoc patch.
+  the render into a Client Component, or use `formatDateInDisplayTimezone()` (ADR-0137) when a
+  Client Component genuinely isn't the right shape.
+- `MATCHBOARD_DISPLAY_TIMEZONE` (ADR-0137) is a deliberate, single-region, documented assumption
+  — not a per-organisation/user timezone model. Do not read it as license to bypass real
+  timezone modelling forever; if Matchboard ever needs to serve an organisation outside
+  Europe/Oslo, generalise that one constant (see ADR-0137's Decision section) rather than adding
+  a second fixed-timezone constant elsewhere.
 
 ## Resolution criteria
 
-- Every write path constructing a match/event-match kickoff instant from separate date/time
-  fields performs that construction in the browser and transmits an absolute, unambiguous
-  instant to the server.
-- Every read path that displays a kickoff time to a coach resolves it against the coach's real
-  timezone (via client-side rendering, or a real per-organisation/user timezone model), not the
-  rendering process's own local timezone.
-- The Server-Component call sites listed under "Evidence" are migrated or covered by that model.
-- A decision (ADR) exists for how the coach's "real timezone" is determined — today's fix
-  (browser-side arithmetic) is a correct implementation of "same timezone as the coach at all
-  times" only where the coach's own browser is doing the writing; the display half has no
-  equivalent mechanism yet and needs one.
+- [x] Every write path constructing a match/event-match kickoff instant from separate date/time
+      fields performs that construction in the browser and transmits an absolute, unambiguous
+      instant to the server. (League create, Event match edit.)
+- [x] Every read path that displays a kickoff time to a coach resolves it against the coach's
+      real timezone — via client-side rendering (the general rule; every affected Client
+      Component already did or now does this), or via ADR-0137's fixed
+      `MATCHBOARD_DISPLAY_TIMEZONE` for the narrow set of Server Components that cannot
+      reasonably render client-side.
+- [x] Every Server-Component call site listed under "Evidence" is migrated, deleted (dead code),
+      or confirmed out of scope (no time-of-day component to get wrong).
+- [x] A decision exists for how the coach's "real timezone" is determined in each case: the
+      coach's own browser for every write path and every Client-Component read, ADR-0137's fixed
+      Europe/Oslo constant for the small number of Server-Component reads that need one.
+
+All four criteria are met. Genuine multi-region per-organisation/user timezone support remains
+future work (ADR-0137 names the exact generalisation point) but is not required to close this
+ARR — nothing in the current product needs it, and ADR-0137 documents that explicitly rather than
+leaving it an open question.
 
 ## Disposition
 
-Pending, with one explicit maintainer decision recorded. This branch resolves the two known
-write-path instances (League match create, Event match edit) using the already-correct
-convention (browser-side computation), removing the immediate "Start live reporting" symptom's
-root cause for newly created/rescheduled matches. The display-side half, and a real
-per-organisation/user timezone model to remove the "must render in the coach's own browser"
-constraint entirely, remain open and need a maintainer decision.
+**Resolved.** The two known write-path instances (League match create, Event match edit) use the
+already-correct browser-side convention. Every display-side Server-Component call site is
+migrated to ADR-0137's fixed display timezone, deleted as dead code, or confirmed out of scope.
+The one concrete regression the write-side fix would otherwise have introduced (`handover/page.tsx`)
+was found and fixed before shipping. Historical data was explicitly not remediated (maintainer
+decision, recorded below) since it is not required to resolve the originally-reported symptom.
 
 **Historical data — explicitly not remediated (maintainer decision, 2026-09-12).** Existing
 matches whose `startsAt` was written via the pre-fix buggy path keep that skewed value; no
@@ -178,6 +190,9 @@ concrete need for precise historical kickoff timing on an existing match actuall
   computation is a separate, larger change") and the H5 gating fix this ARR's symptom motivated.
 - ADR-0109 (derived coach workflow lifecycle) — the planning-boundary-closes-at-kickoff mechanism
   this residue silently mistimes for affected matches.
+- ADR-0137 (Single Fixed Display Timezone for Server-Rendered Dates) — fulfils ADR-0133's
+  disclosed-but-deferred "Europe/Oslo-day computation" item and closes this ARR's display-side
+  resolution criteria.
 
 ## Related implementation
 
@@ -189,9 +204,18 @@ concrete need for precise historical kickoff timing on an existing match actuall
   `src/components/matches/coach-handover-view.tsx` — moved kickoff-time formatting from the
   server page into the client view, closing the one concrete display-side regression the
   write-side fix would otherwise have introduced.
+- `src/lib/date-utils.ts` — `MATCHBOARD_DISPLAY_TIMEZONE` / `formatDateInDisplayTimezone()`
+  (ADR-0137), and a corrected doc comment on the existing `formatKickoff*` functions stating they
+  are client-side-only.
+- `src/app/(app)/o/[orgSlug]/opponents/page.tsx`,
+  `src/app/(app)/o/[orgSlug]/opponents/[opponentTeamId]/page.tsx` — migrated to
+  `formatDateInDisplayTimezone()`.
+- `src/components/opponents/previous-encounters-panel.tsx` — deleted (dead code).
 - `src/lib/matches/can-live-report.ts` — the "Start live reporting" gating fix that surfaced this.
 - `src/test/setup-registry.test.ts` — regression tests proving `startsAtIso` precedence and the
   documented fallback behaviour.
+- `src/lib/__tests__/display-timezone.test.ts` — proves `formatDateInDisplayTimezone()` resolves
+  a genuine day-boundary crossing correctly, independent of the test runner's own timezone.
 
 ## Supersedes
 
@@ -220,3 +244,13 @@ left as one undifferentiated list.
 Second follow-up the same day: maintainer explicitly decided not to remediate historical
 `startsAt` data, since the "Start live reporting" visibility fix works for existing matches
 independent of kickoff-time accuracy. Recorded under "Disposition" above.
+
+**Closed the same day**, at the maintainer's explicit request to close this ARR within the same
+PR. Wrote ADR-0137 to make the one remaining architectural decision this ARR's resolution
+criteria required (a fixed, documented `Europe/Oslo` display timezone for the narrow set of
+Server Components that cannot render client-side), then: migrated the two genuine date-only
+Server-Component call sites (`opponents/page.tsx`, `opponents/[opponentTeamId]/page.tsx`) to the
+new `formatDateInDisplayTimezone()`; deleted `previous-encounters-panel.tsx` as confirmed dead
+code; audited `events/page.tsx` and `create-event-form.tsx` and found them out of scope
+(`Event.startsAt`/`endsAt` carry no time-of-day component, so there is no browser-vs-server
+instant bug possible there). All four resolution criteria are now met. State moved to Resolved.

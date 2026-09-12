@@ -70,7 +70,9 @@ correctness of the coach-visible outcome first, then the realtime transport.
 - Replacing the DO transport or making it the sole system of record — Neon stays canonical
   (ADR-0086), the DO stays a coordination actor.
 - A per-organisation timezone model — H4's buffer is a pragmatic near-midnight fix; a real
-  `Europe/Oslo`-day computation is a separate, larger change.
+  `Europe/Oslo`-day computation is a separate, larger change. **Update (2026-09-12):** the
+  narrow "Europe/Oslo-day computation" half of this was built, deliberately scoped down from a
+  general per-organisation model — see ADR-0137 and ARR-0044.
 - Offline live reporting / service worker (ADR-0123 out-of-scope stands).
 
 ## Delivery

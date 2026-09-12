@@ -160,15 +160,20 @@ export function isInSameWeek(leftDate: Date, rightDate: Date): boolean {
 }
 
 /**
- * Football kickoff time formatting — local wall-clock values, not UTC instants.
+ * Football kickoff time formatting — CLIENT-SIDE ONLY (ADR-0137, ARR-0044).
  *
- * Matchboard treats match start times as local wall-clock values entered by the coach.
- * A coach entering "17:30" expects to see "17:30" everywhere regardless of timezone.
- * The stored Date's year/month/day/hours/minutes represent the coach's local wall-clock time,
- * not a UTC instant that needs timezone conversion.
+ * `Match.startsAt`/`EventMatch.startsAt` store a genuine absolute UTC instant. These functions
+ * extract wall-clock date/time parts from it using the JS runtime's own local getters
+ * (`getFullYear`, `getHours`, etc.) — which recovers the coach's real local kickoff time
+ * correctly ONLY when the code calling them executes in the coach's own browser, where "local"
+ * genuinely means the coach's real device timezone. A coach entering "17:30" gets "17:30" back,
+ * with no explicit timezone math anywhere, because the browser's own clock IS the coach's clock.
  *
- * These functions extract date and time parts from the stored value without timezone
- * conversion, ensuring "entered 17:30 → displayed 17:30" round-trips correctly.
+ * Do NOT call these from a Server Component or Server Action — the server's own runtime
+ * timezone (UTC on Vercel) is not the coach's, and using these there silently produces a value
+ * offset by the coach's real UTC offset (this was the confirmed root cause of ARR-0044's "Start
+ * live reporting" bug, and the mechanism ADR-0137's `formatDateInDisplayTimezone` exists to
+ * avoid for the small number of read paths that must render server-side).
  */
 
 /** Extract the date portion as YYYY-MM-DD from a stored kickoff time (wall-clock, no TZ shift). */
@@ -218,6 +223,33 @@ export function formatKickoffDateTime(startsAt: Date): string {
     day: "numeric",
     month: "short",
   }) + ", " + formatKickoffTime(startsAt);
+}
+
+/**
+ * The one fixed timezone Matchboard's Server-Component-rendered date displays resolve against
+ * (ADR-0137). Not a per-organisation/per-user setting — a deliberate, documented, single-region
+ * assumption for the narrow set of read paths that cannot reasonably render client-side (where
+ * the browser's own local timezone, used by every `formatKickoff*` function above, is already
+ * correct and needs no configuration). If Matchboard ever serves an organisation outside this
+ * timezone, this is the one place to generalise.
+ */
+export const MATCHBOARD_DISPLAY_TIMEZONE = "Europe/Oslo";
+
+/**
+ * Format a match date for a Server Component that cannot reasonably move to client-side
+ * rendering, resolved deterministically against `MATCHBOARD_DISPLAY_TIMEZONE` regardless of the
+ * rendering server's own runtime timezone (ADR-0137) — unlike `formatKickoffDate`, which is
+ * only correct when called from the coach's own browser. Use `formatKickoffDate` instead for
+ * any Client Component.
+ */
+export function formatDateInDisplayTimezone(value: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: MATCHBOARD_DISPLAY_TIMEZONE,
+  }).format(value);
 }
 
 /** Get today's date as YYYY-MM-DD in the browser's local timezone for date input defaults. */
