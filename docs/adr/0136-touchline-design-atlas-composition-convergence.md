@@ -176,6 +176,38 @@ follow-up. Full account: `docs/domain/touchline-atlas-provenance.md` §32 (Forma
 (Groups), §34 (Rules), §35 (Settings), §36 (More), §37 (Peer reviews), §38 (Invitation,
 completing Phase 7).
 
+**Maintainer decision (2026-09-12): continue through Phase 10 without further check-in stops,
+except the one explicitly named in the phase spec.** Per the earlier "no further check-in stops
+for the remainder of the programme" decision (Phases 7–9), and a direct instruction to continue
+through the rest of the programme without any additional human gates unless explicitly stated in
+`13_IMPLEMENTATION_PHASES_AND_GATES.md` itself — that document names no gate for Phases 8 or 9,
+and Phase 10's own stated completion criterion ("Human final visual sign-off required") remains
+the one stop that is not self-imposed and stays in force exactly as written.
+
+**Phase 8 complete: brand asset convergence.** Per `11_BRAND_ICON_AND_PWA_CONTRACT.md`: same mark
+geometry, same product name, no redraw/reshape/new symbol — only the explicitly Allowed
+colour-only derivative. `scripts/generate-pwa-icons.sh` (reproducibility script; committed
+PNGs/ICO are the deliverable) recoloured every app-icon asset from the pre-Touchline brand green
+(`#144937`) + white mark to the Touchline accent (`--tl-accent`, `#C7F54A`) + near-black mark
+(`--tl-accent-on-fill` dark, `#101500`) — matching §2's "Preferred launcher: Touchline
+accent/lime background; existing mark in near-black" exactly:
+`android-chrome-{192,512}.png` (`purpose: "any"`, previously left unchanged by ADR-0123's own
+script — now brought into the same treatment), `maskable-{192,512}.png`, `apple-icon.png` (180),
+`icon.png` (32). One additional, previously-unaddressed defect of the exact same class ADR-0123
+had already fixed for `apple-icon.png` was found and fixed: `src/app/favicon.ico` was a
+transparent PNG-in-ICO with a plain black mark, nearly invisible against a dark browser tab bar —
+now opaque, matching every other icon. `src/app/manifest.ts`'s `background_color`/`theme_color`
+were corrected from a slightly-off pre-Touchline value (`#0a0d13`) to the exact Touchline dark
+canvas token (`--tl-canvas`, `#090b0f`) already used by `layout.tsx`'s own `viewport.themeColor`
+— the two had drifted apart. The golden reference's own mark geometry (`brand-asset-matrix.png`)
+was confirmed to differ from the repository's canonical mark and was correctly ignored per §5's
+explicit instruction ("golden brand board correction... is visual guidance for color/safe-zone
+treatment only... use the repository mark"). `docs/product/brand-strategy.md`'s "final logo/app
+icon" owner-approval gate is addressed directly in that document: this narrow, colour-only,
+mark-preserving change is covered by ADR-0136's own Accepted status and explicit Phase 8 scope,
+not a fresh standalone brand decision — the gate remains open for anything further. Full account:
+`docs/domain/touchline-atlas-provenance.md` §39.
+
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
   next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching context,

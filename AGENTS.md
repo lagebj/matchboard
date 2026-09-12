@@ -3451,25 +3451,38 @@ not require one).
 - `src/app/manifest.ts` — dynamic manifest (Next.js `MetadataRoute.Manifest`), branches on request
   hostname (`test.` prefix vs. everything else). Distinct `name`/`short_name` ("Matchboard Test"
   vs. "Matchboard"). `id`/`start_url` `/today`, `scope` `/`, `display: standalone`, `lang`,
-  `background_color`/`theme_color` `#0a0d13`, shortcuts Today/League/Events (max 3). Do not
+  `background_color`/`theme_color` `#090b0f` (Touchline `--tl-canvas` dark, ADR-0136 Phase 8 —
+  was the slightly-off pre-Touchline `#0a0d13`, now matching `layout.tsx`'s own already-correct
+  `viewport.themeColor` dark value exactly), shortcuts Today/League/Events (max 3). Do not
   reintroduce a static `public/brand/site.webmanifest` or a `manifest:` key in root
   `layout.tsx` metadata — the file convention auto-links the dynamic route.
 - **Icons** (`scripts/generate-pwa-icons.sh` — ImageMagick, reproducibility only, not wired into
-  the build; the committed PNGs are the deliverable):
-  - `android-chrome-{192,512}.png` — `purpose: "any"`, unchanged (opaque brand-green field,
-    white mark).
-  - `public/brand/maskable-{192,512}.png` — `purpose: "maskable"`, dedicated assets with the mark
-    inside the centre-80% mask-safe area. Do **not** point `maskable` back at the full-bleed
-    `android-chrome-*` art — its mark runs to the edges and clips on circular Android masks.
-  - `src/app/apple-icon.png` (180) / `src/app/icon.png` (32) — **opaque** brand-green + white
-    mark. iOS composites home-screen icons onto black, so a transparent icon renders as
-    black-on-black. Keep them opaque.
-  - Regenerating from a *new* mark or brand colour is an owner-approved brand decision
-    (`docs/product/brand-strategy.md`); corrective repackaging of the existing mark is not.
-- `src/app/layout.tsx` — `export const viewport` (`themeColor` `#0a0d13`, `viewportFit: "cover"`),
-  `metadata.applicationName`, `metadata.appleWebApp` (`capable`, `title`, `statusBarStyle:
-  "default"`), and an explicit `apple-mobile-web-app-capable` for iOS < 16.4. The app shell adds
-  `env(safe-area-inset-bottom)` padding to the fixed `MobileNav` and the main scroll area.
+  the build; the committed PNGs/ICO are the deliverable). **Touchline treatment (ADR-0136 Phase
+  8):** the mark's geometry and the product name are unchanged — only background/foreground
+  colour, an explicitly Allowed colour-only derivative per
+  `11_BRAND_ICON_AND_PWA_CONTRACT.md`, superseding the pre-Touchline brand-green scheme below.
+  - `android-chrome-{192,512}.png` — `purpose: "any"`, opaque Touchline accent field
+    (`--tl-accent`, `#C7F54A`) with a near-black mark (`--tl-accent-on-fill` dark, `#101500`).
+  - `public/brand/maskable-{192,512}.png` — `purpose: "maskable"`, same colours, dedicated assets
+    with the mark inside the centre-80% mask-safe area. Do **not** point `maskable` back at the
+    full-bleed `android-chrome-*` art — its mark runs to the edges and clips on circular Android
+    masks.
+  - `src/app/apple-icon.png` (180) / `src/app/icon.png` (32) / `src/app/favicon.ico` (16) —
+    **opaque** Touchline accent + near-black mark. iOS composites home-screen icons onto black,
+    so a transparent icon renders as black-on-black — `favicon.ico` had this exact defect (a
+    transparent PNG-in-ICO with a plain black mark, the same class ADR-0123 had already fixed for
+    `apple-icon.png`) until this pass; all three are now opaque, matching each other.
+  - Regenerating from a *new* mark, brand colour, or product name is still an owner-approved
+    brand decision (`docs/product/brand-strategy.md`'s "final logo/app icon" gate) — ADR-0136's
+    own Accepted status and explicit Phase 8 scope ("minor icon variants from existing mark") is
+    that approval for this one, narrow, colour-only, mark-preserving change. A *further* colour
+    or mark change beyond matching the app's own existing Touchline tokens still needs a fresh
+    decision.
+- `src/app/layout.tsx` — `export const viewport` (`themeColor` `#090b0f` dark / `#f3f5f1` light,
+  `viewportFit: "cover"`), `metadata.applicationName`, `metadata.appleWebApp` (`capable`, `title`,
+  `statusBarStyle: "default"`), and an explicit `apple-mobile-web-app-capable` for iOS < 16.4. The
+  app shell adds `env(safe-area-inset-bottom)` padding to the fixed `MobileNav` and the main
+  scroll area.
 - **`InstallPwaCard`** (`src/components/pwa/install-prompt-card.tsx`) is a **discovery helper, not
   an installer**. It does **not** call `preventDefault()` on `beforeinstallprompt` — the browser
   stays free to show its own install control. Its copy points at the browser-native path

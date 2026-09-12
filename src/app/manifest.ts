@@ -15,11 +15,17 @@ import { headers } from "next/headers";
  * distinguishing signals instead; see AGENTS.md's "PWA (installable app)"
  * section).
  *
- * Icons (ADR-0123): android-chrome-{192,512} are the `purpose: "any"` icons
- * (opaque brand-green field, white mark). The `purpose: "maskable"` entries
- * point at dedicated maskable-{192,512} assets whose mark sits inside the
- * centre-80% mask-safe area — the full-bleed android-chrome art has the logo
- * motif running to the edges and clips on circular Android masks.
+ * Icons (ADR-0123, recoloured to the Touchline treatment by ADR-0136 Phase 8):
+ * android-chrome-{192,512} are the `purpose: "any"` icons (opaque Touchline
+ * accent field, near-black mark — see scripts/generate-pwa-icons.sh and
+ * AGENTS.md's "PWA (installable app)" section). The `purpose: "maskable"`
+ * entries point at dedicated maskable-{192,512} assets whose mark sits inside
+ * the centre-80% mask-safe area — the full-bleed android-chrome art has the
+ * logo motif running to the edges and clips on circular Android masks.
+ *
+ * background_color/theme_color match the app shell's own already-Touchline
+ * dark canvas token (--tl-canvas, #090b0f — same value src/app/layout.tsx's
+ * viewport.themeColor uses for prefers-color-scheme: dark).
  *
  * This route and its icons are served publicly (no auth) — see
  * PUBLIC_ROUTES in src/lib/env.ts and ADR-0123 for why.
@@ -37,8 +43,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     start_url: "/today",
     scope: "/",
     display: "standalone",
-    background_color: "#0a0d13",
-    theme_color: "#0a0d13",
+    background_color: "#090b0f",
+    theme_color: "#090b0f",
     icons: [
       { src: "/brand/android-chrome-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/brand/android-chrome-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },

@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted
+Accepted. **Icon colours superseded by ADR-0136 Phase 8 (2026-09-12):** the brand-green
+(`#144937`) + white-mark treatment this ADR established is now the Touchline accent (`#C7F54A`)
++ near-black-mark treatment (`scripts/generate-pwa-icons.sh`, AGENTS.md's "PWA (installable app)"
+section) — the mark geometry, public-route/manifest architecture, and every other decision this
+ADR records are unchanged and remain in force. This ADR's own body is left as the historical
+record of the original colour choice, per this repository's append-only ADR convention.
 
 ## Context
 

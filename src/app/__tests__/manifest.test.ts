@@ -88,4 +88,18 @@ describe("manifest (PWA, UX-2.10-01)", () => {
     const result = await manifest();
     expect(result.lang).toBe("en");
   });
+
+  /**
+   * Touchline Design Atlas (ADR-0136 Phase 8): background_color/theme_color must match the app
+   * shell's own Touchline dark canvas token (--tl-canvas, #090b0f) — the same value
+   * src/app/layout.tsx's viewport.themeColor already used for dark. Locks in a fix for a real
+   * drift: this manifest carried a slightly-off pre-Touchline value (#0a0d13) even after the
+   * rest of the app shell moved to the exact Touchline token.
+   */
+  it("uses the exact Touchline dark canvas colour for background_color and theme_color", async () => {
+    withHost("app.matchboard.football");
+    const result = await manifest();
+    expect(result.background_color).toBe("#090b0f");
+    expect(result.theme_color).toBe("#090b0f");
+  });
 });
