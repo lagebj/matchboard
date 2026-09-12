@@ -545,7 +545,7 @@ function GroupedReports({
 
 /**
  * Today's operational timeline (ADR-0125). One chronological rail: today's
- * matches as `MatchScoreRow` items with now/next/later treatment. A match that
+ * matches as `MatchRow` items with now/next/later treatment. A match that
  * has been played but still needs its report becomes an `attention` node with an
  * inline "Complete report" action — it is never quietened while the follow-up is
  * open. Reports for older matches stay in the grouped "Post-match reports"

@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted
+Accepted. **`MatchScoreRow` (the name this ADR originally gave the dense scan-row variant)
+removed by ADR-0136 Phase 9 (2026-09-12):** every real caller had already moved to `MatchRow`
+(this ADR's own §11 already renamed the component; `MatchScoreRow` was kept only as a
+`@deprecated` alias with zero remaining production consumers) — a superseded compatibility
+export, not a behaviour change. Everywhere else in this ADR, read `MatchScoreRow` as `MatchRow`.
+This ADR's own body is left as the historical record, per this repository's append-only ADR
+convention.
 
 ## Context
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MatchScoreRow, MatchCard, MatchHeader } from "../match-presentation";
+import { MatchRow, MatchCard, MatchHeader } from "../match-presentation";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 
 const scheduled = buildMatchPresentation({
@@ -75,9 +75,9 @@ describe("buildMatchPresentation", () => {
   });
 });
 
-describe("MatchScoreRow", () => {
+describe("MatchRow", () => {
   it("scheduled: kickoff time in the value lane, no score, attention on the status line", () => {
-    render(<MatchScoreRow presentation={scheduled} />);
+    render(<MatchRow presentation={scheduled} />);
     expect(screen.getByText("Slemmestad Hvit")).toBeTruthy();
     expect(screen.getByText("ROS")).toBeTruthy();
     expect(screen.getByText("17:30")).toBeTruthy();
@@ -86,26 +86,26 @@ describe("MatchScoreRow", () => {
   });
 
   it("final: home value then away value, FT + outcome on the status line", () => {
-    render(<MatchScoreRow presentation={finalHomeWin} />);
+    render(<MatchRow presentation={finalHomeWin} />);
     expect(screen.getByText("3")).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("FT · WON")).toBeTruthy();
   });
 
   it("live: score values and a LIVE marker with the clock", () => {
-    render(<MatchScoreRow presentation={live} />);
+    render(<MatchRow presentation={live} />);
     expect(screen.getByText("LIVE · 37′")).toBeTruthy();
   });
 
   it("cancelled: em dash values, CANCELLED, reason line", () => {
-    render(<MatchScoreRow presentation={cancelled} />);
+    render(<MatchRow presentation={cancelled} />);
     expect(screen.getByText("CANCELLED")).toBeTruthy();
     expect(screen.getAllByText("—").length).toBe(2);
     expect(screen.getByText("Pitch frozen")).toBeTruthy();
   });
 
   it("inTimeline: a scheduled row does not repeat the kickoff time (the rail owns it)", () => {
-    render(<MatchScoreRow presentation={scheduled} inTimeline />);
+    render(<MatchRow presentation={scheduled} inTimeline />);
     expect(screen.queryByText("17:30")).toBeNull();
     // The planning attention still reads on the status line.
     expect(screen.getByText("2 decisions")).toBeTruthy();

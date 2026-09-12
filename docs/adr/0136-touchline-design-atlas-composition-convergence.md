@@ -208,6 +208,34 @@ mark-preserving change is covered by ADR-0136's own Accepted status and explicit
 not a fresh standalone brand decision — the gate remains open for anything further. Full account:
 `docs/domain/touchline-atlas-provenance.md` §39.
 
+**Phase 9 complete: remove transitional design.** Per `12_CODE_CHANGE_MAP.md §13`: "remove
+obsolete generic wrapper components only if no remaining consumers... delete visual compatibility
+CSS from old page composition where safe." This is deliberately narrow — CSS-token-level
+compatibility aliases were already fully removed by ADR-0134 Phase 10, and the mainstream
+pre-Touchline shared primitives (`Button`, `PageHeader`, `SectionHeader`, `Surface`, etc.) remain
+genuinely load-bearing across the large majority of routes not yet swapped to a Touchline
+equivalent — deleting any of those would break the app, not clean it up, so none were touched. A
+systematic consumer-count audit (every export checked for real, non-self-referential importers
+across the whole `src/` tree, not a tool's static-analysis guess — barrel re-exports produce
+false positives a tool like `ts-prune` cannot reliably resolve) found exactly four fully orphaned
+files and one deprecated compatibility export, all confirmed zero-consumer before deletion:
+`src/components/ui/severity-badge.tsx` (`SignalBadge` + 3 helper functions — real signal
+rendering moved fully to `StatusPill`/`DecisionBanner`, confirmed directly in `round-board.tsx`'s
+own imports), `src/components/ui/status-rail.tsx` (`StatusRail`), `src/components/ui/
+warning-card.tsx` (`SignalCard` — despite ADR-0007's original text calling this file "WarningCard"
+informally, no component of that name ever existed; `SignalCard` was the real export, now
+confirmed to have had zero consumers), `src/components/ui/branded-surface.tsx` (`BrandedSurface`,
+pre-Touchline, from the original #103 "non-empty state branding" PR, superseded by direct
+`Surface`/`TouchlineWidget` usage), and `MatchScoreRow` (`match-presentation.tsx`'s own
+`@deprecated` alias for `MatchRow`, ADR-0125's original name for the component before its own §11
+rename — kept only for migration, with zero remaining production callers). Every doc-comment
+reference to `MatchScoreRow` in AGENTS.md and `docs/product/adaptive-interaction-design.md` was
+updated to `MatchRow`; the component test exercising it was renamed rather than deleted (the
+coverage is real and still needed, just under the current name). ADR-0007 and ADR-0125 — both
+historical, append-only records whose original text made present-tense claims now false — each
+gained a short superseding note in their own Status section; their bodies are otherwise
+unchanged. Full account: `docs/domain/touchline-atlas-provenance.md` §40.
+
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
   next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching context,
