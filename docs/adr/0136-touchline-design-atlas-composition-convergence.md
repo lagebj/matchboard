@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-09-11). **Phases 0–3 implemented (inventory/provenance, presentation view
+Accepted (2026-09-11). **Phases 0–10 complete (2026-09-12) — `AWAITING HUMAN VISUAL APPROVAL`**
+(see "Phase 10 complete" below for the full account; every automated check this programme can run
+on its own has passed). **Phases 0–3 implemented (inventory/provenance, presentation view
 models, semantic widget/viz library, route-complete UI Lab), followed by two rounds of Hard Gate
 A review feedback (pitch-line markings, GK kit colour + opt-in perspective tilt, shirt-shaped
 tokens, vertical pitch orientation — see `docs/domain/touchline-atlas-provenance.md` §12–§13),
@@ -235,6 +237,42 @@ coverage is real and still needed, just under the current name). ADR-0007 and AD
 historical, append-only records whose original text made present-tense claims now false — each
 gained a short superseding note in their own Status section; their bodies are otherwise
 unchanged. Full account: `docs/domain/touchline-atlas-provenance.md` §40.
+
+**Phase 10 complete: complete validation.** Per `13_IMPLEMENTATION_PHASES_AND_GATES.md`'s own
+list (unit, typecheck, lint, E2E, screenshots, accessibility, mobile device, PWA install, light/
+dark, reduced motion) and `14_ACCEPTANCE_AND_CONFORMANCE.md §A–J`. Full `npm run validate` (14
+steps) on `main` at this programme's final merge commit (`cc4354fa`) — **all 14 passed**,
+including the complete unit + component + worker suites (3,929 + 279 + 84 tests) and a successful
+`build`. The standing per-PR E2E pipeline (`test-acceptance.yml`, full `npm run test:e2e`
+including `accessibility.spec.ts` and `pwa-installability.spec.ts`) already passed on every PR in
+this programme; the same final merge commit was independently reconfirmed via `ci-checks.yml`'s
+post-merge "Browser Acceptance Tests" smoke job — [run
+34717114053](https://github.com/lagebj/matchboard/actions/runs/34717114053), all jobs
+`completed/success`. Two genuine, disclosed gaps (not silently passed): no dedicated automated
+e2e assertion for light/dark rendering across every migrated route, and no dedicated automated
+e2e assertion for `prefers-reduced-motion` behaviour — both mechanisms exist and were verified by
+direct source inspection (`AppearanceControl`; `@media (prefers-reduced-motion: reduce)` in
+`globals.css`/`touchline.css`) rather than a browser-level automated check. Screenshots were not
+regenerated wholesale — each phase's own provenance entry already captured and reviewed real
+screenshots for its own routes; a full re-capture sweep remains legitimate, non-blocking follow-up
+per the same documentation-screenshot discipline ADR-0134 Phase 11 already established. Full
+account, including the consolidated deviations list and deleted-transitional-design restatement:
+`docs/domain/touchline-atlas-provenance.md` §41.
+
+**Per `14_ACCEPTANCE_AND_CONFORMANCE.md §J`, the coding agent cannot mark "Visual fidelity"
+(section F) complete itself. This ADR does not attempt to.**
+
+```
+AWAITING HUMAN VISUAL APPROVAL
+```
+
+**This closes all 10 phases of the Touchline Design Atlas & Composition Convergence programme
+pending that one human review.** Every route named in `data/route-composition-matrix.json` has
+been migrated (Phases 4–7), brand assets converged to the Touchline treatment (Phase 8), and
+transitional design removed (Phase 9) — all under the "implementer, not designer" contract this
+ADR opened with, verified at every step with `npm run validate` and, where a genuine defect or
+architectural fork was found along the way, disclosed rather than silently resolved in whichever
+direction was easiest.
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
