@@ -8175,7 +8175,7 @@ Feature: Matchboard football operations workspace
 
   Feature: Progressive Web App installation
 
-    Matchboard is an installable web application shell with normal network semantics. The browser owns installation; Matchboard must not gate or suppress it, and must not introduce offline caching. Invariants are stated in terms of what Matchboard controls — installability and non-interference — not in terms of where a given browser chooses to paint an install icon.
+    Matchboard is an installable web application shell with normal network semantics. The browser owns installation; Matchboard must not gate or suppress it. Matchboard remains network-first for normal authenticated application data and must not introduce broad offline caching of authenticated pages. The one deliberate, narrow exception is an already-established live match reporting session (see Feature: Canonical live operations and delayed-concurrency below) — everything else in this feature file describes Matchboard's default, network-dependent behaviour. Invariants are stated in terms of what Matchboard controls — installability and non-interference — not in terms of where a given browser chooses to paint an install icon.
 
     Rule: The web app manifest is retrievable without authentication
 
@@ -8240,13 +8240,18 @@ Feature: Matchboard football operations workspace
         When the coach views a surface that would otherwise show install guidance
         Then no install prompt or install instruction is shown
 
-    Rule: Installation introduces no offline caching
+    Rule: Installation introduces no broad offline caching (superseded in part by ADR-0138)
 
-      Scenario: Dynamic state always comes from the server
+      Scenario: Dynamic application state always comes from the server
         Given Matchboard has been installed
-        When the installed app loads authenticated or live-match state
+        When the installed app loads ordinary authenticated application state
         Then that state is fetched from the server, not served from an offline cache
-        And no service worker is registered
+
+      Scenario: Broad authenticated pages are never made offline-capable
+        Given Matchboard has been installed and a live match reporting session has been established on the device
+        When the coach navigates to any authenticated page other than the established live reporting route
+        Then that page is not served from an offline cache
+        And no arbitrary authenticated server-rendered HTML is cached by a service worker
 
     Rule: Test and Production installs are distinguishable
 
@@ -8254,3 +8259,109 @@ Feature: Matchboard football operations workspace
         Given Matchboard is installed from the Test environment
         Then its application name identifies it as Test
         And the running application shows a Test marker
+
+  # --- Canonical live operations and delayed-concurrency (ADR-0138) ---
+
+  Feature: Canonical live operations and delayed-concurrency
+
+    Live match reporting is durability-critical: a coach can be standing beside a pitch with
+    poor mobile coverage, and two coaches can have the same match open at once. One canonical
+    operation stream, sequenced by the match's Durable Object coordinator and persisted in Neon,
+    is the source of truth for live match execution. Every live view (Live Reporting, Follow
+    Live, post-match handoff, evidence) derives from that one stream. This is a targeted
+    live-match architecture, not a general event-sourcing rewrite, and it does not make broad
+    Matchboard data offline-capable — see the scoped exception in Feature: Progressive Web App
+    installation above.
+
+    Rule: A live action is durable on the reporting device before it reaches the network
+
+      Scenario: An action is saved locally before any network transmission is attempted
+        Given a coach is recording a live match action
+        When the action is captured
+        Then it is written to the device's durable local store before any network request is sent
+        And the coach sees the action reflected immediately regardless of connectivity
+
+      Scenario: An offline goal survives reload and device restart
+        Given a live reporting session has been established on this device
+        And connectivity is then lost
+        When the coach records a goal while offline
+        And the coach reloads the page, or restarts the browser or installed app, on the same device
+        Then the goal is still present locally and still marked as not yet synchronised
+        And the goal is never silently discarded by the reload or restart
+
+      Scenario: Local live commands are never automatically deleted while unresolved
+        Given a live command has not reached a durable terminal resolution
+        Then no automated cleanup removes that command from the local store
+        And only a command that is durably persisted, or explicitly discarded by the coach, is ever removed
+
+    Rule: Reconnecting synchronizes without duplicating or losing intent
+
+      Scenario: Reconnecting deduplicates a command already accepted under the same identity
+        Given a live action was already canonically accepted under one stable client identity
+        When the same client identity is submitted again after a reconnect or retry
+        Then exactly one canonical operation exists for that identity
+        And the coach never sees a duplicated goal, rotation, or other recorded action
+
+      Scenario: A concurrent goal and an unrelated rotation from two devices both survive
+        Given two coaches are reporting the same live match from two devices
+        When one device records a goal while the other records a player rotation
+        Then both the goal and the rotation are accepted
+        And neither action is lost or silently overwritten by the other
+
+      Scenario: An unrelated goal does not invalidate a pending rotation
+        Given a device has recorded a rotation action based on the on-field state it last saw
+        When another device records a goal before the rotation reaches the coordinator
+        And the on-field participants relevant to the rotation are unchanged
+        Then the rotation is still accepted
+        And the goal does not force the rotation into conflict merely because some other action was accepted first
+
+      Scenario: A genuinely conflicting rotation requires coach review, never a silent overwrite
+        Given a player is currently on the field in the canonical match state
+        When one device removes that player
+        And a second device later reconnects with an offline command that also removes the same player
+        Then the second device's command is marked as needing review
+        And it does not create a duplicate removal and does not silently overwrite the first device's action
+        And the coach can inspect current state and record a new action, or discard the stale local intent
+
+    Rule: Follow Live always converges to the same canonical facts as the reporter
+
+      Scenario: Follow Live and Live Reporting show the same score, clock, and on-field state
+        Given a live match has recorded goals, rotations, and position changes
+        When a coach opens Follow Live for that match
+        Then the score, clock, on-field participants, and positions shown match the reporting device exactly
+        And refreshing Follow Live never changes recorded match truth
+
+      Scenario: A reversed event is correct on every view after a refresh
+        Given a goal was recorded and then reversed during live reporting
+        When any live view, including a freshly reloaded one, is opened
+        Then the reversed goal is not counted in the score on any view
+
+    Rule: Canonical order survives coordinator restart and is never inferred from wall-clock time
+
+      Scenario: Canonical acceptance order is unaffected by coordinator restart or hibernation
+        Given a match's live coordinator has accepted a sequence of operations
+        When the coordinator restarts or resumes from hibernation
+        Then replaying its persisted canonical order reproduces the same match state as before the restart
+        And the order is never reconstructed from record-creation wall-clock time
+
+      Scenario: A delayed offline action does not reorder ahead of actions already accepted
+        Given an action was captured while a device was offline during an earlier part of the match
+        And other actions were canonically accepted by other devices in the meantime
+        When the delayed action finally reaches the coordinator and is accepted
+        Then it receives a canonical position after those already-accepted actions
+        And the match's football time on the delayed action does not change its canonical acceptance order
+
+    Rule: League and Event live reporting share the same behavioural contract
+
+      Scenario: League and Event matches satisfy the same durability and concurrency contract
+        Given a League match and an Event match are both being live-reported
+        Then both support local durability, reconnect deduplication, domain-aware conflict handling, and read-only Follow Live equivalently
+        And no behaviour is available for one match type that is silently absent for the other without a documented reason
+
+    Rule: A sealed live stream and a locked report cannot be mutated by a late reconnect
+
+      Scenario: A locked post-match report is never mutated by a late-arriving offline command
+        Given a match's post-match report has been completed and locked
+        When a device that was offline during the match reconnects with an unresolved local command for that match
+        Then the locked report is not changed by that reconnect
+        And the unresolved local command remains visible to the coach for manual reconciliation, never silently applied

@@ -7,6 +7,21 @@ of that using a Cloudflare Worker + Durable Object per active match. See
 decision (why Cloudflare Durable Objects, the trust boundary, the Free-plan design, and the
 HTTP-fallback rollback story) before changing anything here.
 
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress).** The
+"HTTP-fallback rollback story" referenced above — a direct HTTP write is an equally-valid
+canonical path whenever the Durable Object is unavailable — is being amended by ADR-0138: after
+that programme's migration cutover, the Durable Object becomes the only normal canonical-ordering
+path, and an unavailable coordinator means the browser queues the command locally rather than
+writing an independently-ordered canonical event over HTTP. ADR-0138 also introduces a persisted
+per-session canonical `sequence`, domain-aware conflict preconditions (replacing the single
+`baseVersion` this document currently describes below), a durable local-outbox state machine, and
+scoped offline continuation for an already-established live session. This document's remaining
+sections describe the architecture as it exists **before** that migration completes; see
+`docs/adr/0138-canonical-live-operation-stream-persisted-sequence-and-scoped-offline-continuation.md`
+and ARR-0045/0046/0047 for the target state and the specific gaps it closes. This document will be
+updated bundle-by-bundle as that migration lands — do not treat a mismatch between this section and
+the sections below as an error; it is the documented in-progress state.
+
 ## Current status: all 7 stages + "Follow live" viewer complete
 
 This was delivered in stages (see the ADR's linked programme spec), plus one

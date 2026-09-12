@@ -3503,7 +3503,13 @@ not require one).
   non-interference; it cannot prove OS-level install/launch.
 
 Explicitly out of scope — do not add without a new decision:
-- Service worker / offline caching (would risk stale authenticated / live-match state).
+- Broad service worker / offline caching of arbitrary authenticated pages (would risk stale
+  authenticated state). **Narrow exception (ADR-0138, in progress):** a service worker scoped
+  only to an already-established live match reporting session's own route/shell/static assets is
+  being introduced by the Canonical Live Operations & Delayed-Concurrency programme — see "Live
+  match realtime session files" below. This does not make any other authenticated page
+  offline-capable; do not widen the scope beyond the established live-reporting route without a
+  further explicit decision.
 - Custom Web Push (see also ADR-0086).
 - App-store packaging of any kind.
 - A custom Test-marker home-screen icon — the "Matchboard Test" name plus the in-app Test badge
@@ -4525,6 +4531,34 @@ viewer gets a real clock from the snapshot (H6c). **Programme H1–H6 complete.*
 residual: `CanonicalLiveEvent` carries no `correctsEventId` on the realtime wire, so a Follow-Live
 *viewer* can briefly show a reversed goal still in the score until the next full reconcile (the
 reporter and the persisted report are correct). See ADR-0133 for the full forensics.
+
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundle 1
+complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
+persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
+`baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
+`annotationRevision`) plus explicit semantic preconditions replace "any accepted event invalidates
+every other pending action"; every `LiveMatchEventType` gets an exhaustive append-safe/
+state-sensitive classification (no catch-all default); the browser's IndexedDB local store becomes
+a durable outbox state machine (`LOCAL_PENDING`/`SENDING`/`ACCEPTED_PENDING_PERSISTENCE`/
+`PERSISTED`/`NEEDS_REVIEW`/`FAILED_TERMINAL`), not a boolean `synced` flag; after migration
+cutover the Durable Object coordinator becomes the *only* normal canonical-ordering path — the
+browser's existing direct-HTTP fallback (`recordLiveEventAction`) may no longer create an
+independently-ordered canonical row, only queue locally when the coordinator is unavailable; a
+service worker scoped only to an already-established live-reporting session (never broad
+authenticated pages) lets that session continue recording through a connectivity loss and survive
+reload/restart on the same device; a genuine state-sensitive conflict becomes a structured,
+coach-reviewable `NEEDS_REVIEW` state, never a silent last-write-wins. Bundle 1 (this entry)
+completed the mandatory contract/ADR/residue alignment step before any behavior code changes: see
+ADR-0138 for the full decision, and ARR-0045 (dual canonical write path), ARR-0046 (League/Event
+live-coordination asymmetry — Event currently has *zero* Durable Object involvement, stronger than
+previously documented), and ARR-0047 (the live projection's reversal handling targets the wrong
+event id, so a reversed goal is never actually excluded from its own score calculation — a
+separate, more specific defect than the wire-level residual named in the paragraph above) for the
+verified structural findings this decision responds to. Remaining bundles (persisted sequence,
+semantic concurrency, single mutation path, authoritative projection, durable outbox, scoped PWA
+continuation, conflict UX/Event parity, observability/cutover) are tracked in
+`.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file) and have
+not yet changed any runtime behavior described elsewhere in this section.
 
 | File | Purpose |
 |------|---------|

@@ -488,6 +488,27 @@ to find the incident (`durableObjectsInvocationsAdaptiveGroups`, filtered to
 new objects accumulate the same pattern going forward — see the PR description for the exact
 query and the pre-deploy baseline.
 
+## Amendment: write-path exclusivity after ADR-0138 cutover
+
+**ADR-0138 (2026-09-12) amends this ADR's original write-path decision.** This ADR's "Rollback /
+kill-switch story" and Stage 5 both originally treated the browser's direct HTTP write
+(`recordLiveEventAction` → `recordEventForActor`) as an equally-valid concurrent canonical path
+whenever the Durable Object was unavailable or hadn't yet confirmed persistence — "the natural
+degrade-to-HTTP path already is the kill switch." A 2026-09-12 audit confirmed this is exactly
+what it sounds like: two independently-ordered writers converging on the same table, deduplicated
+only by `clientEventId`, with no persisted canonical sequence to reconcile them by (see
+ADR-0138's Context findings 1-2 for full evidence, including that Event live reporting has *zero*
+Durable Object involvement — pure HTTP always, not merely "sometimes falls back").
+
+ADR-0138 supersedes this specific behaviour: after its migration cutover, the Durable Object
+coordinator is the only normal path by which a *new* live operation is canonically ordered. If the
+coordinator is unavailable, the browser keeps the command in its local durable outbox and retries
+— it does not fall through to an independently-ordered direct Neon write. Everything else in this
+ADR (Cloudflare account/trust-boundary decision, HMAC-signed internal persistence endpoint,
+`recordEventForActor()` as the one owning persistence implementation, Free-plan targeting, the
+"Follow live" read-only capability, and every incident-hardening fix through Stage 8) is unchanged
+and remains in force under ADR-0138.
+
 ## Consequences
 
 - Matchboard gains a second deployment target (Cloudflare Workers) alongside Vercel/Neon,
@@ -743,3 +764,7 @@ query and the pre-deploy baseline.
   session lifecycle (`evaluateLifecycleExpiry`, kickoff+duration+grace from a new optional
   `expectedEndAt` ticket claim, falling back to inactivity-only expiry when unresolvable). See
   the "Stage 8" section above for full detail.
+- 2026-09-12: Amended by ADR-0138 (Canonical Live Operations & Delayed-Concurrency programme) —
+  see the "Amendment: write-path exclusivity after ADR-0138 cutover" section above. The browser's
+  direct-HTTP fallback is no longer treated as an equally-valid concurrent canonical path after
+  ADR-0138's migration cutover completes; until cutover, current dual-path behaviour is unchanged.
