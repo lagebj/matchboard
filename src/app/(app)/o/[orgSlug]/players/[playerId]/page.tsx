@@ -26,6 +26,8 @@ import { PlayerCurrentInvolvementPanel } from "@/components/players/player-curre
 import { PlayerEvidenceStoriesPanel } from "@/components/players/player-evidence-stories-panel";
 import { PlayerStatsSummaryTable } from "@/components/players/player-stats-summary-table";
 import { PlayerOutfieldRoleSuitabilityPanel } from "@/components/players/player-outfield-role-suitability-panel";
+import { MetricStrip } from "@/components/touchline/widget/metric-strip";
+import { buildPlayerParticipationSummary } from "@/lib/players/get-player-participation-summary";
 
 import { updatePlayerFieldAction } from "@/app/(app)/players/[playerId]/inline-actions";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -195,6 +197,12 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
         nextPlayerId={nextPlayerId}
         planningFlags={planningFlags}
       />
+
+      {/* Participation summary strip (Touchline Design Atlas, ADR-0136) — a compact headline
+          preview of the exact same all-time stats already shown in full below via
+          PlayerStatsSummaryTable. Zero new query; the two are not competing sources, just
+          different levels of detail for the same fact. */}
+      <MetricStrip items={buildPlayerParticipationSummary(actualStats)} />
 
       <PlayerProfileLayout
         left={

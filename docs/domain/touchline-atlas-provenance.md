@@ -581,3 +581,56 @@ Verified: full `npm run validate` (14/14), 7 new tests for `buildMatchViewModel(
 `buildMatchPlanningHubViewModel()` (17 new tests total), and a real screenshot (desktop + mobile)
 against the seeded Fjordvik FK dataset confirming the Squad (10 planned: 8 Core / 2 Support) and
 Preparation (1/3 complete) widgets render correctly above the unchanged Squad tab.
+
+## 20. Phase 4 — Players production migration (2026-09-12)
+
+Fifth of the eight Phase 4 routes. Unlike the previous four, this pass concludes with a
+**deliberately small, disclosed change** — the production Players list and Player detail pages
+were found, on inspection, to already substantially satisfy the Atlas composition intent from
+earlier work, and forcing a literal rebuild of what the UI-Lab reference shows would have meant
+duplicating existing, working UX rather than extending it (the "widget/viz library extends, not
+duplicates" principle, ADR-0136 Decision §3, applies just as much to whole-panel composition as
+to individual widgets).
+
+**Players list — no change, documented as already covered.** The UI-Lab reference
+(`/dev/ui-lab/atlas/routes/players`) shows a dense roster table plus a "selected-player inspector"
+side panel. The real production `SeasonOverviewTable` (`src/components/players/season-overview-table.tsx`)
+already has an equivalent concept: clicking a row expands it inline to show per-round movement
+detail (`expandedPlayer` state, `renderMovement(row)`) — the same underlying data
+(`PlayerSeasonOverviewRow`, already loaded, already rich: `actualAppearances`/`goals`/`assists`/
+`coreAppearances`/`supportAppearances`/`developmentAppearances`/`recentInvolvement`/
+`roundAssignments`), just as an inline expansion rather than a side panel. Building a second,
+competing side-panel inspector for the exact same information would be genuine UX duplication, not
+an improvement — so it was not built. `player-list-view-model.ts` (Phase 1) stays UI-Lab-only for
+now; it had no unit test despite `player-detail-view-model.ts` (its sibling) having one — closed
+with 3 new tests, matching the same "close a disclosed test-coverage gap found along the way"
+discipline as `match-view-model.ts` in §19.
+
+**Player detail — one small, real, additive change.** The production page
+(`(app)/o/[orgSlug]/players/[playerId]/page.tsx` + its ~15 existing panels) already independently
+satisfies most of the bundle spec's `07_ROUTE_COMPOSITION_PLAYERS_INSIGHTS.md §B` ordered list:
+identity (`PlayerProfileHeader`), the "OpportunityWidget"/"PositionExposureWidget" concepts
+(`PlayerEvidenceStoriesPanel`'s `recentOpportunity`/`realisedPositionCounts`, built under
+ADR-0125's evidence-viz system before this bundle existed), development focus
+(`PlayerDevelopmentThreadsPanel`), latest observations (`PlayerQuickObservationsPanel`), and recent
+football (`PlayerCurrentInvolvementPanel`). Two items were genuinely missing:
+- **Participation summary strip** (spec item 3) — a compact headline row (Played/Goals/Assists/
+  Planned absent) directly below the header, using the exact same already-computed
+  `getPlayerAllTimeStats()` result the existing `PlayerStatsSummaryTable` shows in full further
+  down the page — zero new query, not a competing source, just a different level of detail for
+  the same fact. Built via a new pure function, `buildPlayerParticipationSummary()`
+  (`src/lib/players/get-player-participation-summary.ts`), rendered with the existing
+  `MetricStrip` widget primitive (Phase 2).
+- **Tabbed Overview/Matches/Development/Evidence structure** (spec item 2) — **deliberately
+  deferred, not built.** Restructuring an already-working, extensively-tested, heavily-interactive
+  page (readiness signals, development threads, quick observations, and multiple inline-editable
+  fields, each with its own server action) into tabs is a genuine page-hierarchy decision with real
+  regression risk, disproportionate to every other Phase 4 change so far, which have each been a
+  small, additive, low-risk delta on top of frozen existing behaviour. A future dedicated pass
+  (with its own review) is the appropriate place for this, not folded into this route's turn.
+
+Verified: full `npm run validate` (14/14), 2 new tests for `buildPlayerParticipationSummary()`, 3
+new tests for `player-list-view-model.ts` (closing its coverage gap), and real screenshots (desktop
++ mobile) against the seeded Fjordvik FK dataset confirming the participation strip (0 Played / 0
+Goals / 0 Assists / 0 Planned absent for the captured player) renders correctly below the header,
+with every existing panel below it unchanged.
