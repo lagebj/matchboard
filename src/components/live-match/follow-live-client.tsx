@@ -33,8 +33,8 @@ import type {
   ClientAck,
 } from "@/lib/live-match/realtime/realtime-messages";
 import { MatchScoreHeader, StatusText } from "@/components/touchline";
+import { TouchlineTimeline, TimelineItem } from "@/components/touchline/timeline/touchline-timeline";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
-import { cn } from "@/lib/cn";
 import {
   projectCanonicalLiveState,
   clockProjectionToClockState,
@@ -327,7 +327,12 @@ export function FollowLiveClient({
         </section>
       )}
 
-      {/* Match events — derived from projection */}
+      {/* Match events — derived from projection. Touchline Design Atlas (ADR-0136, Phase 5):
+          the shared `TouchlineTimeline` primitive (already used by Today, Rotations) replaces
+          the previous flat divide-y list -- purely presentational, read-only, no mutation
+          control (this component never calls recordEvent/endSession, matching AGENTS.md's
+          "Follow live" boundary). The most recent event is the "current" node; every earlier
+          one is "done". */}
       <section>
         <h2 className="text-[18px] font-[620] text-[var(--foreground)]">Match events</h2>
         {eventSummaries.length === 0 && !projection ? (
@@ -337,24 +342,21 @@ export function FollowLiveClient({
             No events yet — updates will appear here as they happen.
           </p>
         ) : (
-          <ul className="mt-2 divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
-            {eventSummaries.map((summary) => (
-              <li key={summary.id} className="flex items-baseline gap-3 py-2.5 text-[14px]">
-                <span
-                  className={cn(
-                    "w-12 shrink-0 text-[12px] tabular-nums text-[var(--text-muted)]",
-                    !summary.matchClock && "invisible",
-                  )}
+          <div className="mt-2">
+            <TouchlineTimeline aria-label="Live match events">
+              {eventSummaries.map((summary, i) => (
+                <TimelineItem
+                  key={summary.id}
+                  timeLabel={summary.matchClock ?? null}
+                  kicker={!summary.matchClock ? summary.period : null}
+                  state={i === eventSummaries.length - 1 ? "current" : "done"}
+                  isLast={i === eventSummaries.length - 1}
                 >
-                  {summary.matchClock ?? "0:00"}
-                </span>
-                <span className="text-[var(--text-soft)]">{summary.text}</span>
-                {summary.period && !summary.matchClock && (
-                  <span className="text-[11px] text-[var(--text-muted)]">{summary.period}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+                  <p className="text-[14px] text-[var(--text-soft)]">{summary.text}</p>
+                </TimelineItem>
+              ))}
+            </TouchlineTimeline>
+          </div>
         )}
       </section>
     </div>
