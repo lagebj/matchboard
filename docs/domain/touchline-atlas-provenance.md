@@ -1331,3 +1331,55 @@ the same class of outcome as Live Reporting (§25), Team Detail's tab structure 
 evidence detail routes (§31) — not a skipped audit. `npm run terminology:check` was run before
 committing this entry; no version bump accompanies it (a `none`-class purely explanatory
 documentation change, matching the evidence-detail-routes precedent, §31).
+
+## 35. Phase 7 — Settings production migration (2026-09-12)
+
+Fourth of Phase 7's seven named routes. The real production Organisation Settings route
+(`src/app/(app)/o/[orgSlug]/settings/org-settings-client.tsx`) — not a UI-Lab copy. Every existing
+Appearance/Machine Principals/Danger Zone mutation (suspend, reactivate, delete, create/revoke/
+rotate/reactivate a machine principal) is **frozen, completely untouched** — this is a one-section
+addition, not a restructuring.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §D` names: side navigation on desktop
+(Appearance; Notifications if current; App/device/PWA if current; Organisation; Team
+configuration; Data/privacy; About); grouped rows on mobile; Appearance is System/Light/Dark; no
+arbitrary accent-colour chooser unless intentionally supported. Checked field-by-field:
+
+- **Appearance** — already present, already exactly System/Light/Dark via `AppearanceControl`,
+  no accent-colour chooser (confirmed absent org-wide, provenance §0 item 10).
+- **Notifications** — correctly absent: "if current," and no notification-preferences model
+  exists anywhere in the codebase (same provenance §0 item 10 finding).
+- **App/device/PWA** — deliberately not added here. `InstallPwaCard` already has two
+  deliberate, ADR-0123-documented placements (More, non-dismissible; Today, dismissible) with no
+  mention of Settings in that section's exhaustive rendering rules — a third placement would be
+  scope creep, not a gap.
+- **Organisation** — already present as "Details" (name/slug/created/member/team/player counts)
+  plus the owner-only "Danger Zone" (suspend/reactivate/delete) — the real content this bullet
+  asks for, under a different (also reasonable) heading.
+- **Team configuration** — deliberately not added. Team configuration is inherently per-team
+  (`/teams/[teamId]/configuration`, AGENTS.md's own "Team detail" section) in an org that can have
+  many teams; a single org-wide "Team configuration" section would have no coherent target and
+  would either duplicate or fork that existing per-team page.
+- **Data/privacy** — deliberately not added: no real data-export/privacy-preference capability
+  exists to expose (organisation deletion, the closest real capability, already lives in Danger
+  Zone); inventing a section with no backing capability would be exactly the kind of unowned
+  feature this programme disallows elsewhere.
+- **About** — the one genuine, previously-missing gap. Added as a new section showing
+  `Matchboard v{APP_VERSION}`, reusing the exact same `APP_VERSION` constant
+  (`src/lib/version`) already shown in the sidebar — no second version source.
+
+**The golden's desktop side-navigation is deliberately not built** — a disclosed,
+content-volume-driven decision, the same class as Formations' declined 3-column layout (§32): the
+page's real content (4–5 short sections) doesn't warrant a side-nav; the existing single-column
+`<h2>`-headed sections already satisfy "grouped settings rows" at both densities the spec names
+(desktop and mobile look identical here, which is fine — the spec's mobile description is already
+met exactly as written).
+
+Verified: full `npm run validate` (14/14, including a successful `build` this time — the
+sandbox-memory constraint documented in §33 is intermittent, not permanent, confirmed by this
+run completing cleanly), and real screenshots (desktop + mobile) against the locally-seeded
+Fjordvik FK dataset. The seed dataset's own coach membership is `COACH`-role only (this route is
+owner/admin-gated), so a local-only, uncommitted, tenant-scoped role elevation
+(`runWithTenantOrganisationId()` + a direct `organisationMembership.update()`, never touching the
+seed script or any committed data) was used purely to reach the page for the screenshot — the new
+"About" section renders correctly at the bottom, showing the real tracked version.

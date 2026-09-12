@@ -121,7 +121,7 @@ completion criterion, "Human final visual sign-off required," is not a self-impo
 decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
 and stays in force as written.
 
-**Phase 7 progress: Formations, Groups, and Rules addressed (3 of 7).** Formations: the real production
+**Phase 7 progress: Formations, Groups, Rules, and Settings addressed (4 of 7).** Formations: the real production
 create/edit route, not a UI-Lab copy; every existing slot-mutation/save/list action is frozen,
 completely untouched. `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected
 slot details" facts — three (role type, exact derived target role, lane) were already
@@ -136,8 +136,15 @@ provenance §0 item 11); the one genuine gap was a missing "Guest players" count
 top summary strip, even though the Guest players tab and its data were already present — added as
 a 5th tile, zero new queries. Rules: **no code change** — `RulesForm`'s existing grouped-section
 composition already exactly matches the spec's "label; short consequence; control" ask for both
-real rule fields (`MatchboardRuleConfig` has no others), and no invented options exist. Full
-account: `docs/domain/touchline-atlas-provenance.md` §32 (Formations), §33 (Groups), §34 (Rules).
+real rule fields (`MatchboardRuleConfig` has no others), and no invented options exist. Settings:
+Appearance/Organisation were already correct; Notifications/App-PWA/Team-configuration/Data-
+privacy stay deliberately absent (no data owner, or already correctly placed elsewhere — App/PWA
+already lives on More+Today, Team configuration is inherently per-team); the one genuine gap was
+a missing "About" section (app version), added reusing the existing `APP_VERSION` constant. The
+golden's desktop side-navigation was deliberately not built — this page's real content (4–5 short
+sections) doesn't warrant one, the same class of decision as Formations' declined 3-column
+layout. Full account: `docs/domain/touchline-atlas-provenance.md` §32 (Formations), §33 (Groups),
+§34 (Rules), §35 (Settings).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
