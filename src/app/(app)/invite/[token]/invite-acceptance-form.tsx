@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { acceptInvitationAction, declineInvitationAction } from "@/app/(app)/organisations/actions";
+import { useAnotherAccountAction } from "./invite-account-actions";
+import { TouchlineButton } from "@/components/touchline";
 
 export function InviteAcceptanceForm({
   token,
@@ -14,9 +16,12 @@ export function InviteAcceptanceForm({
 }) {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [declined, setDeclined] = useState(false);
+
+  const isBusy = isAccepting || isDeclining || isSwitchingAccount;
 
   async function handleAccept() {
     setIsAccepting(true);
@@ -46,6 +51,19 @@ export function InviteAcceptanceForm({
     } else {
       setError(result.error);
       setIsDeclining(false);
+    }
+  }
+
+  async function handleUseAnotherAccount() {
+    setIsSwitchingAccount(true);
+    setError(null);
+    // useAnotherAccountAction redirects on success (it never resolves normally), so no
+    // success-path state update is needed here -- only the (unlikely) failure path is.
+    try {
+      await useAnotherAccountAction(token);
+    } catch {
+      setError("Could not switch accounts. Please try again.");
+      setIsSwitchingAccount(false);
     }
   }
 
@@ -82,22 +100,17 @@ export function InviteAcceptanceForm({
       {error && (
         <p className="text-sm text-[var(--danger)]">{error}</p>
       )}
-      <div className="flex gap-3">
-        <button
-          onClick={handleAccept}
-          disabled={isAccepting || isDeclining}
-          className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
-        >
-          {isAccepting ? "Accepting..." : "Accept Invitation"}
-        </button>
-        <button
-          onClick={handleDecline}
-          disabled={isAccepting || isDeclining}
-          className="rounded-md border border-[var(--border-soft)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-muted)] disabled:opacity-50"
-        >
+      <div className="flex flex-wrap gap-3">
+        <TouchlineButton variant="primary" onClick={handleAccept} disabled={isBusy}>
+          {isAccepting ? "Accepting..." : "Accept invitation"}
+        </TouchlineButton>
+        <TouchlineButton variant="secondary" onClick={handleDecline} disabled={isBusy}>
           {isDeclining ? "Declining..." : "Decline"}
-        </button>
+        </TouchlineButton>
       </div>
+      <TouchlineButton variant="ghost" fullWidth onClick={handleUseAnotherAccount} disabled={isBusy}>
+        {isSwitchingAccount ? "Switching account..." : "Use another account"}
+      </TouchlineButton>
     </div>
   );
 }

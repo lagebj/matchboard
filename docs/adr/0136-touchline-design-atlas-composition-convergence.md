@@ -121,8 +121,8 @@ completion criterion, "Human final visual sign-off required," is not a self-impo
 decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
 and stays in force as written.
 
-**Phase 7 progress: Formations, Groups, Rules, Settings, More, and Peer reviews addressed (6 of
-7).** Formations: the real production
+**Phase 7 complete: all seven named routes addressed** (Formations, Groups, Rules, Settings,
+More, Peer reviews, Invitation). Formations: the real production
 create/edit route, not a UI-Lab copy; every existing slot-mutation/save/list action is frozen,
 completely untouched. `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected
 slot details" facts — three (role type, exact derived target role, lane) were already
@@ -156,8 +156,25 @@ gap was closed with a single batched server-side lookup (`page.tsx`) resolving r
 display names, passed down as a plain map — no new query per row, no name stored in the
 component's own state. Decision reviews are correctly absent from this page (§F: "No decision
 reviews mixed into peer reviews" — they render on Today/player/team detail instead, per
-AGENTS.md's "Review vocabulary"). Full account: `docs/domain/touchline-atlas-provenance.md` §32
-(Formations), §33 (Groups), §34 (Rules), §35 (Settings), §36 (More), §37 (Peer reviews).
+AGENTS.md's "Review vocabulary"). Invitation: `§H` requires organisation identity, invitation
+meaning, accept, and "use another account" — the first three were already correct, and no
+marketing feature list was added despite the golden reference illustrating one (§H's own text
+prohibits it: "no marketing feature list unless the invited scope actually grants it," and this
+codebase has no invitation-scoped feature grant to check against). The one genuine, load-bearing
+gap: "use another account" did not exist — an invitation targets one specific email, and there
+was no way to switch Google accounts without abandoning the invite flow entirely. Added a new,
+self-contained `useAnotherAccountAction()` (sign out, then re-initiate Google sign-in with the
+account chooser forced open, returning to the same invite link) — it calls `signIn`/`signOut`
+directly with a hardcoded `redirectTo`, so it needed no change to the shared `/signin` page or
+global auth middleware. A separate, lower-severity, real defect was found and disclosed rather
+than folded in: the global unauthenticated redirect ignores any callback destination, so a
+brand-new coach not yet signed in at all lands on `/` after authenticating rather than back at
+the invite (recoverable by re-clicking the same email link, not a hard failure) — fixing that
+touches security-sensitive shared middleware and needs open-redirect-safe validation, a
+materially larger surface than this route's own narrow fix, so it is left for a dedicated
+follow-up. Full account: `docs/domain/touchline-atlas-provenance.md` §32 (Formations), §33
+(Groups), §34 (Rules), §35 (Settings), §36 (More), §37 (Peer reviews), §38 (Invitation,
+completing Phase 7).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
