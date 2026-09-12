@@ -18,30 +18,37 @@ Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/i
 utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
 validation and final sign-off) remain unstarted and ungated until their own turn.
 
-**Phase 4 progress: Today migrated (1 of 8).** See
-`docs/domain/touchline-atlas-provenance.md` §14 for the full account. This is the real production
-`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage` — not a UI-Lab copy. Every
-existing situational-decision-support behaviour (matchday banner, grouped work items, decision
-reviews, next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching
-context, upcoming rounds, PWA install) is frozen, unchanged; the migration is additive
-composition only:
-- A real match hero (`NextMatchHero`) now appears when no decision is urgent enough to
-  force-feature and a real upcoming match exists — previously this state showed only a generic
-  empty state, never the match itself.
-- Squad status (org-wide `Player.currentAvailability`) and latest results (last 5 completed
-  matches) are new, real, database-backed additions. An evidence-spotlight story was built, then
-  removed before shipping after it measurably slowed Today under concurrent CI load — a real,
-  disclosed performance finding, not a design change of mind (`getTeamSeasonMatchPhasePatterns()`'s
-  own doc comment already discloses its unbatched per-match query pattern); see the provenance
-  doc's §14 for the full account.
-- The golden's illustrative "Training" schedule row and a redundant second rendering of today's
-  matches were deliberately not built — see the provenance doc's new `PROHIBITED_ILLUSTRATIVE`
-  entry and its "deliberately omitted" reasoning.
-- Verified: full `npm run validate` (14/14), a new DB-backed test
-  (`get-org-active-player-availability.test.ts`), a new pure-logic test
+**Phase 4 progress: Today and League migrated (2 of 8).** Both are the real production routes,
+not UI-Lab copies; both freeze all existing domain/business logic and are additive composition
+only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today) and §15 (League).
+
+- **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
+  situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
+  next-round readiness, deferred-item annotation, "at a glance" metrics, weekly coaching context,
+  upcoming rounds, PWA install) is frozen, unchanged. New, real, database-backed additions: a
+  match hero (`NextMatchHero`, shown when no decision is urgent enough to force-feature and a
+  real upcoming match exists — previously this state showed only a generic empty state), squad
+  status (org-wide `Player.currentAvailability`), and latest results (last 5 completed matches).
+  An evidence-spotlight story was also built, then removed before shipping after it measurably
+  slowed Today under concurrent CI load — a real, disclosed performance finding, not a design
+  change of mind (`getTeamSeasonMatchPhasePatterns()`'s own doc comment already discloses its
+  unbatched per-match query pattern); see the provenance doc's §14 for the full account. The
+  golden's illustrative "Training" schedule row and a redundant second rendering of today's
+  matches were deliberately not built — see the provenance doc's `PROHIBITED_ILLUSTRATIVE` entry
+  and its "deliberately omitted" reasoning. Verified: full `npm run validate` (14/14), a new
+  DB-backed test (`get-org-active-player-availability.test.ts`), a new pure-logic test
   (`today-match-presentation.test.ts`), 2 new component tests plus all 24 pre-existing ones
   passing unchanged, and a real screenshot captured against the seeded Fjordvik FK dataset via
   the existing test-agent auth flow (not a fixture).
+- **League** (`(app)/o/[orgSlug]/fixtures/page.tsx` + `fixtures-page.tsx`): round/period
+  generation, plan-integrity counts, and populate-all are frozen, unchanged. New: a
+  `WorkbenchToolbar` "Open Round Board →" shortcut for the current/upcoming round
+  (`05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §B`), wired from the already-built
+  `buildLeagueViewModel()` into real `FixturesOverview` data. Found and fixed a real bug while
+  wiring real data: the view model's fallback chain ended in an unconditional `rounds[0]`, which
+  would "feature" an already-finished round as if it needed action when every round in a period
+  was finalized — a new regression test locks in the fix. Verified: full `npm run validate`
+  (14/14), 3 new/updated tests, and a real screenshot against the same seeded dataset.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish

@@ -19,9 +19,11 @@ import {
   ScorebookRoundSection,
   ScorebookMatchRow,
 } from "@/components/touchline";
+import { WorkbenchToolbar } from "@/components/touchline/workbench/workbench-toolbar";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { EmptyState } from "@/components/ui/empty-state";
+import { buildLeagueViewModel, type LeagueRoundInput } from "@/lib/touchline/presentation/league-view-model";
 
 /**
  * League — the period → round → match hierarchy, Touchline sports-scorebook
@@ -139,6 +141,33 @@ function RoundSection({ round }: { round: FixtureRound }) {
   );
 }
 
+/** `FixtureRound` -> `LeagueRoundInput`. `isCurrent` has no real backing field on `FixtureRound`
+ * (no round-level "is this happening now" concept exists) so it's always `false` here — honest,
+ * not fabricated; `buildLeagueViewModel()`'s fallback ("first non-finalized round") still
+ * correctly resolves the feature round without it. */
+function toLeagueRoundInput(round: FixtureRound): LeagueRoundInput {
+  return {
+    id: round.id,
+    title: round.title,
+    dateRange: round.dateRange,
+    selectionState: round.selectionState,
+    blockerCount: round.blockerCount,
+    decisionRequiredCount: round.decisionRequiredCount,
+    isCurrent: false,
+    matches: round.matches.map((m) => ({
+      id: m.id,
+      title: m.title,
+      teamName: m.teamName,
+      opponent: m.opponent,
+      startsAt: m.startsAt,
+      selectionState: m.selectionState,
+      blockerCount: m.blockerCount,
+      decisionRequiredCount: m.decisionRequiredCount,
+      matchStatus: m.matchStatus,
+    })),
+  };
+}
+
 function PeriodSection({ period }: { period: FixturePeriod }) {
   const hasNotGenerated = period.rounds.some(
     (r) => r.selectionState === "NOT_GENERATED",
@@ -146,6 +175,15 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Touchline Design Atlas (ADR-0136, `05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §B`):
+  // "current/upcoming round as feature section" — a prominent shortcut to the round the coach
+  // needs to look at next, above the dense scorebook history. The featured round also still
+  // appears in its normal position in the list below (never removed from it) — same "shown
+  // twice, once as a shortcut" pattern already used for Today's match hero.
+  const { featureRound } = buildLeagueViewModel([
+    { id: period.id, title: period.title, dateRange: period.dateRange, isCurrent: period.isCurrent, rounds: period.rounds.map(toLeagueRoundInput) },
+  ]);
 
   const counts = {
     notGenerated: period.rounds.filter((r) => r.selectionState === "NOT_GENERATED").length,
@@ -207,6 +245,22 @@ function PeriodSection({ period }: { period: FixturePeriod }) {
           <span className="text-[12px] text-[var(--text-muted)]">{statusMessage}</span>
         )}
       </div>
+
+      {featureRound ? (
+        <WorkbenchToolbar
+          context={
+            <span>
+              <span className="font-[650] text-[var(--foreground)]">{featureRound.title}</span>
+              <span className="ml-2 text-[var(--text-muted)]">{roundStateLabel(featureRound.selectionState) || "Current round"}</span>
+            </span>
+          }
+          actions={
+            <TouchlineButton as="a" href={`/rounds/${featureRound.id}`} variant="primary">
+              Open Round Board →
+            </TouchlineButton>
+          }
+        />
+      ) : null}
 
       <div className="flex flex-col">
         {period.rounds.length === 0 ? (

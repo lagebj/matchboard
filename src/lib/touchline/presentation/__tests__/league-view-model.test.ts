@@ -62,6 +62,20 @@ describe("buildLeagueViewModel", () => {
     expect(vm.totalDecisionRequiredCount).toBe(4);
   });
 
+  it("features no round at all when every round is already finalized (regression: previously fell back to rounds[0] regardless of state)", () => {
+    const periods: LeaguePeriodInput[] = [
+      {
+        id: "p1",
+        title: "Autumn 2026",
+        isCurrent: true,
+        rounds: [round({ id: "r1", selectionState: "FINALIZED" }), round({ id: "r2", selectionState: "FINALIZED" })],
+      },
+    ];
+    const vm = buildLeagueViewModel(periods);
+    expect(vm.featureRound).toBeNull();
+    expect(vm.historyRounds.map((r) => r.id)).toEqual(["r1", "r2"]);
+  });
+
   it("returns nulls when there are no periods at all", () => {
     const vm = buildLeagueViewModel([]);
     expect(vm.activePeriod).toBeNull();

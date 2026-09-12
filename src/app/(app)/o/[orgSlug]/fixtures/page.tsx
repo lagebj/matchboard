@@ -7,7 +7,7 @@ export default async function FixturesRoute({ params }: { params: Promise<{ orgS
   await requirePageActorContext(orgSlug);
 
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-zinc-500">Loading fixtures...</div>}>
+    <Suspense fallback={<div className="p-4 text-sm text-[var(--text-muted)]">Loading fixtures...</div>}>
       <FixturesPage orgSlug={orgSlug} />
     </Suspense>
   );
