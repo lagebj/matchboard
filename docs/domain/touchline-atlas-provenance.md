@@ -507,3 +507,27 @@ respected, and organisation isolation (never returns another org's matches).
 Verified: full `npm run validate` (14/14), 5 new tests, all pre-existing tests (including
 `today-match-presentation.test.ts` and the `AssistantCommandCentrePage` component tests) passing
 unchanged.
+
+## 18. Phase 4 follow-up — Today squad status placement fix (2026-09-12)
+
+A second real placement bug found while capturing verification screenshots for §14/§17
+(not a design change of mind — a genuine visibility gap the original migration shipped with):
+`SquadReadinessWidget` was nested *inside* Today's `featuredMatch` branch — the "no urgent
+decision, but a real upcoming match exists" case — rather than rendered independently of which
+hero branch is active. Since `nextAction` (a real work item exists) is the *more* common case for
+an active coach — arguably the more important case, since it's exactly when a coach most wants
+standing squad-availability context — squad status almost never actually appeared in practice.
+Screenshotting the real seeded dataset (which has an active `nextAction`, "Fjord Cup: lineup
+needed") immediately surfaced this: no squad status widget anywhere on the page.
+
+**Fix**: `SquadReadinessWidget` moved out of the `featuredMatch` grid and into the same
+unconditional block as `RecentFootballWidget` (both real, always-independent Touchline Design
+Atlas additions) — rendered whenever either has data, regardless of which of `nextAction` /
+`featuredMatch` / the empty state is showing as the hero above. `NextMatchHero` reverted to full
+width in its own branch, matching its shape before combining with the widget.
+
+Locked in with a new regression test on `AssistantCommandCentrePage`: squad status and recent
+matches both render when a real `nextAction` work item is present (previously they would not).
+Verified: full `npm run validate` (14/14), the new regression test plus all 26 pre-existing
+component tests passing unchanged, and a real screenshot against the seeded Fjordvik FK dataset
+confirming the widget now renders alongside the existing "Fjord Cup: lineup needed" hero.

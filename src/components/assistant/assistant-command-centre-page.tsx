@@ -777,35 +777,21 @@ export function AssistantCommandCentrePage({
       {nextAction ? (
         <NextActionCard item={nextAction} status={projection?.status} />
       ) : featuredMatch ? (
-        <div className="grid grid-cols-1 gap-5 expanded:grid-cols-12">
-          <div className="expanded:col-span-8">
-            <NextMatchHero
-              presentation={todayMatchPresentation(featuredMatch, featuredMatchHref!)}
-              contextLabel={leagueSeasonName ?? undefined}
-              contextLine={featuredMatch.matchRoundName}
-              primaryAction={
-                <TouchlineButton
-                  as={Link}
-                  href={featuredMatchHref!}
-                  variant="primary"
-                  trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
-                >
-                  Match details
-                </TouchlineButton>
-              }
-            />
-          </div>
-          {squadStatus ? (
-            <div className="expanded:col-span-4">
-              <SquadReadinessWidget
-                available={squadStatus.available}
-                doubtful={squadStatus.doubtful}
-                unavailable={squadStatus.unavailable}
-                exceptions={squadStatus.notAvailable}
-              />
-            </div>
-          ) : null}
-        </div>
+        <NextMatchHero
+          presentation={todayMatchPresentation(featuredMatch, featuredMatchHref!)}
+          contextLabel={leagueSeasonName ?? undefined}
+          contextLine={featuredMatch.matchRoundName}
+          primaryAction={
+            <TouchlineButton
+              as={Link}
+              href={featuredMatchHref!}
+              variant="primary"
+              trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
+            >
+              Match details
+            </TouchlineButton>
+          }
+        />
       ) : (
         <EmptyState
           tone="info"
@@ -825,14 +811,31 @@ export function AssistantCommandCentrePage({
         />
       )}
 
-      {/* Recent football — new Touchline Design Atlas content (ADR-0136), never shown when the
-          data doesn't exist (no invented sample). An evidence-spotlight companion was deliberately
-          dropped before shipping — see this component's own prop doc comment above. */}
-      {recentMatches && recentMatches.length > 0 ? (
+      {/* Recent football + squad status — new Touchline Design Atlas content (ADR-0136), never
+          shown when the data doesn't exist (no invented sample). Rendered here, unconditionally
+          of which hero branch is active above — squad status is standing org-wide context, not
+          only relevant when there's no other decision to feature (a real placement gap found
+          and fixed while capturing verification screenshots: `nextAction` is the *more* common
+          case for an active coach, so squad status previously almost never rendered). An
+          evidence-spotlight companion was deliberately dropped before shipping — see this
+          component's own prop doc comment above. */}
+      {(recentMatches && recentMatches.length > 0) || squadStatus ? (
         <div className="grid grid-cols-1 gap-5 expanded:grid-cols-12">
-          <div className="expanded:col-span-7">
-            <RecentFootballWidget matches={recentMatches} viewAllHref={orgUrl("/fixtures")} />
-          </div>
+          {recentMatches && recentMatches.length > 0 ? (
+            <div className="expanded:col-span-7">
+              <RecentFootballWidget matches={recentMatches} viewAllHref={orgUrl("/fixtures")} />
+            </div>
+          ) : null}
+          {squadStatus ? (
+            <div className="expanded:col-span-5">
+              <SquadReadinessWidget
+                available={squadStatus.available}
+                doubtful={squadStatus.doubtful}
+                unavailable={squadStatus.unavailable}
+                exceptions={squadStatus.notAvailable}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

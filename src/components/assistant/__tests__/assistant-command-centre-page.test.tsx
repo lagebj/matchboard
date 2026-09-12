@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
@@ -114,10 +115,14 @@ function makeNextProjection(overrides: Partial<CoachSituationProjection["situati
   };
 }
 
-function renderPage(commandCentre: AssistantCommandCentre, projection?: CoachSituationProjection) {
+function renderPage(
+  commandCentre: AssistantCommandCentre,
+  projection?: CoachSituationProjection,
+  extra?: Partial<ComponentProps<typeof AssistantCommandCentrePage>>,
+) {
   return render(
     <OrgSlugProvider orgSlug="test-org">
-      <AssistantCommandCentrePage commandCentre={commandCentre} projection={projection} />
+      <AssistantCommandCentrePage commandCentre={commandCentre} projection={projection} {...extra} />
     </OrgSlugProvider>,
   );
 }
@@ -267,6 +272,19 @@ describe("AssistantCommandCentrePage next-action selection", () => {
     expect(screen.getByText("NEXT MATCH")).toBeTruthy();
     expect(screen.getAllByText("Graabein United").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Match details/i })).toBeTruthy();
+  });
+
+  it("renders squad status and recent matches even when a real next-action hero is showing (regression: previously only rendered alongside the featured-match empty-state fallback, so it almost never appeared for an active coach)", () => {
+    const items = [makeItem({ id: "w1", category: "post_match_report", title: "Complete report" })];
+    const commandCentre = makeCommandCentre(items);
+    renderPage(commandCentre, undefined, {
+      squadStatus: { available: 10, doubtful: 1, unavailable: 2, notAvailable: [] },
+      recentMatches: [],
+    });
+    // The next-action hero still renders...
+    expect(screen.getByText("Complete report")).toBeTruthy();
+    // ...and squad status renders alongside it, not only in the no-decision fallback branch.
+    expect(screen.getByText("Squad status")).toBeTruthy();
   });
 
   it("still shows the plain empty state when there is no decision and no upcoming match at all", () => {
