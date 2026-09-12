@@ -64,13 +64,18 @@ invitation) — but Phase 6's own completion is still reported back for confirma
 begins, matching this programme's practice of checking in at every phase boundary rather than
 chaining phases unattended purely because a named gate is absent.
 
-**Phase 6 progress: History migrated (1 of 5).** The real production route, not a UI-Lab copy;
-every existing all-time (not single-league-season) query this page ran is preserved unchanged —
-a real architectural fork (whether to switch to the league-season-scoped
-`getSeasonPlayerRoundMatrix()`/`getMovementPathSummary()` canonical sources named in
-`history-view-model.ts`'s own doc comment) was found and deliberately rejected, since doing so
-would have silently narrowed History's scope to one season. Full account:
-`docs/domain/touchline-atlas-provenance.md` §27.
+**Phase 6 progress: History and Opponents (list + detail) migrated (2 of 5).** Both are the real
+production routes, not UI-Lab copies. History: every existing all-time (not
+single-league-season) query this page ran is preserved unchanged — a real architectural fork
+(whether to switch to the league-season-scoped `getSeasonPlayerRoundMatrix()`/
+`getMovementPathSummary()` canonical sources named in `history-view-model.ts`'s own doc comment)
+was found and deliberately rejected, since doing so would have silently narrowed History's scope
+to one season. Opponents: the list page was substantially rebuilt (it had none of the spec's
+fields beyond a name and match counts); the detail page needed only one small, disclosed fix (a
+previously-missing Won/Drawn/Lost record). The same class of architectural fork recurred —
+`getOpponentHistory()` requires a specific football-group id, unlike the org-wide list/detail
+pages — resolved with two new batched (not per-opponent-looped), tested pure modules instead.
+Full account: `docs/domain/touchline-atlas-provenance.md` §27 (History), §28 (Opponents).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,

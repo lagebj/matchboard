@@ -1001,3 +1001,61 @@ real screenshots (desktop + mobile) against the locally-seeded Fjordvik FK datas
 test-agent auth flow, confirming the full reordered composition renders correctly end-to-end
 (summary strip, both widgets, the movement history widget, Movement Feed, Movement Overview, the
 detailed table, and Export now at the bottom).
+
+## 28. Phase 6 — Opponents (list + detail) production migration (2026-09-12)
+
+Second of Phase 6's five named routes. Both real production routes
+(`src/app/(app)/o/[orgSlug]/opponents/page.tsx` and `.../opponents/[opponentTeamId]/page.tsx`) —
+not UI-Lab copies. Every existing observation/evidence/sporting-level mutation and read path
+(`SportingLevelSection`, `OpponentTacticalTendencySection`, `OpponentCombinationEvidenceSection`,
+the encounter-history table) is **frozen, completely untouched**.
+
+**List page (`§A`) — a real, substantial rebuild, not a swap.** Production had none of
+`OpponentRowInput`'s fields beyond `displayName`/id: no recently-faced/needs-follow-up summary,
+no sporting level, no last-encounter date/result, no evidence note — only a thin League/Event
+match-count table. `opponents-view-model.ts`'s `buildOpponentsViewModel()` (a pure, already-tested
+Phase 1/3 builder) was wired in for the first time, fed by two **new, tested pure modules**:
+
+- `computeMatchOutcome()` (`src/lib/opponents/match-outcome.ts`, 6 unit tests) — win/draw/loss
+  from `homeAway` + scores. **Extracted from `getOpponentHistory()`'s own inline logic**
+  (`src/lib/audit/opponent-history.ts`, refactored to call it, zero behaviour change; its own
+  test file, previously a duplicate re-derivation of the same ternary, now exercises the real
+  extracted function directly).
+- `aggregateOpponentEncounters()` (`src/lib/opponents/aggregate-opponent-encounters.ts`, 5 unit
+  tests) — groups already-batch-loaded matches by opponent, counting encounters and picking the
+  most recent one's date/result.
+
+**A second real architectural fork, the same class as History's**: `getOpponentHistory()` (the
+obvious existing "per-opponent history" function) requires a specific `footballGroupId` — it
+scopes to one group's teams, not the whole organisation. The Opponents list/detail pages have
+always been org-wide (no group selector). Calling it per-row would have silently narrowed scope
+(and been a real N+1: one query per opponent). Instead, three **batched** queries (matches +
+`OpponentSportingEvidence` + `OpponentEncounterObservation`, each `where: { opponentTeamId: {
+in: [...allOpponentIds] } }`) run once, grouped in-memory per opponent — the same "prefer zero
+new round-trip growth, avoid a per-row loop" discipline as every prior Phase 5/6 route.
+`sportingLevel` uses `aggregateSportingLevel()`'s `confidence` field (a sample-size confidence:
+unknown/low/medium/high) directly, matching provenance §0 item 7's own resolution ("the real
+model is a categorical `SportingLevelConfidence` estimate, not a percentage") and the view
+model's own doc comment — not a bucketing of the separate raw `estimatedLevel` number (which
+stays exactly where it already was, in the untouched `SportingLevelSection` further down the
+detail page).
+
+**Detail page (`§B`) — a small, disclosed, targeted fix, not a rewrite.** The page already
+substantially matches spec intent (identity → sporting-level assessment → tactical
+tendency/combination evidence → encounter history), so it was **not** restructured. One real,
+previously-missing content gap was found and fixed: **no Won/Drawn/Lost record existed anywhere
+on the page** — the golden's own 3-column record row has no production equivalent. Added,
+computed from data the page already loads (`matches` + `postMatchResults`) via the same
+`computeMatchOutcome()`, zero new queries. No "add/edit observation" action was added to the
+header (unlike the golden's illustrative button) — creating/editing an
+`OpponentEncounterObservation` happens per-match from the post-match report's own
+`ObservationSection`, and there is no single coherent "current match" target on this aggregate,
+all-time opponent page to wire a working button to; adding one with no real destination would be
+exactly the `PROHIBITED_ILLUSTRATIVE` pattern this programme's provenance doc otherwise
+disallows.
+
+Verified: full `npm run validate` (14/14), 11 new unit tests across the two new modules, and real
+screenshots (desktop + mobile of both routes) against the locally-seeded Fjordvik FK dataset's
+S5 opponent-history scenario (Bergstad IF, 4 encounters) via the test-agent auth flow — the new
+Won/Drawn/Lost record (1/1/2) was cross-checked by hand against the encounter table's own
+per-match scores and confirmed arithmetically correct.

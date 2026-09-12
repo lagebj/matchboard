@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { computeMatchOutcome } from "@/lib/opponents/match-outcome";
 
 export type OpponentMatchRecord = {
   matchId: string;
@@ -81,15 +82,9 @@ export async function getOpponentHistory(
       homeGoals = report.homeGoals;
       awayGoals = report.awayGoals;
       const isHome = match.homeAway === "HOME";
-      if (homeGoals !== null && awayGoals !== null) {
-        if (homeGoals > awayGoals) {
-          result = isHome ? "won" : "lost";
-        } else if (homeGoals < awayGoals) {
-          result = isHome ? "lost" : "won";
-        } else {
-          result = "drawn";
-        }
+      result = computeMatchOutcome(match.homeAway, homeGoals, awayGoals);
 
+      if (result && homeGoals !== null && awayGoals !== null) {
         if (result === "won") totalWon++;
         else if (result === "drawn") totalDrawn++;
         else if (result === "lost") totalLost++;
