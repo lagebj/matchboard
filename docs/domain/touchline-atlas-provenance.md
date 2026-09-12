@@ -1772,3 +1772,8 @@ production migration. No new consolidated screenshot set was produced for this e
 (see "Screenshots" above) — a human reviewer verifying final visual fidelity across all 31 routes
 should use each phase's own cited evidence, or request a fresh capture sweep if a single
 consolidated set is wanted before sign-off.
+
+**Human final visual approval: granted (2026-09-12).** The maintainer reviewed the programme's
+final state on `main` (through PR #550) and approved. This closes Section F and the whole
+`14_ACCEPTANCE_AND_CONFORMANCE.md` gate checklist — the last open item from Phase 10. The
+Touchline Design Atlas & Composition Convergence programme (ADR-0136) is complete.

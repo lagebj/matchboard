@@ -2,9 +2,9 @@
 
 ## Status
 
-Accepted (2026-09-11). **Phases 0–10 complete (2026-09-12) — `AWAITING HUMAN VISUAL APPROVAL`**
-(see "Phase 10 complete" below for the full account; every automated check this programme can run
-on its own has passed). **Phases 0–3 implemented (inventory/provenance, presentation view
+Accepted (2026-09-11). **Complete (2026-09-12) — all 10 phases delivered and the final human
+visual approval granted** (see "Phase 10 complete" / "Human final visual approval: granted" below
+for the full account). **Phases 0–3 implemented (inventory/provenance, presentation view
 models, semantic widget/viz library, route-complete UI Lab), followed by two rounds of Hard Gate
 A review feedback (pitch-line markings, GK kit colour + opt-in perspective tilt, shirt-shaped
 tokens, vertical pitch orientation — see `docs/domain/touchline-atlas-provenance.md` §12–§13),
@@ -266,8 +266,14 @@ account, including the consolidated deviations list and deleted-transitional-des
 AWAITING HUMAN VISUAL APPROVAL
 ```
 
-**This closes all 10 phases of the Touchline Design Atlas & Composition Convergence programme
-pending that one human review.** Every route named in `data/route-composition-matrix.json` has
+**Human final visual approval: granted (2026-09-12).** The maintainer reviewed the programme's
+final state on `main` (through PR #550) and approved. Section F (Visual fidelity) and the whole
+`14_ACCEPTANCE_AND_CONFORMANCE.md` gate checklist are now closed — the last open item from
+`13_IMPLEMENTATION_PHASES_AND_GATES.md`'s Phase 10. **The Touchline Design Atlas & Composition
+Convergence programme is complete.**
+
+**This closes all 10 phases of the Touchline Design Atlas & Composition Convergence programme.**
+Every route named in `data/route-composition-matrix.json` has
 been migrated (Phases 4–7), brand assets converged to the Touchline treatment (Phase 8), and
 transitional design removed (Phase 9) — all under the "implementer, not designer" contract this
 ADR opened with, verified at every step with `npm run validate` and, where a genuine defect or
