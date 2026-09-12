@@ -1304,3 +1304,30 @@ polled and confirmed green before this PR was merged. Real screenshots (desktop 
 the locally-seeded Fjordvik FK dataset's own seeded guest player confirm the new "Guest players"
 tile renders correctly at both grid widths and shows the real count (1), matching what the
 existing "Guest players" tab already displayed.
+
+## 34. Phase 7 — Rules: audited, no code change (2026-09-12)
+
+Third of Phase 7's seven named routes. The real production Rules route
+(`src/app/(app)/o/[orgSlug]/rules/page.tsx` + `src/components/rules/rules-form.tsx`) — not a
+UI-Lab copy.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §C` requires: grouped rule sections; each rule
+shows a label, a short consequence, and a control; no options invented beyond the current rule
+model; the golden is layout authority for this route, not rule-content authority. Checked against
+the current implementation and AGENTS.md's own prior finding (Touchline material migration
+record: `/rules` "a genuine PS0-era outlier, fully token-aligned") — `RulesForm`'s existing
+`RuleSection`/`NumberField` composition **already exactly matches this spec**: a titled, described
+section wrapping a control that itself carries a label and a plain-language consequence
+description, for both real fields in `MatchboardRuleConfig` (`minDaysBetweenAnyMatches`,
+`warningThreshold` — confirmed by reading the type definition directly that no other rule fields
+exist, so there is no missing control to add). The Rotation paths section (graph + cards + create
+form) and the Import section are genuine additional content beyond the golden's minimal
+"grouped sections" ask, not gaps against it — the golden simply doesn't picture a page with this
+much real functionality. No "philosophy" radio-selector or other invented option exists anywhere
+on the page (already independently confirmed absent, provenance §0 item 12).
+
+**Result: no code change.** This is a genuine, verified "already substantially covered" finding —
+the same class of outcome as Live Reporting (§25), Team Detail's tab structure (§29), and the
+evidence detail routes (§31) — not a skipped audit. `npm run terminology:check` was run before
+committing this entry; no version bump accompanies it (a `none`-class purely explanatory
+documentation change, matching the evidence-detail-routes precedent, §31).

@@ -121,7 +121,7 @@ completion criterion, "Human final visual sign-off required," is not a self-impo
 decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
 and stays in force as written.
 
-**Phase 7 progress: Formations and Groups migrated (2 of 7).** Formations: the real production
+**Phase 7 progress: Formations, Groups, and Rules addressed (3 of 7).** Formations: the real production
 create/edit route, not a UI-Lab copy; every existing slot-mutation/save/list action is frozen,
 completely untouched. `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected
 slot details" facts — three (role type, exact derived target role, lane) were already
@@ -134,8 +134,10 @@ external panel, a larger refactor than this fix warrants). Groups: the Group det
 identity/tabs/dense-table/edit-action were already correct (already the real 6-tab set named in
 provenance §0 item 11); the one genuine gap was a missing "Guest players" count tile in the
 top summary strip, even though the Guest players tab and its data were already present — added as
-a 5th tile, zero new queries. Full account: `docs/domain/touchline-atlas-provenance.md` §32
-(Formations), §33 (Groups).
+a 5th tile, zero new queries. Rules: **no code change** — `RulesForm`'s existing grouped-section
+composition already exactly matches the spec's "label; short consequence; control" ask for both
+real rule fields (`MatchboardRuleConfig` has no others), and no invented options exist. Full
+account: `docs/domain/touchline-atlas-provenance.md` §32 (Formations), §33 (Groups), §34 (Rules).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
