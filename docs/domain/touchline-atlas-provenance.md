@@ -1271,3 +1271,36 @@ instead rests on the 5 passing component tests directly rendering `<SlotEditDial
 controlled props, which is stronger evidence of correctness for a pure text-content change than a
 screenshot would add, matching the Follow Live precedent (§25) for skipping a screenshot with a
 disclosed reason rather than a flaky one.
+
+## 33. Phase 7 — Groups production migration (2026-09-12)
+
+Second of Phase 7's seven named routes. The real production Group detail route
+(`src/app/(app)/o/[orgSlug]/groups/[groupSlug]/group-detail-client.tsx`) — not a UI-Lab copy.
+Every existing tab (Overview/Teams/Players/Guest players/Movement paths/Auto-select teams) and
+its mutation logic is **frozen, completely untouched** — this is a one-tile addition to an
+already-correct summary strip, not a restructuring.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §B` names: group identity; "member/pool/guest/
+cooperation counts"; tabs; a dense member table/list; an edit action. Checked against
+provenance §0 item 11 (already-resolved: "no cooperating-clubs concept exists — confirmed
+absent") and the current page: identity (name + type + cohort year + description), tabs (already
+exactly the real 6-tab set named in §0 item 11), the dense Players-tab table, and the Settings
+edit action were all **already correct**. The one genuine, narrow gap: the top summary strip
+showed Players/Teams/Coaches/Paths (4 tiles) but **no Guest players count**, even though the
+"Guest players" tab — a real, established concept (ADR-0106) — already existed and its data
+(`guestPlayers` prop) was already loaded and passed into this exact component. Added as a 5th
+tile, counting only active guest players (matching the existing "no hard delete, active/inactive
+toggle" GuestPlayer lifecycle model) — zero new queries, since the prop was already there.
+"Cooperation" stays unbuilt, as already established.
+
+Verified: `npm run validate` — 13/14 steps passed locally (lint, typecheck, typecheck (workers),
+unit + component tests, worker tests, policy verify, version verify, terminology check,
+architecture check, prisma query fields, forbidden SQL, supply chain, docs check). `build` could
+not complete locally: confirmed via two monitored attempts that memory climbs to ~7.7–7.8Gi of
+this sandbox's 7.8Gi total during Turbopack compilation, then the OS OOM-kills the process — a
+local resource constraint, not a code defect (the identical `build` step passed cleanly in CI
+moments earlier on the immediately-prior Formations PR, #541). CI's own required Build check was
+polled and confirmed green before this PR was merged. Real screenshots (desktop + mobile) against
+the locally-seeded Fjordvik FK dataset's own seeded guest player confirm the new "Guest players"
+tile renders correctly at both grid widths and shows the real count (1), matching what the
+existing "Guest players" tab already displayed.

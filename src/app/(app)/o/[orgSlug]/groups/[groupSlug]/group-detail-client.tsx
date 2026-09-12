@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch } from "lucide-react";
+import { Users, Shield, Settings, UserCheck, ArrowRight, Trophy, GitBranch, UserPlus } from "lucide-react";
 import { TeamCompositionPanel } from "@/components/team/team-composition-panel";
 import { GuestPlayersPanel } from "@/components/groups/guest-players-panel";
 
@@ -153,7 +153,7 @@ export function GroupDetailClient({
         </Link>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-5">
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Users className="h-4 w-4 text-[var(--text-muted)]" />
@@ -174,6 +174,19 @@ export function GroupDetailClient({
             Coaches
           </div>
           <p className="mt-1 text-2xl font-semibold">{group.groupAccesses.length}</p>
+        </div>
+        {/* Touchline Design Atlas (ADR-0136 Phase 7, `10_ROUTE_COMPOSITION_CONFIG_MORE_
+            REVIEWS_AUTH.md §B`): the golden's "member/pool/guest/cooperation counts" -- guest was
+            previously absent from this summary strip even though the "Guest players" tab (a real,
+            existing concept, ADR-0106) already existed. "Cooperation" stays unbuilt (provenance
+            §0 item 11: no cooperating-clubs concept exists). Counts only active guest players,
+            matching the tab's own "no hard delete" active/inactive model. */}
+        <div className="rounded-lg border p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <UserPlus className="h-4 w-4 text-[var(--text-muted)]" />
+            Guest players
+          </div>
+          <p className="mt-1 text-2xl font-semibold">{guestPlayers.filter((g) => g.active).length}</p>
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
