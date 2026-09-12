@@ -121,7 +121,7 @@ completion criterion, "Human final visual sign-off required," is not a self-impo
 decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
 and stays in force as written.
 
-**Phase 7 progress: Formations, Groups, Rules, and Settings addressed (4 of 7).** Formations: the real production
+**Phase 7 progress: Formations, Groups, Rules, Settings, and More addressed (5 of 7).** Formations: the real production
 create/edit route, not a UI-Lab copy; every existing slot-mutation/save/list action is frozen,
 completely untouched. `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected
 slot details" facts — three (role type, exact derived target role, lane) were already
@@ -143,8 +143,11 @@ already lives on More+Today, Team configuration is inherently per-team); the one
 a missing "About" section (app version), added reusing the existing `APP_VERSION` constant. The
 golden's desktop side-navigation was deliberately not built — this page's real content (4–5 short
 sections) doesn't warrant one, the same class of decision as Formations' declined 3-column
-layout. Full account: `docs/domain/touchline-atlas-provenance.md` §32 (Formations), §33 (Groups),
-§34 (Rules), §35 (Settings).
+layout. More: **no code change** — the page already has the exact five named groupings (Coaching
+& evidence, Competition & history, Structure & configuration, Collaboration, Settings) plus a
+legitimate admin-only "Advanced" sixth group, and the "Install Matchboard" PWA callout already
+renders unconditionally. Full account: `docs/domain/touchline-atlas-provenance.md` §32
+(Formations), §33 (Groups), §34 (Rules), §35 (Settings), §36 (More).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,

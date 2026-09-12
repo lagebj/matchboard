@@ -1383,3 +1383,27 @@ owner/admin-gated), so a local-only, uncommitted, tenant-scoped role elevation
 (`runWithTenantOrganisationId()` + a direct `organisationMembership.update()`, never touching the
 seed script or any committed data) was used purely to reach the page for the screenshot — the new
 "About" section renders correctly at the bottom, showing the real tracked version.
+
+## 36. Phase 7 — More: audited, no code change (2026-09-12)
+
+Fifth of Phase 7's seven named routes. The real production More route
+(`src/app/(app)/o/[orgSlug]/more/page.tsx`) — not a UI-Lab copy.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §E` ("More mobile") names: grouped navigation
+into Coaching & evidence, Competition & history, Structure & configuration, Collaboration,
+Settings; an "Install Matchboard" callout when PWA install is supported. The current
+implementation **already matches this exactly**: five `MoreSection` groups with the identical
+titles (the page's own code comment already paraphrases the same spec section verbatim, "and"
+used in place of "&" — a trivial wording choice, not a structural gap), each with real, working
+destination rows (Insights; Season/History/Opponents; Groups/Formations/Rules; Peer reviews;
+Settings), plus a legitimate admin-only "Advanced" sixth group (Simulation, Policy workbench, and
+the two transient admin tools) — additional real content beyond the golden's minimal ask, not a
+violation of it. `<InstallPwaCard />` is already rendered unconditionally at the top, matching
+"may appear if PWA install is supported" (ADR-0123's own component already handles the
+conditional display logic internally).
+
+**Result: no code change.** This is the third "already substantially covered" finding in Phase 7
+alone (after Rules, §34) — every named grouping, every named callout, and the real destination
+set were already correct before this pass began. `npm run terminology:check` was run before
+committing this entry; no version bump accompanies it (a `none`-class purely explanatory
+documentation change, matching the Rules/evidence-detail-routes precedent).
