@@ -950,3 +950,54 @@ reflection" now renders before "Football observations".
 
 **This completes all seven named Phase 5 routes** (Round Board, Lineup, Tactics, Rotations, Live
 Reporting, Follow Live, Post-match). See ADR-0136 for the Human Gate C status this triggers.
+
+## 27. Phase 6 — History production migration (2026-09-12)
+
+First of Phase 6's five named routes (History, Opponents, Teams, Season, evidence detail routes),
+following Human Gate C approval. The real production route
+(`src/app/(app)/o/[orgSlug]/history/page.tsx`) — not a UI-Lab copy. Every existing query and
+per-player aggregation this page already ran is **preserved**; this is a genuine composition
+change, not a data-scope change (see below for why the more "correct-looking" alternative was
+deliberately rejected).
+
+`05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §C` requires: a 4-metric summary strip →
+`ParticipationLoadWidget` (7 cols) + `RoleUsageWidget` (5 cols) → `MovementHistoryWidget` (full
+width) → movement feed → detailed table → export, with an explicit instruction to remove "Review
+steps" and "How to read this page" ("documentation, not product hierarchy"). Production had none
+of the three widgets wired in (they existed, built but unused, from the Phase 2 UI-Lab widget
+pass — the same "purpose-built but never wired" pattern found repeatedly across Phases 5–6), both
+named documentation sections present, and Export rendered second instead of last.
+
+**A real architectural fork was found and deliberately not taken.** `history-view-model.ts`'s own
+doc comment names `getSeasonPlayerRoundMatrix()` + `getMovementPathSummary()` +
+`getPlayerMovementTimeline()` (`src/lib/selection/get-season-overview.ts`) as History's intended
+canonical sources — but all three are **league-season-scoped** (`leagueSeasonId` is a required
+first parameter), while History's own production page has always aggregated **all-time**, across
+every league season. Switching to those functions would have silently narrowed History's scope
+to one season — a real product-shape change no route-composition-only spec should trigger
+silently. Instead, `buildHistoryViewModel()` (the pure, already-tested Phase 1/3 builder — not
+the DB-bound functions) is called directly with data reshaped from the page's own existing
+all-time query results: the per-player aggregation loop gained per-role counters
+(`supportCount`/`developmentCount`/`backfillCount`, alongside the already-tracked
+`coreTeamAppearances`) and one new selected field (`matchRound: { select: { name: true } }` — a
+column addition to the same existing query, not a new round-trip). `roundsPlayed`/
+`doubleLoadRounds`/`droppedRounds`/`unavailableRounds` are not tracked by this page's data source
+and are verified-unused by `buildHistoryViewModel()`'s own implementation — 0 is an inert
+placeholder there, never a displayed value.
+
+`aggregateMovementPaths()` (new, `src/lib/history/aggregate-movement-paths.ts`, 4 unit tests) is
+the one new pure function: groups the page's already-loaded floating-selection rows into
+`(fromTeamName, toTeamName, role)` team-movement paths, mirroring `getMovementPathSummary()`'s own
+grouping key so the aggregate means the same thing even though it can't call that season-scoped
+function directly.
+
+**"Load check" (a "most used player" panel) was removed, not reflowed** — a disclosed decision,
+not silent scope-narrowing: `ParticipationLoadWidgetProps`'s own doc comment explicitly states
+"never ranking language (no 'most', no player-vs-player comparison framing)", and this panel was
+exactly that framing, now superseded by the neutral distribution widget above it.
+
+Verified: full `npm run validate` (14/14), 4 new unit tests for `aggregateMovementPaths()`, and
+real screenshots (desktop + mobile) against the locally-seeded Fjordvik FK dataset via the
+test-agent auth flow, confirming the full reordered composition renders correctly end-to-end
+(summary strip, both widgets, the movement history widget, Movement Feed, Movement Overview, the
+detailed table, and Export now at the bottom).

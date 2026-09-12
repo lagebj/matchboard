@@ -16,6 +16,10 @@ import { Surface } from "@/components/ui/surface";
 import { TouchlinePageHeader } from "@/components/touchline";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MetricTile } from "@/components/ui/metric-tile";
+import { ParticipationLoadWidget, RoleUsageWidget, MovementHistoryWidget } from "@/components/touchline/widgets";
+import { buildHistoryViewModel, type HistoryPlayerRowInput, type HistoryMovementEntryInput } from "@/lib/touchline/presentation/history-view-model";
+import { aggregateMovementPaths } from "@/lib/history/aggregate-movement-paths";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +67,11 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
     }),
     db.selection.findMany({
       where: { status: SelectionStatus.FINALIZED, ...orgWhere },
-      include: { player: { include: { coreTeam: { select: { name: true } } } }, match: { select: { startsAt: true, opponent: true, homeAway: true, team: { select: { name: true } } } } },
+      include: {
+        player: { include: { coreTeam: { select: { name: true } } } },
+        match: { select: { startsAt: true, opponent: true, homeAway: true, team: { select: { name: true } } } },
+        matchRound: { select: { name: true } },
+      },
       orderBy: [{ createdAt: "desc" }],
     }),
   ]);
@@ -81,7 +89,13 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
     {
       coreTeamAppearances: number;
       floatCount: number;
+      supportCount: number;
+      developmentCount: number;
+      backfillCount: number;
       latestMovementDate: Date | null;
+      latestMovementRoundName: string;
+      latestMovementToTeamName: string;
+      latestMovementRole: string;
       latestMovementReason: string;
       latestMovementSummary: string;
       lastFinalizedMatchDate: Date | null;
@@ -96,7 +110,13 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
       const existingHistory = finalizedHistoryByPlayerId.get(selectionPlayer.playerId) ?? {
         coreTeamAppearances: 0,
         floatCount: 0,
+        supportCount: 0,
+        developmentCount: 0,
+        backfillCount: 0,
         latestMovementDate: null,
+        latestMovementRoundName: "",
+        latestMovementToTeamName: "",
+        latestMovementRole: "",
         latestMovementReason: "-",
         latestMovementSummary: "-",
         lastFinalizedMatchDate: null,
@@ -111,6 +131,12 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
 
       if (selectionPlayer.role === SelectionRole.CORE) {
         existingHistory.coreTeamAppearances += 1;
+      } else if (selectionPlayer.role === SelectionRole.SUPPORT) {
+        existingHistory.supportCount += 1;
+      } else if (selectionPlayer.role === SelectionRole.DEVELOPMENT) {
+        existingHistory.developmentCount += 1;
+      } else if (selectionPlayer.role === SelectionRole.BACKFILL) {
+        existingHistory.backfillCount += 1;
       }
 
       if (isFloatingSelectionRole(selectionPlayer.role)) {
@@ -118,6 +144,9 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
 
         if (!existingHistory.latestMovementDate) {
           existingHistory.latestMovementDate = matchDate;
+          existingHistory.latestMovementRoundName = selectionSnapshot.matchRound.name;
+          existingHistory.latestMovementToTeamName = selectionSnapshot.match.team.name;
+          existingHistory.latestMovementRole = formatPatternRole(selectionPlayer.role);
           existingHistory.latestMovementSummary = `${selectionPlayer.player.coreTeam?.name ?? ""} -> ${selectionSnapshot.match.team.name} · ${formatPatternRole(selectionPlayer.role)} · ${formatPatternDate(matchDate)}`;
           existingHistory.latestMovementReason = "No saved explanation for the latest movement.";
         }
@@ -165,9 +194,6 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
     (snapshot) => snapshot.status === SelectionStatus.DRAFT,
   ).length;
   const currentFinalizedMatches = finalizedSelectionSnapshots.length;
-  const mostUsedPlayer = [...rows].sort(
-    (left, right) => right.totalFinalizedAppearances - left.totalFinalizedAppearances,
-  )[0] ?? null;
   const latestMovementRows = [...rows]
     .filter((row) => row.latestMovementDate !== null)
     .sort(
@@ -175,6 +201,69 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
         (right.latestMovementDate?.getTime() ?? 0) - (left.latestMovementDate?.getTime() ?? 0),
     )
     .slice(0, 6);
+
+  // Touchline Design Atlas (ADR-0136 Phase 6, `05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §C`):
+  // reshape the same already-loaded per-player history into `buildHistoryViewModel()`'s input --
+  // no new query, this route's existing all-time (not single-league-season) scope is unchanged.
+  // `roundsPlayed`/`doubleLoadRounds`/`droppedRounds`/`unavailableRounds` are not tracked by this
+  // page's own data source and are not read by `buildHistoryViewModel()`'s actual computation
+  // (verified against its implementation) -- 0 is a safe, inert placeholder, not a displayed value.
+  const historyPlayerRows: HistoryPlayerRowInput[] = players.map((player) => {
+    const history = finalizedHistoryByPlayerId.get(player.id);
+    return {
+      playerId: player.id,
+      playerName: player.lastName ? `${player.firstName} ${player.lastName}` : player.firstName,
+      coreTeamName: player.coreTeam?.name ?? "Unassigned",
+      roundsPlayed: 0,
+      totalSelections: history?.totalFinalizedAppearances ?? 0,
+      coreMatches: history?.coreTeamAppearances ?? 0,
+      supportMatches: history?.supportCount ?? 0,
+      developmentMatches: history?.developmentCount ?? 0,
+      backfillMatches: history?.backfillCount ?? 0,
+      doubleLoadRounds: 0,
+      droppedRounds: 0,
+      unavailableRounds: 0,
+    };
+  });
+
+  const movementPathEntries = finalizedSelectionSnapshots
+    .filter((s) =>
+      isSelectionMovementRow({
+        role: s.role,
+        sourceTeamName: s.player.coreTeam?.name ?? "",
+        targetTeamName: s.match.team.name,
+      }),
+    )
+    .map((s) => ({
+      fromTeamName: s.player.coreTeam?.name ?? "Unassigned",
+      toTeamName: s.match.team.name,
+      role: s.role,
+      playerId: s.playerId,
+      occurredAt: s.createdAt,
+    }));
+  const movementPaths = aggregateMovementPaths(movementPathEntries);
+
+  const recentMovements: HistoryMovementEntryInput[] = latestMovementRows.map((row) => {
+    const history = finalizedHistoryByPlayerId.get(row.playerId);
+    return {
+      playerId: row.playerId,
+      playerName: row.lastName ? `${row.firstName} ${row.lastName}` : row.firstName,
+      matchRoundName: history?.latestMovementRoundName ?? "",
+      matchDate: row.latestMovementDate ? row.latestMovementDate.toISOString() : null,
+      fromTeamName: row.coreTeamName,
+      teamName: history?.latestMovementToTeamName ?? row.coreTeamName,
+      role: history?.latestMovementRole ?? "",
+      explanation: row.latestMovementReason,
+    };
+  });
+
+  const historyViewModel = buildHistoryViewModel({
+    players: historyPlayerRows,
+    movementPaths,
+    recentMovements,
+    finalizedRoundCount: currentFinalizedMatches,
+    draftRoundCount: currentDraftMatches,
+  });
     const movementOverviewByPlayerId = latestSelectionSnapshots.reduce<Map<string, MovementOverviewRow>>(
           (movementByPlayerId, selectionSnapshot) => {
             const selectionPlayer = selectionSnapshot;
@@ -245,110 +334,65 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
     });
 
   return (
-    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8). Composition
+    // reordered for the Touchline Design Atlas (ADR-0136 Phase 6,
+    // `05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §C`): summary strip -> participation/role
+    // usage widgets -> movement history widget -> movement feed -> detailed table -> export
+    // (moved to the end, was previously rendered second). "Review steps"/"How to read this page"
+    // (documentation, not product hierarchy, per the spec) and "Load check" (a "most used
+    // player" framing the same spec's widget contracts explicitly disallow for this surface —
+    // `ParticipationLoadWidget`'s own doc comment: "never ranking language, no 'most'") are
+    // removed rather than reflowed; the global Help affordance already covers the spec's "if
+    // explanation is required, use a single Help/disclosure affordance" fallback.
     <main className="touchline flex min-h-full flex-col gap-6">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-        <Surface variant="raised" padding="lg">
-          <TouchlinePageHeader
-            title="History"
-            context="Finalised rounds, movement, and fairness over time."
+      <TouchlinePageHeader
+        title="History"
+        context="Finalised rounds, movement, and fairness over time."
+      />
+
+      <div className="grid grid-cols-2 gap-3 medium:grid-cols-4">
+        <MetricTile label="Finalised appearances" value={totalFinalizedAppearances} description="Latest saved snapshot per match." />
+        <MetricTile label="Floating appearances" value={totalFloatAppearances} description="Support, development, and floating usage." />
+        <MetricTile label="Players with movement" value={recentMovers} description="Recorded movement in saved history." />
+        <MetricTile label="Draft / finalised matches" value={`${currentDraftMatches} / ${currentFinalizedMatches}`} description="Current match state." />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 expanded:grid-cols-12">
+        <div className="expanded:col-span-7">
+          <ParticipationLoadWidget
+            distribution={historyViewModel.appearanceDistribution.map((b) => ({ label: b.label, value: b.count }))}
+            loadRange={historyViewModel.loadRange}
           />
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
-            <div />
-            <Surface variant="subtle" padding="md" className="mt-6 lg:mt-0">
-              <SectionHeader title="Summary" />
-              <div className="mt-4 grid gap-3">
-                <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-[var(--foreground)]">{totalFinalizedAppearances} finalised appearance(s)</p>
-                  <p className="text-sm text-[var(--text-soft)]">Latest saved snapshot per match.</p>
-                </Surface>
-                <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-[var(--foreground)]">{totalFloatAppearances} floating appearance(s)</p>
-                  <p className="mt-1 text-sm text-[var(--text-soft)]">Support, development, and floating usage in saved history.</p>
-                </Surface>
-                <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-[var(--foreground)]">{recentMovers} player(s) with visible movement history</p>
-                  <p className="mt-1 text-sm text-[var(--text-soft)]">Players with recorded movement in saved history.</p>
-                </Surface>
-                <Surface variant="default" padding="md">
-                  <p className="text-sm font-medium text-[var(--foreground)]">{currentDraftMatches} draft match(es) · {currentFinalizedMatches} finalised match(es)</p>
-                  <p className="mt-1 text-sm text-[var(--text-soft)]">Current match state: draft vs. finalised.</p>
-                </Surface>
-              </div>
-            </Surface>
-          </div>
-        </Surface>
-
-        <aside className="grid gap-4">
-          <Surface variant="default" padding="md">
-            <SectionHeader title="Load check" />
-            {mostUsedPlayer ? (
-              <Surface variant="default" padding="md" className="mt-4">
-                <p className="text-sm font-semibold text-[var(--foreground)]">
-                  {mostUsedPlayer.lastName
-                    ? `${mostUsedPlayer.firstName} ${mostUsedPlayer.lastName}`
-                    : mostUsedPlayer.firstName}
-                </p>
-                <p className="mt-1 text-sm text-[var(--text-soft)]">
-                  {mostUsedPlayer.totalFinalizedAppearances} finalised appearance(s) · {mostUsedPlayer.floatCount} floating appearance(s)
-                </p>
-                <p className="mt-3 text-sm text-[var(--text-soft)]">Use the table below for the deeper load check.</p>
-              </Surface>
-            ) : (
-              <EmptyState
-                title="No finalised history yet"
-                description="Finalised match selections will appear here once rounds are locked."
-                illustration="emptyStats"
-                className="mt-4"
-              />
-            )}
-          </Surface>
-        </aside>
-      </section>
-
-      <ExportPanel />
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <Surface variant="default" padding="lg">
-          <SectionHeader title="Review steps" description="Check the summary, review recent player movement, then open the table for detail." />
-          <div className="mt-6 grid gap-3">
-            <Surface variant="subtle" padding="md">
-              <p className="text-sm font-semibold text-[var(--foreground)]">1. Check the summary</p>
-              <p className="mt-2 text-sm text-[var(--text-soft)]">
-                {currentDraftMatches} match(es) are currently draft and {currentFinalizedMatches} match(es) are currently finalised.
-              </p>
-            </Surface>
-            <Surface variant="subtle" padding="md">
-              <p className="text-sm font-semibold text-[var(--foreground)]">2. Review recent player movement</p>
-              <p className="mt-2 text-sm text-[var(--text-soft)]">
-                The movement feed below shows one latest visible move per player.
-              </p>
-            </Surface>
-            <Surface variant="subtle" padding="md">
-              <p className="text-sm font-semibold text-[var(--foreground)]">3. Open the table for detail</p>
-              <p className="mt-2 text-sm text-[var(--text-soft)]">
-                Use the movement overview for per-player timelines and the table for workload or fairness checks.
-              </p>
-            </Surface>
-          </div>
-        </Surface>
-
-        <Surface variant="default" padding="lg">
-          <SectionHeader title="How to read this page" />
-          <div className="mt-6 grid gap-3">
-            {[
-              "This page shows the latest saved snapshot per match. Superseded snapshots are collapsed away.",
-              "Use recent pattern strings to see whether a player has a run of core or floating assignments.",
-              "Use the full table for fairness, workload, or movement detail.",
-            ].map((note) => (
-              <Surface key={note} variant="subtle" padding="md">
-                <p className="text-sm text-[var(--text-soft)]">{note}</p>
-              </Surface>
-            ))}
-          </div>
-        </Surface>
-      </section>
+        </div>
+        <div className="expanded:col-span-5">
+          <RoleUsageWidget
+            counts={{
+              core: historyViewModel.roleUsage.find((r) => r.label === "Core")?.value ?? 0,
+              support: historyViewModel.roleUsage.find((r) => r.label === "Support")?.value ?? 0,
+              development: historyViewModel.roleUsage.find((r) => r.label === "Development")?.value ?? 0,
+              squadRepair: historyViewModel.roleUsage.find((r) => r.label === "Squad repair")?.value ?? 0,
+            }}
+          />
+        </div>
+        <div className="expanded:col-span-12">
+          <MovementHistoryWidget
+            strip={historyViewModel.movementPaths.map((p, i) => ({
+              id: String(i),
+              label: `${p.fromTeamName} → ${p.toTeamName}`,
+              sublabel: `${formatSelectionRole(p.role as SelectionRole)} · ${p.count}`,
+              tone: "accent" as const,
+            }))}
+            recentRows={historyViewModel.recentMovements.map((m, i) => ({
+              id: String(i),
+              playerName: m.playerName,
+              fromTeamName: m.fromTeamName ?? "—",
+              toTeamName: m.teamName,
+              role: m.role,
+              roundLabel: m.matchRoundName,
+            }))}
+          />
+        </div>
+      </div>
 
       <Surface variant="default" padding="lg">
         <SectionHeader title="Movement Feed" description="Latest visible move per player" />
@@ -387,6 +431,8 @@ export default async function HistoryPage({ params }: { params: Promise<{ orgSlu
       <Surface variant="default" padding="lg">
         <HistoryTable rows={rows} />
       </Surface>
+
+      <ExportPanel />
     </main>
   );
 }
