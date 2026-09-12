@@ -153,6 +153,13 @@ export default async function MatchDetailPage({
     orderBy: [{ severity: "desc" }],
   });
 
+  // Touchline Design Atlas (ADR-0136): a "Preparation" checklist needs to know whether a
+  // lineup exists for this match. No relation is already loaded here, so this is one small,
+  // cheap, indexed existence check (single row by matchId) -- not the unbounded-tree class of
+  // query that caused Today's own performance issue (see docs/domain/touchline-atlas-provenance.md
+  // §17). Lineup content itself is untouched -- Phase 5 scope, not read or rendered here.
+  const lineup = await db.matchLineup.findFirst({ where: { matchId, ...orgWhere }, select: { id: true } });
+
   const warningData = warnings.map((w) => ({
     id: w.id,
     code: w.rule,
@@ -249,6 +256,7 @@ export default async function MatchDetailPage({
            canFollowLive,
            plannedRotation,
            isCancelled: match.status === "CANCELLED",
+           hasLineup: Boolean(lineup),
          }}
       />
     </div>

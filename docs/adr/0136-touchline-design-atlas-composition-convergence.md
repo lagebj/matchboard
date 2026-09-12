@@ -18,11 +18,11 @@ Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/i
 utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
 validation and final sign-off) remain unstarted and ungated until their own turn.
 
-**Phase 4 progress: Today, League, and Events migrated (3 of 8).** All are the real production
-routes, not UI-Lab copies; each freezes all existing domain/business logic and is additive
-composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today), §15
-(League), §16 (Events), §17 (Today performance follow-up), §18 (Today squad-status placement
-follow-up).
+**Phase 4 progress: Today, League, Events, and Match detail migrated (4 of 8).** All are the real
+production routes, not UI-Lab copies; each freezes all existing domain/business logic and is
+additive composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today),
+§15 (League), §16 (Events), §17 (Today performance follow-up), §18 (Today squad-status placement
+follow-up), §19 (Match detail).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -72,6 +72,19 @@ follow-up).
   reference's "Next match" and "Helpers" widgets on Event detail were deliberately deferred, not
   built — both would need a genuinely new query this pass intentionally avoided. Verified: full
   `npm run validate` (14/14), 9 new unit tests, and real screenshots against the seeded dataset.
+- **Match detail** (`(app)/o/[orgSlug]/matches/[matchId]/page.tsx` + `match-detail.tsx`):
+  deliberately narrow scope — top-level identity/header/summary composition only. Every existing
+  tab (Squad, Tactics, Rotations, After match, Opponent context, Review) and every mutation inside
+  them is frozen, completely untouched (Phase 5 scope). New, in the header area only: a Squad
+  widget (core/support/development/matchday counts, from already-loaded selections, zero new
+  query), a Preparation checklist (3 real booleans; `lineup` needed one new, single-row existence
+  check — not the unbounded-tree class of query that caused the Today regression), and a Planning
+  attention widget (the single highest-priority existing warning, already loaded). Closed a real,
+  disclosed gap found along the way: `match-view-model.ts` (Phase 1) had never had a unit test —
+  added now that it has a real caller. "Availability" (per-player currentAvailability) was
+  deliberately deferred, matching the "prefer zero new queries" discipline. Verified: full
+  `npm run validate` (14/14), 17 new unit tests across 3 modules, and a real screenshot against the
+  seeded dataset.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish
