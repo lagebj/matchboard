@@ -51,8 +51,16 @@ function readNonEmptyString(formData: FormData, fieldName: string, label: string
    return value;
  }
 
-/** Parse a date + optional kickoff time into a Date representing the local wall-clock time.
- * If no time is provided, defaults to noon (12:00) local time to avoid day-boundary issues. */
+/**
+ * Fallback-only: parse a date + optional kickoff time into a Date using THIS PROCESS's own local
+ * timezone. That is only ever correct when the caller runs in the coach's own browser — this
+ * function runs inside a Server Action (Vercel, UTC), so it must not be the primary path: it
+ * would silently store a kickoff shifted later by the coach's real UTC offset (1-2h for Norway),
+ * which was the confirmed root cause of "Start live reporting" staying hidden well past real
+ * kickoff (a match created before this fix has its `startsAt` shifted this way).
+ * `readMatchStartsAt()` below prefers a browser-computed absolute instant instead; this remains
+ * only as a same-timezone-assumption fallback for a no-JS submission.
+ * If no time is provided, defaults to noon (12:00) to avoid day-boundary issues. */
 function readKickoffDateTime(formData: FormData, dateField: string, timeField: string, label: string): Date {
   const dateValue = readText(formData, dateField);
   if (!dateValue) throw new Error(`${label} is required.`);
@@ -74,6 +82,22 @@ function readKickoffDateTime(formData: FormData, dateField: string, timeField: s
   const parsed = new Date(year, month - 1, day, hours, minutes, 0);
   if (isNaN(parsed.getTime())) throw new Error(`${label} must be a valid date and time.`);
   return parsed;
+}
+
+/**
+ * The kickoff instant a coach entered, as an absolute point in time. Prefers `startsAtIso` — a
+ * true UTC instant computed in the coach's own browser from the same date/time fields (see
+ * match-create-form.tsx), where "the browser's local timezone" and "the coach's real timezone"
+ * are the same thing by construction — over the legacy `readKickoffDateTime()` fallback, which
+ * can only be correct if this Server Action happened to run in the coach's own timezone.
+ */
+function readMatchStartsAt(formData: FormData): Date {
+  const isoValue = readText(formData, "startsAtIso");
+  if (isoValue) {
+    const parsed = new Date(isoValue);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return readKickoffDateTime(formData, "startsAt", "kickoffTime", "Match date");
 }
 
 function readRequiredEnum<T extends string>(
@@ -214,7 +238,7 @@ export async function createMatchAction(_prevState: MatchFormState, formData: Fo
     await requireTeamGroupAccess(ctx, teamId);
     const opponentText = readText(formData, "opponent");
     const opponentTeamIdInput = readText(formData, "opponentTeamId");
-    const startsAt = readKickoffDateTime(formData, "startsAt", "kickoffTime", "Match date");
+    const startsAt = readMatchStartsAt(formData);
     const homeAway = readRequiredEnum(formData, "homeAway", VALID_VENUES, "Home or away");
     const matchType = readRequiredEnum(formData, "matchType", VALID_TYPES, "Match type");
     const gameFormat = readRequiredEnum(formData, "gameFormat", VALID_FORMATS, "Game format");

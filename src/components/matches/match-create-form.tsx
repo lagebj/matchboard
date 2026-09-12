@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createMatchAction } from "@/app/(app)/matches/actions";
 import { OpponentTeamSelect } from "@/components/opponents/opponent-team-select";
@@ -31,6 +31,32 @@ export function MatchCreateForm({
   const [selectedOpponentTeamId, setSelectedOpponentTeamId] = useState<string | null>(null);
   const orgUrl = useOrgUrl();
   const today = getTodayLocalDateInputValue();
+  const [dateValue, setDateValue] = useState(today);
+  const [timeValue, setTimeValue] = useState("");
+
+  // The coach enters the kick-off time they see on their own watch. Computing the resulting
+  // instant here (in the browser) — rather than in the createMatchAction Server Action, which
+  // executes on Vercel in UTC — means the browser's own local timezone (the coach's real
+  // timezone) is what resolves "17:30" to a true UTC instant, exactly like match-edit-form.tsx
+  // already does for rescheduling. Doing this server-side instead was the actual bug behind
+  // "Start live reporting" staying hidden well past real kickoff: the server treated the typed
+  // digits as UTC, storing a kickoff up to the coach's UTC offset (1-2h for Norway) *later* than
+  // reality.
+  const startsAtIso = useMemo(() => {
+    if (!dateValue) return "";
+    const [year, month, day] = dateValue.split("-").map(Number);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return "";
+    let hours = 12;
+    let minutes = 0;
+    if (timeValue) {
+      const parts = timeValue.split(":").map(Number);
+      hours = parts[0] ?? 0;
+      minutes = parts[1] ?? 0;
+    }
+    const parsed = new Date(year, month - 1, day, hours, minutes, 0);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toISOString();
+  }, [dateValue, timeValue]);
 
   if (teams.length === 0) {
     return (
@@ -81,6 +107,11 @@ export function MatchCreateForm({
         }}
       />
 
+      {/* Computed in the browser from the two visible fields (see startsAtIso above) — the
+          actual source of truth submitted to createMatchAction. startsAt/kickoffTime remain as
+          a same-timezone fallback for a no-JS submission. */}
+      <input type="hidden" name="startsAtIso" value={startsAtIso} />
+
       <div className="flex flex-col gap-1.5">
         <label htmlFor="startsAt" className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--text-muted)]">
           Match date
@@ -90,7 +121,8 @@ export function MatchCreateForm({
           name="startsAt"
           type="date"
           required
-          defaultValue={today}
+          value={dateValue}
+          onChange={(e) => setDateValue(e.target.value)}
           className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none"
         />
       </div>
@@ -103,6 +135,8 @@ export function MatchCreateForm({
           id="kickoffTime"
           name="kickoffTime"
           type="time"
+          value={timeValue}
+          onChange={(e) => setTimeValue(e.target.value)}
           className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:border-[var(--accent-strong)] focus:outline-none"
         />
       </div>
