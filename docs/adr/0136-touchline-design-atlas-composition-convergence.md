@@ -32,10 +32,10 @@ unblocks **Phase 5 — football work surfaces** (Round Board, Lineup, Tactics, R
 Reporting, Follow Live, Post-match), which stops again at **Human Gate C** before Phases 6–10
 (historical/intelligence routes, utility/config/collaboration routes, brand asset convergence,
 transitional-design removal, full validation and final sign-off).
-**Phase 5 progress: Round Board and Lineup+Tactics migrated (2 of 7).** Both are the real
-production routes, not UI-Lab copies; every existing mutation is frozen, completely untouched.
-Full account: `docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23 (Lineup +
-Tactics).
+**Phase 5 progress: Round Board, Lineup+Tactics, and Rotations migrated (3 of 7).** All are the
+real production routes, not UI-Lab copies; every existing mutation is frozen, completely
+untouched. Full account: `docs/domain/touchline-atlas-provenance.md` §22 (Round Board), §23
+(Lineup + Tactics), §24 (Rotations).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -157,6 +157,18 @@ Tactics).
   dedicated test). Verified: full `npm run validate` (14/14), 5 new unit tests + 4 new component
   tests, and a real screenshot of the inspector rendering correctly on a **planning-closed**
   match. Full account: `docs/domain/touchline-atlas-provenance.md` §23.
+- **Rotations** (`src/components/matches/planned-rotation-panel.tsx`): the changes list was a
+  flat, individually-bordered card per row — arguably the exact "disconnected substitution-card
+  grid" the spec warns against. Replaced with the same `TouchlineTimeline`/`TimelineItem`
+  primitives Today already uses — a pure visual wrapper swap; every existing control inside each
+  row (move/edit/remove, status pill, notes) is unchanged. A new pure function,
+  `computeRotationTimelineStates()`, maps each change's already-known status to a timeline node
+  state (`APPLIED` → done, first non-applied → next, rest → later) — no new query. The three
+  separate diagnostic boxes (validation issues, generation notes, coverage checks) were
+  deliberately left unconsolidated — genuinely different domain concepts, forcing them into one
+  generic warnings widget would blur real distinctions the UI-Lab's own simplified fixture never
+  had to represent. Verified: full `npm run validate` (14/14), 5 new unit tests, and a real
+  screenshot. Full account: `docs/domain/touchline-atlas-provenance.md` §24.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish

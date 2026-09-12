@@ -8,6 +8,8 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { PlannedPartnershipEvidenceList } from "@/components/matches/planned-partnership-evidence";
 import { MetricStory } from "@/components/viz";
+import { TouchlineTimeline, TimelineItem } from "@/components/touchline/timeline/touchline-timeline";
+import { computeRotationTimelineStates } from "@/lib/planned-rotation/get-rotation-timeline-states";
 import {
   createPlannedRotationAction,
   updatePlannedRotationAction,
@@ -507,16 +509,27 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
       )}
 
       {rotation.changes.length > 0 && (
-        <div className="mt-4 flex flex-col gap-2">
-          {rotation.changes.map((change, index) => {
+        <div className="mt-4">
+          {/* Touchline Design Atlas (ADR-0136, Phase 5): "exact chronological decision points"
+              (`08_ROUTE_COMPOSITION_PLANNING_TACTICS.md §D`) via the shared `TouchlineTimeline`
+              primitive (already used by Today), replacing the previous flat bordered-card list --
+              "no disconnected substitution-card grid" per the same spec. Every existing control
+              inside each item (move/edit/delete, the add-form toggle) is unchanged. */}
+          <TouchlineTimeline aria-label="Planned rotation changes">
+          {(() => {
+            const timelineStates = computeRotationTimelineStates(rotation.changes);
+            return rotation.changes.map((change, index) => {
             const outPlayer = change.outPlayerId ? playerById.get(change.outPlayerId) : null;
             const inPlayer = change.inPlayerId ? playerById.get(change.inPlayerId) : null;
 
             return (
-              <div
+              <TimelineItem
                 key={change.id}
-                className="flex items-center gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-3 py-2"
+                timeLabel={change.approximateMatchSeconds !== null ? `~${formatSeconds(change.approximateMatchSeconds)}` : null}
+                state={timelineStates[index]}
+                isLast={index === rotation.changes.length - 1}
               >
+              <div className="flex items-center gap-2">
                 {isDraft && !readOnly && (
                   <div className="flex flex-col gap-0.5 shrink-0">
                     <button
@@ -562,11 +575,6 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
                       </span>
                     )}
                   </div>
-                  {change.approximateMatchSeconds !== null && (
-                    <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                      ~{formatSeconds(change.approximateMatchSeconds)}
-                    </div>
-                  )}
                   {change.notes && (
                     <div className="text-xs text-[var(--text-muted)] mt-0.5 italic">{change.notes}</div>
                   )}
@@ -597,8 +605,11 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
                   </div>
                 )}
               </div>
+              </TimelineItem>
             );
-          })}
+            });
+          })()}
+          </TouchlineTimeline>
         </div>
       )}
 

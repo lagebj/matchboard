@@ -805,3 +805,46 @@ compact viewports (the existing `aside` column's own responsive behaviour), func
 the dedicated bottom-sheet interaction pattern the golden shows. A future pass can adopt the
 existing `BottomSheet` primitive (already used elsewhere, e.g. Round Board) for this specific
 surface without needing to touch any of the mutation/inspector logic built in this pass.
+
+## 24. Phase 5 — Rotations production migration (2026-09-12)
+
+Third of the seven Phase 5 routes. The real production match-detail Rotations tab
+(`src/components/matches/planned-rotation-panel.tsx`) — not a UI-Lab copy. Every existing
+mutation (create/edit/move-up/move-down/delete a planned change, generate a rotation plan, apply/
+skip/delay during live reporting) is **frozen, completely untouched**.
+
+The panel's changes list was a flat, individually-bordered card per row — arguably the exact
+"disconnected substitution-card grid" `08_ROUTE_COMPOSITION_PLANNING_TACTICS.md §D` explicitly
+warns against, and missing the spec's "exact chronological decision points" treatment entirely.
+Replaced with the same `TouchlineTimeline`/`TimelineItem` primitives Today already uses — a pure
+visual wrapper swap, not a rewrite: every existing control inside each row (move up/down, edit,
+remove, the status pill, notes) moved unchanged into `TimelineItem`'s `children` slot. A new pure
+function, `computeRotationTimelineStates()` (`src/lib/planned-rotation/get-rotation-timeline-
+states.ts`), maps each change's already-known `status` to a timeline node state — `APPLIED` →
+`"done"`, the first non-applied change in plan order → `"next"`, every later one → `"later"` —
+mirroring the exact current/next/later vocabulary `TodayOperationalTimeline` already established.
+No new query; `rotation.changes` was already fully loaded. The previously-duplicated inline
+"~MM'SS″" time text (shown both in the timeline's own time column and again inside the row
+content) was consolidated to the timeline's time column only, removing the redundant duplicate
+within one row — a genuine improvement, not information loss (unlike the intentional "shown
+twice, once as a shortcut" pattern used elsewhere in this program, which spans two *different*
+locations on a page, not the same row).
+
+**Deliberately left unconsolidated, a disclosed decision**: the panel currently shows three
+separate diagnostic boxes (plan-validation issues, automatic-generation notes, squad-coverage
+checks), each its own bordered box with its own header. The UI-Lab reference's own
+`PlanningReadinessWidget` merges checks and warnings into one widget, but its fixture only ever
+modeled one undifferentiated diagnostics array — production's three categories are genuinely
+different domain concepts (the draft's own internal validity, the automatic generator's
+disclosed limitations, and squad-composition coverage), and forcing them into one generic
+"warnings" list would blur that distinction (the plan-validation box also currently
+distinguishes real errors from softer notes by colour, which the widget's single `--warning`
+treatment doesn't support). Left as-is rather than force a widget swap that isn't confidently a
+net improvement — a genuinely different judgement call from Round Board's `WorkbenchSummaryStrip`
+swap, where the underlying facts were a true 1:1 match.
+
+Verified: full `npm run validate` (14/14), 5 new unit tests for `computeRotationTimelineStates()`,
+and a real screenshot (desktop + mobile) confirming the timeline renders correctly — a single
+applied change ("Elias ↔ Theo, pos. swap" at "~30'00″") shown as a "done"-state timeline item,
+with every existing control (move arrows, edit/remove buttons, "Add change", "Delete plan", the
+existing rotation-pattern evidence panel) unchanged below it.
