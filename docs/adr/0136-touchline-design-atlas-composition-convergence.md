@@ -64,10 +64,10 @@ invitation) — but Phase 6's own completion is still reported back for confirma
 begins, matching this programme's practice of checking in at every phase boundary rather than
 chaining phases unattended purely because a named gate is absent.
 
-**Phase 6 progress: History and Opponents (list + detail) migrated (2 of 5).** Both are the real
-production routes, not UI-Lab copies. History: every existing all-time (not
-single-league-season) query this page ran is preserved unchanged — a real architectural fork
-(whether to switch to the league-season-scoped `getSeasonPlayerRoundMatrix()`/
+**Phase 6 progress: History, Opponents (list + detail), and Teams (overview + detail) migrated
+(3 of 5).** All are the real production routes, not UI-Lab copies. History: every existing
+all-time (not single-league-season) query this page ran is preserved unchanged — a real
+architectural fork (whether to switch to the league-season-scoped `getSeasonPlayerRoundMatrix()`/
 `getMovementPathSummary()` canonical sources named in `history-view-model.ts`'s own doc comment)
 was found and deliberately rejected, since doing so would have silently narrowed History's scope
 to one season. Opponents: the list page was substantially rebuilt (it had none of the spec's
@@ -75,7 +75,15 @@ fields beyond a name and match counts); the detail page needed only one small, d
 previously-missing Won/Drawn/Lost record). The same class of architectural fork recurred —
 `getOpponentHistory()` requires a specific football-group id, unlike the org-wide list/detail
 pages — resolved with two new batched (not per-opponent-looped), tested pure modules instead.
-Full account: `docs/domain/touchline-atlas-provenance.md` §27 (History), §28 (Opponents).
+Teams: **no architectural fork this time** — Teams overview being league-season-scoped is the
+correct, already-documented product shape (unlike History/Opponents' all-time scope), confirmed
+directly against AGENTS.md. Both routes needed only one small, disclosed, previously-unwired gap
+each — "unresolved planning attention" on the overview (a dedicated view-model field with no
+production caller, now fed by a new batched-per-distinct-round derivation, never per-team) and a
+season Won/Drawn/Lost record on the detail page (absent entirely; the page's existing 7-tab
+structure was correctly left alone as already substantially matching spec intent, richer than the
+golden's flat "grid," per AGENTS.md's own documented tab design). Full account:
+`docs/domain/touchline-atlas-provenance.md` §27 (History), §28 (Opponents), §29 (Teams).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,

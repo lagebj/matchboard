@@ -1059,3 +1059,59 @@ screenshots (desktop + mobile of both routes) against the locally-seeded Fjordvi
 S5 opponent-history scenario (Bergstad IF, 4 encounters) via the test-agent auth flow — the new
 Won/Drawn/Lost record (1/1/2) was cross-checked by hand against the encounter table's own
 per-match scores and confirmed arithmetically correct.
+
+## 29. Phase 6 — Teams (overview + detail) production migration (2026-09-12)
+
+Third of Phase 6's five named routes. Both real production routes
+(`src/app/(app)/o/[orgSlug]/teams/page.tsx` and `.../teams/[teamId]/page.tsx`) — not UI-Lab
+copies. Every existing squad/roster/movement/candidate/rotation-path/TeamFocus/best-lineup
+mutation and read path is **frozen, completely untouched**; both changes are small, additive,
+disclosed fixes to a genuine gap, not restructurings.
+
+**No architectural fork this time — unlike History and Opponents.** `team-view-model.ts`'s own
+doc comment names `getTeamsResultsOverview(leagueSeasonId, orgFilter)` as the overview's
+canonical source, and — checked directly against AGENTS.md's "Teams page and team detail"
+section — the Teams overview page is *itself* documented as "a selected-league-season
+completed-results overview" with a mandatory `League season: {label}` selector. Unlike
+History/Opponents (documented as all-time/org-wide), Teams overview being league-season-scoped
+is the *correct*, already-established product shape, not a trap to avoid.
+
+**Overview page (`§C`) — one real, previously-unwired gap: "unresolved planning attention."**
+`TeamOverviewViewModel.unresolvedPlanningAttentionCount` (a dedicated field the view model
+already reserved) had no production caller at all. Added, computed by a new pure, tested module —
+`countUnresolvedPlanningAttention()` (`src/lib/teams/aggregate-team-attention.ts`, 4 unit tests)
+— fed by: each team's most recent non-cancelled match's round in the selected league season
+(one batched query, not per-team), the canonical `computeRoundPlanIntegrity()` called once per
+**distinct** round found (never once per team — teams sharing the same round cadence collapse to
+very few calls; `RoundPlanIntegrity.signals` already contains only BLOCKED/DECISION_REQUIRED
+entries, no category filter needed), and one batched active-`TeamFocus` count query. Rendered as
+a new "Attention" table column (desktop) / inline note (mobile card). **Deliberately not added**:
+a separate "recent result" column (the existing aggregate W-D-L/GF/GA/GD already substantially
+serves this at season scope) and "current season participation balance summary" (no existing
+data owner computes this metric; inventing one here would be exactly the kind of unowned metric
+this programme's own provenance doc disallows elsewhere). AGENTS.md's "Teams overview required
+columns" list is updated to add Attention, following the mandatory "documentation alignment"
+rule — its existing "Rating" column (already present in production beyond that same list) is the
+precedent that the list is a minimum, not an exhaustive cap.
+
+**Detail page (`§D`) — one real, previously-missing gap: "current record from canonical
+matches."** The page already substantially matches spec intent via its existing tab structure
+(Squad/Current Round/Movement/Movement candidates/Focus/History/Rules & Links — itself a real,
+deliberate, AGENTS.md-documented product decision, richer than the golden's flat "grid" and
+correctly **not** flattened into one page for this pass) plus its always-visible summary strip
+(round status, core/sent/received counts, TeamFocus). What it never showed anywhere was a
+season-long Won/Drawn/Lost record. Added as a new `MetricTile` at the front of the existing
+summary strip, reusing `getTeamsResultsOverview()` for the most recently started league season
+(the same simple default the overview page itself already uses) and extracting just this team's
+row — no new scoring logic duplicated. `gameFormat` (named in the spec's own "top summary"
+bullet) was **not** added: `Team` has no intrinsic game-format field (only `Match.gameFormat`,
+which can vary match to match), and inventing a single-value team-level format would be an
+unowned fabrication of exactly the kind this programme disallows.
+
+Verified: full `npm run validate` (14/14), 4 new unit tests for
+`countUnresolvedPlanningAttention()`, and real screenshots (desktop + mobile of both routes)
+against the locally-seeded Fjordvik FK dataset: Fjordvik Blå shows a real, non-zero count in the
+new Attention column (a genuine plan-integrity signal and/or active TeamFocus from its own
+current round, not a fabricated value) while the other two teams correctly show none, and
+Fjordvik Rød's new "Record 1-1-1" tile on its detail page matches the exact same figure already
+shown for that team on the Teams overview page.
