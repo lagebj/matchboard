@@ -1164,3 +1164,54 @@ rounds, 92% · 24/26 players) render correctly in the page's own light theme, la
 above the existing, deliberately dark-pinned matrix/movement-path content (`season-client.tsx`'s
 own `data-theme="dark"`, an unrelated pre-existing decision from ADR-0134 — not touched, not a
 bug this pass introduced or needed to fix).
+
+## 31. Phase 6 — Evidence detail routes: audited, no code change, completing Phase 6 (2026-09-12)
+
+Fifth and final of Phase 6's five named routes: the 14 `/o/{orgSlug}/insights/*` sub-route
+clients (conflicts, continuity, coverage, load, match-phase-patterns, operational-health,
+opportunity, opportunity-gap, opportunity-quality, planned-vs-actual, player-combinations,
+player-pathways, policy-warnings, position-exposure).
+
+`07_ROUTE_COMPOSITION_PLAYERS_INSIGHTS.md §D` requires, per route: one primary question; one
+main visualization; factual explanation; evidence/sample detail; contributing matches/data; no
+unrelated metric tiles; no duplication of the overview widgets at full size. Given 14 routes is
+too large to blindly rewrite, and given AGENTS.md's own Touchline material-migration record
+already names this exact composition question as a previously-tracked, not-yet-picked-up
+follow-up ("their per-surface authored-data-story redesign, bundle §8, is a tracked follow-up"),
+a read-only compliance survey was run first — every route's full rendered composition (each
+route's `page.tsx` is a thin 4–5 line server wrapper with no extra header/section, confirming the
+client component alone is the true composition) checked against all six spec bullets.
+
+**Result: 14 of 14 routes pass; no code change made.** Every route has exactly one stated
+question in its header subtitle (never two mixed together); uses a data table/matrix as its
+single visualization, matching the pre-existing, AGENTS.md-documented pattern for these exact
+routes ("The matrix is primary. Graphs are secondary" — Season Overview; the individual `I-00N`
+descriptions describing these routes as matrices/tables outright); carries a factual,
+disclaimer-style explanation matching AGENTS.md's own prescribed framing verbatim in several
+cases ("frequency is not effectiveness," "descriptive context, not a debt score," "no prescribed
+ideal balance," "unused lineup assignments are not realised exposure"); shows evidence/sample
+detail via confidence/sample-size columns, attention-flag legends, or per-entry detail text; and
+shows contributing data via underlying table rows/expandable lists. Every summary-tile row found
+(conflicts' 3 severity counts, planned-vs-actual's 4 counts, policy-warnings' 3 severity counts,
+player-pathways' 5 season-summary counts, Operational Health's 9 category tiles) is a direct
+same-question summary of the table/list rendered immediately below it — not an unrelated metric
+bolted on. Operational Health's 9-tile grid in particular **is** the page's stated design ("9
+grouped concrete facts, no composite score," AGENTS.md's own I-007 description), not a violation
+of the "no unrelated metric tiles" rule. No route duplicates the overview's compact
+`EvidenceSpotlightWidget` at full size — each shows genuinely expanded per-question data (full
+matrices, per-period breakdowns), not a larger copy of the same compact widget.
+
+This is a genuine, verified "already substantially covered" finding — the same class of outcome
+as Live Reporting (§25) and Team Detail's tab structure (§29) — not a skipped audit and not
+fabricated work to fill a PR. AGENTS.md's own Touchline material-migration record's "bundle §8"
+follow-up note (from the earlier Touchline Finish programme, ADR-0134/0135) — "their per-surface
+authored-data-story redesign... is a tracked follow-up" — can be considered resolved by this
+finding rather than left open, since the composition question it flagged has now actually been
+checked against the concrete Atlas spec and found compliant.
+
+**This completes all five named Phase 6 routes** (History, Opponents, Teams, Season, evidence
+detail routes). No `npm run validate` run or screenshots were needed for this route — no code
+changed. Per the "Version management is mandatory" classification rules, this is a `none`-class
+change (purely explanatory documentation of a verified finding, no releasable behaviour change) —
+no version bump accompanies it, the first Phase 5/6 change this programme where that classification
+applies. See ADR-0136 for the Phase 7 status this triggers.
