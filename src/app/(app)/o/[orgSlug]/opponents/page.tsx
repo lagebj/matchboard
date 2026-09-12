@@ -8,7 +8,7 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { aggregateSportingLevel } from "@/lib/opponents/sporting-level-aggregation";
 import { aggregateOpponentEncounters } from "@/lib/opponents/aggregate-opponent-encounters";
 import { FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
-import { formatKickoffDate } from "@/lib/date-utils";
+import { formatDateInDisplayTimezone } from "@/lib/date-utils";
 import { buildOpponentsViewModel, type OpponentRowInput } from "@/lib/touchline/presentation/opponents-view-model";
 
 export const dynamic = "force-dynamic";
@@ -177,7 +177,7 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
                           <td className="px-4 py-3 pr-4 text-[var(--text-soft)]">
                             {o.lastEncounterDate ? (
                               <>
-                                {formatKickoffDate(new Date(o.lastEncounterDate))}
+                                {formatDateInDisplayTimezone(new Date(o.lastEncounterDate))}
                                 {o.lastEncounterResult ? ` · ${RESULT_LABEL[o.lastEncounterResult]}` : ""}
                               </>
                             ) : (
@@ -205,7 +205,7 @@ export default async function OpponentsPage({ params }: { params: Promise<{ orgS
                     {
                       label: "Last encounter",
                       value: o.lastEncounterDate
-                        ? `${formatKickoffDate(new Date(o.lastEncounterDate))}${o.lastEncounterResult ? ` · ${RESULT_LABEL[o.lastEncounterResult]}` : ""}`
+                        ? `${formatDateInDisplayTimezone(new Date(o.lastEncounterDate))}${o.lastEncounterResult ? ` · ${RESULT_LABEL[o.lastEncounterResult]}` : ""}`
                         : "—",
                     },
                     {

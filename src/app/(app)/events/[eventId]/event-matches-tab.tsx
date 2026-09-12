@@ -32,7 +32,7 @@ import { OpponentTeamSelect } from '@/components/opponents/opponent-team-select'
 import { formatEventMatchSupportRole } from '@/lib/formatters/event-labels';
 import type { EventMatchSupportRole } from '@/generated/prisma/client';
 import { getEventMatchWindow } from '@/lib/events/event-match-time';
-import { formatKickoffDateTime, formatKickoffTime } from '@/lib/date-utils';
+import { formatKickoffDateTime, formatKickoffTime, getKickoffDateInputValue, getKickoffTimeInputValue } from '@/lib/date-utils';
 
 const PLANNED_ROLE_OPTIONS: { value: EventMatchSupportRole | ''; label: string }[] = [
   { value: '', label: 'No specific role' },
@@ -218,8 +218,11 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
     setEditOpponent(m.opponentName);
     setEditOpponentTeamId(m.opponentTeamId ?? null);
     setEditSquadId(m.eventSquadId);
-    const dateStr = new Date(m.startsAt).toISOString().slice(0, 16);
-    setEditStartsAt(dateStr);
+    // Local (browser) wall-clock digits, not UTC (`.toISOString()` would show the coach a time
+    // that isn't their own kick-off time in a widget they read as "my local time") — matches
+    // handleEditSave's conversion back to an absolute instant below.
+    const startsAtDate = new Date(m.startsAt);
+    setEditStartsAt(`${getKickoffDateInputValue(startsAtDate)}T${getKickoffTimeInputValue(startsAtDate)}`);
     setEditCategory(m.category);
     setEditLocation(m.location ?? '');
     setEditNotes(m.notes ?? '');
@@ -243,7 +246,15 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
         if (editOpponent.trim()) data.opponentName = editOpponent.trim();
         if (editOpponentTeamId) data.opponentTeamId = editOpponentTeamId;
         else data.opponentTeamId = null;
-        if (editStartsAt) data.startsAt = editStartsAt;
+        if (editStartsAt) {
+          // Resolve to an absolute UTC instant HERE, in the browser — the coach's own device
+          // timezone is what makes `new Date("...T...")`'s no-offset local-time parsing correct.
+          // Sending the raw datetime-local string for updateEventMatchAction (a Server Action
+          // running on Vercel, UTC) to parse would silently shift the stored kickoff by the
+          // coach's real UTC offset, the same bug class fixed for League match creation.
+          const parsed = new Date(editStartsAt);
+          data.startsAt = isNaN(parsed.getTime()) ? editStartsAt : parsed.toISOString();
+        }
         data.category = editCategory;
         data.location = editLocation.trim() || null;
         data.notes = editNotes.trim() || null;

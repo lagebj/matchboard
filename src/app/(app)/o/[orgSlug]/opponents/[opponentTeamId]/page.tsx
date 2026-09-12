@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import Link from "next/link";
-import { formatKickoffDate } from "@/lib/date-utils";
+import { formatDateInDisplayTimezone } from "@/lib/date-utils";
 import { ENVIRONMENT_OBSERVATION_LABELS, CONCERN_CATEGORY_LABELS, FOLLOW_UP_LABELS } from "@/lib/opponents/observation-labels";
 import { PLAYING_STYLE_TAG_LABELS } from "@/lib/opponents/playing-style-tags";
 import { MATCH_FIT_LABELS } from "@/lib/opponents/match-fit-labels";
@@ -307,7 +307,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
                         <tr key={match.id} className="text-[var(--foreground)]">
                           <td className="py-2 pr-4 whitespace-nowrap">
                             <Link href={`/matches/${match.id}`} className="text-[var(--accent-strong)] hover:underline">
-                              {formatKickoffDate(match.startsAt)}
+                              {formatDateInDisplayTimezone(match.startsAt)}
                             </Link>
                           </td>
                           <td className="py-2 pr-4">{match.team.name}</td>
@@ -352,7 +352,7 @@ export default async function OpponentDetailPage({ params }: PageProps) {
               const result = postMatchResults[match.id];
               return (
                 <ResponsiveTableCard
-                  title={formatKickoffDate(match.startsAt)}
+                  title={formatDateInDisplayTimezone(match.startsAt)}
                   titleHref={`/matches/${match.id}`}
                   fields={[
                     { label: "Our team", value: match.team.name },

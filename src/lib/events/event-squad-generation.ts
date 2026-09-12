@@ -320,6 +320,7 @@ function distributeGoalkeepers(
   gameFormat: GameFormat,
   formations: (Formation & { slots: FormationSlot[] })[],
   defaultFormationId: string | null,
+  allAvailablePlayers: PlayerWithRatings[],
   _eventId: string,
 ): void {
   const gkPlayers = players.filter((p) => !assignedGlobal.has(p.playerId) && p.isGoalkeeper);
@@ -334,10 +335,23 @@ function distributeGoalkeepers(
     return getSlotRequirements(formation, gameFormat);
   });
 
-  for (let i = 0; i < gkPlayers.length && i < squads.length; i++) {
+  // A squad that already has a goalkeeper (e.g. a manually-seeded/locked assignment) or that is
+  // already at or above its own target/max size must not receive another one — a plain
+  // round-robin over every squad, blind to existing assignments, is what previously kept handing
+  // goalkeepers (and, in distributeByRoleAcrossSquads, outfield slots) to an already-full squad.
+  const allGKPlayerIds = new Set(allAvailablePlayers.filter((p) => p.isGoalkeeper).map((p) => p.playerId));
+  const squadsNeedingGK = squads.filter((squad) => {
+    const hasGK = assignments.some((a) => a.eventSquadId === squad.id && allGKPlayerIds.has(a.playerId));
+    if (hasGK) return false;
+    const currentCount = assignments.filter((a) => a.eventSquadId === squad.id).length;
+    const effectiveMaxSize = squad.maxSize ?? squad.targetSize;
+    return currentCount < effectiveMaxSize;
+  });
+
+  for (let i = 0; i < gkPlayers.length && i < squadsNeedingGK.length; i++) {
     const gk = gkPlayers[i];
-    const squadIdx = i % squads.length;
-    const squad = squads[squadIdx];
+    const squad = squadsNeedingGK[i];
+    const squadIdx = squads.indexOf(squad);
     const slots = slotsPerSquad[squadIdx];
     const gkSlot = slots.find((s) => s.acceptedPositions.includes('goalkeeper'));
 
@@ -378,11 +392,25 @@ function distributeByRoleAcrossSquads(
   _notes: string[],
   eventId: string,
 ): void {
+  // A squad already at or above its own target/max size (typically because it was fully or
+  // partly manually seeded before "regenerate automatic plan" ran) must not be handed more
+  // outfield slots just because the formation/game-format defines that many — this is the actual
+  // fix for "regenerate automatic plan" overfilling an already-full manually-seeded squad while
+  // other, genuinely empty squads received far fewer players than their own target.
+  const remainingCapacity = new Map<string, number>();
+  for (const squad of squads) {
+    const currentCount = assignments.filter((a) => a.eventSquadId === squad.id).length;
+    const effectiveMaxSize = squad.maxSize ?? squad.targetSize;
+    remainingCapacity.set(squad.id, Math.max(0, effectiveMaxSize - currentCount));
+  }
+
   const slotsPerSquad = squads.map((squad) => {
     const formation = getFormationForSquad(squad, formations, defaultFormationId);
     const slots = getSlotRequirements(formation, gameFormat);
     const gkSlotIdx = slots.findIndex((s) => s.acceptedPositions.includes('goalkeeper'));
-    return { squad, slots, gkSlotIdx, nonGkSlots: gkSlotIdx >= 0 ? slots.filter((_, i) => i !== gkSlotIdx) : slots };
+    const nonGkSlotsRaw = gkSlotIdx >= 0 ? slots.filter((_, i) => i !== gkSlotIdx) : slots;
+    const cap = remainingCapacity.get(squad.id) ?? nonGkSlotsRaw.length;
+    return { squad, slots, gkSlotIdx, nonGkSlots: nonGkSlotsRaw.slice(0, cap) };
   });
 
   const allSlots: SlotWithSquad[] = [];
@@ -668,13 +696,13 @@ export function generateEventSquads(input: GenerationInput): GenerationOutput {
 
   switch (selectionPattern) {
     case 'ALL_BALANCED':
-      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
+      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId, availablePlayers);
       break;
     case 'ONE_COMPETITIVE_BALANCED_REMAINDER':
-      distributeOneCompetitiveBalancedRemainder(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
+      distributeOneCompetitiveBalancedRemainder(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId, availablePlayers);
       break;
     case 'MANUAL_SEED_AUTO_BALANCE':
-      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId);
+      distributeAllBalanced(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId, availablePlayers);
       break;
     case 'PRESERVE_AND_FILL':
       distributePreserveAndFill(remainingPlayers, squads, assignments, gameFormat, validationNotes, formations, defaultFormationId, scarcityInfo, input.eventId, availablePlayers);
@@ -739,12 +767,13 @@ function distributeAllBalanced(
   defaultFormationId: string | null,
   scarcityInfo: ReturnType<typeof computePositionScarcity>,
   eventId: string,
+  allAvailablePlayers: PlayerWithRatings[],
 ): void {
   if (squads.length === 0 || players.length === 0) return;
 
   const assignedGlobal = new Set(assignments.map((a) => a.playerId));
 
-  distributeGoalkeepers(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, eventId);
+  distributeGoalkeepers(players, squads, assignments, assignedGlobal, gameFormat, formations, defaultFormationId, allAvailablePlayers, eventId);
 
   const _protectedRoles = new Set(
     scarcityInfo.filter((s) => s.isScarce).map((s) => s.position),
@@ -906,13 +935,14 @@ function distributeOneCompetitiveBalancedRemainder(
   defaultFormationId: string | null,
   scarcityInfo: ReturnType<typeof computePositionScarcity>,
   eventId: string,
+  allAvailablePlayers: PlayerWithRatings[],
 ): void {
   const competitiveSquad = squads.find((s) => s.intent === 'COMPETITIVE');
   const balancedSquads = squads.filter((s) => s.intent !== 'COMPETITIVE');
 
   if (!competitiveSquad) {
     notes.push('No competitive squad found for ONE_COMPETITIVE_BALANCED_REMAINDER pattern');
-    distributeAllBalanced(players, squads, assignments, gameFormat, notes, formations, defaultFormationId, scarcityInfo, eventId);
+    distributeAllBalanced(players, squads, assignments, gameFormat, notes, formations, defaultFormationId, scarcityInfo, eventId, allAvailablePlayers);
     return;
   }
 
@@ -999,6 +1029,7 @@ function distributeOneCompetitiveBalancedRemainder(
       defaultFormationId,
       scarcityInfo,
       eventId,
+      allAvailablePlayers,
     );
   }
 }

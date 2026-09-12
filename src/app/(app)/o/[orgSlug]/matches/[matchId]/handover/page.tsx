@@ -6,7 +6,6 @@ import { CoachHandoverView } from "@/components/matches/coach-handover-view";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
-import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -114,17 +113,12 @@ export default async function MatchHandoverPage({ params }: HandoverPageProps) {
 
   const plannedRotation = await getPlannedRotation(matchId, match.teamId, ctx.orgFilter);
 
-  const dateStr = formatKickoffDate(match.startsAt);
-  const timeStr = formatKickoffTime(match.startsAt);
-
   return (
     <CoachHandoverView
       match={{
         id: match.id,
         opponent: match.opponent,
         startsAt: match.startsAt,
-        matchDate: dateStr,
-        matchTime: timeStr,
         homeAway: match.homeAway,
         matchType: match.matchType,
         gameFormat: match.gameFormat,

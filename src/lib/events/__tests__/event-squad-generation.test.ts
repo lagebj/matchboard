@@ -255,6 +255,56 @@ describe('event-squad-generation', () => {
       expect(lockedAssignment.locked).toBe(true);
     });
 
+    it('regeneration does not overfill an already-full manually-seeded squad (real-world reported bug)', () => {
+      // Reproduces the reported scenario exactly: 3 squads targeting 10 each, one squad already
+      // manually seeded to its full target size, the other two empty, 28 total players in the
+      // pool. "Regenerate automatic plan" (MANUAL_SEED_AUTO_BALANCE) must not hand the already-full
+      // squad any more players just because the game format's formation defines that many slots —
+      // it must respect each squad's own remaining capacity.
+      const lockedPlayers = Array.from({ length: 10 }, (_, i) =>
+        makePlayer({
+          playerId: `locked${i + 1}`,
+          primaryPosition: i === 0 ? 'GK' : i < 4 ? 'CB' : i < 7 ? 'CM' : 'ST',
+          goalkeeperAbility: i === 0 ? 'YES' : 'NO',
+        }),
+      );
+      const unlockedPlayers = Array.from({ length: 18 }, (_, i) =>
+        makePlayer({
+          playerId: `unlocked${i + 1}`,
+          primaryPosition: i % 3 === 0 ? 'CB' : i % 3 === 1 ? 'CM' : 'ST',
+        }),
+      );
+
+      const lockedAssignments = new Map<string, string>();
+      for (const p of lockedPlayers) lockedAssignments.set(p.playerId, 's1');
+
+      const input = makeInput({
+        players: [...lockedPlayers, ...unlockedPlayers],
+        selectionPattern: 'MANUAL_SEED_AUTO_BALANCE',
+        gameFormat: 'NINE_A_SIDE',
+        squads: [
+          { id: 's1', name: 'Squad 1', intent: 'BALANCED', targetSize: 10, minSize: null, maxSize: 10, formationId: null, generationOrder: 0 },
+          { id: 's2', name: 'Squad 2', intent: 'BALANCED', targetSize: 10, minSize: null, maxSize: 10, formationId: null, generationOrder: 1 },
+          { id: 's3', name: 'Squad 3', intent: 'BALANCED', targetSize: 10, minSize: null, maxSize: 10, formationId: null, generationOrder: 2 },
+        ],
+        lockedAssignments,
+      });
+
+      const result = generateEventSquads(input);
+
+      const countFor = (squadId: string) => result.assignments.filter((a) => a.eventSquadId === squadId).length;
+
+      expect(countFor('s1')).toBe(10);
+      expect(countFor('s2')).toBeLessThanOrEqual(10);
+      expect(countFor('s3')).toBeLessThanOrEqual(10);
+      // Every unlocked player must land in exactly one squad (or be left unassigned if genuinely
+      // out of capacity) — never duplicated, and the two open squads must absorb everyone the
+      // combined 20-seat capacity allows (18 unlocked players fit within it).
+      expect(countFor('s2') + countFor('s3')).toBe(18);
+      const s1Players = result.assignments.filter((a) => a.eventSquadId === 's1').map((a) => a.playerId);
+      expect(s1Players.every((id) => id.startsWith('locked'))).toBe(true);
+    });
+
     it('selection reason includes position fit tier', () => {
       const gk = makePlayer({ playerId: 'gk', primaryPosition: 'GK', goalkeeperAbility: 'YES' });
       const cb = makePlayer({ playerId: 'cb1', primaryPosition: 'CB' });

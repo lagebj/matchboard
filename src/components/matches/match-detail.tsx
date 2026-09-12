@@ -304,14 +304,13 @@ export function MatchDetail({ match }: { match: MatchData }) {
 
   const isCancelled = match.matchStatus === "CANCELLED";
 
-  // ADR-0133 H5: the "Start live reporting" entry point must be reachable at kickoff, not only
-  // once every Selection is FINALIZED — the 2026-09-09 incident had the coach hand-type `/live`.
+  // ADR-0133 H5 (refined 2026-09-12): the "Start live reporting" entry point is always shown on
+  // the match view for any not-yet-played, not-yet-reported, non-cancelled match — no pre-kickoff
+  // lead-time gate. Today's own work item keeps its own separate, narrower gate.
   const canLiveReport = canStartLiveReporting({
     lifecycleStatus: match.lifecycleStatus,
     isCancelled,
     isLive: Boolean(match.isLive),
-    allSelectionsFinalized: matchFinalized,
-    startsAt: match.startsAt,
   });
 
   function handleCancel() {

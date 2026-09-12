@@ -4,6 +4,7 @@ import { TacticalSurface } from "@/components/ui/tactical-surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatGameFormat } from "@/lib/formatters/game-format";
+import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
 
 type HandoverSelection = {
   id: string;
@@ -53,8 +54,6 @@ type HandoverMatch = {
   id: string;
   opponent: string;
   startsAt: Date;
-  matchDate: string;
-  matchTime: string;
   homeAway: string;
   matchType: string;
   gameFormat: string;
@@ -129,7 +128,7 @@ export function CoachHandoverView({ match }: CoachHandoverViewProps) {
           {match.teamName} vs {match.opponentTeamName ?? match.opponent}
         </h1>
         <p className="text-sm text-[var(--text-muted)]">
-          {match.matchDate} · {match.matchTime} · {match.homeAway === "HOME" ? "Home" : "Away"}
+          {formatKickoffDate(match.startsAt)} · {formatKickoffTime(match.startsAt)} · {match.homeAway === "HOME" ? "Home" : "Away"}
         </p>
         <div className="flex flex-wrap gap-1">
           <StatusPill variant="neutral" size="sm">{formatMatchType(match.matchType)}</StatusPill>

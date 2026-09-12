@@ -180,6 +180,69 @@ describe("Setup registry: create match action assigns match to round by date", (
     expect(match!.matchRoundId).toBeTruthy();
   });
 
+  it("prefers a browser-computed startsAtIso instant over the raw date+time fields (timezone fix)", async () => {
+    // Regression test for the "Start live reporting" hidden-until-after-kickoff bug: the create
+    // Server Action must not re-derive the kickoff instant from date+time fields itself (it would
+    // do so in the server's own timezone, UTC on Vercel, silently shifting it) when the browser
+    // has already supplied an absolute instant. Pick an ISO instant that would NOT round-trip
+    // through the naive "startsAt"+"kickoffTime" fallback (17:30 vs. an unrelated absolute time)
+    // to prove startsAtIso, not the fallback, determined the stored value.
+    const team = await testDb.team.findFirst({ where: { name: "Rovers" } });
+    const trueInstant = new Date("2026-06-22T15:30:00.000Z");
+
+    const formData = new FormData();
+    formData.set("teamId", team!.id);
+    formData.set("opponent", "Timezone Fix FC");
+    formData.set("startsAt", "2026-06-22");
+    formData.set("kickoffTime", "17:30");
+    formData.set("startsAtIso", trueInstant.toISOString());
+    formData.set("homeAway", "HOME");
+    formData.set("matchType", "FRIENDLY");
+    formData.set("gameFormat", "ELEVEN_A_SIDE");
+
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
+
+    try {
+      await createMatchAction({ error: "" }, formData);
+    } catch (error: unknown) {
+      if (!isRedirectError(error)) throw error;
+    }
+
+    const match = await testDb.match.findFirst({ where: { opponent: "Timezone Fix FC" } });
+
+    expect(match).not.toBeNull();
+    expect(match!.startsAt.toISOString()).toBe(trueInstant.toISOString());
+  });
+
+  it("falls back to the naive date+time fields when no startsAtIso is supplied", async () => {
+    const team = await testDb.team.findFirst({ where: { name: "Rovers" } });
+
+    const formData = new FormData();
+    formData.set("teamId", team!.id);
+    formData.set("opponent", "Fallback Parsing FC");
+    formData.set("startsAt", "2026-06-23");
+    formData.set("kickoffTime", "10:00");
+    formData.set("homeAway", "HOME");
+    formData.set("matchType", "FRIENDLY");
+    formData.set("gameFormat", "ELEVEN_A_SIDE");
+
+    const { createMatchAction } = await import("@/app/(app)/matches/actions");
+
+    try {
+      await createMatchAction({ error: "" }, formData);
+    } catch (error: unknown) {
+      if (!isRedirectError(error)) throw error;
+    }
+
+    const match = await testDb.match.findFirst({ where: { opponent: "Fallback Parsing FC" } });
+
+    expect(match).not.toBeNull();
+    // The fallback path always parses under this process's own local timezone (see
+    // readKickoffDateTime's doc comment) — assert against that same construction rather than a
+    // hardcoded instant, so this test is not itself timezone-dependent.
+    expect(match!.startsAt.getTime()).toBe(new Date(2026, 5, 23, 10, 0, 0).getTime());
+  });
+
   it("rejects match creation with non-existent team", async () => {
     const formData = new FormData();
     formData.set("teamId", "nonexistent-id");
