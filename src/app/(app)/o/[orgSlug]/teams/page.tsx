@@ -14,6 +14,8 @@ import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
 import { RatingBadge } from "@/components/ratings/rating-badge";
 import { Download } from "lucide-react";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { countUnresolvedPlanningAttention } from "@/lib/teams/aggregate-team-attention";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -35,7 +37,7 @@ function formatGd(gd: number): string {
   return `${gd}`;
 }
 
-function TeamResultsRow({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: string }) {
+function TeamResultsRow({ row, orgSlug, attentionCount }: { row: TeamPeriodResultsRow; orgSlug: string; attentionCount: number }) {
   return (
     <tr className="hover:bg-[var(--surface-hover)] transition-colors">
       <td className="px-4 py-2.5">
@@ -56,11 +58,14 @@ function TeamResultsRow({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: 
       </td>
       <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.cleanSheets}</td>
       <td className="px-3 py-2.5 text-right text-[var(--text-muted)] tabular-nums">{row.corePlayerCount}</td>
+      <td className={`px-3 py-2.5 text-right tabular-nums ${attentionCount > 0 ? "text-[var(--warning)]" : "text-[var(--text-muted)]"}`}>
+        {attentionCount > 0 ? attentionCount : "—"}
+      </td>
     </tr>
   );
 }
 
-function MobileTeamCard({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: string }) {
+function MobileTeamCard({ row, orgSlug, attentionCount }: { row: TeamPeriodResultsRow; orgSlug: string; attentionCount: number }) {
   return (
     <Surface variant="default" padding="sm">
       <div className="flex items-center justify-between">
@@ -80,6 +85,9 @@ function MobileTeamCard({ row, orgSlug }: { row: TeamPeriodResultsRow; orgSlug: 
         </span>
         <span className="text-[10px] text-[var(--text-muted)]">Clean sheets {row.cleanSheets}</span>
       </div>
+      {attentionCount > 0 && (
+        <div className="mt-1 text-[10px] text-[var(--warning)]">{attentionCount} needs attention</div>
+      )}
     </Surface>
   );
 }
@@ -101,6 +109,39 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
   const overview = selectedPeriodId
     ? await getTeamsResultsOverview(selectedPeriodId, ctx.orgFilter)
     : null;
+
+  // Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_SEASON.md
+  // §C`): "unresolved planning attention" -- a real, previously-unwired `TeamOverviewViewModel`
+  // field. Resolve each team's most recent round in the selected league season (one batched
+  // query), call the canonical `computeRoundPlanIntegrity()` once per *distinct* round found
+  // (never once per team -- teams sharing a round cadence collapse to very few calls), and count
+  // active TeamFocus rows per team (one batched query). "Recent result"/"current season
+  // participation balance summary" from the same spec bullet are deliberately not added here --
+  // the existing aggregate W-D-L/GF/GA/GD already substantially serves "recent result" at a
+  // season scope, and no existing data owner computes a "participation balance" metric; inventing
+  // one would be the exact kind of unowned metric this program's provenance doc disallows.
+  const attentionByTeamId = new Map<string, number>();
+  if (overview && overview.rows.length > 0) {
+    const teamIds = overview.rows.map((r) => r.teamId);
+    const latestMatches = await db.match.findMany({
+      where: { teamId: { in: teamIds }, matchRound: { leagueSeasonId: selectedPeriodId }, status: { not: "CANCELLED" }, ...ctx.orgFilter.filter },
+      select: { teamId: true, matchRoundId: true, startsAt: true },
+      orderBy: { startsAt: "desc" },
+    });
+    const latestRoundIdByTeamId = new Map<string, string>();
+    for (const m of latestMatches) {
+      if (!latestRoundIdByTeamId.has(m.teamId)) latestRoundIdByTeamId.set(m.teamId, m.matchRoundId);
+    }
+    const distinctRoundIds = [...new Set(latestRoundIdByTeamId.values())];
+    const roundIntegrities = await Promise.all(distinctRoundIds.map((id) => computeRoundPlanIntegrity(id)));
+    const allSignals = roundIntegrities.flatMap((r) => r.signals);
+    const activeFocuses = await db.teamFocus.findMany({
+      where: { teamId: { in: teamIds }, status: "ACTIVE", ...ctx.orgFilter.filter },
+      select: { teamId: true },
+    });
+    const counts = countUnresolvedPlanningAttention(teamIds, allSignals, activeFocuses);
+    for (const [teamId, count] of counts) attentionByTeamId.set(teamId, count);
+  }
 
   const selectedPeriod = selectedPeriodId
     ? leagueSeasons.find((p) => p.id === selectedPeriodId)
@@ -186,18 +227,19 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">GD</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Clean sheets</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core players</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Attention</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-soft)]">
                 {overview.rows.map((row) => (
-                  <TeamResultsRow key={row.teamId} row={row} orgSlug={orgSlug} />
+                  <TeamResultsRow key={row.teamId} row={row} orgSlug={orgSlug} attentionCount={attentionByTeamId.get(row.teamId) ?? 0} />
                 ))}
               </tbody>
             </table>
           </div>
           <div className="flex flex-col gap-2 sm:hidden">
             {overview.rows.map((row) => (
-              <MobileTeamCard key={row.teamId} row={row} orgSlug={orgSlug} />
+              <MobileTeamCard key={row.teamId} row={row} orgSlug={orgSlug} attentionCount={attentionByTeamId.get(row.teamId) ?? 0} />
             ))}
           </div>
         </>

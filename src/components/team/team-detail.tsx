@@ -141,6 +141,8 @@ type TeamDetailData = {
   currentRoundLabel: string | null;
   currentRoundId: string | null;
   coreCountThisRound: number;
+  /** Season W-D-L from canonical matches, most recently started league season. Null when none exists. */
+  record: { matchesPlayed: number; wins: number; draws: number; losses: number } | null;
   sentAsSupportCount: number;
   receivedSupportCount: number;
   receivedSquadRepairCount: number;
@@ -1140,6 +1142,15 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
+        {/* Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_
+            SEASON.md §D`): "current record from canonical matches" -- previously absent from
+            this page entirely. */}
+        {data.record && (
+          <MetricTile
+            label="Record"
+            value={`${data.record.wins}-${data.record.draws}-${data.record.losses}`}
+          />
+        )}
         <MetricTile
           icon={<span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Round</span>}
           label="Round"

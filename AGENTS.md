@@ -3091,7 +3091,7 @@ Required copy: `Teams` heading with subtitle `Results and match record for {leag
 
 Required selector: `League season: {leagueSeasonLabel}`
 
-Teams overview required columns (desktop, in order): Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players.
+Teams overview required columns (desktop, in order): Team, Played, W-D-L, GF, GA, GD, Clean sheets, Core players, Attention. Attention (added ADR-0136 Phase 6) is the team's unresolved planning attention count — active TeamFocus rows plus open plan-integrity signals (Blocked/Decision required) for the team's most recent round in the selected league season — shown as "—" when zero, never a fabricated value. This list is the minimum required set, not an exhaustive cap: an existing "Rating" column predates and coexists with it.
 
 Team result statistics use completed post-match final scores only:
 - Final team result derives from `PostMatchReport.homeGoals` and `PostMatchReport.awayGoals` in REPORTED or LOCKED reports.

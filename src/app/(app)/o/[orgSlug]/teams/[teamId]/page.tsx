@@ -10,6 +10,7 @@ import { getIncomingCandidatesForTeam, getOutgoingCandidatesForTeam } from "@/li
 import { getPlayerLocksForRound } from "@/lib/selection/player-lock";
 import { getBestLineup, getFormationsForTeam } from "@/lib/best-lineup/best-lineup";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getTeamsResultsOverview } from "@/lib/teams/get-teams-results-overview";
 
 type TeamPageProps = {
   params: Promise<{
@@ -71,6 +72,21 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   if (!team) {
     notFound();
   }
+
+  // Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_SEASON.md
+  // §D`): "current record from canonical matches" -- a real, previously-missing content gap (this
+  // page had no season-long W-D-L anywhere, only current-round status). Reuses the same canonical
+  // `getTeamsResultsOverview()` the Teams overview page already calls, for the most recently
+  // started league season (the same simple "most recent by startDate" default the overview page
+  // itself uses when no explicit period is selected) -- no new scoring logic duplicated here.
+  const mostRecentLeagueSeason = await db.leagueSeason.findFirst({
+    where: { ...orgWhere },
+    orderBy: { startDate: "desc" },
+    select: { id: true },
+  });
+  const teamRecord = mostRecentLeagueSeason
+    ? (await getTeamsResultsOverview(mostRecentLeagueSeason.id, ctx.orgFilter)).rows.find((r) => r.teamId === team.id) ?? null
+    : null;
 
   const [bestLineup, teamFormations, teamFocuses] = await Promise.all([
     getBestLineup(teamId, ctx.orgFilter),
@@ -397,6 +413,9 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     currentRoundLabel,
     currentRoundId,
     coreCountThisRound,
+    record: teamRecord
+      ? { matchesPlayed: teamRecord.matchesPlayed, wins: teamRecord.wins, draws: teamRecord.draws, losses: teamRecord.losses }
+      : null,
     sentAsSupportCount: sentAsSupport.length,
     receivedSupportCount: receivedPlayers.filter((p) => p.role === "SUPPORT").length,
     receivedSquadRepairCount: receivedPlayers.filter((p) => p.role === "BACKFILL").length,
