@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { recordEventForActor, LiveMatchDomainError } from "@/lib/live-match/live-match-event-store";
+import {
+  recordEventForActor,
+  LiveMatchDomainError,
+  LiveMatchSequenceIntegrityError,
+} from "@/lib/live-match/live-match-event-store";
 import { verifyInternalRequest } from "@/lib/live-match/realtime/internal-auth";
 import type { InternalPersistEventRequest } from "@/lib/live-match/realtime/realtime-messages";
 import type { LiveMatchEventType, LiveEventCorrectionType } from "@/lib/live-match/live-match-types";
@@ -35,7 +39,9 @@ export async function POST(request: Request) {
     !body.organisationId ||
     !body.userId ||
     !body.clientEventId ||
-    !body.eventType
+    !body.eventType ||
+    typeof body.sequence !== "number" ||
+    typeof body.acceptedAtMs !== "number"
   ) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -54,6 +60,12 @@ export async function POST(request: Request) {
         clientEventId: body.clientEventId,
         correctionType: body.correctionType as LiveEventCorrectionType | undefined,
         correctsEventId: body.correctsEventId,
+        // ADR-0138 (Bundle 2) — coordinator-assigned sequence and acceptance time, required on
+        // this internal-only path (never accepted from an ordinary browser caller).
+        sequence: body.sequence,
+        acceptedAtMs: body.acceptedAtMs,
+        clientCapturedAtMs: body.clientCapturedAtMs,
+        originClientId: body.originClientId,
       },
       { userId: body.userId, organisationId: body.organisationId },
     );
@@ -79,8 +91,14 @@ export async function POST(request: Request) {
     // on its own terms (session missing/inactive, org/match mismatch, failed validation) and
     // will never succeed no matter how many times it's retried — 422, terminal. Anything else
     // is unexpected (Prisma/network failure) and may well succeed on retry — 503, retryable.
+    // ADR-0138 (Bundle 2) — a `LiveMatchSequenceIntegrityError` is also terminal for this exact
+    // request (the sequence it asked for is genuinely taken by a different event), but it is a
+    // distinct, operator-significant condition (a real sequence collision, never expected in
+    // normal operation) rather than an ordinary domain validation rejection — logged with its
+    // own error code so it stands out from routine 422s.
     const latencyMs = Date.now() - startedAt;
     const isDomainError = error instanceof LiveMatchDomainError;
+    const isSequenceIntegrityError = error instanceof LiveMatchSequenceIntegrityError;
     // SPEC.md §32 — never log full event payloads (may carry fair-play free text) or the
     // request's own signature/secret; the error message and correlation ids are enough to
     // diagnose a rejection without ever needing to log the sensitive body itself.
@@ -92,12 +110,17 @@ export async function POST(request: Request) {
         matchId: body.matchId,
         sessionId: body.sessionId,
         clientEventId: body.clientEventId,
+        sequence: body.sequence,
         latencyMs,
-        errorCode: isDomainError ? "DOMAIN_REJECTED" : "PERSISTENCE_FAILED",
+        errorCode: isSequenceIntegrityError
+          ? "SEQUENCE_INTEGRITY_FAILURE"
+          : isDomainError
+            ? "DOMAIN_REJECTED"
+            : "PERSISTENCE_FAILED",
       },
       "[internal:live-match:events] Failed to persist event",
     );
     const message = error instanceof Error ? error.message : "Failed to persist event";
-    return NextResponse.json({ error: message }, { status: isDomainError ? 422 : 503 });
+    return NextResponse.json({ error: message }, { status: isDomainError || isSequenceIntegrityError ? 422 : 503 });
   }
 }

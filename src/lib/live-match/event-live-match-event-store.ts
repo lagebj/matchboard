@@ -18,6 +18,13 @@ export interface EventLiveEventInput {
   clientEventId: string;
   correctionType?: LiveEventCorrectionType;
   correctsEventId?: string;
+  /** ADR-0138 (Bundle 2) schema/type parity with League's `LiveEventInput`. Always undefined
+   * today — Event live reporting has no Durable Object coordinator yet (ARR-0046), so nothing
+   * can supply a coordinator-assigned sequence until Bundle 8. */
+  sequence?: number;
+  acceptedAtMs?: number;
+  clientCapturedAtMs?: number;
+  originClientId?: string;
 }
 
 export async function recordEventEvent(input: EventLiveEventInput) {
@@ -58,6 +65,10 @@ export async function recordEventEvent(input: EventLiveEventInput) {
       correctsEventId: input.correctsEventId ?? null,
       clientEventId: input.clientEventId ?? null,
       organisationId: ctx.organisationId,
+      sequence: input.sequence ?? null,
+      acceptedAt: input.acceptedAtMs != null ? new Date(input.acceptedAtMs) : null,
+      clientCapturedAt: input.clientCapturedAtMs != null ? new Date(input.clientCapturedAtMs) : null,
+      originClientId: input.originClientId ?? null,
     },
   });
 

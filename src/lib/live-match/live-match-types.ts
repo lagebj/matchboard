@@ -33,6 +33,14 @@ export interface LiveEventInput {
   clientEventId: string;
   correctionType?: LiveEventCorrectionType;
   correctsEventId?: string;
+  /** ADR-0138 (Bundle 2) — only ever supplied by the internal, coordinator-only persistence
+   * path (`/api/internal/live-match/events`). Never accept these from an ordinary browser
+   * caller; `recordEvent()` (the session-cookie-authenticated wrapper) never sets them, so
+   * they stay `undefined` for the direct-HTTP path (ARR-0045, until Bundle 4's cutover). */
+  sequence?: number;
+  acceptedAtMs?: number;
+  clientCapturedAtMs?: number;
+  originClientId?: string;
 }
 
 export interface RotationInput {

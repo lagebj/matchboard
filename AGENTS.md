@@ -4532,7 +4532,7 @@ residual: `CanonicalLiveEvent` carries no `correctsEventId` on the realtime wire
 *viewer* can briefly show a reversed goal still in the score until the next full reconcile (the
 reporter and the persisted report are correct). See ADR-0133 for the full forensics.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundle 1
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-2
 complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
 persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
 `baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
@@ -4547,18 +4547,41 @@ independently-ordered canonical row, only queue locally when the coordinator is 
 service worker scoped only to an already-established live-reporting session (never broad
 authenticated pages) lets that session continue recording through a connectivity loss and survive
 reload/restart on the same device; a genuine state-sensitive conflict becomes a structured,
-coach-reviewable `NEEDS_REVIEW` state, never a silent last-write-wins. Bundle 1 (this entry)
-completed the mandatory contract/ADR/residue alignment step before any behavior code changes: see
-ADR-0138 for the full decision, and ARR-0045 (dual canonical write path), ARR-0046 (League/Event
+coach-reviewable `NEEDS_REVIEW` state, never a silent last-write-wins. Bundle 1 completed the
+mandatory contract/ADR/residue alignment step before any behavior code changes: see ADR-0138 for
+the full decision, and ARR-0045 (dual canonical write path), ARR-0046 (League/Event
 live-coordination asymmetry — Event currently has *zero* Durable Object involvement, stronger than
 previously documented), and ARR-0047 (the live projection's reversal handling targets the wrong
 event id, so a reversed goal is never actually excluded from its own score calculation — a
 separate, more specific defect than the wire-level residual named in the paragraph above) for the
-verified structural findings this decision responds to. Remaining bundles (persisted sequence,
-semantic concurrency, single mutation path, authoritative projection, durable outbox, scoped PWA
-continuation, conflict UX/Event parity, observability/cutover) are tracked in
-`.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file) and have
-not yet changed any runtime behavior described elsewhere in this section.
+verified structural findings this decision responds to.
+
+**Bundle 2 (persistent canonical sequence and protocol v2) is now implemented.**
+`LiveMatchEvent`/`EventLiveMatchEvent` gained nullable `sequence`/`acceptedAt`/
+`clientCapturedAt`/`originClientId` columns and a `@@unique([sessionId, sequence])` constraint
+(Postgres allows multiple NULLs, so no backfill was required before adding it — a deterministic,
+opt-in backfill exists anyway at `npm run backfill:live-event-sequence`, not yet run). The Durable
+Object's existing per-session `version` counter (`AcceptedEventRecord.version`,
+`workers/live-match/src/state.ts`) *is* the coordinator-assigned sequence — Bundle 2 threads it
+through to Neon via the internal persistence request (`InternalPersistEventRequest.sequence`/
+`acceptedAtMs`, now required fields) rather than introducing a second counter. The internal
+snapshot endpoint (`/api/internal/live-match/snapshot`) orders events by persisted `sequence`
+(Postgres `NULLS LAST` for ASC, `createdAt`/`id` as the deterministic tie-breaker for a
+sequence-less legacy or direct-HTTP row) and returns a `lastSequence` total.
+`evaluateReconciliation()` reuses a discovered event's real persisted sequence verbatim and never
+renumbers it — only a genuinely sequence-less row gets a synthetic, transitional assignment
+(DECISIONS.md D06). `CanonicalLiveEvent` and `MatchSessionSnapshot` carry the full v2 shape
+(`sequence`, `correctionType`, `correctsEventId`, `capturedAtClientMs`, `lastSequence`, a
+placeholder `revisions: {clock:0, lineup:0, annotation:0}` real classification-based increments
+land in Bundle 3) — purely additive, so an older client that doesn't understand the new fields is
+unaffected (the same rollout pattern ADR-0112 already established for `period`/`matchSeconds`). A
+genuine sequence collision (a different `clientEventId` targeting an already-assigned sequence) is
+a distinct `LiveMatchSequenceIntegrityError`, never silently resolved. **No coach-visible behavior
+has changed yet** — the browser still runs the pre-Bundle-2 `baseVersion` conflict model
+end-to-end; Bundle 3 replaces that. Remaining bundles (semantic concurrency, single mutation path,
+authoritative projection, durable outbox, scoped PWA continuation, conflict UX/Event parity,
+observability/cutover) are tracked in
+`.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |
 |------|---------|

@@ -574,6 +574,90 @@ describe("evaluateReconciliation", () => {
     expect(result.finalVersion).toBe(7);
     expect(result.newRecords).toEqual([]);
   });
+
+  // ADR-0138 (Bundle 2, DECISIONS.md D06): "Reconcile Durable Object state from persisted
+  // sequence, never regenerated local numbering."
+  describe("persisted sequence is authoritative (ADR-0138, Bundle 2)", () => {
+    it("reuses a discovered event's real persisted sequence verbatim, never renumbering it", () => {
+      const result = evaluateReconciliation({
+        currentVersion: 0,
+        knownClientEventIds: new Set(),
+        canonicalEvents: [
+          { clientEventId: "a", id: "canon-a", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z", sequence: 5 },
+        ],
+      });
+      expect(result.newRecords).toEqual([expect.objectContaining({ clientEventId: "a", version: 5 })]);
+      expect(result.finalVersion).toBe(5);
+    });
+
+    it("seeds finalVersion from the highest persisted sequence when it exceeds the object's own prior version — a fresh object with no local state resumes correctly instead of colliding with rows Neon already has", () => {
+      const result = evaluateReconciliation({
+        currentVersion: 0,
+        knownClientEventIds: new Set(),
+        canonicalEvents: [
+          { clientEventId: "a", id: "canon-a", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z", sequence: 10 },
+        ],
+      });
+      expect(result.finalVersion).toBe(10);
+    });
+
+    it("a real-sequenced event keeps its exact slot; a legacy sequence-less event (ARR-0045, direct-HTTP path) is assigned synthetically after the highest real sequence seen", () => {
+      const result = evaluateReconciliation({
+        currentVersion: 0,
+        knownClientEventIds: new Set(),
+        canonicalEvents: [
+          // Snapshot order already puts sequence-less rows last (Postgres NULLS LAST), so a
+          // real-world call would never see this exact ordering — but the function must not
+          // depend on caller-supplied ordering to get this right.
+          { clientEventId: "legacy", id: "canon-legacy", eventType: "GOAL_AGAINST", createdAt: "2026-08-23T00:00:01.000Z" },
+          { clientEventId: "real", id: "canon-real", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z", sequence: 7 },
+        ],
+      });
+      // The legacy row is assigned AFTER the highest real sequence seen anywhere in the batch
+      // (8, not 1) — `maxPersistedSequence` is computed up front from the whole array, so this
+      // is correct regardless of which order the array happens to arrive in.
+      expect(result.newRecords).toEqual([
+        expect.objectContaining({ clientEventId: "legacy", version: 8 }),
+        expect.objectContaining({ clientEventId: "real", version: 7 }),
+      ]);
+      expect(result.finalVersion).toBe(8);
+    });
+
+    it("does not renumber an already-known event even if it carries a persisted sequence", () => {
+      const result = evaluateReconciliation({
+        currentVersion: 3,
+        knownClientEventIds: new Set(["known"]),
+        canonicalEvents: [
+          { clientEventId: "known", id: "canon-known", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z", sequence: 1 },
+        ],
+      });
+      expect(result.newRecords).toEqual([]);
+      // Still seeds finalVersion from the max persisted sequence discovered, even for an
+      // already-known event — the object's own tracked version must never fall behind Neon's.
+      expect(result.finalVersion).toBe(3);
+    });
+
+    it("threads correctionType/correctsEventId into the reconciled record's eventFields so a later getSnapshot from this object reflects them", () => {
+      const result = evaluateReconciliation({
+        currentVersion: 0,
+        knownClientEventIds: new Set(),
+        canonicalEvents: [
+          {
+            clientEventId: "reversal",
+            id: "canon-reversal",
+            eventType: "EVENT_REVERSED",
+            createdAt: "2026-08-23T00:00:00.000Z",
+            sequence: 2,
+            correctionType: "REVERSAL",
+            correctsEventId: "canon-goal",
+          },
+        ],
+      });
+      expect(result.newRecords[0]?.eventFields).toEqual(
+        expect.objectContaining({ correctionType: "REVERSAL", correctsEventId: "canon-goal" }),
+      );
+    });
+  });
 });
 
 describe("advanceClockAnchor (ADR-0133 H6c)", () => {
