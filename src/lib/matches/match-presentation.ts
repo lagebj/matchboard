@@ -5,7 +5,7 @@
  * Canonical match data is normalized into display fields *once*, here, so every
  * match surface (Today, League/Fixtures, Events, match headers, Follow Live,
  * history, player participation) renders from the same contract via one of the
- * three canonical variants — `MatchScoreRow`, `MatchCard`, `MatchHeader`.
+ * four canonical variants — `MatchRow`, `MatchCard`, `MatchHeader`, `MatchLiveStrip`.
  *
  * This changes no domain truth. Lifecycle is still `deriveMatchLifecycleStatus()`;
  * scores are still whatever canonical post-match/live data produced. The builder

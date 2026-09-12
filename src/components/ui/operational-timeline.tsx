@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
  * Time is a structure for football work — not a calendar product, a task
  * manager, or an inbox. Used on Today and Event detail. A `TimelineItem` owns
  * its time position and node state; its content owns everything else (a match
- * item renders `MatchScoreRow` in the content slot).
+ * item renders `MatchRow` in the content slot).
  *
  * Compact geometry: 48–52px time column, 8px gap, 2px rail, 8–10px node, 12px
  * gap to content, 10–12px item padding. Structural — no per-item floating card,

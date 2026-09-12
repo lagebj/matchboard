@@ -17,7 +17,6 @@ import {
  *
  *   - `MatchRow`       — dense divider-based scan row (League, Today timeline,
  *                        event timelines, results/history). No card border.
- *                        (`MatchScoreRow` is a deprecated alias.)
  *   - `MatchCard`      — the match as a primary object with page context around
  *                        it (Today next-action hero, Round Board / event selected
  *                        match). One bordered card, one dominant action.
@@ -221,9 +220,6 @@ export function MatchRow({
   }
   return body;
 }
-
-/** @deprecated Use {@link MatchRow}. Kept while consumers migrate. */
-export const MatchScoreRow = MatchRow;
 
 /* ------------------------------------------------------------------------- */
 /* Match live strip (Live Reporting only)                                   */

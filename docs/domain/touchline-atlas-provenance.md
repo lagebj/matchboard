@@ -1569,3 +1569,91 @@ new regression test (`src/app/__tests__/manifest.test.ts`) locks in the exact
 `background_color`/`theme_color` hex value against the drift found above. `npm run validate`
 (14/14, including a successful build) and `npm run terminology:check` were run before committing
 this entry.
+
+## 40. Phase 9 — Remove transitional design (2026-09-12)
+
+`12_CODE_CHANGE_MAP.md §13` scopes this narrowly: "remove obsolete generic wrapper components
+**only if no remaining consumers**... delete visual compatibility CSS from old page composition
+**where safe**." Not: rewrite every still-live pre-Touchline component. AGENTS.md's own "Frontend
+visual authority — Touchline" record already establishes the two things this phase must *not* do:
+CSS-token-level compatibility aliases (`--surface-tactical`, `--surface-hero`, `--radius-xs/sm/
+md/lg`, etc.) were already fully removed by ADR-0134 Phase 10, and "delete obsolete components" —
+the mainstream shared primitives (`Button`, `PageHeader`, `SectionHeader`, `Surface`, `DataTable`,
+`PlayerChip`, `BottomSheet`, `MetricTile`, `IntentCard`, `TabRail`, `PlayerMagnet`, `Dialog`,
+the `InlineEdit*` family, `Toast`, `EmptyState`, `ResponsiveTableCard`, `InstallPwaCard`, plus
+shell chrome) — is explicitly recorded there as "deliberately deferred, not done here... none of
+these are actually obsolete yet" (the vast majority of routes still use them; only a named subset
+across many phases got an explicit `Touchline*` swap). Attempting a full swap-then-delete pass
+here would be the "future full-consistency pass" that same record explicitly describes as
+separate, larger, undone work — out of this phase's scope, not something to quietly absorb.
+
+**Method**: every export in `src/components/ui/` and `src/components/touchline/` was checked for
+real, non-self-referential importers via direct `grep` across the whole `src/` tree — not a
+static-analysis tool's guess. `ts-prune` was tried first and rejected as the sole signal: it
+flags nearly every barrel-exported name in `src/components/touchline/index.ts` as "unused" purely
+because it cannot trace a re-export barrel forward to real call sites (e.g. it flagged
+`TouchlineButton`, `EvidenceStory`, and dozens of other components AGENTS.md's own detailed
+migration record already documents as actively used in production) — direct-consumer grep is the
+reliable check here, and it is what every deletion below is actually justified by.
+
+**Four fully orphaned files, deleted outright** (zero references anywhere in `src/` outside their
+own definition, confirmed by name for every exported symbol):
+
+- `src/components/ui/severity-badge.tsx` — `SignalBadge`, `signalConfigFor`,
+  `signalLevelFromDbSeverity`, `signalLevelFromCode`, and its own `SignalLevel` type. Real
+  Blocked/Decision-required/Planning-note signal rendering already goes through `StatusPill`/
+  `DecisionBanner` directly (confirmed in `round-board.tsx`'s own imports, the actual primary
+  surface for plan-integrity signals) — this file was a fully superseded, never-actually-wired
+  duplicate.
+- `src/components/ui/status-rail.tsx` — `StatusRail`. ADR-0134 Phase 10's own token-cleanup pass
+  had already repointed this file's `--locked`/`--locked-subtle` references to `--text-disabled`
+  (recorded in that ADR and in AGENTS.md) — a real fix applied to a file that, it turns out, had
+  no consumer to see it. The component itself was never imported anywhere.
+- `src/components/ui/warning-card.tsx` — `SignalCard` and a second, independent `SignalLevel`
+  type declaration (a duplicate of `severity-badge.tsx`'s own). ADR-0007's original text named
+  this file "WarningCard" informally — no component of that literal name ever existed anywhere in
+  the codebase; `SignalCard` was the real export, confirmed to have zero consumers alongside its
+  sibling. ADR-0007 gained a short superseding note in its own Status section (its body — the
+  original design decision — is otherwise unchanged, per this repository's append-only ADR
+  convention).
+- `src/components/ui/branded-surface.tsx` — `BrandedSurface`, from the original, pre-Touchline
+  `#103` "non-empty state branding" PR (predates ADR-0007's own calm-cockpit system). Superseded
+  by direct `Surface`/`TouchlineWidget` usage on every route that needed an illustrated empty/hero
+  surface; this specific composition was never actually adopted.
+
+**One deprecated compatibility export, removed**: `MatchScoreRow`
+(`src/components/ui/match-presentation.tsx`) — a `@deprecated` alias (`export const MatchScoreRow
+= MatchRow`) for `MatchRow`, ADR-0125's own original name for the component before that same
+ADR's §11 renamed it. Zero production callers remained (confirmed: only its own doc comments and
+its own dedicated test block referenced the name). The test coverage itself is real and was kept,
+renamed from `describe("MatchScoreRow", ...)`/`render(<MatchScoreRow .../>)` to `MatchRow` rather
+than deleted — this is a rename of working tests, not a coverage reduction. Every doc-comment
+mention of `MatchScoreRow` still describing it as current (`AGENTS.md`'s "Frontend visual
+authority" section, three occurrences; `docs/product/adaptive-interaction-design.md`, three
+occurrences) was updated to `MatchRow`. `src/lib/matches/match-presentation.ts`'s own header
+comment additionally still said "three canonical variants" — a separate, pre-existing inaccuracy
+(the fourth variant, `MatchLiveStrip`, already existed and is documented elsewhere in the same
+file) found and fixed while touching this exact line. ADR-0125 gained a short superseding note in
+its own Status section, its body otherwise unchanged, matching the ADR-0007/ADR-0123 pattern
+already established in this phase and Phase 8.
+
+**Deliberately not touched, with reasoning**: every one of the ~30 shared cross-cutting
+primitives AGENTS.md's Touchline material-migration record names as still genuinely load-bearing
+(`Button`, `PageHeader`, `SectionHeader`, `DataTable`, `PlayerChip`, `BottomSheet`, `MetricTile`,
+`IntentCard`, `TabRail`, `PlayerMagnet`, `Dialog`, `InlineEditField`/`InlineEditSelect`/
+`InlineEditSegmented`, `Toast`, `EmptyState`, `ResponsiveTableCard`, `InstallPwaCard`,
+`CommandPalette`, `HelpDrawer`, `UserNav`, `Surface`, `StatusPill`, `RoleBadge`, `StatusBadge`,
+`PlayerMagnet`, `PositionMap`, `MovementArrow`, `IssueMarker`, `TeamShield`, `Skeleton`,
+`DecisionBanner`, `TacticalSurface`) — each independently re-confirmed here to have real,
+non-trivial consumer counts (ranging from 1 to 25+ importing files) via the same direct-grep
+method used to find the four deletions above. None are candidates for this phase; a future
+full-consistency pass (swap every remaining `Button`/`PageHeader` usage to its Touchline
+equivalent across the whole app, *then* delete the PS 1.0 component) remains real, separate,
+larger, undone work, exactly as AGENTS.md's own record already discloses — not something this
+narrow removal pass silently expanded to cover.
+
+Verified: `tsc --noEmit` clean, `npm run lint` clean on every changed file, the renamed
+`match-presentation.test.tsx` block passes unchanged (10/10), `npm run terminology:check` and
+`npm run architecture:check` both clean, and full `npm run validate` (14/14, including a
+successful build) confirms nothing anywhere in the app still imports any of the four deleted
+files or the removed alias.

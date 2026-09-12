@@ -2850,8 +2850,8 @@ specifics are superseded and its retained domain/accessibility principles carry 
   and player-participation contexts. `MatchPresentation` (`src/lib/matches/match-presentation.ts`,
   built via `buildMatchPresentation()`) is the one normalized display projection; surfaces
   render it through the **four variants** in `src/components/ui/match-presentation.tsx` —
-  `MatchRow` (dense divider-based scan row, no card border — League, timelines, history;
-  `MatchScoreRow` is a deprecated alias), `MatchCard` (match as primary object, one bordered
+  `MatchRow` (dense divider-based scan row, no card border — League, timelines, history),
+  `MatchCard` (match as primary object, one bordered
   card + one dominant action — Today hero, Round Board / event selected match), `MatchHeader`
   (match-page identity), and `MatchLiveStrip` (minimal score/clock/status strip — **Live
   Reporting only**, never on Follow Live, no list-row mutation controls). Never build a
@@ -2868,7 +2868,7 @@ specifics are superseded and its retained domain/accessibility principles carry 
 - **Operational Timeline (ADR-0125)**: one canonical timeline system —
   `src/components/ui/operational-timeline.tsx` (`OperationalTimeline` + `TimelineItem`) — used on
   Today and Event detail. A structural time column + 2px rail + nodes, not a calendar/task
-  product. Match items render `MatchScoreRow`; the timeline owns time position. Current/live item
+  product. Match items render `MatchRow`; the timeline owns time position. Current/live item
   strongest with a filled node and its action available (no perpetual pulse); `NEXT` hollow node;
   `LATER` quieter; earlier completed items muted and collapsible (compact Today shows ≤2 inline,
   rest behind `Earlier today (N)`); an incomplete required follow-up (e.g. missing post-match
@@ -2889,7 +2889,7 @@ specifics are superseded and its retained domain/accessibility principles carry 
   call existing canonical server/domain operations — no client-only validation shortcut. Blocked
   / Decision required stay prominent.
 - **Events** are temporal: compact list chronological, grouped by month/date; event detail leads
-  with an event-day match timeline (`OperationalTimeline` + `MatchScoreRow`) above squad/helper
+  with an event-day match timeline (`OperationalTimeline` + `MatchRow`) above squad/helper
   administration. Squad/evidence semantics unchanged.
 - **Players**: desktop may keep a comparison table; compact renders a purpose-built player
   summary (name, core-team/base-group context, attention state, concise recent participation,

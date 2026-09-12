@@ -338,7 +338,7 @@ grammar owners (§0.6) render the same variants with Touchline's visual language
 
 | Variant | Use | Shape |
 |---------|-----|-------|
-| `MatchRow` (alias `MatchScoreRow`; Touchline: `ScorebookMatchRow`) | League/Fixtures, the Today operational timeline, event-day timelines, results/history | dense, **divider-based, no card border**; two team lines each with its value in a stable right-aligned lane; one status line; at most one secondary attention |
+| `MatchRow` (Touchline: `ScorebookMatchRow`) | League/Fixtures, the Today operational timeline, event-day timelines, results/history | dense, **divider-based, no card border**; two team lines each with its value in a stable right-aligned lane; one status line; at most one secondary attention |
 | `MatchCard` (Touchline: `OperationalMatchCard`) | Today next-action hero, Round Board / event selected-match summary | one bordered card (`--tl-radius-object`); `DATE · TIME` eyebrow above teams; one dominant action slot; one attention sentence |
 | `MatchHeader` (Touchline: `MatchScoreHeader`) | match-specific pages (detail, Follow Live, Live Reporting) | state readable before page controls; score uses `--text-score-header`/`.tl-score-hero`; compact stacks home/away with per-line value; expanded shows one inline `home  N : M  away` line |
 | `MatchLiveStrip` (Touchline: `LiveScoreStrip`) | a compact live status strip where a full header is too much | teams + score + `LIVE · <clock>`, no mutating controls |
@@ -387,7 +387,7 @@ calendar product, a task manager, or a general inbox.
 
 ### Item types
 
-- **Match item** — renders `MatchScoreRow`/`ScorebookMatchRow` in the content area; the timeline
+- **Match item** — renders `MatchRow`/`ScorebookMatchRow` in the content area; the timeline
   owns time position, the match component owns teams/score/state/action.
 - **Event item** — event name, start/end, readiness/action state.
 - **Follow-up item** — post-match report or another canonical required follow-up. Stays
@@ -490,7 +490,7 @@ squad/readiness summary; action state. Do not lead with count columns.
 ### Event detail
 1. event identity / date / context;
 2. readiness / next action;
-3. **event-day match timeline** — `OperationalTimeline` with `MatchScoreRow` match items, above
+3. **event-day match timeline** — `OperationalTimeline` with `MatchRow` match items, above
    squad/helper administration;
 4. squads;
 5. players / helpers / notes and secondary administration.
