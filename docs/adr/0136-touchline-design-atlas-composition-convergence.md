@@ -121,7 +121,8 @@ completion criterion, "Human final visual sign-off required," is not a self-impo
 decision removes — it is the phase's own deliverable, not a "may I proceed" pause between phases,
 and stays in force as written.
 
-**Phase 7 progress: Formations, Groups, Rules, Settings, and More addressed (5 of 7).** Formations: the real production
+**Phase 7 progress: Formations, Groups, Rules, Settings, More, and Peer reviews addressed (6 of
+7).** Formations: the real production
 create/edit route, not a UI-Lab copy; every existing slot-mutation/save/list action is frozen,
 completely untouched. `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §A` names four "selected
 slot details" facts — three (role type, exact derived target role, lane) were already
@@ -146,8 +147,17 @@ sections) doesn't warrant one, the same class of decision as Formations' decline
 layout. More: **no code change** — the page already has the exact five named groupings (Coaching
 & evidence, Competition & history, Structure & configuration, Collaboration, Settings) plus a
 legitimate admin-only "Advanced" sixth group, and the "Install Matchboard" PWA callout already
-renders unconditionally. Full account: `docs/domain/touchline-atlas-provenance.md` §32
-(Formations), §33 (Groups), §34 (Rules), §35 (Settings), §36 (More).
+renders unconditionally. Peer reviews: `10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §F`
+requires each request to show its target, requester, change/superseded state, and primary
+action — the existing Pending-for-me/Requested-by-me/History sections and per-row status/action
+composition were already correct, but no row displayed *who* requested it. `ReviewRequest`
+stores only membership ids (no Prisma relation to `OrganisationMembership`), so the one genuine
+gap was closed with a single batched server-side lookup (`page.tsx`) resolving requester ids to
+display names, passed down as a plain map — no new query per row, no name stored in the
+component's own state. Decision reviews are correctly absent from this page (§F: "No decision
+reviews mixed into peer reviews" — they render on Today/player/team detail instead, per
+AGENTS.md's "Review vocabulary"). Full account: `docs/domain/touchline-atlas-provenance.md` §32
+(Formations), §33 (Groups), §34 (Rules), §35 (Settings), §36 (More), §37 (Peer reviews).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,

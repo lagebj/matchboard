@@ -39,5 +39,27 @@ export default async function ReviewsPage({ params }: { params: Promise<{ orgSlu
     },
   });
 
-  return <ReviewListClient reviews={reviews} myMembershipId={membership.id} />;
+  // Touchline Design Atlas (ADR-0136 Phase 7, `10_ROUTE_COMPOSITION_CONFIG_MORE_
+  // REVIEWS_AUTH.md §F`): each request must show its requester, not only the target and
+  // status. `ReviewRequest` stores only membership ids (no Prisma relation to
+  // OrganisationMembership), so requester display names are resolved here in one batched
+  // query and handed to the client as a plain id -> name map.
+  const membershipIds = Array.from(
+    new Set(reviews.map((r) => r.requestedByMembershipId)),
+  );
+  const requesterMemberships =
+    membershipIds.length > 0
+      ? await db.organisationMembership.findMany({
+          where: { id: { in: membershipIds } },
+          select: { id: true, user: { select: { name: true, email: true } } },
+        })
+      : [];
+  const requesterNames: Record<string, string> = {};
+  for (const m of requesterMemberships) {
+    requesterNames[m.id] = m.user.name ?? m.user.email;
+  }
+
+  return (
+    <ReviewListClient reviews={reviews} myMembershipId={membership.id} requesterNames={requesterNames} />
+  );
 }

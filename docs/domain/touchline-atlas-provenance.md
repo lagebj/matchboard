@@ -1407,3 +1407,38 @@ alone (after Rules, §34) — every named grouping, every named callout, and the
 set were already correct before this pass began. `npm run terminology:check` was run before
 committing this entry; no version bump accompanies it (a `none`-class purely explanatory
 documentation change, matching the Rules/evidence-detail-routes precedent).
+
+## 37. Phase 7 — Peer reviews production migration (2026-09-12)
+
+Sixth of Phase 7's seven named routes. The real production `/reviews` route
+(`src/app/(app)/o/[orgSlug]/reviews/page.tsx` + `review-list-client.tsx`) — not a UI-Lab copy.
+Every existing `ReviewRequest` mutation (resolve/approve, request changes, cancel) is **frozen,
+completely untouched** — this is a one-field display addition, not a restructuring.
+
+`10_ROUTE_COMPOSITION_CONFIG_MORE_REVIEWS_AUTH.md §F` requires "current `ReviewRequest` semantics"
+(Pending for me / Requested by me / History) and, per request: target, requester, change/
+superseded state, primary action; plus "no decision reviews mixed into peer reviews." Checked
+field-by-field against the existing page: the three sections, per-row target (linked to the real
+event/match), status (`Pending`/`Changes requested`/`Superseded`/…, neutral tone — no light-mode
+red/green pill), created date, comment/request-message text, and the per-section primary action
+(Approve/Request changes/Cancel request) were **all already correct**. The one genuine gap: no
+row showed **who requested it** — `requester` was named explicitly in §F and was entirely absent.
+`ReviewRequest` has no Prisma relation to `OrganisationMembership` (it stores only membership ids,
+matching this codebase's general "player IDs, not names, in stored payloads" discipline for
+non-player identity too), so the fix resolves the small, bounded set of distinct requester
+membership ids actually present on the page in one batched query in `page.tsx`, passed to the
+client component as a plain `id -> display name` map — no per-row query, no name persisted
+anywhere new. Decision reviews (`DecisionReview`, ADR-0132) were confirmed absent from this page,
+correctly — §F's "no decision reviews mixed into peer reviews" is already satisfied; they surface
+on Today/player/team detail instead (AGENTS.md "Review vocabulary").
+
+No desktop/mobile layout change was needed — the golden's composition (list-first, per-row
+target/requester/state/action) already matched the existing three-section layout exactly; this
+was a data-completeness gap, not a composition gap, the same class of finding as Groups' missing
+tile (§33) and Settings' missing About section (§35).
+
+Verified: a new component test (`__tests__/review-list-client.test.tsx`, 5 cases) locks in the
+requester name rendering (present, and the neutral "a teammate" fallback when a name can't be
+resolved) and the existing three-section placement/action behaviour, run via
+`vitest run --config vitest.config.components.ts` (5/5 pass). `tsc --noEmit` passed clean.
+`npm run lint` reported no issues on the changed files.

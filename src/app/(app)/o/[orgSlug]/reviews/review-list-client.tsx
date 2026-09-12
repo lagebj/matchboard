@@ -47,9 +47,11 @@ function statusToneClass(status: ReviewStatus): string {
 export function ReviewListClient({
   reviews: initialReviews,
   myMembershipId,
+  requesterNames,
 }: {
   reviews: ReviewRequestRow[];
   myMembershipId: string;
+  requesterNames: Record<string, string>;
 }) {
   const [reviews, setReviews] = useState(initialReviews);
   const [loading, setLoading] = useState<string | null>(null);
@@ -112,6 +114,7 @@ export function ReviewListClient({
         title="Pending for me"
         empty="Nothing is waiting for your review."
         rows={pendingForMe}
+        requesterNames={requesterNames}
         renderActions={(review) => (
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -136,6 +139,7 @@ export function ReviewListClient({
         title="Requested by me"
         empty="You have no open peer review requests."
         rows={requestedByMe}
+        requesterNames={requesterNames}
         renderActions={(review) => (
           <TouchlineButton size="sm" variant="ghost" onClick={() => handleCancel(review.id)} disabled={loading === review.id}>
             Cancel request
@@ -143,7 +147,12 @@ export function ReviewListClient({
         )}
       />
 
-      <ReviewSection title="History" empty="No resolved peer reviews yet." rows={history} />
+      <ReviewSection
+        title="History"
+        empty="No resolved peer reviews yet."
+        rows={history}
+        requesterNames={requesterNames}
+      />
     </div>
   );
 }
@@ -152,11 +161,13 @@ function ReviewSection({
   title,
   empty,
   rows,
+  requesterNames,
   renderActions,
 }: {
   title: string;
   empty: string;
   rows: ReviewRequestRow[];
+  requesterNames: Record<string, string>;
   renderActions?: (review: ReviewRequestRow) => React.ReactNode;
 }) {
   return (
@@ -185,6 +196,9 @@ function ReviewSection({
                   {new Date(review.createdAt).toLocaleDateString()}
                 </span>
               </div>
+              <p className="text-[var(--text-meta)] text-[var(--text-muted)]">
+                Requested by {requesterNames[review.requestedByMembershipId] ?? 'a teammate'}
+              </p>
               {(review.requestMessage || review.reviewerComment) && (
                 <p className="text-[var(--text-meta)] text-[var(--text-soft)]">
                   {review.reviewerComment ?? review.requestMessage}
