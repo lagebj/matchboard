@@ -23,10 +23,15 @@ detail, Players, Player detail, Insights).** All are the real production routes,
 copies; each freezes all existing domain/business logic and is additive composition only. Full
 account: `docs/domain/touchline-atlas-provenance.md` §14 (Today), §15 (League), §16 (Events +
 Event detail), §17 (Today performance follow-up), §18 (Today squad-status placement follow-up),
-§19 (Match detail), §20 (Players + Player detail), §21 (Insights, completing Phase 4). Per
-`13_IMPLEMENTATION_PHASES_AND_GATES.md`, Phase 4 stops here for **Human Gate B** — Phase 5 (the
-football work surfaces: Round Board, Lineup, Tactics, Rotations, Live Reporting, Follow Live,
-Post-match) does not begin without a fresh, explicit human approval.
+§19 (Match detail), §20 (Players + Player detail), §21 (Insights, completing Phase 4).
+
+**Human Gate B: approved 2026-09-12.** The maintainer confirmed Phase 4's production migration
+(the 6 merged PRs above, including the 3 real regressions found and fixed along the way) and
+explicitly authorised proceeding into Phase 5. Per `13_IMPLEMENTATION_PHASES_AND_GATES.md`, this
+unblocks **Phase 5 — football work surfaces** (Round Board, Lineup, Tactics, Rotations, Live
+Reporting, Follow Live, Post-match), which stops again at **Human Gate C** before Phases 6–10
+(historical/intelligence routes, utility/config/collaboration routes, brand asset convergence,
+transitional-design removal, full validation and final sign-off).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
