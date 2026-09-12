@@ -18,11 +18,11 @@ Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/i
 utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
 validation and final sign-off) remain unstarted and ungated until their own turn.
 
-**Phase 4 progress: Today, League, Events, and Match detail migrated (4 of 8).** All are the real
-production routes, not UI-Lab copies; each freezes all existing domain/business logic and is
-additive composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14 (Today),
-§15 (League), §16 (Events), §17 (Today performance follow-up), §18 (Today squad-status placement
-follow-up), §19 (Match detail).
+**Phase 4 progress: Today, League, Events, Match detail, and Players migrated (5 of 8).** All are
+the real production routes, not UI-Lab copies; each freezes all existing domain/business logic and
+is additive composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14
+(Today), §15 (League), §16 (Events), §17 (Today performance follow-up), §18 (Today squad-status
+placement follow-up), §19 (Match detail), §20 (Players).
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -85,6 +85,19 @@ follow-up), §19 (Match detail).
   deliberately deferred, matching the "prefer zero new queries" discipline. Verified: full
   `npm run validate` (14/14), 17 new unit tests across 3 modules, and a real screenshot against the
   seeded dataset.
+- **Players** (`(app)/o/[orgSlug]/players/**`): a deliberately small change. The Players list's
+  row-expansion inspector (`SeasonOverviewTable`'s existing `expandedPlayer` interaction) was found
+  to already cover the UI-Lab reference's "selected-player inspector" concept — a competing
+  side-panel version was not built, to avoid duplicating existing UX. Player detail's ~15 existing
+  panels already independently satisfy most of the bundle spec (opportunity/position-exposure
+  evidence, development focus, observations, recent football); the one genuinely missing, small,
+  safe piece — a participation summary strip (Played/Goals/Assists/Planned absent) below the
+  header, from already-computed all-time stats, zero new query — was added. The spec's tabbed
+  Overview/Matches/Development/Evidence restructuring was deliberately deferred as a real
+  page-hierarchy decision with regression risk disproportionate to this pass, needing its own
+  dedicated review. Verified: full `npm run validate` (14/14), 5 new unit tests (closing
+  `player-list-view-model.ts`'s own test-coverage gap along the way), and real screenshots against
+  the seeded dataset.
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish
