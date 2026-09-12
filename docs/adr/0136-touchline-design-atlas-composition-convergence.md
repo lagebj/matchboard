@@ -18,11 +18,15 @@ Rotations, Live Reporting, Follow Live, Post-match). Phases 6–10 (historical/i
 utility/config/collaboration routes, brand asset convergence, transitional-design removal, full
 validation and final sign-off) remain unstarted and ungated until their own turn.
 
-**Phase 4 progress: Today, League, Events, Match detail, and Players migrated (5 of 8).** All are
-the real production routes, not UI-Lab copies; each freezes all existing domain/business logic and
-is additive composition only. Full account: `docs/domain/touchline-atlas-provenance.md` §14
-(Today), §15 (League), §16 (Events), §17 (Today performance follow-up), §18 (Today squad-status
-placement follow-up), §19 (Match detail), §20 (Players).
+**Phase 4 is complete — all 8 named routes migrated (Today, League, Events, Event detail, Match
+detail, Players, Player detail, Insights).** All are the real production routes, not UI-Lab
+copies; each freezes all existing domain/business logic and is additive composition only. Full
+account: `docs/domain/touchline-atlas-provenance.md` §14 (Today), §15 (League), §16 (Events +
+Event detail), §17 (Today performance follow-up), §18 (Today squad-status placement follow-up),
+§19 (Match detail), §20 (Players + Player detail), §21 (Insights, completing Phase 4). Per
+`13_IMPLEMENTATION_PHASES_AND_GATES.md`, Phase 4 stops here for **Human Gate B** — Phase 5 (the
+football work surfaces: Round Board, Lineup, Tactics, Rotations, Live Reporting, Follow Live,
+Post-match) does not begin without a fresh, explicit human approval.
 
 - **Today** (`(app)/o/[orgSlug]/today/page.tsx` + `AssistantCommandCentrePage`): every existing
   situational-decision-support behaviour (matchday banner, grouped work items, decision reviews,
@@ -98,6 +102,15 @@ placement follow-up), §19 (Match detail), §20 (Players).
   dedicated review. Verified: full `npm run validate` (14/14), 5 new unit tests (closing
   `player-list-view-model.ts`'s own test-coverage gap along the way), and real screenshots against
   the seeded dataset.
+- **Insights** (`(app)/insights/insights-client.tsx`): the hub was found to be exactly the
+  anti-pattern the bundle spec warns against ("do not create a metrics dashboard of equal cards")
+  — twice over (a flat 4-tile summary grid, and a flat 13-card list). Replaced with the spec's own
+  four named sections (Opportunity & load / Roles & development / Match patterns / Planning
+  quality), each with at most one `EvidenceSpotlightWidget` headline reusing the exact same
+  already-fetched overview numbers — zero new query. Real bug found and fixed along the way:
+  `/insights/player-pathways`, a fully-built canonical Insights surface, was entirely absent from
+  the hub's card list — added. Verified: full `npm run validate` (14/14), 9 new unit tests, and
+  real screenshots against the seeded dataset. **This completes Phase 4.**
 
 This is a follow-up to ADR-0134 (Touchline) and ADR-0135 (Touchline Finish & Visual Convergence
 follow-up). It does not replace either — Touchline's tokens/theme system and the Finish

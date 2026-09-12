@@ -16,8 +16,17 @@ import {
   Shuffle,
   Activity,
   Clock,
+  Route,
+  type LucideIcon,
 } from "lucide-react";
 import type { InsightOverview } from "@/lib/insights/insights-types";
+import {
+  INSIGHT_CARDS,
+  groupInsightCards,
+  getGroupSpotlightValue,
+  type InsightCardMeta,
+} from "@/lib/insights/get-insights-hub-groups";
+import { EvidenceSpotlightWidget } from "@/components/touchline/widgets";
 
 type LeagueSeasonOption = {
   id: string;
@@ -37,86 +46,27 @@ type OverviewState =
   | { status: "success"; data: InsightOverview }
   | { status: "error"; message: string };
 
-const SURFACE_CARDS = [
-  {
-    href: "/insights/opportunity",
-    icon: Table2,
-    label: "Opportunity Matrix",
-    description: "Player participation by round — who gets match opportunities, who doesn't, and why",
-  },
-  {
-    href: "/insights/load",
-    icon: BarChart3,
-    label: "Load Timeline",
-    description: "Match load per player over time — identify high recent load and rest patterns",
-  },
-  {
-    href: "/insights/coverage",
-    icon: ShieldAlert,
-    label: "Squad Coverage",
-    description: "Goalkeeper and position coverage per squad — spot structural gaps before matchday",
-  },
-  {
-    href: "/insights/policy-warnings",
-    icon: Eye,
-    label: "Policy Warning Review",
-    description: "Blocked conditions, decision-required flags, and planning notes from policy evaluation",
-  },
-  {
-    href: "/insights/planned-vs-actual",
-    icon: GitCompare,
-    label: "Planned vs Actual",
-    description: "Compare planned squads with actual participation — unplanned additions, absences, role changes",
-  },
-  {
-    href: "/insights/conflicts",
-    icon: CalendarRange,
-    label: "Conflict Review",
-    description: "Overlapping selections, helper conflicts, and double-planned players across rounds",
-  },
-  {
-    href: "/insights/opportunity-quality",
-    icon: ListChecks,
-    label: "Opportunity Quality",
-    description: "Factual context for every planned opportunity — team, role, position, and realised attendance",
-  },
-  {
-    href: "/insights/opportunity-gap",
-    icon: TrendingDown,
-    label: "Opportunity Gap",
-    description: "Planned vs realised opportunity over a period — descriptive, not a debt score",
-  },
-  {
-    href: "/insights/position-exposure",
-    icon: Repeat,
-    label: "Position & Formation Exposure",
-    description: "Planned lineup slots and realised positions per player — unused assignments don't count",
-  },
-  {
-    href: "/insights/player-combinations",
-    icon: Users2,
-    label: "Player Combinations",
-    description: "Co-selection and co-appearance frequency between players — frequency is not effectiveness",
-  },
-  {
-    href: "/insights/continuity",
-    icon: Shuffle,
-    label: "Continuity vs Exploration",
-    description: "Round-over-round retained vs new players and formation repeats per team",
-  },
-  {
-    href: "/insights/operational-health",
-    icon: Activity,
-    label: "Operational Health",
-    description: "Concrete grouped facts about planning state — incomplete lineups, missing reports, stale assignments",
-  },
-  {
-    href: "/insights/match-phase-patterns",
-    icon: Clock,
-    label: "Match Timing Patterns",
-    description: "Repeated goal patterns by match phase (opening minutes, late period) — descriptive, with confidence",
-  },
-];
+/**
+ * Icon per card id — kept here (not in the pure `get-insights-hub-groups.ts` module) since a
+ * lucide component isn't plain data. Card label/description/href/grouping are the single source
+ * of truth in that module; this is presentation-only.
+ */
+const CARD_ICONS: Record<string, LucideIcon> = {
+  opportunity: Table2,
+  "opportunity-quality": ListChecks,
+  "opportunity-gap": TrendingDown,
+  load: BarChart3,
+  coverage: ShieldAlert,
+  "position-exposure": Repeat,
+  "player-pathways": Route,
+  continuity: Shuffle,
+  "match-phase-patterns": Clock,
+  "player-combinations": Users2,
+  "planned-vs-actual": GitCompare,
+  "policy-warnings": Eye,
+  conflicts: CalendarRange,
+  "operational-health": Activity,
+};
 
 function isNumericOverview(data: unknown): data is InsightOverview {
   if (typeof data !== "object" || data === null) return false;
@@ -236,31 +186,6 @@ export function InsightsOverviewClient({
         </div>
       )}
 
-      {overviewState.status === "success" && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <SummaryCard
-            label="Players with no opportunity"
-            value={overviewState.data.playersWithNoOpportunity}
-            accent={overviewState.data.playersWithNoOpportunity > 0}
-          />
-          <SummaryCard
-            label="Players with high load"
-            value={overviewState.data.playersWithHighLoad}
-            accent={overviewState.data.playersWithHighLoad > 0}
-          />
-          <SummaryCard
-            label="Missing reports"
-            value={overviewState.data.matchesWithMissingReports}
-            accent={overviewState.data.matchesWithMissingReports > 0}
-          />
-          <SummaryCard
-            label="Policy warnings"
-            value={overviewState.data.policyWarningsCount}
-            accent={overviewState.data.policyWarningsCount > 0}
-          />
-        </div>
-      )}
-
       {overviewState.status === "loading" && (
         <p className="text-[13px] text-[var(--text-muted)]">Loading insights…</p>
       )}
@@ -277,50 +202,56 @@ export function InsightsOverviewClient({
         </div>
       )}
 
-      <div className="divide-y divide-[var(--border-soft)] border-y border-[var(--border-soft)]">
-        {SURFACE_CARDS.map((card) => (
-          <Link
-            key={card.href}
-            href={`${card.href}?leagueSeasonId=${encodeURIComponent(selectedPeriodId)}`}
-            className="group flex items-start gap-3 py-3.5 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
-          >
-            <card.icon
-              strokeWidth={1.75}
-              className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--accent)]"
-              aria-hidden="true"
-            />
-            <div className="min-w-0">
-              <h2 className="text-[15px] font-[600] text-[var(--foreground)]">{card.label}</h2>
-              <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--text-muted)]">
-                {card.description}
-              </p>
-            </div>
-          </Link>
-        ))}
+      {/* Four narrative groups (Touchline Design Atlas, ADR-0136) — "Do not create a metrics
+          dashboard of equal cards." Replaces the previous flat 13-card list + a separate flat
+          4-tile metric grid (itself the exact anti-pattern the spec warns against) with grouped
+          sections, each carrying at most one already-fetched headline number. */}
+      <div className="flex flex-col gap-6">
+        {groupInsightCards(INSIGHT_CARDS).map((group) => {
+          const spotlight =
+            overviewState.status === "success" ? getGroupSpotlightValue(group.id, overviewState.data) : null;
+          return (
+            <section key={group.id} className="flex flex-col gap-2">
+              <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                {group.title}
+              </h2>
+              {spotlight ? (
+                <EvidenceSpotlightWidget
+                  question={spotlight.label}
+                  label={spotlight.label}
+                  title={spotlight.title}
+                  value={spotlight.value}
+                />
+              ) : null}
+              <div className="divide-y divide-[var(--border-soft)] border-y border-[var(--border-soft)]">
+                {group.cards.map((card) => (
+                  <InsightCardLink key={card.id} card={card} periodId={selectedPeriodId} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent: boolean;
-}) {
+function InsightCardLink({ card, periodId }: { card: InsightCardMeta; periodId: string }) {
+  const Icon = CARD_ICONS[card.id];
   return (
-    <div className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-4 py-3">
-      <div className="text-[12px] text-[var(--text-muted)]">{label}</div>
-      <div
-        className={`mt-1 text-[24px] font-[650] tabular-nums ${
-          accent ? "text-[var(--warning)]" : "text-[var(--foreground)]"
-        }`}
-      >
-        {value}
+    <Link
+      href={`${card.href}?leagueSeasonId=${encodeURIComponent(periodId)}`}
+      className="group flex items-start gap-3 py-3.5 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
+    >
+      <Icon
+        strokeWidth={1.75}
+        className="mt-0.5 h-5 w-5 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--accent)]"
+        aria-hidden="true"
+      />
+      <div className="min-w-0">
+        <h3 className="text-[15px] font-[600] text-[var(--foreground)]">{card.label}</h3>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--text-muted)]">{card.description}</p>
       </div>
-    </div>
+    </Link>
   );
 }

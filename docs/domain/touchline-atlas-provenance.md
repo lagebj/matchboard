@@ -634,3 +634,52 @@ new tests for `player-list-view-model.ts` (closing its coverage gap), and real s
 + mobile) against the seeded Fjordvik FK dataset confirming the participation strip (0 Played / 0
 Goals / 0 Assists / 0 Planned absent for the captured player) renders correctly below the header,
 with every existing panel below it unchanged.
+
+## 21. Phase 4 — Insights production migration, completing Phase 4 (2026-09-12)
+
+Sixth and final of the eight named Phase 4 "High-identity routes" (Events and Player detail were
+each folded into one PR alongside their list page, per §16/§20 above — this is the last remaining
+distinct route). The production Insights hub (`(app)/insights/insights-client.tsx`, rendered via
+`(app)/o/[orgSlug]/insights/page.tsx`) — not a UI-Lab copy.
+
+The hub was found, on inspection, to be exactly the anti-pattern
+`07_ROUTE_COMPOSITION_PLAYERS_INSIGHTS.md §C` explicitly warns against: "Do not create a metrics
+dashboard of equal cards." It had **two** instances of this — a flat 4-tile `SummaryCard` grid
+(`playersWithNoOpportunity`/`playersWithHighLoad`/`matchesWithMissingReports`/
+`policyWarningsCount`, all visually equal) sitting above a flat, ungrouped list of 13 surface
+cards, with no narrative structure at all.
+
+**Fix**: the spec's own four named sections — Opportunity & load / Roles & development / Match
+patterns / Planning quality — implemented as a new pure grouping module,
+`src/lib/insights/get-insights-hub-groups.ts` (`INSIGHT_CARDS`, `groupInsightCards()`,
+`getGroupSpotlightValue()`). Card → group assignment follows the spec's own "primary from" lists
+verbatim (e.g. Player Combinations belongs to Match patterns, not Roles & development, even though
+both are "player-relationship" surfaces — the spec is explicit). The flat 4-tile `SummaryCard`
+grid was removed entirely (fixing the second instance of the exact anti-pattern) — two of its four
+numbers (`playersWithNoOpportunity`, `policyWarningsCount`) now surface as a single
+`EvidenceSpotlightWidget` headline per group instead, reusing the exact same already-fetched
+`/api/insights/overview` response (**zero new query**). "Roles & development" and "Match patterns"
+have no existing `InsightOverview` field that maps to their theme — `getGroupSpotlightValue()`
+returns `null` for those rather than fabricating a number; the two remaining unmapped numbers
+(`playersWithHighLoad`, `matchesWithMissingReports`) are not lost — they remain fully visible on
+their own dedicated Insights sub-pages, just not summarized twice at the hub.
+
+**Real, disclosed bug found and fixed along the way**: `/insights/player-pathways` — a fully-built,
+canonical-routes-table-documented Insights surface (AGENTS.md: "Player Pathways — season matrix,
+context transitions, fairness overview") — was **entirely absent from the hub's card list**,
+unreachable from Insights navigation. Added as the 14th card, grouped under "Roles & development"
+per the spec's own "pathways" source — closing a real, pre-existing navigation gap, not a Touchline
+addition.
+
+Verified: full `npm run validate` (14/14), 9 new tests (`get-insights-hub-groups.test.ts`) covering
+grouping completeness (every card lands in exactly one group, none dropped), the specific
+Combinations-vs-Roles assignment, and both spotlight mappings including singular/plural phrasing,
+and real screenshots (desktop + mobile) against the seeded Fjordvik FK dataset confirming all four
+sections render with their correct cards and headline numbers.
+
+**Phase 4 is now complete — all 8 named routes migrated** (Today §14, League §15, Events + Event
+detail §16, Match detail §19, Players + Player detail §20, Insights §21), plus three real
+follow-up fixes discovered and resolved along the way (§17, §18, and the player-pathways gap
+above). Per ADR-0136/`13_IMPLEMENTATION_PHASES_AND_GATES.md`, Phase 4 stops here for **Human Gate
+B** — Phase 5 (Round Board, Lineup, Tactics, Rotations, Live Reporting, Follow Live, Post-match)
+does not begin without a fresh, explicit human approval.
