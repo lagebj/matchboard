@@ -79,10 +79,9 @@ export type { TouchlinePositionMapEntry } from "./pitch/touchline-position-map";
 export { PitchShirtToken, PitchEmptySlot as PitchShirtEmptySlot } from "./pitch/pitch-shirt-token";
 export { PositionEvidenceDot } from "./pitch/position-evidence-dot";
 export type { PositionSupportBand, PositionEvidenceConfidence } from "./pitch/position-evidence-dot";
-export { PlanningPitchMarkings, FlatPitchMarkings } from "./pitch/pitch-markings";
+export { PlanningPitchMarkings } from "./pitch/pitch-markings";
 export {
   projectPlanningPitchPoint,
-  projectFlatPitchPoint,
   gridToNormalizedPoint,
   normalizedPointToGrid,
 } from "./pitch/projection";

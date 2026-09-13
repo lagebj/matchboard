@@ -23,7 +23,8 @@ export default function PositionMapFixturePage() {
         </Link>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Player Detail position map</h1>
         <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          TouchlinePositionMap — flat, top-down, GK bottom / attack top, green evidence dots only.
+          TouchlinePositionMap — same pitch graphic as the planning pitch, GK bottom / attack top,
+          green evidence dots only (no shirts).
         </p>
       </div>
 

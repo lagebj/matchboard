@@ -77,18 +77,3 @@ export function projectPlanningPitchPoint(point: NormalizedPitchPoint): ScreenPi
 
   return { xPct, yPct, perspectiveScale };
 }
-
-/**
- * `TouchlinePositionMap`'s flat, top-down projection (contract §7): the same football
- * orientation and lateral/longitudinal semantics, but no trapezoid and no depth scale — every
- * token renders at scale 1. A distinct function (not `projectPlanningPitchPoint` with the
- * perspective zeroed out) so the two canonical renderers can never accidentally share a tuning
- * knob that only one of them should have.
- */
-export function projectFlatPitchPoint(point: NormalizedPitchPoint): ScreenPitchPoint {
-  return {
-    xPct: point.lateral * 100,
-    yPct: 100 * (1 - point.longitudinal),
-    perspectiveScale: 1,
-  };
-}

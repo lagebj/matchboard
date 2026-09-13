@@ -1,25 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
   projectPlanningPitchPoint,
-  projectFlatPitchPoint,
   gridToNormalizedPoint,
   normalizedPointToGrid,
   PLANNING_PITCH_PERSPECTIVE,
 } from "../projection";
 
 describe("projection — orientation (contract §2: GK bottom, attack top, no home/away mirroring)", () => {
-  it("own goal (longitudinal 0) projects to the bottom edge (high yPct) for both projections", () => {
-    const planning = projectPlanningPitchPoint({ lateral: 0.5, longitudinal: 0 });
-    const flat = projectFlatPitchPoint({ lateral: 0.5, longitudinal: 0 });
-    expect(planning.yPct).toBeCloseTo(100);
-    expect(flat.yPct).toBeCloseTo(100);
+  it("own goal (longitudinal 0) projects to the bottom edge (high yPct)", () => {
+    expect(projectPlanningPitchPoint({ lateral: 0.5, longitudinal: 0 }).yPct).toBeCloseTo(100);
   });
 
-  it("attacking goal (longitudinal 1) projects to the top edge (low yPct) for both projections", () => {
-    const planning = projectPlanningPitchPoint({ lateral: 0.5, longitudinal: 1 });
-    const flat = projectFlatPitchPoint({ lateral: 0.5, longitudinal: 1 });
-    expect(planning.yPct).toBeCloseTo(0);
-    expect(flat.yPct).toBeCloseTo(0);
+  it("attacking goal (longitudinal 1) projects to the top edge (low yPct)", () => {
+    expect(projectPlanningPitchPoint({ lateral: 0.5, longitudinal: 1 }).yPct).toBeCloseTo(0);
   });
 
   it("a goalkeeper grid cell (gridY=5) resolves to longitudinal 0 (own goal)", () => {
@@ -34,8 +27,8 @@ describe("projection — orientation (contract §2: GK bottom, attack top, no ho
   });
 
   it("lateral is never flipped: left grid column stays left, right stays right, regardless of longitudinal", () => {
-    const left = projectFlatPitchPoint({ lateral: 0.1, longitudinal: 0.3 });
-    const right = projectFlatPitchPoint({ lateral: 0.9, longitudinal: 0.3 });
+    const left = projectPlanningPitchPoint({ lateral: 0.1, longitudinal: 0.3 });
+    const right = projectPlanningPitchPoint({ lateral: 0.9, longitudinal: 0.3 });
     expect(left.xPct).toBeLessThan(right.xPct);
 
     const leftAttack = projectPlanningPitchPoint({ lateral: 0.1, longitudinal: 0.9 });
@@ -85,20 +78,6 @@ describe("projection — planning pitch trapezoid (contract §5)", () => {
       expect(samples[i].perspectiveScale).toBeLessThanOrEqual(samples[i - 1].perspectiveScale);
       expect(samples[i].xPct).toBeLessThanOrEqual(samples[i - 1].xPct);
     }
-  });
-});
-
-describe("projection — flat map has no perspective (contract §7)", () => {
-  it("perspectiveScale is always exactly 1", () => {
-    for (const longitudinal of [0, 0.3, 0.5, 0.8, 1]) {
-      expect(projectFlatPitchPoint({ lateral: 0.5, longitudinal }).perspectiveScale).toBe(1);
-    }
-  });
-
-  it("xPct is a direct linear mapping of lateral (no trapezoid narrowing)", () => {
-    const left = projectFlatPitchPoint({ lateral: 0, longitudinal: 1 });
-    const right = projectFlatPitchPoint({ lateral: 1, longitudinal: 1 });
-    expect(right.xPct - left.xPct).toBeCloseTo(100);
   });
 });
 

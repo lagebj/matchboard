@@ -110,9 +110,49 @@ tests), and all four states (normal/selected/muted/neutral) read distinctly.
 - New tests: `projection.test.ts` (12), `team-kit-mark.test.ts` (4, shirt contrast) — all pass.
 - Existing `team-configuration-page.test.tsx` — passes with the new `kitColor` fixture field.
 
+## Revision 2 — human review feedback (2026-09-13)
+
+The human reviewer requested four changes at this gate, all implemented:
+
+1. **"The player position detail map should use the same graphics as the planning pitch."** This
+   is a deliberate, human-directed deviation from the written bundle's §7 ("TouchlinePositionMap
+   is intentionally different... flat; top-down; no perspective"), decided by the actual product
+   authority reviewing at this gate, not invented unilaterally. Implemented narrowly:
+   `TouchlinePositionMap` now renders the same `PlanningPitchMarkings` (trapezoid, perspective)
+   and the same `projectPlanningPitchPoint()` projection as `TouchlinePlanningPitch` — one shared
+   pitch graphic. What still makes it the *analytical* renderer, per the rest of §7 (left
+   unchanged, not overridden): no shirts, no slot/assignment concept, evidence dots only. The
+   now-unused flat-only code (`projectFlatPitchPoint`, `FlatPitchMarkings`) was deleted rather
+   than left as dead compatibility code.
+2. **"Do not write position inside the dot."** Removed — `PositionEvidenceDot` no longer renders
+   any visible text. The position code is now exposed only as `data-position-code` (for tests/
+   tooling) and remains in the accessible name (`aria-label`/`sr-only`).
+3. **"Keep the dots fully circular."** Real bug, confirmed: the dot's width/height were set as
+   percentages of the pitch-surface box, which has a non-1:1 aspect ratio (`aspect-[4/5]`), so a
+   dot rendered as an ellipse, not a circle. Fixed by switching to a fixed pixel diameter per
+   support band (still positioned via percentage `left`/`top`, only sizing changed), scaled by the
+   same `perspectiveScale` the shirt tokens already use for depth. Locked in with a new regression
+   test (`position-evidence-dot.test.tsx`) asserting `width === height` and neither is a `%` value.
+4. **"Greater variation between the different greens... add a glow matching the strength."** The
+   original four-band palette was four lightness steps of one hue (`#10b981` → `#a7f3d0`) — too
+   similar, exactly as reported. Replaced with four hues spread across the green spectrum (emerald
+   → grass → olive → lime: `#059669`/`#16a34a`/`#65a30d`/`#a3e635` dark,
+   `#047857`/`#15803d`/`#4d7c0f`/`#84cc16` light) — still entirely green (no red/amber), per
+   contract §9, but genuinely distinguishable at a glance. Added a `box-shadow` glow per dot, same
+   hue as the dot, blur radius scaled to the same support-band strength (new
+   `--tl-position-support-*-glow` rgba tokens) — reinforces the support signal, does not introduce
+   a fourth independent channel; confidence remains the separate opacity/outline channel,
+   untouched.
+
+Re-screenshotted after these fixes (`position-map`, `planning-pitch`, both desktop/dark) — the
+position map now visibly shares the planning pitch's trapezoid/material, dots are circular with
+clearly distinct hues and a visible strength-matched glow, and no text renders inside any dot.
+Planning pitch itself is unaffected by this revision.
+
 ## Gate
 
 Per `00_AUTHORITY_AND_EXECUTION_CONTRACT.md` §6, this coding session may not self-certify golden
-fidelity. No production pitch view has been migrated. The above is submitted for review.
+fidelity. No production pitch view has been migrated. The above (Revision 1 + Revision 2) is
+submitted for review.
 
 **AWAITING HUMAN VISUAL APPROVAL**

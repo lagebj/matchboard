@@ -1,14 +1,19 @@
 import { cn } from "@/lib/cn";
-import { FlatPitchMarkings } from "./pitch-markings";
-import { projectFlatPitchPoint } from "./projection";
+import { PlanningPitchMarkings } from "./pitch-markings";
+import { projectPlanningPitchPoint } from "./projection";
 import { positionCodeToPoint } from "./position-coordinates";
 import { PositionEvidenceDot, type PositionSupportBand, type PositionEvidenceConfidence } from "./position-evidence-dot";
 
 /**
  * `TouchlinePositionMap` — the one canonical analytical position-exposure renderer (Atlas
- * Follow-up, `06_CANONICAL_PITCH_RENDERING_CONTRACT.md §7`). Flat, top-down, no perspective, no
- * shirts — green evidence dots only. Used for Player Detail position exposure and any future
- * analytical position visualization with the same semantics.
+ * Follow-up, `06_CANONICAL_PITCH_RENDERING_CONTRACT.md §7`). Used for Player Detail position
+ * exposure and any future analytical position visualization with the same semantics.
+ *
+ * Shares the same pitch surface, markings and perspective projection as `TouchlinePlanningPitch`
+ * (human review feedback, 2026-09-13: keep one consistent pitch graphic across both canonical
+ * renderers, rather than a separate flat/top-down treatment). What still makes this an
+ * *analytical* renderer, distinct from the planning pitch: no shirts, no slot/assignment concept
+ * — only `PositionEvidenceDot`s, sized/coloured by support and confidence, never player identity.
  *
  * Consumes an already-resolved list of positions with support/confidence — it does not compute
  * evidence itself (`08_VIEW_MODELS_AND_COMPONENT_CONTRACTS.md §6`: "The component renders. It
@@ -42,7 +47,7 @@ export function TouchlinePositionMap({
     .map((entry) => {
       const point = positionCodeToPoint(entry.positionCode);
       if (!point) return null;
-      const screen = projectFlatPitchPoint(point);
+      const screen = projectPlanningPitchPoint(point);
       return { entry, screen };
     })
     .filter((v): v is NonNullable<typeof v> => v !== null);
@@ -59,7 +64,7 @@ export function TouchlinePositionMap({
       data-testid="touchline-position-map"
       className={cn("tl-pitch-surface relative w-full overflow-hidden aspect-[4/5]", className)}
     >
-      <FlatPitchMarkings />
+      <PlanningPitchMarkings />
       {resolved.map(({ entry, screen }) => (
         <PositionEvidenceDot
           key={entry.positionCode}
@@ -70,6 +75,7 @@ export function TouchlinePositionMap({
           confidence={entry.confidence}
           xPct={screen.xPct}
           yPct={screen.yPct}
+          perspectiveScale={screen.perspectiveScale}
           selected={selectedPositionCode === entry.positionCode}
           onSelect={onSelectPosition ? () => onSelectPosition(entry.positionCode) : undefined}
         />
