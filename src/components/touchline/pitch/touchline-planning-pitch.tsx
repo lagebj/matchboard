@@ -28,6 +28,11 @@ export type PlanningPitchSlot = {
 export type PlanningPitchAssignment = {
   slotId: string;
   name: string;
+  /**
+   * The real player id, for callers that need to look up domain state beyond display (e.g. a
+   * "selected-player inspector" driven by `onSlotView`). Not rendered directly.
+   */
+  playerId: string | null;
   number?: string | number | null;
   /** Resolved kit-colour hex — see `resolveKitColorSwatch()`. `null` renders the neutral shirt. */
   kitColor?: string | null;

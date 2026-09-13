@@ -2842,6 +2842,29 @@ in-repo reference once the UI Lab gate is passed.
   proven in `/dev/ui-lab/atlas/routes/*`. Do not begin Phase 5 (Round Board, Lineup, Tactics,
   Rotations, Live Reporting, Follow Live, Post-match) without a fresh, explicit human approval at
   Human Gate B.
+- **Canonical pitch rendering migration (Atlas Follow-up, `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`,
+  Phase F7 — in progress).** A separate, later follow-up bundle
+  (`.matchboard-work/matchboard_atlas_followup_roundboard_players_pitch_positions_2026-09-12/`,
+  gitignored) introduced one further canonical pitch renderer pair —
+  `TouchlinePlanningPitch` (`src/components/touchline/pitch/touchline-planning-pitch.tsx`, for
+  every planning/formation view: Lineup, Tactics, Formations, previews, event/match planning,
+  Round Board pitch subviews) and `TouchlinePositionMap`
+  (`src/components/touchline/pitch/touchline-position-map.tsx`, for Player Detail's analytical
+  position-exposure view, sharing the same `PlanningPitchMarkings`/`projectPlanningPitchPoint`
+  graphic per Gate A human feedback) — superseding the ADR-0136-era `TacticsBoard`/
+  `PitchLineupView`/`PitchPlayerToken` referenced in the paragraph above for any surface this
+  later migration has actually reached. Its own dev-only UI Lab
+  (`/dev/ui-lab/atlas-followup/`) and Gates A-D (pitch/shirt-identity, Player Detail, Players
+  Overview, Round Board) are approved; production migration (Phase F7 onward) is in progress
+  route by route, gated by `10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md`'s own recommended
+  order (Lineup/Tactics → Formations → read-only previews → event/match planning surfaces →
+  Round Board pitch subviews → remaining consumers), never all at once. **Migrated so far**: the
+  match-detail Lineup/Tactics tab's pitch (`match-tactics-panel.tsx`, via the pure adapter
+  `match-tactics-pitch-adapter.ts`) — team kit colour is resolved through the existing
+  `fetchTeamConfiguration()` action (Phase F1, `Team.kitColor`), all existing slot-click/
+  slot-view/picker/suggestion mutation logic is unchanged. Update this bullet as each further
+  F7 sub-item lands; a surface not listed here as migrated still renders through the prior
+  ADR-0136-era pitch components.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
