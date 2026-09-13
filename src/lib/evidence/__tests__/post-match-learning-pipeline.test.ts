@@ -426,6 +426,156 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     expect(row!.endedAtMs).toBe(40 * 60 * 1000);
   });
 
+  /**
+   * ADR-0138 Bundle 9 evidence-consumer audit: a reversed `POSITIONS_CHANGED` event is a
+   * *separate* row (`correctionType: "REVERSAL"`, `correctsEventId` pointing at the original) —
+   * the original keeps `correctionType: null` forever (ARR-0047's own finding). Before this
+   * fix, `getPositionChanges()` only excluded the reversal marker row itself, never the
+   * original row it targeted, so a reversed position change still silently mutated the
+   * reconstructed actual timeline.
+   */
+  it("rebuildActualTimeline excludes a reversed POSITIONS_CHANGED event from the reconstructed timeline", async () => {
+    const teamId = fixtureIds.teams["Bla"];
+    // buildLeagueLineup() assigns index 0's slot roleType GOALKEEPER -- take the second player
+    // so the starting position is DEFENDER, distinct from the (reversed) target GOALKEEPER.
+    const teamPlayers = fixtureIds.players.filter((p) => p.coreTeamId === teamId);
+    const player = teamPlayers[1]!;
+    const opponentTeam = await testDb.opponentTeam.create({
+      data: { displayName: "Reversal Regression Opponent", normalizedName: "reversal regression opponent league", organisationId: fixtureIds.organisationId },
+    });
+    const match = await testDb.match.create({
+      data: {
+        matchRoundId: fixtureIds.matchRoundId,
+        teamId,
+        opponent: "Reversal Regression Opponent",
+        opponentTeamId: opponentTeam.id,
+        startsAt: new Date("2025-06-01T10:00:00Z"),
+        homeAway: "HOME",
+        squadSize: 11,
+        matchType: "LEAGUE",
+        gameFormat: "ELEVEN_A_SIDE",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    await buildLeagueLineup(match.id, teamId, teamPlayers.slice(0, 2).map((p) => p.id));
+
+    const session = await testDb.liveMatchSession.create({
+      data: { matchId: match.id, organisationId: fixtureIds.organisationId, coachId: "test-coach", status: "ACTIVE" },
+    });
+    const positionChange = await testDb.liveMatchEvent.create({
+      data: {
+        matchId: match.id,
+        sessionId: session.id,
+        eventType: "POSITIONS_CHANGED",
+        playerId: player.id,
+        payload: { fromPosition: "DEFENDER", toPosition: "GOALKEEPER" },
+        period: 1,
+        matchSeconds: 5 * 60 * 1000,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+    await testDb.liveMatchEvent.create({
+      data: {
+        matchId: match.id,
+        sessionId: session.id,
+        eventType: "EVENT_REVERSED",
+        correctionType: "REVERSAL",
+        correctsEventId: positionChange.id,
+        period: 1,
+        matchSeconds: 6 * 60 * 1000,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+
+    await rebuildActualTimeline(match.id);
+
+    const rows = await testDb.actualPositionInterval.findMany({
+      where: { matchId: match.id, playerId: player.id },
+      orderBy: { startedAtMs: "asc" },
+    });
+    // Exactly one interval for the whole match, at the original starting position — the
+    // reversed position change never split it into a second GOALKEEPER interval.
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.position).toBe("DEFENDER");
+  });
+
+  /** Event equivalent of the League regression above — Event has no `MatchRotation` staging
+   * table to have already filtered a reversal out upstream, so `getEventRotationsAndPositionChanges()`
+   * itself must exclude it. */
+  it("rebuildEventActualTimeline excludes a reversed POSITIONS_CHANGED event from the reconstructed timeline", async () => {
+    const event = await testDb.event.create({
+      data: {
+        name: "Reversal Regression Event",
+        eventType: "FRIENDLY_DAY",
+        startsAt: new Date("2025-06-01"),
+        gameFormat: "SEVEN_A_SIDE",
+        matchDurationMinutes: 60,
+        footballGroupId: fixtureIds.footballGroupId,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const squad = await testDb.eventSquad.create({
+      data: { eventId: event.id, name: "Reversal Squad", intent: "BALANCED", targetSize: 7, organisationId: fixtureIds.organisationId },
+    });
+    const eventMatch = await testDb.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        opponentName: "Reversal Regression Opponent",
+        startsAt: new Date("2025-06-01T10:00:00Z"),
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const lineup = await testDb.eventMatchLineup.create({
+      data: { eventMatchId: eventMatch.id, status: "CONFIRMED", organisationId: fixtureIds.organisationId },
+    });
+    const player = fixtureIds.players[0]!;
+    await testDb.eventMatchLineupAssignment.create({
+      data: { lineupId: lineup.id, playerId: player.id, roleType: "DEFENDER", organisationId: fixtureIds.organisationId },
+    });
+
+    const session = await testDb.eventLiveMatchSession.create({
+      data: { eventMatchId: eventMatch.id, organisationId: fixtureIds.organisationId, coachId: "test-coach", status: "ACTIVE" },
+    });
+    const positionChange = await testDb.eventLiveMatchEvent.create({
+      data: {
+        eventMatchId: eventMatch.id,
+        sessionId: session.id,
+        eventType: "POSITIONS_CHANGED",
+        playerId: player.id,
+        payload: { fromPosition: "DEFENDER", toPosition: "GOALKEEPER" },
+        period: "FIRST_HALF",
+        matchSeconds: 5 * 60 * 1000,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+    await testDb.eventLiveMatchEvent.create({
+      data: {
+        eventMatchId: eventMatch.id,
+        sessionId: session.id,
+        eventType: "EVENT_REVERSED",
+        correctionType: "REVERSAL",
+        correctsEventId: positionChange.id,
+        period: "FIRST_HALF",
+        matchSeconds: 6 * 60 * 1000,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+
+    await rebuildEventActualTimeline(eventMatch.id);
+
+    const rows = await testDb.actualPositionInterval.findMany({
+      where: { eventMatchId: eventMatch.id, playerId: player.id },
+      orderBy: { startedAtMs: "asc" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.position).toBe("DEFENDER");
+  });
+
   it("buildMatchStateTimeline reconstructs canonical intervals/transitions end to end for a League match", async () => {
     const teamId = fixtureIds.teams["Rod"];
     const players = fixtureIds.players.filter((p) => p.coreTeamId === teamId).slice(0, 2);

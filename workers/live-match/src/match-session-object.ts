@@ -61,6 +61,7 @@ import {
   PRE_AUTH_ALLOWED_METHOD,
   KEEPALIVE_PING,
   KEEPALIVE_PONG,
+  PROTOCOL_VERSION,
   type RpcCall,
   type RpcResult,
   type ClientMethod,
@@ -296,6 +297,24 @@ export class MatchSessionObject extends DurableObject<Env> {
     };
     ws.serializeAttachment(updated);
 
+    // ADR-0138 Bundle 9 — one line per successful connect, distinguishing a fresh session
+    // ("initialize") from a reconnect/second-viewer ("attach"), and surfacing capabilities
+    // (report vs. view — "connected reporters/followers") and subjectType. `protocolVersion`
+    // here is the fixed RPC *envelope* version (`protocol.ts`'s `PROTOCOL_VERSION`, always 1,
+    // unrelated to `MatchSessionSnapshot.protocolVersion`'s separate 1|2 business-payload
+    // version this same bundle narrows to a literal 2 below) — logged only as stable schema
+    // context, not a migration-usage signal (this repo shipped no real client that only ever
+    // spoke the pre-Bundle-2 snapshot shape, so there was never a "v1 usage" population to
+    // measure the decline of).
+    this.logStructured("log", "connection authenticated", {
+      subjectType: ticket.subjectType,
+      matchId: routedMatchId,
+      sessionId: ticket.sessionId,
+      outcome: decision.outcome,
+      capabilities: ticket.capabilities,
+      protocolVersion: PROTOCOL_VERSION,
+    });
+
     await this.broadcastPresence();
     // Schedules this object's first finite-lifecycle check alarm even when there are zero
     // pending persistence retries (e.g. a scoreless match, or simply no events recorded yet) —
@@ -423,6 +442,19 @@ export class MatchSessionObject extends DurableObject<Env> {
       case "invalid":
         return rpcFail(call.id, "EVENT_INVALID", "event.eventType is required.");
       case "conflict":
+        // ADR-0138 Bundle 9 — a conflict is normal, expected concurrency, not itself an error;
+        // logged at "log" level (never "error") so operators can distinguish "conflicts by
+        // code" (OBSERVABILITY_RECOVERY_ROLLOUT.md §3) from genuine failures without every
+        // legitimate coach-concurrency conflict paging anyone.
+        this.logStructured("log", "recordEvent rejected: conflict", {
+          subjectType: subjectTypeFor(meta),
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          clientEventId,
+          eventType: String(eventType),
+          conflictCode: decision.conflictCode,
+          currentVersion: decision.currentVersion,
+        });
         // ADR-0138 (Bundle 3) — reuses the existing STALE_STATE envelope code for wire
         // compatibility (an older client still self-heals via currentVersion exactly as
         // before); conflictCode carries the real, domain-aware reason for a client that
@@ -432,6 +464,13 @@ export class MatchSessionObject extends DurableObject<Env> {
           conflictCode: decision.conflictCode,
         });
       case "duplicate": {
+        this.logStructured("log", "recordEvent resolved: duplicate", {
+          subjectType: subjectTypeFor(meta),
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          clientEventId,
+          sequence: decision.existing.version,
+        });
         const result: RecordEventResult = {
           version: decision.existing.version,
           persistenceStatus: decision.existing.persistenceStatus === "persisted" ? "persisted" : "pending",
@@ -439,6 +478,15 @@ export class MatchSessionObject extends DurableObject<Env> {
         return rpcOk(call.id, result);
       }
       case "accepted": {
+        this.logStructured("log", "recordEvent accepted", {
+          subjectType: subjectTypeFor(meta),
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          clientEventId,
+          sequence: decision.record.version,
+          eventType: String(eventType),
+          domain: decision.domain,
+        });
         await this.putAcceptedEvent(decision.record);
         // lastActivityAt drives evaluateLifecycleExpiry's inactivity check — deliberately only
         // advanced by an accepted report-capability event, never by mere connection presence.
@@ -602,6 +650,15 @@ export class MatchSessionObject extends DurableObject<Env> {
       case "ended": {
         const nextMeta: SessionMeta = { ...meta, endedAt: Date.now(), endReason: "MANUAL" };
         await this.ctx.storage.put("meta", nextMeta);
+        // ADR-0138 Bundle 9 — "is a live session active?" is answered by the absence of this
+        // line followed by a later "connection authenticated" for the same match/session.
+        this.logStructured("log", "session ended", {
+          subjectType: subjectTypeFor(meta),
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          reason: "MANUAL",
+          lastSequence: nextMeta.version,
+        });
         this.broadcastToAll("sessionEnded", { version: nextMeta.version, reason: "MANUAL" } satisfies SessionEndedCallback);
         // Clears any still-armed lifecycle-check alarm now that the session has a definite,
         // explicit end — nothing should keep waking this object afterward.
@@ -761,9 +818,12 @@ export class MatchSessionObject extends DurableObject<Env> {
       if (lifecycle.outcome === "expire") {
         const nextMeta: SessionMeta = { ...meta, endedAt: Date.now(), endReason: "AUTO_EXPIRED" };
         await this.ctx.storage.put("meta", nextMeta);
-        this.logStructured("log", "live session auto-expired: no reporting activity past expected end + grace", {
+        this.logStructured("log", "session ended", {
+          subjectType: subjectTypeFor(meta),
           matchId: meta.matchId,
           sessionId: meta.sessionId,
+          reason: "AUTO_EXPIRED",
+          lastSequence: nextMeta.version,
         });
         this.broadcastToAll("sessionEnded", {
           version: nextMeta.version,
@@ -801,6 +861,16 @@ export class MatchSessionObject extends DurableObject<Env> {
           },
         });
         await this.markEventPersisted(record.clientEventId, canonical.id);
+        // ADR-0138 Bundle 9 — "are accepted commands reaching Neon?"/"are retries growing?" —
+        // this is the one line proving a retry eventually succeeded, alongside the existing
+        // failure-path logging below for the opposite case.
+        this.logStructured("log", "persistence retry succeeded", {
+          subjectType: subjectTypeFor(meta),
+          matchId: meta.matchId,
+          sessionId: meta.sessionId,
+          clientEventId: record.clientEventId,
+          retryCount: record.retryCount,
+        });
         this.broadcastToAll("eventPersistenceChanged", {
           clientEventId: record.clientEventId,
           persistenceStatus: "persisted",

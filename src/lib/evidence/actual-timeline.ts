@@ -16,6 +16,7 @@ import {
   toAbsoluteMatchMs,
 } from "@/lib/live-match/period-config";
 import { getEffectiveEventSquadMatchTiming } from "@/lib/events/event-types";
+import { getLeagueReversedEventIds, getEventReversedEventIds } from "@/lib/live-match/reversal-resolution";
 
 /**
  * `LiveMatchEvent.matchSeconds` / `MatchRotation.matchSeconds` hold MILLISECONDS since period
@@ -88,7 +89,7 @@ export async function rebuildActualTimeline(matchId: string): Promise<{
 
   const starters = await getStartingLineup(matchId);
   const rotations = await getMatchRotations(matchId, periodOffsets);
-  const positionChanges = await getPositionChanges(matchId, periodOffsets);
+  const positionChanges = await getPositionChanges(matchId, match.organisationId, periodOffsets);
 
   const computedIntervals = computePositionIntervals(
     starters,
@@ -197,7 +198,7 @@ export async function rebuildEventActualTimeline(eventMatchId: string): Promise<
   const matchEndMs = getTotalPeriodDurationMs(periodConfig);
 
   const starters = await getEventStartingLineup(eventMatchId);
-  const { rotations, positionChanges } = await getEventRotationsAndPositionChanges(eventMatchId, periodOffsets);
+  const { rotations, positionChanges } = await getEventRotationsAndPositionChanges(eventMatchId, eventMatch.organisationId, periodOffsets);
 
   const computedIntervals = computePositionIntervals(starters, rotations, positionChanges, matchEndMs);
 
@@ -283,20 +284,30 @@ async function getEventStartingLineup(eventMatchId: string): Promise<StarterAssi
 
 async function getEventRotationsAndPositionChanges(
   eventMatchId: string,
+  organisationId: string,
   periodOffsets: Partial<Record<MatchPeriod, number>>,
 ): Promise<{
   rotations: RotationInput[];
   positionChanges: PositionChangeInput[];
 }> {
-  const events = await db.eventLiveMatchEvent.findMany({
+  const eventRows = await db.eventLiveMatchEvent.findMany({
     where: {
       eventMatchId,
       eventType: { in: ["ROTATION_OUT", "ROTATION_IN", "POSITIONS_CHANGED"] },
       correctionType: null,
     },
-    select: { eventType: true, playerId: true, payload: true, period: true, matchSeconds: true, createdAt: true },
+    select: { id: true, eventType: true, playerId: true, payload: true, period: true, matchSeconds: true, createdAt: true },
     orderBy: [{ period: "asc" }, { matchSeconds: "asc" }, { createdAt: "asc" }],
   });
+
+  // A reversed ROTATION_OUT/ROTATION_IN/POSITIONS_CHANGED event must not survive into actual-
+  // timeline reconstruction — `correctionType: null` above only excludes the reversal *marker*
+  // row, not the original row it targets (ARR-0047's own finding, recurring here independently;
+  // Event has no League-equivalent `MatchRotation` staging table to have already filtered this
+  // upstream, unlike `getMatchRotations()` above). Found during ADR-0138 Bundle 9's
+  // evidence-consumer audit, closed with the shared reversal-resolution helper.
+  const reversedEventIds = await getEventReversedEventIds(eventMatchId, organisationId);
+  const events = eventRows.filter((e) => !reversedEventIds.has(e.id));
 
   const rotations: RotationInput[] = [];
   const positionChanges: PositionChangeInput[] = [];
@@ -465,15 +476,17 @@ async function getMatchRotations(
 
 async function getPositionChanges(
   matchId: string,
+  organisationId: string,
   periodOffsets: Partial<Record<MatchPeriod, number>>,
 ): Promise<PositionChangeInput[]> {
-  const events = await db.liveMatchEvent.findMany({
+  const eventRows = await db.liveMatchEvent.findMany({
     where: {
       matchId,
       eventType: "POSITIONS_CHANGED",
       correctionType: null,
     },
     select: {
+      id: true,
       playerId: true,
       payload: true,
       period: true,
@@ -481,6 +494,13 @@ async function getPositionChanges(
     },
     orderBy: [{ period: "asc" }, { matchSeconds: "asc" }],
   });
+
+  // A reversed POSITIONS_CHANGED event must not survive into actual-timeline reconstruction —
+  // `correctionType: null` above only excludes the reversal *marker* row, not the original row
+  // it targets (ARR-0047's own finding, recurring here independently; found during ADR-0138
+  // Bundle 9's evidence-consumer audit, closed with the shared reversal-resolution helper).
+  const reversedEventIds = await getLeagueReversedEventIds(matchId, organisationId);
+  const events = eventRows.filter((e) => !reversedEventIds.has(e.id));
 
   return events
     .filter((e) => e.playerId && e.payload)
