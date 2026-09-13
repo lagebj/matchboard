@@ -22,22 +22,38 @@ and ARR-0045/0046/0047 for the target state and the specific gaps it closes. Thi
 updated bundle-by-bundle as that migration lands — do not treat a mismatch between this section and
 the sections below as an error; it is the documented in-progress state.
 
-**Programme progress as of Bundle 8 (2026-09-13, most-current-first — see AGENTS.md's "Live
+**Programme progress as of Bundle 9 (2026-09-13, most-current-first — see AGENTS.md's "Live
 match realtime session files" section for the full per-bundle account, and ARR-0046/0048 for the
-Event-specific detail).** Bundles 1-8 of the eight-bundle programme are done, with two disclosed,
-explicitly-deferred items: Event clock-persistence parity (`EventLiveMatchSession` still has no
-equivalent to League's ADR-0133 H2 persisted clock columns) and ARR-0048 (Event's live-reporting
-*mutation* authorization is org-level-only, unlike League's group-level model — an undecided
-authorization question, not yet an ADR). As of Bundle 8: the single-canonical-mutation-path
-cutover (Bundle 4) now applies to **both** League and Event — the HTTP-fallback described in the
-sections below (`recordLiveEventAction`/`recordEventEvent()`) is **removed from both**, not just
-League; a genuine coordinator-detected conflict now surfaces to the coach via a "Needs review"
-panel rather than being silently retried forever; and Event has its own "Follow Live" viewer
-reading through the same shared canonical projection League's does. Bundle 9 (observability,
-migration cleanup, evidence boundary) remains outstanding. The sections below still describe the
-architecture largely as it existed **before Bundle 2's protocol/sequence work landed** (per the
-paragraph above) — treat AGENTS.md as authoritative for exactly what has shipped since; this
-document has not yet been fully rewritten bundle-by-bundle as originally planned.
+Event-specific detail).** All nine bundles of the programme are functionally implemented, with
+three disclosed items remaining, each requiring action beyond this session's own scope: Event
+clock-persistence parity (`EventLiveMatchSession` still has no equivalent to League's ADR-0133
+H2 persisted clock columns — a schema migration, deliberately not bundled into Bundle 9's own
+observability/cleanup scope), ARR-0048 (Event's live-reporting *mutation* authorization is
+org-level-only, unlike League's group-level model — an undecided authorization question needing
+its own ADR), and actually running the Production cutover checklist
+(`OBSERVABILITY_RECOVERY_ROLLOUT.md` §8) — Bundle 9 built the tooling
+(`npm run check:live-diagnostics -- --cutover-check`) but did not and could not run it against
+real Production data itself. As of Bundle 9: structured telemetry now covers the
+accept/conflict/duplicate/connect/end/retry-success paths (previously only failures were
+logged); a projection-divergence diagnostic and a legacy-session cutover check both exist as
+read-only, runnable tools; the legacy sequence backfill script was re-verified (still clean, no
+behavior change) and remains the maintainer's action to run against Production; an
+evidence-consumer audit found and fixed the same reversal-exclusion bug class recurring
+independently three more times beyond its two prior fixes (Event's `seedEventReportFromLiveSession()`;
+League's and Event's actual-timeline reconstruction), now centralized in one shared helper so a
+sixth recurrence cannot happen silently; and `MatchSessionSnapshot.protocolVersion`'s `1 | 2`
+migration-compatibility widening (Bundle 2) was narrowed back to the literal `2` it has always
+actually carried since Bundle 2 shipped — a pure type-level cleanup with zero runtime behavior
+change, since nothing ever branched on this field's value. As of Bundle 8 (unchanged by Bundle
+9): the single-canonical-mutation-path cutover (Bundle 4) applies to **both** League and Event —
+the HTTP-fallback described in the sections below (`recordLiveEventAction`/`recordEventEvent()`)
+is **removed from both**, not just League; a genuine coordinator-detected conflict surfaces to
+the coach via a "Needs review" panel rather than being silently retried forever; and Event has
+its own "Follow Live" viewer reading through the same shared canonical projection League's does.
+The sections below still describe the architecture largely as it existed **before Bundle 2's
+protocol/sequence work landed** (per the paragraph above) — treat AGENTS.md as authoritative for
+exactly what has shipped since; this document has not yet been fully rewritten bundle-by-bundle
+as originally planned.
 
 ## Current status: all 7 stages + "Follow live" viewer complete
 

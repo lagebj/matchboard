@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import type { MatchReportStatus } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { canTransitionTo, hasUnknownAttendance } from "./report-domain";
+import { getEventReversedEventIds } from "@/lib/live-match/reversal-resolution";
 
 export type SeedEventReportFromLiveSessionResult =
   | { success: true; eventMatchId: string; reportId: string; status: MatchReportStatus; alreadyExisted: boolean }
@@ -91,7 +92,7 @@ export async function seedEventReportFromLiveSession(
     }
   }
 
-  const liveEvents = await db.eventLiveMatchEvent.findMany({
+  const liveEventRows = await db.eventLiveMatchEvent.findMany({
     where: {
       eventMatchId,
       organisationId,
@@ -102,12 +103,20 @@ export async function seedEventReportFromLiveSession(
       eventType: { in: ["GOAL_FOR", "GOAL_AGAINST", "SCORER_SET", "ASSIST_SET"] },
     },
     select: {
+      id: true,
       eventType: true,
       playerId: true,
       secondaryPlayerId: true,
     },
     orderBy: { createdAt: "asc" },
   });
+
+  // A reversed goal/scorer/assist must not survive into the seeded report — the same class of
+  // bug League's own seedReportFromLiveSession() already fixed (ADR-0133 H1 follow-up), found
+  // here independently during ADR-0138 Bundle 9's evidence-consumer audit and now closed with
+  // the shared `getEventReversedEventIds()` helper rather than a fourth re-derivation.
+  const reversedEventIds = await getEventReversedEventIds(eventMatchId, organisationId);
+  const liveEvents = liveEventRows.filter((e) => !reversedEventIds.has(e.id));
 
   const goalsFor = liveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
   const goalsAgainst = liveEvents.filter((e) => e.eventType === "GOAL_AGAINST").length;

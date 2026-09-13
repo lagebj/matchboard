@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
-import { completeEventReport } from "@/lib/reports/event-report-mutations";
+import { completeEventReport, seedEventReportFromLiveSession } from "@/lib/reports/event-report-mutations";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 vi.mock("@/lib/db", () => ({
@@ -142,5 +142,99 @@ describe("completeEventReport (ARR-0030 resolution)", () => {
   it("returns an error for a non-existent report", async () => {
     const result = await completeEventReport("does-not-exist", orgFilter);
     expect(result.success).toBe(false);
+  });
+});
+
+/**
+ * ADR-0138 Bundle 9 evidence-consumer audit: a reversed goal/scorer/assist event is a
+ * *separate* row (`correctionType: "REVERSAL"`, `correctsEventId` pointing at the original) —
+ * the original keeps `correctionType: null` forever. Before this fix,
+ * `seedEventReportFromLiveSession()`'s own query excluded only the reversal marker row itself,
+ * never the original goal it targeted, so a reversed goal was still counted in the seeded
+ * report — the same class of bug League's own `seedReportFromLiveSession()` already fixed
+ * (ADR-0133 H1 follow-up), found here independently since Event had no equivalent test at all.
+ */
+describe("seedEventReportFromLiveSession (ADR-0138 Bundle 9 reversal regression)", () => {
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 3 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  it("excludes a reversed goal from the seeded report's score and goal events", async () => {
+    const event = await testDb.event.create({
+      data: {
+        name: "Reversal Seed Event",
+        eventType: "CUP",
+        startsAt: new Date("2025-05-21"),
+        gameFormat: "SEVEN_A_SIDE",
+        footballGroupId: fixtureIds.footballGroupId,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const squad = await testDb.eventSquad.create({
+      data: { eventId: event.id, name: "Reversal Squad", intent: "BALANCED", targetSize: 7, organisationId: fixtureIds.organisationId },
+    });
+    const player = fixtureIds.players[0]!;
+    await testDb.eventSquadPlayer.create({
+      data: { eventId: event.id, eventSquadId: squad.id, playerId: player.id, organisationId: fixtureIds.organisationId },
+    });
+    const eventMatch = await testDb.eventMatch.create({
+      data: {
+        eventId: event.id,
+        eventSquadId: squad.id,
+        opponentName: "Reversal Seed Opponent",
+        startsAt: new Date("2025-05-21T10:00:00Z"),
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const session = await testDb.eventLiveMatchSession.create({
+      data: { eventMatchId: eventMatch.id, organisationId: fixtureIds.organisationId, coachId: "test-coach", status: "ACTIVE" },
+    });
+    const goal = await testDb.eventLiveMatchEvent.create({
+      data: {
+        eventMatchId: eventMatch.id,
+        sessionId: session.id,
+        eventType: "GOAL_FOR",
+        playerId: player.id,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+    await testDb.eventLiveMatchEvent.create({
+      data: {
+        eventMatchId: eventMatch.id,
+        sessionId: session.id,
+        eventType: "EVENT_REVERSED",
+        correctionType: "REVERSAL",
+        correctsEventId: goal.id,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+    // A second, non-reversed goal proves the exclusion is targeted, not a blanket "no goals".
+    await testDb.eventLiveMatchEvent.create({
+      data: {
+        eventMatchId: eventMatch.id,
+        sessionId: session.id,
+        eventType: "GOAL_FOR",
+        playerId: player.id,
+        organisationId: fixtureIds.organisationId,
+        clientEventId: `client-${Math.random()}`,
+      },
+    });
+
+    const result = await seedEventReportFromLiveSession(eventMatch.id, fixtureIds.organisationId);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const report = await testDb.eventPostMatchReport.findUnique({ where: { id: result.reportId } });
+    expect(report!.ourScore).toBe(1);
   });
 });

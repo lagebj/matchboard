@@ -4902,13 +4902,124 @@ persistence parity is a disclosed, deferred gap (see ARR-0046).**
   group-level `requireMatchGroupMutationRole`) — an authorization-model decision needing its own
   ADR, out of scope for a coordination-parity bundle.
 
-Remaining programme scope (Bundle 9: observability, migration cleanup, evidence boundary; Event
-clock-persistence parity per ARR-0046; ARR-0048's authorization-model decision) is tracked in
-`.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
+**Bundle 9 (observability, migration, cleanup, and evidence boundary) is substantially
+implemented — the programme's final functional bundle, with two disclosed, deliberately
+deferred items requiring maintainer/Production action (see below).**
+
+- **Structured telemetry (work item 1).** The Durable Object's existing `logStructured()`
+  helper (previously used only for failure paths) now also logs the success/normal-concurrency
+  paths OBSERVABILITY_RECOVERY_ROLLOUT.md §2/§3 asks for: `recordEvent` acceptance
+  ("recordEvent accepted"), a genuine conflict ("recordEvent rejected: conflict" — logged at
+  `"log"` level, never `"error"`, since a conflict is normal concurrency, not a defect),
+  duplicate resolution ("recordEvent resolved: duplicate"), connection authentication
+  ("connection authenticated", distinguishing a fresh session from a reconnect and surfacing
+  capabilities/subjectType), session end (both manual and auto-expired, unified under one
+  "session ended" message with a `reason` field so both are one queryable event type), and a
+  successful persistence retry ("persistence retry succeeded", the counterpart to the
+  pre-existing "alarm retry failed" log). All carry `subjectType`/`matchId`/`sessionId`/
+  `clientEventId` per §2's field list — never player names or payload text.
+- **Projection divergence diagnostic (work item 2).** `src/lib/live-match/
+  projection-divergence-diagnostic.ts` (`checkLeagueProjectionDivergence()`/
+  `checkEventProjectionDivergence()`) replays a match's canonical live-event stream through the
+  shared `reduceLiveEvents()` reducer (Bundle 5) and compares it against the materialized
+  post-match report score (only when REPORTED/LOCKED — a DRAFT report is not yet a materialized
+  fact worth comparing against, per AGENTS.md's own "Canonical data truth"). Read-only, never
+  writes to Neon or mutates a report. Deliberately scoped to score only, not on-field-set/
+  positions — `PostMatchPlayerActual`'s "who actually played" is populated by a different
+  process (attendance entry) with no guaranteed correspondence to "who the live stream shows on
+  the field", a disclosed scope decision. Exposed via `npx tsx scripts/live-diagnostics.ts
+  --league <matchId> | --event <eventMatchId>` (`npm run check:live-diagnostics -- --league
+  <id>`).
+- **Production cutover check for active legacy sessions (work item 3, partial).**
+  `src/lib/live-match/legacy-session-cutover-check.ts`'s `checkActiveLegacySessions()` lists
+  any currently-ACTIVE League/Event session with at least one event carrying no persisted
+  `sequence` (i.e. history predating the Bundle 2 coordinator-sequence column) — the
+  OBSERVABILITY_RECOVERY_ROLLOUT.md §8 checklist's "no active legacy League/Event sessions"
+  condition, made runnable rather than manual. Exposed via the same script (`--cutover-check`).
+  This *tool* is complete; actually running it against real Production data and deciding
+  whether it is safe to cut over is a maintainer action this session cannot perform itself
+  (AGENTS.md's "Provider configuration workflow" — no Production state was checked or changed
+  by this bundle).
+- **Legacy sequence backfill (work item 4, partial).** `npm run backfill:live-event-sequence
+  -- --dry-run` was re-run against this session's local dev database and completed cleanly (0
+  sessions with a sequence gap — expected for a lightly-used dev database, not evidence about
+  Production). The script itself was already written in Bundle 2 and remains unchanged. Running
+  it for real against Production data (if any legacy rows exist there) remains the maintainer's
+  action, per the same "no unauthorized Production writes from this session" boundary as the
+  cutover check above.
+- **Evidence-consumer audit (work items 5-6) — found and fixed a real, recurring bug class.**
+  Auditing whether evidence consumers correctly respect the canonical stream's correction
+  semantics (a reversal is a *separate* event row with `correctsEventId` pointing at the
+  original; the original itself is never modified — ARR-0047's own finding) found this exact
+  bug recurring **independently three more times**, beyond the two prior fixes already on
+  record (the live projection, ARR-0047/Bundle 5; League's own `seedReportFromLiveSession()`,
+  ADR-0133 H1 follow-up): **Event's `seedEventReportFromLiveSession()`** (a reversed goal/
+  scorer/assist event was still counted in the seeded report — Event had no equivalent test at
+  all for this function before this bundle), **League's `getPositionChanges()`**
+  (`actual-timeline.ts` — a reversed `POSITIONS_CHANGED` event was still applied; League's
+  `ROTATION_OUT`/`ROTATION_IN` reconstruction was already safe, since it reads from the
+  pre-filtered `MatchRotation` staging table that `seedReportFromLiveSession()` populates
+  correctly), and **Event's `getEventRotationsAndPositionChanges()`** (`actual-timeline.ts` — all
+  three of `ROTATION_OUT`/`ROTATION_IN`/`POSITIONS_CHANGED` were affected, since Event has no
+  staging-table equivalent to have already filtered this upstream). Root cause: this exact fix
+  had been independently re-derived twice already with no shared, reusable implementation — a
+  textbook "One business operation, one owning implementation" violation. Fixed by extracting
+  the pattern once into `src/lib/live-match/reversal-resolution.ts` (`findReversedEventIds()`
+  pure function, `getLeagueReversedEventIds()`/`getEventReversedEventIds()` DB-bound query
+  helpers) and wiring all three broken call sites through it, closing the recurrence risk for a
+  fifth instance. Separately verified (not a bug): `computeAndApplyPlayerEvidenceForMatch()`'s
+  player-rating adjustment is safely idempotent under replay by construction — it recomputes the
+  proposed value from all accumulated evidence and only writes when it actually differs from the
+  currently-stored value, so re-running it against the same evidence twice is a no-op the second
+  time, never a double-applied drift. Also verified: no code path anywhere auto-mutates
+  `Player.primaryPosition`/`secondaryPosition`/`tertiaryPosition` from evidence (confirmed
+  already true in ADR-0120's own "Position learning (verified, not assumed)" audit; unaffected
+  by this bundle) — `rebuildActualTimeline`/`rebuildEventActualTimeline`'s own writes are
+  narrowly scoped to derived-only fields (`PostMatchPlayerActual.minutesPlayed`/
+  `actualPositions`, `EventPostMatchPlayer.minutesPlayed`), never a declared attribute, and the
+  `minutesPlayed` write is itself guarded to only fill a previously-`null` value, never overwrite
+  an existing one.
+- **Protocol v1 removal (work item 7) — done, and turned out to be a pure type-level cleanup
+  with zero runtime behavior change.** `MatchSessionSnapshot.protocolVersion` was widened to
+  `1 | 2` in Bundle 2 purely as additive-field-tolerance scaffolding for a hypothetical old
+  client; `match-session-object.ts` has emitted the literal `2` since Bundle 2 shipped and no
+  code anywhere ever branched on this field's value. Narrowed back to the literal `2` — nothing
+  else changed. (Not to be confused with `protocol.ts`'s separate, unrelated `PROTOCOL_VERSION`
+  constant — the RPC *envelope* format version, always `1`, untouched by this or any bundle.)
+- **Old direct-HTTP live-event fallback removal (work item 8) — already done, verified.** League
+  (`recordLiveEventAction`, Bundle 4) and Event (`recordEventLiveEventAction`/
+  `recordEventEvent()`, Bundle 8) both had their direct-HTTP write paths removed entirely in
+  earlier bundles. `single-mutation-path.test.ts`'s League and Event assertion blocks (both
+  bundles) remain the regression proof; re-run clean in this bundle with no changes needed.
+- **ARR closure (work item 9).** ARR-0045 (dual canonical write path) — already Resolved
+  (Bundle 4). ARR-0046 (League/Event coordination asymmetry) — Dispositioned, not yet Resolved;
+  its resolution-criteria checklist (updated in Bundle 8) still has exactly one open item (Event
+  clock-persistence parity), unaffected by this bundle. ARR-0047 (live projection defect) —
+  already Resolved (Bundle 5). ARR-0048 (Event live-mutation authorization asymmetry) — remains
+  Identified/undispositioned, awaiting the maintainer ADR decision described in Bundle 8's own
+  entry; not something this bundle's evidence-consumer audit changes.
+
+**Deliberately not done in this bundle, with reasons**: (a) actually executing the Production
+cutover checklist (OBSERVABILITY_RECOVERY_ROLLOUT.md §8) — the tooling exists, the action does
+not, per the Provider configuration workflow boundary; (b) Event clock-persistence parity
+(ARR-0046's one remaining criterion) — a separate schema-migration-sized unit of work,
+deliberately not bundled into a bundle whose own scope was observability/cleanup; (c) ARR-0048's
+authorization-model ADR — a maintainer decision, not something a coding agent should decide
+unilaterally.
+
+**Programme status**: Bundles 1-9 of the nine-bundle Canonical Live Operations &
+Delayed-Concurrency programme are functionally complete. The three items named immediately above
+remain open, each for a documented reason requiring action beyond what this session can perform
+on its own — do not claim full programme completion (per START_HERE.md's own "Definition of
+done") until they are resolved.
 
 | File | Purpose |
 |------|---------|
-| `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
+| `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants); `APPEND_SAFE_LIVE_EVENT_TYPES` (ADR-0138 Bundle 8) |
+| `src/lib/live-match/reversal-resolution.ts` | ADR-0138 Bundle 9: the one shared reversal-exclusion helper (`findReversedEventIds()` pure, `getLeagueReversedEventIds()`/`getEventReversedEventIds()` DB-bound) — closes a bug class independently re-derived three times before this |
+| `src/lib/live-match/projection-divergence-diagnostic.ts` | ADR-0138 Bundle 9: `checkLeagueProjectionDivergence()`/`checkEventProjectionDivergence()` — read-only replay-vs-materialized-report score comparison |
+| `src/lib/live-match/legacy-session-cutover-check.ts` | ADR-0138 Bundle 9: `checkActiveLegacySessions()` — Production cutover checklist tooling (lists ACTIVE sessions with unsequenced/pre-coordinator history) |
+| `scripts/live-diagnostics.ts` | ADR-0138 Bundle 9: CLI wrapper for both diagnostics above (`npm run check:live-diagnostics`) |
 | `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels, `derivePositionChangeFromPayload()` (ADR-0138 Bundle 5) |
 | `src/lib/live-match/live-match-projection.ts` | ADR-0138 Bundle 5: `reduceLiveEvents()` (the one shared score/on-field/positions reducer), `projectCanonicalLiveState()` (Follow Live), `mergeSnapshotWithRealtimeEvents()` (sequence-ordered merge), `canonicalEventToSummary()` |
 | `src/lib/live-match/live-match-reconciliation.ts` | `reconcileFromServerEvents()` — thin adapter over `reduceLiveEvents()`, used by Live Reporting (ADR-0112, ADR-0138 Bundle 5) |

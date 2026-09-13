@@ -80,16 +80,21 @@ export interface CanonicalLiveEvent {
 /** SPEC.md §25 — the full active-session snapshot sent on attach/reconnect. Fully specified
  * at the structural level; `events`/`pendingClientEventIds` element types are Stage 4's.
  *
- * ADR-0138 (Bundle 2) widens `protocolVersion` to `1 | 2` and adds `lastSequence`/`revisions` —
- * purely additive, an older client that only understands `1` and ignores unknown fields is
- * unaffected (matching ADR-0112's own established migration pattern). `lastSequence` is the
- * highest canonical sequence this session has accepted (`events` is already sorted by
- * `sequence` once Bundle 2 lands end-to-end). `revisions` (Bundle 3) are real classification-
- * based counters: only an accepted operation in a given domain increments that domain's
- * counter, so an accepted goal (append-safe) never advances any of them — see
- * `workers/live-match/src/state.ts`'s `evaluateRecordEvent`/`classifyDomain` for the model. */
+ * ADR-0138 (Bundle 2) added `lastSequence`/`revisions` to this snapshot — purely additive at
+ * the time, so `protocolVersion` was temporarily widened to `1 | 2` to let an older client that
+ * only understood the pre-Bundle-2 shape ignore the new fields safely (matching ADR-0112's own
+ * established migration pattern). Bundle 9 narrows it back to the literal `2` it has always
+ * actually carried since Bundle 2 shipped (`match-session-object.ts` never emitted `1`) — this
+ * repository ships one continuously-deployed application with no long-lived old client build
+ * that could still be speaking the pre-Bundle-2 shape, so the "wider type for compatibility"
+ * scaffolding has no remaining reason to exist. `lastSequence` is the highest canonical
+ * sequence this session has accepted (`events` is already sorted by `sequence`). `revisions`
+ * (Bundle 3) are real classification-based counters: only an accepted operation in a given
+ * domain increments that domain's counter, so an accepted goal (append-safe) never advances
+ * any of them — see `workers/live-match/src/state.ts`'s `evaluateRecordEvent`/`classifyDomain`
+ * for the model. */
 export interface MatchSessionSnapshot {
-  protocolVersion: 1 | 2;
+  protocolVersion: 2;
   version: number;
   session: {
     sessionId: string;
