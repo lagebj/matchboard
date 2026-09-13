@@ -129,7 +129,11 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
  */
 export async function waitForEventsToSync(page: Page, timeoutMs = 45_000): Promise<void> {
   await expect(async () => {
-    const stillPending = await page.getByText(/Syncing \d+ change/).isVisible().catch(() => false);
+    // Matches either "Syncing N changes" (online, still converging) or "...changes saved on
+    // this device" (the offline phrasing) — a caller recovering from a just-toggled offline
+    // state can observe either depending on exactly when the browser's own "online" event is
+    // processed relative to this check.
+    const stillPending = await page.getByText(/Syncing \d+ change|changes saved on this device/).isVisible().catch(() => false);
     if (stillPending) {
       await page.evaluate(() => window.dispatchEvent(new Event("online")));
     }

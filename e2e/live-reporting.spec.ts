@@ -68,8 +68,11 @@ test("blocks finishing the session while events are still unsynced, then complet
   await context.setOffline(true);
   await page.getByRole("button", { name: "Goal for us" }).click();
   // saveCommandLocally (IndexedDB) succeeds offline even though the server action can't — the
-  // command sits durably at LOCAL_PENDING (ADR-0138 Bundle 6), shown via the sync indicator.
-  await expect(page.getByText(/Syncing \d+ change/)).toBeVisible({ timeout: 10_000 });
+  // command sits durably at LOCAL_PENDING (ADR-0138 Bundle 6). The indicator shows "Offline —
+  // changes saved on this device" once the browser's own offline event is observed, or
+  // "Syncing N changes" if that hasn't been picked up yet at this exact instant — either is
+  // correct evidence the command is pending, not lost.
+  await expect(page.getByText(/changes saved on this device|Syncing \d+ change/)).toBeVisible({ timeout: 10_000 });
   // Dismiss the "Who scored?" bottom sheet so it doesn't intercept the next click.
   await page.getByRole("button", { name: "Skip" }).click();
 
