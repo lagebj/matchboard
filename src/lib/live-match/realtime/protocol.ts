@@ -38,6 +38,39 @@ export interface RpcErrorDetail {
   message: string;
   retryable?: boolean;
   currentVersion?: number;
+  /** ADR-0138 (Bundle 3) — the fine-grained, machine-readable reason a state-sensitive
+   * operation's semantic precondition did not hold. Carried alongside the existing `STALE_STATE`
+   * envelope-level `code` (not a new RPC error code — no envelope/wire-shape break) so an older
+   * client that only understands `STALE_STATE` still self-heals via `currentVersion` exactly as
+   * before, while a client that understands `conflictCode` can show the coach a specific,
+   * actionable reason (Bundle 8's "Needs review" panel). */
+  conflictCode?: ConflictCode;
+}
+
+/**
+ * CANONICAL_OPERATION_CONTRACT.md §6 — the fixed, stable set of reasons a state-sensitive
+ * operation's semantic precondition did not hold. User-facing text is produced elsewhere
+ * (Bundle 8); this set is for machine dispatch/telemetry only.
+ */
+export const CONFLICT_CODES = [
+  "PLAYER_ALREADY_OFF_FIELD",
+  "PLAYER_ALREADY_ON_FIELD",
+  "LINEUP_CHANGED",
+  "POSITION_ASSIGNMENT_CHANGED",
+  "CLOCK_STATE_CHANGED",
+  "ILLEGAL_PERIOD_TRANSITION",
+  "TARGET_EVENT_MISSING",
+  "TARGET_EVENT_ALREADY_REVERSED",
+  "TARGET_EVENT_CHANGED",
+  "ATTRIBUTION_CHANGED",
+  "SESSION_ENDED_REVIEW_REQUIRED",
+  "STREAM_SEALED",
+] as const;
+
+export type ConflictCode = (typeof CONFLICT_CODES)[number];
+
+export function isConflictCode(value: unknown): value is ConflictCode {
+  return typeof value === "string" && (CONFLICT_CODES as readonly string[]).includes(value);
 }
 
 export interface RpcFailure {

@@ -9,6 +9,7 @@ import {
   type RpcCall,
   type RpcResult,
   type RpcErrorCode,
+  type ConflictCode,
 } from "../../../src/lib/live-match/realtime/protocol";
 
 export function rpcOk(id: string, result: unknown): RpcResult {
@@ -19,7 +20,7 @@ export function rpcFail(
   id: string,
   code: RpcErrorCode,
   message: string,
-  extra?: { retryable?: boolean; currentVersion?: number },
+  extra?: { retryable?: boolean; currentVersion?: number; conflictCode?: ConflictCode },
 ): RpcResult {
   return { protocol: PROTOCOL_VERSION, kind: "result", id, ok: false, error: { code, message, ...extra } };
 }

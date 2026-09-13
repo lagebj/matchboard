@@ -609,7 +609,7 @@ describe("MatchSessionObject — protocol v2 snapshot fields (ADR-0138, Bundle 2
 
     expect(snapshotResult.result.protocolVersion).toBe(2);
     expect(snapshotResult.result.lastSequence).toBe(1);
-    // Placeholder until Bundle 3 wires real classification-based increments.
+    // GOAL_FOR is append-safe (D09) — accepting it must not advance any domain revision.
     expect(snapshotResult.result.revisions).toEqual({ clock: 0, lineup: 0, annotation: 0 });
     expect(snapshotResult.result.events).toEqual([expect.objectContaining({ clientEventId: "evt-1", sequence: 1 })]);
   });
@@ -748,5 +748,85 @@ describe("MatchSessionObject — keepalive auto-response (ADR-0133 H6b)", () => 
       (globalThis as Record<string, unknown>).WebSocketPair = originalPair;
       (globalThis as Record<string, unknown>).WebSocketRequestResponsePair = originalReqRes;
     }
+  });
+});
+
+describe("MatchSessionObject — semantic concurrency (ADR-0138, Bundle 3)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockFetchSnapshot.mockResolvedValue({ session: { sessionId: "session-1", matchId: "match-1", status: "ACTIVE" }, events: [] });
+    mockPersistEvent.mockImplementation(async ({ body }: { body: { clientEventId: string; eventType: string; sequence: number } }) => ({
+      id: `canon-${body.clientEventId}`,
+      clientEventId: body.clientEventId,
+      eventType: body.eventType,
+      createdAt: "2026-08-23T00:00:00.000Z",
+      sequence: body.sequence,
+    }));
+  });
+
+  it("a genuine lineup conflict returns STALE_STATE with a fine-grained conflictCode, and does not advance the lineup revision", async () => {
+    const { instance, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    // Henrik is rotated out once — accepted.
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rot-1", "recordEvent", { clientEventId: "rot-out-1", baseVersion: 0, event: { eventType: "ROTATION_OUT", playerId: "henrik" } }),
+    );
+    const first = ws.sent.find((m) => (m as { id?: string }).id === "rot-1") as { result: { persistenceStatus: string } };
+    expect(first.result).toBeDefined();
+
+    // A second, independent device tries to rotate Henrik out again — must conflict, not
+    // silently duplicate or overwrite.
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rot-2", "recordEvent", { clientEventId: "rot-out-2", baseVersion: 1, event: { eventType: "ROTATION_OUT", playerId: "henrik" } }),
+    );
+    const second = ws.sent.find((m) => (m as { id?: string }).id === "rot-2") as {
+      ok: boolean;
+      error: { code: string; conflictCode: string };
+    };
+    expect(second.ok).toBe(false);
+    expect(second.error.code).toBe("STALE_STATE");
+    expect(second.error.conflictCode).toBe("PLAYER_ALREADY_OFF_FIELD");
+
+    await instance.webSocketMessage(ws as unknown as WebSocket, rpc("snap-1", "getSnapshot", {}));
+    const snapshot = ws.sent.find((m) => (m as { id?: string }).id === "snap-1") as {
+      result: { revisions: { lineup: number } };
+    };
+    // Only the first (accepted) rotation advanced the lineup revision — the rejected conflict
+    // never did.
+    expect(snapshot.result.revisions.lineup).toBe(1);
+  });
+
+  it("an unrelated append-safe goal does not block or affect a concurrent, still-valid rotation", async () => {
+    const { instance, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("goal-1", "recordEvent", { clientEventId: "goal-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+    // Coach B's rotation still carries the stale baseVersion 0 (never saw the goal) — must
+    // still be accepted, since the goal never touched the lineup domain.
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rot-1", "recordEvent", { clientEventId: "rot-out-1", baseVersion: 0, event: { eventType: "ROTATION_OUT", playerId: "noah" } }),
+    );
+    const rotationResult = ws.sent.find((m) => (m as { id?: string }).id === "rot-1") as { ok: boolean };
+    expect(rotationResult.ok).toBe(true);
+  });
+
+  it("an unknown event type is rejected as EVENT_INVALID, never silently accepted as append-safe", async () => {
+    const { instance, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("bad-1", "recordEvent", { clientEventId: "bad-1", baseVersion: 0, event: { eventType: "SOME_FUTURE_EVENT_TYPE" } }),
+    );
+    const result = ws.sent.find((m) => (m as { id?: string }).id === "bad-1") as { ok: boolean; error: { code: string } };
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("EVENT_INVALID");
   });
 });

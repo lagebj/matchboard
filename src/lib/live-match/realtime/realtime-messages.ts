@@ -77,11 +77,10 @@ export interface CanonicalLiveEvent {
  * purely additive, an older client that only understands `1` and ignores unknown fields is
  * unaffected (matching ADR-0112's own established migration pattern). `lastSequence` is the
  * highest canonical sequence this session has accepted (`events` is already sorted by
- * `sequence` once Bundle 2 lands end-to-end). `revisions` exists here as the target protocol
- * shape now; the coordinator does not yet increment these per-domain counters for real —
- * that is Bundle 3's ("Exhaustive classification and semantic concurrency") work. Until then
- * every session reports `{ clock: 0, lineup: 0, annotation: 0 }`, which is honest (no
- * domain-revision tracking exists yet) rather than a fabricated non-zero value. */
+ * `sequence` once Bundle 2 lands end-to-end). `revisions` (Bundle 3) are real classification-
+ * based counters: only an accepted operation in a given domain increments that domain's
+ * counter, so an accepted goal (append-safe) never advances any of them — see
+ * `workers/live-match/src/state.ts`'s `evaluateRecordEvent`/`classifyDomain` for the model. */
 export interface MatchSessionSnapshot {
   protocolVersion: 1 | 2;
   version: number;
