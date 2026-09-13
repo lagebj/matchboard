@@ -123,6 +123,19 @@ test.describe("compact critical flows", () => {
       test.skip(true, "No player links on the Players page in the Test slot");
     }
     await playerLink.click();
-    await expect(page).toHaveURL(/\/players\/[^/?#]+$/);
+    await expect(page).toHaveURL(/\/players\/[^/?#]+/);
+
+    // Player detail tabs are URL-backed (Atlas Follow-up Phase F8): switching tabs must
+    // update the URL, and the Manage tab (the home of the inline-editable administrative
+    // panels the read-only golden design had no place for) must render its heading.
+    const tabs = page.getByRole("navigation", { name: "Player detail tabs" });
+    await expect(tabs).toBeVisible();
+    const manageTab = page.getByRole("link", { name: "Manage" }).first();
+    if (!(await manageTab.isVisible().catch(() => false))) {
+      test.skip(true, "Player detail Manage tab not visible in the Test slot");
+    }
+    await manageTab.click();
+    await expect(page).toHaveURL(/[?&]tab=manage/);
+    await expect(page.getByText("Editable administrative record").first()).toBeVisible();
   });
 });

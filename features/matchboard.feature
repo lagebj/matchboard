@@ -3506,33 +3506,52 @@ Feature: Matchboard football operations workspace
   Rule: Player Profile works like a player dossier
 
     Player Profile must present a player as a football planning object, not a database row.
+    The profile is organized as URL-backed tabs: Overview, Matches, Development, Evidence, and
+    Manage (Atlas Follow-up Phase F8 — the four read-only dashboard tabs follow the approved
+    golden design; a fifth "Manage" tab preserves the inline-editable administrative data the
+    pre-migration page carried, which the read-only design had no home for).
 
     Scenario: Coach opens player profile
       Given player "p1" exists
       When the coach opens player "p1" profile
-      Then the profile must show core team
-      And primary, secondary, and tertiary positions
-      And footedness and best side where recorded
-      And availability history
+      Then the profile must show a persistent identity header with core team
+      And current effective primary, secondary, and tertiary positions
+      And current availability
+      And the profile must provide a way to manage footedness and best side where recorded
       And role flags
       And recent match usage
       And active restrictions
       And coach notes
 
-    Scenario: Player Profile has dossier sections
+    Scenario: Player profile tabs are URL-backed
+      Given player "p1" exists
+      When the coach opens player "p1" profile with "?tab=matches"
+      Then the Matches tab must be active
+      And switching tabs must update the URL
+      And browser Back and Forward must work between tabs
+
+    Scenario: Player Profile has dossier tabs
       Given player "p1" exists
       When the coach opens player "p1" profile
-      Then the profile must show sections for:
-        | section          |
-        | Overview         |
-        | Positions        |
-        | Attributes       |
-        | Availability     |
-        | Rotation status  |
-        | Match history    |
-        | Notes            |
-        | Explanations     |
+      Then the profile must show tabs for:
+        | tab         |
+        | Overview    |
+        | Matches     |
+        | Development |
+        | Evidence    |
+        | Manage      |
       And the profile must not show all fields as one long form by default
+      And the Overview tab must show a participation summary, recent opportunity, effective
+      position profile, latest observation, current development focus, and recent football
+      And the Matches tab must show actually experienced football only, never inferring positions
+      from planned lineups when actual data exists
+      And the Development tab must show the current development focus and chronological
+      observations without numeric ranking
+      And the Evidence tab must group evidence stories under Opportunity, Position, and Match
+      context with confidence and never an overall player score
+      And the Manage tab must provide editing for player details, positions, attributes,
+      availability, coach context, readiness signals, squad/rotation context, and assessment
+      history
 
     Scenario: Player Profile shows recent usage strip
       Given player "p1" has selection history

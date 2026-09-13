@@ -2897,6 +2897,17 @@ in-repo reference once the UI Lab gate is passed.
   Gate D — all four gates (A-D) are already approved, as stated above, so production migration for
   Players/Round Board may proceed without a further human visual gate; Gates B/C/D approved the UI
   Lab compositions those phases migrate real routes onto, they are not a separate blocking step.
+
+  **Phase F8 (Production Players migration) — the Players Overview slice and the Player Detail
+  slice are complete.** The Players Overview slice (`/players`, four modes incl. the recorded
+  fourth-mode product decision) and the Player Detail slice
+  (`/o/{orgSlug}/players/[playerId]`, the five-tab URL-backed shell with the recorded
+  fifth-"Manage"-tab product decision — see "Players page modes" below for the full account)
+  have both migrated to their Gate B/C-approved compositions. The old horizontal
+  `src/components/ui/position-map.tsx` `PositionMap` — the last pre-Followup pitch renderer
+  still rendering on a production route — was removed once Player Detail's position
+  declaration edit moved to the canonical `TouchlinePositionMap`. Phase F9 (Production Round
+  Board migration) remains the next phase.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
@@ -3082,7 +3093,7 @@ Setup registry create routes (no top-level nav):
 - `/o/{orgSlug}/matches/new` — create match form
 
 Detail routes (no top-level nav):
-- `/o/{orgSlug}/players/[playerId]` — player profile
+- `/o/{orgSlug}/players/[playerId]` — player profile (URL-backed five-tab shell: Overview, Matches, Development, Evidence, Manage — Atlas Follow-up Phase F8)
 - `/o/{orgSlug}/teams/[teamId]` — team detail workspace
 - `/o/{orgSlug}/teams/[teamId]/configuration` — team configuration and rules
 - `/o/{orgSlug}/matches/[matchId]` — match detail
@@ -3236,6 +3247,30 @@ Key files (Phase F8 production migration): `src/lib/touchline/presentation/playe
 `PlayerRosterTable`/`PlayerInspector`/`PlayerCompactRow`, `TabRail`). The pre-Touchline
 `season-overview-table.tsx`/`current-round-attention-table.tsx`/`players-mode-tabs.tsx` were
 removed — verified zero remaining consumers once this migration landed.
+
+**Phase F8's second slice — Player Detail production migration (gate-approved composition + a
+recorded product decision).** The Phase F4 golden design (`04_PLAYER_DETAIL_CONTRACT.md`,
+Hard Human Gate B approved) is a read-only dashboard: Overview/Matches/Development/Evidence
+tabs. But the pre-migration production page carried roughly half inline-editable
+administrative data (details, attributes, availability, coach context, position declaration,
+readiness, threads, quick observations, assessment history) via `updatePlayerFieldAction` —
+which the read-only design had no visible home for (only an unwired "••• More actions"
+overflow button on the identity header). Migrating literally would have made editing a player
+unreachable. **Product decision (resolved with the maintainer): a fifth "Manage" tab** holds
+the editable/admin panels; the four golden tabs stay read-only dashboards. The tab shell is
+URL-backed (`?tab=overview|matches|development|evidence|manage`, `TabRail` href mode — real
+`<Link>` navigation, browser Back/Forward works), with per-tab data loading (identity + active
+tab's data only, not every evidence aggregate on every visit — contract §8). Key files:
+`src/app/(app)/o/[orgSlug]/players/[playerId]/page.tsx` (shell + tab router),
+`src/lib/touchline/presentation/player-detail-production-adapter.ts` (canonical queries →
+view-model inputs), `src/lib/players/get-player-match-history.ts` (Matches tab — built on
+`getPlayerActualPositionHistory()`), `src/lib/player-development/effective-position-profile.ts`
+(`computeEffectivePlayerPositionProfile()` — the one position model the identity header, the
+Overview position map, and the green-dot map all consume). The pre-migration one-page
+composition (`PlayerProfileLayout` three-column layout, `PlayerProfileHeader`,
+`PlayerEvidenceStoriesPanel`, the old horizontal `ui/position-map.tsx` `PositionMap`) was
+removed once its consumers reached zero. Record-to-record prev/next player navigation moved
+into the identity hero's overflow area (feature file: "Record-to-record navigation").
 
 Contradictory SeasonFlag logic:
 

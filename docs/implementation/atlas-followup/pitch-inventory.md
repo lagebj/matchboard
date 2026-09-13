@@ -22,7 +22,8 @@ per-row detail; summary:
 - **Out of Phase F7's scope** (belongs to Phase F8, "Production Players migration," per
   `10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md`, already gated by the approved Gates B/C): the
   Player Detail position card (`src/components/ui/position-map.tsx`), a `TouchlinePositionMap`
-  target, not `TouchlinePlanningPitch`.
+  target, not `TouchlinePlanningPitch`. **Now done** — Phase F8's Player Detail migration removed
+  `position-map.tsx` entirely (see the table row and migration-order note below).
 
 ## Headline finding
 
@@ -79,8 +80,8 @@ repository today:
 | Match detail → Tactics tab (`match-tactics-panel.tsx`, `MatchTacticsPanel`) | ~~`TacticsBoard` mode `lineup-assignment`/`lineup-readonly` via `PitchLineupView`~~ now `TouchlinePlanningPitch` | ~~same~~ now the shared `buildPlanningPitchSlotsFromFormationSlots()`/`buildPlanningPitchAssignments()` (`@/components/touchline`) | n/a (canonical renderer owns orientation) | n/a (canonical renderer owns perspective) | click-to-assign via `PlayerPicker` dialog, positional-fit inspector — unchanged | `TouchlinePlanningPitch` | **Done** (Phase F7) — `handleSlotClick`/`handleSlotView`/picker/suggestion mutation logic unchanged; team kit colour resolved via the existing `fetchTeamConfiguration()` action (Phase F1) |
 | Event match lineup panel (`event-match-lineup-panel.tsx`, `EventMatchLineupPanel`) | ~~`TacticsBoard` mode `lineup-assignment` via `PitchLineupView`~~ now `TouchlinePlanningPitch` | ~~same~~ now the same shared projection helpers the Tactics tab uses — `teamKitColor` always `null` (Event squads have no kit-colour concept) | n/a (canonical renderer owns orientation) | n/a (canonical renderer owns perspective) | click-to-assign via `PlayerPicker` dialog — unchanged; auto-fill unchanged (a separate server action, not a pitch-rendering concern) | `TouchlinePlanningPitch` | **Done** (Phase F7) — `handleSlotClick`/picker/auto-fill mutation logic unchanged |
 | Event squad lineup board (`event-squad-lineup-board.tsx`, `EventSquadLineupBoard`) | `TacticsBoard` mode `selection-preview` (read-only) | same | prop defaults to `"horizontal"`; passed through from caller — no caller found overriding it | flat (default) | — | `TouchlinePlanningPitch` | **Skipped — see ARR-0050.** Confirmed entirely unreachable (zero production callers of either this component or its sole domain dependency, `event-lineup-assignment.ts`) — superseded the day after introduction (2026-07-09, `#86`) by the now-canonical `EventMatchLineupPanel`, never removed. Migrating a component nothing renders would be wasted, unverifiable effort; a maintainer decision (delete vs. genuinely revive) is recorded in the ARR instead. |
-| Player Detail / Player profile position card (`player-position-profile.tsx` → `PositionMap` → `TacticsBoard` mode `position-profile`) | `TacticsBoard` mode `position-profile` | `POSITION_GRID` (`position-map.tsx`) → `board-projection.ts` | **explicit `"horizontal"`** | flat (only mode this component supports) | none (display + separate inline-edit selects below) | `TouchlinePositionMap` | Not started — also needs full rebuild onto the effective-position-profile, not the raw two scalar fields it reads today |
-| I-004 Position exposure widget (`src/components/touchline/widgets/position-exposure-widget.tsx` → `PitchExposure`, `src/components/touchline/viz/pitch-exposure.tsx`) | Bespoke mini-map reusing `PitchMarkings` + `POSITION_GRID`/`getBoardPositionPercent` directly (not `TacticsBoard` itself) | same grid lookup as above | **explicit `"horizontal"`** | n/a (own markup, no perspective) | none (hover/title only) | `TouchlinePositionMap` (or superseded by it — this widget's "recorded exposure share" data is a legitimate input into the new map's dot sizing/hue, see position-model audit) | Not started |
+| Player Detail / Player profile position card (`player-position-profile.tsx` → `PositionMap` → `TacticsBoard` mode `position-profile`) | ~~`TacticsBoard` mode `position-profile`~~ now `TouchlinePositionMap` (the declared triple rendered as rank entries) | ~~`POSITION_GRID` (`position-map.tsx`) → `board-projection.ts`~~ now `position-coordinates.ts` | ~~**explicit `"horizontal"`**~~ canonical (vertical, per Gate A) | ~~flat~~ canonical | none (display + separate inline-edit selects below) | `TouchlinePositionMap` | **Done** (Phase F8 Player Detail migration) — the declared triple is rendered as the map's three rank entries on the Manage tab; the Overview tab's position-exposure widget renders the full effective-position-profile. `src/components/ui/position-map.tsx` deleted. |
+| I-004 Position exposure widget (`src/components/touchline/widgets/position-exposure-widget.tsx` → `PitchExposure`, `src/components/touchline/viz/pitch-exposure.tsx`) | Bespoke mini-map reusing `PitchMarkings` + `POSITION_GRID`/`getBoardPositionPercent` directly (not `TacticsBoard` itself) | now the canonical `POSITION_COORDINATE_GRID` (`position-coordinates.ts`) — the old `position-map.tsx` table was deleted | **explicit `"horizontal"`** | n/a (own markup, no perspective) | none (hover/title only) | `TouchlinePositionMap` (or superseded by it — this widget's "recorded exposure share" data is a legitimate input into the new map's dot sizing/hue, see position-model audit) | Coordinate lookup repointed (Phase F8); full supersession deferred — this widget's dev-UI-Lab consumers render share-percent exposure, a different question from support-band evidence |
 | `/dev/ui-lab/atlas/routes/lineup`, `/routes/tactics`, `/routes/formations` | `TacticsBoard` (various modes) via `PitchFormationBuilder`/`PitchLineupView`, fixture data | same | **explicit `"vertical"`** | **`"perspective"`** | fixture-driven, no live mutation | Already close to `TouchlinePlanningPitch` target — the reference implementation this bundle should generalize, not replace | Prior art, not yet promoted to a named canonical component |
 | Round Board (`src/components/round/round-board.tsx`) | none — no pitch rendering anywhere in this file | n/a | n/a | n/a | n/a | Contract allows an optional "Round Board pitch subviews if any" target — **none exist today**, so nothing to migrate here | N/A |
 | Rotation path card (`rotation-path-card.tsx`), Season client, `match-view-model.ts` | Grep hits on "TacticsBoard"/"PitchPlayerToken" were doc-comment text only, not actual pitch rendering | — | — | — | — | — | Not a pitch consumer; no action |
@@ -141,9 +142,18 @@ and green-dot-family tokens this bundle needs.
 3. Player Detail position card — full replacement, not a flip: retire `PositionMap`/`PositionMap`'s
    two-scalar-field reading in favor of `TouchlinePositionMap` fed by
    `EffectivePlayerPositionProfile` (Phase F3 dependency).
+   **Done (Phase F8 Player Detail migration)**: the Manage tab's position card renders the
+   declared triple through the canonical `TouchlinePositionMap`, and the Overview tab's
+   position-exposure widget renders the full `EffectivePlayerPositionProfile` via
+   `getEffectivePlayerPositionProfileForPlayer()`. `src/components/ui/position-map.tsx` is
+   deleted.
 4. `PitchExposure` widget — superseded by `TouchlinePositionMap` on Player Detail; evaluate
    whether it has any other caller worth keeping once Player Detail migrates (audit found none
    beyond `position-exposure-widget.tsx`).
+   **Partially done (Phase F8)**: its coordinate lookup now points at the canonical
+   `POSITION_COORDINATE_GRID` (the old table's owner is deleted); the widget itself survives for
+   the dev-UI-Lab share-percent exposure fixtures, which answer a different question (exposure
+   share, not support-band evidence) than `TouchlinePositionMap`'s green-dot map.
 
 ## Gate check (per `00_AUTHORITY_AND_EXECUTION_CONTRACT.md` §5)
 

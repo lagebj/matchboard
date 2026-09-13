@@ -3,12 +3,10 @@ import type { NormalizedPitchPoint } from "./types";
 
 /**
  * Position-code → pitch-coordinate lookup for `TouchlinePositionMap`. Deliberately a fresh,
- * standalone copy of the same real-world mapping `src/components/ui/position-map.tsx`'s
- * `POSITION_GRID` already encodes — not imported from there, so the new canonical
- * `TouchlinePositionMap` has no dependency on the pre-Atlas-Follow-up `PositionMap`/`TacticsBoard`
- * chain that Phase F10 retires. Both tables describe the same formation grid
- * (`src/lib/formations/types.ts`'s `GRID_X_PERCENT`/`GRID_Y_PERCENT`) and must be kept in sync
- * until the old table is deleted.
+ * standalone copy of the same real-world mapping the old pre-Atlas-Followup
+ * `src/components/ui/position-map.tsx`'s `POSITION_GRID` encoded (both tables describe the same
+ * formation grid, `src/lib/formations/types.ts`'s `GRID_X_PERCENT`/`GRID_Y_PERCENT`) — now the
+ * canonical owner of that mapping since the old horizontal renderer was deleted (Phase F8).
  */
 const POSITION_GRID: Record<string, { gridX: number; gridY: number }> = {
   GK: { gridX: 2, gridY: 5 },
@@ -33,3 +31,11 @@ export function positionCodeToPoint(code: string): NormalizedPitchPoint | null {
   if (!cell) return null;
   return gridToNormalizedPoint(cell.gridX, cell.gridY);
 }
+
+/**
+ * The raw grid table, exported for genuinely broad position-exposure consumers that need the
+ * grid cell itself (e.g. `PitchExposure`'s share-percent rendering, which projects through
+ * `getBoardPositionPercent` rather than this module's perspective projection). Not exact
+ * automatic-eligibility authority — pure coordinates only.
+ */
+export const POSITION_COORDINATE_GRID: Record<string, { gridX: number; gridY: number }> = POSITION_GRID;

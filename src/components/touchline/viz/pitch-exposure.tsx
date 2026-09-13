@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { POSITION_GRID } from "@/components/ui/position-map";
+import { POSITION_COORDINATE_GRID as POSITION_GRID } from "@/components/touchline/pitch/position-coordinates";
 import { getBoardPositionPercent } from "@/lib/formations/board-projection";
 import { PitchMarkings } from "@/components/formations/tactics-board";
 
@@ -8,8 +8,10 @@ import { PitchMarkings } from "@/components/formations/tactics-board";
  * `08_WIDGET...` position-exposure requirement).
  *
  * Football pitch mini-map showing recorded positional exposure — dot size/opacity reflects real
- * recorded share, never an inferred ability. Reuses the same `POSITION_GRID`/`getBoardPositionPercent`
- * coordinate lookup `PositionMap` (`src/components/ui/position-map.tsx`) already uses — this is
+ * recorded share, never an inferred ability. Reuses the canonical position-grid lookup
+ * (`POSITION_COORDINATE_GRID`, `src/components/touchline/pitch/position-coordinates.ts` — the
+ * same table `TouchlinePositionMap` projects from)/`getBoardPositionPercent`
+ * coordinate lookup already used by `TouchlinePositionMap` — this is
  * NOT a second hard-coded position map, only a second *rendering* of the same canonical grid.
  * Pitch-line markings (touchlines, halfway line, centre circle, penalty/goal areas) reuse
  * `TacticsBoard`'s own `PitchMarkings` — not a second, hand-drawn set of pitch lines.

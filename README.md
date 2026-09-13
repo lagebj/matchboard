@@ -81,12 +81,13 @@ keeping docs and screenshots current as behaviour changes.
 
 ## Players area
 
-The Players page is the coach-facing overview for participation statistics, current planning attention, and base-group administration.
+The Players page is the coach-facing overview for participation statistics, current planning attention, development focus, and base-group administration.
 
-### Three modes
+### Four modes
 
-- **Season overview** (default): factual player matrix with actual participation and recorded match statistics for a selected league season. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
-- **Current round attention**: canonical live plan-integrity state for a selected round. Uses `computeRoundPlanIntegrity` only. Does not derive attention from goals, assists, or historical movement.
+- **Overview** (default): factual player matrix with actual participation and recorded match statistics for a selected league season. No summary panel or Movement paths overview. Source of truth is reported or locked post-match data. Draft selections and finalised unreported assignments do not count as played.
+- **Current round**: canonical live plan-integrity state for a selected round. Uses `computeRoundPlanIntegrity` only. Does not derive attention from goals, assists, or historical movement.
+- **Development**: a plain list of every active player's current coaching development focus — one player per row, never a ranking.
 - **Manage base groups**: stable core-team assignment and player registry administration. Separate from weekly match selection and seasonal review.
 
 ### Season overview metrics
@@ -96,6 +97,10 @@ Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned 
 ### Current round attention states
 
 Covered, Decision required (available eligible without planned match opportunity), Blocked (selected unavailable, invalid plan), Not available, Unconfirmed. Derived from canonical live plan integrity only.
+
+### Player profile
+
+A player's full profile is a five-tab, URL-backed page: **Overview** (participation summary, recent opportunity, effective position map, latest observation, current development focus, recent football), **Matches** (actually experienced football — recorded minutes and positions per match, never inferred from planned lineups), **Development** (current focus, chronological observations, completed focus areas), **Evidence** (Opportunity/Position/Match-context stories with confidence, never an overall player score), and **Manage** (the editable administrative record: details, declared positions, attributes, availability, coach context, readiness, squad/rotation context, assessment history). A persistent identity header (shirt mark, team, effective positions, availability) stays stable across tabs, with prev/next player navigation in its overflow area.
 
 ### Product boundaries
 

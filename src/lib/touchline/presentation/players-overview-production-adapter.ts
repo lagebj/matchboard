@@ -1,4 +1,5 @@
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
+import { availabilityLabel } from "@/lib/players/availability-label";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow, IntegrityAttentionState } from "@/lib/players/get-players-overview";
 import type { PlayersOverviewRow, PlayersOverviewInspectorData } from "./players-overview-view-model";
 import type { PlayersCurrentRoundRow } from "./players-current-round-view-model";
@@ -44,19 +45,6 @@ export type PlayerIdentityInput = {
 
 function resolvedKitColor(kitColor: string | null): string | null {
   return resolveKitColorSwatch(kitColor)?.hex ?? null;
-}
-
-const AVAILABILITY_LABELS: Record<string, string> = {
-  AVAILABLE: "Available",
-  INJURED: "Injured",
-  SICK: "Sick",
-  AWAY: "Away",
-  TENTATIVE: "Tentative",
-  UNKNOWN: "Unknown",
-};
-
-function availabilityLabel(status: string): string {
-  return AVAILABILITY_LABELS[status] ?? status;
 }
 
 /** Overview mode's "opportunity this week" reuses the same canonical signal Current Round mode
