@@ -38,7 +38,14 @@ export function PlayerCompactRow({
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 truncate text-[14px] font-[600] text-[var(--foreground)]">
           {displayName}
-          {attentionMarker ? <span aria-label="Needs attention" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--warning)]" /> : null}
+          {attentionMarker ? (
+            <span title="Needs attention">
+              {/* Visually-hidden text, not aria-label — aria-label is prohibited on a span with
+                  no role (axe `aria-prohibited-attr`, WCAG 4.1.2). */}
+              <span className="sr-only">Needs attention</span>
+              <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
+            </span>
+          ) : null}
         </p>
         <p className="truncate text-[11px] text-[var(--text-muted)]">
           {primaryPosition ?? "No position"}

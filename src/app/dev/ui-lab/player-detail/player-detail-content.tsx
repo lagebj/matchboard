@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MoreHorizontal, Goal, Footprints } from "lucide-react";
 import { TouchlineWidget, WidgetHeader, MetricStrip } from "@/components/touchline";
-import { PositionMap } from "@/components/ui/position-map";
+import { PitchExposure } from "@/components/touchline/viz";
 import { TrendSpark, MetricStory } from "@/components/viz";
 import {
   playerDetailIdentity,
@@ -23,8 +23,8 @@ const TABS = ["Overview", "Matches", "Development", "Evidence"] as const;
  * The golden reference shows a generated child photo — Matchboard has no
  * player-photo feature and must not fabricate one (`00_EXECUTION_CONTRACT.md
  * §5`/`AGENTS.md` "Player attribute ratings" boundary). A large identity
- * field (initials/number) replaces it. Position exposure reuses the existing
- * `PositionMap` mini-pitch renderer — never a second hard-coded position map.
+ * field (initials/number) replaces it. Position exposure renders through the
+ * canonical `PitchExposure` viz primitive — never a second hard-coded position map.
  */
 export function PlayerDetailContent() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
@@ -116,7 +116,7 @@ export function PlayerDetailContent() {
             question="Which positions has this player actually appeared in?"
             label="Position exposure"
             value=""
-            visual={<PositionMap primaryPosition="LW" secondaryPositions={["LM", "ST"]} size="sm" />}
+            visual={<PitchExposure question="Where does recorded position exposure concentrate?" entries={playerDetailPositionExposure.map((p) => ({ code: p.code, sharePercent: p.pct }))} />}
             interpretation={playerDetailPositionExposure
               .map((p) => `${p.code} ${p.pct}%`)
               .join(" · ")}

@@ -118,11 +118,39 @@ test.describe("compact critical flows", () => {
   test("Players → open a player detail when players exist", async ({ page }) => {
     await gotoSurface(page, "players");
 
-    const playerLink = page.locator("main a[href*='/players/']").first();
-    if (!(await playerLink.isVisible().catch(() => false))) {
+    // A player row's href is `/players/{cuid}` — exclude `/players/new` (the "Add player"
+    // CTA) which the plain substring match would otherwise hit first. The registry renders
+    // behind a loading skeleton (no rows in the initial paint), so wait for a real row
+    // rather than racing an immediate isVisible() — an absent row after the full wait is
+    // a genuine "no players in this Test slot" skip, not a timing artifact.
+    const playerRowLink = page
+      .locator("main a[href*='/players/']:not([href*='/players/new'])")
+      .first();
+    const rowAppeared = await playerRowLink
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!rowAppeared) {
       test.skip(true, "No player links on the Players page in the Test slot");
     }
-    await playerLink.click();
+    await playerRowLink.click();
     await expect(page).toHaveURL(/\/players\/[^/?#]+$/);
+
+    // Player detail tabs are URL-backed (Atlas Follow-up Phase F8): switching tabs must
+    // update the URL, and the Manage tab (the home of the inline-editable administrative
+    // panels the read-only golden design had no place for) must render its heading.
+    const tabs = page.getByRole("navigation", { name: "Player detail tabs" });
+    await expect(tabs).toBeVisible({ timeout: 15_000 });
+    const manageTab = page.getByRole("link", { name: "Manage" }).first();
+    const manageVisible = await manageTab
+      .waitFor({ state: "visible", timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!manageVisible) {
+      test.skip(true, "Player detail Manage tab not visible in the Test slot");
+    }
+    await manageTab.click();
+    await expect(page).toHaveURL(/[?&]tab=manage/);
+    await expect(page.getByText("Editable administrative record").first()).toBeVisible();
   });
 });

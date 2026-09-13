@@ -126,21 +126,20 @@ export function PlayerMagnet({
         )}
       </div>
 
-      {/* Markers */}
+      {/* Markers — visually-hidden text, not aria-label: aria-label is prohibited on a span
+          with no role (axe `aria-prohibited-attr`, WCAG 4.1.2). */}
       <div className="flex shrink-0 items-center gap-1">
         {warning && (
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--warning)]"
-            title="Needs attention"
-            aria-label="Needs attention"
-          />
+          <span title="Needs attention">
+            <span className="sr-only">Needs attention</span>
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
+          </span>
         )}
         {movement && (
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--info)]"
-            title="Movement this round"
-            aria-label="Movement this round"
-          />
+          <span title="Movement this round">
+            <span className="sr-only">Movement this round</span>
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--info)]" />
+          </span>
         )}
       </div>
     </motion.div>

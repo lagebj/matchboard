@@ -17,6 +17,12 @@ export type PlayerMatchPositionUsage = {
   playedAt: Date;
   /** Position code -> minutes played at that position in this match. */
   minutesByPosition: Record<string, number>;
+  /**
+   * The player's earliest recorded interval in this match began at match minute 0 (the honest
+   * "started the match" fact). Additive (Atlas Follow-up Phase F8 Player Detail Matches tab) —
+   * the position-evolution engine ignores it.
+   */
+  startedAtKickoff: boolean;
 };
 
 /**
@@ -89,8 +95,11 @@ export async function getPlayerActualPositionHistory(
 
     let usage = byMatch.get(key);
     if (!usage) {
-      usage = { matchKey: key, source: isLeague ? "LEAGUE_MATCH" : "EVENT_MATCH", playedAt, minutesByPosition: {} };
+      usage = { matchKey: key, source: isLeague ? "LEAGUE_MATCH" : "EVENT_MATCH", playedAt, minutesByPosition: {}, startedAtKickoff: false };
       byMatch.set(key, usage);
+    }
+    if (interval.startedAtMs === 0) {
+      usage.startedAtKickoff = true;
     }
     usage.minutesByPosition[interval.position] = (usage.minutesByPosition[interval.position] ?? 0) + minutes;
   }

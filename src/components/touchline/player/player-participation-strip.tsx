@@ -12,6 +12,12 @@ export type PlayerParticipationStripProps = {
   starts: number;
   goals: number;
   assists: number;
+  /**
+   * The scope label for these totals — whatever the caller's data actually covers ("This
+   * season", "All time"). Never hardcode a scope the data does not match (Phase F8 production
+   * use: the page's canonical totals are all-time).
+   */
+  scopeLabel?: string;
   className?: string;
 };
 
@@ -24,10 +30,18 @@ function Column({ value, label }: { value: number; label: string }) {
   );
 }
 
-export function PlayerParticipationStrip({ matches, minutes, starts, goals, assists, className }: PlayerParticipationStripProps) {
+export function PlayerParticipationStrip({
+  matches,
+  minutes,
+  starts,
+  goals,
+  assists,
+  scopeLabel = "This season",
+  className,
+}: PlayerParticipationStripProps) {
   return (
     <TouchlineWidget className={className}>
-      <WidgetHeader eyebrow="Participation" title="This season" />
+      <WidgetHeader eyebrow="Participation" title={scopeLabel} />
       <div className="mt-3 flex items-stretch gap-1">
         <Column value={matches} label="Matches" />
         <Column value={minutes} label="Minutes" />

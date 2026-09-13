@@ -17,7 +17,10 @@ export type PlayerRosterTableProps = {
 
 export function PlayerRosterTable({ rows, selectedPlayerId, onSelectPlayer, className }: PlayerRosterTableProps) {
   return (
-    <div className={`overflow-x-auto ${className ?? ""}`}>
+    // tabIndex={0} — the horizontal scroll container must be keyboard-focusable (axe
+    // `scrollable-region-focusable`, WCAG 2.1.1/2.1.3). The browser's default focus outline
+    // is kept.
+    <div tabIndex={0} className={`overflow-x-auto ${className ?? ""}`}>
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-[var(--border-soft)] text-left text-[11px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
@@ -50,7 +53,14 @@ export function PlayerRosterTable({ rows, selectedPlayerId, onSelectPlayer, clas
                     <TeamKitMark color={row.kitColor} number={row.shirtNumber} size="xs" ariaLabel={`${row.displayName}'s shirt`} />
                     <span className="flex items-center gap-1.5 font-[600] text-[var(--foreground)]">
                       {row.displayName}
-                      {row.attention ? <span aria-label="Needs attention" className="h-1.5 w-1.5 rounded-full bg-[var(--warning)]" /> : null}
+                      {row.attention ? (
+                        <span title="Needs attention">
+                          {/* Visually-hidden text, not aria-label — aria-label is prohibited on
+                              a span with no role (axe `aria-prohibited-attr`, WCAG 4.1.2). */}
+                          <span className="sr-only">Needs attention</span>
+                          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </td>

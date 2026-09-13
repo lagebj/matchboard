@@ -276,7 +276,7 @@ export function PlayersPageClient({
             </label>
           </div>
 
-          <div className="hidden overflow-x-auto medium:block">
+          <div className="hidden overflow-x-auto medium:block" tabIndex={0} role="region" aria-label="Current round attention table">
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-[var(--border-soft)] text-left text-[11px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
