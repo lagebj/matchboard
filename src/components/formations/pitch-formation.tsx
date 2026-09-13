@@ -7,13 +7,7 @@ import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { TouchlineButton } from "@/components/touchline";
-import {
-  TacticsBoard,
-  ROLE_COLORS,
-  type TacticsBoardSlot,
-  type TacticsBoardAssignment,
-  type TacticsBoardPlayer,
-} from "@/components/formations/tactics-board";
+import { ROLE_COLORS } from "@/components/formations/tactics-board";
 
 type FormationSlotDisplay = {
   id: string;
@@ -172,71 +166,11 @@ export function SlotEditDialog({ isOpen, onClose, slot, gameFormat: _gameFormat,
   );
 }
 
-type PitchLineupViewProps = {
-  gameFormat: string;
-  slots: FormationSlotDisplay[];
-  assignments: { id: string; slotId: string; playerId: string | null; locked: boolean; source: string }[];
-  players: { id: string; firstName: string; lastName: string | null; primaryPosition: string }[];
-  onSlotClick?: (assignmentId: string | null, slotId: string, playerId: string | null) => void;
-  /** See `TacticsBoard`'s own doc comment (ADR-0136, Phase 5): fires on every slot click
-   * regardless of `readOnly`, distinct from `onSlotClick`. Optional and additive. */
-  onSlotView?: (assignmentId: string | null, slotId: string, playerId: string | null) => void;
-  readOnly?: boolean;
-  orientation?: "horizontal" | "vertical";
-  attackingDirection?: "left-to-right" | "right-to-left";
-};
-
-export function PitchLineupView({
-  gameFormat: _gameFormat,
-  slots,
-  assignments,
-  players,
-  onSlotClick,
-  onSlotView,
-  readOnly = false,
-  orientation = "vertical",
-  attackingDirection = "left-to-right",
-}: PitchLineupViewProps) {
-  const boardSlots: TacticsBoardSlot[] = slots.map((s) => ({
-    id: s.id,
-    gridX: s.gridX,
-    gridY: s.gridY,
-    label: s.label,
-    shortLabel: s.shortLabel,
-    roleType: s.roleType,
-    acceptedPositionIds: s.acceptedPositionIds,
-    sortOrder: s.sortOrder,
-  }));
-
-  const boardAssignments: TacticsBoardAssignment[] = assignments.map((a) => ({
-    id: a.id,
-    slotId: a.slotId,
-    playerId: a.playerId,
-    locked: a.locked,
-    source: a.source,
-  }));
-
-  const boardPlayers: TacticsBoardPlayer[] = players.map((p) => ({
-    id: p.id,
-    firstName: p.firstName,
-    lastName: p.lastName,
-    primaryPosition: p.primaryPosition,
-  }));
-
-  return (
-    <TacticsBoard
-      mode={readOnly ? "lineup-readonly" : "lineup-assignment"}
-      orientation={orientation}
-      attackingDirection={attackingDirection}
-      size="standard"
-      slots={boardSlots}
-      assignments={boardAssignments}
-      players={boardPlayers}
-      onSlotClick={onSlotClick}
-      onSlotView={onSlotView}
-      readOnly={readOnly}
-    />
-  );
-}
+// `PitchLineupView` (the `TacticsBoard` mode="lineup-assignment"/"lineup-readonly" wrapper that
+// used to live here) was removed once its last production consumer,
+// `event-match-lineup-panel.tsx`, migrated to the canonical `TouchlinePlanningPitch` (Atlas
+// Follow-up Phase F7, `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`) — it had zero remaining
+// callers (`match-tactics-panel.tsx` migrated away from it in an earlier F7 slice). `TacticsBoard`
+// itself is left for Phase F10's broader "remove obsolete implementations" sweep.
 
 export { ROLE_COLORS };

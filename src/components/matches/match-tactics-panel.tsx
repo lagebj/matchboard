@@ -3,8 +3,7 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PlayerPicker } from "@/components/formations/player-picker";
-import { TouchlineButton, TouchlinePlanningPitch, buildPlanningPitchSlotsFromFormationSlots } from "@/components/touchline";
-import { buildPlanningPitchAssignments } from "@/components/matches/match-tactics-pitch-adapter";
+import { TouchlineButton, TouchlinePlanningPitch, buildPlanningPitchSlotsFromFormationSlots, buildPlanningPitchAssignments } from "@/components/touchline";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -300,7 +299,8 @@ export function MatchTacticsPanel({
   // Atlas Follow-up (Phase F7 production pitch migration,
   // `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`): adapts the existing `FormationSlot`/
   // `MatchLineupAssignment` data (unchanged, canonical) into `TouchlinePlanningPitch`'s
-  // presentation shape via the pure, independently unit-tested `match-tactics-pitch-adapter.ts`.
+  // presentation shape via the shared, independently unit-tested projection helpers
+  // (`@/components/touchline`) — also reused by the Event match lineup panel.
   const planningSlots = buildPlanningPitchSlotsFromFormationSlots(slots);
   const planningAssignments = buildPlanningPitchAssignments(lineup?.assignments ?? [], playerPool, teamKitColor, selectedPlayerId);
 

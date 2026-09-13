@@ -76,6 +76,8 @@ export { TouchlinePlanningPitch } from "./pitch/touchline-planning-pitch";
 export type { PlanningPitchSlot, PlanningPitchAssignment, PlanningPitchEditableGrid } from "./pitch/touchline-planning-pitch";
 export { buildPlanningPitchSlotsFromFormationSlots } from "./pitch/formation-slot-projection";
 export type { FormationSlotGridInput } from "./pitch/formation-slot-projection";
+export { buildPlanningPitchAssignments } from "./pitch/planning-pitch-assignment-projection";
+export type { PlanningPitchAssignmentInput, PlanningPitchPlayerInput } from "./pitch/planning-pitch-assignment-projection";
 export { TouchlinePositionMap } from "./pitch/touchline-position-map";
 export type { TouchlinePositionMapEntry } from "./pitch/touchline-position-map";
 export { PitchShirtToken, PitchEmptySlot as PitchShirtEmptySlot } from "./pitch/pitch-shirt-token";
