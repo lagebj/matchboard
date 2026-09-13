@@ -58,7 +58,7 @@ const NEUTRAL_TEXT = "var(--foreground)";
  * hex, present or future. Returns near-black or near-white, matched loosely to this app's own
  * dark/light foreground tones rather than pure `#000`/`#fff`.
  */
-function getReadableTextColor(hex: string): string {
+export function getReadableTextColor(hex: string): string {
   const normalized = hex.replace("#", "");
   if (normalized.length !== 6) return "#ffffff";
   const r = parseInt(normalized.slice(0, 2), 16) / 255;

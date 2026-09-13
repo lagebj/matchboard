@@ -9,8 +9,8 @@ import { TouchlineWordmark, AppearanceControl } from "@/components/touchline";
  */
 const ROUTES: { href: string; title: string; note: string; ready: boolean }[] = [
   { href: "/dev/ui-lab/atlas-followup/team-kit-colour", title: "Team Kit Colour", note: "Phase F1", ready: true },
-  { href: "/dev/ui-lab/atlas-followup/planning-pitch", title: "Planning pitch (desktop + mobile)", note: "Phase F2 — Hard Gate A", ready: false },
-  { href: "/dev/ui-lab/atlas-followup/position-map", title: "Player Detail position map", note: "Phase F2 — Hard Gate A", ready: false },
+  { href: "/dev/ui-lab/atlas-followup/planning-pitch", title: "Planning pitch (desktop + mobile)", note: "Phase F2 — Hard Gate A", ready: true },
+  { href: "/dev/ui-lab/atlas-followup/position-map", title: "Player Detail position map", note: "Phase F2 — Hard Gate A", ready: true },
   { href: "/dev/ui-lab/atlas-followup/player-detail", title: "Player Detail (Overview/Matches/Development/Evidence)", note: "Phase F4 — Gate B", ready: false },
   { href: "/dev/ui-lab/atlas-followup/players-overview", title: "Player Overview", note: "Phase F5 — Gate C", ready: false },
   { href: "/dev/ui-lab/atlas-followup/round-board", title: "Round Board", note: "Phase F6 — Gate D", ready: false },

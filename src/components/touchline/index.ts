@@ -72,5 +72,21 @@ export type { PitchPlayerTokenStatus } from "./pitch/pitch-player-token";
 export { TeamKitMark } from "./identity/team-kit-mark";
 export type { TeamKitMarkSize, TeamKitMarkProps } from "./identity/team-kit-mark";
 
+export { TouchlinePlanningPitch } from "./pitch/touchline-planning-pitch";
+export type { PlanningPitchSlot, PlanningPitchAssignment } from "./pitch/touchline-planning-pitch";
+export { TouchlinePositionMap } from "./pitch/touchline-position-map";
+export type { TouchlinePositionMapEntry } from "./pitch/touchline-position-map";
+export { PitchShirtToken, PitchEmptySlot as PitchShirtEmptySlot } from "./pitch/pitch-shirt-token";
+export { PositionEvidenceDot } from "./pitch/position-evidence-dot";
+export type { PositionSupportBand, PositionEvidenceConfidence } from "./pitch/position-evidence-dot";
+export { PlanningPitchMarkings, FlatPitchMarkings } from "./pitch/pitch-markings";
+export {
+  projectPlanningPitchPoint,
+  projectFlatPitchPoint,
+  gridToNormalizedPoint,
+  normalizedPointToGrid,
+} from "./pitch/projection";
+export type { NormalizedPitchPoint, ScreenPitchPoint } from "./pitch/types";
+
 export { LiveActionGrid } from "./live/live-action-grid";
 export type { LiveAction, LiveActionTone } from "./live/live-action-grid";

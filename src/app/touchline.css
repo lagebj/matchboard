@@ -79,6 +79,19 @@
   --tl-pitch-border: rgba(199, 245, 74, 0.18);
   --tl-pitch-selected: rgba(199, 245, 74, 0.16);
   --tl-pitch-atmosphere: radial-gradient(circle at 50% 35%, rgba(72, 126, 67, 0.16), transparent 42%);
+
+  /* Atlas Follow-up (06_CANONICAL_PITCH_RENDERING_CONTRACT.md §9) — TouchlinePositionMap's
+   * relative-support hue family for PositionEvidenceDot. All four bands stay green (never
+   * red/amber); confidence is a SEPARATE channel (opacity/outline), never encoded by hue. */
+  --tl-position-support-strongest: #10b981;
+  --tl-position-support-strong: #34d399;
+  --tl-position-support-established: #6ee7b7;
+  --tl-position-support-limited: #a7f3d0;
+
+  /* PitchShirtToken's one non-arbitrary colour distinction (real GK/outfield data, not an
+   * invented per-team hue — matches the neutral grey GK kit shown in the golden references).
+   * Deliberately its own token, not `--warning` — a goalkeeper is not an attention state. */
+  --tl-gk-kit: #7b8794;
 }
 
 /* --- Light palette (first-class production theme / sideline mode) -------- */
@@ -142,6 +155,14 @@
   --tl-pitch-selected: rgba(88, 116, 0, 0.12);
   /* No dark-canvas radial atmosphere on the light pitch (06 §2). */
   --tl-pitch-atmosphere: none;
+
+  /* Deeper/more-saturated than the dark variant for AA contrast on a light pitch surface. */
+  --tl-position-support-strongest: #047857;
+  --tl-position-support-strong: #059669;
+  --tl-position-support-established: #10b981;
+  --tl-position-support-limited: #34d399;
+
+  --tl-gk-kit: #52606d;
 }
 
 @media (prefers-color-scheme: light) {
@@ -203,6 +224,13 @@
     --tl-pitch-border: rgba(79, 108, 0, 0.2);
     --tl-pitch-selected: rgba(88, 116, 0, 0.12);
     --tl-pitch-atmosphere: none;
+
+    --tl-position-support-strongest: #047857;
+    --tl-position-support-strong: #059669;
+    --tl-position-support-established: #10b981;
+    --tl-position-support-limited: #34d399;
+
+    --tl-gk-kit: #52606d;
   }
 }
 
