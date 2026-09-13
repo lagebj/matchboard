@@ -3,6 +3,27 @@
 Audit performed against `main` prior to any Atlas Follow-up implementation work. Scope and
 required target state: `.matchboard-work/matchboard_atlas_followup_roundboard_players_pitch_positions_2026-09-12/06_CANONICAL_PITCH_RENDERING_CONTRACT.md`.
 
+## Phase F7 status: complete
+
+Every `TouchlinePlanningPitch` target this F0 audit identified has been migrated, or confirmed to
+have no real surface to migrate (verified by repository-wide search, not assumed), with one
+deliberate, documented exception. See the "Production pitch consumers" table below for the
+per-row detail; summary:
+
+- **Migrated**: Formations builder/editor, match detail Lineup/Tactics tab, Event match lineup
+  panel.
+- **No real surface exists to migrate**: "read-only formation/lineup previews" (`TacticsBoard`
+  mode "formation-preview" is dev-lab-only, never a production route), Round Board pitch
+  subviews (no pitch renders anywhere in `round-board.tsx` or the wider Round Board component
+  tree).
+- **Deliberately skipped**: Event squad lineup board (`event-squad-lineup-board.tsx`) — confirmed
+  entirely dead code with zero production callers; see **ARR-0050** for the full finding and the
+  pending maintainer decision.
+- **Out of Phase F7's scope** (belongs to Phase F8, "Production Players migration," per
+  `10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md`, already gated by the approved Gates B/C): the
+  Player Detail position card (`src/components/ui/position-map.tsx`), a `TouchlinePositionMap`
+  target, not `TouchlinePlanningPitch`.
+
 ## Headline finding
 
 **Most of the "pitch foundations" (Phase F2) work already exists**, built during the Touchline
