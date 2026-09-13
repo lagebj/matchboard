@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 import { PlanningPitchMarkings } from "./pitch-markings";
-import { projectPlanningPitchPoint, gridToNormalizedPoint } from "./projection";
+import { projectPlanningPitchPoint, gridToNormalizedPoint, normalizedPointToGrid } from "./projection";
 import { PitchShirtToken, PitchEmptySlot } from "./pitch-shirt-token";
 import type { NormalizedPitchPoint, PitchShirtTokenStatus } from "./types";
 
@@ -41,6 +41,19 @@ export type PlanningPitchAssignment = {
   status?: PitchShirtTokenStatus;
 };
 
+/**
+ * Formation-editor mode (Formations builder). Renders every grid cell not already covered by
+ * `slots` as a clickable "add a slot here" target — additive and optional; Lineup, Tactics,
+ * event planning, and Round Board pitch subviews never pass this and are unaffected.
+ */
+export type PlanningPitchEditableGrid = {
+  width: number;
+  height: number;
+  /** Whether a new slot may currently be added (e.g. the formation is already at its max slot count). */
+  canAddMore: boolean;
+  onAddSlot: (gridX: number, gridY: number) => void;
+};
+
 export type TouchlinePlanningPitchProps = {
   slots: PlanningPitchSlot[];
   assignments: PlanningPitchAssignment[];
@@ -51,6 +64,7 @@ export type TouchlinePlanningPitchProps = {
   readOnly?: boolean;
   compact?: boolean;
   className?: string;
+  editableGrid?: PlanningPitchEditableGrid;
 };
 
 export function TouchlinePlanningPitch({
@@ -61,8 +75,21 @@ export function TouchlinePlanningPitch({
   readOnly = false,
   compact = false,
   className,
+  editableGrid,
 }: TouchlinePlanningPitchProps) {
   const assignmentBySlot = new Map(assignments.map((a) => [a.slotId, a]));
+
+  const occupiedGridCells = editableGrid
+    ? new Set(slots.map((s) => { const g = normalizedPointToGrid(s.point); return `${g.gridX}-${g.gridY}`; }))
+    : null;
+  const addableGridCells: { gridX: number; gridY: number }[] = [];
+  if (editableGrid && occupiedGridCells) {
+    for (let y = 0; y < editableGrid.height; y++) {
+      for (let x = 0; x < editableGrid.width; x++) {
+        if (!occupiedGridCells.has(`${x}-${y}`)) addableGridCells.push({ gridX: x, gridY: y });
+      }
+    }
+  }
 
   return (
     <div
@@ -73,6 +100,25 @@ export function TouchlinePlanningPitch({
       )}
     >
       <PlanningPitchMarkings />
+      {editableGrid && addableGridCells.map(({ gridX, gridY }) => {
+        const screen = projectPlanningPitchPoint(gridToNormalizedPoint(gridX, gridY));
+        const canAdd = editableGrid.canAddMore && !readOnly;
+        return (
+          <div
+            key={`grid-${gridX}-${gridY}`}
+            className="absolute z-10"
+            style={{ left: `${screen.xPct}%`, top: `${screen.yPct}%`, transform: "translate(-50%, -50%)" }}
+          >
+            <PitchEmptySlot
+              role="+"
+              editable={canAdd}
+              ariaLabel={canAdd ? "Add a slot here" : "Empty grid position"}
+              compact={compact}
+              onClick={canAdd ? () => editableGrid.onAddSlot(gridX, gridY) : undefined}
+            />
+          </div>
+        );
+      })}
       {slots.map((slot) => {
         const assignment = assignmentBySlot.get(slot.id) ?? null;
         const screen = projectPlanningPitchPoint(slot.point);

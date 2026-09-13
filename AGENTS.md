@@ -2862,9 +2862,17 @@ in-repo reference once the UI Lab gate is passed.
   match-detail Lineup/Tactics tab's pitch (`match-tactics-panel.tsx`, via the pure adapter
   `match-tactics-pitch-adapter.ts`) — team kit colour is resolved through the existing
   `fetchTeamConfiguration()` action (Phase F1, `Team.kitColor`), all existing slot-click/
-  slot-view/picker/suggestion mutation logic is unchanged. Update this bullet as each further
-  F7 sub-item lands; a surface not listed here as migrated still renders through the prior
-  ADR-0136-era pitch components.
+  slot-view/picker/suggestion mutation logic is unchanged; and the Formations builder/editor
+  (`formations-builder.tsx`) — `TouchlinePlanningPitch` gained one new, additive, optional
+  capability for this surface, `editableGrid` (renders every grid cell not already covered by
+  `slots` as a clickable "add a slot here" target), since the editor's "click any empty cell to
+  add a new slot" interaction has no equivalent in Lineup/Tactics' click-an-existing-slot model —
+  every other caller omits it and is unaffected. The `FormationSlot` → `PlanningPitchSlot`
+  mapping itself (`buildPlanningPitchSlotsFromFormationSlots()`,
+  `src/components/touchline/pitch/formation-slot-projection.ts`) is shared by both migrated
+  surfaces rather than duplicated. Update this bullet as each further F7 sub-item lands; a
+  surface not listed here as migrated still renders through the prior ADR-0136-era pitch
+  components.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
@@ -4459,7 +4467,8 @@ authorization. Contextual (current route/entity) and selection-aware commands (P
 | `src/lib/formations/lineup-compatibility.ts` | `getPlayerSlotCompatibility()`, `sortPlayersBySlotCompatibility()`, `getPlayersForLineup()` |
 | `src/lib/formations/normalize.ts` | `findFormationDataIssues()` — formation data validation/normalization |
 | `src/lib/formations/seed.ts` | `seedSystemFormations()` — DB seeding from system-formations data |
-| `src/components/formations/pitch-formation.tsx` | `PitchFormationBuilder` (editor), `PitchLineupView` (lineup), `SlotEditDialog` |
+| `src/components/formations/pitch-formation.tsx` | `PitchLineupView` (lineup, still used by `event-match-lineup-panel.tsx`), `SlotEditDialog` — `PitchFormationBuilder` was removed once `formations-builder.tsx` migrated to `TouchlinePlanningPitch` (Atlas Follow-up Phase F7) |
+| `src/components/touchline/pitch/formation-slot-projection.ts` | `buildPlanningPitchSlotsFromFormationSlots()` — shared `FormationSlot` → `PlanningPitchSlot` mapping, reused by the match Lineup/Tactics tab and the Formations editor (Atlas Follow-up Phase F7) |
 | `src/components/formations/player-picker.tsx` | `PlayerPicker` dialog for slot assignment — shows exact positional fit per candidate (`classifyExactSuitability`), orders by tier, gates an `UNSUPPORTED` pick behind the `Use outside automatic positional fit?` confirmation (ADR-0129 §04) |
 | `src/components/formations/formations-builder.tsx` | `FormationsBuilderClient` — create/edit formation page component |
 | `src/components/matches/match-tactics-panel.tsx` | `MatchTacticsPanel` — tactics tab in match detail |

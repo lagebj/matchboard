@@ -3,8 +3,8 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PlayerPicker } from "@/components/formations/player-picker";
-import { TouchlineButton, TouchlinePlanningPitch } from "@/components/touchline";
-import { buildPlanningPitchSlots, buildPlanningPitchAssignments } from "@/components/matches/match-tactics-pitch-adapter";
+import { TouchlineButton, TouchlinePlanningPitch, buildPlanningPitchSlotsFromFormationSlots } from "@/components/touchline";
+import { buildPlanningPitchAssignments } from "@/components/matches/match-tactics-pitch-adapter";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -301,7 +301,7 @@ export function MatchTacticsPanel({
   // `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`): adapts the existing `FormationSlot`/
   // `MatchLineupAssignment` data (unchanged, canonical) into `TouchlinePlanningPitch`'s
   // presentation shape via the pure, independently unit-tested `match-tactics-pitch-adapter.ts`.
-  const planningSlots = buildPlanningPitchSlots(slots);
+  const planningSlots = buildPlanningPitchSlotsFromFormationSlots(slots);
   const planningAssignments = buildPlanningPitchAssignments(lineup?.assignments ?? [], playerPool, teamKitColor, selectedPlayerId);
 
   const handleSlotClick = useCallback((assignmentId: string | null, slotId: string, _playerId: string | null) => {

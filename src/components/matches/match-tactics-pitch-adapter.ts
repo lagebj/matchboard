@@ -1,6 +1,4 @@
-import type { PlanningPitchSlot, PlanningPitchAssignment } from "@/components/touchline";
-import { gridToNormalizedPoint } from "@/components/touchline/pitch/projection";
-import type { FormationSlotRoleType } from "@/lib/formations/types";
+import type { PlanningPitchAssignment } from "@/components/touchline";
 
 /**
  * Adapts the existing, canonical `FormationSlot`/`MatchLineupAssignment` data (unchanged, still
@@ -9,24 +7,12 @@ import type { FormationSlotRoleType } from "@/lib/formations/types";
  * `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`). Pure — no domain/mutation logic, no DB access — so
  * the exact same mapping used by `MatchTacticsPanel` is directly unit-testable without mocking
  * the component's data-fetching machinery.
+ *
+ * The `FormationSlot` → `PlanningPitchSlot` half of this mapping lives in the shared
+ * `buildPlanningPitchSlotsFromFormationSlots()` (`@/components/touchline`) — the Formations
+ * editor needs the identical mapping, so it is not re-derived here (AGENTS.md's "One business
+ * operation, one owning implementation"). Only the assignment (player) side is Tactics-specific.
  */
-
-export type TacticsPitchSlotInput = {
-  id: string;
-  gridX: number;
-  gridY: number;
-  shortLabel: string;
-  roleType: FormationSlotRoleType;
-};
-
-export function buildPlanningPitchSlots(slots: TacticsPitchSlotInput[]): PlanningPitchSlot[] {
-  return slots.map((s) => ({
-    id: s.id,
-    point: gridToNormalizedPoint(s.gridX, s.gridY),
-    roleLabel: s.shortLabel,
-    isGoalkeeper: s.roleType === "GOALKEEPER",
-  }));
-}
 
 export type TacticsPitchAssignmentInput = {
   slotId: string;
