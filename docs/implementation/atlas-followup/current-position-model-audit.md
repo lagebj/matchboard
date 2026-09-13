@@ -192,6 +192,32 @@ a fifth "position profile evolution" step here is consistent with the existing a
 gets League/Event parity, idempotent re-run safety, and `PostMatchLearningRun` observability for
 free, rather than inventing a new trigger mechanism.
 
+## Correction (2026-09-13, during Phase F3 implementation)
+
+This audit's §5 ("Synchronizers") stated: *"No file named `sync-player-positions.ts`,
+`position-experience.ts`, or `suggestions.ts`... exists in the current tree."* **This was wrong
+for two of the three names.** `src/lib/player-development/position-experience.ts` and
+`src/lib/player-development/suggestions.ts` both exist (found while wiring Phase F3's actual
+implementation, via a directory listing of `src/lib/player-development/` that this audit's
+original grep-based search never performed). A deeper follow-up audit established:
+
+- Both files, plus `PlayerProfileSuggestion`/`PlayerProfileSuggestionEvidence` (Prisma models),
+  `observations.ts`, two API routes, and one UI component form a coherent but **entirely dead**
+  subsystem — confirmed unreachable from any real page/component/fetch call anywhere in the
+  repository. Full account: **ARR-0049**.
+- §7's "Known gaps" table conclusions remain correct despite this miss: there is still no working
+  automatic evidence-driven mutation mechanism (the dead subsystem, even if it worked, is
+  approval-gated — see ARR-0049 — and would not satisfy the contract's "no redundant approval"
+  requirement regardless).
+- One piece of the dead subsystem, `evaluatePositionEvidence()` (confidence/direction computation
+  for POSITION-kind observations), is a legitimate, still-correct evaluator and is reused by
+  Phase F3's implementation rather than discarded — see ADR-0139.
+
+Recorded here rather than silently edited into the original findings above, per this repository's
+standing rule against leaving a corrected audit indistinguishable from the original — a future
+reader should be able to see that the original search missed something and why the correction is
+trustworthy.
+
 ## 9. Stop conditions checked
 
 Per `00_AUTHORITY_AND_EXECUTION_CONTRACT.md` §5: no conflicting invariant found, no existing

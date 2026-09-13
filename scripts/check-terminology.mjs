@@ -32,9 +32,11 @@ const BANNED_TERMS = [
   { term: "jersey number", canonical: "shirt number", pattern: /\bjersey number\b/g, scope: "user-facing" },
   { term: "Planning period", canonical: "League season / Match round", pattern: /\bPlanning period\b/g, scope: "user-facing" },
   // Negative lookahead excludes "Phase N" (the round-level pipeline's numbered phases,
-  // e.g. "Phase 7"), which is legitimate internal terminology distinct from "Phase" used
-  // as a banned synonym for "League season".
-  { term: "Phase (as league season)", canonical: "League season", pattern: /\bPhase\b(?!\s*\d)/g, scope: "user-facing-docs" },
+  // e.g. "Phase 7") and "Phase <letter><digit>" (an implementation bundle's own lettered phase
+  // sequence, e.g. "Phase F0"/"Phase F11" — Atlas Follow-up's
+  // 10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md), both legitimate internal terminology distinct
+  // from "Phase" used as a banned synonym for "League season".
+  { term: "Phase (as league season)", canonical: "League season", pattern: /\bPhase\b(?!\s*[A-Z]?\d)/g, scope: "user-facing-docs" },
   { term: "Finalized (in visible UK English)", canonical: "Finalised", pattern: /\bFinalized\b/g, scope: "user-facing" },
   { term: "Finalization (in visible UK English)", canonical: "Finalisation", pattern: /\bFinalization\b/g, scope: "user-facing" },
   { term: "Fall (as season)", canonical: "Autumn", pattern: /\bFall\b/g, scope: "user-facing-docs" },

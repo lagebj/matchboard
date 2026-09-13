@@ -758,6 +758,55 @@ algorithms. See ADR-0104.
   boundary rules and ARR-0031) processes both historical League and Event matches through this
   same pipeline — not a second historical-only algorithm.
 
+### Evolving player-position model (Atlas Follow-up Phase F3 — ADR-0139)
+
+A player's declared position is not immutable. `Player.primaryPosition`/`secondaryPosition`/
+`tertiaryPosition` remain the one canonical source of truth (no relation model), but coach
+declaration and actual football evidence are inputs to one connected model, not two competing
+truths — and the model **automatically evolves**, with no redundant coach-approval step for
+normal evidence-backed change.
+
+- **Evidence sources**: coach declaration (counts immediately, establishes initial rank and
+  support); later manual coach edits (strong current evidence, immediately effective, and reset
+  the automatic-comparison baseline for free); actual completed-match positional usage from
+  `ActualPositionInterval` (League and Event parity, recency-weighted within a rolling 6-match
+  window); explicit `PlayerDevelopmentObservation` position observations (reusing
+  `evaluatePositionEvidence()`'s existing confidence/direction semantics — see ARR-0049 for why
+  this evidence source is currently always empty in practice). Planned lineup position, planned
+  rotation position, formation-slot eligibility, exact-position suitability/transferability, and
+  automatic lineup recommendation never create position evidence — structurally excluded by the
+  evidence input's own type shape, not by a runtime check that could be bypassed.
+- **Automatic promotion is gated by hysteresis**, never a single match: a candidate needs at
+  least 3 windowed appearances, a raw-support margin of at least 0.15 over the current primary,
+  and that margin must hold across two consecutive evidence recalculations (this one, and the one
+  with the single most recent match dropped) before it becomes primary. The old primary demotes
+  to secondary/tertiary rather than disappearing, when it still has support.
+- **Mutation timing**: only at committed-evidence time — a fifth step
+  (`evolvePositionProfilesForMatch()`) inside `runPostMatchLearning()` (ADR-0104), run at post-match
+  report completion (League/Event) or replay/reconcile. Never from an unsubmitted live plan.
+- **Audit**: every automatic change writes one `DecisionRecord`
+  (`decisionType: "POSITION_PROFILE_EVOLUTION"`, `createdBy: "position-evolution-engine"`,
+  `beforeSnapshot`/`afterSnapshot` carrying the full declared triple).
+- **Presentation contract**: `EffectivePlayerPositionProfile`
+  (`src/lib/player-development/effective-position-profile.ts`'s
+  `computeEffectivePlayerPositionProfile()`) is the one projection every surface consumes — a
+  position with no legitimate support (no declaration, no evidence) never appears. `supportBand`
+  (`LIMITED`/`ESTABLISHED`/`STRONG`/`STRONGEST`, all green) and `confidence`
+  (`LOW`/`MEDIUM`/`HIGH`) are two independent visual channels — hue/size for support,
+  opacity/outline for confidence, never conflated. See "Frontend visual authority — Touchline"
+  below for `TouchlinePositionMap`/`PositionEvidenceDot`, the rendering side of this same profile.
+- Key files: `src/lib/player-development/effective-position-profile.ts` (pure),
+  `position-evolution-config.ts` (centralized constants), `position-usage-history.ts` (the
+  League+Event actual-usage query), `sync-effective-position.ts` (DB-bound orchestrator).
+- **ARR-0049** (undispositioned): a substantial player-profile-suggestion/position-observation
+  subsystem (`PlayerProfileSuggestion`, `suggestions.ts`, `observations.ts`,
+  `DevelopmentObservationSection`) is confirmed entirely dead/unreachable from any UI. Do not
+  complete its `POSITION` suggestion-decision stub as "the" position-evolution mechanism — its
+  approval-gated shape cannot satisfy this section's "no redundant approval" rule. One piece of
+  it, `evaluatePositionEvidence()`/`getPositionExperienceForPlayer()`, is salvaged and reused by
+  `sync-effective-position.ts`; the rest stays dead pending a maintainer decision to delete or
+  revive it.
+
 ### Canonical match-state and transition timeline (Evidence-Informed Match Planning, Bundle 1 — ADR-0113)
 
 One canonical, deterministically reconstructed representation of actual on-field state through a

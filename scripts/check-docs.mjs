@@ -44,6 +44,14 @@ function walkDir(dir) {
         const subResults = walkDir(fullPath);
         if (subResults.files.length === 0 && subResults.dirs.length === 0) {
           results.push({ type: "empty-dir", path: relative(REPO_ROOT, fullPath) });
+        } else {
+          // Bug fix: a directory whose only content is a non-empty subdirectory (no .md file
+          // of its own) was previously invisible to its own parent's emptiness check — nothing
+          // propagated "this subtree has real content" upward, so e.g. docs/implementation/
+          // (containing only docs/implementation/atlas-followup/*.md, one level deeper) was
+          // wrongly flagged as empty. A "dir" marker makes the current level correctly count
+          // as non-empty too.
+          results.push({ type: "dir", path: fullPath });
         }
         results.push(...subResults.issues);
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
@@ -395,6 +403,10 @@ function main() {
 
   console.log(`✗ Found ${allIssues.length} documentation issue(s):\n`);
   for (const issue of allIssues) {
+    if (issue.type === "empty-dir") {
+      console.log(`  ${issue.path} — empty documentation directory (no .md file anywhere in its subtree)`);
+      continue;
+    }
     console.log(`  ${issue.file}${issue.line ? `:${issue.line}` : ""} — ${issue.message}`);
   }
 
