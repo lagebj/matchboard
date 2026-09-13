@@ -99,6 +99,9 @@ import {
   nextAlarmTime,
   evaluateReconciliation,
   advanceClockAnchor,
+  revisionFor,
+  classifyDomain,
+  isKnownLiveMatchEventType,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "./state";
@@ -355,9 +358,12 @@ export class MatchSessionObject extends DurableObject<Env> {
       persistence: { pendingClientEventIds },
       presence: { connectedCount: this.countAuthenticatedConnections() },
       lastSequence: meta.version,
-      // Placeholder until Bundle 3 wires real classification-based increments — see
-      // `MatchSessionSnapshot`'s own doc comment in realtime-messages.ts.
-      revisions: { clock: 0, lineup: 0, annotation: 0 },
+      // ADR-0138 (Bundle 3) — real classification-based domain revision counters.
+      revisions: {
+        clock: revisionFor(meta, "clock"),
+        lineup: revisionFor(meta, "lineup"),
+        annotation: revisionFor(meta, "annotation"),
+      },
     };
     return rpcOk(call.id, snapshot);
   }
@@ -390,10 +396,15 @@ export class MatchSessionObject extends DurableObject<Env> {
     const existing = await this.ctx.storage.get<AcceptedEventRecord>(`event:${clientEventId}`);
     const eventFields = params.event as Record<string, unknown>;
     const eventType = eventFields.eventType;
+    // ADR-0138 (Bundle 3) — the coordinator's own precondition evaluation needs this session's
+    // full accepted-event history (to derive on-field lineup state and resolve annotation
+    // targets), not just the single record matching this clientEventId.
+    const acceptedEvents = await this.listAcceptedEvents();
 
     const decision = evaluateRecordEvent({
       meta,
       existing,
+      acceptedEvents,
       clientEventId,
       baseVersion: params.baseVersion,
       eventType,
@@ -407,9 +418,14 @@ export class MatchSessionObject extends DurableObject<Env> {
         return rpcFail(call.id, "SESSION_ENDED", "This live session has ended.");
       case "invalid":
         return rpcFail(call.id, "EVENT_INVALID", "event.eventType is required.");
-      case "stale_state":
-        return rpcFail(call.id, "STALE_STATE", "This action requires the current version.", {
+      case "conflict":
+        // ADR-0138 (Bundle 3) — reuses the existing STALE_STATE envelope code for wire
+        // compatibility (an older client still self-heals via currentVersion exactly as
+        // before); conflictCode carries the real, domain-aware reason for a client that
+        // understands it (Bundle 8's "Needs review" panel).
+        return rpcFail(call.id, "STALE_STATE", "This action's precondition is no longer met.", {
           currentVersion: decision.currentVersion,
+          conflictCode: decision.conflictCode,
         });
       case "duplicate": {
         const result: RecordEventResult = {
@@ -433,6 +449,13 @@ export class MatchSessionObject extends DurableObject<Env> {
             eventFields,
             decision.record.acceptedAt,
           ),
+          // ADR-0138 (Bundle 3) — only the operation's own domain's revision counter advances;
+          // an append-safe operation (decision.domain === "append-safe") advances none of them,
+          // which is exactly what stops an accepted goal from making an unrelated pending
+          // rotation stale (D08).
+          clockRevision: revisionFor(meta, "clock") + (decision.domain === "clock" ? 1 : 0),
+          lineupRevision: revisionFor(meta, "lineup") + (decision.domain === "lineup" ? 1 : 0),
+          annotationRevision: revisionFor(meta, "annotation") + (decision.domain === "annotation" ? 1 : 0),
         } satisfies SessionMeta);
 
         const persistRequest: InternalPersistEventRequest = {
@@ -838,7 +861,28 @@ export class MatchSessionObject extends DurableObject<Env> {
     for (const record of result.newRecords) {
       await this.putAcceptedEvent(record);
     }
-    await this.ctx.storage.put("meta", { ...meta, version: result.finalVersion } satisfies SessionMeta);
+    // ADR-0138 (Bundle 3) — a reconciled event (discovered via the direct-HTTP fallback path,
+    // ARR-0045) can be state-sensitive too; its domain's revision counter must advance the same
+    // as if it had gone through this object's own evaluateRecordEvent, or a freshly-reconciled
+    // object would report stale (zero) revisions despite real state-sensitive operations having
+    // already happened for this session.
+    let clockRevision = revisionFor(meta, "clock");
+    let lineupRevision = revisionFor(meta, "lineup");
+    let annotationRevision = revisionFor(meta, "annotation");
+    for (const record of result.newRecords) {
+      if (!isKnownLiveMatchEventType(record.eventType)) continue;
+      const domain = classifyDomain(record.eventType);
+      if (domain === "clock") clockRevision += 1;
+      else if (domain === "lineup") lineupRevision += 1;
+      else if (domain === "annotation") annotationRevision += 1;
+    }
+    await this.ctx.storage.put("meta", {
+      ...meta,
+      version: result.finalVersion,
+      clockRevision,
+      lineupRevision,
+      annotationRevision,
+    } satisfies SessionMeta);
   }
 
   private async listAcceptedEvents(): Promise<AcceptedEventRecord[]> {

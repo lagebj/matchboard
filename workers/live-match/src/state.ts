@@ -1,45 +1,118 @@
 /**
- * Pure MatchSession decision logic (SPEC.md §6, §8, §9, §15, §29). Deliberately free of any
- * Durable Object / Workers-runtime API so it is unit-testable with plain Vitest — see
- * `../test/state.test.ts`. `match-session-object.ts` is the only caller; it owns all I/O
- * (Durable Object storage, WebSocket broadcast) and defers every decision to these functions.
+ * Pure MatchSession decision logic (SPEC.md §6, §8, §9, §15, §29; ADR-0138 for Bundle 2/3
+ * evolution). Deliberately free of any Durable Object / Workers-runtime API so it is
+ * unit-testable with plain Vitest — see `../test/state.test.ts`. `match-session-object.ts` is
+ * the only caller; it owns all I/O (Durable Object storage, WebSocket broadcast) and defers
+ * every decision to these functions.
  *
- * SPEC.md ambiguity resolved here: §9 classifies *event types*, not RPC methods, into
- * append-safe vs. state-sensitive, and gives examples rather than an exhaustive list ("other
- * genuinely additive observations" for append-safe). This module maps §9.2's exact examples
- * onto the existing `LiveMatchEventType` Prisma enum values (`prisma/schema.prisma`) and
- * treats every other event type as append-safe by default, matching §9.1's "other genuinely
- * additive observations" catch-all. `MATCH_START` is treated as state-sensitive even though
- * §9.2's list only names "period start" — it is grouped with `PERIOD_START`/`PERIOD_END`/
- * `MATCH_END` as one existing period-transition concept in
- * `src/lib/live-match/live-match-types.ts`'s `LIVE_EVENT_TYPES_THAT_ARE_PERIOD_TRANSITIONS`,
- * and is exactly as state-establishing as the events §9.2 does name.
+ * `MATCH_START` is classified alongside `PERIOD_START`/`PERIOD_END`/`MATCH_END` as one
+ * existing period-transition concept (`src/lib/live-match/live-match-types.ts`'s
+ * `LIVE_EVENT_TYPES_THAT_ARE_PERIOD_TRANSITIONS`) — exactly as state-establishing as the other
+ * three.
+ *
+ * ADR-0138 (Bundle 3, DECISIONS.md D08/D09/D10) replaced the original Stage 3 catch-all
+ * classification ("every event type not explicitly listed is append-safe by default") with the
+ * exhaustive, closed classification below, and replaced the single whole-state
+ * `baseVersion === meta.version` conflict gate for every state-sensitive operation with
+ * domain-scoped revisions plus real semantic precondition evaluation against this session's own
+ * accepted-event history — see `evaluateRecordEvent()`'s own doc comment for the full model and
+ * its disclosed scope boundaries (most notably: lineup preconditions are session-relative, since
+ * this object does not yet load the match's starting-lineup baseline — that is Bundle 5's
+ * projection-baseline work).
  */
 
 import type { ClockAnchor } from "../../../src/lib/live-match/realtime/realtime-messages";
+import type { ConflictCode } from "../../../src/lib/live-match/realtime/protocol";
 
-/** SPEC.md §9.2, mapped to `prisma/schema.prisma`'s `LiveMatchEventType` enum values. Kept
- * as plain string literals (not an import of the generated Prisma enum type) so this module
- * has zero dependency on Prisma client generation succeeding in the Worker's separate build —
- * `RecordEventCommand.event` is untyped `Record<string, unknown>` at the protocol level
- * (Stage 1), so there is no type-level connection to duplicate against in the first place. */
-export const STATE_SENSITIVE_EVENT_TYPES: ReadonlySet<string> = new Set([
+/**
+ * ADR-0138 (Bundle 3), DECISIONS.md D09 — the exhaustive, closed set of known
+ * `LiveMatchEventType` values (`prisma/schema.prisma`), kept as plain string literals (not an
+ * import of the generated Prisma enum type) so this module keeps its zero-Prisma-dependency
+ * guarantee (documented at the top of this file) — `RecordEventCommand.event` is untyped
+ * `Record<string, unknown>` at the protocol level, so there is no type-level connection to
+ * duplicate against in the first place.
+ *
+ * This replaces the previous catch-all classification (Stage 3's "every other event type is
+ * append-safe by default"), which a direct audit found had already misclassified `SCORER_SET`/
+ * `ASSIST_SET` as append-safe — DECISIONS.md D09 places them in the Annotation domain
+ * (state-sensitive). `classifyDomain()`'s exhaustive switch below has a `never`-typed default
+ * case: a new `LiveMatchEventType` enum value added without updating this list produces a
+ * compile error here, and `isKnownLiveMatchEventType()` makes an unrecognized runtime string
+ * fail closed (rejected as `invalid` in `evaluateRecordEvent`) rather than silently defaulting
+ * to append-safe.
+ */
+export const KNOWN_LIVE_MATCH_EVENT_TYPES = [
   "MATCH_START",
   "PERIOD_START",
   "PERIOD_END",
   "MATCH_END",
   "CLOCK_ADJUSTMENT",
+  "GOAL_FOR",
+  "GOAL_AGAINST",
+  "FAIR_PLAY_POSITIVE",
+  "FAIR_PLAY_CONCERN",
+  "MOMENT_MARKED",
   "ROTATION_OUT",
   "ROTATION_IN",
   "POSITIONS_CHANGED",
+  "SCORER_SET",
+  "ASSIST_SET",
   "EVENT_CORRECTED",
   "EVENT_REVERSED",
-]);
+] as const;
+
+export type KnownLiveMatchEventType = (typeof KNOWN_LIVE_MATCH_EVENT_TYPES)[number];
+
+export function isKnownLiveMatchEventType(value: string): value is KnownLiveMatchEventType {
+  return (KNOWN_LIVE_MATCH_EVENT_TYPES as readonly string[]).includes(value);
+}
+
+/** DECISIONS.md D08 — the domain an operation's semantic precondition/revision belongs to.
+ * `"append-safe"` operations need neither. */
+export type OperationDomain = "append-safe" | "clock" | "lineup" | "annotation";
+
+/** DECISIONS.md D09's exact classification table. A `never`-typed default case makes an
+ * unhandled `LiveMatchEventType` a compile error, not a silent default. */
+export function classifyDomain(eventType: KnownLiveMatchEventType): OperationDomain {
+  switch (eventType) {
+    case "GOAL_FOR":
+    case "GOAL_AGAINST":
+    case "FAIR_PLAY_POSITIVE":
+    case "FAIR_PLAY_CONCERN":
+    case "MOMENT_MARKED":
+      return "append-safe";
+    case "MATCH_START":
+    case "PERIOD_START":
+    case "PERIOD_END":
+    case "MATCH_END":
+    case "CLOCK_ADJUSTMENT":
+      return "clock";
+    case "ROTATION_OUT":
+    case "ROTATION_IN":
+    case "POSITIONS_CHANGED":
+      return "lineup";
+    case "SCORER_SET":
+    case "ASSIST_SET":
+    case "EVENT_CORRECTED":
+    case "EVENT_REVERSED":
+      return "annotation";
+    default: {
+      const exhaustive: never = eventType;
+      throw new Error(`Unclassified LiveMatchEventType: ${String(exhaustive)}`);
+    }
+  }
+}
 
 export type EventClassification = "append-safe" | "state-sensitive";
 
+/** Kept for the handful of call sites/tests that only need the coarse append-safe/
+ * state-sensitive split. An unrecognized string is treated as `"state-sensitive"` here — the
+ * conservative, fail-closed choice for this narrow helper — but the real safety net is
+ * `evaluateRecordEvent`'s own `isKnownLiveMatchEventType()` check, which rejects an unknown
+ * type as `invalid` before classification is ever consulted for a real decision. */
 export function classifyEventType(eventType: string): EventClassification {
-  return STATE_SENSITIVE_EVENT_TYPES.has(eventType) ? "state-sensitive" : "append-safe";
+  if (!isKnownLiveMatchEventType(eventType)) return "state-sensitive";
+  return classifyDomain(eventType) === "append-safe" ? "append-safe" : "state-sensitive";
 }
 
 /** SPEC.md §15 "meta". `startedAt`/`expectedEndAt`/`lastActivityAt` (added for the finite
@@ -66,6 +139,27 @@ export interface SessionMeta {
    * (SPEC.md's own guidance: a "Follow live" viewer's connect/disconnect must never affect a
    * reporting session's lifecycle). */
   lastActivityAt?: number;
+  /** ADR-0138 (Bundle 3), DECISIONS.md D08 — domain revision counters, replacing the single
+   * whole-state `version`-equality conflict check for state-sensitive operations. Only an
+   * accepted operation in that domain increments its counter; an accepted operation in a
+   * different domain (including any append-safe operation) never does. Optional so a `meta` row
+   * written before Bundle 3 still deserializes safely; `revisionFor()` below treats a missing
+   * counter as `0`. Every *new* session (the `"initialize"` outcome) always populates all three. */
+  clockRevision?: number;
+  lineupRevision?: number;
+  annotationRevision?: number;
+}
+
+/** Reads a domain revision counter with the pre-Bundle-3-row-safe default of `0`. */
+export function revisionFor(meta: SessionMeta, domain: "clock" | "lineup" | "annotation"): number {
+  switch (domain) {
+    case "clock":
+      return meta.clockRevision ?? 0;
+    case "lineup":
+      return meta.lineupRevision ?? 0;
+    case "annotation":
+      return meta.annotationRevision ?? 0;
+  }
 }
 
 /** SPEC.md §15 "accepted_events" row. `persistenceStatus` transitions "pending" ->
@@ -220,6 +314,9 @@ export function evaluateAuthenticate(params: {
         startedAt: params.now,
         expectedEndAt: params.ticket.expectedEndAt ?? null,
         lastActivityAt: params.now,
+        clockRevision: 0,
+        lineupRevision: 0,
+        annotationRevision: 0,
       },
     };
   }
@@ -232,6 +329,210 @@ export function evaluateAuthenticate(params: {
 }
 
 // ---------------------------------------------------------------------------------------
+// semantic preconditions (ADR-0138, Bundle 3 — DECISIONS.md D08/D10)
+// ---------------------------------------------------------------------------------------
+
+export type PreconditionResult = { ok: true } | { ok: false; conflictCode: ConflictCode };
+
+/**
+ * The on-field player set derived purely from this session's own accepted-event history
+ * (`ROTATION_OUT`/`ROTATION_IN`), excluding any event whose persistence is known to have
+ * terminally failed (it will never exist in Neon, so it must not keep affecting this object's
+ * own precondition checks going forward).
+ *
+ * `touchedPlayerIds` is tracked separately from `onFieldPlayerIds` because this object does not
+ * yet load the match's starting-lineup baseline (that is Bundle 5's projection-baseline work) —
+ * without it, a player never mentioned by any event in this session is genuinely *unknown*, not
+ * provably on or off field. The precondition evaluators below treat "unknown" as permissive in
+ * both directions (a never-touched player can be rotated either way) and only reject a
+ * transition once this session's own history has explicitly recorded the player in the opposite
+ * state. This is sufficient for the concrete conflict scenarios this program's own worked
+ * examples describe (a player already rotated by another device *within the same session*, see
+ * PROGRAMME.md's "Example that must conflict") but cannot detect a same-direction double-rotation
+ * of a starting-lineup player who has never otherwise appeared in this session's event history —
+ * a disclosed, deliberate scope boundary pending Bundle 5's baseline.
+ */
+export interface LineupSessionState {
+  onFieldPlayerIds: ReadonlySet<string>;
+  touchedPlayerIds: ReadonlySet<string>;
+}
+
+export function deriveLineupState(acceptedEvents: readonly AcceptedEventRecord[]): LineupSessionState {
+  const onField = new Set<string>();
+  const touched = new Set<string>();
+  const ordered = [...acceptedEvents].sort((a, b) => a.version - b.version);
+  for (const event of ordered) {
+    if (event.persistenceStatus === "failed_terminal") continue;
+    const playerId = typeof event.eventFields?.playerId === "string" ? event.eventFields.playerId : undefined;
+    if (!playerId) continue;
+    if (event.eventType === "ROTATION_OUT") {
+      onField.delete(playerId);
+      touched.add(playerId);
+    } else if (event.eventType === "ROTATION_IN") {
+      onField.add(playerId);
+      touched.add(playerId);
+    }
+  }
+  return { onFieldPlayerIds: onField, touchedPlayerIds: touched };
+}
+
+/** DECISIONS.md D10 lineup preconditions. `POSITIONS_CHANGED`'s payload shape is not yet
+ * standardized at the protocol level (Bundle 5's projection work) — this checks the common
+ * `{ assignments: Array<{ playerId: string }> }` shape defensively and never blocks on a payload
+ * shape it doesn't recognize, since that would be a new, undocumented restriction rather than a
+ * real precondition failure. */
+export function evaluateLineupPrecondition(
+  eventType: KnownLiveMatchEventType,
+  eventFields: Record<string, unknown> | undefined,
+  lineupState: LineupSessionState,
+): PreconditionResult {
+  if (eventType === "ROTATION_OUT") {
+    const playerId = typeof eventFields?.playerId === "string" ? eventFields.playerId : undefined;
+    if (playerId && lineupState.touchedPlayerIds.has(playerId) && !lineupState.onFieldPlayerIds.has(playerId)) {
+      return { ok: false, conflictCode: "PLAYER_ALREADY_OFF_FIELD" };
+    }
+    return { ok: true };
+  }
+  if (eventType === "ROTATION_IN") {
+    const playerId = typeof eventFields?.playerId === "string" ? eventFields.playerId : undefined;
+    if (playerId && lineupState.onFieldPlayerIds.has(playerId)) {
+      return { ok: false, conflictCode: "PLAYER_ALREADY_ON_FIELD" };
+    }
+    return { ok: true };
+  }
+  if (eventType === "POSITIONS_CHANGED") {
+    const assignments = eventFields?.assignments;
+    if (Array.isArray(assignments)) {
+      for (const assignment of assignments) {
+        const playerId =
+          assignment && typeof assignment === "object" && typeof (assignment as { playerId?: unknown }).playerId === "string"
+            ? (assignment as { playerId: string }).playerId
+            : undefined;
+        if (playerId && lineupState.touchedPlayerIds.has(playerId) && !lineupState.onFieldPlayerIds.has(playerId)) {
+          return { ok: false, conflictCode: "POSITION_ASSIGNMENT_CHANGED" };
+        }
+      }
+    }
+    return { ok: true };
+  }
+  return { ok: true };
+}
+
+/** Canonical period sequence (matches `src/lib/live-match/live-match-types.ts`'s
+ * `MATCH_PERIOD_ORDER`, duplicated here as a plain literal array for this module's own
+ * zero-Prisma-dependency guarantee — see this file's header). */
+const PERIOD_ORDER = [
+  "BEFORE",
+  "FIRST_HALF",
+  "HALF_TIME",
+  "SECOND_HALF",
+  "EXTRA_FIRST_HALF",
+  "EXTRA_HALF_TIME",
+  "EXTRA_SECOND_HALF",
+  "FULL_TIME",
+] as const;
+
+function periodIndex(period: string): number {
+  return (PERIOD_ORDER as readonly string[]).indexOf(period);
+}
+
+/**
+ * DECISIONS.md D10 clock preconditions, adapted to this repository's actual event-payload
+ * convention: every period-transition event type (`MATCH_START`/`PERIOD_START`/`PERIOD_END`/
+ * `MATCH_END`) carries `period` as the RESULTING period after the transition — confirmed
+ * against `live-match-client.tsx`'s own period-advance call site and `advanceClockAnchor`'s
+ * existing handling of the same field — not "the period being ended," as D10's abstract wording
+ * in isolation might suggest. The protective intent (reject an illegal/backward transition; a
+ * duplicate transition to the same resulting period is a harmless no-op, not a hard conflict) is
+ * preserved under the real convention: forward-or-equal only, by `PERIOD_ORDER` index.
+ * `CLOCK_ADJUSTMENT` never changes period, so it has no period-transition precondition here —
+ * its own forward-only guarantee is enforced separately, on the persisted `LiveMatchSession`
+ * clock (`src/lib/live-match/session-clock.ts`'s `isForwardClockTransition`), a distinct
+ * mechanism from this session-local `clockAnchor` (reconciling the two is Bundle 5's "make clock
+ * operation/materialized clock relationship explicit").
+ */
+export function evaluateClockPrecondition(
+  eventType: KnownLiveMatchEventType,
+  eventFields: Record<string, unknown> | undefined,
+  currentPeriod: string,
+): PreconditionResult {
+  if (eventType === "CLOCK_ADJUSTMENT") return { ok: true };
+  if (eventType !== "MATCH_START" && eventType !== "PERIOD_START" && eventType !== "PERIOD_END" && eventType !== "MATCH_END") {
+    return { ok: true };
+  }
+
+  const requestedPeriod = typeof eventFields?.period === "string" ? eventFields.period : undefined;
+  if (!requestedPeriod) return { ok: true }; // malformed payload — not this evaluator's concern
+
+  if (eventType === "MATCH_START") {
+    return currentPeriod === "BEFORE" ? { ok: true } : { ok: false, conflictCode: "ILLEGAL_PERIOD_TRANSITION" };
+  }
+
+  const currentIdx = periodIndex(currentPeriod);
+  const requestedIdx = periodIndex(requestedPeriod);
+  if (requestedIdx === -1 || currentIdx === -1 || requestedIdx < currentIdx) {
+    return { ok: false, conflictCode: "ILLEGAL_PERIOD_TRANSITION" };
+  }
+  return { ok: true };
+}
+
+/**
+ * DECISIONS.md D10 annotation preconditions. Resolves a target event by EITHER its
+ * `clientEventId` or (once persisted) its `canonicalEventId` — the browser's existing "Undo"
+ * flow (`live-match-client.tsx`'s `handleUndo`) can reference either depending on whether the
+ * target event has synced yet, so both must resolve here too. `SCORER_SET`/`ASSIST_SET` reuse
+ * the existing `correctsEventId` field to reference the goal they annotate
+ * (CANONICAL_OPERATION_CONTRACT.md's own terminology note: "do not create a second parallel
+ * concept merely to rename it") — a target-less `SCORER_SET`/`ASSIST_SET` (an older client, or
+ * the payload genuinely carries none) has no target to validate and is accepted, matching
+ * current behavior exactly.
+ */
+export function evaluateAnnotationPrecondition(
+  eventType: KnownLiveMatchEventType,
+  eventFields: Record<string, unknown> | undefined,
+  acceptedEvents: readonly AcceptedEventRecord[],
+): PreconditionResult {
+  const targetId = typeof eventFields?.correctsEventId === "string" ? eventFields.correctsEventId : undefined;
+  if (!targetId) return { ok: true };
+
+  const active = acceptedEvents.filter((e) => e.persistenceStatus !== "failed_terminal");
+  const target = active.find((e) => e.clientEventId === targetId || e.canonicalEventId === targetId);
+  if (!target) {
+    return { ok: false, conflictCode: "TARGET_EVENT_MISSING" };
+  }
+
+  if (eventType === "EVENT_REVERSED") {
+    const alreadyReversed = active.some(
+      (e) =>
+        e.eventType === "EVENT_REVERSED" &&
+        (e.eventFields?.correctsEventId === target.clientEventId || e.eventFields?.correctsEventId === target.canonicalEventId),
+    );
+    if (alreadyReversed) {
+      return { ok: false, conflictCode: "TARGET_EVENT_ALREADY_REVERSED" };
+    }
+  }
+
+  return { ok: true };
+}
+
+function evaluatePrecondition(
+  domain: Exclude<OperationDomain, "append-safe">,
+  eventType: KnownLiveMatchEventType,
+  eventFields: Record<string, unknown> | undefined,
+  meta: SessionMeta,
+  acceptedEvents: readonly AcceptedEventRecord[],
+): PreconditionResult {
+  switch (domain) {
+    case "clock":
+      return evaluateClockPrecondition(eventType, eventFields, meta.clockAnchor.period);
+    case "lineup":
+      return evaluateLineupPrecondition(eventType, eventFields, deriveLineupState(acceptedEvents));
+    case "annotation":
+      return evaluateAnnotationPrecondition(eventType, eventFields, acceptedEvents);
+  }
+}
+
+// ---------------------------------------------------------------------------------------
 // recordEvent
 // ---------------------------------------------------------------------------------------
 
@@ -239,17 +540,28 @@ export type RecordEventDecision =
   | { outcome: "session_ended" }
   | { outcome: "invalid" }
   | { outcome: "duplicate"; existing: AcceptedEventRecord }
-  | { outcome: "stale_state"; currentVersion: number }
-  | { outcome: "accepted"; record: AcceptedEventRecord };
+  | { outcome: "conflict"; conflictCode: ConflictCode; currentVersion: number }
+  | { outcome: "accepted"; record: AcceptedEventRecord; domain: OperationDomain };
 
 /**
- * SPEC.md §8, §9, §20 steps 1–5. Pure decision only — the caller is responsible for actually
- * persisting `record` to Durable Object storage and broadcasting `applyEvent`; this function
- * has no side effects so every branch is independently testable.
+ * SPEC.md §8, §9, §20 steps 1–5; ADR-0138 Bundle 3 for the concurrency model itself. Pure
+ * decision only — the caller is responsible for actually persisting `record` to Durable Object
+ * storage and broadcasting `applyEvent`; this function has no side effects so every branch is
+ * independently testable.
+ *
+ * DECISIONS.md D08's replacement of the single whole-state `baseVersion === meta.version` gate:
+ * an append-safe operation is accepted unconditionally, regardless of `baseVersion` or of any
+ * unrelated domain's revision — an accepted goal must never invalidate a pending rotation. A
+ * state-sensitive operation is accepted or rejected purely by whether its *actual* semantic
+ * precondition holds against this session's own current state (`evaluatePrecondition`) — never
+ * by comparing `baseVersion` to `meta.version` (D10: "a stale revision is not automatically a
+ * conflict"). `baseVersion` remains part of the wire command for backward compatibility and
+ * client-side diagnostics but is no longer consulted for the accept/reject decision itself.
  */
 export function evaluateRecordEvent(params: {
   meta: SessionMeta;
   existing: AcceptedEventRecord | undefined;
+  acceptedEvents: readonly AcceptedEventRecord[];
   clientEventId: string;
   baseVersion: number;
   eventType: unknown;
@@ -267,16 +579,24 @@ export function evaluateRecordEvent(params: {
     return { outcome: "duplicate", existing: params.existing };
   }
 
-  if (typeof params.eventType !== "string" || params.eventType.length === 0) {
+  // ADR-0138 (Bundle 3) — an unrecognized event type is rejected outright rather than silently
+  // defaulting to append-safe (the exact Stage-3 catch-all gap this bundle closes).
+  if (typeof params.eventType !== "string" || !isKnownLiveMatchEventType(params.eventType)) {
     return { outcome: "invalid" };
   }
 
-  if (classifyEventType(params.eventType) === "state-sensitive" && params.baseVersion !== params.meta.version) {
-    return { outcome: "stale_state", currentVersion: params.meta.version };
+  const domain = classifyDomain(params.eventType);
+
+  if (domain !== "append-safe") {
+    const precondition = evaluatePrecondition(domain, params.eventType, params.eventFields, params.meta, params.acceptedEvents);
+    if (!precondition.ok) {
+      return { outcome: "conflict", conflictCode: precondition.conflictCode, currentVersion: params.meta.version };
+    }
   }
 
   return {
     outcome: "accepted",
+    domain,
     record: {
       clientEventId: params.clientEventId,
       version: params.meta.version + 1,

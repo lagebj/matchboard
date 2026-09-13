@@ -4532,7 +4532,7 @@ residual: `CanonicalLiveEvent` carries no `correctsEventId` on the realtime wire
 *viewer* can briefly show a reversed goal still in the score until the next full reconcile (the
 reporter and the persisted report are correct). See ADR-0133 for the full forensics.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-2
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-3
 complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
 persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
 `baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
@@ -4576,11 +4576,44 @@ placeholder `revisions: {clock:0, lineup:0, annotation:0}` real classification-b
 land in Bundle 3) — purely additive, so an older client that doesn't understand the new fields is
 unaffected (the same rollout pattern ADR-0112 already established for `period`/`matchSeconds`). A
 genuine sequence collision (a different `clientEventId` targeting an already-assigned sequence) is
-a distinct `LiveMatchSequenceIntegrityError`, never silently resolved. **No coach-visible behavior
-has changed yet** — the browser still runs the pre-Bundle-2 `baseVersion` conflict model
-end-to-end; Bundle 3 replaces that. Remaining bundles (semantic concurrency, single mutation path,
-authoritative projection, durable outbox, scoped PWA continuation, conflict UX/Event parity,
-observability/cutover) are tracked in
+a distinct `LiveMatchSequenceIntegrityError`, never silently resolved.
+
+**Bundle 3 (exhaustive classification and semantic concurrency) is now implemented,
+`workers/live-match/src/state.ts`.** Every `LiveMatchEventType` is classified into
+append-safe/clock/lineup/annotation via `classifyDomain()`'s exhaustive switch — a `never`-typed
+default case makes a new, unhandled enum value a compile error, closing the exact Stage-3
+catch-all gap that had silently (and, per DECISIONS.md D09, incorrectly) classified
+`SCORER_SET`/`ASSIST_SET` as append-safe; an unrecognized runtime string is now rejected as
+`invalid` rather than silently accepted. The single whole-state `baseVersion === meta.version`
+gate is replaced: an append-safe operation is accepted unconditionally regardless of
+`baseVersion` or any domain's revision (an accepted goal never invalidates a pending rotation); a
+state-sensitive operation is accepted or rejected purely by whether its actual semantic
+precondition holds against this session's own accepted-event history
+(`evaluateClockPrecondition`/`evaluateLineupPrecondition`/`evaluateAnnotationPrecondition`), never
+by `baseVersion` equality (DECISIONS.md D10: "a stale revision is not automatically a conflict").
+Domain revision counters (`clockRevision`/`lineupRevision`/`annotationRevision` on `SessionMeta`)
+now really increment — only the accepted operation's own domain's counter, matching D08. Lineup
+preconditions (`ROTATION_OUT`/`ROTATION_IN`/`POSITIONS_CHANGED`) derive the on-field player set
+from this session's own event history only (`deriveLineupState()`) — a disclosed, deliberate
+scope boundary: the coordinator does not yet load the match's starting-lineup baseline (Bundle
+5), so a never-touched player is treated permissively in both directions; only a player already
+explicitly rotated within *this* session can trigger `PLAYER_ALREADY_OFF_FIELD`/
+`PLAYER_ALREADY_ON_FIELD`. Annotation preconditions (`SCORER_SET`/`ASSIST_SET`/`EVENT_CORRECTED`/
+`EVENT_REVERSED`) resolve their target by either `clientEventId` or `canonicalEventId`; a missing
+or already-reversed target is `TARGET_EVENT_MISSING`/`TARGET_EVENT_ALREADY_REVERSED`.
+`SCORER_SET`/`ASSIST_SET` (`live-match-client.tsx`) now carry an explicit `correctsEventId`
+referencing the exact goal they annotate (reusing the existing field, not a new concept),
+generated up front in the same goal-reporting flow — closing the "implicit most-recent-goal
+attribution" gap DECISIONS.md D10/CANONICAL_OPERATION_CONTRACT.md §7-§8 name. A genuine conflict
+returns a fine-grained `ConflictCode` (`src/lib/live-match/realtime/protocol.ts`) alongside the
+existing `STALE_STATE` wire code — additive, no envelope break; an older client that only reads
+`currentVersion` self-heals exactly as before. **Disclosed limitation: Bundle 3 has no
+coach-visible effect yet.** `league-live-match-client.tsx`'s existing fallback (ADR-0086 Stage 5)
+treats any non-`"pending"`/non-success realtime result — including this new conflict rejection —
+as "realtime didn't work" and falls through to the direct-HTTP path (ARR-0045), which has no
+precondition checking and persists the conflicting operation anyway. Closing that is Bundle 4's
+job. Remaining bundles (single mutation path, authoritative projection, durable outbox, scoped
+PWA continuation, conflict UX/Event parity, observability/cutover) are tracked in
 `.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |

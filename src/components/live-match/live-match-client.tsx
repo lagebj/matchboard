@@ -328,6 +328,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [localEvents, setLocalEvents] = useState<LocalEvent[]>([]);
   const [goalFlow, setGoalFlow] = useState<GoalFlowStep>("idle");
   const [goalFlowPlayerId, setGoalFlowPlayerId] = useState<string | null>(null);
+  // ADR-0138 (Bundle 3), DECISIONS.md D10 — the just-recorded goal's own clientEventId, so the
+  // subsequent SCORER_SET/ASSIST_SET in this same goal flow can reference a stable, explicit
+  // target event instead of relying on "the most recent goal" implicit ordering
+  // (CANONICAL_OPERATION_CONTRACT.md §7/§8). Reuses the existing `correctsEventId` field rather
+  // than introducing a second target-reference concept.
+  const [goalFlowGoalEventId, setGoalFlowGoalEventId] = useState<string | null>(null);
   const [fairPlayFlow, setFairPlayFlow] = useState<FairPlayFlowStep>("idle");
   const [fairPlayPlayerId, setFairPlayPlayerId] = useState<string | null>(null);
   const [isPositive, setIsPositive] = useState(true);
@@ -374,9 +380,13 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const sortedPlayersForScorer = useMemo(() => [...onFieldPlayers, ...benchPlayers], [onFieldPlayers, benchPlayers]);
 
   // --- Local-first event recording ---
-  const recordEventLocal = useCallback(async (eventType: string, extra?: { playerId?: string; secondaryPlayerId?: string; period?: string; matchSeconds?: number; correctionType?: string; correctsEventId?: string; payload?: Record<string, unknown> }) => {
+  const recordEventLocal = useCallback(async (eventType: string, extra?: { playerId?: string; secondaryPlayerId?: string; period?: string; matchSeconds?: number; correctionType?: string; correctsEventId?: string; payload?: Record<string, unknown> }, options?: { clientEventId?: string }) => {
     if (!sessionId) return;
-    const clientEventId = generateClientEventId();
+    // ADR-0138 (Bundle 3) — a caller (e.g. handleGoalFor) can supply a pre-generated
+    // clientEventId so it can reference this event as an explicit target from a later,
+    // separate recordEventLocal call in the same UI flow (e.g. SCORER_SET/ASSIST_SET
+    // referencing the goal they annotate) before the round trip to the server completes.
+    const clientEventId = options?.clientEventId ?? generateClientEventId();
     const localEvent: LocalEvent = {
       id: clientEventId,
       matchId,
@@ -669,15 +679,24 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   const handleGoalFor = useCallback(() => {
     withTapGuard("goal_for", () => {
+      // ADR-0138 (Bundle 3) — generated up front so the subsequent SCORER_SET/ASSIST_SET in
+      // this same goal flow can reference this exact goal explicitly, rather than relying on
+      // implicit "most recent goal" ordering.
+      const goalEventId = generateClientEventId();
+      setGoalFlowGoalEventId(goalEventId);
       setGoalsFor((prev) => prev + 1);
-      recordEventLocal("GOAL_FOR", { period: clock.period, matchSeconds: getElapsedMs(clock, Date.now()) });
+      recordEventLocal(
+        "GOAL_FOR",
+        { period: clock.period, matchSeconds: getElapsedMs(clock, Date.now()) },
+        { clientEventId: goalEventId },
+      );
       setLastAction({ label: "Goal for us recorded", undoLabel: "Undo goal for us" });
       if (lastActionTimerRef.current !== null) clearTimeout(lastActionTimerRef.current);
       lastActionTimerRef.current = setTimeout(() => setLastAction(null), 15000);
       setGoalFlow("scorer_select");
       setSheet("scorer");
       if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current);
-      goalFlowTimerRef.current = setTimeout(() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); }, GOAL_DETAIL_INACTIVITY_TIMEOUT_MS);
+      goalFlowTimerRef.current = setTimeout(() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setGoalFlowGoalEventId(null); setSheet(null); }, GOAL_DETAIL_INACTIVITY_TIMEOUT_MS);
     });
   }, [clock, recordEventLocal, withTapGuard]);
 
@@ -693,22 +712,30 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   const handleScorerSelect = useCallback((playerId: string) => {
     setGoalFlowPlayerId(playerId);
-    recordEventLocal("SCORER_SET", { playerId, period: clock.period });
+    // ADR-0138 (Bundle 3) — targets the specific goal this scorer flow started from, not
+    // "the most recent goal" by implicit ordering.
+    recordEventLocal("SCORER_SET", { playerId, period: clock.period, correctsEventId: goalFlowGoalEventId ?? undefined });
     setGoalFlow("assist_select");
     setSheet("assist");
     if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current);
-    goalFlowTimerRef.current = setTimeout(() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); }, GOAL_DETAIL_INACTIVITY_TIMEOUT_MS);
-  }, [clock, recordEventLocal]);
+    goalFlowTimerRef.current = setTimeout(() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setGoalFlowGoalEventId(null); setSheet(null); }, GOAL_DETAIL_INACTIVITY_TIMEOUT_MS);
+  }, [clock, recordEventLocal, goalFlowGoalEventId]);
 
   const handleAssistSelect = useCallback((playerId: string | null) => {
     if (playerId) {
-      recordEventLocal("ASSIST_SET", { playerId, secondaryPlayerId: goalFlowPlayerId ?? undefined, period: clock.period });
+      recordEventLocal("ASSIST_SET", {
+        playerId,
+        secondaryPlayerId: goalFlowPlayerId ?? undefined,
+        period: clock.period,
+        correctsEventId: goalFlowGoalEventId ?? undefined,
+      });
     }
     setGoalFlow("idle");
     setGoalFlowPlayerId(null);
+    setGoalFlowGoalEventId(null);
     setSheet(null);
     if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current);
-  }, [clock, recordEventLocal, goalFlowPlayerId]);
+  }, [clock, recordEventLocal, goalFlowPlayerId, goalFlowGoalEventId]);
 
   const handleMomentMarked = useCallback(() => {
     withTapGuard("moment", () => {
@@ -1140,9 +1167,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Bottom sheets */}
 
       {/* Scorer selection */}
-      <BottomSheet open={goalFlow === "scorer_select" && sheet === "scorer"} onClose={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); }} title="Who scored?">
+      <BottomSheet open={goalFlow === "scorer_select" && sheet === "scorer"} onClose={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setGoalFlowGoalEventId(null); setSheet(null); }} title="Who scored?">
         <div className="space-y-1.5">
-          <button onClick={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} className="w-full py-2.5 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px]">
+          <button onClick={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setGoalFlowGoalEventId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} className="w-full py-2.5 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px]">
             Skip
           </button>
           {sortedPlayersForScorer.map((p) => (
@@ -1152,7 +1179,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       </BottomSheet>
 
       {/* Assist selection */}
-      <BottomSheet open={goalFlow === "assist_select" && sheet === "assist"} onClose={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} title="Assist?">
+      <BottomSheet open={goalFlow === "assist_select" && sheet === "assist"} onClose={() => { setGoalFlow("idle"); setGoalFlowPlayerId(null); setGoalFlowGoalEventId(null); setSheet(null); if (goalFlowTimerRef.current) clearTimeout(goalFlowTimerRef.current); }} title="Assist?">
         <div className="space-y-1.5">
           <button onClick={() => handleAssistSelect(null)} className="w-full py-2.5 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px]">
             No assist

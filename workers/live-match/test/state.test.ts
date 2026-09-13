@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyEventType,
+  classifyDomain,
+  isKnownLiveMatchEventType,
+  deriveLineupState,
+  evaluateClockPrecondition,
+  evaluateLineupPrecondition,
+  evaluateAnnotationPrecondition,
   evaluateAuthenticate,
   evaluateRecordEvent,
   evaluateSyncPending,
@@ -49,28 +55,41 @@ function makeRecord(overrides: Partial<AcceptedEventRecord> = {}): AcceptedEvent
   };
 }
 
-describe("classifyEventType", () => {
-  it("classifies SPEC.md §9.2's named events as state-sensitive", () => {
-    for (const type of [
-      "MATCH_START",
-      "PERIOD_START",
-      "PERIOD_END",
-      "MATCH_END",
-      "CLOCK_ADJUSTMENT",
-      "ROTATION_OUT",
-      "ROTATION_IN",
-      "POSITIONS_CHANGED",
-      "EVENT_CORRECTED",
-      "EVENT_REVERSED",
-    ]) {
+// ADR-0138 (Bundle 3), DECISIONS.md D09 — exhaustive classification replaces the previous
+// Stage-3 catch-all. Confirmed real audit finding: SCORER_SET/ASSIST_SET were previously
+// (incorrectly, per D09) classified as append-safe by the old catch-all default.
+describe("classifyEventType / classifyDomain (DECISIONS.md D09)", () => {
+  it("classifies append-safe events correctly", () => {
+    for (const type of ["GOAL_FOR", "GOAL_AGAINST", "FAIR_PLAY_POSITIVE", "FAIR_PLAY_CONCERN", "MOMENT_MARKED"] as const) {
+      expect(classifyDomain(type)).toBe("append-safe");
+      expect(classifyEventType(type)).toBe("append-safe");
+    }
+  });
+
+  it("classifies clock-domain events as state-sensitive", () => {
+    for (const type of ["MATCH_START", "PERIOD_START", "PERIOD_END", "MATCH_END", "CLOCK_ADJUSTMENT"] as const) {
+      expect(classifyDomain(type)).toBe("clock");
       expect(classifyEventType(type)).toBe("state-sensitive");
     }
   });
 
-  it("classifies everything else as append-safe by default (SPEC.md §9.1)", () => {
-    for (const type of ["GOAL_FOR", "GOAL_AGAINST", "SCORER_SET", "ASSIST_SET", "FAIR_PLAY_POSITIVE", "FAIR_PLAY_CONCERN", "MOMENT_MARKED", "SOME_FUTURE_EVENT_TYPE"]) {
-      expect(classifyEventType(type)).toBe("append-safe");
+  it("classifies lineup-domain events as state-sensitive", () => {
+    for (const type of ["ROTATION_OUT", "ROTATION_IN", "POSITIONS_CHANGED"] as const) {
+      expect(classifyDomain(type)).toBe("lineup");
+      expect(classifyEventType(type)).toBe("state-sensitive");
     }
+  });
+
+  it("classifies annotation-domain events as state-sensitive, including SCORER_SET/ASSIST_SET (D09 — previously misclassified as append-safe)", () => {
+    for (const type of ["SCORER_SET", "ASSIST_SET", "EVENT_CORRECTED", "EVENT_REVERSED"] as const) {
+      expect(classifyDomain(type)).toBe("annotation");
+      expect(classifyEventType(type)).toBe("state-sensitive");
+    }
+  });
+
+  it("a new/unrecognized event type is never silently treated as a known type — the exact Stage-3 catch-all gap this bundle closes", () => {
+    expect(isKnownLiveMatchEventType("SOME_FUTURE_EVENT_TYPE")).toBe(false);
+    expect(isKnownLiveMatchEventType("")).toBe(false);
   });
 });
 
@@ -94,6 +113,9 @@ describe("evaluateAuthenticate", () => {
         startedAt: 1000,
         expectedEndAt: null,
         lastActivityAt: 1000,
+        clockRevision: 0,
+        lineupRevision: 0,
+        annotationRevision: 0,
       });
     }
   });
@@ -158,6 +180,7 @@ describe("evaluateRecordEvent", () => {
     const decision = evaluateRecordEvent({
       meta: makeMeta({ endedAt: 9999 }),
       existing: undefined,
+      acceptedEvents: [],
       clientEventId: "c1",
       baseVersion: 5,
       eventType: "GOAL_FOR",
@@ -172,6 +195,7 @@ describe("evaluateRecordEvent", () => {
     const decision = evaluateRecordEvent({
       meta: makeMeta(),
       existing,
+      acceptedEvents: [existing],
       clientEventId: existing.clientEventId,
       baseVersion: 5,
       eventType: "GOAL_FOR",
@@ -185,6 +209,7 @@ describe("evaluateRecordEvent", () => {
     const decision = evaluateRecordEvent({
       meta: makeMeta(),
       existing: undefined,
+      acceptedEvents: [],
       clientEventId: "c1",
       baseVersion: 5,
       eventType: undefined,
@@ -194,10 +219,25 @@ describe("evaluateRecordEvent", () => {
     expect(decision.outcome).toBe("invalid");
   });
 
-  it("accepts an append-safe event even when baseVersion is behind current", () => {
+  it("rejects an unrecognized event type rather than silently treating it as append-safe (D09)", () => {
+    const decision = evaluateRecordEvent({
+      meta: makeMeta(),
+      existing: undefined,
+      acceptedEvents: [],
+      clientEventId: "c1",
+      baseVersion: 5,
+      eventType: "SOME_FUTURE_EVENT_TYPE",
+      actorUserId: "user-1",
+      now: 1000,
+    });
+    expect(decision.outcome).toBe("invalid");
+  });
+
+  it("accepts an append-safe event even when baseVersion is behind current — an unrelated goal must never invalidate a pending action (D08)", () => {
     const decision = evaluateRecordEvent({
       meta: makeMeta({ version: 10 }),
       existing: undefined,
+      acceptedEvents: [],
       clientEventId: "c1",
       baseVersion: 3,
       eventType: "GOAL_FOR",
@@ -208,36 +248,79 @@ describe("evaluateRecordEvent", () => {
     if (decision.outcome === "accepted") {
       expect(decision.record.version).toBe(11);
       expect(decision.record.persistenceStatus).toBe("pending");
+      expect(decision.domain).toBe("append-safe");
     }
   });
 
-  it("rejects a state-sensitive event whose baseVersion is stale", () => {
+  it("accepts a state-sensitive event whose baseVersion is stale, as long as its actual precondition still holds (D08/D10 — replaces the old whole-state baseVersion gate)", () => {
     const decision = evaluateRecordEvent({
       meta: makeMeta({ version: 10 }),
       existing: undefined,
+      acceptedEvents: [],
       clientEventId: "c1",
-      baseVersion: 9,
+      baseVersion: 3, // deliberately stale — must not matter
       eventType: "PERIOD_START",
-      actorUserId: "user-1",
-      now: 1000,
-    });
-    expect(decision).toEqual({ outcome: "stale_state", currentVersion: 10 });
-  });
-
-  it("accepts a state-sensitive event whose baseVersion exactly matches current", () => {
-    const decision = evaluateRecordEvent({
-      meta: makeMeta({ version: 10 }),
-      existing: undefined,
-      clientEventId: "c1",
-      baseVersion: 10,
-      eventType: "PERIOD_START",
+      eventFields: { period: "FIRST_HALF" },
       actorUserId: "user-1",
       now: 1000,
     });
     expect(decision.outcome).toBe("accepted");
     if (decision.outcome === "accepted") {
       expect(decision.record.version).toBe(11);
+      expect(decision.domain).toBe("clock");
     }
+  });
+
+  it("rejects a state-sensitive event whose semantic precondition genuinely does not hold, even with a fresh baseVersion", () => {
+    const rotatedOut = makeRecord({
+      clientEventId: "rot-out-1",
+      version: 6,
+      eventType: "ROTATION_OUT",
+      eventFields: { playerId: "henrik" },
+      persistenceStatus: "persisted",
+    });
+    const decision = evaluateRecordEvent({
+      meta: makeMeta({ version: 6 }),
+      existing: undefined,
+      acceptedEvents: [rotatedOut],
+      clientEventId: "rot-out-2",
+      baseVersion: 6, // fresh — must not matter either
+      eventType: "ROTATION_OUT",
+      eventFields: { playerId: "henrik" },
+      actorUserId: "user-1",
+      now: 1000,
+    });
+    expect(decision).toEqual({ outcome: "conflict", conflictCode: "PLAYER_ALREADY_OFF_FIELD", currentVersion: 6 });
+  });
+
+  it("concurrent goal + rotation both accepted — the goal does not invalidate the rotation (PROGRAMME.md worked example)", () => {
+    let meta = makeMeta({ version: 20 });
+    const goalDecision = evaluateRecordEvent({
+      meta,
+      existing: undefined,
+      acceptedEvents: [],
+      clientEventId: "goal-1",
+      baseVersion: 20,
+      eventType: "GOAL_FOR",
+      actorUserId: "user-a",
+      now: 1000,
+    });
+    expect(goalDecision.outcome).toBe("accepted");
+    if (goalDecision.outcome !== "accepted") return;
+    meta = { ...meta, version: goalDecision.record.version }; // append-safe: no revision bump
+
+    const rotationDecision = evaluateRecordEvent({
+      meta, // Coach B still has an older sequence (20), but the goal never touched lineupRevision
+      existing: undefined,
+      acceptedEvents: [goalDecision.record],
+      clientEventId: "rot-1",
+      baseVersion: 20,
+      eventType: "ROTATION_OUT",
+      eventFields: { playerId: "someone-never-touched" },
+      actorUserId: "user-b",
+      now: 1001,
+    });
+    expect(rotationDecision.outcome).toBe("accepted");
   });
 
   it("assigns contiguous versions for successive accepted events", () => {
@@ -247,6 +330,7 @@ describe("evaluateRecordEvent", () => {
       const decision = evaluateRecordEvent({
         meta,
         existing: undefined,
+        acceptedEvents: [],
         clientEventId: `c${i}`,
         baseVersion: meta.version,
         eventType: "GOAL_FOR",
@@ -266,6 +350,7 @@ describe("evaluateRecordEvent", () => {
     const decision = evaluateRecordEvent({
       meta: makeMeta(),
       existing: undefined,
+      acceptedEvents: [],
       clientEventId: "c1",
       baseVersion: 5,
       eventType: "GOAL_FOR",
@@ -277,6 +362,155 @@ describe("evaluateRecordEvent", () => {
     if (decision.outcome === "accepted") {
       expect(decision.record.eventFields).toEqual({ eventType: "GOAL_FOR", playerId: "player-1", matchSeconds: 900 });
     }
+  });
+});
+
+describe("deriveLineupState (ADR-0138, Bundle 3)", () => {
+  it("starts with no on-field or touched players", () => {
+    const state = deriveLineupState([]);
+    expect(state.onFieldPlayerIds.size).toBe(0);
+    expect(state.touchedPlayerIds.size).toBe(0);
+  });
+
+  it("tracks a player as on-field after ROTATION_IN and off-field after ROTATION_OUT", () => {
+    const events = [
+      makeRecord({ clientEventId: "a", version: 1, eventType: "ROTATION_IN", eventFields: { playerId: "oliver" }, persistenceStatus: "persisted" }),
+      makeRecord({ clientEventId: "b", version: 2, eventType: "ROTATION_OUT", eventFields: { playerId: "oliver" }, persistenceStatus: "persisted" }),
+    ];
+    const state = deriveLineupState(events);
+    expect(state.onFieldPlayerIds.has("oliver")).toBe(false);
+    expect(state.touchedPlayerIds.has("oliver")).toBe(true);
+  });
+
+  it("ignores a terminally-failed event — it will never exist in Neon", () => {
+    const events = [
+      makeRecord({ clientEventId: "a", version: 1, eventType: "ROTATION_OUT", eventFields: { playerId: "henrik" }, persistenceStatus: "failed_terminal" }),
+    ];
+    const state = deriveLineupState(events);
+    expect(state.touchedPlayerIds.has("henrik")).toBe(false);
+  });
+
+  it("orders by version, not array order, when computing the final state", () => {
+    const events = [
+      makeRecord({ clientEventId: "b", version: 2, eventType: "ROTATION_OUT", eventFields: { playerId: "noah" }, persistenceStatus: "persisted" }),
+      makeRecord({ clientEventId: "a", version: 1, eventType: "ROTATION_IN", eventFields: { playerId: "noah" }, persistenceStatus: "persisted" }),
+    ];
+    const state = deriveLineupState(events);
+    expect(state.onFieldPlayerIds.has("noah")).toBe(false); // IN(v1) then OUT(v2) — final state is off
+  });
+});
+
+describe("evaluateLineupPrecondition (ADR-0138, Bundle 3, DECISIONS.md D10)", () => {
+  it("ROTATION_OUT for a never-touched player is permitted (open-world — no starting-lineup baseline yet, Bundle 5)", () => {
+    const result = evaluateLineupPrecondition("ROTATION_OUT", { playerId: "unknown-player" }, { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set() });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("ROTATION_OUT for a player already rotated out earlier in this session is a conflict", () => {
+    const result = evaluateLineupPrecondition(
+      "ROTATION_OUT",
+      { playerId: "henrik" },
+      { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set(["henrik"]) },
+    );
+    expect(result).toEqual({ ok: false, conflictCode: "PLAYER_ALREADY_OFF_FIELD" });
+  });
+
+  it("ROTATION_IN for a player currently on field is a conflict", () => {
+    const result = evaluateLineupPrecondition(
+      "ROTATION_IN",
+      { playerId: "oliver" },
+      { onFieldPlayerIds: new Set(["oliver"]), touchedPlayerIds: new Set(["oliver"]) },
+    );
+    expect(result).toEqual({ ok: false, conflictCode: "PLAYER_ALREADY_ON_FIELD" });
+  });
+
+  it("ROTATION_IN for a never-touched or currently-off player is permitted", () => {
+    expect(evaluateLineupPrecondition("ROTATION_IN", { playerId: "noah" }, { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set() })).toEqual({ ok: true });
+  });
+
+  it("POSITIONS_CHANGED conflicts when a referenced player was already rotated off in this session", () => {
+    const result = evaluateLineupPrecondition(
+      "POSITIONS_CHANGED",
+      { assignments: [{ playerId: "henrik", position: "CM" }] },
+      { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set(["henrik"]) },
+    );
+    expect(result).toEqual({ ok: false, conflictCode: "POSITION_ASSIGNMENT_CHANGED" });
+  });
+
+  it("POSITIONS_CHANGED with an unrecognized payload shape never blocks", () => {
+    expect(evaluateLineupPrecondition("POSITIONS_CHANGED", { somethingElse: true }, { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set() })).toEqual({ ok: true });
+  });
+});
+
+describe("evaluateClockPrecondition (ADR-0138, Bundle 3, DECISIONS.md D10)", () => {
+  it("MATCH_START is legal only from BEFORE", () => {
+    expect(evaluateClockPrecondition("MATCH_START", { period: "FIRST_HALF" }, "BEFORE")).toEqual({ ok: true });
+    expect(evaluateClockPrecondition("MATCH_START", { period: "FIRST_HALF" }, "FIRST_HALF")).toEqual({
+      ok: false,
+      conflictCode: "ILLEGAL_PERIOD_TRANSITION",
+    });
+  });
+
+  it("a forward period transition is legal", () => {
+    expect(evaluateClockPrecondition("PERIOD_END", { period: "HALF_TIME" }, "FIRST_HALF")).toEqual({ ok: true });
+    expect(evaluateClockPrecondition("PERIOD_START", { period: "SECOND_HALF" }, "HALF_TIME")).toEqual({ ok: true });
+  });
+
+  it("a backward period transition is illegal (a stale/reloaded device cannot move the clock backward)", () => {
+    expect(evaluateClockPrecondition("PERIOD_START", { period: "FIRST_HALF" }, "SECOND_HALF")).toEqual({
+      ok: false,
+      conflictCode: "ILLEGAL_PERIOD_TRANSITION",
+    });
+  });
+
+  it("a repeated transition to the same resulting period is a harmless no-op, not a hard conflict", () => {
+    expect(evaluateClockPrecondition("MATCH_END", { period: "FULL_TIME" }, "FULL_TIME")).toEqual({ ok: true });
+  });
+
+  it("CLOCK_ADJUSTMENT never has a period-transition precondition", () => {
+    expect(evaluateClockPrecondition("CLOCK_ADJUSTMENT", {}, "SECOND_HALF")).toEqual({ ok: true });
+  });
+});
+
+describe("evaluateAnnotationPrecondition (ADR-0138, Bundle 3, DECISIONS.md D10)", () => {
+  it("a target-less annotation (no correctsEventId) is always accepted", () => {
+    expect(evaluateAnnotationPrecondition("SCORER_SET", { playerId: "p1" }, [])).toEqual({ ok: true });
+  });
+
+  it("reversing a missing target is a conflict", () => {
+    const result = evaluateAnnotationPrecondition("EVENT_REVERSED", { correctsEventId: "goal-1" }, []);
+    expect(result).toEqual({ ok: false, conflictCode: "TARGET_EVENT_MISSING" });
+  });
+
+  it("reversing an existing, not-yet-reversed target is accepted", () => {
+    const goal = makeRecord({ clientEventId: "goal-1", version: 1, eventType: "GOAL_FOR", persistenceStatus: "persisted" });
+    const result = evaluateAnnotationPrecondition("EVENT_REVERSED", { correctsEventId: "goal-1" }, [goal]);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("reversing an already-reversed target is a conflict — idempotent, never a second active reversal", () => {
+    const goal = makeRecord({ clientEventId: "goal-1", version: 1, eventType: "GOAL_FOR", persistenceStatus: "persisted" });
+    const firstReversal = makeRecord({
+      clientEventId: "rev-1",
+      version: 2,
+      eventType: "EVENT_REVERSED",
+      eventFields: { correctsEventId: "goal-1" },
+      persistenceStatus: "persisted",
+    });
+    const result = evaluateAnnotationPrecondition("EVENT_REVERSED", { correctsEventId: "goal-1" }, [goal, firstReversal]);
+    expect(result).toEqual({ ok: false, conflictCode: "TARGET_EVENT_ALREADY_REVERSED" });
+  });
+
+  it("resolves a target by canonicalEventId as well as clientEventId (the browser's Undo flow can reference either)", () => {
+    const goal = makeRecord({ clientEventId: "goal-local-1", canonicalEventId: "goal-canonical-1", version: 1, eventType: "GOAL_FOR", persistenceStatus: "persisted" });
+    const result = evaluateAnnotationPrecondition("EVENT_REVERSED", { correctsEventId: "goal-canonical-1" }, [goal]);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("SCORER_SET targeting a valid goal is accepted", () => {
+    const goal = makeRecord({ clientEventId: "goal-1", version: 1, eventType: "GOAL_FOR", persistenceStatus: "persisted" });
+    const result = evaluateAnnotationPrecondition("SCORER_SET", { playerId: "p1", correctsEventId: "goal-1" }, [goal]);
+    expect(result).toEqual({ ok: true });
   });
 });
 
