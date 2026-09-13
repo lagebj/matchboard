@@ -187,6 +187,15 @@ export const PUBLIC_ROUTES = [
   "/brand/",
   "/icon.png",
   "/apple-icon.png",
+  // Scoped live-match offline continuation (ADR-0138 Bundle 7). `/live-sw.js` must be
+  // unauthenticated to register/update in the browser at all. `/offline-live` is a generic,
+  // unauthenticated shell page with no tenant/player/match/user data of its own — it is cached
+  // once by the service worker and later served, still from this same public path, only as a
+  // *local, cached* substitute for an established live-match route's navigation request when the
+  // network is genuinely unreachable; it never becomes a real per-match SSR response. Do not
+  // widen this pair beyond what the service worker (`public/live-sw.js`) actually needs.
+  "/live-sw.js",
+  "/offline-live",
 ] as const;
 
 export type PublicRoute = (typeof PUBLIC_ROUTES)[number];

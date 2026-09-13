@@ -32,11 +32,15 @@ import {
   clearPersistedCommands,
   saveSessionLocally,
   clearLocalSession,
+  savePreparedPackage,
+  clearPreparedPackage,
   type LocalCommand,
   type SubjectType,
   type CommandStatus,
+  type PreparedLiveMatchPackageBase,
 } from "@/lib/live-match/local/live-local-store";
 import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-match/local/pending-overlay";
+import { registerLiveServiceWorker } from "@/lib/live-match/offline/register-live-service-worker";
 
 export interface SquadPlayer {
   playerId: string;
@@ -149,6 +153,23 @@ export interface LiveMatchClientProps {
    * disjointness between League `Match` and Event `EventMatch`. Default `"LEAGUE"`; the Event
    * adapter passes `"EVENT"` explicitly. */
   subjectType?: SubjectType;
+  /** ADR-0138 Bundle 7 — Event only, needed solely to persist a prepared offline package that
+   * can later reconstruct `createEventActions(eventMatchId, eventId)`. League has no equivalent
+   * (its actions factory only needs `matchId`). */
+  eventId?: string;
+}
+
+/** ADR-0138 Bundle 7 — everything `live-match-offline-shell.tsx` needs to render this component
+ * without a server round-trip, captured the moment a normal online load already fetches it. */
+export interface PreparedLiveMatchPackage extends PreparedLiveMatchPackageBase {
+  teamName: string;
+  opponentName: string;
+  contextLabel: string | null;
+  periodConfig: PeriodConfig[];
+  isHome: boolean;
+  markOwnTeam: boolean;
+  squad: SquadPlayer[];
+  eventId?: string;
 }
 
 /** ADR-0133 H6: how many events `fetchEvents` pulls for the score / on-field reconcile. Must
@@ -320,7 +341,7 @@ function SyncStatusIndicator({ pendingCount, needsReviewCount, isOffline }: { pe
 }
 
 // --- Main Component ---
-export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true, subjectType = "LEAGUE" }: LiveMatchClientProps) {
+export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true, subjectType = "LEAGUE", eventId }: LiveMatchClientProps) {
   // ADR-0138 Bundle 6 — the local outbox's subject identity. `matchId` already holds the right
   // id value regardless of subject (the Event adapter passes its own `eventMatchId` through this
   // same prop) — `subjectId` is just a clarifying alias at the call sites below.
@@ -531,6 +552,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }, [sessionId, subjectId, attemptSend]);
 
   // --- Effects ---
+  // ADR-0138 Bundle 7 — registers the scoped live-match service worker only once this component
+  // has actually mounted (a coach opened live reporting), never eagerly for the whole app.
+  useEffect(() => {
+    registerLiveServiceWorker();
+  }, []);
+
   useEffect(() => {
     async function loadPreMatch() {
       setLoading(true);
@@ -538,6 +565,22 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       if (result.success && result.data) {
         setSquad(result.data.squad);
         setOnFieldIds(new Set(result.data.squad.filter((p) => p.startingOnField).map((p) => p.playerId)));
+        // ADR-0138 Bundle 7 — capture this successful online fetch as the prepared offline
+        // package, so a later fully-offline reload can reconstruct this same screen. Best-effort:
+        // a save failure here must never block the live-reporting flow itself.
+        void savePreparedPackage<PreparedLiveMatchPackage>({
+          subjectType,
+          subjectId,
+          teamName,
+          opponentName,
+          contextLabel,
+          periodConfig,
+          isHome,
+          markOwnTeam,
+          squad: result.data.squad,
+          eventId,
+          savedAt: Date.now(),
+        }).catch(() => {});
         if (result.data.activeSession) {
           setSessionId(result.data.activeSession.id);
           setSessionActive(true);
@@ -559,6 +602,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
               elapsedBeforeStartMs: savedClock.elapsedBeforeStartMs,
             });
           }
+          // ADR-0138 Bundle 7 fix — a mount that *restores* an already-active session (any
+          // normal page reload mid-match, not only the offline-continuation shell) never calls
+          // `startSession`, which was previously the only place a realtime connection was ever
+          // established. Without this, a restored session's outbox could never sync even once
+          // reconnected — confirmed live via a genuinely stuck `waitForEventsToSync` in
+          // `e2e/live-reporting-offline-continuation.spec.ts`. `reconnectRealtime` establishes a
+          // fresh connection when none exists yet (see its own updated doc comment), not just a
+          // literal reconnect of an existing one.
+          actions.reconnectRealtime?.();
         }
       } else {
         setError(result.error ?? "Failed to load match data");
@@ -741,6 +793,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       if (unresolved.length === 0) {
         await clearPersistedCommands(subjectId);
         await clearLocalSession(subjectId);
+        // ADR-0138 Bundle 7 (work item 7, retention) — a prepared offline package has no
+        // purpose once the match is actually done.
+        await clearPreparedPackage(subjectId);
       }
       if (result.data?.reportId && actions.reportUrl) {
         window.location.href = actions.reportUrl(result.data.reportId);

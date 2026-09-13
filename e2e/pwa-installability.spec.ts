@@ -16,9 +16,12 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 // Installability diagnostics that must never appear. Service-worker / offline
-// diagnostics are intentionally excluded — Matchboard has no service worker by
-// design (ADR-0123), and one is not required for installability in modern
-// Chromium.
+// diagnostics are intentionally excluded — installability itself does not
+// require one in modern Chromium (ADR-0123). ADR-0138 Bundle 7 later added a
+// narrow, live-match-route-scoped service worker (public/live-sw.js,
+// e2e/live-reporting-offline-continuation.spec.ts) for offline reporting
+// continuation specifically — a separate, additive capability from general
+// app installability, which this file does not exercise.
 const FORBIDDEN_INSTALLABILITY_ERRORS = new Set([
   "no-manifest",
   "manifest-empty",

@@ -23,6 +23,8 @@ vi.mock("@/lib/live-match/local/live-local-store", () => ({
   recoverInterruptedSends: vi.fn().mockResolvedValue([]),
   clearPersistedCommands: vi.fn().mockResolvedValue({ removed: 0, retainedUnresolved: 0 }),
   saveSessionLocally: vi.fn().mockResolvedValue(undefined),
+  savePreparedPackage: vi.fn().mockResolvedValue(undefined),
+  clearPreparedPackage: vi.fn().mockResolvedValue(undefined),
   getLocalSession: vi.fn().mockResolvedValue(null),
   clearLocalSession: vi.fn().mockResolvedValue(undefined),
 }));
@@ -143,13 +145,17 @@ describe("LiveMatchClient realtime wiring", () => {
 
     render(<LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />);
 
-    await waitFor(() => expect(actions.getPreMatchPackage).toHaveBeenCalled());
+    // ADR-0138 Bundle 7 fix — mounting with an already-active session (makeActions' default
+    // getPreMatchPackage mock includes one) now also calls reconnectRealtime once on its own,
+    // establishing a connection that was previously never attempted for a restored session.
+    await waitFor(() => expect(reconnectRealtime).toHaveBeenCalledTimes(1));
+    const callsBeforeOnlineEvent = reconnectRealtime.mock.calls.length;
 
     act(() => {
       window.dispatchEvent(new Event("online"));
     });
 
-    expect(reconnectRealtime).toHaveBeenCalledTimes(1);
+    expect(reconnectRealtime.mock.calls.length).toBeGreaterThan(callsBeforeOnlineEvent);
   });
 
   it("does not throw when onLiveUpdate/reconnectRealtime are absent (non-League clients)", async () => {

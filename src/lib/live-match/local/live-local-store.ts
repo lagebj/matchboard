@@ -30,10 +30,11 @@
  */
 
 const DB_NAME = "matchboard-live";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const COMMANDS_STORE = "commands";
 const SESSION_STORE = "session";
 const COUNTERS_STORE = "counters";
+const PACKAGE_STORE = "preparedPackage";
 const LEGACY_EVENTS_STORE = "events";
 
 export type SubjectType = "LEAGUE" | "EVENT";
@@ -132,7 +133,9 @@ function openDB(): Promise<IDBDatabase> {
         return;
       }
 
-      // Migrating from v1 (the pre-Bundle-6 `events`/`session` boolean-synced schema).
+      // Migrating from v1 (the pre-Bundle-6 `events`/`session` boolean-synced schema) only —
+      // v2->v3 (Bundle 7, adding the prepared-package store) needs none of this: `commands`/
+      // `session`/`counters` already have the correct v2 shape and must be left untouched.
       // ADR-0138 Bundle 6, D13/D19 — this data is transient, device-local, live-session-scoped
       // state (never long-term storage), so a best-effort default for the one field the old
       // schema never recorded (`subjectType`) is acceptable and does not affect correctness:
@@ -147,12 +150,17 @@ function openDB(): Promise<IDBDatabase> {
       // `LiveMatchClient`'s own mount effect re-saves it from `getPreMatchPackage()`'s
       // `activeSession` the moment the page next loads, so losing it across this one upgrade is
       // a non-event, not a data-loss concern.
-      if (db.objectStoreNames.contains(SESSION_STORE)) db.deleteObjectStore(SESSION_STORE);
-
-      createCurrentSchema(db);
-      if (tx && db.objectStoreNames.contains(LEGACY_EVENTS_STORE)) {
-        migrateLegacyEvents(tx);
+      if (fromVersion < 2) {
+        if (db.objectStoreNames.contains(SESSION_STORE)) db.deleteObjectStore(SESSION_STORE);
+        createCurrentSchema(db);
+        if (tx && db.objectStoreNames.contains(LEGACY_EVENTS_STORE)) {
+          migrateLegacyEvents(tx);
+        }
+        return;
       }
+
+      // v2 -> v3 (Bundle 7): only a new, empty prepared-package store is added.
+      createCurrentSchema(db);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -171,6 +179,9 @@ function createCurrentSchema(db: IDBDatabase): void {
   }
   if (!db.objectStoreNames.contains(COUNTERS_STORE)) {
     db.createObjectStore(COUNTERS_STORE, { keyPath: "subjectId" });
+  }
+  if (!db.objectStoreNames.contains(PACKAGE_STORE)) {
+    db.createObjectStore(PACKAGE_STORE, { keyPath: "subjectId" });
   }
 }
 
@@ -378,6 +389,59 @@ export async function clearLocalSession(subjectId: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(SESSION_STORE, "readwrite");
     tx.objectStore(SESSION_STORE).delete(subjectId);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Prepared live match package (ADR-0138 Bundle 7, DECISIONS.md D20 "local outbox" +
+ * PROGRAMME.md's scoped offline continuation contract).
+ *
+ * Everything a live-reporting session's UI needs to render *without* a server round-trip —
+ * squad, team names, period configuration — captured the moment a normal online load already
+ * fetches it, so a later fully-offline reload (network genuinely unreachable, not merely a
+ * slow/failed single request) can reconstruct the same screen from this device's own storage
+ * instead of showing a dead page. This is display data, not canonical truth — it is never used
+ * to resolve a conflict or override a server response; `live-match-offline-shell.tsx` is its one
+ * consumer. Kept type-oblivious here (a generic JSON-serializable record) so this module stays
+ * free of a dependency on `SquadPlayer`/`PeriodConfig`'s owning modules — the caller supplies and
+ * reads back its own concrete shape.
+ */
+export interface PreparedLiveMatchPackageBase {
+  subjectType: SubjectType;
+  subjectId: string;
+  savedAt: number;
+}
+
+export async function savePreparedPackage<T extends PreparedLiveMatchPackageBase>(pkg: T): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PACKAGE_STORE, "readwrite");
+    tx.objectStore(PACKAGE_STORE).put(pkg);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getPreparedPackage<T extends PreparedLiveMatchPackageBase>(subjectId: string): Promise<T | null> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PACKAGE_STORE, "readonly");
+    const request = tx.objectStore(PACKAGE_STORE).get(subjectId);
+    request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/** Retention (work item 7): called alongside `clearLocalSession` once a session's outbox is
+ * fully resolved and cleared — a prepared package has no purpose once its match is done and
+ * never needs to persist past that point. */
+export async function clearPreparedPackage(subjectId: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PACKAGE_STORE, "readwrite");
+    tx.objectStore(PACKAGE_STORE).delete(subjectId);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

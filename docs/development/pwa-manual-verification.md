@@ -58,9 +58,36 @@ For each row, record: date, app version, tester, and PASS/FAIL + notes per check
    `/today` directly.
 8. **No install prompt/help remains** after installation — the in-app card shows the installed
    confirmation (More page) or nothing (Today).
-9. **Dynamic data is live** — open a live match / recent planning change and confirm it reflects
-   current server state (there is no offline cache; nothing should look stale).
+9. **Dynamic data is live** — open a recent planning change (e.g. a round/squad edit) and confirm
+   it reflects current server state — there is no broad offline cache; nothing outside live
+   reporting should ever look stale. (ADR-0138 Bundle 7 added one narrow, scoped exception: an
+   already-established live-match reporting route can reopen after a reload while genuinely
+   offline — see "Live-match offline continuation" below, a separate check from this one.)
 10. **App shortcuts** (long-press the installed icon, where supported) — Today / League / Events.
+
+## Live-match offline continuation (ADR-0138 Bundle 7)
+
+A separate, narrower capability from general installability above — a scoped service worker
+(`public/live-sw.js`) lets an already-established live-reporting session reopen after a reload
+while genuinely offline. Automated coverage
+(`e2e/live-reporting-offline-continuation.spec.ts`) exercises this in headless Chromium via
+Playwright on every PR; this is a lighter spot-check for a real device, not a replacement.
+
+1. On a real phone, open live reporting for a match and tap "Start live reporting" while online.
+2. Wait a few seconds (the service worker registers and caches the offline shell in the
+   background), then enable Airplane Mode.
+3. Reload the page (or force-quit and reopen the installed app). The live-reporting screen must
+   reappear with the session still active — never a browser offline error page, never the
+   "Start live reporting" button reappearing.
+4. Record a goal or rotation while offline — it must appear immediately (optimistic display) with
+   a "Syncing…"/"…saved on this device" indicator, never lost.
+5. Disable Airplane Mode. The recorded action(s) must sync automatically within a few seconds
+   (no manual retry needed) and the sync indicator must clear.
+6. Open a *different* match's live-reporting URL directly while still offline, for a match never
+   opened on this device before — it must show an explicit "hasn't been opened yet on this
+   device" message, never a blank page.
+7. Confirm no other page (Today, Fixtures, Players, etc.) behaves any differently offline than
+   before this feature — this capability is scoped to live-match routes only.
 
 ### Known limitations
 
