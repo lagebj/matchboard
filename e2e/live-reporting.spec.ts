@@ -35,12 +35,11 @@ test("start live reporting, record a goal, verify the score updates, then finish
   await page.getByRole("button", { name: "Skip" }).click();
   // Wait for the goal event's real recordEvent round trip to the hosted Test slot to actually
   // finish (real network latency, not instant) before finishing the session — otherwise
-  // handleEndSession's real getUnsyncedEvents() check (the 2026-08-24 fix) correctly blocks on
-  // a still-genuinely-pending event, which is a false negative for *this* test's purpose (that
-  // exact blocking behavior is what the second test below verifies deliberately). Passively
-  // waiting for "syncing…" text to disappear is a false positive if the attempt instead lands in
-  // the terminal "Sync issue" error state (confirmed live in CI) — waitForEventsToSync actively
-  // detects and recovers from that case instead of trusting the text's mere absence.
+  // handleEndSession's real outbox check (the 2026-08-24 fix, generalized by ADR-0138 Bundle 6
+  // to cover every in-flight status, not just "unsynced") correctly blocks on a still-genuinely-
+  // pending event, which is a false negative for *this* test's purpose (that exact blocking
+  // behavior is what the second test below verifies deliberately). waitForEventsToSync actively
+  // nudges a retry rather than trusting the "Syncing…" text's mere absence.
   await waitForEventsToSync(page);
 
   await page.getByRole("button", { name: "Finish live reporting" }).click();
@@ -68,8 +67,9 @@ test("blocks finishing the session while events are still unsynced, then complet
   // refuse to end the session and lose the event — not silently proceed with a wrong score.
   await context.setOffline(true);
   await page.getByRole("button", { name: "Goal for us" }).click();
-  // saveEventLocally (IndexedDB) succeeds offline even though the server action can't.
-  await expect(page.getByText(/waiting to sync|Sync issue/)).toBeVisible({ timeout: 10_000 });
+  // saveCommandLocally (IndexedDB) succeeds offline even though the server action can't — the
+  // command sits durably at LOCAL_PENDING (ADR-0138 Bundle 6), shown via the sync indicator.
+  await expect(page.getByText(/Syncing \d+ change/)).toBeVisible({ timeout: 10_000 });
   // Dismiss the "Who scored?" bottom sheet so it doesn't intercept the next click.
   await page.getByRole("button", { name: "Skip" }).click();
 

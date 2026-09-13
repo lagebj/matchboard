@@ -112,21 +112,27 @@ export async function createFinalizedLiveTestMatch(page: Page, label: string): P
 
 /**
  * Waits for a just-recorded live-match event to actually finish syncing (SyncStatusIndicator
- * clears), actively nudging a retry if it lands in the "Sync issue" error state rather than
- * passively waiting — confirmed live in CI: a single recordEvent round trip can genuinely fail
- * (not just run slow) against a cold Vercel function on a freshly forked branch, and passively
- * waiting for "syncing…" text to disappear is a false negative in that case (the text disappears
- * because the attempt already gave up, not because it succeeded). Mirrors what the app itself
- * does on network recovery (the "online" window event handler in live-match-client.tsx) rather
- * than reimplementing retry logic — this is a nudge, not a different code path.
+ * clears), actively nudging a retry rather than passively waiting — confirmed live in CI: a
+ * single recordEvent round trip can genuinely fail (not just run slow) against a cold Vercel
+ * function on a freshly forked branch, and passively waiting for "Syncing…" text to disappear is
+ * a false negative in that case (the text disappears because the attempt already gave up, not
+ * because it succeeded). Mirrors what the app itself does on network recovery (the "online"
+ * window event handler in live-match-client.tsx) rather than reimplementing retry logic — this
+ * is a nudge, not a different code path.
+ *
+ * ADR-0138 Bundle 6 removed the old distinct "Sync issue" error text — it was never part of
+ * DECISIONS.md D14's four-state sync-indicator model (Up to date / Offline — changes saved on
+ * this device / Syncing N changes / Needs review N). A failed attempt now simply returns to
+ * LOCAL_PENDING, shown with the same "Syncing N changes" text as an attempt still in flight, so
+ * this nudges unconditionally whenever anything is pending rather than only on a distinguishable
+ * error state.
  */
 export async function waitForEventsToSync(page: Page, timeoutMs = 45_000): Promise<void> {
   await expect(async () => {
-    const stillPending = await page.getByText(/event.*syncing/).isVisible().catch(() => false);
-    const hasError = await page.getByText(/Sync issue/).isVisible().catch(() => false);
-    if (hasError) {
+    const stillPending = await page.getByText(/Syncing \d+ change/).isVisible().catch(() => false);
+    if (stillPending) {
       await page.evaluate(() => window.dispatchEvent(new Event("online")));
     }
-    expect(stillPending || hasError).toBe(false);
+    expect(stillPending).toBe(false);
   }).toPass({ timeout: timeoutMs, intervals: [1_000, 2_000, 3_000, 5_000] });
 }

@@ -28,7 +28,6 @@ import {
   getNextLocalOrdinal,
   getAllCommands,
   getRetryableCommands,
-  getUnresolvedCommands,
   recoverInterruptedSends,
   clearPersistedCommands,
   saveSessionLocally,
