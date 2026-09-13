@@ -9,6 +9,8 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
+import { KIT_COLOR_PALETTE, resolveKitColorSwatch, type KitColorId } from "@/lib/teams/kit-color";
 
 function RuleRow({ rule, onEdit }: { rule: TeamConfiguration["rules"][0]; onEdit?: () => void }) {
   return (
@@ -84,6 +86,62 @@ function TeamNameForm({ teamId, currentName, onRenamed }: { teamId: string; curr
       </div>
       {error && <p className="text-xs text-red-400">{error}</p>}
       {success && <p className="text-xs text-[var(--accent-strong)]">Team renamed.</p>}
+    </div>
+  );
+}
+
+/**
+ * Kit colour — Atlas Follow-up (`05_SHIRT_IDENTITY_AND_TEAM_KIT_COLOR.md`). A compact preset
+ * swatch palette with the current selection previewed as a shirt (contract §2), one selected
+ * value persisted server-side (`Team.kitColor`), validated against the product palette. Not a
+ * kit designer — no stripes, sleeves, shorts, socks, patterns, or sponsor/manufacturer marks.
+ */
+function TeamKitColorForm({ teamId, currentKitColor, onSaved }: { teamId: string; currentKitColor: string | null; onSaved?: () => void }) {
+  const [kitColor, setKitColor] = useState<string | null>(currentKitColor);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const previewSwatch = resolveKitColorSwatch(kitColor);
+
+  function handleSelect(id: KitColorId) {
+    const next = kitColor === id ? null : id;
+    setKitColor(next);
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateTeamConfigurationAction(teamId, { kitColor: next });
+        onSaved?.();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to update kit colour");
+        setKitColor(currentKitColor);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="block text-xs text-[var(--text-muted)]">Kit colour</span>
+      <div className="flex items-center gap-3">
+        <TeamKitMark color={previewSwatch?.hex ?? null} size="lg" ariaLabel={previewSwatch ? `${previewSwatch.label} shirt preview` : "Neutral shirt preview"} />
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Kit colour">
+          {KIT_COLOR_PALETTE.map((swatch) => (
+            <button
+              key={swatch.id}
+              type="button"
+              disabled={isPending}
+              onClick={() => handleSelect(swatch.id)}
+              aria-pressed={kitColor === swatch.id}
+              aria-label={swatch.label}
+              title={swatch.label}
+              className="h-6 w-6 rounded-full ring-1 ring-[var(--border-soft)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:opacity-50"
+              style={{
+                backgroundColor: swatch.hex,
+                boxShadow: kitColor === swatch.id ? "0 0 0 2px var(--surface-base), 0 0 0 4px var(--accent)" : undefined,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
@@ -268,6 +326,9 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
             <div className="col-span-2 sm:col-span-1">
               <TeamNameForm teamId={config.teamId} currentName={config.name} onRenamed={refreshConfig} />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <TeamKitColorForm teamId={config.teamId} currentKitColor={config.kitColor} onSaved={refreshConfig} />
             </div>
             <div><span className="text-[var(--text-muted)]">Core group:</span> <span className="text-[var(--text-soft)]">{config.coreGroup}</span></div>
             <div><span className="text-[var(--text-muted)]">Status:</span> <span className={config.active ? "text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}>{config.active ? "Active" : "Archived"}</span></div>

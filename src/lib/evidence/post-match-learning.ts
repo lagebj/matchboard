@@ -17,6 +17,7 @@ export type PostMatchLearningResult = {
   opponent: LearningStepResult;
   players: LearningStepResult;
   combinations: LearningStepResult;
+  positionEvolution: LearningStepResult;
 };
 
 /** What kicked off a learning run — for the observable `PostMatchLearningRun` record (ADR-0127). */
@@ -57,6 +58,7 @@ export async function runPostMatchLearning(
     opponent: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
     players: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
     combinations: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
+    positionEvolution: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
   };
 
   try {
@@ -97,6 +99,21 @@ export async function runPostMatchLearning(
           };
   } catch (error) {
     result.players = { status: "FAILED", reason: failureReason(error) };
+  }
+
+  try {
+    const { evolvePositionProfilesForMatch } = await import("@/lib/player-development/sync-effective-position");
+    const outcome = await evolvePositionProfilesForMatch(ref, orgFilter);
+    if (outcome.errors.length > 0 && outcome.playersUpdated === 0) {
+      result.positionEvolution = { status: "FAILED", reason: outcome.errors.join("; ") };
+    } else {
+      result.positionEvolution =
+        outcome.playersUpdated > 0
+          ? { status: "APPLIED" }
+          : { status: "SKIPPED", reason: outcome.playersEvaluated === 0 ? "NO_ACTUAL_POSITION_DATA" : "NO_PROMOTION_WARRANTED" };
+    }
+  } catch (error) {
+    result.positionEvolution = { status: "FAILED", reason: failureReason(error) };
   }
 
   const evidenceLeagueSeasonId = footballMatchRefEvidenceLeagueSeasonId(ref);

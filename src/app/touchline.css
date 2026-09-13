@@ -79,6 +79,27 @@
   --tl-pitch-border: rgba(199, 245, 74, 0.18);
   --tl-pitch-selected: rgba(199, 245, 74, 0.16);
   --tl-pitch-atmosphere: radial-gradient(circle at 50% 35%, rgba(72, 126, 67, 0.16), transparent 42%);
+
+  /* Atlas Follow-up (06_CANONICAL_PITCH_RENDERING_CONTRACT.md §9) — TouchlinePositionMap's
+   * relative-support hue family for PositionEvidenceDot. All four bands stay green (never
+   * red/amber); confidence is a SEPARATE channel (opacity/outline), never encoded by hue.
+   * Spread across the green spectrum (emerald -> grass -> olive -> lime), not just lightness
+   * steps of one hue, so the four bands stay distinguishable at a glance (human review feedback,
+   * 2026-09-13: the original four-step-lightness-of-one-hue set was too similar). Companion
+   * `-glow` rgba tokens drive PositionEvidenceDot's strength-matched glow. */
+  --tl-position-support-strongest: #059669;
+  --tl-position-support-strong: #16a34a;
+  --tl-position-support-established: #65a30d;
+  --tl-position-support-limited: #a3e635;
+  --tl-position-support-strongest-glow: rgba(5, 150, 105, 0.55);
+  --tl-position-support-strong-glow: rgba(22, 163, 74, 0.4);
+  --tl-position-support-established-glow: rgba(101, 163, 13, 0.3);
+  --tl-position-support-limited-glow: rgba(163, 230, 53, 0.18);
+
+  /* PitchShirtToken's one non-arbitrary colour distinction (real GK/outfield data, not an
+   * invented per-team hue — matches the neutral grey GK kit shown in the golden references).
+   * Deliberately its own token, not `--warning` — a goalkeeper is not an attention state. */
+  --tl-gk-kit: #7b8794;
 }
 
 /* --- Light palette (first-class production theme / sideline mode) -------- */
@@ -142,6 +163,19 @@
   --tl-pitch-selected: rgba(88, 116, 0, 0.12);
   /* No dark-canvas radial atmosphere on the light pitch (06 §2). */
   --tl-pitch-atmosphere: none;
+
+  /* Deeper/more-saturated than the dark variant for AA contrast on a light pitch surface,
+   * spread across the same emerald -> grass -> olive -> lime hue range. */
+  --tl-position-support-strongest: #047857;
+  --tl-position-support-strong: #15803d;
+  --tl-position-support-established: #4d7c0f;
+  --tl-position-support-limited: #84cc16;
+  --tl-position-support-strongest-glow: rgba(4, 120, 87, 0.35);
+  --tl-position-support-strong-glow: rgba(21, 128, 61, 0.28);
+  --tl-position-support-established-glow: rgba(77, 124, 15, 0.22);
+  --tl-position-support-limited-glow: rgba(132, 204, 22, 0.16);
+
+  --tl-gk-kit: #52606d;
 }
 
 @media (prefers-color-scheme: light) {
@@ -203,6 +237,17 @@
     --tl-pitch-border: rgba(79, 108, 0, 0.2);
     --tl-pitch-selected: rgba(88, 116, 0, 0.12);
     --tl-pitch-atmosphere: none;
+
+    --tl-position-support-strongest: #047857;
+    --tl-position-support-strong: #15803d;
+    --tl-position-support-established: #4d7c0f;
+    --tl-position-support-limited: #84cc16;
+    --tl-position-support-strongest-glow: rgba(4, 120, 87, 0.35);
+    --tl-position-support-strong-glow: rgba(21, 128, 61, 0.28);
+    --tl-position-support-established-glow: rgba(77, 124, 15, 0.22);
+    --tl-position-support-limited-glow: rgba(132, 204, 22, 0.16);
+
+    --tl-gk-kit: #52606d;
   }
 }
 

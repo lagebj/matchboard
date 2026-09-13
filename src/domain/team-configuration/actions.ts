@@ -16,6 +16,7 @@ export async function updateTeamConfigurationAction(
   input: {
     name?: string;
     active?: boolean;
+    kitColor?: string | null;
     targetSquadSize?: number;
     minAcceptedSquadSize?: number;
     maxSquadSize?: number;

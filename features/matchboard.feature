@@ -601,6 +601,82 @@ Feature: Matchboard football operations workspace
       Then player "p1" must still be treated as rotatable unless explicitly marked non_rotatable
 
 
+  Rule: Player positions form one evolving model, not an immutable declaration (ADR-0139)
+
+    Coach declaration at player creation, later manual coach edits, actual completed-match
+    positional usage, and explicit position observations are all inputs to one connected
+    effective-position model. Repeated evidence can automatically reorder primary, secondary, and
+    tertiary — with hysteresis so a single match never flips the primary position, and full
+    provenance for every automatic change. Historical actual positions are never rewritten.
+
+    Scenario: Coach-created position seed takes effect immediately
+      Given a coach creates a player with primary position "ST"
+      When the effective position profile is computed
+      Then "ST" is the current primary
+      And "ST" shows as having legitimate support with no completed match played yet
+
+    Scenario: Actual positional usage reinforces the coach-declared seed
+      Given a player was created with primary position "ST"
+      And the player completes several matches actually played at "ST"
+      When the effective position profile is recomputed after each completed match
+      Then "ST" remains the primary and its confidence increases with recent appearances
+
+    Scenario: Actual usage introduces a new position not originally declared
+      Given a player's declared positions do not include "CB"
+      When the player completes a match with recorded actual minutes at "CB"
+      Then "CB" appears in the effective position profile with real support
+      And "CB" is not automatically primary from one match alone
+
+    Scenario: Repeated evidence automatically changes the primary position
+      Given a player is declared primary "ST"
+      And the player is repeatedly used at "CB" for enough recent completed matches
+      And "CB" exceeds "ST" by the required margin across two consecutive evidence recalculations
+      When post-match learning runs after the second qualifying match report is completed
+      Then the player's primary position automatically becomes "CB"
+      And "ST" is retained as secondary rather than dropped, if it still has support
+      And no coach approval step is required for this automatic change
+
+    Scenario: One isolated match does not flip the primary position
+      Given a player is declared primary "ST"
+      And the player plays a single emergency match at "CB"
+      When the effective position profile is recomputed
+      Then "ST" remains the primary
+      And no automatic promotion occurs from one match alone
+
+    Scenario: Manual coach edit feeds the same model and resets the comparison baseline
+      Given a player's stored primary position is "ST"
+      When the coach manually changes the primary position to "CB"
+      Then "CB" immediately becomes the current primary in the effective position profile
+      And future automatic evolution compares new evidence against "CB", not "ST"
+
+    Scenario: Planned lineup placement does not create position evidence
+      Given a player is planned in a match lineup at position "DM"
+      And the player does not actually play "DM" in that match
+      When post-match learning runs after the report is completed
+      Then no position evidence is created for "DM" from the planned placement alone
+
+    Scenario: Positional suitability does not create position evidence
+      Given a player's declared positions make them a plausible fit to play "LW"
+      And the player has never actually played "LW" and has no observation evidence for it
+      When the effective position profile is computed
+      Then "LW" does not appear as a supported position
+
+    Scenario: A position with no legitimate support shows no dot
+      Given a player has no coach declaration, no actual usage, and no observation evidence for "RB"
+      When the position exposure map is rendered
+      Then no dot is shown for "RB"
+
+    Scenario: Every automatic position change is auditable
+      Given the automatic evolution engine promotes a new primary position for a player
+      Then a decision record is created capturing the previous profile, the new profile, and the reason
+      And the change can be explained to the coach without guesswork
+
+    Scenario: Historical actual positions remain true after the profile evolves
+      Given a player's current effective primary position evolves from "ST" to "CB"
+      When a coach reviews an old completed match where the player actually played "ST"
+      Then that historical match record still shows "ST", unaffected by the current profile
+
+
   Rule: Player football profile details
 
     Player profile may store details useful for coaching and tactics without making those details automatic selection law.

@@ -72,6 +72,7 @@ describe("completeReport: tenant scoping without a live actor context (ADR-0087)
       opponent: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
       players: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
       combinations: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
+      positionEvolution: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
     });
 
     const orgA = await createTestOrganisation(testDb);
