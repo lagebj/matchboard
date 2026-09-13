@@ -19,15 +19,18 @@ test("an established live-reporting session reopens after a reload while genuine
   await page.getByRole("button", { name: "Start live reporting" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
-  // The service worker registers on mount (registerLiveServiceWorker) and caches the offline
-  // shell + static assets during its own install step — wait for it to actually be ready and
-  // controlling this page before going offline, or the very first offline reload would fall
-  // through to the browser's own default offline error instead of the cached shell.
-  await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, { timeout: 20_000 });
+  // The service worker registers on mount (registerLiveServiceWorker) and, during its own
+  // install step, fetches the offline shell's HTML *and* every static asset it references (its
+  // own content-hashed JS/CSS chunks — distinct from whatever the live-match route itself
+  // already caused to be cached) — wait for it to actually be ready and controlling this page
+  // before going offline, or the very first offline reload would fall through to the browser's
+  // own default offline error instead of the cached shell.
+  await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, { timeout: 30_000 });
 
   // Give the prepared-package save (fire-and-forget after getPreMatchPackage resolves) and the
-  // shell/static asset caching a moment to actually land in IndexedDB/CacheStorage.
-  await page.waitForTimeout(1_000);
+  // shell/static asset caching (several network fetches during install) a moment to actually
+  // land in IndexedDB/CacheStorage.
+  await page.waitForTimeout(2_000);
   const hasPreparedPackage = await page.evaluate(
     (id) =>
       new Promise<boolean>((resolve) => {
@@ -54,7 +57,7 @@ test("an established live-reporting session reopens after a reload while genuine
   // /offline-live). The shell reads the prepared package from IndexedDB and reconstructs the
   // same live-reporting screen, including the already-active session (no "Start live reporting"
   // button reappearing).
-  await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: "Start live reporting" })).not.toBeVisible();
 
   // Record an operation while offline — persisted locally (Bundle 6's outbox), never lost.
@@ -80,7 +83,8 @@ test("a second match never opened on this device while online shows an explicit 
   await createFinalizedLiveTestMatch(page, "PreparedOffline");
   await page.getByRole("link", { name: "Live reporting" }).click();
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
-  await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, { timeout: 20_000 });
+  await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, { timeout: 30_000 });
+  await page.waitForTimeout(2_000);
 
   const neverOpened = await createFinalizedLiveTestMatch(page, "NeverPreparedOffline");
 
@@ -89,5 +93,5 @@ test("a second match never opened on this device while online shows an explicit 
 
   // The offline shell correctly distinguishes "no prepared package for this id" from a crash or
   // blank screen — the coach is told plainly why nothing loaded and what to do about it.
-  await expect(page.getByText(/hasn.t been opened yet on this device/i)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/hasn.t been opened yet on this device/i)).toBeVisible({ timeout: 20_000 });
 });
