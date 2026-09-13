@@ -546,10 +546,27 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
   // SPEC.md §5 scenario 2 / §27 — a second reporter's action (or a presence/session-ended
   // broadcast) refreshes this client immediately, instead of waiting for the next 5s poll.
+  //
+  // ADR-0138 (Bundle 4 follow-up fix) — this same notification also fires the moment the
+  // realtime connection first completes (`useLiveRealtime`'s `onConnectionStateChange`
+  // "connected" handler already calls `notifyListeners()`), which is exactly the case that
+  // needs a retry: recording an action *before* the WebSocket has finished its initial
+  // handshake means `tryRecordEvent` returns `null` (not yet connected), and — since Bundle 4
+  // removed the HTTP fallback that used to silently cover this race — nothing previously
+  // retried that action once the connection actually completed a moment later. Only the
+  // `online`/`visibilitychange` handlers below retried, neither of which fires merely because a
+  // WebSocket handshake finished. Confirmed as a real, reproducible CI regression (not
+  // flakiness): every live-reporting E2E spec that records an action shortly after starting a
+  // session failed consistently, 3/3 retries, timing out in `waitForEventsToSync`. Calling
+  // `syncUnsyncedEvents` here as well as `fetchEvents` closes that gap — it is a cheap no-op
+  // when there is nothing unsynced.
   useEffect(() => {
     if (!sessionActive || !actions.onLiveUpdate) return;
-    return actions.onLiveUpdate(fetchEvents);
-  }, [sessionActive, actions, fetchEvents]);
+    return actions.onLiveUpdate(() => {
+      fetchEvents();
+      syncUnsyncedEvents();
+    });
+  }, [sessionActive, actions, fetchEvents, syncUnsyncedEvents]);
 
   // Sync on reconnect
   useEffect(() => {

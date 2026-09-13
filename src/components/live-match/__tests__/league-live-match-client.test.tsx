@@ -47,14 +47,12 @@ vi.mock("@/lib/live-match/realtime/fetch-ticket", () => ({ fetchRealtimeTicket: 
 const {
   mockStartLiveSessionAction,
   mockHeartbeatAction,
-  mockRecordLiveEventAction,
   mockGetRecentEventsAction,
   mockGetLiveMatchPreMatchPackageAction,
   mockEndLiveSessionAndCreateReportAction,
 } = vi.hoisted(() => ({
   mockStartLiveSessionAction: vi.fn(),
   mockHeartbeatAction: vi.fn(),
-  mockRecordLiveEventAction: vi.fn(),
   mockGetRecentEventsAction: vi.fn(),
   mockGetLiveMatchPreMatchPackageAction: vi.fn(),
   mockEndLiveSessionAndCreateReportAction: vi.fn(),
@@ -63,7 +61,6 @@ const {
 vi.mock("@/app/(app)/matches/[matchId]/live/live-actions", () => ({
   startLiveSessionAction: mockStartLiveSessionAction,
   heartbeatAction: mockHeartbeatAction,
-  recordLiveEventAction: mockRecordLiveEventAction,
   getRecentEventsAction: mockGetRecentEventsAction,
   getLiveMatchPreMatchPackageAction: mockGetLiveMatchPreMatchPackageAction,
 }));
@@ -228,7 +225,7 @@ describe("useLiveRealtime", () => {
   });
 });
 
-describe("createLeagueActions.recordEvent (SPEC.md §28 primary/fallback decision)", () => {
+describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is the only canonical-ordering path)", () => {
   function fakeRealtime(overrides: Partial<ReturnType<typeof useLiveRealtime>> = {}): ReturnType<typeof useLiveRealtime> {
     return {
       ensureConnected: vi.fn(),
@@ -244,46 +241,31 @@ describe("createLeagueActions.recordEvent (SPEC.md §28 primary/fallback decisio
     vi.clearAllMocks();
   });
 
-  it("skips the HTTP call entirely when realtime confirms persisted", async () => {
+  it("succeeds without any HTTP call when realtime confirms persisted", async () => {
     const realtime = fakeRealtime({ tryRecordEvent: vi.fn().mockResolvedValue({ version: 1, persistenceStatus: "persisted" }) });
     const actions = createLeagueActions("match-1", realtime);
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
 
     expect(result).toEqual({ success: true, data: {} });
-    expect(mockRecordLiveEventAction).not.toHaveBeenCalled();
   });
 
-  it("falls through to HTTP when realtime accepts but persistence is still pending (self-healing corrective write)", async () => {
+  it("succeeds without an independent HTTP write when the coordinator accepted the event but persistence is still pending — its own outbox (Stage 6) owns durability, not a second writer", async () => {
     const realtime = fakeRealtime({ tryRecordEvent: vi.fn().mockResolvedValue({ version: 1, persistenceStatus: "pending" }) });
-    mockRecordLiveEventAction.mockResolvedValue({ success: true, data: { eventId: "evt-db-1" } });
     const actions = createLeagueActions("match-1", realtime);
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
 
-    expect(mockRecordLiveEventAction).toHaveBeenCalledWith(RECORD_EVENT_INPUT);
-    expect(result).toEqual({ success: true, data: { id: "evt-db-1" } });
+    expect(result).toEqual({ success: true, data: {} });
   });
 
-  it("falls through to HTTP when realtime is unavailable (tryRecordEvent resolves null) — existing behavior unchanged", async () => {
+  it("does not persist through an alternate ordering authority when the coordinator is unavailable (tryRecordEvent resolves null) — the command is left unsynchronized for local-outbox retry instead (ARR-0045)", async () => {
     const realtime = fakeRealtime();
-    mockRecordLiveEventAction.mockResolvedValue({ success: true, data: { eventId: "evt-db-2" } });
     const actions = createLeagueActions("match-1", realtime);
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
 
-    expect(mockRecordLiveEventAction).toHaveBeenCalledWith(RECORD_EVENT_INPUT);
-    expect(result).toEqual({ success: true, data: { id: "evt-db-2" } });
-  });
-
-  it("surfaces the HTTP fallback's own failure when both paths fail", async () => {
-    const realtime = fakeRealtime();
-    mockRecordLiveEventAction.mockResolvedValue({ success: false, error: "Session has ended." });
-    const actions = createLeagueActions("match-1", realtime);
-
-    const result = await actions.recordEvent(RECORD_EVENT_INPUT);
-
-    expect(result).toEqual({ success: false, error: "Session has ended." });
+    expect(result.success).toBe(false);
   });
 
   it("startSession connects realtime only after the HTTP session actually starts", async () => {

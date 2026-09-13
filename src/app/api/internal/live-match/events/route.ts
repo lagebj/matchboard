@@ -11,13 +11,17 @@ import { logger } from "@/lib/logger";
 
 /**
  * Internal signed persistence endpoint (SPEC.md §17, Stage 4) — the Durable Object's only path
- * to Neon. Never exposed as an ordinary browser API: no session-cookie/actor-context
- * authentication, HMAC verification (`verifyInternalRequest`) is the only gate. Delegates all
- * domain validation (session exists/active, session/match/org consistency, event-type
- * validation, clientEventId dedup) to `recordEventForActor()` — the same single owning
- * implementation the browser-facing `recordEvent()` wrapper uses (AGENTS.md: "One business
- * operation, one owning implementation, multiple adapters"). This route is exactly that: an
- * adapter that authenticates via HMAC instead of a session, then delegates.
+ * to Neon, and, after ADR-0138's Bundle 4 single-mutation-path cutover, the *only* normal path
+ * a browser-originated live operation is canonically ordered through. Never exposed as an
+ * ordinary browser API: no session-cookie/actor-context authentication, HMAC verification
+ * (`verifyInternalRequest`) is the only gate. Delegates all domain validation (session
+ * exists/active, session/match/org consistency, event-type validation, clientEventId dedup) to
+ * `recordEventForActor()` — the same single owning implementation `recordEvent()`
+ * (`live-match-event-store.ts`) uses for its one remaining legitimate caller
+ * (`planned-rotation-live-actions.ts`, a server-triggered write applying a planned rotation —
+ * not a browser race with this coordinator path) (AGENTS.md: "One business operation, one
+ * owning implementation, multiple adapters"). This route is exactly that: an adapter that
+ * authenticates via HMAC instead of a session, then delegates.
  */
 export async function POST(request: Request) {
   const startedAt = Date.now();

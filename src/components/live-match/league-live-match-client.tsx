@@ -7,7 +7,6 @@ import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
 import {
   startLiveSessionAction,
   heartbeatAction,
-  recordLiveEventAction,
   getRecentEventsAction,
   getLiveMatchPreMatchPackageAction,
   persistLiveSessionClockAction,
@@ -47,15 +46,19 @@ function ack(): ClientAck {
 const LOG_PREFIX = "[live-match:league-realtime]";
 
 /**
- * Realtime integration for the reporting coach (SPEC.md §5, §20, §22, §27, §28 — Stage 5).
- * When connected and authenticated with `"report"` capability, `MatchSession.recordEvent()`
- * is the *primary* write path: `tryRecordEvent()` is attempted first, and only when it's
- * unavailable, throws, or the connection isn't up yet does `recordEvent` in
- * `createLeagueActions` fall through to the original HTTP path (`recordLiveEventAction`,
- * completely unchanged — see that call site). This is a real behavior change from the
- * "Follow live"-era PR #344, which ran the HTTP write unconditionally and treated realtime as
- * a pure best-effort side-channel; Stage 4 (signed internal persistence, already merged into
- * this branch) is what makes trusting the realtime path's own persistence result safe to do.
+ * Realtime integration for the reporting coach (SPEC.md §5, §20, §22, §27, §28 — Stage 5;
+ * ADR-0138 Bundle 4 for the current write-path exclusivity). When connected and authenticated
+ * with `"report"` capability, `MatchSession.recordEvent()` is the *only* normal path a new live
+ * operation is canonically ordered through — `tryRecordEvent()` is attempted, and its result
+ * (persisted, pending, or unavailable) is final; `createLeagueActions.recordEvent` never falls
+ * through to an independent HTTP canonical write. This closes ARR-0045 (dual canonical write
+ * path): before Bundle 4, an unavailable/pending realtime result fell through to
+ * `recordLiveEventAction`, a plain HTTP server action with no coordinator involvement — a
+ * second, independently-ordered canonical writer. When the coordinator is genuinely
+ * unavailable, the command stays in the local outbox (already durably saved to IndexedDB
+ * before this function is ever called — see `live-match-client.tsx`'s `recordEventLocal`) and
+ * is retried via the same `recordEvent` function on the next reconnect
+ * (`syncUnsyncedEvents`) — never via an alternate ordering authority (DECISIONS.md D03/D12).
  *
  * `applyEvent`/`presenceChanged`/`sessionEnded` broadcasts (including ones triggered by a
  * *second* reporter on the same match, SPEC.md §44 scenario 2) fire `notifyListeners()`,
@@ -161,14 +164,13 @@ export function useLiveRealtime(matchId: string) {
   }
 
   /**
-   * The primary write path (point 2 of Stage 5's directive). Returns `null` when realtime
-   * isn't connected/authenticated or the RPC call itself fails/rejects (including a
-   * STALE_STATE rejection for a state-sensitive event) — in every `null` case the caller
-   * falls through to the existing HTTP path, which is always correct regardless of realtime
-   * state and safe to call even if this attempt partially succeeded, since
-   * `recordEventForActor`'s `clientEventId` dedup (Stage 4) guarantees at most one canonical
-   * Neon row either way (SPEC.md §22 Case E, §28 "If HTTP fallback persists first... no
-   * duplicate is created").
+   * The only write path (ADR-0138 Bundle 4). Returns `null` when realtime isn't
+   * connected/authenticated or the RPC call itself fails/rejects (including a `STALE_STATE`
+   * rejection for a state-sensitive event) — in every `null` case the caller
+   * (`createLeagueActions.recordEvent`) leaves the command unsynchronized in the local outbox
+   * rather than persisting it through an independent HTTP write. `clientEventId` dedup
+   * (`recordEventForActor`, Stage 4) still guarantees at most one canonical Neon row even if a
+   * later retry races a delayed response from an earlier attempt.
    */
   async function tryRecordEvent(input: {
     clientEventId: string;
@@ -231,13 +233,16 @@ export function createLeagueActions(
         elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
       });
     },
-    // SPEC.md §28 primary/fallback decision flow: try the realtime path first (fast,
-    // broadcasts to other connections as part of the same call); fall through to the
-    // existing, byte-for-byte-unchanged HTTP path whenever realtime is unavailable, the RPC
-    // throws, or the Durable Object accepted the event but couldn't confirm canonical
-    // persistence yet (`persistenceStatus: "pending"` — calling HTTP too is safe and
-    // idempotent per recordEventForActor's clientEventId dedup, and gives an immediate,
-    // self-healing corrective write rather than waiting on Stage 6's alarm-based retry).
+    // ADR-0138 (Bundle 4) — the coordinator is the only normal canonical-ordering path. Both
+    // "persisted" and "pending" are genuine coordinator acceptance (a real, coordinator-
+    // assigned sequence exists either way); the Durable Object's own persistence outbox
+    // (Stage 6) already owns confirming durability for a "pending" result, so neither case
+    // triggers an independent HTTP write here — doing so would recreate the exact dual-write-
+    // path residue this bundle closes (ARR-0045). When the coordinator is unavailable or the
+    // RPC failed (`tryRecordEvent` returned `null`), the command is left unsynchronized rather
+    // than persisted through an alternate ordering authority — it stays safely in the local
+    // outbox (already durably saved before this function is called) and is retried through
+    // this same function on the next reconnect.
     recordEvent: async (input) => {
       const realtimeResult = await realtime.tryRecordEvent({
         clientEventId: input.clientEventId,
@@ -252,15 +257,13 @@ export function createLeagueActions(
           correctsEventId: input.correctsEventId,
         },
       });
-      if (realtimeResult?.persistenceStatus === "persisted") {
+      if (realtimeResult) {
         return { success: true as const, data: {} };
       }
-
-      const result = await recordLiveEventAction(input);
-      if (result.success && result.data) {
-        return { success: true as const, data: { id: result.data.eventId } };
-      }
-      return { success: false as const, error: result.success === false ? result.error : "Failed to record event" };
+      return {
+        success: false as const,
+        error: "Not connected to live reporting. Saved on this device — will sync automatically once reconnected.",
+      };
     },
     onLiveUpdate: realtime.onLiveUpdate,
     reconnectRealtime: realtime.reconnectNow,

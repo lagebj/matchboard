@@ -204,13 +204,12 @@ export interface PersistenceChangedCallback {
   /** Stage 6 hardening — `"failed_exhausted"` means the persistence outbox gave up after its
    * bounded retry ceiling (attempt count or age, `workers/live-match/src/state.ts`'s
    * `evaluateRetry`) without ever getting a definitive terminal/success answer from the
-   * internal API (e.g. a sustained infrastructure failure). This does NOT mean the event was
-   * lost — League/Event's own HTTP recordEvent path (`recordLiveEventAction`/
-   * `recordEventForActor`) already persisted it canonically before ever calling the realtime
-   * path, or runs immediately after this path fails to confirm (see
-   * `league-live-match-client.tsx`'s `createLeagueActions.recordEvent`) — it means this
-   * object's own copy of the attempt needs no further automatic action and, if this keeps
-   * happening, is worth operator attention. */
+   * internal API (e.g. a sustained infrastructure failure). ADR-0138 (Bundle 4) — after the
+   * single-mutation-path cutover, there is no independent HTTP write to fall back on: the
+   * event remains in the browser's local outbox, unsynchronized, until the coordinator
+   * recovers and the next reconnect (`syncUnsyncedEvents`) retries it through this same
+   * `recordEvent` path. This status is therefore operator-significant on its own — a growing
+   * count of exhausted events means real coach-recorded actions are not reaching Neon. */
   persistenceStatus: "pending" | "persisted" | "failed_terminal" | "failed_exhausted";
 }
 
