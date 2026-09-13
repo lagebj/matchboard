@@ -23,6 +23,8 @@ vi.mock("@/lib/live-match/local/live-local-store", () => ({
   recoverInterruptedSends: vi.fn().mockResolvedValue([]),
   clearPersistedCommands: vi.fn().mockResolvedValue({ removed: 0, retainedUnresolved: 0 }),
   saveSessionLocally: vi.fn().mockResolvedValue(undefined),
+  savePreparedPackage: vi.fn().mockResolvedValue(undefined),
+  clearPreparedPackage: vi.fn().mockResolvedValue(undefined),
   getLocalSession: vi.fn().mockResolvedValue(null),
   clearLocalSession: vi.fn().mockResolvedValue(undefined),
 }));

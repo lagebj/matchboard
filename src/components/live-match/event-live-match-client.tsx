@@ -24,7 +24,7 @@ interface EventLiveMatchClientProps {
   eventId: string;
 }
 
-function createEventActions(eventMatchId: string, eventId: string): LiveMatchActions {
+export function createEventActions(eventMatchId: string, eventId: string): LiveMatchActions {
   return {
     startSession: async (matchId) => {
       const result = await startEventLiveSessionAction(matchId);
@@ -90,6 +90,7 @@ export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eve
       actions={eventActions}
       markOwnTeam={false}
       subjectType="EVENT"
+      eventId={eventId}
     />
   );
 }

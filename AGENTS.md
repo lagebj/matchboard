@@ -3504,12 +3504,14 @@ not require one).
 
 Explicitly out of scope — do not add without a new decision:
 - Broad service worker / offline caching of arbitrary authenticated pages (would risk stale
-  authenticated state). **Narrow exception (ADR-0138, in progress):** a service worker scoped
-  only to an already-established live match reporting session's own route/shell/static assets is
-  being introduced by the Canonical Live Operations & Delayed-Concurrency programme — see "Live
-  match realtime session files" below. This does not make any other authenticated page
-  offline-capable; do not widen the scope beyond the established live-reporting route without a
-  further explicit decision.
+  authenticated state). **Narrow exception, now implemented (ADR-0138 Bundle 7):** a service
+  worker (`public/live-sw.js`) scoped, in its fetch handler's actual behavior, to exactly two
+  things — Next.js's own immutable `/_next/static/**` assets (cache-first) and a navigation
+  fallback for an already-established live-match route (`/matches/*/live`) when the network is
+  genuinely unreachable, served from one generic, unauthenticated, non-personalized cached shell
+  (`/offline-live` — see "Live match realtime session files" below). It never caches a real
+  per-match SSR response and never intercepts any other route. Do not widen either pattern
+  without a further explicit decision.
 - Custom Web Push (see also ADR-0086).
 - App-store packaging of any kind.
 - A custom Test-marker home-screen icon — the "Matchboard Test" name plus the in-app Test badge
@@ -4534,7 +4536,7 @@ Live Operations programme below's Bundle 2 added `correctsEventId` to the wire t
 fixed the projection's own reversal-resolution logic to use it; see ARR-0047 for the full account
 of what was actually still wrong here at the time. See ADR-0133 for the original H1-H6 forensics.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-6
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-7
 complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
 persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
 `baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
@@ -4723,8 +4725,60 @@ so its record is never silently discarded pending a future review surface (Bundl
 called anywhere) was removed as unrelated residue found while editing this exact interface. Uses
 the new `fake-indexeddb` devDependency (test-only, zero production exposure) for real IndexedDB
 semantics — versionchange transactions, cursors, indexes — in plain Node tests, rather than
-mocking IndexedDB away entirely. Remaining bundles (scoped PWA continuation, conflict UX/Event
-parity, observability/cutover) are tracked in
+mocking IndexedDB away entirely.
+
+**Bundle 7 (scoped PWA offline continuation) is now implemented.** The first service worker in
+this repository (`public/live-sw.js`) exists for exactly two purposes, enforced by its fetch
+handler's own narrow behavior rather than by a narrow registration scope (it registers at the
+default root scope for simplicity, but only ever intercepts these two request shapes — everything
+else passes through untouched): cache-first for Next.js's own immutable `/_next/static/**`
+assets, and a navigation fallback for an established live-match route (`/matches/*/live`,
+matched by `src/lib/live-match/offline/live-route-match.ts`'s `isLiveRoute()` — duplicated, not
+imported, into the service worker itself per this repo's existing zero-runtime-dependency
+convention for Worker-adjacent pure logic) when the network is genuinely unreachable, served
+from one cached, generic, unauthenticated shell (`/offline-live`) — never a real per-match SSR
+response (AGENTS.md's own "do not cache broad authenticated pages" rule, upheld structurally, not
+just by convention). `registerLiveServiceWorker()` is called only from `LiveMatchClient`'s own
+mount effect, so a service worker is only ever present on a device that has actually opened live
+reporting at least once. A new IndexedDB `preparedPackage` store (schema v2→v3,
+`savePreparedPackage`/`getPreparedPackage`/`clearPreparedPackage`) captures everything
+`LiveMatchClient` needs to render — squad, team names, period config — the moment a normal
+online load already fetches it, so a later fully-offline reload can reconstruct the same screen
+without a server round-trip; it is cleared alongside the outbox once a session's commands are
+fully resolved and cleared (retention, work item 7). `offline-live-shell-client.tsx` is the one
+consumer: it reads the *real* match URL from `window.location` in a post-mount effect (never
+from this page's own Next.js route, which is a fixed, generic `/offline-live` path the browser's
+address bar never actually shows — the service worker swaps the response body while the address
+bar stays on the real match URL), loads the prepared package plus this device's own
+`LocalSession` record (so an already-active session resumes as active rather than re-showing
+"Start live reporting"), and renders the exact same `LiveMatchClient` with real
+`createLeagueActions`/`createEventActions` — only `getPreMatchPackage` is overridden to read
+local storage instead of the network; every other action (`recordEvent`, `startSession`,
+`endSession`, `heartbeat`, `reportUrl`) is the unmodified real implementation, which already
+fails safe while offline (Bundle 6's outbox) and resumes normally the moment the network returns,
+with no separate "offline mode" code path to keep in sync. A device that has never opened a
+specific match's live route while online shows an explicit "hasn't been opened yet on this
+device" message (work item 8) rather than a blank screen or a confusing crash. **A real migration
+bug was caught and fixed before merge**: the v1→v3 upgrade path's legacy-session-drop logic was
+originally gated only on "does a session store exist," which is also true for an already-correct
+v2 database — an existing Bundle 6 user's v2→v3 upgrade (adding only the new empty
+`preparedPackage` store) would have wrongly wiped their existing command/session data for no
+reason; fixed by gating that legacy-only branch on `fromVersion < 2`, with a regression test
+(`live-local-store-v2-to-v3-migration.test.ts`) proving existing v2 data survives untouched.
+**Disclosed, deliberate scope boundary (work item 6, "handle auth renewal on reconnect")**: no
+bespoke auth-failure detection was built — a Server Action call failing because the session
+expired during an offline period is handled identically to any other failed `recordEvent` call
+(returns to `LOCAL_PENDING`, retried automatically on the next reconnect signal), which is
+already correct, safe behavior; building a separate code path to specifically distinguish "auth
+expired" from "network down" was judged disproportionate to this bundle's scope for a genuinely
+rare edge case (auth session expiring mid-match). New E2E coverage
+(`e2e/live-reporting-offline-continuation.spec.ts`) exercises the real service worker end-to-end
+in Chromium via Playwright (register → cache → go offline → reload → record → reconnect →
+converge, plus the never-prepared-device message) — this is the actual exit-criteria evidence
+("offline continuation... is real, not merely local queue code behind a page that cannot
+reopen"), verified by CI's `Deploy PR to Test slot` job against the real hosted Test slot, not
+locally reproducible in a sandboxed dev container. Remaining bundles (conflict UX/Event parity,
+observability/cutover) are tracked in
 `.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |
@@ -4797,6 +4851,11 @@ uses for its own accepted events, not something "Follow live" depends on.
 | `src/app/api/internal/live-match/events/route.ts` | `POST` — HMAC-only internal endpoint; calls `recordEventForActor()`, never a browser API |
 | `src/app/api/internal/live-match/snapshot/route.ts` | `GET` — HMAC-only internal endpoint; canonical session/events for Stage 6 reconciliation |
 | `workers/live-match/src/internal-client.ts` | Worker-side: signs and sends persistence/snapshot requests to Vercel |
+| `public/live-sw.js` | ADR-0138 Bundle 7: the scoped live-match service worker — cache-first `/_next/static/**`, offline navigation fallback to `/offline-live` for an established live-match route, pass-through for everything else |
+| `src/lib/live-match/offline/register-live-service-worker.ts` | Registers `public/live-sw.js`, called only from `LiveMatchClient`'s own mount effect |
+| `src/lib/live-match/offline/live-route-match.ts` | `isLiveRoute()`/`extractLiveRouteSubjectId()` — pure route-matching, duplicated (not imported) by the service worker's own regex per its zero-runtime-dependency convention; keep both in sync |
+| `src/app/offline-live/page.tsx` | Public, unauthenticated, generic offline-continuation shell page — cached once by the service worker, never contains real match data |
+| `src/components/live-match/offline-live-shell-client.tsx` | Reads the real match URL from `window.location` post-mount, loads the prepared package + local session from IndexedDB, and renders `LiveMatchClient` reconstructed for offline continuation |
 
 Group-role-aware live match authorization (added alongside "Follow live", closing a
 pre-existing gap — see ADR-0086's amendment): `requireMatchGroupMutationRole(ctx, matchId)`
