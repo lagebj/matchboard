@@ -208,12 +208,8 @@ describe("useLiveRealtime", () => {
     expect(client.recordEvent).toHaveBeenCalledWith({ clientEventId: "e1", baseVersion: 42, event: { eventType: "GOAL_FOR" } });
   });
 
-  it("reconnectNow reconnects the existing client rather than creating a new one; no-ops if never connected", () => {
+  it("reconnectNow reconnects the existing client rather than creating a new one", () => {
     const { result } = renderHook(() => useLiveRealtime("match-1"));
-
-    // No-op before any connection exists.
-    expect(() => result.current.reconnectNow()).not.toThrow();
-    expect(instances.length).toBe(0);
 
     act(() => {
       result.current.ensureConnected();
@@ -222,6 +218,24 @@ describe("useLiveRealtime", () => {
     result.current.reconnectNow();
     expect(instances[0].connect).toHaveBeenCalledTimes(2);
     expect(instances.length).toBe(1);
+  });
+
+  // ADR-0138 Bundle 7 fix — a mount that *restores* an already-active session (a normal page
+  // reload mid-match, or the offline-continuation shell) never calls startSession, which used
+  // to be the only place a connection was ever established at all. Confirmed live: this left a
+  // restored session's outbox permanently unable to sync, even once genuinely reconnected,
+  // because every online-event-triggered reconnectRealtime() call was a silent no-op with no
+  // existing client to reconnect. reconnectNow() must now establish a fresh connection when
+  // none exists yet, not stay a no-op.
+  it("reconnectNow establishes a fresh connection when none has ever been attempted on this mount", () => {
+    const { result } = renderHook(() => useLiveRealtime("match-1"));
+
+    expect(instances.length).toBe(0);
+    act(() => {
+      result.current.reconnectNow();
+    });
+    expect(instances.length).toBe(1);
+    expect(instances[0].connect).toHaveBeenCalledTimes(1);
   });
 });
 

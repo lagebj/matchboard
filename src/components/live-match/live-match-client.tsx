@@ -602,6 +602,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
               elapsedBeforeStartMs: savedClock.elapsedBeforeStartMs,
             });
           }
+          // ADR-0138 Bundle 7 fix — a mount that *restores* an already-active session (any
+          // normal page reload mid-match, not only the offline-continuation shell) never calls
+          // `startSession`, which was previously the only place a realtime connection was ever
+          // established. Without this, a restored session's outbox could never sync even once
+          // reconnected — confirmed live via a genuinely stuck `waitForEventsToSync` in
+          // `e2e/live-reporting-offline-continuation.spec.ts`. `reconnectRealtime` establishes a
+          // fresh connection when none exists yet (see its own updated doc comment), not just a
+          // literal reconnect of an existing one.
+          actions.reconnectRealtime?.();
         }
       } else {
         setError(result.error ?? "Failed to load match data");

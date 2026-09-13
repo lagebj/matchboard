@@ -4754,9 +4754,10 @@ bar stays on the real match URL), loads the prepared package plus this device's 
 "Start live reporting"), and renders the exact same `LiveMatchClient` with real
 `createLeagueActions`/`createEventActions` — only `getPreMatchPackage` is overridden to read
 local storage instead of the network; every other action (`recordEvent`, `startSession`,
-`endSession`, `heartbeat`, `reportUrl`) is the unmodified real implementation, which already
-fails safe while offline (Bundle 6's outbox) and resumes normally the moment the network returns,
-with no separate "offline mode" code path to keep in sync. A device that has never opened a
+`endSession`, `heartbeat`, `reportUrl`) is the unmodified real implementation, which fails safe
+while offline (Bundle 6's outbox) and — once a real, previously-undiscovered bug below was
+fixed — resumes normally the moment the network returns, with no separate "offline mode" code
+path to keep in sync. A device that has never opened a
 specific match's live route while online shows an explicit "hasn't been opened yet on this
 device" message (work item 8) rather than a blank screen or a confusing crash. **A real migration
 bug was caught and fixed before merge**: the v1→v3 upgrade path's legacy-session-drop logic was
@@ -4765,6 +4766,27 @@ v2 database — an existing Bundle 6 user's v2→v3 upgrade (adding only the new
 `preparedPackage` store) would have wrongly wiped their existing command/session data for no
 reason; fixed by gating that legacy-only branch on `fromVersion < 2`, with a regression test
 (`live-local-store-v2-to-v3-migration.test.ts`) proving existing v2 data survives untouched.
+**A real, previously-undiscovered pre-existing bug was caught by this bundle's own E2E test and
+fixed**: `reconnectRealtime()` (`league-live-match-client.tsx`'s `reconnectNow`) had always
+no-op'd when no realtime connection had ever been attempted on the current component mount — its
+own doc comment explicitly documented this as intentional ("No-op if never connected in the
+first place"), correct for its original, only-anticipated scenario (an existing connection
+dropped and needs to come back). `ensureConnected()` — the only thing that actually creates a
+connection — was, and remains, called solely from `startSession`'s own success handler. Every
+mount that instead *restores* an already-active session (a normal browser page reload mid-match
+— nothing offline-continuation-specific about the trigger, though Bundle 7's shell is the case
+that surfaced it) never calls `startSession`, so its `reconnectRealtime` no-op'd forever: an
+already-active session's outbox could never sync a single command, even indefinitely after the
+network returned. Fixed two ways: `reconnectNow()` now falls through to `ensureConnected()`
+(itself already idempotent) when no client exists yet rather than staying a no-op, and
+`LiveMatchClient`'s own mount effect now calls `reconnectRealtime()` proactively the moment it
+restores an already-active session, rather than only reacting to a later `online` DOM event
+(which never fires at all for a reload that happens while the browser was online the whole
+time). This is judged in-scope for this bundle rather than a separate fix, since Bundle 7's own
+exit criteria — reopening an established session for real — is exactly what exposed it, and
+leaving it unfixed would have made the bundle's own core deliverable non-functional the moment a
+coach reconnects.
+
 **Disclosed, deliberate scope boundary (work item 6, "handle auth renewal on reconnect")**: no
 bespoke auth-failure detection was built — a Server Action call failing because the session
 expired during an offline period is handled identically to any other failed `recordEvent` call

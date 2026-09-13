@@ -164,11 +164,28 @@ export function useLiveRealtime(matchId: string) {
 
   /** Force an immediate reconnect attempt, bypassing the client's own backoff timer (SPEC.md
    * §27: "on browser online... reconnect" — a passive timer could otherwise leave the coach
-   * on HTTP-only for up to ~30s after connectivity actually returns). No-op if never
-   * connected in the first place (nothing to reconnect). */
+   * on HTTP-only for up to ~30s after connectivity actually returns).
+   *
+   * ADR-0138 Bundle 7 fix: this used to no-op when no connection had ever been attempted on
+   * this component mount — correct for the original "an existing connection dropped, get it
+   * back" scenario, but a real bug for a mount that *restores* an already-active session
+   * without ever calling `startSession` (a fresh page reload of an in-progress session, and
+   * Bundle 7's offline-continuation shell in particular): `ensureConnected()` was previously
+   * only ever called from `startSession`'s own success handler, so a restored session's
+   * `clientRef.current` stayed `null` forever, and every subsequent `online` event's
+   * `reconnectRealtime()` call was a silent no-op — commands recorded against a restored
+   * session never synced even once the network genuinely returned, confirmed live via
+   * `e2e/live-reporting-offline-continuation.spec.ts` hanging on `waitForEventsToSync`. Falls
+   * through to `ensureConnected()` (idempotent — its own first line already no-ops if a
+   * connection exists) when nothing has connected yet, rather than staying a silent no-op. */
   function reconnectNow(): void {
+    if (!clientRef.current) {
+      console.debug(`${LOG_PREFIX} reconnectNow: no connection ever attempted on this mount — establishing one now`);
+      ensureConnected();
+      return;
+    }
     console.debug(`${LOG_PREFIX} reconnectNow: forcing immediate reconnect`);
-    void clientRef.current?.connect();
+    void clientRef.current.connect();
   }
 
   function onLiveUpdate(callback: () => void): () => void {
