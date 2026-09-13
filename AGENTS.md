@@ -2842,9 +2842,9 @@ in-repo reference once the UI Lab gate is passed.
   proven in `/dev/ui-lab/atlas/routes/*`. Do not begin Phase 5 (Round Board, Lineup, Tactics,
   Rotations, Live Reporting, Follow Live, Post-match) without a fresh, explicit human approval at
   Human Gate B.
-- **Canonical pitch rendering migration (Atlas Follow-up, `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`,
-  Phase F7 — in progress).** A separate, later follow-up bundle
-  (`.matchboard-work/matchboard_atlas_followup_roundboard_players_pitch_positions_2026-09-12/`,
+- **Canonical pitch rendering migration (Atlas Follow-up, `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`).
+  Phase F7 (`TouchlinePlanningPitch` production migration) is complete.** A separate, later
+  follow-up bundle (`.matchboard-work/matchboard_atlas_followup_roundboard_players_pitch_positions_2026-09-12/`,
   gitignored) introduced one further canonical pitch renderer pair —
   `TouchlinePlanningPitch` (`src/components/touchline/pitch/touchline-planning-pitch.tsx`, for
   every planning/formation view: Lineup, Tactics, Formations, previews, event/match planning,
@@ -2855,30 +2855,48 @@ in-repo reference once the UI Lab gate is passed.
   `PitchLineupView`/`PitchPlayerToken` referenced in the paragraph above for any surface this
   later migration has actually reached. Its own dev-only UI Lab
   (`/dev/ui-lab/atlas-followup/`) and Gates A-D (pitch/shirt-identity, Player Detail, Players
-  Overview, Round Board) are approved; production migration (Phase F7 onward) is in progress
-  route by route, gated by `10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md`'s own recommended
-  order (Lineup/Tactics → Formations → read-only previews → event/match planning surfaces →
-  Round Board pitch subviews → remaining consumers), never all at once. **Migrated so far**: the
-  match-detail Lineup/Tactics tab's pitch (`match-tactics-panel.tsx`) — team kit colour is
-  resolved through the existing `fetchTeamConfiguration()` action (Phase F1, `Team.kitColor`),
-  all existing slot-click/slot-view/picker/suggestion mutation logic is unchanged; the Formations
-  builder/editor (`formations-builder.tsx`) — `TouchlinePlanningPitch` gained one new, additive,
-  optional capability for this surface, `editableGrid` (renders every grid cell not already
-  covered by `slots` as a clickable "add a slot here" target), since the editor's "click any
-  empty cell to add a new slot" interaction has no equivalent in Lineup/Tactics'
-  click-an-existing-slot model — every other caller omits it and is unaffected; and the Event
-  match lineup panel (`event-match-lineup-panel.tsx`) — `teamKitColor` is always `null` (Event
-  squads have no kit-colour concept), `handleSlotClick`/picker/auto-fill mutation logic is
-  unchanged. The `FormationSlot` → `PlanningPitchSlot` mapping
-  (`buildPlanningPitchSlotsFromFormationSlots()`,
+  Overview, Round Board) are approved.
+
+  Phase F7 migrated every `TouchlinePlanningPitch` target in
+  `10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md`'s recommended order: the match-detail
+  Lineup/Tactics tab's pitch (`match-tactics-panel.tsx`) — team kit colour resolved through the
+  existing `fetchTeamConfiguration()` action (Phase F1, `Team.kitColor`), all existing slot-click/
+  slot-view/picker/suggestion mutation logic unchanged; the Formations builder/editor
+  (`formations-builder.tsx`) — `TouchlinePlanningPitch` gained one new, additive, optional
+  capability for this surface, `editableGrid` (renders every grid cell not already covered by
+  `slots` as a clickable "add a slot here" target), since the editor's "click any empty cell to
+  add a new slot" interaction has no equivalent in Lineup/Tactics' click-an-existing-slot model —
+  every other caller omits it and is unaffected; and the Event match lineup panel
+  (`event-match-lineup-panel.tsx`) — `teamKitColor` always `null` (Event squads have no kit-colour
+  concept), `handleSlotClick`/picker/auto-fill mutation logic unchanged. No genuine "read-only
+  formation/lineup previews" surface exists separately from these (`TacticsBoard` mode
+  "formation-preview" is only ever exercised by the dev-only `/dev/ui-lab/atlas/routes/formations`
+  page), and no Round Board pitch subview exists (`round-board.tsx` and the whole
+  `src/components/round/`/`src/components/touchline/round-board/` tree render no pitch at all) —
+  both confirmed by repository-wide search, not assumed. The `FormationSlot` → `PlanningPitchSlot`
+  mapping (`buildPlanningPitchSlotsFromFormationSlots()`,
   `src/components/touchline/pitch/formation-slot-projection.ts`) and the player-assignment →
   `PlanningPitchAssignment` mapping (`buildPlanningPitchAssignments()`,
   `src/components/touchline/pitch/planning-pitch-assignment-projection.ts`) are each one shared
   function reused by every surface that needs them, not duplicated per caller —
   `PitchFormationBuilder` and `PitchLineupView` (`pitch-formation.tsx`) were removed once their
   last production caller migrated away, each verified to have zero remaining consumers first.
-  Update this bullet as each further F7 sub-item lands; a surface not listed here as migrated
-  still renders through the prior ADR-0136-era pitch components.
+
+  **One deliberate, documented exception**: `EventSquadLineupBoard`
+  (`event-squad-lineup-board.tsx`) — the bundle's own "event/match planning pitch surfaces" item —
+  was found to be entirely dead code (zero production callers of either it or its sole domain
+  dependency, `event-lineup-assignment.ts`) and is **not** migrated; see **ARR-0050** for the full
+  finding and the pending maintainer decision (delete vs. genuinely revive). Migrating an
+  unreachable component would have been wasted, unverifiable effort.
+
+  A repository-wide search confirms every remaining real (non-comment) `TacticsBoard` import is
+  now either this ARR-0050 exception, or `src/components/ui/position-map.tsx` (Player Detail's
+  position card — a `TouchlinePositionMap` target, out of Phase F7's scope; belongs to **Phase
+  F8**, "Production Players migration," per `10_IMPLEMENTATION_SEQUENCE_AND_HUMAN_GATES.md`).
+  That document gates Phase F8 on Gates B/C and Phase F9 (Production Round Board migration) on
+  Gate D — all four gates (A-D) are already approved, as stated above, so production migration for
+  Players/Round Board may proceed without a further human visual gate; Gates B/C/D approved the UI
+  Lab compositions those phases migrate real routes onto, they are not a separate blocking step.
 - The rest of this section (below) is the Product Surface 1.0 record; its visual specifics are
   superseded by Touchline, its retained domain/accessibility principles are carried forward.
 
