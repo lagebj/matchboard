@@ -56,6 +56,8 @@ describe("persistEvent", () => {
         userId: "user-1",
         clientEventId: "evt-1",
         eventType: "GOAL_FOR",
+        sequence: 1,
+        acceptedAtMs: 1_756_000_000_000,
         rpcId: "rpc-1",
       },
     });
@@ -79,6 +81,8 @@ describe("persistEvent", () => {
           userId: "user-1",
           clientEventId: "evt-1",
           eventType: "GOAL_FOR",
+          sequence: 1,
+          acceptedAtMs: 1_756_000_000_000,
           rpcId: "rpc-1",
         },
       });

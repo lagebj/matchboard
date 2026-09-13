@@ -5,20 +5,24 @@ import { signInternalRequest } from "@/lib/live-match/realtime/internal-signatur
 // and shared between the mock factory and this file's `it` blocks so `instanceof` checks in the
 // route work exactly as they would against the real module, without pulling in
 // `live-match-event-store.ts`'s real `db`/`requireActorContext` imports just to get one class.
-const { mockRecordEventForActor, mockLoggerError, TestLiveMatchDomainError } = vi.hoisted(() => {
-  class TestLiveMatchDomainError extends Error {}
-  return {
-    mockRecordEventForActor: vi.fn(),
-    mockLoggerError: vi.fn(),
-    TestLiveMatchDomainError,
-  };
-});
+const { mockRecordEventForActor, mockLoggerError, TestLiveMatchDomainError, TestLiveMatchSequenceIntegrityError } =
+  vi.hoisted(() => {
+    class TestLiveMatchDomainError extends Error {}
+    class TestLiveMatchSequenceIntegrityError extends Error {}
+    return {
+      mockRecordEventForActor: vi.fn(),
+      mockLoggerError: vi.fn(),
+      TestLiveMatchDomainError,
+      TestLiveMatchSequenceIntegrityError,
+    };
+  });
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/live-match/live-match-event-store", () => ({
   recordEventForActor: mockRecordEventForActor,
   LiveMatchDomainError: TestLiveMatchDomainError,
+  LiveMatchSequenceIntegrityError: TestLiveMatchSequenceIntegrityError,
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -40,6 +44,9 @@ const VALID_BODY = {
   clientEventId: "evt-1",
   eventType: "GOAL_FOR",
   rpcId: "rpc-1",
+  // ADR-0138 (Bundle 2) — required on this internal-only path.
+  sequence: 1,
+  acceptedAtMs: 1_756_000_000_000,
 };
 
 async function signedRequest(body: unknown, overrides?: { timestamp?: number; signature?: string; requestId?: string | null }) {

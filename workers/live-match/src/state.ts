@@ -510,7 +510,11 @@ export function nextAlarmTime(events: readonly AcceptedEventRecord[]): number | 
 /** One canonical event as returned by the internal snapshot endpoint
  * (`InternalSnapshotResponse.events`, shared type lives in `realtime-messages.ts` — kept as a
  * narrower local shape here so this module's zero-Prisma-dependency guarantee, documented at
- * the top of this file, extends to not importing that type either). */
+ * the top of this file, extends to not importing that type either).
+ *
+ * ADR-0138 (Bundle 2) adds `sequence`/`correctionType`/`correctsEventId` — the snapshot
+ * endpoint already returns events ordered by persisted `sequence` (nulls last), so this array
+ * arrives pre-sorted in true canonical order wherever a real sequence exists. */
 export interface ReconcilableCanonicalEvent {
   clientEventId: string;
   id: string;
@@ -518,6 +522,9 @@ export interface ReconcilableCanonicalEvent {
   createdAt: string;
   playerId?: string;
   secondaryPlayerId?: string;
+  sequence?: number | null;
+  correctionType?: string | null;
+  correctsEventId?: string | null;
 }
 
 export interface ReconciliationResult {
@@ -528,29 +535,44 @@ export interface ReconciliationResult {
 /**
  * SPEC.md §23 — events that reached Neon via the HTTP fallback path while this object either
  * didn't exist yet or was disconnected never went through `evaluateRecordEvent`, so they have
- * no realtime version and no local `AcceptedEventRecord`. This assigns each one a new
- * realtime version (in the snapshot endpoint's already-deterministic order, SPEC.md §24) and
- * an idempotency mapping, so a later realtime `recordEvent` retry for the same
- * `clientEventId` (e.g. from a client that also tried the realtime path before falling back
- * to HTTP) is still correctly deduped. `actorUserId` is left empty — reconciled events are
- * already canonical (their real authorship lives in Neon); this object never learns who wrote
- * them from the snapshot response alone, and nothing here needs to know (SPEC.md §23:
- * realtime version is coordination metadata, not business event sequence).
+ * no local `AcceptedEventRecord`. `actorUserId` is left empty — reconciled events are already
+ * canonical (their real authorship lives in Neon); this object never learns who wrote them
+ * from the snapshot response alone, and nothing here needs to know.
+ *
+ * ADR-0138 (Bundle 2, "Reconcile Durable Object state from persisted sequence, never
+ * regenerated local numbering" — DECISIONS.md D06): a discovered event that already carries a
+ * real persisted `sequence` (it went through the coordinator and the internal persistence
+ * path, e.g. this object lost its in-memory/storage state and is rebuilding from Neon) reuses
+ * that exact sequence as its `version` — it is never renumbered. Only a genuinely
+ * sequence-less event (the direct-HTTP path, ARR-0045, still possible until Bundle 4's
+ * single-mutation-path cutover) is assigned a synthetic version by incrementing past the
+ * highest version/sequence seen so far — a documented, transitional-only fallback
+ * (`PROTOCOL_SCHEMA_MIGRATION.md` §4), never the normal case once Bundle 4 lands. `finalVersion`
+ * is seeded from the higher of this object's own prior version and the highest persisted
+ * sequence discovered here, so a fresh object (no prior local state at all) resumes at the
+ * correct next sequence instead of colliding with rows Neon already has.
  */
 export function evaluateReconciliation(params: {
   currentVersion: number;
   knownClientEventIds: ReadonlySet<string>;
   canonicalEvents: readonly ReconcilableCanonicalEvent[];
 }): ReconciliationResult {
-  let version = params.currentVersion;
+  const maxPersistedSequence = params.canonicalEvents.reduce(
+    (max, event) => (typeof event.sequence === "number" ? Math.max(max, event.sequence) : max),
+    0,
+  );
+  let version = Math.max(params.currentVersion, maxPersistedSequence);
   const newRecords: AcceptedEventRecord[] = [];
 
   for (const event of params.canonicalEvents) {
     if (params.knownClientEventIds.has(event.clientEventId)) continue;
-    version += 1;
+
+    const assignedVersion = typeof event.sequence === "number" ? event.sequence : (version += 1);
+    version = Math.max(version, assignedVersion);
+
     newRecords.push({
       clientEventId: event.clientEventId,
-      version,
+      version: assignedVersion,
       actorUserId: "",
       acceptedAt: new Date(event.createdAt).getTime(),
       eventType: event.eventType,
@@ -558,6 +580,8 @@ export function evaluateReconciliation(params: {
         eventType: event.eventType,
         ...(event.playerId != null ? { playerId: event.playerId } : {}),
         ...(event.secondaryPlayerId != null ? { secondaryPlayerId: event.secondaryPlayerId } : {}),
+        ...(event.correctionType != null ? { correctionType: event.correctionType } : {}),
+        ...(event.correctsEventId != null ? { correctsEventId: event.correctsEventId } : {}),
       },
       persistenceStatus: "persisted",
       canonicalEventId: event.id,

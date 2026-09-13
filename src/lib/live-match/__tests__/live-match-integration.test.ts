@@ -3,7 +3,13 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
 import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession, persistLiveSessionClock } from "../live-match-session";
-import { recordEvent, recordEventForActor, getMatchEvents, getRecentEvents } from "../live-match-event-store";
+import {
+  recordEvent,
+  recordEventForActor,
+  getMatchEvents,
+  getRecentEvents,
+  LiveMatchSequenceIntegrityError,
+} from "../live-match-event-store";
 import { validateLiveEventInput, isValidEventType, isGoalEventType, isPeriodTransition } from "../live-match-domain";
 import type { LiveMatchEventType } from "@/generated/prisma/client";
 import {
@@ -354,6 +360,110 @@ describe("recordEventForActor (Stage 4 internal persistence, SPEC.md §19)", () 
     expect(result.eventId).toBeDefined();
     const row = await testDb.liveMatchEvent.findUnique({ where: { clientEventId: "evt-wrapper-unchanged" } });
     expect(row?.id).toBe(result.eventId);
+  });
+});
+
+describe("recordEventForActor sequence persistence (ADR-0138, Bundle 2)", () => {
+  let sessionId: string;
+
+  beforeAll(async () => {
+    await testDb.liveMatchEvent.deleteMany({ where: { matchId } });
+    await testDb.liveMatchSession.deleteMany({ where: { matchId } });
+    const session = await startLiveSession(matchId);
+    sessionId = session.id;
+  });
+
+  it("persists the coordinator-assigned sequence and acceptance time", async () => {
+    const acceptedAtMs = Date.parse("2026-09-12T12:00:00.000Z");
+    const canonical = await recordEventForActor(
+      { matchId, sessionId, eventType: "GOAL_FOR", clientEventId: "evt-seq-1", sequence: 1, acceptedAtMs },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    expect(canonical.sequence).toBe(1);
+    const row = await testDb.liveMatchEvent.findUnique({ where: { clientEventId: "evt-seq-1" } });
+    expect(row?.sequence).toBe(1);
+    expect(row?.acceptedAt?.toISOString()).toBe("2026-09-12T12:00:00.000Z");
+  });
+
+  it("a row written with no coordinator-assigned sequence (direct-HTTP path, ARR-0045) keeps sequence null", async () => {
+    const result = await recordEvent({
+      matchId,
+      sessionId,
+      eventType: "GOAL_AGAINST",
+      clientEventId: "evt-seq-no-sequence",
+    });
+    const row = await testDb.liveMatchEvent.findUnique({ where: { id: result.eventId } });
+    expect(row?.sequence).toBeNull();
+  });
+
+  it("does not consume a new sequence on a duplicate clientEventId retry", async () => {
+    const first = await recordEventForActor(
+      { matchId, sessionId, eventType: "MOMENT_MARKED", clientEventId: "evt-seq-retry", sequence: 2, acceptedAtMs: Date.now() },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    const second = await recordEventForActor(
+      { matchId, sessionId, eventType: "MOMENT_MARKED", clientEventId: "evt-seq-retry", sequence: 2, acceptedAtMs: Date.now() },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    expect(second.sequence).toBe(first.sequence);
+    const rows = await testDb.liveMatchEvent.findMany({ where: { sessionId, sequence: 2 } });
+    expect(rows.length).toBe(1);
+  });
+
+  it("throws LiveMatchSequenceIntegrityError when a different clientEventId reuses an already-assigned sequence", async () => {
+    await recordEventForActor(
+      {
+        matchId,
+        sessionId,
+        eventType: "MOMENT_MARKED",
+        clientEventId: "evt-seq-collision-a",
+        sequence: 3,
+        acceptedAtMs: Date.now(),
+      },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    await expect(
+      recordEventForActor(
+        {
+          matchId,
+          sessionId,
+          eventType: "GOAL_FOR",
+          clientEventId: "evt-seq-collision-b",
+          sequence: 3,
+          acceptedAtMs: Date.now(),
+        },
+        { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+      ),
+    ).rejects.toThrow(LiveMatchSequenceIntegrityError);
+  });
+
+  it("correction fields (correctionType/correctsEventId) round-trip through persistence", async () => {
+    const goal = await recordEventForActor(
+      {
+        matchId,
+        sessionId,
+        eventType: "GOAL_FOR",
+        clientEventId: "evt-seq-goal-to-reverse",
+        sequence: 4,
+        acceptedAtMs: Date.now(),
+      },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    const reversal = await recordEventForActor(
+      {
+        matchId,
+        sessionId,
+        eventType: "EVENT_REVERSED",
+        clientEventId: "evt-seq-reversal",
+        correctionType: "REVERSAL",
+        correctsEventId: goal.id,
+        sequence: 5,
+        acceptedAtMs: Date.now(),
+      },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    expect(reversal.correctionType).toBe("REVERSAL");
+    expect(reversal.correctsEventId).toBe(goal.id);
   });
 });
 

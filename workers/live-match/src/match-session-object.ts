@@ -318,6 +318,10 @@ export class MatchSessionObject extends DurableObject<Env> {
     // (`handleAuthenticate` -> `reconcileFromCanonicalSnapshot`) discovered from the HTTP
     // fallback path — this object's own storage is the single source `getSnapshot` reads
     // from, so it never needs its own extra network round-trip per call.
+    // ADR-0138 (Bundle 2) — `event.version` already IS the canonical sequence once assigned
+    // (either directly by `evaluateRecordEvent`, or reused verbatim from a persisted row during
+    // reconciliation, never renumbered — `evaluateReconciliation`'s own contract). Sorting by it
+    // is therefore already sorting by canonical sequence, not a separate concept.
     const events: CanonicalLiveEvent[] = accepted
       .slice()
       .sort((a, b) => a.version - b.version)
@@ -330,10 +334,16 @@ export class MatchSessionObject extends DurableObject<Env> {
         secondaryPlayerId: typeof event.eventFields?.secondaryPlayerId === "string" ? event.eventFields.secondaryPlayerId : undefined,
         period: typeof event.eventFields?.period === "string" ? event.eventFields.period as CanonicalLiveEvent["period"] : undefined,
         matchSeconds: typeof event.eventFields?.matchSeconds === "number" ? event.eventFields.matchSeconds : undefined,
+        sequence: event.version,
+        correctionType: typeof event.eventFields?.correctionType === "string" ? event.eventFields.correctionType as CanonicalLiveEvent["correctionType"] : undefined,
+        correctsEventId: typeof event.eventFields?.correctsEventId === "string" ? event.eventFields.correctsEventId : undefined,
       }));
 
     const snapshot: MatchSessionSnapshot = {
-      protocolVersion: 1,
+      // ADR-0138 (Bundle 2) — additive fields only (`lastSequence`, `revisions`, per-event
+      // `sequence`/correction metadata); an older client that only understands protocol 1
+      // ignores what it doesn't recognize, matching ADR-0112's own established rollout pattern.
+      protocolVersion: 2,
       version: meta.version,
       session: {
         sessionId: meta.sessionId,
@@ -344,6 +354,10 @@ export class MatchSessionObject extends DurableObject<Env> {
       events,
       persistence: { pendingClientEventIds },
       presence: { connectedCount: this.countAuthenticatedConnections() },
+      lastSequence: meta.version,
+      // Placeholder until Bundle 3 wires real classification-based increments — see
+      // `MatchSessionSnapshot`'s own doc comment in realtime-messages.ts.
+      revisions: { clock: 0, lineup: 0, annotation: 0 },
     };
     return rpcOk(call.id, snapshot);
   }
@@ -363,6 +377,9 @@ export class MatchSessionObject extends DurableObject<Env> {
     ) {
       return rpcFail(call.id, "INVALID_PARAMS", "recordEvent requires { clientEventId, baseVersion, event }.");
     }
+    // ADR-0138 (Bundle 2) — diagnostic-only, never an ordering/conflict authority (D07).
+    const clientCapturedAtMs = typeof params.clientCapturedAtMs === "number" ? params.clientCapturedAtMs : undefined;
+    const originClientId = typeof params.originClientId === "string" ? params.originClientId : undefined;
 
     const meta = await this.ctx.storage.get<SessionMeta>("meta");
     if (!meta) {
@@ -427,6 +444,12 @@ export class MatchSessionObject extends DurableObject<Env> {
           eventType: String(eventType),
           ...buildPersistEventFields(eventFields),
           rpcId: call.id,
+          // ADR-0138 (Bundle 2) — this object's own already-assigned sequence/acceptance time;
+          // never reassigned by the persistence layer (D06).
+          sequence: decision.record.version,
+          acceptedAtMs: decision.record.acceptedAt,
+          clientCapturedAtMs,
+          originClientId,
         };
 
         // Placeholder broadcast content, used only if persistence below fails or throws —
@@ -441,6 +464,13 @@ export class MatchSessionObject extends DurableObject<Env> {
           secondaryPlayerId: typeof eventFields.secondaryPlayerId === "string" ? eventFields.secondaryPlayerId : undefined,
           period: typeof eventFields.period === "string" ? eventFields.period as CanonicalLiveEvent["period"] : undefined,
           matchSeconds: typeof eventFields.matchSeconds === "number" ? eventFields.matchSeconds : undefined,
+          // ADR-0138 (Bundle 2) — this object's own already-assigned sequence is known
+          // immediately, even before Neon persistence confirms; a Follow Live viewer sees the
+          // correct canonical order from the very first broadcast, not just after reconcile.
+          sequence: decision.record.version,
+          correctionType: typeof eventFields.correctionType === "string" ? eventFields.correctionType as CanonicalLiveEvent["correctionType"] : undefined,
+          correctsEventId: typeof eventFields.correctsEventId === "string" ? eventFields.correctsEventId : undefined,
+          capturedAtClientMs: clientCapturedAtMs,
         };
         let persistenceStatus: RecordEventResult["persistenceStatus"] = "pending";
 
@@ -728,6 +758,11 @@ export class MatchSessionObject extends DurableObject<Env> {
             eventType: record.eventType,
             ...buildPersistEventFields(record.eventFields ?? {}),
             rpcId: `alarm-retry-${record.clientEventId}`,
+            // ADR-0138 (Bundle 2) — same already-assigned sequence/acceptance time as the
+            // original synchronous attempt (buildPersistEventFields' own doc comment explains
+            // why both attempts must send identical fields).
+            sequence: record.version,
+            acceptedAtMs: record.acceptedAt,
           },
         });
         await this.markEventPersisted(record.clientEventId, canonical.id);

@@ -67,8 +67,24 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
   it("returns session status and deterministically-ordered canonical events for a valid signed request", async () => {
     mockDb.liveMatchSession.findUnique.mockResolvedValue({ id: "session-1", matchId: "match-1", status: "ACTIVE" });
     mockDb.liveMatchEvent.findMany.mockResolvedValue([
-      { id: "evt-a", clientEventId: "client-a", eventType: "GOAL_FOR", createdAt: new Date("2026-08-23T00:00:00.000Z") },
-      { id: "evt-b", clientEventId: "client-b", eventType: "ROTATION_OUT", createdAt: new Date("2026-08-23T00:00:01.000Z") },
+      {
+        id: "evt-a",
+        clientEventId: "client-a",
+        eventType: "GOAL_FOR",
+        createdAt: new Date("2026-08-23T00:00:00.000Z"),
+        sequence: 1,
+        correctionType: null,
+        correctsEventId: null,
+      },
+      {
+        id: "evt-b",
+        clientEventId: "client-b",
+        eventType: "ROTATION_OUT",
+        createdAt: new Date("2026-08-23T00:00:01.000Z"),
+        sequence: 2,
+        correctionType: null,
+        correctsEventId: null,
+      },
     ]);
 
     const { GET } = await import("../route");
@@ -77,12 +93,31 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.session).toEqual({ sessionId: "session-1", matchId: "match-1", status: "ACTIVE" });
+    expect(json.lastSequence).toBe(2);
     expect(json.events).toEqual([
-      { id: "evt-a", clientEventId: "client-a", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" },
-      { id: "evt-b", clientEventId: "client-b", eventType: "ROTATION_OUT", createdAt: "2026-08-23T00:00:01.000Z" },
+      {
+        id: "evt-a",
+        clientEventId: "client-a",
+        eventType: "GOAL_FOR",
+        createdAt: "2026-08-23T00:00:00.000Z",
+        sequence: 1,
+        correctionType: null,
+        correctsEventId: null,
+      },
+      {
+        id: "evt-b",
+        clientEventId: "client-b",
+        eventType: "ROTATION_OUT",
+        createdAt: "2026-08-23T00:00:01.000Z",
+        sequence: 2,
+        correctionType: null,
+        correctsEventId: null,
+      },
     ]);
     expect(mockDb.liveMatchEvent.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] }),
+      // ADR-0138 (Bundle 2) — ordered by persisted sequence first (Postgres NULLS LAST for
+      // ASC), createdAt/id as the deterministic tie-breaker for a sequence-less legacy row.
+      expect.objectContaining({ orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }] }),
     );
   });
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { runWithTenantOrganisationId, setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
@@ -20,6 +21,17 @@ import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
  * it already gets back.
  */
 export class LiveMatchDomainError extends Error {}
+
+/**
+ * ADR-0138 (Bundle 2) — a different `clientEventId` attempted to reuse a `sequence` this
+ * session already has assigned to another event. This can only happen if the coordinator's
+ * own per-session sequence assignment is broken or two coordinators are assigning sequence for
+ * the same session concurrently — a genuine integrity error, never auto-resolved/renumbered
+ * (PROTOCOL_SCHEMA_MIGRATION.md §3). Treated as a distinct error type (not
+ * `LiveMatchDomainError`) so callers can emit operator-visible telemetry and force a resync
+ * rather than silently classifying it alongside an ordinary validation rejection.
+ */
+export class LiveMatchSequenceIntegrityError extends Error {}
 
 /**
  * live-match-realtime-programme SPEC.md §19 — the actor-scoped core of event persistence,
@@ -81,47 +93,135 @@ export async function recordEventForActor(
       // recordEventForActor for the same event without creating a duplicate canonical row.
       const existing = await db.liveMatchEvent.findUnique({
         where: { clientEventId: input.clientEventId },
-        select: { id: true, clientEventId: true, eventType: true, createdAt: true },
+        select: {
+          id: true,
+          clientEventId: true,
+          eventType: true,
+          createdAt: true,
+          sequence: true,
+          correctionType: true,
+          correctsEventId: true,
+        },
       });
       if (existing) {
-        return {
-          id: existing.id,
-          clientEventId: existing.clientEventId ?? input.clientEventId,
-          eventType: existing.eventType,
-          createdAt: existing.createdAt.toISOString(),
-          playerId: input.playerId ?? undefined,
-          secondaryPlayerId: input.secondaryPlayerId ?? undefined,
-        };
+        return toCanonicalLiveEvent(existing, input);
       }
     }
 
-    const event = await db.liveMatchEvent.create({
-      data: {
-        matchId: input.matchId,
-        sessionId: input.sessionId,
-        eventType: input.eventType as LiveMatchEventType,
-        period: input.period ? MATCH_PERIOD_ORDER.indexOf(input.period) : undefined,
-        matchSeconds: input.matchSeconds,
-        wallClockTime: new Date(),
-        playerId: input.playerId,
-        secondaryPlayerId: input.secondaryPlayerId,
-        payload: input.payload ? JSON.parse(JSON.stringify(input.payload)) : undefined,
-        correctionType: input.correctionType as LiveEventCorrectionType | undefined,
-        correctsEventId: input.correctsEventId,
-        clientEventId: input.clientEventId,
-        organisationId: session.organisationId,
-      },
-    });
+    try {
+      const event = await db.liveMatchEvent.create({
+        data: {
+          matchId: input.matchId,
+          sessionId: input.sessionId,
+          eventType: input.eventType as LiveMatchEventType,
+          period: input.period ? MATCH_PERIOD_ORDER.indexOf(input.period) : undefined,
+          matchSeconds: input.matchSeconds,
+          wallClockTime: new Date(),
+          playerId: input.playerId,
+          secondaryPlayerId: input.secondaryPlayerId,
+          payload: input.payload ? JSON.parse(JSON.stringify(input.payload)) : undefined,
+          correctionType: input.correctionType as LiveEventCorrectionType | undefined,
+          correctsEventId: input.correctsEventId,
+          clientEventId: input.clientEventId,
+          organisationId: session.organisationId,
+          // ADR-0138 (Bundle 2) — only ever set by the internal, coordinator-only persistence
+          // path. `sequence`/`acceptedAt` are never reassigned once persisted (D06).
+          sequence: input.sequence,
+          acceptedAt: input.acceptedAtMs != null ? new Date(input.acceptedAtMs) : undefined,
+          clientCapturedAt: input.clientCapturedAtMs != null ? new Date(input.clientCapturedAtMs) : undefined,
+          originClientId: input.originClientId,
+        },
+      });
 
-    return {
-      id: event.id,
-      clientEventId: input.clientEventId,
-      eventType: event.eventType,
-      createdAt: event.createdAt.toISOString(),
-      playerId: input.playerId ?? undefined,
-      secondaryPlayerId: input.secondaryPlayerId ?? undefined,
-    };
+      return toCanonicalLiveEvent(event, input);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        // Prisma 7's driver-adapter error shape (confirmed against the Neon/Postgres adapter
+        // actually in use here) does not reliably populate `meta.target` as an array of column
+        // names — the real constraint identity instead lands in a nested driver-specific
+        // `cause.constraint.index` (the Postgres index name itself). Check both so this works
+        // whether `target` is populated or not; the Postgres index name already encodes the
+        // constrained columns (`<Model>_<fields>_key`), so substring matching on it is reliable.
+        const target = uniqueConstraintTarget(error);
+
+        if (target.includes("clientEventId") && input.clientEventId) {
+          // Genuine race: a concurrent request created this exact event since the pre-check
+          // above ran. Idempotent per D05 — return the now-existing canonical row, never a
+          // second row for the same clientEventId.
+          const existing = await db.liveMatchEvent.findUnique({
+            where: { clientEventId: input.clientEventId },
+            select: {
+              id: true,
+              clientEventId: true,
+              eventType: true,
+              createdAt: true,
+              sequence: true,
+              correctionType: true,
+              correctsEventId: true,
+            },
+          });
+          if (existing) return toCanonicalLiveEvent(existing, input);
+        }
+
+        if (target.includes("sequence") && input.sequence != null) {
+          throw new LiveMatchSequenceIntegrityError(
+            `Sequence ${input.sequence} is already assigned to a different event in session ${input.sessionId}`,
+          );
+        }
+      }
+      throw error;
+    }
   });
+}
+
+/**
+ * Best-effort identification of which unique constraint a P2002 error violated, tolerant of
+ * Prisma driver-adapter error shapes that don't populate `error.meta.target` as a plain array
+ * of column names (confirmed: the Neon/Postgres driver adapter in use here instead nests the
+ * real Postgres index name at `meta.driverAdapterError.cause.constraint.index`). Returns a
+ * single string safe for substring matching (`.includes("sequence")`/`.includes("clientEventId")`)
+ * against either shape — a Postgres index name already encodes its constrained columns
+ * (`<Model>_<fields>_key`), so this does not need the exact field list.
+ */
+function uniqueConstraintTarget(error: Prisma.PrismaClientKnownRequestError): string {
+  const meta = error.meta as
+    | { target?: unknown; driverAdapterError?: { cause?: { constraint?: { index?: unknown } } } }
+    | undefined;
+  const parts: string[] = [];
+  if (Array.isArray(meta?.target)) {
+    parts.push(...meta.target.filter((t): t is string => typeof t === "string"));
+  }
+  const constraintIndex = meta?.driverAdapterError?.cause?.constraint?.index;
+  if (typeof constraintIndex === "string") {
+    parts.push(constraintIndex);
+  }
+  return parts.join(" ");
+}
+
+function toCanonicalLiveEvent(
+  event: {
+    id: string;
+    clientEventId: string | null;
+    eventType: string;
+    createdAt: Date;
+    sequence: number | null;
+    correctionType: LiveEventCorrectionType | null;
+    correctsEventId: string | null;
+  },
+  input: LiveEventInput,
+): CanonicalLiveEvent {
+  return {
+    id: event.id,
+    clientEventId: event.clientEventId ?? input.clientEventId,
+    eventType: event.eventType,
+    createdAt: event.createdAt.toISOString(),
+    playerId: input.playerId ?? undefined,
+    secondaryPlayerId: input.secondaryPlayerId ?? undefined,
+    sequence: event.sequence,
+    correctionType: event.correctionType as CanonicalLiveEvent["correctionType"],
+    correctsEventId: event.correctsEventId,
+    capturedAtClientMs: input.clientCapturedAtMs,
+  };
 }
 
 export async function recordEvent(input: LiveEventInput): Promise<{ eventId: string }> {

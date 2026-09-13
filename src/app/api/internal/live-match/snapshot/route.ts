@@ -43,13 +43,27 @@ export async function GET(request: Request) {
         return { session: null, events: [] };
       }
 
-      // SPEC.md §24 — stable tie-breaker: createdAt alone is not guaranteed unique/ordered for
-      // events created within the same millisecond, and this ordering feeds directly into
-      // realtime reconstruction (Stage 6's reconciliation replays this list to assign versions).
+      // ADR-0138 (Bundle 2) — order by persisted `sequence` first (Postgres puts NULLs last by
+      // default for ASC, which is exactly what's wanted: every real-sequenced row, written via
+      // the coordinator path, replays in true canonical order; only a legacy/direct-HTTP row
+      // with no sequence at all — ARR-0045, until Bundle 4's cutover — falls back to the
+      // deterministic `createdAt`/`id` tie-breaker). Never sort by `createdAt` alone once a row
+      // carries a real sequence — this ordering feeds directly into the Durable Object's own
+      // reconciliation (`evaluateReconciliation`, `workers/live-match/src/state.ts`).
       const events = await db.liveMatchEvent.findMany({
         where: { matchId, sessionId },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        select: { id: true, clientEventId: true, eventType: true, createdAt: true, playerId: true, secondaryPlayerId: true },
+        orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          clientEventId: true,
+          eventType: true,
+          createdAt: true,
+          playerId: true,
+          secondaryPlayerId: true,
+          sequence: true,
+          correctionType: true,
+          correctsEventId: true,
+        },
       });
 
       return { session, events };
@@ -60,6 +74,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
+  const lastSequence = events.reduce(
+    (max, event) => (typeof event.sequence === "number" ? Math.max(max, event.sequence) : max),
+    0,
+  );
+
   const response: InternalSnapshotResponse = {
     session: { sessionId: session.id, matchId: session.matchId, status: session.status },
     events: events.map((event) => ({
@@ -69,7 +88,11 @@ export async function GET(request: Request) {
       createdAt: event.createdAt.toISOString(),
       playerId: event.playerId ?? undefined,
       secondaryPlayerId: event.secondaryPlayerId ?? undefined,
+      sequence: event.sequence,
+      correctionType: event.correctionType as InternalSnapshotResponse["events"][number]["correctionType"],
+      correctsEventId: event.correctsEventId,
     })),
+    lastSequence,
   };
 
   return NextResponse.json(response);

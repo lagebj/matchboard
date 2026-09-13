@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.114.0",
+  "version": "0.114.1",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -33,6 +33,7 @@
     "backfill:planning-baseline": "npx tsx scripts/backfill-match-planning-baseline.ts",
     "backfill:round-availability": "npx tsx scripts/backfill-round-availability.ts",
     "backfill:stale-round-finalization": "npx tsx scripts/backfill-stale-round-finalization.ts",
+    "backfill:live-event-sequence": "npx tsx scripts/backfill-live-event-sequence.ts",
     "db:import": "npx tsx scripts/import-full-app-state.ts",
     "seed:demo": "npx tsx prisma/seed-demo.cjs",
     "seed:test": "MATCHBOARD_ENV=test npx tsx scripts/seed-test-dataset.ts",

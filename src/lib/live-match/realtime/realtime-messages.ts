@@ -31,7 +31,16 @@ export interface ClockAnchor {
  * Extended further to carry period and matchSeconds for timestamped event display in both
  * Live Reporting and Follow Live surfaces (ADR-0112). These mirror LiveEventSummary's
  * period/matchSeconds fields and are populated from the event submission's original fields
- * when available. Events originating from reconciliation (Stage 6) may lack these fields. */
+ * when available. Events originating from reconciliation (Stage 6) may lack these fields.
+ *
+ * ADR-0138 (Bundle 2, "canonical wire event becomes replay-complete") extends this further
+ * with `sequence` and complete correction metadata, so a consumer can replay exact observable
+ * truth without a further database lookup. All four new fields are additive/optional — an
+ * older client that doesn't know about them simply ignores them, matching the exact rollout
+ * pattern ADR-0112 already established for `period`/`matchSeconds`. `sequence` is the
+ * authoritative replay order (never `createdAt`) once present; it is only absent for a row
+ * written via the direct-HTTP path that bypassed the coordinator entirely (ARR-0045, active
+ * until Bundle 4's single-mutation-path cutover) or for an older row predating this migration. */
 export interface CanonicalLiveEvent {
   id: string;
   clientEventId: string;
@@ -45,12 +54,36 @@ export interface CanonicalLiveEvent {
   /** Elapsed match clock time in milliseconds when the event was recorded. Null for
    *  events submitted without a clock position and for reconciled events. */
   matchSeconds?: number | null;
+  /** Canonical per-session acceptance order (ADR-0138 D06). Authoritative replay order —
+   * never sort by `createdAt` when this is present. Absent for a pre-migration row or one
+   * written via the direct-HTTP path (ARR-0045). */
+  sequence?: number | null;
+  /** `"CORRECTION"` when this event amends another; `"REVERSAL"` when this event reverses
+   * another. Null/absent for an ordinary, uncorrected event. */
+  correctionType?: "CORRECTION" | "REVERSAL" | null;
+  /** For a CORRECTION/REVERSAL event: the id of the event it targets. Null/absent otherwise.
+   * A projection must resolve this id to determine active/superseded/reversed state — never
+   * add the correction event's own id to an exclusion set (ARR-0047). */
+  correctsEventId?: string | null;
+  /** Diagnostic-only local capture wall-clock time from the originating device (ms epoch).
+   * Never an ordering authority (ADR-0138 D07). */
+  capturedAtClientMs?: number | null;
 }
 
 /** SPEC.md §25 — the full active-session snapshot sent on attach/reconnect. Fully specified
- * at the structural level; `events`/`pendingClientEventIds` element types are Stage 4's. */
+ * at the structural level; `events`/`pendingClientEventIds` element types are Stage 4's.
+ *
+ * ADR-0138 (Bundle 2) widens `protocolVersion` to `1 | 2` and adds `lastSequence`/`revisions` —
+ * purely additive, an older client that only understands `1` and ignores unknown fields is
+ * unaffected (matching ADR-0112's own established migration pattern). `lastSequence` is the
+ * highest canonical sequence this session has accepted (`events` is already sorted by
+ * `sequence` once Bundle 2 lands end-to-end). `revisions` exists here as the target protocol
+ * shape now; the coordinator does not yet increment these per-domain counters for real —
+ * that is Bundle 3's ("Exhaustive classification and semantic concurrency") work. Until then
+ * every session reports `{ clock: 0, lineup: 0, annotation: 0 }`, which is honest (no
+ * domain-revision tracking exists yet) rather than a fabricated non-zero value. */
 export interface MatchSessionSnapshot {
-  protocolVersion: 1;
+  protocolVersion: 1 | 2;
   version: number;
   session: {
     sessionId: string;
@@ -65,6 +98,13 @@ export interface MatchSessionSnapshot {
   presence: {
     connectedCount: number;
   };
+  /** Highest canonical sequence accepted for this session so far. 0 when no event carrying a
+   * real sequence has been accepted yet (e.g. before Bundle 4's cutover, or before this
+   * session's first event). */
+  lastSequence?: number;
+  /** Domain revision counters (ADR-0138 D08). Placeholder until Bundle 3 wires real
+   * classification-based increments — always `{ clock: 0, lineup: 0, annotation: 0 }` today. */
+  revisions?: { clock: number; lineup: number; annotation: number };
 }
 
 /** SPEC.md §11 — ticket payload issued by `/api/live-match/[matchId]/realtime-ticket`
@@ -106,11 +146,20 @@ export interface AttachResult {
  * SPEC.md §5.1 `recordEvent` — minimal for Stage 1. `baseVersion` implements SPEC.md §9's
  * optimistic-concurrency check; `event` carries whatever the existing `LiveEventInput` shape
  * needs, deferred to Stage 4 (`recordEventForActor`) rather than duplicated here now.
+ *
+ * ADR-0138 (Bundle 2) adds two optional diagnostic-only fields, carried through to the
+ * persisted canonical row (`clientCapturedAt`/`originClientId`) — neither is an ordering or
+ * conflict authority (D07). Replacing `baseVersion` with domain revisions/preconditions is
+ * Bundle 3 scope, not this change.
  */
 export interface RecordEventCommand {
   clientEventId: string;
   baseVersion: number;
   event: Record<string, unknown>;
+  /** Local capture wall-clock time (ms epoch) from the originating device, if known. */
+  clientCapturedAtMs?: number;
+  /** Originating client identifier, for diagnostics only. */
+  originClientId?: string;
 }
 
 export interface RecordEventResult {
@@ -210,6 +259,20 @@ export interface InternalPersistEventRequest {
   /** SPEC.md §18 "propagate requestId/rpcId for tracing" — the originating browser RPC call's
    * id, so one action can be correlated across both runtimes (SPEC.md §32). */
   rpcId: string;
+  /** ADR-0138 (Bundle 2) — the coordinator-assigned canonical sequence for this operation
+   * (the Durable Object's own monotonic per-session counter, already assigned in
+   * `evaluateRecordEvent`/`AcceptedEventRecord.version` before this request is ever sent).
+   * Required: this endpoint is only ever called by the coordinator, which always has one.
+   * `recordEventForActor` persists it as-is — it must never be reassigned/renumbered by the
+   * persistence layer. */
+  sequence: number;
+  /** The coordinator's own acceptance wall-clock time (ms epoch) — distinct from Neon's own
+   * insert time, which can lag under retry. Required for the same reason as `sequence`. */
+  acceptedAtMs: number;
+  /** Diagnostic-only fields threaded through from `RecordEventCommand`, if the browser
+   * supplied them. Never an ordering or conflict authority (ADR-0138 D07). */
+  clientCapturedAtMs?: number;
+  originClientId?: string;
 }
 
 /** SPEC.md §17 — response shape for both internal endpoints' event data: the POST endpoint
@@ -226,5 +289,10 @@ export interface InternalSnapshotResponse {
     matchId: string;
     status: "ACTIVE" | "ENDED";
   };
+  /** Ordered by persisted `sequence` (nulls last, then `createdAt`/`id` as a deterministic
+   * tie-breaker for rows with no sequence — ADR-0138 Bundle 2). Never re-sort this by
+   * `createdAt` in a consumer. */
   events: CanonicalLiveEvent[];
+  /** Highest persisted `sequence` among `events`, or 0 when none carry one yet. */
+  lastSequence: number;
 }

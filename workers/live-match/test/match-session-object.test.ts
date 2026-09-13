@@ -581,6 +581,56 @@ describe("MatchSessionObject — reconciliation (SPEC.md §23, Stage 6)", () => 
   });
 });
 
+describe("MatchSessionObject — protocol v2 snapshot fields (ADR-0138, Bundle 2)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockFetchSnapshot.mockResolvedValue({ session: { sessionId: "session-1", matchId: "match-1", status: "ACTIVE" }, events: [] });
+    mockPersistEvent.mockResolvedValue({ id: "canon-1", clientEventId: "evt-1", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z", sequence: 1 });
+  });
+
+  it("getSnapshot reports protocolVersion 2, lastSequence, revisions, and per-event sequence", async () => {
+    const { instance, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+
+    await instance.webSocketMessage(ws as unknown as WebSocket, rpc("snap-1", "getSnapshot", {}));
+    const snapshotResult = ws.sent.find((m) => (m as { id?: string }).id === "snap-1") as {
+      result: {
+        protocolVersion: number;
+        lastSequence: number;
+        revisions: { clock: number; lineup: number; annotation: number };
+        events: Array<{ clientEventId: string; sequence: number }>;
+      };
+    };
+
+    expect(snapshotResult.result.protocolVersion).toBe(2);
+    expect(snapshotResult.result.lastSequence).toBe(1);
+    // Placeholder until Bundle 3 wires real classification-based increments.
+    expect(snapshotResult.result.revisions).toEqual({ clock: 0, lineup: 0, annotation: 0 });
+    expect(snapshotResult.result.events).toEqual([expect.objectContaining({ clientEventId: "evt-1", sequence: 1 })]);
+  });
+
+  it("the internal persistence request carries the coordinator-assigned sequence and acceptance time", async () => {
+    const { instance, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+
+    expect(mockPersistEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ sequence: 1, acceptedAtMs: expect.any(Number) }),
+      }),
+    );
+  });
+});
+
 describe("MatchSessionObject — end-session pending checks resolve for real (SPEC.md §29, Stage 6)", () => {
   beforeEach(() => {
     vi.resetAllMocks();

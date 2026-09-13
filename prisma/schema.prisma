@@ -1104,6 +1104,24 @@ model LiveMatchEvent {
   clientEventId          String?
   createdAt              DateTime                 @default(now())
 
+  /// Canonical per-session acceptance order (ADR-0138). Assigned by the match's Durable Object
+  /// coordinator before persistence, starting at 1 and incrementing by 1 per accepted operation.
+  /// Nullable during migration: a row written via the direct-HTTP path (ARR-0045, still active
+  /// until Bundle 4's single-mutation-path cutover) never went through the coordinator and has
+  /// no coordinator-assigned sequence. Never reconstructed from `createdAt` once present — see
+  /// `docs/adr/0138-canonical-live-operation-stream-persisted-sequence-and-scoped-offline-continuation.md`.
+  sequence               Int?
+  /// The coordinator's own acceptance wall-clock time (ms epoch, converted to a Date), distinct
+  /// from `createdAt` (this row's Neon insert time, which can lag acceptance under retry). Null
+  /// for a row with no coordinator involvement.
+  acceptedAt             DateTime?
+  /// Diagnostic-only local capture wall-clock time from the originating device. Never an
+  /// ordering authority (ADR-0138 D07).
+  clientCapturedAt       DateTime?
+  /// Diagnostic-only originating client identifier, for correlating a delayed/offline command
+  /// back to its device. Never an authority for anything domain-meaningful.
+  originClientId         String?
+
   match                Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
   session              LiveMatchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   scorer               Player?          @relation("LiveEventScorer", fields: [playerId], references: [id], onDelete: Restrict)
@@ -1113,6 +1131,10 @@ model LiveMatchEvent {
   organisation         Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([clientEventId])
+  // ADR-0138 — Postgres treats multiple NULLs as distinct in a unique constraint, so this is
+  // safe to add immediately even though every existing row (and every row written via the
+  // direct-HTTP path until Bundle 4's cutover) has `sequence = NULL`.
+  @@unique([sessionId, sequence])
   @@index([matchId, createdAt])
   @@index([matchId, period])
   @@index([sessionId])
@@ -1557,6 +1579,14 @@ model EventLiveMatchEvent {
   clientEventId     String?
   createdAt         DateTime                 @default(now())
 
+  /// See `LiveMatchEvent.sequence`'s doc comment (ADR-0138). Nullable while Event live
+  /// reporting has no Durable Object coordination yet (ARR-0046) — always null until Bundle 8
+  /// wires Event into the coordinator.
+  sequence          Int?
+  acceptedAt        DateTime?
+  clientCapturedAt  DateTime?
+  originClientId    String?
+
   eventMatch      EventMatch            @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   session         EventLiveMatchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   scorer          Player?               @relation("EventLiveEventScorer", fields: [playerId], references: [id], onDelete: Restrict)
@@ -1564,6 +1594,7 @@ model EventLiveMatchEvent {
   organisation    Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([clientEventId])
+  @@unique([sessionId, sequence])
   @@index([eventMatchId, createdAt])
   @@index([eventMatchId, period])
   @@index([sessionId])
