@@ -4532,7 +4532,7 @@ residual: `CanonicalLiveEvent` carries no `correctsEventId` on the realtime wire
 *viewer* can briefly show a reversed goal still in the score until the next full reconcile (the
 reporter and the persisted report are correct). See ADR-0133 for the full forensics.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-3
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-4
 complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
 persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
 `baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
@@ -4607,13 +4607,43 @@ generated up front in the same goal-reporting flow — closing the "implicit mos
 attribution" gap DECISIONS.md D10/CANONICAL_OPERATION_CONTRACT.md §7-§8 name. A genuine conflict
 returns a fine-grained `ConflictCode` (`src/lib/live-match/realtime/protocol.ts`) alongside the
 existing `STALE_STATE` wire code — additive, no envelope break; an older client that only reads
-`currentVersion` self-heals exactly as before. **Disclosed limitation: Bundle 3 has no
-coach-visible effect yet.** `league-live-match-client.tsx`'s existing fallback (ADR-0086 Stage 5)
-treats any non-`"pending"`/non-success realtime result — including this new conflict rejection —
-as "realtime didn't work" and falls through to the direct-HTTP path (ARR-0045), which has no
-precondition checking and persists the conflicting operation anyway. Closing that is Bundle 4's
-job. Remaining bundles (single mutation path, authoritative projection, durable outbox, scoped
-PWA continuation, conflict UX/Event parity, observability/cutover) are tracked in
+`currentVersion` self-heals exactly as before.
+
+**Bundle 4 (one canonical mutation path) is now implemented — ARR-0045 resolved for League.**
+`createLeagueActions.recordEvent` (`league-live-match-client.tsx`) no longer falls through to an
+independent HTTP write for any realtime outcome: `"persisted"` and `"pending"` are both genuine
+coordinator acceptance (a real, coordinator-assigned sequence exists either way — the Durable
+Object's own persistence outbox, Stage 6, already owns confirming durability for `"pending"`), so
+both return success without a second write; when the coordinator is unavailable or the RPC failed
+(`tryRecordEvent` returns `null`), the command is left unsynchronized in the local outbox (already
+durably saved to IndexedDB before this function runs) rather than persisted through an
+independent HTTP path — it is retried through this same function on the next reconnect
+(`syncUnsyncedEvents`). `recordLiveEventAction` (the direct-HTTP server action) and the dead
+`src/lib/live-match/local/live-sync.ts` module (a third, unreachable instance of the same
+pattern) are both deleted entirely, not merely unused. A new static test suite
+(`src/lib/live-match/__tests__/single-mutation-path.test.ts`, direct source-content assertions
+matching this repo's existing `security-audit.test.ts` pattern) proves by inspection that
+`recordEventForActor`'s only import/call sites anywhere in `src/` are its own owning module and
+the one internal HMAC-only endpoint. This closes the disclosed Bundle 3 limitation: a
+coordinator-detected conflict can no longer be silently bypassed by an HTTP fallback, because
+there is no HTTP fallback left. **A real, already-accepted production-risk trade-off was executed
+here, per DECISIONS.md D03/D12 and PROGRAMME.md §8** — a genuine, *sustained* coordinator/
+Cloudflare outage now means new live events queue locally and do not reach Neon until reconnect,
+where previously the HTTP fallback kept them reaching Neon throughout such an outage. No data
+loss results (local IndexedDB write always happens first, unconditionally); the risk is
+durable-persistence latency during an outage, not lost coach input — this was a deliberate,
+already-decided architecture trade-off this bundle exists to execute, not a new decision made
+during implementation. **A real regression was caught by CI before merge and fixed as part of
+this bundle**: recording an action before the realtime WebSocket finished its initial connect
+handshake made the coordinator path fail, and — with the HTTP fallback that used to silently
+cover this race now removed — nothing retried it once the connection actually completed a moment
+later. Fixed by also retrying the local outbox (`syncUnsyncedEvents`) from the same
+`onLiveUpdate` notification `useLiveRealtime` already fires the moment a connection completes,
+not only from `fetchEvents` (`live-match-client.tsx`) — see `PROGRAMME_STATE.md`'s Bundle 4
+evidence for the full CI forensics. Event's own separate residue (ARR-0046, zero coordinator
+involvement at all) remains untouched — explicitly Bundle 8's job, not this bundle's. Remaining
+bundles (authoritative projection, durable outbox, scoped PWA continuation, conflict UX/Event
+parity, observability/cutover) are tracked in
 `.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |
@@ -4631,7 +4661,7 @@ PWA continuation, conflict UX/Event parity, observability/cutover) are tracked i
 | `src/components/live-match/live-match-client.tsx` | Shared live match client component (score, clock, goal/rotation/fair play/marked moment) |
 | `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config) |
 | `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) |
-| `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, event recording, pre-match package |
+| `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, clock persistence, event reads, pre-match package. No live-event canonical-write action remains here (ADR-0138 Bundle 4 removed `recordLiveEventAction` — the coordinator's internal endpoint is the only normal write path; see `live-match-event-store.ts`'s `recordEvent()` for its one remaining legitimate caller) |
 | `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endLiveSession()` and `seedReportFromLiveSession()` — does not reimplement either write |
 | `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088; **merges into a pre-existing DRAFT report, never overwrites a REPORTED/LOCKED one — ADR-0133 H1**), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
 | `src/lib/reports/report-domain.ts` | Report transition validation shared by League and Event (ARR-0030 resolution): `canTransitionTo`, `isReportLocked`, `hasUnknownAttendance` operate purely on the shared `MatchReportStatus` enum and a generic attendance shape, with no League-specific coupling |
@@ -4640,7 +4670,6 @@ PWA continuation, conflict UX/Event parity, observability/cutover) are tracked i
 | `src/lib/reports/event-report-mutations.ts` | Event report domain mutations: `seedEventReportFromLiveSession` (ADR-0088, Run->Learn handoff) and `completeEventReport` (ADR-0104/ARR-0030 resolution: DRAFT/REPORTED->LOCKED transition, opponent resolution, shared `runPostMatchLearning()`) |
 | `src/app/(app)/events/event-football-observation-actions.ts` | Server actions: save/get football observations for an Event match (mirrors the League post-match action file; mandatory for Event player-evidence parity, ADR-0104) |
 | `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
-| `src/lib/live-match/local/live-sync.ts` | Client-side sync service: local-first write, background server sync |
 
 ### Live match realtime session files (live-match-realtime-programme, in progress)
 

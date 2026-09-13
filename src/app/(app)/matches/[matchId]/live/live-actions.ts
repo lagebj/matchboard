@@ -3,9 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession, persistLiveSessionClock } from "@/lib/live-match/live-match-session";
 import type { MatchClockState } from "@/lib/live-match/live-match-types";
-import { recordEvent, getMatchEvents, getRecentEvents } from "@/lib/live-match/live-match-event-store";
-import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
-import type { LiveEventInput } from "@/lib/live-match/live-match-types";
+import { getMatchEvents, getRecentEvents } from "@/lib/live-match/live-match-event-store";
 import { db } from "@/lib/db";
 import {
   requirePageActorContext,
@@ -107,47 +105,6 @@ export async function persistLiveSessionClockAction(
     return { success: true as const };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Failed to persist clock." };
-  }
-}
-
-export async function recordLiveEventAction(input: {
-  matchId: string;
-  sessionId: string;
-  eventType: string;
-  period?: string;
-  matchSeconds?: number;
-  playerId?: string;
-  secondaryPlayerId?: string;
-  payload?: Record<string, unknown>;
-  clientEventId: string;
-  correctionType?: string;
-  correctsEventId?: string;
-}) {
-  try {
-    const ctx = await requirePageActorContext();
-    setTenantOrganisationId(ctx.organisationId);
-    requireMutationRole(ctx);
-    await requireMatchGroupAccess(ctx, input.matchId);
-    await requireMatchGroupMutationRole(ctx, input.matchId);
-    const typedInput: LiveEventInput = {
-      matchId: input.matchId,
-      sessionId: input.sessionId,
-      eventType: input.eventType as LiveMatchEventType,
-      period: input.period as MatchPeriod | undefined,
-      matchSeconds: input.matchSeconds,
-      playerId: input.playerId,
-      secondaryPlayerId: input.secondaryPlayerId,
-      payload: input.payload,
-      clientEventId: input.clientEventId,
-      correctionType: input.correctionType as "CORRECTION" | "REVERSAL" | undefined,
-      correctsEventId: input.correctsEventId,
-    };
-
-    const result = await recordEvent(typedInput);
-    revalidatePath(`/matches/${input.matchId}/live`);
-    return { success: true as const, data: result };
-  } catch (error) {
-    return { success: false as const, error: error instanceof Error ? error.message : "Failed to record event." };
   }
 }
 

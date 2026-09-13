@@ -2,7 +2,7 @@
 
 ## State
 
-Dispositioned
+Resolved
 
 ## Identified
 
@@ -85,28 +85,43 @@ signed internal endpoint), never as a caller-facing alternate canonical write su
 
 ## Resolution criteria
 
-- [ ] The browser has exactly one caller-facing path for a new live operation: the
+- [x] The browser has exactly one caller-facing path for a new live operation: the
       realtime/coordinator client. A static/grep-based test proves no browser adapter calls
       `recordEventForActor()`-backed persistence directly outside the signed internal endpoint.
-- [ ] When the coordinator is unavailable, the command is retained in the local durable outbox and
+- [x] When the coordinator is unavailable, the command is retained in the local durable outbox and
       retried — verified by a test that a coordinator-unavailable scenario produces no direct Neon
       write.
-- [ ] `src/lib/live-match/local/live-sync.ts` is either removed (confirmed still unreachable) or
+- [x] `src/lib/live-match/local/live-sync.ts` is either removed (confirmed still unreachable) or
       rewritten to be the coordinator-first, outbox-backed implementation and reconnected as the
       one local-first entry point `live-match-client.tsx` uses instead of its own inline
       reimplementation.
-- [ ] Existing dual-path tests (League Stage 5/6 regression suite) are updated to assert the new
+- [x] Existing dual-path tests (League Stage 5/6 regression suite) are updated to assert the new
       single-path behaviour rather than the old fallback-to-HTTP behaviour.
+
+All four resolution criteria are met for League. Event's own separate residue (zero coordinator
+involvement at all, not a dual path) remains open as ARR-0046, unaffected by this resolution — see
+that ARR's own disposition.
 
 ## Disposition
 
-**Dispositioned.** ADR-0138 (2026-09-12) records the decision to consolidate onto a single
-command-sequencing authority. Implementation is scoped to Bundle 4 ("One canonical mutation
-path") of the Canonical Live Operations & Delayed-Concurrency programme
-(`.matchboard-work/canonical-live-operations/IMPLEMENTATION_BUNDLES.md`, gitignored working
-bundle) and depends on Bundles 2-3 (persisted sequence, semantic concurrency) landing first, since
-removing the HTTP fallback before the coordinator can classify/retry robustly would regress
-today's documented resilience.
+**Resolved (2026-09-13, Bundle 4).** `createLeagueActions.recordEvent`
+(`league-live-match-client.tsx`) no longer falls through to an HTTP canonical write when the
+realtime path is unavailable or its persistence is only `"pending"` — both cases return success
+or a retryable failure purely based on the coordinator's own acceptance, never an independent
+Neon write. `recordLiveEventAction` (the direct-HTTP server action) is deleted entirely, not
+merely unused — it had no remaining legitimate caller once the fallback was removed.
+`src/lib/live-match/local/live-sync.ts` (the confirmed-dead third instance of the same pattern)
+is deleted. A new static test suite
+(`src/lib/live-match/__tests__/single-mutation-path.test.ts`) proves, by direct source
+inspection: `recordLiveEventAction` is no longer exported; `local/live-sync.ts` no longer exists;
+`league-live-match-client.tsx` imports neither `recordLiveEventAction` nor `recordEventForActor`;
+no `"use client"` component anywhere imports/calls `recordEventForActor`; and
+`recordEventForActor`'s only import/call sites in the entire `src/` tree are its own owning
+module (`live-match-event-store.ts`) and the one internal, HMAC-only endpoint
+(`/api/internal/live-match/events`). `recordEvent()` (the underlying wrapper) keeps its one
+legitimate remaining caller, `planned-rotation-live-actions.ts` — a server-triggered write
+applying a planned rotation, not a browser race with the coordinator, and therefore not part of
+this residue.
 
 ## Related decisions
 
@@ -137,3 +152,11 @@ None.
 Record created during Bundle 1 (contract/ADR/residue alignment) of the Canonical Live Operations
 & Delayed-Concurrency programme. Confirmed via direct code audit against `main`@`f6cd772a`, not
 assumed from the programme brief's own conservative description.
+
+### 2026-09-13
+
+Resolved during Bundle 4 ("One canonical mutation path"). See "Disposition" above for the exact
+code changes and the new static test suite proving every resolution criterion. Note: the
+coordinator-level conflict-detection mechanism Bundle 3 added was, until this resolution, silently
+bypassed by the very HTTP fallback this ARR describes — Bundle 3's own `PROGRAMME_STATE.md` entry
+disclosed this explicitly. That disclosed gap is now closed for League.

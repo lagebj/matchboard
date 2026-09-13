@@ -8,10 +8,15 @@ import { render, waitFor, act } from "@testing-library/react";
  * `createLeagueActions` directly). IndexedDB is faked since jsdom has no real IndexedDB.
  */
 
+const { mockGetUnsyncedEvents, mockMarkEventSynced } = vi.hoisted(() => ({
+  mockGetUnsyncedEvents: vi.fn().mockResolvedValue([]),
+  mockMarkEventSynced: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/live-match/local/live-local-store", () => ({
   saveEventLocally: vi.fn().mockResolvedValue(undefined),
-  markEventSynced: vi.fn().mockResolvedValue(undefined),
-  getUnsyncedEvents: vi.fn().mockResolvedValue([]),
+  markEventSynced: mockMarkEventSynced,
+  getUnsyncedEvents: mockGetUnsyncedEvents,
   getAllLocalEvents: vi.fn().mockResolvedValue([]),
   clearLocalEvents: vi.fn().mockResolvedValue(undefined),
   saveSessionLocally: vi.fn().mockResolvedValue(undefined),
@@ -40,6 +45,7 @@ function makeActions(overrides: Partial<LiveMatchActions> = {}): LiveMatchAction
 describe("LiveMatchClient realtime wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetUnsyncedEvents.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -80,6 +86,49 @@ describe("LiveMatchClient realtime wiring", () => {
     });
 
     expect(getRecentEvents.mock.calls.length).toBeGreaterThan(callsBeforeBroadcast);
+  });
+
+  // ADR-0138 (Bundle 4 follow-up fix) — a real, reproducible CI regression: recording an
+  // action before the realtime WebSocket finishes its initial handshake means the coordinator
+  // path fails (not yet connected), and — since Bundle 4 removed the HTTP fallback that used
+  // to silently cover this race — nothing retried it once the connection actually completed a
+  // moment later (only `online`/`visibilitychange` did, neither of which fires merely because
+  // a WebSocket handshake finished). `useLiveRealtime`'s own "connected" handler already calls
+  // the same `onLiveUpdate` notification used for broadcasts, so this proves that notification
+  // now also retries the local outbox.
+  it("an onLiveUpdate notification (including the one fired when realtime first connects) retries any unsynced local events", async () => {
+    let subscribedCallback: (() => void) | undefined;
+    const onLiveUpdate = vi.fn((cb: () => void) => {
+      subscribedCallback = cb;
+      return () => {};
+    });
+    const recordEvent = vi.fn().mockResolvedValue({ success: true, data: {} });
+    const actions = makeActions({ onLiveUpdate, recordEvent });
+    mockGetUnsyncedEvents.mockResolvedValue([
+      {
+        id: "evt-1",
+        matchId: "match-1",
+        sessionId: "session-1",
+        eventType: "GOAL_FOR",
+        clientEventId: "evt-1",
+        synced: false,
+        createdAt: Date.now(),
+      },
+    ]);
+
+    render(<LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />);
+
+    await waitFor(() => expect(subscribedCallback).toBeTruthy());
+    recordEvent.mockClear();
+
+    await act(async () => {
+      subscribedCallback?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ clientEventId: "evt-1" })));
+    expect(mockMarkEventSynced).toHaveBeenCalledWith("evt-1");
   });
 
   it("calls reconnectRealtime when the browser fires an online event", async () => {
