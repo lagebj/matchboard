@@ -4,8 +4,9 @@ import {
   LiveMatchDomainError,
   LiveMatchSequenceIntegrityError,
 } from "@/lib/live-match/live-match-event-store";
+import { recordEventForActorEvent } from "@/lib/live-match/event-live-match-event-store";
 import { verifyInternalRequest } from "@/lib/live-match/realtime/internal-auth";
-import type { InternalPersistEventRequest } from "@/lib/live-match/realtime/realtime-messages";
+import type { InternalPersistEventRequest, CanonicalLiveEvent } from "@/lib/live-match/realtime/realtime-messages";
 import type { LiveMatchEventType, LiveEventCorrectionType } from "@/lib/live-match/live-match-types";
 import { logger } from "@/lib/logger";
 
@@ -50,29 +51,55 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  // ADR-0138 Bundle 8 — subject-agnostic dispatch: the Durable Object's own routing never
+  // branches on League vs. Event, only this internal boundary does (League/Event stay
+  // separate Prisma tables/adapters per D19, sharing one coordinator/protocol).
+  const isEventSubject = body.subjectType === "EVENT";
+
   try {
-    const canonical = await recordEventForActor(
-      {
-        matchId: body.matchId,
-        sessionId: body.sessionId,
-        eventType: body.eventType as LiveMatchEventType,
-        period: body.period,
-        matchSeconds: body.matchSeconds,
-        playerId: body.playerId,
-        secondaryPlayerId: body.secondaryPlayerId,
-        payload: body.payload,
-        clientEventId: body.clientEventId,
-        correctionType: body.correctionType as LiveEventCorrectionType | undefined,
-        correctsEventId: body.correctsEventId,
-        // ADR-0138 (Bundle 2) — coordinator-assigned sequence and acceptance time, required on
-        // this internal-only path (never accepted from an ordinary browser caller).
-        sequence: body.sequence,
-        acceptedAtMs: body.acceptedAtMs,
-        clientCapturedAtMs: body.clientCapturedAtMs,
-        originClientId: body.originClientId,
-      },
-      { userId: body.userId, organisationId: body.organisationId },
-    );
+    const canonical: CanonicalLiveEvent = isEventSubject
+      ? await recordEventForActorEvent(
+          {
+            eventMatchId: body.matchId,
+            sessionId: body.sessionId,
+            eventType: body.eventType as LiveMatchEventType,
+            period: body.period,
+            matchSeconds: body.matchSeconds,
+            playerId: body.playerId,
+            secondaryPlayerId: body.secondaryPlayerId,
+            payload: body.payload,
+            clientEventId: body.clientEventId,
+            correctionType: body.correctionType as LiveEventCorrectionType | undefined,
+            correctsEventId: body.correctsEventId,
+            sequence: body.sequence,
+            acceptedAtMs: body.acceptedAtMs,
+            clientCapturedAtMs: body.clientCapturedAtMs,
+            originClientId: body.originClientId,
+          },
+          { userId: body.userId, organisationId: body.organisationId },
+        )
+      : await recordEventForActor(
+          {
+            matchId: body.matchId,
+            sessionId: body.sessionId,
+            eventType: body.eventType as LiveMatchEventType,
+            period: body.period,
+            matchSeconds: body.matchSeconds,
+            playerId: body.playerId,
+            secondaryPlayerId: body.secondaryPlayerId,
+            payload: body.payload,
+            clientEventId: body.clientEventId,
+            correctionType: body.correctionType as LiveEventCorrectionType | undefined,
+            correctsEventId: body.correctsEventId,
+            // ADR-0138 (Bundle 2) — coordinator-assigned sequence and acceptance time, required
+            // on this internal-only path (never accepted from an ordinary browser caller).
+            sequence: body.sequence,
+            acceptedAtMs: body.acceptedAtMs,
+            clientCapturedAtMs: body.clientCapturedAtMs,
+            originClientId: body.originClientId,
+          },
+          { userId: body.userId, organisationId: body.organisationId },
+        );
 
     // SPEC.md §32 — structured, ids-and-timing only, no event payload/fair-play text.
     logger.info(

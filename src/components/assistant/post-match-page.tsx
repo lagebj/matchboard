@@ -11,6 +11,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PostMatchReportShell } from "@/components/matches/post-match-report-shell";
+import { PostMatchUnresolvedBanner } from "@/components/live-match/post-match-unresolved-banner";
 import type {
   PostMatchReportViewModel,
   PostMatchReportActions,
@@ -81,6 +82,9 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
   const [newPlayerReason, setNewPlayerReason] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
+  // ADR-0138 Bundle 8, work item 5 — for the "Needs review" panel's player-name display only.
+  const playerNameById = Object.fromEntries(allPlayers.map((p) => [p.id, p.name]));
+
   const report = initialReport;
   const status = report?.status ?? "NOT_STARTED";
   const isLocked = status === "LOCKED";
@@ -142,6 +146,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
         <Link href={`/matches/${matchId}`} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
           &larr; Back to match
         </Link>
+        <PostMatchUnresolvedBanner subjectId={matchId} playerNameById={playerNameById} />
         <EmptyState
           title="No post-match report yet"
           description={hasFinalizedSelections ? "Seed from planned selections to begin recording actuals." : "No finalised squad was available. Add the players who actually played."}
@@ -187,6 +192,8 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
         <span className="text-xs text-[var(--border-soft)]">|</span>
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Post-match registration</p>
       </div>
+
+      <PostMatchUnresolvedBanner subjectId={matchId} playerNameById={playerNameById} />
 
       {/* Reason selector for manually-added players (League-only capability) feeds the shell's addPlayer call above. */}
       {!isLocked && (

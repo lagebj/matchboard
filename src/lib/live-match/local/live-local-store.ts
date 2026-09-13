@@ -91,6 +91,14 @@ export interface LocalCommand {
   conflictCode?: string;
   /** Set when status is FAILED_TERMINAL — never silently discarded. */
   terminalReason?: string;
+  /** ADR-0138 Bundle 8 — true only when a coach explicitly resolved this command via the
+   * "Needs review" panel ("Apply a new action now" or "Discard local intent"), as opposed to
+   * the server itself terminally rejecting it (e.g. a domain-validation failure). Distinguishes
+   * "the coach has already seen and dealt with this" from "still needs coach attention" for
+   * `getUnresolvedCommands()` and end-of-match queue-retention logic — a coach-resolved record
+   * is still never deleted (retained for diagnostic history), it simply no longer blocks
+   * cleanup or shows up as something still needing a decision. */
+  resolvedByCoach?: boolean;
 }
 
 export interface LocalSession {
@@ -253,6 +261,7 @@ export interface CommandStatusUpdate {
   lastAttemptAt?: number;
   conflictCode?: string;
   terminalReason?: string;
+  resolvedByCoach?: boolean;
 }
 
 /** Read-modify-write status transition. Never renumbers `localOrdinal`, never regenerates
@@ -321,10 +330,14 @@ export async function getRetryableCommands(subjectId: string): Promise<LocalComm
 }
 
 /** Commands that still need eventual resolution — used to decide whether it is safe to fully
- * clear a subject's local outbox (work items 8/9: never delete an unresolved command). */
+ * clear a subject's local outbox (work items 8/9: never delete an unresolved command), and to
+ * surface an unresolved-state warning on post-match handoff (ADR-0138 Bundle 8, work item 5).
+ * A `FAILED_TERMINAL` command the coach has already explicitly resolved via the "Needs review"
+ * panel (`resolvedByCoach: true`) is excluded — the coach has already seen and dealt with it,
+ * even though the record itself is retained (never deleted) for diagnostic history. */
 export async function getUnresolvedCommands(subjectId: string): Promise<LocalCommand[]> {
   const all = await getAllCommands(subjectId);
-  return all.filter((c) => UNRESOLVED_STATUSES.includes(c.status));
+  return all.filter((c) => UNRESOLVED_STATUSES.includes(c.status) && !(c.status === "FAILED_TERMINAL" && c.resolvedByCoach));
 }
 
 /** A `SENDING` row found on load means a prior send attempt was interrupted (browser crash, tab

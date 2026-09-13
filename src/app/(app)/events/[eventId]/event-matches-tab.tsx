@@ -868,6 +868,19 @@ function EventMatchCard({
               Live
             </a>
           )}
+          {/* ADR-0138 Bundle 8 — Follow Live parity for Event. Matches this file's own
+              existing minimal, unconditional-link style (no active-session-awareness here
+              yet, same as the "Live" link above) — the follow page itself shows "not being
+              reported live right now" when no active session exists, mirroring League's
+              Follow Live page exactly. */}
+          {match.status !== 'CANCELLED' && (
+            <a
+              href={`/events/${eventId}/matches/${match.id}/live/follow`}
+              className="text-[10px] text-[var(--accent)] hover:underline ml-1"
+            >
+              Follow live
+            </a>
+          )}
         </div>
       </div>
       {match.location && (

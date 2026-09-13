@@ -27,6 +27,7 @@ import {
   LIFECYCLE_GRACE_MS,
   LIFECYCLE_FALLBACK_CEILING_MS,
   LIFECYCLE_INACTIVITY_AFTER_DEADLINE_MS,
+  subjectTypeFor,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "../src/state";
@@ -117,8 +118,35 @@ describe("evaluateAuthenticate", () => {
         clockRevision: 0,
         lineupRevision: 0,
         annotationRevision: 0,
+        subjectType: "LEAGUE",
       });
     }
+  });
+
+  // ADR-0138 Bundle 8 — closes ARR-0046's "Event has zero coordinator involvement" finding: an
+  // Event-subject ticket must initialize a session tagged `subjectType: "EVENT"`, so the
+  // internal endpoints know which persistence adapter to use for this session's whole lifetime.
+  it("initializes meta with subjectType EVENT for an Event-subject ticket", () => {
+    const decision = evaluateAuthenticate({
+      routedMatchId: "event-match-1",
+      ticket: { matchId: "event-match-1", sessionId: "session-1", organisationId: "org-1", subjectType: "EVENT" },
+      existingMeta: null,
+      now: 1000,
+    });
+    expect(decision.outcome).toBe("initialize");
+    if (decision.outcome === "initialize") {
+      expect(decision.meta.subjectType).toBe("EVENT");
+    }
+  });
+
+  it("subjectTypeFor defaults to LEAGUE when meta predates the field", () => {
+    const meta = makeMeta();
+    expect("subjectType" in meta).toBe(false);
+    expect(subjectTypeFor(meta)).toBe("LEAGUE");
+  });
+
+  it("subjectTypeFor returns EVENT when meta was tagged EVENT", () => {
+    expect(subjectTypeFor(makeMeta({ subjectType: "EVENT" }))).toBe("EVENT");
   });
 
   it("attaches to an existing active session with matching claims", () => {

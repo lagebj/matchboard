@@ -108,3 +108,84 @@ describe("Single canonical live-operation mutation path (ADR-0138, Bundle 4)", (
     expect(offendingFiles).toEqual([]);
   });
 });
+
+/**
+ * ADR-0138 Bundle 8 — Event parity: closes ARR-0046 ("Event has zero coordinator involvement")
+ * by proving the exact same single-mutation-path invariant now holds for Event's own
+ * `recordEventForActorEvent`, mirroring the League assertions above.
+ */
+describe("Single canonical live-operation mutation path — Event parity (ADR-0138, Bundle 8)", () => {
+  it("recordEventLiveEventAction (the old direct-HTTP Event write path) is removed, not just unused", () => {
+    const content = read("src/app/(app)/events/[eventId]/event-live-actions.ts");
+    expect(content).not.toMatch(/export\s+async\s+function\s+recordEventLiveEventAction/);
+  });
+
+  it("recordEventEvent (the old unsequenced Event recorder) is removed, not just unused", () => {
+    const content = read("src/lib/live-match/event-live-match-event-store.ts");
+    expect(content).not.toMatch(/export\s+async\s+function\s+recordEventEvent\(/);
+  });
+
+  it("event-live-match-client.tsx does not import a direct canonical-persistence server action — only the realtime client and read/lifecycle actions", () => {
+    const content = read("src/components/live-match/event-live-match-client.tsx");
+    expect(content).not.toMatch(/import\s*\{[^}]*recordEventLiveEventAction/);
+    expect(content).not.toMatch(/\brecordEventLiveEventAction\(/);
+  });
+
+  /** Matches an actual import of or call to `recordEventForActorEvent` — never a bare mention
+   * of the name inside a prose comment. */
+  function importsOrCallsRecordEventForActorEvent(content: string): boolean {
+    return /import\s*\{[^}]*recordEventForActorEvent/.test(content) || /recordEventForActorEvent\(/.test(content);
+  }
+
+  it("no client component ('use client') imports or calls recordEventForActorEvent — it is reachable only via the internal signed endpoint", () => {
+    const offendingFiles: string[] = [];
+
+    function walk(dir: string) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(fullPath);
+        } else if (/\.tsx?$/.test(entry.name) && !entry.name.includes(".test.")) {
+          const content = fs.readFileSync(fullPath, "utf-8");
+          if (content.startsWith('"use client"') && importsOrCallsRecordEventForActorEvent(content)) {
+            offendingFiles.push(path.relative(ROOT, fullPath));
+          }
+        }
+      }
+    }
+
+    walk(path.join(ROOT, "src/components"));
+    walk(path.join(ROOT, "src/app"));
+
+    expect(offendingFiles).toEqual([]);
+  });
+
+  it("recordEventForActorEvent's only import/call sites are the internal endpoint and its own owning module", () => {
+    const offendingFiles: string[] = [];
+    const allowedCallers = new Set([
+      "src/lib/live-match/event-live-match-event-store.ts", // owning module (defines it)
+      "src/app/api/internal/live-match/events/route.ts", // the one internal, coordinator-only endpoint
+    ]);
+
+    function walk(dir: string) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(fullPath);
+        } else if (/\.tsx?$/.test(entry.name) && !entry.name.includes(".test.")) {
+          const content = fs.readFileSync(fullPath, "utf-8");
+          const relative = path.relative(ROOT, fullPath).replace(/\\/g, "/");
+          if (importsOrCallsRecordEventForActorEvent(content) && !allowedCallers.has(relative)) {
+            offendingFiles.push(relative);
+          }
+        }
+      }
+    }
+
+    walk(path.join(ROOT, "src"));
+
+    expect(offendingFiles).toEqual([]);
+  });
+});

@@ -139,6 +139,106 @@ describe("LiveMatchClient realtime wiring", () => {
     expect(mockUpdateCommandStatus).toHaveBeenCalledWith("evt-1", "PERSISTED");
   });
 
+  // ADR-0138 Bundle 8 — a genuine coordinator-detected conflict must move the command to
+  // NEEDS_REVIEW, never leave it endlessly retrying as LOCAL_PENDING (which would silently hide
+  // a real, actionable rejection from the coach forever).
+  it("a genuine conflict from recordEvent moves the retried command to NEEDS_REVIEW, carrying the conflictCode", async () => {
+    let subscribedCallback: (() => void) | undefined;
+    const onLiveUpdate = vi.fn((cb: () => void) => {
+      subscribedCallback = cb;
+      return () => {};
+    });
+    const recordEvent = vi.fn().mockResolvedValue({
+      success: false,
+      error: "Player is already off the field.",
+      conflict: { code: "PLAYER_ALREADY_OFF_FIELD", message: "Player is already off the field." },
+    });
+    const actions = makeActions({ onLiveUpdate, recordEvent });
+    mockGetRetryableCommands.mockResolvedValue([
+      {
+        clientEventId: "evt-1",
+        subjectType: "LEAGUE",
+        subjectId: "match-1",
+        sessionId: "session-1",
+        eventType: "ROTATION_OUT",
+        status: "LOCAL_PENDING",
+        localOrdinal: 1,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        attemptCount: 0,
+      },
+    ]);
+
+    render(<LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />);
+
+    await waitFor(() => expect(subscribedCallback).toBeTruthy());
+    recordEvent.mockClear();
+
+    await act(async () => {
+      subscribedCallback?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ clientEventId: "evt-1" })));
+    expect(mockUpdateCommandStatus).toHaveBeenCalledWith("evt-1", "NEEDS_REVIEW", { conflictCode: "PLAYER_ALREADY_OFF_FIELD" });
+    expect(mockUpdateCommandStatus).not.toHaveBeenCalledWith("evt-1", "LOCAL_PENDING");
+  });
+
+  // ADR-0138 Bundle 8 (work item 2, "preserve dependent operation groups") — exit test:
+  // "independent goals after conflict continue syncing". A later append-safe command (a goal)
+  // must still be attempted even though an earlier, non-append-safe command (a rotation) is
+  // stuck — while a later NON-append-safe command waits its turn, preserving order for the
+  // riskier case.
+  it("an independent append-safe command (goal) keeps syncing after an earlier lineup command fails, while a later non-append-safe command waits its turn", async () => {
+    let subscribedCallback: (() => void) | undefined;
+    const onLiveUpdate = vi.fn((cb: () => void) => {
+      subscribedCallback = cb;
+      return () => {};
+    });
+    const recordEvent = vi.fn().mockImplementation(async (input: { clientEventId: string }) => {
+      if (input.clientEventId === "rotation-1") {
+        return { success: false, error: "conflict", conflict: { code: "PLAYER_ALREADY_OFF_FIELD", message: "conflict" } };
+      }
+      return { success: true, data: {} };
+    });
+    const actions = makeActions({ onLiveUpdate, recordEvent });
+    const baseCommand = {
+      subjectType: "LEAGUE" as const,
+      subjectId: "match-1",
+      sessionId: "session-1",
+      status: "LOCAL_PENDING" as const,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      attemptCount: 0,
+    };
+    mockGetRetryableCommands.mockResolvedValue([
+      { ...baseCommand, clientEventId: "rotation-1", eventType: "ROTATION_OUT", localOrdinal: 1 },
+      { ...baseCommand, clientEventId: "goal-1", eventType: "GOAL_FOR", localOrdinal: 2 },
+      { ...baseCommand, clientEventId: "rotation-2", eventType: "ROTATION_IN", localOrdinal: 3 },
+    ]);
+
+    render(<LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />);
+
+    await waitFor(() => expect(subscribedCallback).toBeTruthy());
+    recordEvent.mockClear();
+
+    await act(async () => {
+      subscribedCallback?.();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The blocked rotation and the independent goal were both attempted...
+    await waitFor(() => expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ clientEventId: "rotation-1" })));
+    expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ clientEventId: "goal-1" }));
+    // ...but the second, non-append-safe rotation waited behind the first's unresolved conflict.
+    expect(recordEvent).not.toHaveBeenCalledWith(expect.objectContaining({ clientEventId: "rotation-2" }));
+    expect(mockUpdateCommandStatus).toHaveBeenCalledWith("rotation-1", "NEEDS_REVIEW", { conflictCode: "PLAYER_ALREADY_OFF_FIELD" });
+    expect(mockUpdateCommandStatus).toHaveBeenCalledWith("goal-1", "PERSISTED");
+  });
+
   it("calls reconnectRealtime when the browser fires an online event", async () => {
     const reconnectRealtime = vi.fn();
     const actions = makeActions({ reconnectRealtime });

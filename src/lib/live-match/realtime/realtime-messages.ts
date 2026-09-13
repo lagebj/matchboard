@@ -132,6 +132,12 @@ export interface LiveMatchRealtimeTicket {
    * shared duration-resolution wired here yet); the object falls back to inactivity-only
    * expiry in that case. See `workers/live-match/src/state.ts`'s `evaluateLifecycleExpiry`. */
   expectedEndAt?: number | null;
+  /** ADR-0138 Bundle 8 — which domain `matchId` identifies, so the Durable Object (subject-
+   * agnostic in its own routing) knows which underlying persistence adapter the internal
+   * endpoints must use for this session. Defaults to `"LEAGUE"` when absent (a ticket issued
+   * before this field existed, or the League-only original contract) — never inferred from the
+   * `matchId` value itself. */
+  subjectType?: "LEAGUE" | "EVENT";
 }
 
 /**
@@ -278,6 +284,12 @@ export interface InternalPersistEventRequest {
    * supplied them. Never an ordering or conflict authority (ADR-0138 D07). */
   clientCapturedAtMs?: number;
   originClientId?: string;
+  /** ADR-0138 Bundle 8 — which persistence adapter (League's `LiveMatchEvent`/
+   * `LiveMatchSession` tables vs. Event's `EventLiveMatchEvent`/`EventLiveMatchSession` tables)
+   * this request targets. Sourced from the authenticated session's own `SessionMeta.subjectType`
+   * (`subjectTypeFor()`), never re-derived from `matchId`'s shape. Defaults to `"LEAGUE"` when
+   * absent, matching every pre-Bundle-8 caller's only behavior. */
+  subjectType?: "LEAGUE" | "EVENT";
 }
 
 /** SPEC.md §17 — response shape for both internal endpoints' event data: the POST endpoint
@@ -300,4 +312,8 @@ export interface InternalSnapshotResponse {
   events: CanonicalLiveEvent[];
   /** Highest persisted `sequence` among `events`, or 0 when none carry one yet. */
   lastSequence: number;
+  /** ADR-0138 Bundle 8 — the persistence adapter this snapshot was read from. Callers must
+   * request the snapshot with the same `subjectType` used for `InternalPersistEventRequest`;
+   * this field on the response is a diagnostic echo, never something a consumer branches on. */
+  subjectType?: "LEAGUE" | "EVENT";
 }

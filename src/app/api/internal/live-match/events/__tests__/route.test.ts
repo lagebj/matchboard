@@ -5,17 +5,23 @@ import { signInternalRequest } from "@/lib/live-match/realtime/internal-signatur
 // and shared between the mock factory and this file's `it` blocks so `instanceof` checks in the
 // route work exactly as they would against the real module, without pulling in
 // `live-match-event-store.ts`'s real `db`/`requireActorContext` imports just to get one class.
-const { mockRecordEventForActor, mockLoggerError, TestLiveMatchDomainError, TestLiveMatchSequenceIntegrityError } =
-  vi.hoisted(() => {
-    class TestLiveMatchDomainError extends Error {}
-    class TestLiveMatchSequenceIntegrityError extends Error {}
-    return {
-      mockRecordEventForActor: vi.fn(),
-      mockLoggerError: vi.fn(),
-      TestLiveMatchDomainError,
-      TestLiveMatchSequenceIntegrityError,
-    };
-  });
+const {
+  mockRecordEventForActor,
+  mockRecordEventForActorEvent,
+  mockLoggerError,
+  TestLiveMatchDomainError,
+  TestLiveMatchSequenceIntegrityError,
+} = vi.hoisted(() => {
+  class TestLiveMatchDomainError extends Error {}
+  class TestLiveMatchSequenceIntegrityError extends Error {}
+  return {
+    mockRecordEventForActor: vi.fn(),
+    mockRecordEventForActorEvent: vi.fn(),
+    mockLoggerError: vi.fn(),
+    TestLiveMatchDomainError,
+    TestLiveMatchSequenceIntegrityError,
+  };
+});
 
 vi.mock("server-only", () => ({}));
 
@@ -23,6 +29,11 @@ vi.mock("@/lib/live-match/live-match-event-store", () => ({
   recordEventForActor: mockRecordEventForActor,
   LiveMatchDomainError: TestLiveMatchDomainError,
   LiveMatchSequenceIntegrityError: TestLiveMatchSequenceIntegrityError,
+}));
+
+// ADR-0138 Bundle 8 — Event-subject dispatch target.
+vi.mock("@/lib/live-match/event-live-match-event-store", () => ({
+  recordEventForActorEvent: mockRecordEventForActorEvent,
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -163,6 +174,41 @@ describe("POST /api/internal/live-match/events (SPEC.md §17-19, Stage 4)", () =
     expect(res.status).toBe(503);
     const json = await res.json();
     expect(json.error).toBe("connect ECONNREFUSED (Neon unreachable)");
+  });
+
+  // ADR-0138 Bundle 8 — Event-subject dispatch (closes ARR-0046).
+  it("dispatches to recordEventForActorEvent (not recordEventForActor) when subjectType is EVENT, mapping matchId to eventMatchId", async () => {
+    mockRecordEventForActorEvent.mockResolvedValue({
+      id: "canonical-event-1",
+      clientEventId: "evt-1",
+      eventType: "GOAL_FOR",
+      createdAt: "2026-08-23T00:00:00.000Z",
+    });
+
+    const { POST } = await import("../route");
+    const res = await POST(await signedRequest({ ...VALID_BODY, subjectType: "EVENT" }));
+
+    expect(res.status).toBe(200);
+    expect(mockRecordEventForActorEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventMatchId: "match-1", sessionId: "session-1", clientEventId: "evt-1" }),
+      { userId: "user-1", organisationId: "org-1" },
+    );
+    expect(mockRecordEventForActor).not.toHaveBeenCalled();
+  });
+
+  it("dispatches to recordEventForActor (League) when subjectType is absent", async () => {
+    mockRecordEventForActor.mockResolvedValue({
+      id: "canonical-1",
+      clientEventId: "evt-1",
+      eventType: "GOAL_FOR",
+      createdAt: "2026-08-23T00:00:00.000Z",
+    });
+
+    const { POST } = await import("../route");
+    await POST(await signedRequest(VALID_BODY));
+
+    expect(mockRecordEventForActor).toHaveBeenCalled();
+    expect(mockRecordEventForActorEvent).not.toHaveBeenCalled();
   });
 
   it("never logs the raw request body/payload on failure", async () => {

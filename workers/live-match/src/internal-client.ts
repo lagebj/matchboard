@@ -88,10 +88,16 @@ export async function fetchSnapshot(params: {
   secret: string;
   matchId: string;
   sessionId: string;
+  /** ADR-0138 Bundle 8 — which persistence adapter to read from. Omitted/undefined means
+   * League, matching every pre-Bundle-8 caller's only behavior. */
+  subjectType?: "LEAGUE" | "EVENT";
 }): Promise<InternalSnapshotResponse> {
   const url = new URL(`${params.baseUrl}/api/internal/live-match/snapshot`);
   url.searchParams.set("matchId", params.matchId);
   url.searchParams.set("sessionId", params.sessionId);
+  if (params.subjectType) {
+    url.searchParams.set("subjectType", params.subjectType);
+  }
 
   // Sign the query string itself (not an empty body) — binds the signature to exactly which
   // matchId/sessionId this request is for, so a captured valid signed GET can't be replayed

@@ -5,6 +5,8 @@ const { mockDb } = vi.hoisted(() => ({
   mockDb: {
     liveMatchSession: { findUnique: vi.fn() },
     liveMatchEvent: { findMany: vi.fn() },
+    eventLiveMatchSession: { findUnique: vi.fn() },
+    eventLiveMatchEvent: { findMany: vi.fn() },
   },
 }));
 
@@ -18,16 +20,18 @@ vi.mock("@/lib/env", async (importOriginal) => {
 
 const TEST_SECRET = "test-internal-secret";
 
-function buildSnapshotUrl(matchId?: string, sessionId?: string): URL {
+function buildSnapshotUrl(matchId?: string, sessionId?: string, subjectType?: string): URL {
   const url = new URL("http://localhost/api/internal/live-match/snapshot");
   if (matchId) url.searchParams.set("matchId", matchId);
   if (sessionId) url.searchParams.set("sessionId", sessionId);
+  if (subjectType) url.searchParams.set("subjectType", subjectType);
   return url;
 }
 
 async function signedGetRequest(params: {
   matchId?: string;
   sessionId?: string;
+  subjectType?: string;
   timestamp?: number;
   signature?: string;
   /** Sign for a *different* query string than the one actually sent — proves a signature
@@ -38,7 +42,7 @@ async function signedGetRequest(params: {
   signForSessionId?: string;
 }) {
   const timestamp = params.timestamp ?? Date.now();
-  const url = buildSnapshotUrl(params.matchId, params.sessionId);
+  const url = buildSnapshotUrl(params.matchId, params.sessionId, params.subjectType);
 
   let signature = params.signature;
   if (!signature) {
@@ -198,5 +202,92 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
     const { GET } = await import("../route");
     const res = await GET(await signedGetRequest({ matchId: "match-1", sessionId: "session-1" }));
     expect(res.status).toBe(404);
+  });
+
+  // ADR-0138 Bundle 8 — Event-subject dispatch (closes ARR-0046).
+  describe("subjectType=EVENT dispatch", () => {
+    it("reads from the Event tables, not League's, and echoes subjectType on the response", async () => {
+      mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        eventMatchId: "event-match-1",
+        status: "ACTIVE",
+      });
+      mockDb.eventLiveMatchEvent.findMany.mockResolvedValue([
+        {
+          id: "evt-a",
+          clientEventId: "client-a",
+          eventType: "GOAL_FOR",
+          createdAt: new Date("2026-08-23T00:00:00.000Z"),
+          sequence: 1,
+          correctionType: null,
+          correctsEventId: null,
+        },
+      ]);
+
+      const { GET } = await import("../route");
+      const res = await GET(
+        await signedGetRequest({ matchId: "event-match-1", sessionId: "session-1", subjectType: "EVENT" }),
+      );
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.session).toEqual({ sessionId: "session-1", matchId: "event-match-1", status: "ACTIVE" });
+      expect(json.subjectType).toBe("EVENT");
+      expect(mockDb.eventLiveMatchSession.findUnique).toHaveBeenCalled();
+      expect(mockDb.eventLiveMatchEvent.findMany).toHaveBeenCalled();
+      expect(mockDb.liveMatchSession.findUnique).not.toHaveBeenCalled();
+      expect(mockDb.liveMatchEvent.findMany).not.toHaveBeenCalled();
+    });
+
+    // ADR-0138 Bundle 8 — real, previously-undocumented schema divergence: League's `period`
+    // column is a legacy `Int?` index, Event's is already the real `MatchPeriod?` enum string.
+    // A League-only ternary would silently drop Event's period as `undefined`.
+    it("passes an Event row's already-stringified period through unchanged (no numeric-index lookup)", async () => {
+      mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        eventMatchId: "event-match-1",
+        status: "ACTIVE",
+      });
+      mockDb.eventLiveMatchEvent.findMany.mockResolvedValue([
+        {
+          id: "evt-pos",
+          clientEventId: "client-pos",
+          eventType: "POSITIONS_CHANGED",
+          createdAt: new Date("2026-08-23T00:00:00.000Z"),
+          playerId: "p1",
+          sequence: 1,
+          correctionType: null,
+          correctsEventId: null,
+          period: "FIRST_HALF",
+          matchSeconds: 90_000,
+          payload: { fromPosition: "CM", toPosition: "CB" },
+        },
+      ]);
+
+      const { GET } = await import("../route");
+      const res = await GET(
+        await signedGetRequest({ matchId: "event-match-1", sessionId: "session-1", subjectType: "EVENT" }),
+      );
+      const json = await res.json();
+
+      expect(json.events[0]).toMatchObject({
+        period: "FIRST_HALF",
+        matchSeconds: 90_000,
+        positionChange: { fromPosition: "CM", toPosition: "CB" },
+      });
+    });
+
+    it("returns 404 when the Event session belongs to a different event match than claimed", async () => {
+      mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        eventMatchId: "event-match-2",
+        status: "ACTIVE",
+      });
+      const { GET } = await import("../route");
+      const res = await GET(
+        await signedGetRequest({ matchId: "event-match-1", sessionId: "session-1", subjectType: "EVENT" }),
+      );
+      expect(res.status).toBe(404);
+    });
   });
 });

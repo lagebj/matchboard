@@ -179,6 +179,31 @@ describe("getUnresolvedCommands", () => {
     const unresolved = await getUnresolvedCommands(subjectId);
     expect(unresolved.map((c) => c.clientEventId)).toEqual(["a", "b", "c", "d", "e"]);
   });
+
+  // ADR-0138 Bundle 8 — a coach-resolved FAILED_TERMINAL (via the "Needs review" panel) is
+  // retained (never deleted) but no longer counted as still needing attention, distinct from a
+  // server-rejected FAILED_TERMINAL the coach has not yet seen.
+  it("excludes a FAILED_TERMINAL command the coach has already explicitly resolved", async () => {
+    const subjectId = uniqueSubjectId();
+    await saveCommandLocally(
+      makeCommand(subjectId, { clientEventId: "unresolved-terminal", localOrdinal: 1, status: "FAILED_TERMINAL" }),
+    );
+    await saveCommandLocally(
+      makeCommand(subjectId, {
+        clientEventId: "coach-resolved",
+        localOrdinal: 2,
+        status: "FAILED_TERMINAL",
+        resolvedByCoach: true,
+      }),
+    );
+
+    const unresolved = await getUnresolvedCommands(subjectId);
+    expect(unresolved.map((c) => c.clientEventId)).toEqual(["unresolved-terminal"]);
+
+    // Retained, never deleted — just excluded from "still needs attention".
+    const all = await getAllCommands(subjectId);
+    expect(all.map((c) => c.clientEventId).sort()).toEqual(["coach-resolved", "unresolved-terminal"]);
+  });
 });
 
 describe("clearPersistedCommands (D13: never delete an unresolved command)", () => {

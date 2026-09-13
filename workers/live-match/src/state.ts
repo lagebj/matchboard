@@ -148,6 +148,17 @@ export interface SessionMeta {
   clockRevision?: number;
   lineupRevision?: number;
   annotationRevision?: number;
+  /** ADR-0138 Bundle 8 — which domain `matchId` identifies, from the authenticating ticket.
+   * Optional so a `meta` row written before this field existed still deserializes safely;
+   * `subjectTypeFor()` below treats a missing value as `"LEAGUE"` (this object's only subject
+   * type before this bundle). Threaded into every internal persistence/snapshot request so
+   * those endpoints know which underlying adapter (League or Event tables) to use. */
+  subjectType?: "LEAGUE" | "EVENT";
+}
+
+/** Reads the session's subject type with the pre-Bundle-8-row-safe default of `"LEAGUE"`. */
+export function subjectTypeFor(meta: SessionMeta): "LEAGUE" | "EVENT" {
+  return meta.subjectType === "EVENT" ? "EVENT" : "LEAGUE";
 }
 
 /** Reads a domain revision counter with the pre-Bundle-3-row-safe default of `0`. */
@@ -270,6 +281,8 @@ export interface AuthenticateTicketClaims {
   organisationId: string;
   /** See `SessionMeta.expectedEndAt`'s doc comment. */
   expectedEndAt?: number | null;
+  /** See `SessionMeta.subjectType`'s doc comment. */
+  subjectType?: "LEAGUE" | "EVENT";
 }
 
 export type AuthenticateDecision =
@@ -317,6 +330,7 @@ export function evaluateAuthenticate(params: {
         clockRevision: 0,
         lineupRevision: 0,
         annotationRevision: 0,
+        subjectType: params.ticket.subjectType ?? "LEAGUE",
       },
     };
   }
