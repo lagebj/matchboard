@@ -193,3 +193,25 @@ export const LIVE_EVENT_TYPES_THAT_ARE_CORRECTABLE: Set<LiveMatchEventType> = ne
   "FAIR_PLAY_CONCERN",
   "MOMENT_MARKED",
 ]);
+
+/**
+ * ADR-0138 Bundle 8 (work item 2, "preserve dependent operation groups") — the client-side
+ * mirror of the coordinator's own append-safe/state-sensitive classification
+ * (`workers/live-match/src/state.ts`'s `classifyDomain()`, DECISIONS.md D09's exact table).
+ * Used only by `LiveMatchClient`'s retry-loop ordering: a genuinely independent append-safe
+ * command (a goal, a fair-play observation, a marked moment) is free to keep syncing even while
+ * an earlier, still-unresolved lineup/clock/annotation command blocks the ones after it — the
+ * coordinator, not this list, remains the sole authority on whether any given operation is
+ * ultimately accepted. Kept as a narrow, explicitly-labeled duplicate rather than a shared
+ * import because the Worker package currently only ever imports FROM this app's `src/` tree,
+ * never the reverse — moving `classifyDomain` itself here is a larger refactor with no bearing
+ * on correctness (a drift here would only ever make the retry loop slightly more or less eager,
+ * never incorrect, since the coordinator's own precondition evaluation is unaffected either way).
+ */
+export const APPEND_SAFE_LIVE_EVENT_TYPES: Set<LiveMatchEventType> = new Set([
+  "GOAL_FOR",
+  "GOAL_AGAINST",
+  "FAIR_PLAY_POSITIVE",
+  "FAIR_PLAY_CONCERN",
+  "MOMENT_MARKED",
+]);

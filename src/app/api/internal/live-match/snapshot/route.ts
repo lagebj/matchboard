@@ -7,6 +7,25 @@ import { derivePositionChangeFromPayload } from "@/lib/live-match/live-match-dom
 import { MATCH_PERIOD_ORDER, type MatchPeriod } from "@/lib/live-match/live-match-types";
 
 /**
+ * ADR-0138 Bundle 8 — League's `LiveMatchEvent.period` is a legacy `Int?` index into
+ * `MATCH_PERIOD_ORDER`; Event's `EventLiveMatchEvent.period` is already the real `MatchPeriod?`
+ * enum string (a genuine, pre-existing, undocumented schema-shape mismatch between the two
+ * models this endpoint now reads from — not introduced here, but this endpoint is the first
+ * consumer that reads both through one code path, so it must normalize both rather than
+ * silently dropping Event's period the way a League-only ternary would). Never re-derive this
+ * conversion inline elsewhere.
+ */
+function normalizeStoredPeriod(rawPeriod: number | string | null): MatchPeriod | undefined {
+  if (typeof rawPeriod === "number") {
+    return (MATCH_PERIOD_ORDER[rawPeriod] as MatchPeriod | undefined) ?? undefined;
+  }
+  if (typeof rawPeriod === "string" && (MATCH_PERIOD_ORDER as string[]).includes(rawPeriod)) {
+    return rawPeriod as MatchPeriod;
+  }
+  return undefined;
+}
+
+/**
  * Internal signed snapshot endpoint (SPEC.md §17, §23, Stage 4) — returns canonical session
  * status and events for Durable Object reconciliation. The endpoint is Stage 4 scope; having
  * the Durable Object actually *call* this to discover HTTP-fallback-written events it never
@@ -25,6 +44,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const matchId = url.searchParams.get("matchId");
   const sessionId = url.searchParams.get("sessionId");
+  // ADR-0138 Bundle 8 — mirrors the POST endpoint's dispatch: which persistence adapter
+  // (League/Event tables) to read from. Defaults to League, matching every pre-Bundle-8 caller.
+  const isEventSubject = url.searchParams.get("subjectType") === "EVENT";
 
   if (!matchId || !sessionId) {
     return NextResponse.json({ error: "matchId and sessionId query parameters are required" }, { status: 400 });
@@ -36,6 +58,51 @@ export async function GET(request: Request) {
   const { session, events } = await runWithSystemPrivilege(
     "internal-live-match-snapshot-reconciliation",
     async () => {
+      // ADR-0138 (Bundle 2) — order by persisted `sequence` first (Postgres puts NULLs last by
+      // default for ASC, which is exactly what's wanted: every real-sequenced row, written via
+      // the coordinator path, replays in true canonical order; only a legacy/direct-HTTP row
+      // with no sequence at all — ARR-0045, until Bundle 4's cutover — falls back to the
+      // deterministic `createdAt`/`id` tie-breaker). Never sort by `createdAt` alone once a row
+      // carries a real sequence — this ordering feeds directly into the Durable Object's own
+      // reconciliation (`evaluateReconciliation`, `workers/live-match/src/state.ts`).
+      const eventSelect = {
+        id: true,
+        clientEventId: true,
+        eventType: true,
+        createdAt: true,
+        playerId: true,
+        secondaryPlayerId: true,
+        sequence: true,
+        correctionType: true,
+        correctsEventId: true,
+        // ADR-0138 (Bundle 5) — previously never selected, so every reconnect/refresh
+        // snapshot silently lost `period`/`matchSeconds`/position data even for events that
+        // had it at recording time (ARR-0047's documented Follow Live positions gap).
+        period: true,
+        matchSeconds: true,
+        payload: true,
+      } as const;
+      const eventOrderBy = [{ sequence: "asc" as const }, { createdAt: "asc" as const }, { id: "asc" as const }];
+
+      if (isEventSubject) {
+        const session = await db.eventLiveMatchSession.findUnique({
+          where: { id: sessionId },
+          select: { id: true, eventMatchId: true, status: true },
+        });
+
+        if (!session || session.eventMatchId !== matchId) {
+          return { session: null, events: [] };
+        }
+
+        const events = await db.eventLiveMatchEvent.findMany({
+          where: { eventMatchId: matchId, sessionId },
+          orderBy: eventOrderBy,
+          select: eventSelect,
+        });
+
+        return { session: { id: session.id, matchId: session.eventMatchId, status: session.status }, events };
+      }
+
       const session = await db.liveMatchSession.findUnique({
         where: { id: sessionId },
         select: { id: true, matchId: true, status: true },
@@ -45,33 +112,10 @@ export async function GET(request: Request) {
         return { session: null, events: [] };
       }
 
-      // ADR-0138 (Bundle 2) — order by persisted `sequence` first (Postgres puts NULLs last by
-      // default for ASC, which is exactly what's wanted: every real-sequenced row, written via
-      // the coordinator path, replays in true canonical order; only a legacy/direct-HTTP row
-      // with no sequence at all — ARR-0045, until Bundle 4's cutover — falls back to the
-      // deterministic `createdAt`/`id` tie-breaker). Never sort by `createdAt` alone once a row
-      // carries a real sequence — this ordering feeds directly into the Durable Object's own
-      // reconciliation (`evaluateReconciliation`, `workers/live-match/src/state.ts`).
       const events = await db.liveMatchEvent.findMany({
         where: { matchId, sessionId },
-        orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-        select: {
-          id: true,
-          clientEventId: true,
-          eventType: true,
-          createdAt: true,
-          playerId: true,
-          secondaryPlayerId: true,
-          sequence: true,
-          correctionType: true,
-          correctsEventId: true,
-          // ADR-0138 (Bundle 5) — previously never selected, so every reconnect/refresh
-          // snapshot silently lost `period`/`matchSeconds`/position data even for events that
-          // had it at recording time (ARR-0047's documented Follow Live positions gap).
-          period: true,
-          matchSeconds: true,
-          payload: true,
-        },
+        orderBy: eventOrderBy,
+        select: eventSelect,
       });
 
       return { session, events };
@@ -99,11 +143,12 @@ export async function GET(request: Request) {
       sequence: event.sequence,
       correctionType: event.correctionType as InternalSnapshotResponse["events"][number]["correctionType"],
       correctsEventId: event.correctsEventId,
-      period: (typeof event.period === "number" ? (MATCH_PERIOD_ORDER[event.period] as MatchPeriod | undefined) : undefined) ?? undefined,
+      period: normalizeStoredPeriod(event.period),
       matchSeconds: event.matchSeconds ?? undefined,
       positionChange: derivePositionChangeFromPayload(event.eventType, event.payload),
     })),
     lastSequence,
+    subjectType: isEventSubject ? "EVENT" : "LEAGUE",
   };
 
   return NextResponse.json(response);

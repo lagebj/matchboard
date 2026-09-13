@@ -2,9 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { startEventLiveSession, endEventLiveSession, getEventActiveSession, heartbeatEventSession } from "@/lib/live-match/event-live-match-session";
-import { recordEventEvent, getEventMatchEvents, getRecentEventEvents } from "@/lib/live-match/event-live-match-event-store";
-import type { LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
-import type { EventLiveEventInput } from "@/lib/live-match/event-live-match-event-store";
+import { getEventMatchEvents, getRecentEventEvents } from "@/lib/live-match/event-live-match-event-store";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -92,46 +90,6 @@ export async function heartbeatEventAction(sessionId: string) {
     return { success: true as const };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Heartbeat failed." };
-  }
-}
-
-export async function recordEventLiveEventAction(input: {
-  eventMatchId: string;
-  sessionId: string;
-  eventType: string;
-  period?: string;
-  matchSeconds?: number;
-  playerId?: string;
-  secondaryPlayerId?: string;
-  payload?: Record<string, unknown>;
-  clientEventId: string;
-  correctionType?: string;
-  correctsEventId?: string;
-}) {
-  try {
-    const ctx = await requirePageActorContext();
-    setTenantOrganisationId(ctx.organisationId);
-    requireMutationRole(ctx);
-    const { eventId } = await requireEventMatchOrgAccess(input.eventMatchId, ctx.orgFilter);
-    const typedInput: EventLiveEventInput = {
-      eventMatchId: input.eventMatchId,
-      sessionId: input.sessionId,
-      eventType: input.eventType as LiveMatchEventType,
-      period: input.period as MatchPeriod | undefined,
-      matchSeconds: input.matchSeconds,
-      playerId: input.playerId,
-      secondaryPlayerId: input.secondaryPlayerId,
-      payload: input.payload,
-      clientEventId: input.clientEventId,
-      correctionType: input.correctionType as "CORRECTION" | "REVERSAL" | undefined,
-      correctsEventId: input.correctsEventId,
-    };
-
-    const result = await recordEventEvent(typedInput);
-    revalidatePath(`/events/${eventId}/matches/${input.eventMatchId}/live`);
-    return { success: true as const, data: result };
-  } catch (error) {
-    return { success: false as const, error: error instanceof Error ? error.message : "Failed to record event." };
   }
 }
 

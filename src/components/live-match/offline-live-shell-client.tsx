@@ -86,14 +86,14 @@ export function OfflineLiveShellClient() {
 }
 
 function ReconstructedLiveMatchClient({ subjectId, pkg }: { subjectId: string; pkg: PreparedLiveMatchPackage }) {
-  // Called unconditionally regardless of subject type (rules-of-hooks) — its result is simply
-  // unused for an Event package, which has its own actions factory with no realtime involvement
-  // at all (ARR-0046).
-  const realtime = useLiveRealtime(subjectId);
+  // ADR-0138 Bundle 8 — Event now goes through the same coordinator League does (ARR-0046
+  // resolved), so this hook's result is used for both subject types, keyed by the prepared
+  // package's own recorded subjectType.
+  const realtime = useLiveRealtime(subjectId, pkg.subjectType);
   const actions: LiveMatchActions =
     pkg.subjectType === "LEAGUE"
       ? withOfflinePackage(createLeagueActions(subjectId, realtime), pkg, subjectId)
-      : withOfflinePackage(createEventActions(subjectId, pkg.eventId ?? ""), pkg, subjectId);
+      : withOfflinePackage(createEventActions(subjectId, pkg.eventId ?? "", realtime), pkg, subjectId);
 
   return (
     <LiveMatchClient

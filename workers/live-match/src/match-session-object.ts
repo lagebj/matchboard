@@ -103,6 +103,7 @@ import {
   classifyDomain,
   isKnownLiveMatchEventType,
   derivePositionChange,
+  subjectTypeFor,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "./state";
@@ -264,6 +265,7 @@ export class MatchSessionObject extends DurableObject<Env> {
         sessionId: ticket.sessionId,
         organisationId: ticket.organisationId,
         expectedEndAt: ticket.expectedEndAt,
+        subjectType: ticket.subjectType,
       },
       existingMeta,
       now: Date.now(),
@@ -469,6 +471,10 @@ export class MatchSessionObject extends DurableObject<Env> {
           eventType: String(eventType),
           ...buildPersistEventFields(eventFields),
           rpcId: call.id,
+          // ADR-0138 Bundle 8 — tells the internal endpoint which underlying persistence
+          // adapter (League/Event tables) to use; this object's own routing stays subject-
+          // agnostic otherwise.
+          subjectType: subjectTypeFor(meta),
           // ADR-0138 (Bundle 2) — this object's own already-assigned sequence/acceptance time;
           // never reassigned by the persistence layer (D06).
           sequence: decision.record.version,
@@ -784,6 +790,9 @@ export class MatchSessionObject extends DurableObject<Env> {
             eventType: record.eventType,
             ...buildPersistEventFields(record.eventFields ?? {}),
             rpcId: `alarm-retry-${record.clientEventId}`,
+            // ADR-0138 Bundle 8 — must match the original synchronous attempt's adapter choice,
+            // or a retried Event-subject event would silently persist into League's tables.
+            subjectType: subjectTypeFor(meta),
             // ADR-0138 (Bundle 2) — same already-assigned sequence/acceptance time as the
             // original synchronous attempt (buildPersistEventFields' own doc comment explains
             // why both attempts must send identical fields).
@@ -841,6 +850,7 @@ export class MatchSessionObject extends DurableObject<Env> {
         secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
         matchId: meta.matchId,
         sessionId: meta.sessionId,
+        subjectType: subjectTypeFor(meta),
       });
     } catch (error) {
       this.logStructured("error", "reconciliation snapshot fetch failed", {

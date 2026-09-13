@@ -49,7 +49,7 @@ import {
   formatElapsedMs,
 } from "@/lib/live-match/match-clock";
 import type { MatchClockState } from "@/lib/live-match/live-match-types";
-import { getLeaguePeriodConfig } from "@/lib/live-match/period-config";
+import { getLeaguePeriodConfig, type PeriodConfig } from "@/lib/live-match/period-config";
 
 const LOG_PREFIX = "[live-match:follow]";
 
@@ -62,8 +62,17 @@ interface FollowLiveClientProps {
   playerMap: Record<string, string>;
   /** Baseline squad (pre-match roster with startingOnField) for projecting on-field players. */
   squad: { playerId: string; playerName: string; startingOnField: boolean; isActiveParticipant?: boolean }[];
-  /** Match type for period config. Defaults to LEAGUE (regulation only). */
+  /** Match type for period config. Defaults to LEAGUE (regulation only). Ignored when
+   * `periodConfig` is supplied directly (Event has no `MatchType`). */
   matchType?: "LEAGUE" | "CUP" | "FRIENDLY" | "DEVELOPMENT";
+  /** ADR-0138 Bundle 8 — Event Follow Live parity: an already-resolved period config, since
+   * Event has no `MatchType` to derive one from (`getEventPeriodConfig()`'s own
+   * duration/halves/break inputs, computed by the caller). Takes precedence over `matchType`
+   * when supplied; League's caller may omit this and keep passing `matchType` unchanged. */
+  periodConfig?: PeriodConfig[];
+  /** ADR-0138 Bundle 8 — which persistence adapter/coordinator subject this match is. Defaults
+   * to `"LEAGUE"`, matching every pre-Bundle-8 caller's only behavior. */
+  subjectType?: "LEAGUE" | "EVENT";
 }
 
 const CONNECTION_LABEL: Record<RealtimeConnectionState, string> = {
@@ -84,6 +93,8 @@ export function FollowLiveClient({
   playerMap,
   squad,
   matchType = "LEAGUE",
+  periodConfig: periodConfigProp,
+  subjectType = "LEAGUE",
 }: FollowLiveClientProps) {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>("connecting");
   const [connectedCount, setConnectedCount] = useState(0);
@@ -113,7 +124,7 @@ export function FollowLiveClient({
   }
 
   const baseline = baselineRef.current;
-  const periodConfig = getLeaguePeriodConfig(matchType);
+  const periodConfig = periodConfigProp ?? getLeaguePeriodConfig(matchType);
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_LIVE_MATCH_REALTIME_URL;
@@ -128,7 +139,7 @@ export function FollowLiveClient({
     const client = new RealtimeMatchClient({
       url: `${url}/matches/${matchId}`,
       clientId: crypto.randomUUID(),
-      getTicket: () => fetchRealtimeTicket(matchId, "view"),
+      getTicket: () => fetchRealtimeTicket(matchId, "view", subjectType),
       onConnectionStateChange: (state) => {
         console.debug(`${LOG_PREFIX} connection state: %s`, state);
         setConnectionState(state);

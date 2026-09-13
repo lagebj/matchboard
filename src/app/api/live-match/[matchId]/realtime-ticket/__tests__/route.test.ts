@@ -8,6 +8,7 @@ const {
   mockRequireMutationRole,
   mockRequireMatchGroupAccess,
   mockRequireMatchGroupMutationRole,
+  mockRequireGroupAccessFromContext,
   mockRateLimit,
   mockDb,
 } = vi.hoisted(() => ({
@@ -15,10 +16,13 @@ const {
   mockRequireMutationRole: vi.fn(),
   mockRequireMatchGroupAccess: vi.fn(),
   mockRequireMatchGroupMutationRole: vi.fn(),
+  mockRequireGroupAccessFromContext: vi.fn(),
   mockRateLimit: vi.fn(),
   mockDb: {
     match: { findUnique: vi.fn() },
     liveMatchSession: { findUnique: vi.fn() },
+    eventMatch: { findUnique: vi.fn() },
+    eventLiveMatchSession: { findUnique: vi.fn() },
   },
 }));
 
@@ -29,6 +33,7 @@ vi.mock("@/lib/auth/actor-context", () => ({
   requireMutationRole: mockRequireMutationRole,
   requireMatchGroupAccess: mockRequireMatchGroupAccess,
   requireMatchGroupMutationRole: mockRequireMatchGroupMutationRole,
+  requireGroupAccessFromContext: mockRequireGroupAccessFromContext,
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
@@ -54,7 +59,7 @@ const ctx = {
   orgFilter: { type: "org", filter: { organisationId: "org-1" }, filterNullable: { organisationId: "org-1" }, organisationId: "org-1" },
 };
 
-function makeRequest(body?: { mode?: "report" | "view" }) {
+function makeRequest(body?: { mode?: "report" | "view"; subjectType?: "LEAGUE" | "EVENT" }) {
   return new NextRequest("http://localhost:3000/api/live-match/match-1/realtime-ticket", {
     method: "POST",
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -72,6 +77,7 @@ describe("POST /api/live-match/[matchId]/realtime-ticket", () => {
     mockRequireMutationRole.mockImplementation(() => {});
     mockRequireMatchGroupAccess.mockResolvedValue(null);
     mockRequireMatchGroupMutationRole.mockResolvedValue(undefined);
+    mockRequireGroupAccessFromContext.mockImplementation(() => {});
     mockRateLimit.mockResolvedValue({ allowed: true });
   });
 
@@ -189,5 +195,85 @@ describe("POST /api/live-match/[matchId]/realtime-ticket", () => {
     const { POST } = await import("../route");
     const res = await POST(makeRequest({ mode: "view" }), makeParams("match-1"));
     expect(res.status).toBe(403);
+  });
+});
+
+// ADR-0138 Bundle 8 — Event parity (closes ARR-0046, and work item 7's "view" gate).
+describe("POST /api/live-match/[matchId]/realtime-ticket (subjectType: EVENT)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireActorContext.mockResolvedValue(ctx);
+    mockRequireMutationRole.mockImplementation(() => {});
+    mockRequireGroupAccessFromContext.mockImplementation(() => {});
+    mockRateLimit.mockResolvedValue({ allowed: true });
+  });
+
+  it("returns 404 when the event match does not exist", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue(null);
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT" }), makeParams("event-match-1"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when the event match belongs to a different organisation", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-OTHER", event: { footballGroupId: "group-1" } });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT" }), makeParams("event-match-1"));
+    expect(res.status).toBe(404);
+  });
+
+  it("issues a report-mode ticket via org-level requireMutationRole only, no group check (matching Event's existing mutation-authorization pattern)", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
+    mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT", mode: "report" }), makeParams("event-match-1"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const claims = await verifyRealtimeTicket(body.ticket, TEST_SECRET);
+    expect(claims.capabilities).toEqual(["report"]);
+    expect(claims.subjectType).toBe("EVENT");
+    expect(mockRequireMutationRole).toHaveBeenCalled();
+    expect(mockRequireGroupAccessFromContext).not.toHaveBeenCalled();
+  });
+
+  it("issues a view-mode ticket gated by requireGroupAccessFromContext on the Event's footballGroupId", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
+    mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT", mode: "view" }), makeParams("event-match-1"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const claims = await verifyRealtimeTicket(body.ticket, TEST_SECRET);
+    expect(claims.capabilities).toEqual(["view"]);
+    expect(claims.subjectType).toBe("EVENT");
+    expect(mockRequireGroupAccessFromContext).toHaveBeenCalledWith(ctx, "group-1");
+    expect(mockRequireMutationRole).not.toHaveBeenCalled();
+  });
+
+  it("rejects view mode when the caller has no access to the Event's group", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
+    mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    mockRequireGroupAccessFromContext.mockImplementation(() => {
+      throw new AuthorizationError("You do not have access to this group.");
+    });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT", mode: "view" }), makeParams("event-match-1"));
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 404 when no live session exists for the event match", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
+    mockDb.eventLiveMatchSession.findUnique.mockResolvedValue(null);
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT" }), makeParams("event-match-1"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 409 when the event live session has ended", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
+    mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ENDED" });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT" }), makeParams("event-match-1"));
+    expect(res.status).toBe(409);
   });
 });

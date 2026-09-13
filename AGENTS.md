@@ -4799,8 +4799,111 @@ in Chromium via Playwright (register → cache → go offline → reload → rec
 converge, plus the never-prepared-device message) — this is the actual exit-criteria evidence
 ("offline continuation... is real, not merely local queue code behind a page that cannot
 reopen"), verified by CI's `Deploy PR to Test slot` job against the real hosted Test slot, not
-locally reproducible in a sandboxed dev container. Remaining bundles (conflict UX/Event parity,
-observability/cutover) are tracked in
+locally reproducible in a sandboxed dev container.
+
+**Bundle 8 (conflict resolution, end-of-match, and Event parity) is now substantially
+implemented — the coordinator/protocol/Follow-Live half of Event parity is done; Event clock-
+persistence parity is a disclosed, deferred gap (see ARR-0046).**
+
+- **Needs review conflict panel (work item 1).** `useLiveRealtime.tryRecordEvent()` now
+  distinguishes a genuine coordinator-rejected conflict (the wire's `STALE_STATE` code, carrying
+  Bundle 3's `conflictCode`) from a plain connectivity/transport failure — only a real conflict
+  moves the local command to `NEEDS_REVIEW` (`LiveMatchClient`'s `attemptSend`); a transport
+  failure still retries as `LOCAL_PENDING` exactly as before. `NeedsReviewPanel`
+  (`src/components/live-match/needs-review-panel.tsx`) presents one command at a time — the
+  affected action, a plain-English conflict explanation (`CONFLICT_CODE_LABELS`, the one place
+  this prose is produced), and two resolutions — "Apply a new action now" and "Discard local
+  intent" — both of which transition the command to `FAILED_TERMINAL` with a `terminalReason`
+  and a new `resolvedByCoach: true` flag (reusing the existing terminal state rather than adding
+  a seventh `CommandStatus`; the record is retained, never deleted, per D13). The sync
+  indicator's existing "Needs review N" text (D14) is now a button opening this panel.
+- **Preserve dependent operation groups (work item 2).** `syncPendingCommands`' retry loop no
+  longer stops entirely on the first failure. A new `APPEND_SAFE_LIVE_EVENT_TYPES` constant
+  (`live-match-types.ts`) — a narrow, explicitly-labeled client-side mirror of the coordinator's
+  own `classifyDomain()` append-safe set (DECISIONS.md D09's exact table; kept in `src/` rather
+  than imported from the Worker package, which only ever imports the other direction) — lets a
+  genuinely independent append-safe command (a goal, a fair-play observation, a marked moment)
+  keep syncing even while an earlier non-append-safe (lineup/clock/annotation) command is stuck;
+  a *later* non-append-safe command still waits its turn behind the stuck one, preserving order
+  for the case that actually needs it (e.g. a paired `ROTATION_IN` after a still-unresolved
+  `ROTATION_OUT`). No operation-pairing/dependency model was built — the coordinator's own
+  per-operation precondition evaluation (Bundle 3) remains the sole correctness authority; this
+  loop only decides submission order. Closes the exact named exit test ("independent goals after
+  conflict continue syncing").
+- **End-of-match reconciliation window and queue-deletion prevention (work items 3-4) — verified
+  already correct from Bundles 6-7, refined rather than rebuilt.** `syncPendingCommands` has no
+  time-based cutoff at all — a delayed append-safe operation can always sync on the next
+  reconnect/visibility/online signal, regardless of how much time has passed since `MATCH_END`,
+  so no separate "window" needed defining or enforcing. `handleEndSession`'s existing
+  `unresolved` check (Bundle 6/7) already refuses to clear the local outbox/session/prepared
+  package while any `NEEDS_REVIEW`/`FAILED_TERMINAL` command remains — this bundle only refines
+  what counts as "still unresolved": a `FAILED_TERMINAL` command the coach has explicitly
+  resolved via the new panel (`resolvedByCoach: true`) no longer blocks cleanup, while one the
+  *server* terminally rejected and the coach has not yet seen still does. Locked in with a new
+  `getUnresolvedCommands()` regression test.
+- **Post-match handoff shows unresolved state (work item 5).** `PostMatchUnresolvedBanner`
+  (`src/components/live-match/post-match-unresolved-banner.tsx`) is a small, self-contained
+  client component — queries `getUnresolvedCommands(subjectId)` directly (a client-only concern
+  with no server-side counterpart) and reuses `NeedsReviewPanel` for resolution. Mounted on both
+  League's post-match page (`post-match-page.tsx`) and Event's
+  (`event-match-report-panel.tsx`), immediately below each page's own back-link, in every render
+  branch. Renders nothing when there is nothing unresolved for that match on this device — never
+  silently converts an unresolved local record into a canonical fact.
+- **Event parity for clock/session/protocol/outbox/projection (work item 6) — protocol/session/
+  outbox/projection parity done; clock-persistence parity deferred (ARR-0046).** A new
+  `subjectType: "LEAGUE" | "EVENT"` claim threads end-to-end: the realtime ticket
+  (`LiveMatchRealtimeTicket.subjectType`, defaulting to `"LEAGUE"` for a pre-existing ticket),
+  the ticket-issuance route (`/api/live-match/[matchId]/realtime-ticket`, now branching to
+  Event's own `db.eventMatch`/`db.eventLiveMatchSession` lookups), the Worker's `SessionMeta`
+  (`subjectTypeFor()`), and both internal endpoints (`events/route.ts` dispatches to the new
+  `recordEventForActorEvent()` — mirroring `recordEventForActor()` exactly, same session-active/
+  idempotency/sequence-collision semantics, against `db.eventLiveMatchEvent`/
+  `db.eventLiveMatchSession` instead — for an Event-subject request;
+  `snapshot/route.ts` dispatches similarly for reconciliation reads). `useLiveRealtime`
+  (`league-live-match-client.tsx`'s hook) was extracted, unchanged in behavior, into a new
+  shared `src/components/live-match/use-live-realtime.ts`, parameterized by `subjectType`, and
+  is now used by both `createLeagueActions` and (newly) `createEventActions` — Event gains the
+  exact same `ensureConnected`/`tryRecordEvent`/`onLiveUpdate`/`onPersistenceChanged`/
+  `reconnectRealtime` wiring League already had. The old direct-HTTP
+  `recordEventLiveEventAction()`/`recordEventEvent()` path (the one ARR-0046 originally found)
+  is **removed entirely**, not merely superseded, matching League's own Bundle 4 single-
+  mutation-path precedent — locked in by an Event-parity block in `single-mutation-path.test.ts`
+  mirroring the League assertions exactly. A real, previously-undocumented schema-shape
+  divergence was found and fixed while wiring the snapshot endpoint: League's
+  `LiveMatchEvent.period` is a legacy `Int?` index, Event's `EventLiveMatchEvent.period` is
+  already the real `MatchPeriod?` string — `normalizeStoredPeriod()` now handles both; a
+  League-only ternary would have silently dropped every Event event's period as `undefined`.
+  **Deferred**: `EventLiveMatchSession` still carries no clock-persistence columns
+  (ADR-0133 H2's equivalent for League) — see ARR-0046's resolution-criteria checklist for the
+  full account of what's done vs. what remains.
+- **Follow Live parity for League/Event (work item 7) — done.** `FollowLiveClient` gained two
+  optional props — `periodConfig` (an already-resolved `PeriodConfig[]`, since Event has no
+  `MatchType` to derive one from) and `subjectType` — both defaulting to League's exact prior
+  behavior when omitted. A new Event Follow Live page
+  (`/o/{orgSlug}/events/[eventId]/matches/[eventMatchId]/live/follow/page.tsx`) mirrors League's
+  page at the same level of completeness (a playerId-keyed baseline squad from
+  `EventSquadPlayer`/`EventMatchLineup` — no GuestPlayer join yet, matching League's own page,
+  which has none either) and reads through the same shared `reduceLiveEvents()`/
+  `projectCanonicalLiveState()` projection (Bundle 5) — no separate Event projection logic. The
+  realtime-ticket route's new Event branch gates `mode: "view"` with
+  `requireGroupAccessFromContext(ctx, event.footballGroupId)` — a deliberate, genuinely new match
+  to League's own Follow Live authorization model for this one additive capability, decided
+  independently of Event's existing org-level-only *mutation* authorization pattern (see
+  ARR-0048, a separate, pre-existing residue found while doing this — not created by it). A
+  "Follow live" link was added next to the existing "Live" link on the Events matches tab
+  (`event-matches-tab.tsx`), matching that file's own existing minimal, unconditional-link style.
+- **Guest/helper eligibility rules remain intact (work item 8) — verified, no code touched.** The
+  full guest-player/helper eligibility test suites
+  (`event-match-support.test.ts`, `event-guest-player-participation.test.ts`,
+  `match-helper-eligibility.test.ts`, `participant-ref` tests) were re-run unchanged and pass —
+  this bundle's changes never touched eligibility/participant-resolution code.
+- **New pre-existing residue found, recorded, not fixed in this bundle**: ARR-0048 (Event's
+  live-reporting *mutation* authorization has always been org-level-only, unlike League's
+  group-level `requireMatchGroupMutationRole`) — an authorization-model decision needing its own
+  ADR, out of scope for a coordination-parity bundle.
+
+Remaining programme scope (Bundle 9: observability, migration cleanup, evidence boundary; Event
+clock-persistence parity per ARR-0046; ARR-0048's authorization-model decision) is tracked in
 `.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |
@@ -4813,13 +4916,16 @@ observability/cutover) are tracked in
 | `src/lib/live-match/session-clock.ts` | `MatchClockState` ↔ persisted `LiveMatchSession` clock columns; `isForwardClockTransition()` monotonic-period guard (ADR-0133 H2) |
 | `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events, `estimateCurrentMatchOffsetMs()` (server-side match-time estimate in **ms**, prefers the persisted `LiveMatchSession` clock — ADR-0133 H2/H3) |
 | `src/lib/live-match/event-live-match-session.ts` | Server functions: start, get, end, heartbeat event live sessions |
-| `src/lib/live-match/event-live-match-event-store.ts` | Server functions: record event events, get event match events, get recent event events |
+| `src/lib/live-match/event-live-match-event-store.ts` | Server functions: `recordEventForActorEvent()` (ADR-0138 Bundle 8 — the Event equivalent of `live-match-event-store.ts`'s League actor-scoped recorder, called by the internal HMAC-only endpoint for an Event-subject request), get event match events, get recent event events. The old direct-HTTP `recordEventEvent()` was removed in Bundle 8, not merely superseded |
 | `src/lib/live-match/match-clock.ts` | Pure clock logic: create, advance, pause, resume, adjust, format |
 | `src/lib/live-match/period-config.ts` | Period configuration: league and event period models, labels, durations; cumulative period-offset/absolute-match-time helpers (`getCumulativePeriodOffsetsMs`, `toAbsoluteMatchMs`, `getTotalPeriodDurationMs`, `resolvePeriodForAbsoluteMs` — ADR-0113) |
 | `src/lib/live-match/live-match-context.ts` | Shared context types for LiveMatchClient (league and event) |
 | `src/components/live-match/live-match-client.tsx` | Shared live match client component (score, clock, goal/rotation/fair play/marked moment) |
-| `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config) |
-| `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) |
+| `src/components/live-match/use-live-realtime.ts` | ADR-0138 Bundle 8: shared, subject-parameterized realtime coordinator hook (`useLiveRealtime(matchId, subjectType)`) — extracted from `league-live-match-client.tsx`, used by both League and Event adapters; `tryRecordEvent()` distinguishes a genuine coordinator conflict (`STALE_STATE` + `conflictCode`) from a plain transport failure |
+| `src/components/live-match/league-live-match-client.tsx` | League match live client adapter (league server actions, period config); re-exports `useLiveRealtime` for backward compatibility |
+| `src/components/live-match/event-live-match-client.tsx` | Event match live client adapter (event server actions, single-period config) — now realtime-first via `useLiveRealtime(eventMatchId, "EVENT")`, matching League exactly (ADR-0138 Bundle 8, closes ARR-0046's coordinator-parity criterion) |
+| `src/components/live-match/needs-review-panel.tsx` | ADR-0138 Bundle 8 (work item 1): the "Needs review" conflict panel — one command at a time, plain-English conflict explanation, "Apply a new action now"/"Discard local intent" resolutions |
+| `src/components/live-match/post-match-unresolved-banner.tsx` | ADR-0138 Bundle 8 (work item 5): self-contained client component surfacing any unresolved local live-reporting record on this device on the post-match report page; reuses `NeedsReviewPanel` |
 | `src/app/(app)/matches/[matchId]/live/live-actions.ts` | Server actions: session lifecycle, clock persistence, event reads, pre-match package. No live-event canonical-write action remains here (ADR-0138 Bundle 4 removed `recordLiveEventAction` — the coordinator's internal endpoint is the only normal write path; see `live-match-event-store.ts`'s `recordEvent()` for its one remaining legitimate caller) |
 | `src/app/(app)/matches/[matchId]/live/live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endLiveSession()` and `seedReportFromLiveSession()` — does not reimplement either write |
 | `src/lib/reports/report-mutations.ts` | League post-match report domain mutations: `seedReportFromFinalizedSquad` (direct entry, UNKNOWN attendance), `seedReportFromLiveSession` (live-session handoff, PRESENT attendance + derived goals/assists/fair-play/rotations, ADR-0088; **merges into a pre-existing DRAFT report, never overwrites a REPORTED/LOCKED one — ADR-0133 H1**), `submitReport`/`lockReport`/`completeReport`/`reopenReport` |
@@ -4866,8 +4972,9 @@ uses for its own accepted events, not something "Follow live" depends on.
 | `workers/live-match/src/auth.ts` | Worker-side ticket verification re-export, Origin/matchId validation |
 | `workers/live-match/src/worker-types.ts` | Worker `Env` bindings |
 | `src/lib/live-match/realtime/fetch-ticket.ts` | Client-side `fetchRealtimeTicket(matchId, mode)` helper, shared by the reporting broadcast side-channel and the "Follow live" viewer |
-| `src/components/live-match/follow-live-client.tsx` | Read-only "Follow live" viewer — `getSnapshot()` + callback handlers only, never calls `recordEvent`/`endSession` |
-| `src/app/(app)/matches/[matchId]/live/follow/page.tsx`, `src/app/(app)/o/[orgSlug]/matches/[matchId]/live/follow/page.tsx` | "Follow live" route: global redirect + org-scoped page enforcing `requireMatchGroupAccess()` server-side before rendering |
+| `src/components/live-match/follow-live-client.tsx` | Read-only "Follow live" viewer — `getSnapshot()` + callback handlers only, never calls `recordEvent`/`endSession`. Optional `periodConfig`/`subjectType` props (ADR-0138 Bundle 8) generalize it for Event, defaulting to League's exact prior behavior when omitted |
+| `src/app/(app)/matches/[matchId]/live/follow/page.tsx`, `src/app/(app)/o/[orgSlug]/matches/[matchId]/live/follow/page.tsx` | "Follow live" route (League): global redirect + org-scoped page enforcing `requireMatchGroupAccess()` server-side before rendering |
+| `src/app/(app)/o/[orgSlug]/events/[eventId]/matches/[eventMatchId]/live/follow/page.tsx` | "Follow live" route (Event, ADR-0138 Bundle 8): org-scoped page enforcing `requireGroupAccessFromContext(ctx, event.footballGroupId)` before rendering — a genuinely new group-level check for this one additive capability, independent of Event's existing org-level-only mutation authorization (ARR-0048) |
 | `src/lib/live-match/realtime/internal-signature.ts` | Shared HMAC sign/verify (Web Crypto `crypto.subtle`) — used by both the Worker (signs) and Vercel (verifies) |
 | `src/lib/live-match/realtime/internal-auth.ts` | Vercel-side `verifyInternalRequest()` — raw-body HMAC verification for internal endpoints |
 | `src/app/api/internal/live-match/events/route.ts` | `POST` — HMAC-only internal endpoint; calls `recordEventForActor()`, never a browser API |
@@ -4888,6 +4995,14 @@ org-mutation-capable role (e.g. COACH) could otherwise start/record/end live ses
 group they were only granted read-only access to. Call both together for any live-match
 mutation; `requireMatchGroupAccess()` alone remains correct for the read-only "view" path
 (both `GROUP_COACH` and `GROUP_VIEWER` may follow live).
+
+This group-level model is **League-only**. Event's live-reporting mutation authorization
+(`startEventLiveSessionAction`/`heartbeatEventAction`/the Event branch of the realtime-ticket
+route) has always used org-level `requireMutationRole()` only, with no equivalent group-level
+check — a genuine, pre-existing, undecided asymmetry recorded as ARR-0048, not something ADR-0138
+Bundle 8 introduced or silently fixed. Event's new "view"-mode (Follow Live) capability *does* use
+`requireGroupAccessFromContext(ctx, event.footballGroupId)`, matching League's model for that one
+additive read-only capability specifically — see "Follow Live parity for League/Event" above.
 
 "Follow live" vs "Live reporting" — coach-facing terminology:
 

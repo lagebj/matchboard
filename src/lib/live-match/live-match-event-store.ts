@@ -183,7 +183,7 @@ export async function recordEventForActor(
  * against either shape — a Postgres index name already encodes its constrained columns
  * (`<Model>_<fields>_key`), so this does not need the exact field list.
  */
-function uniqueConstraintTarget(error: Prisma.PrismaClientKnownRequestError): string {
+export function uniqueConstraintTarget(error: Prisma.PrismaClientKnownRequestError): string {
   const meta = error.meta as
     | { target?: unknown; driverAdapterError?: { cause?: { constraint?: { index?: unknown } } } }
     | undefined;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react";
-import { GOAL_DETAIL_INACTIVITY_TIMEOUT_MS } from "@/lib/live-match/live-match-types";
+import { GOAL_DETAIL_INACTIVITY_TIMEOUT_MS, APPEND_SAFE_LIVE_EVENT_TYPES } from "@/lib/live-match/live-match-types";
 import {
   createInitialClockState,
   getElapsedMs,
@@ -13,7 +13,7 @@ import {
   getPeriodAfter,
 } from "@/lib/live-match/match-clock";
 import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
-import type { LiveEventSummary, MatchClockState } from "@/lib/live-match/live-match-types";
+import type { LiveEventSummary, MatchClockState, LiveMatchEventType } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
 // The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
 // the "Position" live-reporting action (recording a POSITIONS_CHANGED event for an on-field
@@ -41,6 +41,7 @@ import {
 } from "@/lib/live-match/local/live-local-store";
 import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-match/local/pending-overlay";
 import { registerLiveServiceWorker } from "@/lib/live-match/offline/register-live-service-worker";
+import { NeedsReviewPanel } from "@/components/live-match/needs-review-panel";
 
 export interface SquadPlayer {
   playerId: string;
@@ -93,6 +94,13 @@ export interface LiveMatchActions {
        * adapter's existing immediate-success behavior exactly. */
       persistenceStatus?: "pending" | "persisted" | "failed_terminal";
     };
+    /** ADR-0138 Bundle 8 — present only when the coordinator rejected this exact operation with
+     * a genuine, actionable conflict (never for "not connected"/a transport failure, which
+     * reports plain `success: false` with no `conflict` so the caller retries normally).
+     * `attemptSend` uses this to move the local command to `NEEDS_REVIEW` instead of leaving it
+     * `LOCAL_PENDING` for an endless silent retry. Absent for a client with no coordinator
+     * involvement (there is nothing to conflict with a coordinator that was never consulted). */
+    conflict?: { code?: string; message: string };
   }>;
   getRecentEvents: (matchId: string, limit?: number) => Promise<{ success: boolean; data?: LiveEventSummary[]; error?: string }>;
   getPreMatchPackage: (matchId: string) => Promise<{
@@ -328,9 +336,28 @@ function ConfirmDialog({ open, onConfirm, onCancel, title, children }: { open: b
 // draw the coach's attention to), matching the pre-Bundle-6 convention of hiding this indicator
 // entirely once nothing is outstanding — D14 does not require it to always render, only that the
 // optimistic display never be confused with a confirmed synchronization state.
-function SyncStatusIndicator({ pendingCount, needsReviewCount, isOffline }: { pendingCount: number; needsReviewCount: number; isOffline: boolean }) {
+function SyncStatusIndicator({
+  pendingCount,
+  needsReviewCount,
+  isOffline,
+  onOpenReview,
+}: {
+  pendingCount: number;
+  needsReviewCount: number;
+  isOffline: boolean;
+  /** ADR-0138 Bundle 8 — opens the "Needs review" panel. Undefined only in a context with no
+   * commands to review at all (never reached when `needsReviewCount > 0`). */
+  onOpenReview?: () => void;
+}) {
   if (needsReviewCount > 0) {
-    return <div className="text-[var(--text-micro)] text-[var(--danger)] text-center py-0.5">Needs review {needsReviewCount}</div>;
+    return (
+      <button
+        onClick={onOpenReview}
+        className="w-full text-[var(--text-micro)] text-[var(--danger)] text-center py-0.5 underline underline-offset-2"
+      >
+        Needs review {needsReviewCount}
+      </button>
+    );
   }
   if (pendingCount === 0) return null;
   const label = isOffline
@@ -402,10 +429,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [confirmDialog, setConfirmDialog] = useState<{ type: "period" | "end"; nextPeriod?: string } | null>(null);
   const [lastAction, setLastAction] = useState<{ label: string; undoEventId?: string; undoLabel?: string } | null>(null);
   const [isOffline, setIsOffline] = useState(false);
+  // ADR-0138 Bundle 8 — the "Needs review" panel's open/closed state.
+  const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
   // ADR-0138 Bundle 6 — derived from `localCommands` rather than tracked as separate state, so
   // the sync indicator can never drift out of sync with the outbox's own source of truth.
   const pendingSyncSummary = useMemo(() => summarizePendingCommands(localCommands), [localCommands]);
   const unsyncedCount = pendingSyncSummary.pendingCount;
+  // ADR-0138 Bundle 8 — the commands the "Needs review" panel actually lists.
+  const needsReviewCommands = useMemo(() => localCommands.filter((c) => c.status === "NEEDS_REVIEW"), [localCommands]);
+  const playerNameById = useMemo(() => Object.fromEntries(squad.map((p) => [p.playerId, p.playerName])), [squad]);
 
   const goalFlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastActionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -487,6 +519,17 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         return true;
       }
 
+      // ADR-0138 Bundle 8 — a genuine coordinator-detected conflict never resolves itself by
+      // retrying; only a coach decision (the "Needs review" panel) can. Distinguished from a
+      // plain connectivity/transport failure below by `result.conflict`'s presence (set only
+      // for a real semantic-precondition rejection — see `useLiveRealtime.tryRecordEvent`).
+      if (result.conflict) {
+        const conflictCode = result.conflict.code;
+        await updateCommandStatus(command.clientEventId, "NEEDS_REVIEW", { conflictCode });
+        applyLocalStatus(command.clientEventId, "NEEDS_REVIEW", { conflictCode });
+        return false;
+      }
+
       // Transient failure (not connected, RPC rejected, etc.) — return to LOCAL_PENDING so the
       // next reconnect/retry pass picks it up. Never regenerate clientEventId.
       await updateCommandStatus(command.clientEventId, "LOCAL_PENDING");
@@ -498,6 +541,25 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       return false;
     }
   }, [actions, applyLocalStatus]);
+
+  // ADR-0138 Bundle 8, work item 1 — resolves a `NEEDS_REVIEW` command per the coach's choice in
+  // the "Needs review" panel. Both resolutions transition to `FAILED_TERMINAL` (reusing the
+  // existing terminal state rather than inventing a seventh `CommandStatus`) — the record is
+  // retained, never deleted, for diagnostic history (D13). "Apply a new action now" leaves the
+  // coach free to use the normal live control again, which records a fresh, unrelated
+  // clientEventId; this handler's only job is to clear the stale record out of the active queue.
+  const resolveNeedsReviewCommand = useCallback(
+    async (clientEventId: string, resolution: "apply_new" | "discard") => {
+      const terminalReason =
+        resolution === "apply_new"
+          ? "Superseded — coach recorded a new action instead."
+          : "Discarded by coach — no replacement action recorded.";
+      const extra = { terminalReason, resolvedByCoach: true as const };
+      await updateCommandStatus(clientEventId, "FAILED_TERMINAL", extra);
+      applyLocalStatus(clientEventId, "FAILED_TERMINAL", extra);
+    },
+    [applyLocalStatus],
+  );
 
   const recordEventLocal = useCallback(async (eventType: string, extra?: { playerId?: string; secondaryPlayerId?: string; period?: string; matchSeconds?: number; correctionType?: string; correctsEventId?: string; payload?: Record<string, unknown> }, options?: { clientEventId?: string }) => {
     if (!sessionId) return;
@@ -540,11 +602,21 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     if (!sessionId) return;
     try {
       const retryable = await getRetryableCommands(subjectId);
+      // ADR-0138 Bundle 8 (work item 2) — preserve local-ordinal order for a state-sensitive
+      // (lineup/clock/annotation) command relative to the ones after it: once one fails, later
+      // non-append-safe commands wait their turn rather than racing ahead of an earlier one
+      // they might depend on (e.g. a paired ROTATION_IN sent before its ROTATION_OUT landed).
+      // A genuinely independent append-safe command (a goal, a fair-play observation, a marked
+      // moment) has no such dependency and keeps syncing regardless — closing the "independent
+      // goals after conflict continue syncing" exit test without any operation-pairing logic:
+      // the coordinator's own per-operation precondition evaluation (Bundle 3) is what actually
+      // decides correctness; this loop only decides submission order.
+      let blockedOnStateSensitive = false;
       for (const command of retryable) {
-        // Preserve local-ordinal order; stop at the first failure rather than racing later
-        // commands ahead of an earlier one that might depend on it having landed first.
+        const isAppendSafe = APPEND_SAFE_LIVE_EVENT_TYPES.has(command.eventType as LiveMatchEventType);
+        if (blockedOnStateSensitive && !isAppendSafe) continue;
         const success = await attemptSend(command);
-        if (!success) break;
+        if (!success && !isAppendSafe) blockedOnStateSensitive = true;
       }
     } catch {
       // Will retry on next online/visibility event.
@@ -786,10 +858,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       setSessionId(null);
       // A NEEDS_REVIEW/FAILED_TERMINAL command is never auto-resolved by retrying — blocking
       // ending the session on it forever would trap the coach over something that will never
-      // change. Instead, leave the outbox in place (never clear it) so the record survives for a
-      // future review surface (Bundle 8) rather than being silently discarded (D13, work items
-      // 8/9: "unresolved commands prevent package cleanup").
-      const unresolved = remaining.filter((c) => c.status === "NEEDS_REVIEW" || c.status === "FAILED_TERMINAL");
+      // change. Instead, leave the outbox in place (never clear it) so the record survives for
+      // the "Needs review" panel (Bundle 8) rather than being silently discarded (D13, work
+      // items 8/9: "unresolved commands prevent package cleanup"). A command the coach has
+      // already explicitly resolved via that panel (`resolvedByCoach`) no longer blocks
+      // cleanup — matches `getUnresolvedCommands()`'s exact same rule.
+      const unresolved = remaining.filter(
+        (c) => c.status === "NEEDS_REVIEW" || (c.status === "FAILED_TERMINAL" && !c.resolvedByCoach),
+      );
       if (unresolved.length === 0) {
         await clearPersistedCommands(subjectId);
         await clearLocalSession(subjectId);
@@ -1142,8 +1218,23 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             own={!isHome && markOwnTeam}
           />
         </div>
-        <SyncStatusIndicator pendingCount={unsyncedCount} needsReviewCount={pendingSyncSummary.needsReviewCount} isOffline={isOffline} />
+        <SyncStatusIndicator
+          pendingCount={unsyncedCount}
+          needsReviewCount={pendingSyncSummary.needsReviewCount}
+          isOffline={isOffline}
+          onOpenReview={() => setReviewPanelOpen(true)}
+        />
       </div>
+
+      <NeedsReviewPanel
+        open={reviewPanelOpen}
+        onClose={() => setReviewPanelOpen(false)}
+        commands={needsReviewCommands}
+        playerNameById={playerNameById}
+        onResolve={(clientEventId, resolution) => {
+          void resolveNeedsReviewCommand(clientEventId, resolution);
+        }}
+      />
 
       {/* Period control */}
       <div className="px-3 py-2 border-b border-[var(--border-soft)]">

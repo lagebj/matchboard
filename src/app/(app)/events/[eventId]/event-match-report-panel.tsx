@@ -17,6 +17,7 @@ import { getAvailablePlayersForEvent } from '../actions';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PostMatchReportShell } from '@/components/matches/post-match-report-shell';
+import { PostMatchUnresolvedBanner } from '@/components/live-match/post-match-unresolved-banner';
 import { FootballObservationSection } from '@/components/player-development/football-observation-section';
 import { MatchCombinationEvidencePanel } from '@/components/matches/match-combination-evidence-panel';
 import type { CombinationEvidenceRow } from '@/lib/evidence/combination-topology';
@@ -167,8 +168,13 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
     reopen: (target) => wrap(() => import('../event-post-match-actions').then(({ reopenEventMatchReportAction }) => reopenEventMatchReportAction(report.id, target))),
   };
 
+  const playerNameById = Object.fromEntries(report.playerReports.map((p) => [p.playerId, p.playerName]));
+
   return (
     <div className="mt-3">
+      {/* ADR-0138 Bundle 8, work item 5 — surfaces any live-reporting local outbox record on
+          this device still needing review/sync, before the coach relies on the report below. */}
+      <PostMatchUnresolvedBanner subjectId={eventMatchId} playerNameById={playerNameById} />
       <PostMatchReportShell
         report={toViewModel(report, teamLabel, opponentLabel)}
         actions={actions}

@@ -9,13 +9,17 @@
 
 const LOG_PREFIX = "[live-match:ticket]";
 
-export async function fetchRealtimeTicket(matchId: string, mode: "report" | "view"): Promise<string> {
+export async function fetchRealtimeTicket(
+  matchId: string,
+  mode: "report" | "view",
+  subjectType: "LEAGUE" | "EVENT" = "LEAGUE",
+): Promise<string> {
   let response: Response;
   try {
     response = await fetch(`/api/live-match/${matchId}/realtime-ticket`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({ mode, subjectType }),
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} fetch failed (mode=%s, matchId=%s): %s`, mode, matchId, error instanceof Error ? error.message : String(error));

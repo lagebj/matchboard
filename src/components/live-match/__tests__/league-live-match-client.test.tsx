@@ -94,10 +94,10 @@ describe("useLiveRealtime", () => {
     expect(instances.length).toBe(0);
   });
 
-  it("tryRecordEvent returns null without ever calling the client when nothing is connected", async () => {
+  it("tryRecordEvent resolves { result: null } without ever calling the client when nothing is connected", async () => {
     const { result } = renderHook(() => useLiveRealtime("match-1"));
     const outcome = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "GOAL_FOR" } });
-    expect(outcome).toBeNull();
+    expect(outcome).toEqual({ result: null });
     expect(instances.length).toBe(0);
   });
 
@@ -110,29 +110,43 @@ describe("useLiveRealtime", () => {
     client.recordEvent.mockResolvedValueOnce({ version: 1, persistenceStatus: "persisted" });
 
     const outcome = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "GOAL_FOR" } });
-    expect(outcome).toEqual({ version: 1, persistenceStatus: "persisted" });
+    expect(outcome).toEqual({ result: { version: 1, persistenceStatus: "persisted" } });
     expect(client.recordEvent).toHaveBeenCalledWith({ clientEventId: "e1", baseVersion: 0, event: { eventType: "GOAL_FOR" } });
   });
 
-  it("self-heals baseVersion from a STALE_STATE rejection so the next attempt doesn't repeat it", async () => {
+  // ADR-0138 Bundle 8 — a STALE_STATE rejection is now reported as a genuine, actionable
+  // conflict (not just a version self-heal) so the caller can move the command to NEEDS_REVIEW.
+  it("self-heals baseVersion from a STALE_STATE rejection and reports it as a conflict, not a plain unavailability", async () => {
     const { result } = renderHook(() => useLiveRealtime("match-1"));
     act(() => {
       result.current.ensureConnected();
     });
     const client = instances[0];
 
-    client.recordEvent.mockRejectedValueOnce({ code: "STALE_STATE", message: "stale", currentVersion: 7 });
+    client.recordEvent.mockRejectedValueOnce({ code: "STALE_STATE", message: "stale", currentVersion: 7, conflictCode: "PLAYER_ALREADY_OFF_FIELD" });
     const first = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "PERIOD_START" } });
-    expect(first).toBeNull();
+    expect(first).toEqual({ result: null, conflict: { code: "PLAYER_ALREADY_OFF_FIELD", message: "stale" } });
     expect(client.recordEvent).toHaveBeenNthCalledWith(1, { clientEventId: "e1", baseVersion: 0, event: { eventType: "PERIOD_START" } });
 
     client.recordEvent.mockResolvedValueOnce({ version: 8, persistenceStatus: "persisted" });
     const second = await result.current.tryRecordEvent({ clientEventId: "e2", event: { eventType: "PERIOD_END" } });
-    expect(second).toEqual({ version: 8, persistenceStatus: "persisted" });
+    expect(second).toEqual({ result: { version: 8, persistenceStatus: "persisted" } });
     expect(client.recordEvent).toHaveBeenNthCalledWith(2, { clientEventId: "e2", baseVersion: 7, event: { eventType: "PERIOD_END" } });
   });
 
-  it("returns null on a plain rejection with no currentVersion, leaving the tracked version unchanged", async () => {
+  it("reports a conflict with no code when the rejection lacks a recognized conflictCode (older worker, still a real STALE_STATE rejection)", async () => {
+    const { result } = renderHook(() => useLiveRealtime("match-1"));
+    act(() => {
+      result.current.ensureConnected();
+    });
+    const client = instances[0];
+    client.recordEvent.mockRejectedValueOnce({ code: "STALE_STATE", message: "stale" });
+
+    const outcome = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "PERIOD_START" } });
+    expect(outcome).toEqual({ result: null, conflict: { code: undefined, message: "stale" } });
+  });
+
+  it("resolves { result: null } (no conflict) on a plain rejection with no currentVersion, leaving the tracked version unchanged", async () => {
     const { result } = renderHook(() => useLiveRealtime("match-1"));
     act(() => {
       result.current.ensureConnected();
@@ -141,14 +155,14 @@ describe("useLiveRealtime", () => {
     client.recordEvent.mockRejectedValueOnce({ code: "PERSISTENCE_UNAVAILABLE", message: "Not connected." });
 
     const outcome = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "GOAL_FOR" } });
-    expect(outcome).toBeNull();
+    expect(outcome).toEqual({ result: null });
 
     client.recordEvent.mockResolvedValueOnce({ version: 1, persistenceStatus: "persisted" });
     await result.current.tryRecordEvent({ clientEventId: "e2", event: { eventType: "GOAL_FOR" } });
     expect(client.recordEvent).toHaveBeenNthCalledWith(2, { clientEventId: "e2", baseVersion: 0, event: { eventType: "GOAL_FOR" } });
   });
 
-  it("falls through to null (and so to HTTP, via createLeagueActions) on a PROTOCOL_UNSUPPORTED rejection (SPEC.md §31)", async () => {
+  it("resolves { result: null } (no conflict, falls through to local-outbox retry) on a PROTOCOL_UNSUPPORTED rejection (SPEC.md §31)", async () => {
     const { result } = renderHook(() => useLiveRealtime("match-1"));
     act(() => {
       result.current.ensureConnected();
@@ -157,7 +171,7 @@ describe("useLiveRealtime", () => {
     client.recordEvent.mockRejectedValueOnce({ code: "PROTOCOL_UNSUPPORTED", message: "Unsupported protocol version: 2" });
 
     const outcome = await result.current.tryRecordEvent({ clientEventId: "e1", event: { eventType: "GOAL_FOR" } });
-    expect(outcome).toBeNull();
+    expect(outcome).toEqual({ result: null });
   });
 
   it("notifies onLiveUpdate subscribers when applyEvent/presenceChanged/sessionEnded broadcasts arrive (SPEC.md §44 scenario 2)", () => {
@@ -247,7 +261,7 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
       reconnectNow: vi.fn(),
       onLiveUpdate: vi.fn(() => () => {}),
       onPersistenceChanged: vi.fn(() => () => {}),
-      tryRecordEvent: vi.fn().mockResolvedValue(null),
+      tryRecordEvent: vi.fn().mockResolvedValue({ result: null }),
       ...overrides,
     };
   }
@@ -257,7 +271,7 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
   });
 
   it("succeeds without any HTTP call when realtime confirms persisted", async () => {
-    const realtime = fakeRealtime({ tryRecordEvent: vi.fn().mockResolvedValue({ version: 1, persistenceStatus: "persisted" }) });
+    const realtime = fakeRealtime({ tryRecordEvent: vi.fn().mockResolvedValue({ result: { version: 1, persistenceStatus: "persisted" } }) });
     const actions = createLeagueActions("match-1", realtime);
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
@@ -268,7 +282,7 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
   });
 
   it("succeeds without an independent HTTP write when the coordinator accepted the event but persistence is still pending — its own outbox (Stage 6) owns durability, not a second writer", async () => {
-    const realtime = fakeRealtime({ tryRecordEvent: vi.fn().mockResolvedValue({ version: 1, persistenceStatus: "pending" }) });
+    const realtime = fakeRealtime({ tryRecordEvent: vi.fn().mockResolvedValue({ result: { version: 1, persistenceStatus: "pending" } }) });
     const actions = createLeagueActions("match-1", realtime);
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
@@ -276,13 +290,30 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
     expect(result).toEqual({ success: true, data: { persistenceStatus: "pending" } });
   });
 
-  it("does not persist through an alternate ordering authority when the coordinator is unavailable (tryRecordEvent resolves null) — the command is left unsynchronized for local-outbox retry instead (ARR-0045)", async () => {
+  it("does not persist through an alternate ordering authority when the coordinator is unavailable (tryRecordEvent resolves { result: null }) — the command is left unsynchronized for local-outbox retry instead (ARR-0045)", async () => {
     const realtime = fakeRealtime();
     const actions = createLeagueActions("match-1", realtime);
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
 
     expect(result.success).toBe(false);
+  });
+
+  // ADR-0138 Bundle 8 — a genuine coordinator conflict propagates all the way to the returned
+  // action result, so `LiveMatchClient`'s `attemptSend` can move the command to NEEDS_REVIEW.
+  it("propagates a genuine conflict distinctly from a plain unavailability", async () => {
+    const realtime = fakeRealtime({
+      tryRecordEvent: vi.fn().mockResolvedValue({ result: null, conflict: { code: "PLAYER_ALREADY_OFF_FIELD", message: "Player is already off the field." } }),
+    });
+    const actions = createLeagueActions("match-1", realtime);
+
+    const result = await actions.recordEvent(RECORD_EVENT_INPUT);
+
+    expect(result).toEqual({
+      success: false,
+      error: "Player is already off the field.",
+      conflict: { code: "PLAYER_ALREADY_OFF_FIELD", message: "Player is already off the field." },
+    });
   });
 
   it("startSession connects realtime only after the HTTP session actually starts", async () => {
