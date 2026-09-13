@@ -183,8 +183,22 @@ type OrgFilter = Awaited<ReturnType<typeof requirePageActorContext>>["orgFilter"
 type PositionProfile = Awaited<ReturnType<typeof getEffectivePlayerPositionProfileForPlayer>>;
 /** The player row shape the page's own query returns (with core team + group). */
 type PlayerRecord = NonNullable<
-  Awaited<ReturnType<typeof db.player.findFirst<{ include: { coreTeam: { include: { group: { select: { id: true; name: true; slug: true } } } } } }>>>
+  Awaited<ReturnType<typeof db.player.findFirst<{ include: { coreTeam: { include: { group: { select: { id: true, name: true, slug: true } } } } } }>>>
 >;
+
+/**
+ * Each tab component is rendered by React as its own async Server Component — it does NOT run
+ * inside the page component's continuation, so the tenant ALS context the page sets does not
+ * flow into it (AGENTS.md's `setTenantOrganisationId()` propagation rule; the exact failure
+ * this guards against is the fail-closed `TenantContextError` on the tab's own direct queries).
+ * Each tab therefore re-establishes tenant scope from the page's already-trusted resolved org
+ * id before its first query — the same per-entry-point discipline every server action follows.
+ */
+function establishTabTenantContext(orgFilter: OrgFilter) {
+  if (orgFilter.type === "org") {
+    setTenantOrganisationId(orgFilter.organisationId);
+  }
+}
 
 async function OverviewTab({
   playerId,
@@ -197,6 +211,7 @@ async function OverviewTab({
   orgFilter: OrgFilter;
   profile: PositionProfile;
 }) {
+  establishTabTenantContext(orgFilter);
   const [seasonStats, recentOpportunity, matchHistory, developmentThreads, latestObservationRow] = await Promise.all([
     getPlayerAllTimeStats(playerId),
     getPlayerRecentOpportunity(playerId),
@@ -284,6 +299,7 @@ async function MatchesTab({
   orgSlug: string;
   orgFilter: OrgFilter;
 }) {
+  establishTabTenantContext(orgFilter);
   const [seasonStats, matchHistory] = await Promise.all([
     getPlayerAllTimeStats(playerId),
     getPlayerMatchHistory(playerId, orgFilter),
@@ -308,6 +324,7 @@ async function DevelopmentTab({
   playerId: string;
   orgFilter: OrgFilter;
 }) {
+  establishTabTenantContext(orgFilter);
   const threads = await db.developmentThread.findMany({
     where: { playerId, ...orgFilter.filter },
     select: {
@@ -412,6 +429,7 @@ async function EvidenceTab({
   orgFilter: OrgFilter;
   profile: PositionProfile;
 }) {
+  establishTabTenantContext(orgFilter);
   const [seasonStats, recentOpportunity, matchHistory] = await Promise.all([
     getPlayerAllTimeStats(playerId),
     getPlayerRecentOpportunity(playerId),
@@ -472,6 +490,7 @@ async function ManageTab({
   orgFilter: OrgFilter;
   updateFieldAction: typeof updatePlayerFieldAction;
 }) {
+  establishTabTenantContext(orgFilter);
   const [teams, rotationPaths, movementCandidates, readinessSignals, outfieldRoleSuitability, developmentThreads] =
     await Promise.all([
       db.team.findMany({

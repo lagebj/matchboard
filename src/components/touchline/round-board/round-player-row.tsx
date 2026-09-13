@@ -35,7 +35,14 @@ export function RoundPlayerRow({ player, selected, onSelect, draggable, onDragSt
       <span className="shrink-0 rounded-full border border-[var(--border-soft)] px-2 py-0.5 text-[10px] text-[var(--text-muted)]">
         {ROLE_LABEL[player.role]}
       </span>
-      {player.attention ? <span aria-label="Needs attention" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--warning)]" /> : null}
+      {player.attention ? (
+        <span title="Needs attention" className="shrink-0">
+          {/* Visually-hidden text, not aria-label — aria-label is prohibited on a span with no
+              role (axe `aria-prohibited-attr`, WCAG 4.1.2). */}
+          <span className="sr-only">Needs attention</span>
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--warning)]" />
+        </span>
+      ) : null}
     </button>
   );
 }
