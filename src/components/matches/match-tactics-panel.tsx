@@ -2,9 +2,9 @@
 
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
-import { PitchLineupView } from "@/components/formations/pitch-formation";
 import { PlayerPicker } from "@/components/formations/player-picker";
-import { TouchlineButton } from "@/components/touchline";
+import { TouchlineButton, TouchlinePlanningPitch } from "@/components/touchline";
+import { buildPlanningPitchSlots, buildPlanningPitchAssignments } from "@/components/matches/match-tactics-pitch-adapter";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -17,6 +17,7 @@ import { Copy } from "lucide-react";
 import { TouchlineInspector } from "@/components/touchline/workbench/touchline-inspector";
 import { PositionFitList } from "@/components/touchline/workbench/position-fit-list";
 import { computePlayerPositionFitEntries } from "@/domain/positions/position-fit-entries";
+import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 
 type LineupData = {
   id: string;
@@ -94,6 +95,10 @@ export function MatchTacticsPanel({
    * already opens the assignment picker -- a purely additive read of already-passed data, not a
    * new interaction. Persists after the picker closes so the inspector stays visible. */
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  /** Atlas Follow-up (05_SHIRT_IDENTITY_AND_TEAM_KIT_COLOR.md): resolved kit-colour hex for
+   * `PitchShirtToken`s on the canonical planning pitch. Reuses the existing
+   * `fetchTeamConfiguration()` action (Team Settings) rather than a new query. */
+  const [teamKitColor, setTeamKitColor] = useState<string | null>(null);
 
   /** Eligible players for tactical selection — absent/no-show players are excluded.
    * The tactics board answers "Who is currently eligible to play?", not "Who belongs to this
@@ -133,6 +138,10 @@ export function MatchTacticsPanel({
         setError(null);
         const { getSuggestFormationData } = await import("@/app/(app)/matches/suggest-actions");
         const { getMatchLineup } = await import("@/app/(app)/matches/lineup-actions");
+        const { fetchTeamConfiguration } = await import("@/domain/team-configuration/actions");
+        fetchTeamConfiguration(teamId)
+          .then((config) => setTeamKitColor(resolveKitColorSwatch(config?.kitColor ?? null)?.hex ?? null))
+          .catch(() => setTeamKitColor(null));
         const data = await getSuggestFormationData(matchId);
         setFormations(
           data.formations.map((f) => ({
@@ -287,6 +296,13 @@ export function MatchTacticsPanel({
     acceptedPositionIds: (s.acceptedPositionIds ?? []) as BroadPosition[],
     sortOrder: s.sortOrder,
   }));
+
+  // Atlas Follow-up (Phase F7 production pitch migration,
+  // `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`): adapts the existing `FormationSlot`/
+  // `MatchLineupAssignment` data (unchanged, canonical) into `TouchlinePlanningPitch`'s
+  // presentation shape via the pure, independently unit-tested `match-tactics-pitch-adapter.ts`.
+  const planningSlots = buildPlanningPitchSlots(slots);
+  const planningAssignments = buildPlanningPitchAssignments(lineup?.assignments ?? [], playerPool, teamKitColor, selectedPlayerId);
 
   const handleSlotClick = useCallback((assignmentId: string | null, slotId: string, _playerId: string | null) => {
     if (!lineup || lineup.status === "CONFIRMED") return;
@@ -629,21 +645,21 @@ export function MatchTacticsPanel({
           <Surface padding="md">
             <SectionHeader title="Pitch" eyebrow={lineup.formation?.name ?? "Formation"} />
             <div className="mt-3">
-              <PitchLineupView
-                gameFormat={gameFormat}
-                slots={slots}
-                assignments={lineup.assignments.map((a) => ({
-                  id: a.id,
-                  slotId: a.slotId,
-                  playerId: a.playerId,
-                  locked: a.locked,
-                  source: a.source,
-                }))}
-                players={playerPool}
-                onSlotClick={handleSlotClick}
-                onSlotView={handleSlotView}
+              <TouchlinePlanningPitch
+                slots={planningSlots}
+                assignments={planningAssignments}
+                onSlotClick={
+                  isConfirmed
+                    ? undefined
+                    : (slotId) => {
+                        const assignment = lineup?.assignments.find((a) => a.slotId === slotId) ?? null;
+                        handleSlotClick(assignment?.id ?? null, slotId, assignment?.playerId ?? null);
+                      }
+                }
+                onSlotView={(slotId, assignment) => {
+                  handleSlotView(null, slotId, assignment?.playerId ?? null);
+                }}
                 readOnly={isConfirmed}
-                orientation="horizontal"
               />
             </div>
             {!isConfirmed && (

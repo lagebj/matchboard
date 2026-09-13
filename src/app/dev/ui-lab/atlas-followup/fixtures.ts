@@ -26,16 +26,16 @@ export const planningPitchSlots: PlanningPitchSlot[] = [
 ];
 
 export const planningPitchAssignments: PlanningPitchAssignment[] = [
-  { slotId: "gk", name: "Kristian", number: 1, kitColor: null },
-  { slotId: "lb", name: "Marius", number: 3, kitColor: RED_KIT },
-  { slotId: "cb1", name: "Lars", number: 5, kitColor: RED_KIT },
-  { slotId: "cb2", name: "Jonas", number: 4, kitColor: RED_KIT },
-  { slotId: "rb", name: "David", number: 2, kitColor: RED_KIT },
-  { slotId: "cm1", name: "Elias", number: 8, kitColor: RED_KIT },
-  { slotId: "cm2", name: "Emil", number: 6, kitColor: RED_KIT, selected: true },
-  { slotId: "cm3", name: "Sander", number: 10, kitColor: RED_KIT, locked: true },
-  { slotId: "lw", name: "Oliver", number: 11, kitColor: RED_KIT },
-  { slotId: "st", name: "Henrik", number: 9, kitColor: RED_KIT, status: "attention" },
+  { slotId: "gk", playerId: "kristian", name: "Kristian", number: 1, kitColor: null },
+  { slotId: "lb", playerId: "marius", name: "Marius", number: 3, kitColor: RED_KIT },
+  { slotId: "cb1", playerId: "lars", name: "Lars", number: 5, kitColor: RED_KIT },
+  { slotId: "cb2", playerId: "jonas", name: "Jonas", number: 4, kitColor: RED_KIT },
+  { slotId: "rb", playerId: "david", name: "David", number: 2, kitColor: RED_KIT },
+  { slotId: "cm1", playerId: "elias", name: "Elias", number: 8, kitColor: RED_KIT },
+  { slotId: "cm2", playerId: "emil", name: "Emil", number: 6, kitColor: RED_KIT, selected: true },
+  { slotId: "cm3", playerId: "sander", name: "Sander", number: 10, kitColor: RED_KIT, locked: true },
+  { slotId: "lw", playerId: "oliver", name: "Oliver", number: 11, kitColor: RED_KIT },
+  { slotId: "st", playerId: "henrik", name: "Henrik", number: 9, kitColor: RED_KIT, status: "attention" },
   // "rw" intentionally left unassigned to exercise the empty-slot state.
 ];
 
