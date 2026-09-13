@@ -17,7 +17,7 @@ import type { EligibleEventMatchPlayer } from '@/lib/events/event-match-eligibil
 
 import type { FormationSlotRoleType, BroadPosition, FormationSlotData } from '@/lib/formations/types';
 import { ROLE_TYPE_LABELS } from '@/lib/formations/types';
-import { PitchLineupView } from '@/components/formations/pitch-formation';
+import { TouchlinePlanningPitch, buildPlanningPitchSlotsFromFormationSlots, buildPlanningPitchAssignments } from '@/components/touchline';
 import { PlayerPicker } from '@/components/formations/player-picker';
 import { Surface } from '@/components/ui/surface';
 import { cn } from '@/lib/cn';
@@ -306,6 +306,18 @@ export function EventMatchLineupPanel({
     }));
   }, [eligiblePlayers]);
 
+  // Atlas Follow-up (Phase F7 production pitch migration,
+  // `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`): adapts `pitchSlots`/`pitchAssignments`/
+  // `pitchPlayers` above (unchanged) into `TouchlinePlanningPitch`'s presentation shape via the
+  // shared projection helpers also used by the match Lineup/Tactics tab. Event squads have no
+  // kit-colour concept, so `teamKitColor` is always `null` (the neutral shirt), and there is no
+  // "selected player" inspector here, so `selectedPlayerId` is always `null`.
+  const planningSlots = useMemo(() => buildPlanningPitchSlotsFromFormationSlots(pitchSlots), [pitchSlots]);
+  const planningAssignments = useMemo(
+    () => buildPlanningPitchAssignments(pitchAssignments, pitchPlayers, null, null),
+    [pitchAssignments, pitchPlayers],
+  );
+
   const lineupRating = useMemo(() => {
     if (!lineup || !lineup.formation) return null;
     const assignedIds = new Set(
@@ -454,14 +466,14 @@ export function EventMatchLineupPanel({
         </div>
 
         {pitchSlots.length > 0 ? (
-          <PitchLineupView
-            gameFormat={gameFormat}
-            slots={pitchSlots}
-            assignments={pitchAssignments}
-            players={pitchPlayers}
-            onSlotClick={handleSlotClick}
+          <TouchlinePlanningPitch
+            slots={planningSlots}
+            assignments={planningAssignments}
+            onSlotClick={(slotId) => {
+              const assignment = lineup?.assignments.find((a) => a.slotId === slotId) ?? null;
+              handleSlotClick(assignment?.id ?? null, slotId, assignment?.playerId ?? assignment?.guestPlayerId ?? null);
+            }}
             readOnly={readOnly}
-            orientation="horizontal"
           />
         ) : (
           <p className="text-xs text-[var(--text-muted)]">
