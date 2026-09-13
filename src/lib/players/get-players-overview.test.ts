@@ -10,6 +10,7 @@ import {
 import {
   getPlayersSeasonOverview,
   getPlayersCurrentRoundAttention,
+  getPlayersDevelopmentOverview,
 } from "./get-players-overview";
 import { normalizeOpponentName, cleanOpponentDisplayName } from "@/lib/opponents/opponent-team";
 
@@ -301,5 +302,94 @@ describe("getPlayersCurrentRoundAttention", () => {
     expect(playerRow!.integrityState).toBe("COVERED");
     expect(playerRow!.currentAssignment).not.toBeNull();
     expect(playerRow!.currentAssignment!.role).toBe("CORE");
+  });
+});
+
+describe("getPlayersDevelopmentOverview", () => {
+  beforeAll(async () => {
+    db = await setupTestDb();
+    fixture = await seedTestFixture(db);
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  it("returns a row for every active player", async () => {
+    const result = await getPlayersDevelopmentOverview();
+    expect(result.length).toBe(fixture.players.length);
+  });
+
+  it("leaves activeDevelopmentFocus and focusStartedAt null when no active thread exists", async () => {
+    const result = await getPlayersDevelopmentOverview();
+    const row = result.find((r) => r.playerId === fixture.players[0].id);
+    expect(row?.activeDevelopmentFocus).toBeNull();
+    expect(row?.focusStartedAt).toBeNull();
+  });
+
+  it("surfaces a real active development thread's focus and start date", async () => {
+    const player = fixture.players[1];
+    const startedAt = new Date("2026-08-01T00:00:00.000Z");
+    await db.developmentThread.create({
+      data: {
+        organisationId: fixture.organisationId,
+        playerId: player.id,
+        focus: "First-touch under pressure",
+        status: "ACTIVE",
+        startedAt,
+      },
+    });
+
+    const result = await getPlayersDevelopmentOverview();
+    const row = result.find((r) => r.playerId === player.id);
+
+    expect(row?.activeDevelopmentFocus).toBe("First-touch under pressure");
+    expect(row?.focusStartedAt?.toISOString()).toBe(startedAt.toISOString());
+  });
+
+  it("ignores a COMPLETED thread — only ACTIVE threads count", async () => {
+    const player = fixture.players[2];
+    await db.developmentThread.create({
+      data: {
+        organisationId: fixture.organisationId,
+        playerId: player.id,
+        focus: "Old, finished focus",
+        status: "COMPLETED",
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        completedAt: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    });
+
+    const result = await getPlayersDevelopmentOverview();
+    const row = result.find((r) => r.playerId === player.id);
+
+    expect(row?.activeDevelopmentFocus).toBeNull();
+  });
+
+  it("picks the most recently started thread when a player has more than one active thread", async () => {
+    const player = fixture.players[3];
+    await db.developmentThread.create({
+      data: {
+        organisationId: fixture.organisationId,
+        playerId: player.id,
+        focus: "Older active focus",
+        status: "ACTIVE",
+        startedAt: new Date("2026-06-01T00:00:00.000Z"),
+      },
+    });
+    await db.developmentThread.create({
+      data: {
+        organisationId: fixture.organisationId,
+        playerId: player.id,
+        focus: "Newer active focus",
+        status: "ACTIVE",
+        startedAt: new Date("2026-08-15T00:00:00.000Z"),
+      },
+    });
+
+    const result = await getPlayersDevelopmentOverview();
+    const row = result.find((r) => r.playerId === player.id);
+
+    expect(row?.activeDevelopmentFocus).toBe("Newer active focus");
   });
 });

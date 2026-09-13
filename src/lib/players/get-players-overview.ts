@@ -1002,3 +1002,65 @@ export async function getPlayersCurrentRoundAttention(
 
   return rows;
 }
+
+// --- Development overview aggregation ---
+
+/**
+ * Players "Development" mode (Atlas Follow-up, `03_PLAYER_OVERVIEW_CONTRACT.md §6`). Reuses the
+ * existing `DevelopmentThread` model — never a second "active focus" concept — batch-queried
+ * (one `findMany`, aggregated in memory), matching this file's own established pattern rather
+ * than N+1 per-player queries.
+ *
+ * Deliberately scoped: `latestObservationSummary` and `effectivePositionSummary` are always
+ * `null` for now. Wiring them requires per-player evidence aggregation
+ * (`PlayerDevelopmentObservation` latest note, `computeEffectivePlayerPositionProfile()`'s
+ * position evidence) that is a meaningfully larger, separately-reviewable piece of work — see
+ * the Players Overview production migration PR for the disclosed scope decision. Per this
+ * bundle's own "No invented data" rule (`00_AUTHORITY_AND_EXECUTION_CONTRACT.md §4`): omit
+ * unsupported content cleanly, never fabricate it. `decisionReviewState` is likewise `null` for
+ * now — `DecisionReview` targets `DevelopmentThread`/`TeamFocus` by `targetId`, not `playerId`
+ * directly, so resolving "the" review state for a player needs the same kind of join this
+ * deferral already covers.
+ */
+export type PlayerDevelopmentOverviewRow = {
+  playerId: string;
+  displayName: string;
+  coreTeam: { id: string; name: string } | null;
+  activeDevelopmentFocus: string | null;
+  focusStartedAt: Date | null;
+};
+
+export async function getPlayersDevelopmentOverview(orgFilter?: OrgFilterMode): Promise<PlayerDevelopmentOverviewRow[]> {
+  const orgWhere = orgFilter && orgFilter.type === 'org' ? orgFilter.filter : {};
+
+  const players = await db.player.findMany({
+    where: { active: true, removedAt: null, ...orgWhere },
+    include: { coreTeam: { select: { id: true, name: true } } },
+    orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
+  });
+
+  const activeThreads = await db.developmentThread.findMany({
+    where: { status: "ACTIVE", ...orgWhere },
+    select: { playerId: true, focus: true, startedAt: true },
+    orderBy: { startedAt: "desc" },
+  });
+
+  // Most recently started active thread per player, when a player has more than one.
+  const focusByPlayer = new Map<string, { focus: string; startedAt: Date }>();
+  for (const thread of activeThreads) {
+    if (!focusByPlayer.has(thread.playerId)) {
+      focusByPlayer.set(thread.playerId, { focus: thread.focus, startedAt: thread.startedAt });
+    }
+  }
+
+  return players.map((player) => {
+    const active = focusByPlayer.get(player.id);
+    return {
+      playerId: player.id,
+      displayName: `${player.firstName}${player.lastName ? ` ${player.lastName}` : ""}`,
+      coreTeam: player.coreTeam ? { id: player.coreTeam.id, name: player.coreTeam.name } : null,
+      activeDevelopmentFocus: active?.focus ?? null,
+      focusStartedAt: active?.startedAt ?? null,
+    };
+  });
+}

@@ -3128,7 +3128,7 @@ detail stays reachable on the detail page. This is adaptive composition of the s
 a second view.
 
 - Teams (`/teams`): dense table of teams with core player count, squad limits, support priority. Links to `/teams/new` for creation. Links to `/teams/[teamId]` for detail. Empty state: "No teams yet. Create a team." with direct link to `/teams/new`.
-- Players (`/players`): three-mode surface — Season overview (actual participation and recorded match statistics for a selected league season), Current round attention (canonical live plan-integrity state for a selected round), Manage base groups (stable core-team assignment and player registry administration). Links to `/players/new` for creation. Links to `/players/[playerId]` for full profile. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Add a player." with direct link to `/players/new`.
+- Players (`/players`): four-mode surface — Overview (actual participation and recorded match statistics for a selected league season, dense roster table + selected-player inspector composition), Current round (canonical live plan-integrity state for a selected round), Development (active coaching-work focus per player), Manage base groups (stable core-team assignment and player registry administration). See "Players page modes" below for the full account, including the recorded product decision (Atlas Follow-up Phase F8) that keeps Manage base groups as a fourth mode rather than dropping it. Links to `/players/new` for creation. Links to `/players/[playerId]` for full profile. When no teams exist: "Create a team first." with direct link to `/teams/new`. When teams exist but no players: "No players yet. Add a player." with direct link to `/players/new`.
 - Fixtures provides match creation and match registry. The `/matches/new` route creates matches assigned to match rounds based on date. Fixtures must not expose a separate fixture-list mental model through a competing `/matches` navigation destination.
 
 Create routes must work reliably. `/teams/new` must save all team fields (not just name and a few fields). `/players/new` must not silently disappear when teams exist. `/matches/new` must assign matches to match rounds based on date.
@@ -3137,21 +3137,74 @@ Round selection (`/rounds`) remains workflow-first. It uses cards, boards, panel
 
 ### Players page modes
 
-`/players` has three internal modes using accessible tabs or segmented navigation:
+**Migrated to the Touchline dense-roster-table + selected-player-inspector composition (Atlas
+Follow-up Phase F8, `03_PLAYER_OVERVIEW_CONTRACT.md`).** `/players` has four modes, navigated via
+`TabRail` href-mode (real URL-backed navigation — each mode switch is a genuine `<Link>`, not
+client-only state, so browser Back/Forward works and each mode's own server-side query only loads
+what that mode needs):
 
-1. **Season overview** (default) — factual player matrix with actual participation, recorded match statistics, and per-round assignments for a selected league season. Scoped to a visible `League season: {label}`. Statistics use reported or locked post-match data only. Draft selections and finalised unreported assignments do not count as played appearances. The Season overview does not render a summary-statistics panel, summary strip, or Movement paths overview. Factual columns, sorting and explicit filters replace automatic fairness judgement panels or badges.
+1. **Overview** (default; internal mode key `overview`, was "Season overview") — factual player
+   roster with actual participation, recorded match statistics, and current planning attention for
+   a selected league season. Scoped to a visible `League season: {label}`. Statistics use reported
+   or locked post-match data only. Draft selections and finalised unreported assignments do not
+   count as played appearances. Desktop: dense table (`PlayerRosterTable`, ~9/12 width) + a
+   selected-player inspector panel (`PlayerInspector`, ~3/12 width) that updates on row selection —
+   never a duplicate full profile, just a preview with a link to Player Detail. Mobile: compact
+   rows (`PlayerCompactRow`), tap opens Player Detail directly (no inspector on mobile — the
+   contract's own explicit rule). Does not render a summary-statistics panel, summary strip, or
+   Movement paths overview. Factual columns, sorting and explicit filters replace automatic
+   fairness judgement panels or badges.
 
-2. **Current round attention** — canonical live plan-integrity state for a selected round. Scoped to a visible `Round: {label}`. Uses `computeRoundPlanIntegrity` output only. Does not derive attention from season statistics, goals, assists, or historical movement counts.
+2. **Current round** (internal mode key `current-round`, was "Current round attention") —
+   canonical live plan-integrity state for a selected round. Scoped to a visible round selector.
+   Uses `computeRoundPlanIntegrity` output only (via the same `PlayerCurrentRoundAttentionRow`
+   query as before). Does not derive attention from season statistics, goals, assists, or
+   historical movement counts.
 
-3. **Manage base groups** — stable core-team assignment and player registry administration. This mode is for team belonging, not weekly match selection, seasonal fairness review, or reported participation analysis. Display: "Base groups define stable team belonging. Match selections and movement are planned in rounds."
+3. **Development** (internal mode key `development`, new) — a plain list of every active player's
+   current active development focus, one player per row, no ranking (contract's own explicit
+   rule — no score, no sort-by-anything implying comparison). Backed by a new, genuinely canonical
+   batch query, `getPlayersDevelopmentOverview()` (`src/lib/players/get-players-overview.ts`) —
+   one `findMany` over `DevelopmentThread` where `status = "ACTIVE"`, aggregated in memory per
+   player (most-recently-started thread wins when a player has more than one), matching this
+   file's own established batch-query pattern rather than N+1 per-player queries.
+   **Deliberately deferred, disclosed scope**: `latestObservationSummary` (per-player latest
+   `PlayerDevelopmentObservation` note), `effectivePositionSummary` (the richer
+   `computeEffectivePlayerPositionProfile()`-based position display), and `decisionReviewState`
+   (which needs a `DevelopmentThread`/`TeamFocus` → `DecisionReview` join, not a direct
+   `playerId` field) are all `null` for every row today — omitted cleanly rather than fabricated,
+   per `00_AUTHORITY_AND_EXECUTION_CONTRACT.md §4`. Wiring these, and the shared DB-bound
+   "compute a display-ready effective position profile for one player" wrapper Player Detail's
+   own position card will also need, is separately-scoped follow-up work.
 
-Season overview required columns (desktop): Player, Core team, Played, Goals, Assists, Core, Support, Development, Matchday additions, Planned absent.
+4. **Manage base groups** (internal mode key `groups`, unchanged) — stable core-team assignment
+   and player registry administration (`ManageBaseGroupsView`, untouched by this migration). This
+   mode is for team belonging, not weekly match selection, seasonal fairness review, or reported
+   participation analysis. Display: "Base groups define stable team belonging. Match selections
+   and movement are planned in rounds." **Recorded product decision (Atlas Follow-up Phase F8)**:
+   the bundle's own written contract locks exactly three modes (Overview / Current round /
+   Development) and never addresses this pre-existing, org-wide, cross-team capability — the new
+   "Development" mode is a different concept (coaching-work overview) and does not replace it.
+   Rather than silently dropping a documented, load-bearing coach capability during production
+   migration, this was surfaced as an explicit decision and resolved: keep Manage base groups as
+   a fourth mode. (The bundle's own golden reference image for this page also happens to show four
+   tabs before the written contract's three-mode text overrode it down to three at Phase F5 — see
+   `docs/implementation/atlas-followup/gate-c-players-overview-conformance-sheet.md` — so a fourth
+   tab is not without some precedent here either.)
 
-Current round attention required columns (desktop): Player, Core team, Availability, Planned opportunity, Role, State, Action.
+Overview required columns (desktop): Player (shirt mark + name), Core team, Position, Availability,
+Played, Goals, Assists, Core, Support, Development.
 
-Season overview default sort: Played ascending, then Core team ascending, then Player ascending.
+Current round required columns (desktop): Player, Core team, Availability, Current assignment,
+Attention.
 
-Current round attention default sort: Blocked first, then Decision required, then Covered, then Unconfirmed, then Not available, then Player name.
+Overview default order: as returned by `getPlayersSeasonOverview()` (no default sort/rank imposed
+by the new composition itself — an explicit column-sort control is a disclosed gap versus the
+prior implementation, not yet rebuilt on the new table).
+
+Current round default sort: Blocked first, then Decision required, then Covered, then
+Unconfirmed, then Not available, then Player name (`buildPlayersCurrentRoundViewModel()`'s
+`ATTENTION_ORDER`).
 
 Players overview rules:
 
@@ -3159,17 +3212,30 @@ Players overview rules:
 - Draft selections do not count as played appearances.
 - Finalised unreported assignments are upcoming, not played.
 - Core, Support, and Development counts represent actual played participation associated with planned roles.
+- "Current primary position" reads `Player.primaryPosition` directly — this field is kept
+  live-synced by the position evolution engine (`sync-effective-position.ts` writes it on every
+  automatic promotion, ADR-0139), so it already is the "current effective primary position" value
+  the contract asks for; it is not a stale declared-only fallback.
 - Matchday additions are factual load context, not warnings or fairness faults.
 - Planned absences are context preventing false interpretation of lower participation totals.
 - Actual additional appearances remain factual load context and must not create current attention states.
 - Goals and assists never drive fairness, plan integrity, or selection generation.
 - The overview must not calculate or show an overall fairness score, player ranking, or automatic judgement from seasonal statistics.
-- Seasonal review uses transparent facts (sorting and explicit filters), not hidden automatic player ratings.
+- "Opportunity this week" (Overview mode) reuses the exact same canonical signal Current round mode and Round Board already read (`computeRoundPlanIntegrity()`'s `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`) — never a second "missing opportunity" rule.
 - Any filter must identify the factual criterion being filtered.
-- Current round attention must reuse canonical live plan-integrity state only. It must not reconstruct plan-integrity rules inside Players UI components.
+- Current round must reuse canonical live plan-integrity state only. It must not reconstruct plan-integrity rules inside Players UI components.
 - Base-group management remains separate from weekly planning and seasonal review.
 - Use the `ux-webapp-design-craft` skill for all UX, visual design, and interaction decisions in this workflow.
 - Preserve privacy, parent-export, and external-payload boundaries. Coach-only review context must not be included in parent-facing exports or external AI payloads.
+
+Key files (Phase F8 production migration): `src/lib/touchline/presentation/players-overview-production-adapter.ts`
+(pure adapter: canonical query rows → the Phase F5 view-model row shapes — `buildPlayersOverviewRows()`,
+`buildPlayersOverviewInspectorData()`, `buildPlayersCurrentRoundRows()`, `buildPlayersDevelopmentRows()`),
+`src/lib/players/get-players-overview.ts` (`getPlayersDevelopmentOverview()`, new), and
+`src/components/players/players-page-client.tsx` (the production client, rewritten around
+`PlayerRosterTable`/`PlayerInspector`/`PlayerCompactRow`, `TabRail`). The pre-Touchline
+`season-overview-table.tsx`/`current-round-attention-table.tsx`/`players-mode-tabs.tsx` were
+removed — verified zero remaining consumers once this migration landed.
 
 Contradictory SeasonFlag logic:
 
@@ -3179,10 +3245,10 @@ Contradictory SeasonFlag logic:
 
 Players overview display rules:
 
-- /players Season overview is a factual player matrix and must not render a summary-statistics panel or Movement paths overview.
+- /players Overview mode is a factual player matrix and must not render a summary-statistics panel or Movement paths overview.
 - /players must not render automated fairness judgement badges. Factual metrics and explicit filters/sorts are allowed.
 - Visible phase labels are derived from startDate and endDate; stored names must not misstate visible time scope.
-- The default Season overview table must not show round columns (W18 2026 etc.), Last movement, Review, dropped count/status, or a separate Profile button column.
+- The default Overview table must not show round columns (W18 2026 etc.), Last movement, Review, dropped count/status, or a separate Profile button column.
 - Player name must be a focusable link to the full player profile.
 - User-facing vocabulary uses League season (not Phase or Planning period) for the bounded spring/autumn operational window.
 - User-facing vocabulary uses Season for the broad football-year context.

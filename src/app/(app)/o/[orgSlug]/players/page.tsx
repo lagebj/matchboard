@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
-import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention } from "@/lib/players/get-players-overview";
+import { getPlayersSeasonOverview, getPlayersCurrentRoundAttention, getPlayersDevelopmentOverview } from "@/lib/players/get-players-overview";
 import type { PlayerSeasonOverviewRow } from "@/lib/players/get-players-overview";
 import { PlayersPageClient } from "@/components/players/players-page-client";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
@@ -34,7 +34,7 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
   const [players, removedPlayerCount, teams, leagueSeasons, matchRounds] = await Promise.all([
     db.player.findMany({
       where: playerFilter,
-      include: { coreTeam: { select: { id: true, name: true } } },
+      include: { coreTeam: { select: { id: true, name: true, kitColor: true } } },
       orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
     }),
     db.player.count({ where: { removedAt: { not: null }, ...orgWhere } }),
@@ -67,6 +67,8 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
     ? await getPlayersCurrentRoundAttention(selectedRoundId, ctx.orgFilter)
     : [];
 
+  const developmentRows = await getPlayersDevelopmentOverview(ctx.orgFilter);
+
   const playerRatings = new Map<string, RatingSummary>();
   for (const p of players) {
     playerRatings.set(p.id, getPlayerOverallRating({
@@ -92,9 +94,11 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
         firstName: p.firstName,
         lastName: p.lastName,
         coreTeamId: p.coreTeamId,
-        coreTeam: p.coreTeam,
+        coreTeam: p.coreTeam ? { id: p.coreTeam.id, name: p.coreTeam.name } : null,
+        coreTeamKitColor: p.coreTeam?.kitColor ?? null,
         primaryPosition: p.primaryPosition,
         currentAvailability: p.currentAvailability,
+        shirtNumber: p.shirtNumber,
         nonRotatable: p.nonRotatable,
         reducedMatchLoadAllowed: p.reducedMatchLoadAllowed,
         overallRating: playerRatings.get(p.id)!,
@@ -105,6 +109,7 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
       matchRounds={matchRounds}
       seasonRows={seasonData.seasonRows}
       currentRoundRows={currentRoundRows}
+      developmentRows={developmentRows}
       selectedPeriodId={selectedPeriodId}
       selectedRoundId={selectedRoundId}
       includeRemoved={includeRemoved}
