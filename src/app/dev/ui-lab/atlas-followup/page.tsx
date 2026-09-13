@@ -13,7 +13,7 @@ const ROUTES: { href: string; title: string; note: string; ready: boolean }[] = 
   { href: "/dev/ui-lab/atlas-followup/position-map", title: "Player Detail position map", note: "Phase F2 — Hard Gate A", ready: true },
   { href: "/dev/ui-lab/atlas-followup/player-detail", title: "Player Detail (Overview/Matches/Development/Evidence)", note: "Phase F4 — Gate B", ready: true },
   { href: "/dev/ui-lab/atlas-followup/players-overview", title: "Player Overview", note: "Phase F5 — Gate C", ready: true },
-  { href: "/dev/ui-lab/atlas-followup/round-board", title: "Round Board", note: "Phase F6 — Gate D", ready: false },
+  { href: "/dev/ui-lab/atlas-followup/round-board", title: "Round Board", note: "Phase F6 — Gate D", ready: true },
 ];
 
 export default function AtlasFollowupIndexPage() {

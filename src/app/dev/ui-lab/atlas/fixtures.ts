@@ -19,7 +19,7 @@ import { buildOpponentsViewModel, type OpponentsViewModelInput } from "@/lib/tou
 import { buildOpponentDetailViewModel, type OpponentDetailViewModelInput } from "@/lib/touchline/presentation/opponent-detail-view-model";
 import { buildTeamsOverviewViewModel, buildTeamDetailViewModel, type TeamOverviewRowInput, type TeamDetailViewModelInput } from "@/lib/touchline/presentation/team-view-model";
 import { buildSeasonViewModel, type SeasonViewModelInput } from "@/lib/touchline/presentation/season-view-model";
-import { buildRoundBoardViewModel, type RoundBoardViewModelInput } from "@/lib/touchline/presentation/round-board-view-model";
+import { buildRoundBoardSummaryStripViewModel, type RoundBoardSummaryStripViewModelInput } from "@/lib/touchline/presentation/round-board-view-model";
 import { buildReviewsViewModel, type ReviewRowInput } from "@/lib/touchline/presentation/review-view-model";
 
 export const ATLAS_ORG_CONTEXT = "Slemmestad IF · G2015 · Autumn 2026";
@@ -291,7 +291,7 @@ const seasonInput: SeasonViewModelInput = {
 export const seasonViewModel = buildSeasonViewModel(seasonInput);
 
 /* --- Round Board ------------------------------------------------------ */
-const roundBoardInput: RoundBoardViewModelInput = {
+const roundBoardInput: RoundBoardSummaryStripViewModelInput = {
   roundLabel: "W37 · Autumn 2026",
   columns: [
     { matchId: "m1", title: "Rød · vs Graabein", playerCount: 8 },
@@ -300,7 +300,7 @@ const roundBoardInput: RoundBoardViewModelInput = {
   ],
   blockerCount: 0, decisionRequiredCount: 2,
 };
-export const roundBoardViewModel = buildRoundBoardViewModel(roundBoardInput);
+export const roundBoardViewModel = buildRoundBoardSummaryStripViewModel(roundBoardInput);
 export const roundBoardPlayers = {
   m1: [{ name: "Noah", code: "LW" }, { name: "Emil", code: "CM" }, { name: "Elias", code: "RB" }, { name: "Henrik", code: "ST" }, { name: "Sander", code: "GK" }],
   m2: [{ name: "Marius", code: "LM" }, { name: "Oliver", code: "CB" }, { name: "Jonas", code: "RB" }],
