@@ -68,6 +68,13 @@ export interface CanonicalLiveEvent {
   /** Diagnostic-only local capture wall-clock time from the originating device (ms epoch).
    * Never an ordering authority (ADR-0138 D07). */
   capturedAtClientMs?: number | null;
+  /** For a `POSITIONS_CHANGED` event only: the confirmed real payload shape is one event per
+   * moved player — `playerId` (already a top-level field above) identifies who moved, and this
+   * carries where from/to. Null/absent for every other event type. Bundle 5 (ADR-0138) adds
+   * this narrow, typed field rather than exposing the raw `payload` JSON blob on the wire —
+   * other event types' payloads (e.g. fair-play free text) are not needed by any projection
+   * consumer and are deliberately not carried here. */
+  positionChange?: { fromPosition: string | null; toPosition: string } | null;
 }
 
 /** SPEC.md §25 — the full active-session snapshot sent on attach/reconnect. Fully specified

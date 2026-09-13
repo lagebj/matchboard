@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { verifyInternalRequest } from "@/lib/live-match/realtime/internal-auth";
 import type { InternalSnapshotResponse } from "@/lib/live-match/realtime/realtime-messages";
 import { runWithSystemPrivilege } from "@/lib/tenancy/tenant-async-storage";
+import { derivePositionChangeFromPayload } from "@/lib/live-match/live-match-domain";
+import { MATCH_PERIOD_ORDER, type MatchPeriod } from "@/lib/live-match/live-match-types";
 
 /**
  * Internal signed snapshot endpoint (SPEC.md §17, §23, Stage 4) — returns canonical session
@@ -63,6 +65,12 @@ export async function GET(request: Request) {
           sequence: true,
           correctionType: true,
           correctsEventId: true,
+          // ADR-0138 (Bundle 5) — previously never selected, so every reconnect/refresh
+          // snapshot silently lost `period`/`matchSeconds`/position data even for events that
+          // had it at recording time (ARR-0047's documented Follow Live positions gap).
+          period: true,
+          matchSeconds: true,
+          payload: true,
         },
       });
 
@@ -91,6 +99,9 @@ export async function GET(request: Request) {
       sequence: event.sequence,
       correctionType: event.correctionType as InternalSnapshotResponse["events"][number]["correctionType"],
       correctsEventId: event.correctsEventId,
+      period: (typeof event.period === "number" ? (MATCH_PERIOD_ORDER[event.period] as MatchPeriod | undefined) : undefined) ?? undefined,
+      matchSeconds: event.matchSeconds ?? undefined,
+      positionChange: derivePositionChangeFromPayload(event.eventType, event.payload),
     })),
     lastSequence,
   };

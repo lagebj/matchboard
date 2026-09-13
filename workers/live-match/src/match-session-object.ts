@@ -102,6 +102,7 @@ import {
   revisionFor,
   classifyDomain,
   isKnownLiveMatchEventType,
+  derivePositionChange,
   type SessionMeta,
   type AcceptedEventRecord,
 } from "./state";
@@ -340,6 +341,7 @@ export class MatchSessionObject extends DurableObject<Env> {
         sequence: event.version,
         correctionType: typeof event.eventFields?.correctionType === "string" ? event.eventFields.correctionType as CanonicalLiveEvent["correctionType"] : undefined,
         correctsEventId: typeof event.eventFields?.correctsEventId === "string" ? event.eventFields.correctsEventId : undefined,
+        positionChange: derivePositionChange(event.eventType, event.eventFields?.payload),
       }));
 
     const snapshot: MatchSessionSnapshot = {
@@ -494,6 +496,7 @@ export class MatchSessionObject extends DurableObject<Env> {
           correctionType: typeof eventFields.correctionType === "string" ? eventFields.correctionType as CanonicalLiveEvent["correctionType"] : undefined,
           correctsEventId: typeof eventFields.correctsEventId === "string" ? eventFields.correctsEventId : undefined,
           capturedAtClientMs: clientCapturedAtMs,
+          positionChange: derivePositionChange(String(eventType), eventFields.payload),
         };
         let persistenceStatus: RecordEventResult["persistenceStatus"] = "pending";
 

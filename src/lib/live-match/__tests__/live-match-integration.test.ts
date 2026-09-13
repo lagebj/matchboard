@@ -465,6 +465,32 @@ describe("recordEventForActor sequence persistence (ADR-0138, Bundle 2)", () => 
     expect(reversal.correctionType).toBe("REVERSAL");
     expect(reversal.correctsEventId).toBe(goal.id);
   });
+
+  // ADR-0138 (Bundle 5) regression test — before this bundle, `toCanonicalLiveEvent()` silently
+  // dropped `period`/`matchSeconds`/positions even though `input` (and the just-written DB row)
+  // already carried them. Since this endpoint's response becomes the live `applyEvent`
+  // broadcast in the normal (non-failure) persistence path, every successfully-persisted live
+  // event's `matchClock`/position data was missing at Follow Live, not merely wrong.
+  it("threads period, matchSeconds, and a POSITIONS_CHANGED payload through to the returned canonical event", async () => {
+    const canonical = await recordEventForActor(
+      {
+        matchId,
+        sessionId,
+        eventType: "POSITIONS_CHANGED",
+        clientEventId: "evt-seq-position-change",
+        playerId: fixture.players[0].id,
+        period: "SECOND_HALF",
+        matchSeconds: 90_000,
+        payload: { fromPosition: "CM", toPosition: "CB" },
+        sequence: 6,
+        acceptedAtMs: Date.now(),
+      },
+      { userId: "worker-relayed-user", organisationId: fixture.organisationId },
+    );
+    expect(canonical.period).toBe("SECOND_HALF");
+    expect(canonical.matchSeconds).toBe(90_000);
+    expect(canonical.positionChange).toEqual({ fromPosition: "CM", toPosition: "CB" });
+  });
 });
 
 describe("Live match domain validation", () => {

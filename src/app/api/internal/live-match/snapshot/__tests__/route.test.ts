@@ -103,6 +103,10 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
         sequence: 1,
         correctionType: null,
         correctsEventId: null,
+        // ADR-0138 (Bundle 5) — period/matchSeconds are absent from the mock rows (no `period`/
+        // `matchSeconds` field), so they serialize as absent (JSON.stringify drops `undefined`);
+        // positionChange is a real `null` for a non-POSITIONS_CHANGED event with no payload.
+        positionChange: null,
       },
       {
         id: "evt-b",
@@ -112,6 +116,7 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
         sequence: 2,
         correctionType: null,
         correctsEventId: null,
+        positionChange: null,
       },
     ]);
     expect(mockDb.liveMatchEvent.findMany).toHaveBeenCalledWith(
@@ -119,6 +124,39 @@ describe("GET /api/internal/live-match/snapshot (SPEC.md §17, §23, Stage 4)", 
       // ASC), createdAt/id as the deterministic tie-breaker for a sequence-less legacy row.
       expect.objectContaining({ orderBy: [{ sequence: "asc" }, { createdAt: "asc" }, { id: "asc" }] }),
     );
+  });
+
+  // ADR-0138 (Bundle 5) regression test — before this bundle, period/matchSeconds/payload were
+  // never selected from the DB at all here, so every reconnect/refresh snapshot silently lost
+  // this data even for events that had it at recording time (part of ARR-0047's documented
+  // Follow Live positions/matchClock gap).
+  it("threads period, matchSeconds, and a POSITIONS_CHANGED payload through to positionChange", async () => {
+    mockDb.liveMatchSession.findUnique.mockResolvedValue({ id: "session-1", matchId: "match-1", status: "ACTIVE" });
+    mockDb.liveMatchEvent.findMany.mockResolvedValue([
+      {
+        id: "evt-pos",
+        clientEventId: "client-pos",
+        eventType: "POSITIONS_CHANGED",
+        createdAt: new Date("2026-08-23T00:00:00.000Z"),
+        playerId: "p1",
+        sequence: 1,
+        correctionType: null,
+        correctsEventId: null,
+        period: 1, // FIRST_HALF's index in MATCH_PERIOD_ORDER
+        matchSeconds: 90_000,
+        payload: { fromPosition: "CM", toPosition: "CB" },
+      },
+    ]);
+
+    const { GET } = await import("../route");
+    const res = await GET(await signedGetRequest({ matchId: "match-1", sessionId: "session-1" }));
+    const json = await res.json();
+
+    expect(json.events[0]).toMatchObject({
+      period: "FIRST_HALF",
+      matchSeconds: 90_000,
+      positionChange: { fromPosition: "CM", toPosition: "CB" },
+    });
   });
 
   it("rejects an invalid signature", async () => {

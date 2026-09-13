@@ -376,11 +376,15 @@ export function deriveLineupState(acceptedEvents: readonly AcceptedEventRecord[]
   return { onFieldPlayerIds: onField, touchedPlayerIds: touched };
 }
 
-/** DECISIONS.md D10 lineup preconditions. `POSITIONS_CHANGED`'s payload shape is not yet
- * standardized at the protocol level (Bundle 5's projection work) — this checks the common
- * `{ assignments: Array<{ playerId: string }> }` shape defensively and never blocks on a payload
- * shape it doesn't recognize, since that would be a new, undocumented restriction rather than a
- * real precondition failure. */
+/** DECISIONS.md D10 lineup preconditions.
+ *
+ * `POSITIONS_CHANGED`'s real payload shape was confirmed during Bundle 5's projection work
+ * (`live-match-client.tsx`'s own `handlePositionChangeSelectRole`/`handleAssistSelect`-adjacent
+ * call sites and their component test): one event per moved player, `playerId` as the top-level
+ * actor and `{ fromPosition, toPosition }` on `payload` — never a batched
+ * `{ assignments: [...] }` array. The earlier defensive `assignments`-array check here was an
+ * unverified Bundle 3 assumption that never actually matched a real payload and so never fired;
+ * fixed to check the real shape now that it is confirmed. */
 export function evaluateLineupPrecondition(
   eventType: KnownLiveMatchEventType,
   eventFields: Record<string, unknown> | undefined,
@@ -401,21 +405,33 @@ export function evaluateLineupPrecondition(
     return { ok: true };
   }
   if (eventType === "POSITIONS_CHANGED") {
-    const assignments = eventFields?.assignments;
-    if (Array.isArray(assignments)) {
-      for (const assignment of assignments) {
-        const playerId =
-          assignment && typeof assignment === "object" && typeof (assignment as { playerId?: unknown }).playerId === "string"
-            ? (assignment as { playerId: string }).playerId
-            : undefined;
-        if (playerId && lineupState.touchedPlayerIds.has(playerId) && !lineupState.onFieldPlayerIds.has(playerId)) {
-          return { ok: false, conflictCode: "POSITION_ASSIGNMENT_CHANGED" };
-        }
-      }
+    const playerId = typeof eventFields?.playerId === "string" ? eventFields.playerId : undefined;
+    // A delayed position change for a player who has since been rotated off the field is stale
+    // — the device captured "move player X" while offline, but X was substituted off before
+    // this operation was finally applied. Mirrors ROTATION_OUT's own staleness check above.
+    if (playerId && lineupState.touchedPlayerIds.has(playerId) && !lineupState.onFieldPlayerIds.has(playerId)) {
+      return { ok: false, conflictCode: "POSITION_ASSIGNMENT_CHANGED" };
     }
     return { ok: true };
   }
   return { ok: true };
+}
+
+/** Bundle 5 (ADR-0138) — mirrors `src/lib/live-match/live-match-domain.ts`'s
+ * `derivePositionChangeFromPayload` exactly, duplicated locally per this module's own
+ * zero-Prisma/zero-main-app-runtime-dependency convention (see `PERIOD_ORDER` above for the
+ * established precedent) — the Worker imports only *types* from `src/lib`, never runtime code. */
+export function derivePositionChange(
+  eventType: string,
+  payload: unknown,
+): { fromPosition: string | null; toPosition: string } | null {
+  if (eventType !== "POSITIONS_CHANGED") return null;
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const toPosition = record.toPosition;
+  if (typeof toPosition !== "string" || toPosition.length === 0) return null;
+  const fromPosition = typeof record.fromPosition === "string" ? record.fromPosition : null;
+  return { fromPosition, toPosition };
 }
 
 /** Canonical period sequence (matches `src/lib/live-match/live-match-types.ts`'s

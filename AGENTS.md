@@ -4527,12 +4527,14 @@ DO answers via a hibernation-safe `setWebSocketAutoResponse`, and the client for
 after 3 missed pongs (only once a pong has ever been seen — backward-compatible with an old DO)
 (H6b). The DO's `SessionMeta.clockAnchor` is advanced on every accepted period-transition event
 (`advanceClockAnchor()`, `workers/live-match/src/state.ts`) so a reconnecting client / Follow-Live
-viewer gets a real clock from the snapshot (H6c). **Programme H1–H6 complete.** One documented
-residual: `CanonicalLiveEvent` carries no `correctsEventId` on the realtime wire, so a Follow-Live
-*viewer* can briefly show a reversed goal still in the score until the next full reconcile (the
-reporter and the persisted report are correct). See ADR-0133 for the full forensics.
+viewer gets a real clock from the snapshot (H6c). **Programme H1–H6 complete.** The residual this
+section originally documented here (`CanonicalLiveEvent` carrying no `correctsEventId` on the
+realtime wire, so Follow Live could briefly show a reversed goal) is superseded — the Canonical
+Live Operations programme below's Bundle 2 added `correctsEventId` to the wire type and Bundle 5
+fixed the projection's own reversal-resolution logic to use it; see ARR-0047 for the full account
+of what was actually still wrong here at the time. See ADR-0133 for the original H1-H6 forensics.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-4
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-5
 complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
 persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
 `baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
@@ -4641,15 +4643,49 @@ later. Fixed by also retrying the local outbox (`syncUnsyncedEvents`) from the s
 `onLiveUpdate` notification `useLiveRealtime` already fires the moment a connection completes,
 not only from `fetchEvents` (`live-match-client.tsx`) — see `PROGRAMME_STATE.md`'s Bundle 4
 evidence for the full CI forensics. Event's own separate residue (ARR-0046, zero coordinator
-involvement at all) remains untouched — explicitly Bundle 8's job, not this bundle's. Remaining
-bundles (authoritative projection, durable outbox, scoped PWA continuation, conflict UX/Event
-parity, observability/cutover) are tracked in
+involvement at all) remains untouched — explicitly Bundle 8's job, not this bundle's.
+
+**Bundle 5 (authoritative projection) is now implemented — ARR-0047 resolved in full.** One
+shared, pure reducer, `reduceLiveEvents()` (`src/lib/live-match/live-match-projection.ts`),
+replaces what were two independent implementations of "which goals/on-field players/positions are
+true": `projectCanonicalLiveState` (Follow Live) and `reconcileFromServerEvents`
+(`live-match-reconciliation.ts`, Live Reporting) are now both thin adapters over it, generic over
+either wire event shape (`CanonicalLiveEvent`/`LiveEventSummary`, which already shared the same
+relevant field names). Reversal/correction handling resolves the *targeted* event via
+`correctsEventId` — the confirmed ARR-0047 defect (the old logic added the reversal event's own
+id, so a reversed goal was never actually excluded) — and `mergeSnapshotWithRealtimeEvents` now
+orders by persisted `sequence` first, never `createdAt` string comparison, matching the internal
+snapshot route and the Worker's own `evaluateReconciliation`. A `positions` field
+(`LiveMatchProjectionState.positions.byPlayerId`) is now part of the shared projection output,
+reduced from `POSITIONS_CHANGED` events. Implementing this required closing a deeper,
+previously-unverified plumbing gap: neither `toCanonicalLiveEvent()` (the internal persist
+endpoint's response, which becomes the live `applyEvent` broadcast in the normal success path) nor
+the internal snapshot route ever selected/returned `period`/`matchSeconds`/`payload` from Neon at
+all, despite the columns being populated — so a live event's `matchClock`/position data was
+*missing* at Follow Live, not merely computed incorrectly, before this bundle. A latent
+`matchClock` unit-doubling bug (`canonicalEventToSummary` multiplied the already-millisecond
+`matchSeconds` by 1000 a second time) was fixed in the same change — fixing only the plumbing gap
+would have turned "missing" into "wildly wrong" the moment data started arriving. Bundle 3's own
+disclosed placeholder `POSITIONS_CHANGED` precondition payload shape (an unverified
+`{ assignments: [...] }` array) is corrected to the now-confirmed real shape: one event per moved
+player, `playerId` top-level with `{ fromPosition, toPosition }` on `payload`. The Live Reporting
+client's own position display (`getCurrentPosition`, `live-match-client.tsx`) now falls back to
+the shared reducer's reconciled positions underneath its existing optimistic
+`positionOverrides` state, so a position change survives a page reload rather than resetting to
+empty. `reconcileFromCanonicalEvents` — a second, never-wired-in attempt at the same reversal fix
+found dead during this bundle — is removed rather than left alongside a third implementation. A
+`diagnostics: string[]` field on the projection surfaces a replay anomaly (e.g. an unresolvable
+reversal target) without ever blocking or throwing. See ARR-0047 and PROGRAMME_STATE.md's Bundle 5
+evidence for the full account. Remaining bundles (durable outbox, scoped PWA continuation,
+conflict UX/Event parity, observability/cutover) are tracked in
 `.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |
 |------|---------|
 | `src/lib/live-match/live-match-types.ts` | Live match type definitions (clock state, events, sessions, periods, constants) |
-| `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels |
+| `src/lib/live-match/live-match-domain.ts` | Domain validation, event type classification, fair play labels, period labels, `derivePositionChangeFromPayload()` (ADR-0138 Bundle 5) |
+| `src/lib/live-match/live-match-projection.ts` | ADR-0138 Bundle 5: `reduceLiveEvents()` (the one shared score/on-field/positions reducer), `projectCanonicalLiveState()` (Follow Live), `mergeSnapshotWithRealtimeEvents()` (sequence-ordered merge), `canonicalEventToSummary()` |
+| `src/lib/live-match/live-match-reconciliation.ts` | `reconcileFromServerEvents()` — thin adapter over `reduceLiveEvents()`, used by Live Reporting (ADR-0112, ADR-0138 Bundle 5) |
 | `src/lib/live-match/live-match-session.ts` | Server functions: start, get, end, heartbeat live sessions; `persistLiveSessionClock()` — persisted match clock (ADR-0133 H2), forward-only |
 | `src/lib/live-match/session-clock.ts` | `MatchClockState` ↔ persisted `LiveMatchSession` clock columns; `isForwardClockTransition()` monotonic-period guard (ADR-0133 H2) |
 | `src/lib/live-match/live-match-event-store.ts` | Server functions: `recordEventForActor()` (actor-scoped core, SPEC.md §19), `recordEvent()` (browser wrapper), get events, get recent events, `estimateCurrentMatchOffsetMs()` (server-side match-time estimate in **ms**, prefers the persisted `LiveMatchSession` clock — ADR-0133 H2/H3) |

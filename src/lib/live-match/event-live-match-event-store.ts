@@ -5,6 +5,8 @@ import { requireActorContext } from "@/lib/auth/actor-context";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "@/generated/prisma/client";
 import type { LiveEventSummary } from "./live-match-types";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { derivePositionChangeFromPayload } from "./live-match-domain";
+import type { Prisma } from "@/generated/prisma/client";
 
 export interface EventLiveEventInput {
   eventMatchId: string;
@@ -110,6 +112,7 @@ function toSummary(event: {
   secondaryPlayerId: string | null;
   correctionType: LiveEventCorrectionType | null;
   correctsEventId: string | null;
+  payload?: Prisma.JsonValue | null;
 }): LiveEventSummary {
   return {
     id: event.id,
@@ -122,5 +125,6 @@ function toSummary(event: {
     isCorrected: event.correctionType === "CORRECTION",
     isReversed: event.correctionType === "REVERSAL",
     correctsEventId: event.correctsEventId ?? null,
+    positionChange: derivePositionChangeFromPayload(event.eventType, event.payload),
   };
 }
