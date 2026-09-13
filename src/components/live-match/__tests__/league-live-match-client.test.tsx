@@ -232,6 +232,7 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
       disconnect: vi.fn(),
       reconnectNow: vi.fn(),
       onLiveUpdate: vi.fn(() => () => {}),
+      onPersistenceChanged: vi.fn(() => () => {}),
       tryRecordEvent: vi.fn().mockResolvedValue(null),
       ...overrides,
     };
@@ -247,7 +248,9 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
 
-    expect(result).toEqual({ success: true, data: {} });
+    // ADR-0138 Bundle 6 — `persistenceStatus` now round-trips so the local outbox can tell
+    // "persisted" apart from "pending" (see `LiveMatchClient`'s `attemptSend`).
+    expect(result).toEqual({ success: true, data: { persistenceStatus: "persisted" } });
   });
 
   it("succeeds without an independent HTTP write when the coordinator accepted the event but persistence is still pending — its own outbox (Stage 6) owns durability, not a second writer", async () => {
@@ -256,7 +259,7 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
 
     const result = await actions.recordEvent(RECORD_EVENT_INPUT);
 
-    expect(result).toEqual({ success: true, data: {} });
+    expect(result).toEqual({ success: true, data: { persistenceStatus: "pending" } });
   });
 
   it("does not persist through an alternate ordering authority when the coordinator is unavailable (tryRecordEvent resolves null) — the command is left unsynchronized for local-outbox retry instead (ARR-0045)", async () => {

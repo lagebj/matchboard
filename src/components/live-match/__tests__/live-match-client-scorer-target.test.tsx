@@ -11,11 +11,14 @@ import { render, waitFor, screen, fireEvent, within } from "@testing-library/rea
  */
 
 vi.mock("@/lib/live-match/local/live-local-store", () => ({
-  saveEventLocally: vi.fn().mockResolvedValue(undefined),
-  markEventSynced: vi.fn().mockResolvedValue(undefined),
-  getUnsyncedEvents: vi.fn().mockResolvedValue([]),
-  getAllLocalEvents: vi.fn().mockResolvedValue([]),
-  clearLocalEvents: vi.fn().mockResolvedValue(undefined),
+  saveCommandLocally: vi.fn().mockResolvedValue(undefined),
+  updateCommandStatus: vi.fn().mockResolvedValue(undefined),
+  getNextLocalOrdinal: vi.fn().mockResolvedValue(1),
+  getAllCommands: vi.fn().mockResolvedValue([]),
+  getRetryableCommands: vi.fn().mockResolvedValue([]),
+  getUnresolvedCommands: vi.fn().mockResolvedValue([]),
+  recoverInterruptedSends: vi.fn().mockResolvedValue([]),
+  clearPersistedCommands: vi.fn().mockResolvedValue({ removed: 0, retainedUnresolved: 0 }),
   saveSessionLocally: vi.fn().mockResolvedValue(undefined),
   getLocalSession: vi.fn().mockResolvedValue(null),
   clearLocalSession: vi.fn().mockResolvedValue(undefined),

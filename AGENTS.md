@@ -4534,7 +4534,7 @@ Live Operations programme below's Bundle 2 added `correctsEventId` to the wire t
 fixed the projection's own reversal-resolution logic to use it; see ARR-0047 for the full account
 of what was actually still wrong here at the time. See ADR-0133 for the original H1-H6 forensics.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-5
+**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress — Bundles 1-6
 complete).** Evolves the ADR-0133 hardening above into a full delayed-concurrency architecture: a
 persisted per-session canonical `sequence` (never `createdAt`) replaces the current whole-state
 `baseVersion` conflict model; domain revisions (`clockRevision`/`lineupRevision`/
@@ -4676,8 +4676,55 @@ empty. `reconcileFromCanonicalEvents` — a second, never-wired-in attempt at th
 found dead during this bundle — is removed rather than left alongside a third implementation. A
 `diagnostics: string[]` field on the projection surfaces a replay anomaly (e.g. an unresolvable
 reversal target) without ever blocking or throwing. See ARR-0047 and PROGRAMME_STATE.md's Bundle 5
-evidence for the full account. Remaining bundles (durable outbox, scoped PWA continuation,
-conflict UX/Event parity, observability/cutover) are tracked in
+evidence for the full account.
+
+**Bundle 6 (durable browser outbox) is now implemented.** `LocalCommand`
+(`src/lib/live-match/local/live-local-store.ts`) replaces the pre-Bundle-6 boolean-`synced`
+`LocalEvent` schema with DECISIONS.md D13's six-state model (`LOCAL_PENDING`/`SENDING`/
+`ACCEPTED_PENDING_PERSISTENCE`/`PERSISTED`/`NEEDS_REVIEW`/`FAILED_TERMINAL`), keyed by explicit
+`subjectType`/`subjectId` (League `Match.id` / Event `EventMatch.id`) rather than an overloaded
+`matchId` field — `LiveMatchClientProps` gained a `subjectType` prop, `"LEAGUE"` by default,
+`EventLiveMatchClient` passes `"EVENT"` explicitly. Each command gets a per-subject monotonic
+`localOrdinal`, assigned atomically (a dedicated `counters` object store, O(1) per assignment)
+before the command is ever persisted — itself before any network attempt (D12's mandatory step
+order). A v1→v2 IndexedDB schema migration converts every existing local row (an irreplaceable
+coach-recorded action, never silently dropped) and drops the legacy session store's one row
+(pure re-derivable metadata — `LiveMatchClient`'s own mount effect re-saves it from
+`getPreMatchPackage()` on next load, so losing it is a non-event, unlike an event row). A
+`SENDING` row found on load (an interrupted send — browser crash, tab closed mid-request) is
+demoted back to `LOCAL_PENDING` before any retry pass runs (`recoverInterruptedSends`) — safe
+either way since `clientEventId` dedup already makes a genuine resend idempotent.
+`attemptSend()` (`live-match-client.tsx`) is the one place a command's outcome moves it between
+statuses, shared by a fresh recording and the retry loop, so first-attempt and retry-attempt
+outcomes can never diverge: a `"pending"` `persistenceStatus` (the coordinator accepted it,
+Neon durability not yet confirmed) moves a command to `ACCEPTED_PENDING_PERSISTENCE`, resolved
+later by a new `eventPersistenceChanged` subscription
+(`LiveMatchActions.onPersistenceChanged`, wired in `league-live-match-client.tsx` — this
+broadcast existed on the wire since Stage 6 but nothing on the browser side had ever subscribed
+to it before this bundle) to `PERSISTED`/`FAILED_TERMINAL`, or back to `LOCAL_PENDING` for
+`"failed_exhausted"` per that callback's own long-documented, previously-unimplemented intent.
+`"persisted"` or an absent `persistenceStatus` (Event, ARR-0046 — no coordinator at all) both
+mean immediately durable, matching Event's pre-existing behavior exactly.
+`overlayPendingCommands()`/`summarizePendingCommands()`
+(`src/lib/live-match/local/pending-overlay.ts`) are the extracted, now-independently-tested pure
+"pending overlay reducer" (work item 5) and D14 sync-indicator counts — a command is excluded
+from the display overlay only once `PERSISTED` (a real, disclosed improvement over the old
+`synced`-boolean cutoff, which excluded a command the instant its RPC succeeded regardless of
+persistence confirmation). `SyncStatusIndicator`'s copy now matches D14's exact wording
+(`"Offline — changes saved on this device"` / `"Syncing N changes"` / `"Needs review N"`); real
+`online`/`offline` browser-event wiring drives the indicator's offline state, closing a
+pre-existing gap where `"offline"` was a declared-but-never-produced status. `handleEndSession`
+now blocks only on genuinely in-flight commands (`LOCAL_PENDING`/`SENDING`/
+`ACCEPTED_PENDING_PERSISTENCE`) — a `NEEDS_REVIEW`/`FAILED_TERMINAL` command never blocks ending
+the session (it will never resolve by retrying; blocking forever would trap the coach) but does
+prevent the subsequent outbox cleanup (`clearPersistedCommands` only deletes `PERSISTED` rows),
+so its record is never silently discarded pending a future review surface (Bundle 8). A dead
+`recordEventToServer` field on `LiveMatchActions` (declared, never implemented by any adapter or
+called anywhere) was removed as unrelated residue found while editing this exact interface. Uses
+the new `fake-indexeddb` devDependency (test-only, zero production exposure) for real IndexedDB
+semantics — versionchange transactions, cursors, indexes — in plain Node tests, rather than
+mocking IndexedDB away entirely. Remaining bundles (scoped PWA continuation, conflict UX/Event
+parity, observability/cutover) are tracked in
 `.matchboard-work/canonical-live-operations/PROGRAMME_STATE.md` (gitignored working file).
 
 | File | Purpose |
@@ -4705,7 +4752,8 @@ conflict UX/Event parity, observability/cutover) are tracked in
 | `src/app/(app)/events/[eventId]/event-live-report-handoff.ts` | Server action adapter (ADR-0088): validates session/match/org consistency, then delegates to `endEventLiveSession()` and `seedEventReportFromLiveSession()` |
 | `src/lib/reports/event-report-mutations.ts` | Event report domain mutations: `seedEventReportFromLiveSession` (ADR-0088, Run->Learn handoff) and `completeEventReport` (ADR-0104/ARR-0030 resolution: DRAFT/REPORTED->LOCKED transition, opponent resolution, shared `runPostMatchLearning()`) |
 | `src/app/(app)/events/event-football-observation-actions.ts` | Server actions: save/get football observations for an Event match (mirrors the League post-match action file; mandatory for Event player-evidence parity, ADR-0104) |
-| `src/lib/live-match/local/live-local-store.ts` | IndexedDB local-first event persistence with sync status |
+| `src/lib/live-match/local/live-local-store.ts` | ADR-0138 Bundle 6: durable browser outbox — `LocalCommand` (six-state D13 status model, `subjectType`/`subjectId`-keyed, per-subject `localOrdinal`), schema v1→v2 migration from the boolean-`synced` schema, `saveCommandLocally`/`updateCommandStatus`/`getNextLocalOrdinal`/`getAllCommands`/`getRetryableCommands`/`getUnresolvedCommands`/`recoverInterruptedSends`/`clearPersistedCommands`/session CRUD |
+| `src/lib/live-match/local/pending-overlay.ts` | ADR-0138 Bundle 6: `summarizePendingCommands()` (D14 sync-indicator counts), `overlayPendingCommands()` (not-yet-`PERSISTED` local commands merged onto the canonical recent-events display list) |
 
 ### Live match realtime session files (live-match-realtime-programme, in progress)
 
