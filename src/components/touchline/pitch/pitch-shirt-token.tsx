@@ -114,19 +114,23 @@ export function PitchEmptySlot({
   onClick,
   compact = false,
   className,
+  ariaLabel,
 }: {
   role: string;
   editable?: boolean;
   onClick?: () => void;
   compact?: boolean;
   className?: string;
+  /** Overrides the default "Empty slot: {role}" phrasing — for a non-assignment use of the same
+   * dashed-circle visual, e.g. the Formations editor's "add a slot here" grid cell. */
+  ariaLabel?: string;
 }) {
   const Tag = onClick ? "button" : "div";
   const size = compact ? "h-9 w-9" : "h-11 w-11";
   return (
     <Tag
       {...(onClick ? { type: "button" as const, onClick } : {})}
-      aria-label={editable ? `Empty slot: ${role}. Assign a player.` : `Empty slot: ${role}`}
+      aria-label={ariaLabel ?? (editable ? `Empty slot: ${role}. Assign a player.` : `Empty slot: ${role}`)}
       className={cn(
         "flex flex-col items-center gap-1 text-center",
         editable && "cursor-pointer group",

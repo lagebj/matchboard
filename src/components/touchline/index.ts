@@ -73,7 +73,9 @@ export { TeamKitMark } from "./identity/team-kit-mark";
 export type { TeamKitMarkSize, TeamKitMarkProps } from "./identity/team-kit-mark";
 
 export { TouchlinePlanningPitch } from "./pitch/touchline-planning-pitch";
-export type { PlanningPitchSlot, PlanningPitchAssignment } from "./pitch/touchline-planning-pitch";
+export type { PlanningPitchSlot, PlanningPitchAssignment, PlanningPitchEditableGrid } from "./pitch/touchline-planning-pitch";
+export { buildPlanningPitchSlotsFromFormationSlots } from "./pitch/formation-slot-projection";
+export type { FormationSlotGridInput } from "./pitch/formation-slot-projection";
 export { TouchlinePositionMap } from "./pitch/touchline-position-map";
 export type { TouchlinePositionMapEntry } from "./pitch/touchline-position-map";
 export { PitchShirtToken, PitchEmptySlot as PitchShirtEmptySlot } from "./pitch/pitch-shirt-token";

@@ -1,6 +1,6 @@
 "use client";
 
-import { WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
+import { WIDTH_LANE_LABELS, DEPTH_LANE_LABELS, ROLE_TYPE_LABELS } from "@/lib/formations/types";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { deriveExactTargetRole } from "@/domain/positions/slot-target";
 import { cn } from "@/lib/cn";
@@ -26,67 +26,13 @@ type FormationSlotDisplay = {
   sortOrder: number;
 };
 
-type PitchFormationBuilderProps = {
-  gameFormat: string;
-  slots: FormationSlotDisplay[];
-  onAddSlot: (gridX: number, gridY: number) => void;
-  onEditSlot: (slotId: string) => void;
-  onRemoveSlot: (slotId: string) => void;
-  maxSlots: number;
-  readOnly?: boolean;
-  orientation?: "horizontal" | "vertical";
-  attackingDirection?: "left-to-right" | "right-to-left";
-};
-
-export function PitchFormationBuilder({
-  gameFormat,
-  slots,
-  onAddSlot,
-  onEditSlot,
-  onRemoveSlot: _onRemoveSlot,
-  maxSlots,
-  readOnly = false,
-  orientation = "vertical",
-  attackingDirection = "left-to-right",
-}: PitchFormationBuilderProps) {
-  const canAddMore = slots.length < maxSlots;
-
-  const boardSlots: TacticsBoardSlot[] = slots.map((s) => ({
-    id: s.id,
-    gridX: s.gridX,
-    gridY: s.gridY,
-    label: s.label,
-    shortLabel: s.shortLabel,
-    roleType: s.roleType,
-    acceptedPositionIds: s.acceptedPositionIds,
-    sortOrder: s.sortOrder,
-  }));
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-[var(--text-muted)]">
-          {slots.length} / {maxSlots} slots
-        </span>
-        <span className="text-[var(--text-muted)]">
-          {formatGameFormatShort(gameFormat)}
-        </span>
-      </div>
-
-      <TacticsBoard
-        mode="formation-builder"
-        orientation={orientation}
-        attackingDirection={attackingDirection}
-        size="wide"
-        slots={boardSlots}
-        canAddMore={canAddMore}
-        readOnly={readOnly}
-        onAddSlot={onAddSlot}
-        onEditSlot={onEditSlot}
-      />
-    </div>
-  );
-}
+// `PitchFormationBuilder` (the `TacticsBoard` mode="formation-builder" wrapper that used to live
+// here) was removed once its one production consumer, `formations-builder.tsx`, migrated to the
+// canonical `TouchlinePlanningPitch` (Atlas Follow-up Phase F7,
+// `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`) — it had zero remaining callers. `TacticsBoard`
+// itself, and its "formation-preview" mode still exercised by the pre-Atlas-Follow-up
+// `/dev/ui-lab/atlas/routes/formations` page, are left for Phase F10's broader "remove obsolete
+// implementations" sweep once every planning-pitch surface has migrated.
 
 type SlotEditDialogProps = {
   isOpen: boolean;

@@ -54,7 +54,7 @@ repository today:
 
 | Route / Component | Current renderer | Coordinate owner | Orientation passed | pitchStyle | Interaction | Target renderer | Migration status |
 |---|---|---|---|---|---|---|---|
-| Formations builder/editor (`/rules` → `formations-builder.tsx`, `FormationsBuilderClient`) | `TacticsBoard` mode `formation-builder`/`formation-preview` via `PitchFormationBuilder` | `board-projection.ts` grid cell → `%` | **explicit `"horizontal"`** (overrides the component's own `"vertical"` default) | flat (default) | click add/edit slot | `TouchlinePlanningPitch` | Not started |
+| Formations builder/editor (`/rules` → `formations-builder.tsx`, `FormationsBuilderClient`) | ~~`TacticsBoard` mode `formation-builder`/`formation-preview` via `PitchFormationBuilder`~~ now `TouchlinePlanningPitch` | ~~`board-projection.ts` grid cell → `%`~~ now shared `buildPlanningPitchSlotsFromFormationSlots()` | n/a (canonical renderer owns orientation) | n/a (canonical renderer owns perspective) | click existing slot to edit (`onSlotClick`); click any other grid cell to add (new `editableGrid` capability, additive to `TouchlinePlanningPitch`) | `TouchlinePlanningPitch` | **Done** (Phase F7) — `editableGrid` is a new, additive capability on the canonical renderer (every other caller omits it); `handleAddSlot`/`handleEditSlot`/`handleRemoveSlot` mutation logic unchanged |
 | Match detail → Tactics tab (`match-tactics-panel.tsx`, `MatchTacticsPanel`) | ~~`TacticsBoard` mode `lineup-assignment`/`lineup-readonly` via `PitchLineupView`~~ now `TouchlinePlanningPitch` | ~~same~~ now `gridToNormalizedPoint` via the pure `match-tactics-pitch-adapter.ts` | n/a (canonical renderer owns orientation) | n/a (canonical renderer owns perspective) | click-to-assign via `PlayerPicker` dialog, positional-fit inspector — unchanged | `TouchlinePlanningPitch` | **Done** (Phase F7) — `handleSlotClick`/`handleSlotView`/picker/suggestion mutation logic unchanged; team kit colour resolved via the existing `fetchTeamConfiguration()` action (Phase F1) |
 | Event match lineup panel (`event-match-lineup-panel.tsx`, `EventMatchLineupPanel`) | `TacticsBoard` mode `lineup-assignment` via `PitchLineupView` | same | **explicit `"horizontal"`** | flat (default) | click-to-assign, auto-fill | `TouchlinePlanningPitch` | Not started |
 | Event squad lineup board (`event-squad-lineup-board.tsx`, `EventSquadLineupBoard`) | `TacticsBoard` (mode not confirmed by name, wraps the same primitive) | same | prop defaults to `"horizontal"`; passed through from caller — no caller found overriding it | flat (default) | — | `TouchlinePlanningPitch` | Not started |
@@ -107,6 +107,14 @@ and green-dot-family tokens this bundle needs.
 1. `pitch-formation.tsx` (`PitchFormationBuilder`/`PitchLineupView`) — flip its *callers*
    (`formations-builder.tsx`, `match-tactics-panel.tsx`, `event-match-lineup-panel.tsx`) to stop
    overriding the already-correct `"vertical"` default, and add `pitchStyle="perspective"`.
+   **Correction (Phase F7 implementation)**: this "flip a flag on the existing `TacticsBoard`"
+   plan was superseded once F2 actually built `TouchlinePlanningPitch` as a genuine standalone
+   component (not a `TacticsBoard` prop mode) — F7 replaces the renderer entirely rather than
+   reconfiguring the old one. `match-tactics-panel.tsx` and `formations-builder.tsx` are done on
+   this basis; `formations-builder.tsx` additionally needed a new, additive `editableGrid`
+   capability on `TouchlinePlanningPitch` itself, since its "click any empty grid cell to add a
+   new slot" interaction has no equivalent in the Lineup/Tactics click-an-existing-slot model —
+   see the table above and `touchline-planning-pitch.tsx`'s own doc comment.
 2. `event-squad-lineup-board.tsx` — same treatment (flip its own default from `"horizontal"` to
    `"vertical"` once its caller(s) are confirmed to still pass nothing explicit).
 3. Player Detail position card — full replacement, not a flip: retire `PositionMap`/`PositionMap`'s

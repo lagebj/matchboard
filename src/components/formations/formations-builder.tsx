@@ -2,13 +2,13 @@
 
 import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PitchFormationBuilder, SlotEditDialog } from "@/components/formations/pitch-formation";
-import { GAME_FORMAT_PLAYERS, formatGameFormatShort, isValidGridX, isValidGridY } from "@/lib/formations/types";
+import { SlotEditDialog } from "@/components/formations/pitch-formation";
+import { GAME_FORMAT_PLAYERS, GRID_WIDTH, GRID_HEIGHT, formatGameFormatShort, isValidGridX, isValidGridY } from "@/lib/formations/types";
 import { suggestSlotDefaults } from "@/lib/formations/slot-defaults";
 import type { GameFormat } from "@/generated/prisma/client";
 import type { FormationSlotData, FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { Surface } from "@/components/ui/surface";
-import { TouchlineButton, TouchlinePageHeader } from "@/components/touchline";
+import { TouchlineButton, TouchlinePageHeader, TouchlinePlanningPitch, buildPlanningPitchSlotsFromFormationSlots } from "@/components/touchline";
 
 const GAME_FORMATS: GameFormat[] = ["THREE_A_SIDE", "FIVE_A_SIDE", "SEVEN_A_SIDE", "NINE_A_SIDE", "ELEVEN_A_SIDE"];
 
@@ -266,15 +266,32 @@ export function FormationsBuilderClient({
       </Surface>
 
       <Surface variant="default" padding="md">
-        <PitchFormationBuilder
-          gameFormat={selectedGameFormat}
-          slots={displaySlots}
-          onAddSlot={handleAddSlot}
-          onEditSlot={handleEditSlot}
-          onRemoveSlot={handleRemoveSlot}
-          maxSlots={maxSlots}
-          orientation="horizontal"
-        />
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[var(--text-muted)]">
+              {slots.length} / {maxSlots} slots
+            </span>
+            <span className="text-[var(--text-muted)]">
+              {formatGameFormatShort(selectedGameFormat)}
+            </span>
+          </div>
+          {/* Atlas Follow-up Phase F7 (production pitch migration,
+              `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`): the canonical planning pitch's
+              `editableGrid` renders every grid cell not already covered by `slots` as a
+              clickable "add a slot here" target — the Formations editor's one genuinely new
+              interaction beyond Lineup/Tactics' click-an-existing-slot model. */}
+          <TouchlinePlanningPitch
+            slots={buildPlanningPitchSlotsFromFormationSlots(displaySlots)}
+            assignments={[]}
+            onSlotClick={handleEditSlot}
+            editableGrid={{
+              width: GRID_WIDTH,
+              height: GRID_HEIGHT,
+              canAddMore: slots.length < maxSlots,
+              onAddSlot: handleAddSlot,
+            }}
+          />
+        </div>
       </Surface>
 
       {editingSlot && editingSlot.id && (

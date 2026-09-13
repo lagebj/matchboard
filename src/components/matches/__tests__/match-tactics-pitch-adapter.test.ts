@@ -1,63 +1,21 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildPlanningPitchSlots,
   buildPlanningPitchAssignments,
-  type TacticsPitchSlotInput,
   type TacticsPitchAssignmentInput,
   type TacticsPitchPlayerInput,
 } from "../match-tactics-pitch-adapter";
-import { gridToNormalizedPoint } from "@/components/touchline/pitch/projection";
 
 /**
  * Atlas Follow-up Phase F7 (production pitch migration,
  * `06_CANONICAL_PITCH_RENDERING_CONTRACT.md`): the pure mapping `MatchTacticsPanel` uses to
- * adapt canonical `FormationSlot`/`MatchLineupAssignment` data into `TouchlinePlanningPitch`'s
- * presentation shape. Extracted specifically so this exact mapping is directly unit-testable —
- * no E2E/component test exercises the Tactics/Pitch tab at all (a genuine pre-existing gap).
+ * adapt canonical `MatchLineupAssignment` data into `TouchlinePlanningPitch`'s presentation
+ * shape. Extracted specifically so this exact mapping is directly unit-testable — no E2E/
+ * component test exercises the Tactics/Pitch tab at all (a genuine pre-existing gap).
+ *
+ * The `FormationSlot` → `PlanningPitchSlot` mapping is tested separately, alongside the shared
+ * `buildPlanningPitchSlotsFromFormationSlots()` it reuses
+ * (`src/components/touchline/pitch/__tests__/formation-slot-projection.test.ts`).
  */
-describe("buildPlanningPitchSlots", () => {
-  it("resolves each slot's grid position via gridToNormalizedPoint", () => {
-    const input: TacticsPitchSlotInput[] = [
-      { id: "cb1", gridX: 1, gridY: 4, shortLabel: "CB", roleType: "DEFENDER" },
-    ];
-    const result = buildPlanningPitchSlots(input);
-    expect(result).toEqual([
-      {
-        id: "cb1",
-        point: gridToNormalizedPoint(1, 4),
-        roleLabel: "CB",
-        isGoalkeeper: false,
-      },
-    ]);
-  });
-
-  it("marks a GOALKEEPER roleType slot as isGoalkeeper", () => {
-    const input: TacticsPitchSlotInput[] = [
-      { id: "gk", gridX: 2, gridY: 5, shortLabel: "GK", roleType: "GOALKEEPER" },
-    ];
-    const [slot] = buildPlanningPitchSlots(input);
-    expect(slot.isGoalkeeper).toBe(true);
-  });
-
-  it("does not mark a non-goalkeeper roleType as isGoalkeeper", () => {
-    const input: TacticsPitchSlotInput[] = [
-      { id: "st", gridX: 2, gridY: 0, shortLabel: "ST", roleType: "FORWARD" },
-    ];
-    const [slot] = buildPlanningPitchSlots(input);
-    expect(slot.isGoalkeeper).toBe(false);
-  });
-
-  it("preserves slot order and maps every slot", () => {
-    const input: TacticsPitchSlotInput[] = [
-      { id: "a", gridX: 0, gridY: 0, shortLabel: "A", roleType: "FORWARD" },
-      { id: "b", gridX: 1, gridY: 1, shortLabel: "B", roleType: "MIDFIELDER" },
-      { id: "c", gridX: 2, gridY: 2, shortLabel: "C", roleType: "DEFENDER" },
-    ];
-    const result = buildPlanningPitchSlots(input);
-    expect(result.map((s) => s.id)).toEqual(["a", "b", "c"]);
-  });
-});
-
 describe("buildPlanningPitchAssignments", () => {
   const players: TacticsPitchPlayerInput[] = [
     { id: "p1", firstName: "Sander", lastName: "Berg" },
