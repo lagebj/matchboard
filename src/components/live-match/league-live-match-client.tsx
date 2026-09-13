@@ -20,6 +20,7 @@ import type {
   RecordEventResult,
   ApplyEventCallback,
   PresenceChangedCallback,
+  PersistenceChangedCallback,
   ClientAck,
 } from "@/lib/live-match/realtime/realtime-messages";
 
@@ -42,6 +43,8 @@ interface LiveMatchClientProps {
 function ack(): ClientAck {
   return { acknowledged: true };
 }
+
+type PersistenceStatus = "pending" | "persisted" | "failed_terminal" | "failed_exhausted";
 
 const LOG_PREFIX = "[live-match:league-realtime]";
 
@@ -69,6 +72,10 @@ export function useLiveRealtime(matchId: string) {
   const clientRef = useRef<RealtimeMatchClient | null>(null);
   const clientIdRef = useRef<string>(crypto.randomUUID());
   const listenersRef = useRef<Set<() => void>>(new Set());
+  // ADR-0138 Bundle 6 — subscribers to `eventPersistenceChanged` broadcasts, distinct from
+  // `listenersRef` (a generic "something changed, refresh" signal) since persistence-changed
+  // callbacks carry a specific (clientEventId, persistenceStatus) payload the local outbox needs.
+  const persistenceListenersRef = useRef<Set<(clientEventId: string, persistenceStatus: PersistenceStatus) => void>>(new Set());
   // Tracks the Durable Object's realtime version as last observed from a successful
   // recordEvent response (or a STALE_STATE rejection's currentVersion, which self-heals the
   // very next attempt instead of repeating the same failure for every subsequent
@@ -134,6 +141,12 @@ export function useLiveRealtime(matchId: string) {
           notifyListeners();
           return ack();
         },
+        eventPersistenceChanged: (raw) => {
+          const params = raw as PersistenceChangedCallback;
+          console.debug(`${LOG_PREFIX} persistence changed: %s -> %s`, params.clientEventId, params.persistenceStatus);
+          for (const listener of persistenceListenersRef.current) listener(params.clientEventId, params.persistenceStatus);
+          return ack();
+        },
       },
     });
     clientRef.current = client;
@@ -161,6 +174,11 @@ export function useLiveRealtime(matchId: string) {
   function onLiveUpdate(callback: () => void): () => void {
     listenersRef.current.add(callback);
     return () => listenersRef.current.delete(callback);
+  }
+
+  function onPersistenceChanged(callback: (clientEventId: string, persistenceStatus: PersistenceStatus) => void): () => void {
+    persistenceListenersRef.current.add(callback);
+    return () => persistenceListenersRef.current.delete(callback);
   }
 
   /**
@@ -197,7 +215,7 @@ export function useLiveRealtime(matchId: string) {
     }
   }
 
-  return { ensureConnected, disconnect, reconnectNow, onLiveUpdate, tryRecordEvent };
+  return { ensureConnected, disconnect, reconnectNow, onLiveUpdate, onPersistenceChanged, tryRecordEvent };
 }
 
 export function createLeagueActions(
@@ -258,7 +276,7 @@ export function createLeagueActions(
         },
       });
       if (realtimeResult) {
-        return { success: true as const, data: {} };
+        return { success: true as const, data: { persistenceStatus: realtimeResult.persistenceStatus } };
       }
       return {
         success: false as const,
@@ -266,6 +284,7 @@ export function createLeagueActions(
       };
     },
     onLiveUpdate: realtime.onLiveUpdate,
+    onPersistenceChanged: realtime.onPersistenceChanged,
     reconnectRealtime: realtime.reconnectNow,
     getRecentEvents: async (matchId, limit) => {
       const result = await getRecentEventsAction(matchId, limit);
@@ -304,6 +323,7 @@ export function LeagueLiveMatchClient({ matchId, matchInfo }: LiveMatchClientPro
       periodConfig={getLeaguePeriodConfig(matchInfo.matchType)}
       actions={leagueActions}
       isHome={matchInfo.homeAway === "HOME"}
+      subjectType="LEAGUE"
     />
   );
 }

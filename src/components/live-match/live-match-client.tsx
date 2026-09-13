@@ -12,7 +12,7 @@ import {
   isBreakPeriod,
   getPeriodAfter,
 } from "@/lib/live-match/match-clock";
-import { getEventTypeLabel, getFairPlayCategoryLabel, derivePositionChangeFromPayload } from "@/lib/live-match/live-match-domain";
+import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
 import type { LiveEventSummary, MatchClockState } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
 // The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
@@ -23,15 +23,21 @@ import {
   reconcileFromServerEvents,
 } from "@/lib/live-match/live-match-reconciliation";
 import {
-  saveEventLocally,
-  markEventSynced,
-  getUnsyncedEvents,
-  getAllLocalEvents,
+  saveCommandLocally,
+  updateCommandStatus,
+  getNextLocalOrdinal,
+  getAllCommands,
+  getRetryableCommands,
+  getUnresolvedCommands,
+  recoverInterruptedSends,
+  clearPersistedCommands,
   saveSessionLocally,
-  clearLocalEvents,
   clearLocalSession,
-  type LocalEvent,
+  type LocalCommand,
+  type SubjectType,
+  type CommandStatus,
 } from "@/lib/live-match/local/live-local-store";
+import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-match/local/pending-overlay";
 
 export interface SquadPlayer {
   playerId: string;
@@ -70,7 +76,21 @@ export interface LiveMatchActions {
     payload?: Record<string, unknown>;
     correctionType?: string;
     correctsEventId?: string;
-  }) => Promise<{ success: boolean; error?: string; data?: { id?: string } }>;
+  }) => Promise<{
+    success: boolean;
+    error?: string;
+    data?: {
+      id?: string;
+      /** ADR-0138 Bundle 6 — when present, the coordinator's own real-time acceptance outcome:
+       * `"pending"` (accepted, canonical sequence assigned, Neon durability not yet confirmed —
+       * `LiveMatchActions.onPersistenceChanged` reports the eventual outcome) or `"persisted"`
+       * (already confirmed durable within this same round trip) or `"failed_terminal"` (a
+       * domain-validation failure known immediately). Absent for a client with no coordinator
+       * involvement at all (Event, ARR-0046) — treated the same as `"persisted"`, matching that
+       * adapter's existing immediate-success behavior exactly. */
+      persistenceStatus?: "pending" | "persisted" | "failed_terminal";
+    };
+  }>;
   getRecentEvents: (matchId: string, limit?: number) => Promise<{ success: boolean; data?: LiveEventSummary[]; error?: string }>;
   getPreMatchPackage: (matchId: string) => Promise<{
     success: boolean;
@@ -102,19 +122,14 @@ export interface LiveMatchActions {
    * obtain a fresh connection ticket 2. reconnect") rather than waiting for the client's own
    * backoff timer, which could otherwise take up to ~30s after connectivity actually returns. */
   reconnectRealtime?: () => void;
-  recordEventToServer?: (input: {
-    matchId: string;
-    sessionId: string;
-    eventType: string;
-    clientEventId: string;
-    period?: string;
-    matchSeconds?: number;
-    playerId?: string;
-    secondaryPlayerId?: string;
-    payload?: Record<string, unknown>;
-    correctionType?: string;
-    correctsEventId?: string;
-  }) => Promise<{ success: boolean; error?: string }>;
+  /** ADR-0138 Bundle 6 — subscribes `callback` to fire whenever the coordinator confirms or
+   * terminally resolves a previously-`"pending"` event's durability (the `eventPersistenceChanged`
+   * broadcast). Optional for the same reason `onLiveUpdate` is: a client with no coordinator
+   * involvement (Event) never produces a `"pending"` result in the first place, so it has
+   * nothing to report here. Returns an unsubscribe function. */
+  onPersistenceChanged?: (
+    callback: (clientEventId: string, persistenceStatus: "pending" | "persisted" | "failed_terminal" | "failed_exhausted") => void,
+  ) => () => void;
 }
 
 export interface LiveMatchClientProps {
@@ -130,6 +145,11 @@ export interface LiveMatchClientProps {
   /** Whether to subtly accent our team's name in the scoreboard. Default true; false for
    * events (no home/away distinction to orient against). */
   markOwnTeam?: boolean;
+  /** ADR-0138 Bundle 6 (DECISIONS.md D19) — which domain `matchId` identifies, so the local
+   * outbox keys its commands explicitly rather than relying on incidental id-namespace
+   * disjointness between League `Match` and Event `EventMatch`. Default `"LEAGUE"`; the Event
+   * adapter passes `"EVENT"` explicitly. */
+  subjectType?: SubjectType;
 }
 
 /** ADR-0133 H6: how many events `fetchEvents` pulls for the score / on-field reconcile. Must
@@ -282,25 +302,30 @@ function ConfirmDialog({ open, onConfirm, onCancel, title, children }: { open: b
   );
 }
 
-// --- Sync Status Indicator ---
-type SyncStatus = "synced" | "pending" | "offline" | "error";
-
-function SyncStatusIndicator({ status, pendingCount }: { status: SyncStatus; pendingCount: number }) {
-  if (status === "synced" && pendingCount === 0) return null;
-  const label = status === "offline"
-    ? `Saved locally${pendingCount > 1 ? ` (${pendingCount} waiting)` : ""}`
-    : status === "pending"
-      ? `${pendingCount} event${pendingCount > 1 ? "s" : ""} syncing...`
-      : status === "error"
-        ? "Sync issue — data saved locally"
-        : null;
-  if (!label) return null;
-  const color = status === "offline" ? "text-[var(--warning)]" : status === "error" ? "text-[var(--danger)]" : "text-[var(--text-muted)]";
+// --- Sync Status Indicator (ADR-0138 D14) ---
+// D14's exact copy: "Up to date" / "Offline — changes saved on this device" / "Syncing N
+// changes" / "Needs review N". "Up to date" is the all-clear case and stays hidden (nothing to
+// draw the coach's attention to), matching the pre-Bundle-6 convention of hiding this indicator
+// entirely once nothing is outstanding — D14 does not require it to always render, only that the
+// optimistic display never be confused with a confirmed synchronization state.
+function SyncStatusIndicator({ pendingCount, needsReviewCount, isOffline }: { pendingCount: number; needsReviewCount: number; isOffline: boolean }) {
+  if (needsReviewCount > 0) {
+    return <div className="text-[var(--text-micro)] text-[var(--danger)] text-center py-0.5">Needs review {needsReviewCount}</div>;
+  }
+  if (pendingCount === 0) return null;
+  const label = isOffline
+    ? "Offline — changes saved on this device"
+    : `Syncing ${pendingCount} change${pendingCount > 1 ? "s" : ""}`;
+  const color = isOffline ? "text-[var(--warning)]" : "text-[var(--text-muted)]";
   return <div className={`text-[var(--text-micro)] ${color} text-center py-0.5`}>{label}</div>;
 }
 
 // --- Main Component ---
-export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true }: LiveMatchClientProps) {
+export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true, subjectType = "LEAGUE" }: LiveMatchClientProps) {
+  // ADR-0138 Bundle 6 — the local outbox's subject identity. `matchId` already holds the right
+  // id value regardless of subject (the Event adapter passes its own `eventMatchId` through this
+  // same prop) — `subjectId` is just a clarifying alias at the call sites below.
+  const subjectId = matchId;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -325,7 +350,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [goalsFor, setGoalsFor] = useState(0);
   const [goalsAgainst, setGoalsAgainst] = useState(0);
   const [recentEvents, setRecentEvents] = useState<LiveEventSummary[]>([]);
-  const [localEvents, setLocalEvents] = useState<LocalEvent[]>([]);
+  const [localCommands, setLocalCommands] = useState<LocalCommand[]>([]);
   const [goalFlow, setGoalFlow] = useState<GoalFlowStep>("idle");
   const [goalFlowPlayerId, setGoalFlowPlayerId] = useState<string | null>(null);
   // ADR-0138 (Bundle 3), DECISIONS.md D10 — the just-recorded goal's own clientEventId, so the
@@ -356,8 +381,11 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const [sheet, setSheet] = useState<SheetContent>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ type: "period" | "end"; nextPeriod?: string } | null>(null);
   const [lastAction, setLastAction] = useState<{ label: string; undoEventId?: string; undoLabel?: string } | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced");
-  const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+  // ADR-0138 Bundle 6 — derived from `localCommands` rather than tracked as separate state, so
+  // the sync indicator can never drift out of sync with the outbox's own source of truth.
+  const pendingSyncSummary = useMemo(() => summarizePendingCommands(localCommands), [localCommands]);
+  const unsyncedCount = pendingSyncSummary.pendingCount;
 
   const goalFlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastActionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -387,7 +415,70 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }, [squad]);
   const sortedPlayersForScorer = useMemo(() => [...onFieldPlayers, ...benchPlayers], [onFieldPlayers, benchPlayers]);
 
-  // --- Local-first event recording ---
+  // --- Local-first event recording (ADR-0138 Bundle 6) ---
+  // D12's mandatory step order: capture -> persist locally, durable, BEFORE any network
+  // transmission -> update the optimistic display -> attempt synchronization. Never reversed.
+  //
+  // `attemptSend` is the one place a command's outcome moves it between statuses, shared by a
+  // fresh `recordEventLocal` call and the retry loop (`syncPendingCommands`) — so a first attempt
+  // and a retry attempt can never diverge in how they interpret a result.
+  const applyLocalStatus = useCallback((clientEventId: string, status: CommandStatus, extra?: Partial<LocalCommand>) => {
+    setLocalCommands((prev) => prev.map((c) => (c.clientEventId === clientEventId ? { ...c, status, ...extra } : c)));
+  }, []);
+
+  const attemptSend = useCallback(async (command: LocalCommand): Promise<boolean> => {
+    const attemptCount = command.attemptCount + 1;
+    const lastAttemptAt = Date.now();
+    await updateCommandStatus(command.clientEventId, "SENDING", { attemptCount, lastAttemptAt });
+    applyLocalStatus(command.clientEventId, "SENDING", { attemptCount, lastAttemptAt });
+
+    try {
+      const result = await actions.recordEvent({
+        matchId: command.subjectId,
+        sessionId: command.sessionId,
+        eventType: command.eventType,
+        clientEventId: command.clientEventId,
+        period: command.period,
+        matchSeconds: command.matchSeconds,
+        playerId: command.playerId,
+        secondaryPlayerId: command.secondaryPlayerId,
+        payload: command.payload,
+        correctionType: command.correctionType,
+        correctsEventId: command.correctsEventId,
+      });
+
+      if (result.success) {
+        const persistenceStatus = result.data?.persistenceStatus;
+        // "pending" -> the coordinator accepted it but Neon durability isn't confirmed yet;
+        // `onPersistenceChanged` (below) advances this to PERSISTED/FAILED_TERMINAL/back to
+        // LOCAL_PENDING once the coordinator's own outbox resolves it. "persisted" or absent
+        // (Event has no coordinator at all, ARR-0046) both mean immediately durable.
+        if (persistenceStatus === "pending") {
+          await updateCommandStatus(command.clientEventId, "ACCEPTED_PENDING_PERSISTENCE");
+          applyLocalStatus(command.clientEventId, "ACCEPTED_PENDING_PERSISTENCE");
+        } else if (persistenceStatus === "failed_terminal") {
+          const terminalReason = "The server rejected this action and it will not be retried.";
+          await updateCommandStatus(command.clientEventId, "FAILED_TERMINAL", { terminalReason });
+          applyLocalStatus(command.clientEventId, "FAILED_TERMINAL", { terminalReason });
+        } else {
+          await updateCommandStatus(command.clientEventId, "PERSISTED");
+          applyLocalStatus(command.clientEventId, "PERSISTED");
+        }
+        return true;
+      }
+
+      // Transient failure (not connected, RPC rejected, etc.) — return to LOCAL_PENDING so the
+      // next reconnect/retry pass picks it up. Never regenerate clientEventId.
+      await updateCommandStatus(command.clientEventId, "LOCAL_PENDING");
+      applyLocalStatus(command.clientEventId, "LOCAL_PENDING");
+      return false;
+    } catch {
+      await updateCommandStatus(command.clientEventId, "LOCAL_PENDING");
+      applyLocalStatus(command.clientEventId, "LOCAL_PENDING");
+      return false;
+    }
+  }, [actions, applyLocalStatus]);
+
   const recordEventLocal = useCallback(async (eventType: string, extra?: { playerId?: string; secondaryPlayerId?: string; period?: string; matchSeconds?: number; correctionType?: string; correctsEventId?: string; payload?: Record<string, unknown> }, options?: { clientEventId?: string }) => {
     if (!sessionId) return;
     // ADR-0138 (Bundle 3) — a caller (e.g. handleGoalFor) can supply a pre-generated
@@ -395,12 +486,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     // separate recordEventLocal call in the same UI flow (e.g. SCORER_SET/ASSIST_SET
     // referencing the goal they annotate) before the round trip to the server completes.
     const clientEventId = options?.clientEventId ?? generateClientEventId();
-    const localEvent: LocalEvent = {
-      id: clientEventId,
-      matchId,
+    const localOrdinal = await getNextLocalOrdinal(subjectId);
+    const now = Date.now();
+    const command: LocalCommand = {
+      clientEventId,
+      subjectType,
+      subjectId,
       sessionId,
       eventType,
-      clientEventId,
       period: extra?.period,
       matchSeconds: extra?.matchSeconds,
       playerId: extra?.playerId,
@@ -408,74 +501,35 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       payload: extra?.payload,
       correctionType: extra?.correctionType,
       correctsEventId: extra?.correctsEventId,
-      synced: false,
-      createdAt: Date.now(),
+      status: "LOCAL_PENDING",
+      localOrdinal,
+      createdAt: now,
+      updatedAt: now,
+      attemptCount: 0,
     };
 
-    setLocalEvents((prev) => [...prev, localEvent]);
-    setUnsyncedCount((prev) => prev + 1);
-    setSyncStatus("pending");
+    // Persist durably BEFORE any network attempt (D12) — the optimistic display update follows.
+    await saveCommandLocally(command);
+    setLocalCommands((prev) => [...prev, command]);
 
-    try {
-      await saveEventLocally(localEvent);
+    await attemptSend(command);
+  }, [sessionId, subjectType, subjectId, attemptSend]);
 
-      const result = await actions.recordEvent({
-        matchId,
-        sessionId,
-        eventType,
-        clientEventId,
-        ...extra,
-      });
-
-      if (result.success) {
-        await markEventSynced(clientEventId);
-        setLocalEvents((prev) => prev.map((e) => e.clientEventId === clientEventId ? { ...e, synced: true } : e));
-        setUnsyncedCount((prev) => Math.max(0, prev - 1));
-        setSyncStatus((prev) => prev === "pending" ? "synced" : prev);
-      } else {
-        setSyncStatus("error");
-      }
-    } catch {
-      setSyncStatus("error");
-    }
-  }, [matchId, sessionId, actions]);
-
-  // --- Sync unsynced events on reconnect ---
-  const syncUnsyncedEvents = useCallback(async () => {
+  // --- Retry pending commands (on reconnect, mount, or before ending session) ---
+  const syncPendingCommands = useCallback(async () => {
     if (!sessionId) return;
     try {
-      const unsynced = await getUnsyncedEvents(matchId);
-      let synced = 0;
-      for (const event of unsynced) {
-        const result = await actions.recordEvent({
-          matchId: event.matchId,
-          sessionId: event.sessionId,
-          eventType: event.eventType,
-          clientEventId: event.clientEventId,
-          period: event.period,
-          matchSeconds: event.matchSeconds,
-          playerId: event.playerId,
-          secondaryPlayerId: event.secondaryPlayerId,
-          payload: event.payload,
-          correctionType: event.correctionType,
-          correctsEventId: event.correctsEventId,
-        });
-        if (result.success) {
-          await markEventSynced(event.clientEventId);
-          synced++;
-        } else {
-          break;
-        }
-      }
-      setLocalEvents((prev) => prev.map((e) => e.synced ? e : { ...e, synced: true }));
-      setUnsyncedCount((prev) => Math.max(0, prev - synced));
-      if (unsynced.length === synced) {
-        setSyncStatus("synced");
+      const retryable = await getRetryableCommands(subjectId);
+      for (const command of retryable) {
+        // Preserve local-ordinal order; stop at the first failure rather than racing later
+        // commands ahead of an earlier one that might depend on it having landed first.
+        const success = await attemptSend(command);
+        if (!success) break;
       }
     } catch {
-      // Will retry on next online event
+      // Will retry on next online/visibility event.
     }
-  }, [matchId, sessionId, actions]);
+  }, [sessionId, subjectId, attemptSend]);
 
   // --- Effects ---
   useEffect(() => {
@@ -488,7 +542,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         if (result.data.activeSession) {
           setSessionId(result.data.activeSession.id);
           setSessionActive(true);
-          const savedSession = { id: result.data.activeSession.id, matchId, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
+          const savedSession = { subjectType, subjectId, id: result.data.activeSession.id, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
           await saveSessionLocally(savedSession);
           // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
           // device swap does not reset it to "before kickoff". A still-`BEFORE`, not-running,
@@ -567,49 +621,83 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // WebSocket handshake finished. Confirmed as a real, reproducible CI regression (not
   // flakiness): every live-reporting E2E spec that records an action shortly after starting a
   // session failed consistently, 3/3 retries, timing out in `waitForEventsToSync`. Calling
-  // `syncUnsyncedEvents` here as well as `fetchEvents` closes that gap — it is a cheap no-op
-  // when there is nothing unsynced.
+  // `syncPendingCommands` here as well as `fetchEvents` closes that gap — it is a cheap no-op
+  // when there is nothing pending.
   useEffect(() => {
     if (!sessionActive || !actions.onLiveUpdate) return;
     return actions.onLiveUpdate(() => {
       fetchEvents();
-      syncUnsyncedEvents();
+      syncPendingCommands();
     });
-  }, [sessionActive, actions, fetchEvents, syncUnsyncedEvents]);
+  }, [sessionActive, actions, fetchEvents, syncPendingCommands]);
 
-  // Sync on reconnect
+  // ADR-0138 Bundle 6 — the coordinator's own persistence-outbox confirmation (or terminal/
+  // exhausted resolution) for a previously-"pending" command. See `attemptSend`'s own comment
+  // for why "pending" needs this second step rather than being treated as immediately durable.
   useEffect(() => {
+    if (!actions.onPersistenceChanged) return;
+    return actions.onPersistenceChanged((clientEventId, persistenceStatus) => {
+      if (persistenceStatus === "persisted") {
+        updateCommandStatus(clientEventId, "PERSISTED");
+        applyLocalStatus(clientEventId, "PERSISTED");
+      } else if (persistenceStatus === "failed_terminal") {
+        const terminalReason = "The server could not confirm this action was saved and it will not be retried.";
+        updateCommandStatus(clientEventId, "FAILED_TERMINAL", { terminalReason });
+        applyLocalStatus(clientEventId, "FAILED_TERMINAL", { terminalReason });
+      } else if (persistenceStatus === "failed_exhausted") {
+        // Per realtime-messages.ts's own documented intent: this is retryable, not terminal —
+        // the coordinator's own bounded retry ceiling gave up, but this device's own
+        // reconnect-driven sync loop can still succeed once the underlying issue clears.
+        updateCommandStatus(clientEventId, "LOCAL_PENDING");
+        applyLocalStatus(clientEventId, "LOCAL_PENDING");
+      }
+      // "pending" never arrives here as a new fact — it is the status `attemptSend` already
+      // applied the moment the initial RPC returned.
+    });
+  }, [actions, applyLocalStatus]);
+
+  // Sync on reconnect, and track offline/online for the sync indicator (D14).
+  useEffect(() => {
+    setIsOffline(typeof navigator !== "undefined" && !navigator.onLine);
     const handleOnline = () => {
-      syncUnsyncedEvents();
+      setIsOffline(false);
+      syncPendingCommands();
       actions.reconnectRealtime?.();
     };
+    const handleOffline = () => setIsOffline(true);
     window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     const handleVisibility = () => {
       if (!document.hidden) {
-        syncUnsyncedEvents();
+        syncPendingCommands();
         actions.reconnectRealtime?.();
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [syncUnsyncedEvents, actions]);
+  }, [syncPendingCommands, actions]);
 
-  // Restore local events on mount
+  // Restore local commands on mount — recover any `SENDING` row an interrupted crash/reload
+  // left behind before retrying, so a genuinely-sent-but-unconfirmed command is never silently
+  // stuck (TEST_MATRIX: "SENDING interrupted by crash recovers to retryable state").
   useEffect(() => {
     if (!sessionActive) return;
-    getAllLocalEvents(matchId).then((events) => {
-      setLocalEvents(events);
-      const unsynced = events.filter((e) => !e.synced);
-      if (unsynced.length > 0) {
-        setUnsyncedCount(unsynced.length);
-        setSyncStatus("pending");
-        syncUnsyncedEvents();
+    (async () => {
+      await recoverInterruptedSends(subjectId);
+      const all = await getAllCommands(subjectId);
+      setLocalCommands(all);
+      if (all.some((c) => c.status === "LOCAL_PENDING")) {
+        syncPendingCommands();
       }
-    });
-  }, [sessionActive, matchId]);
+    })();
+    // Deliberately excludes syncPendingCommands, matching this effect's pre-Bundle-6 dependency
+    // shape exactly: it must run once per session-mount, not re-run every time actions/sessionId
+    // identity changes.
+  }, [sessionActive, subjectId]);
 
   // --- Handlers ---
   const handleStartSession = useCallback(async () => {
@@ -618,24 +706,26 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       setSessionId(result.data.id);
       setSessionActive(true);
       setError(null);
-      await saveSessionLocally({ id: result.data.id, matchId, coachId: "", startedAt: new Date().toISOString() });
+      await saveSessionLocally({ subjectType, subjectId, id: result.data.id, coachId: "", startedAt: new Date().toISOString() });
     } else {
       setError(result.error ?? "Failed to start session");
     }
-  }, [matchId, actions]);
+  }, [matchId, actions, subjectType, subjectId]);
 
   const handleEndSession = useCallback(async () => {
     if (!sessionId) return;
     setConfirmDialog(null);
-    // Try syncing before ending, then verify against the local store directly — syncUnsyncedEvents
-    // can fail partway through and swallow the error, so stale unsyncedCount state can't be trusted.
-    await syncUnsyncedEvents();
-    const stillUnsynced = await getUnsyncedEvents(matchId);
-    if (stillUnsynced.length > 0) {
-      setUnsyncedCount(stillUnsynced.length);
-      setSyncStatus("error");
+    // Try syncing before ending, then verify against the local store directly — syncPendingCommands
+    // can fail partway through and swallow the error, so stale in-memory state can't be trusted.
+    await syncPendingCommands();
+    const remaining = await getAllCommands(subjectId);
+    setLocalCommands(remaining);
+    const stillInFlight = remaining.filter(
+      (c) => c.status === "LOCAL_PENDING" || c.status === "SENDING" || c.status === "ACCEPTED_PENDING_PERSISTENCE",
+    );
+    if (stillInFlight.length > 0) {
       setError(
-        `${stillUnsynced.length} event${stillUnsynced.length > 1 ? "s" : ""} could not sync and would be lost. Check your connection and try finishing again.`,
+        `${stillInFlight.length} event${stillInFlight.length > 1 ? "s" : ""} could not sync and would be lost. Check your connection and try finishing again.`,
       );
       return;
     }
@@ -643,15 +733,23 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     if (result.success) {
       setSessionActive(false);
       setSessionId(null);
-      await clearLocalEvents(matchId);
-      await clearLocalSession(matchId);
+      // A NEEDS_REVIEW/FAILED_TERMINAL command is never auto-resolved by retrying — blocking
+      // ending the session on it forever would trap the coach over something that will never
+      // change. Instead, leave the outbox in place (never clear it) so the record survives for a
+      // future review surface (Bundle 8) rather than being silently discarded (D13, work items
+      // 8/9: "unresolved commands prevent package cleanup").
+      const unresolved = remaining.filter((c) => c.status === "NEEDS_REVIEW" || c.status === "FAILED_TERMINAL");
+      if (unresolved.length === 0) {
+        await clearPersistedCommands(subjectId);
+        await clearLocalSession(subjectId);
+      }
       if (result.data?.reportId && actions.reportUrl) {
         window.location.href = actions.reportUrl(result.data.reportId);
       }
     } else {
       setError(result.error ?? "Failed to end session");
     }
-  }, [sessionId, actions, matchId, syncUnsyncedEvents]);
+  }, [sessionId, actions, subjectId, syncPendingCommands]);
 
   const handlePeriodAdvance = useCallback(() => {
     const nextPeriod = getPeriodAfter(clock.period, periodConfig);
@@ -801,7 +899,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const handleUndo = useCallback(async (eventId: string) => {
     recordEventLocal("EVENT_REVERSED", { correctsEventId: eventId, correctionType: "REVERSAL" });
     // Optimistically update local score
-    const eventToUndo = recentEvents.find((e) => e.id === eventId) ?? localEvents.find((e) => e.clientEventId === eventId);
+    const eventToUndo = recentEvents.find((e) => e.id === eventId) ?? localCommands.find((c) => c.clientEventId === eventId);
     if (eventToUndo) {
       const et = eventToUndo.eventType;
       if (et === "GOAL_FOR") setGoalsFor((prev) => Math.max(0, prev - 1));
@@ -810,7 +908,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     setLastAction({ label: "Event reversed" });
     if (lastActionTimerRef.current !== null) clearTimeout(lastActionTimerRef.current);
     lastActionTimerRef.current = setTimeout(() => setLastAction(null), 8000);
-  }, [recentEvents, localEvents, recordEventLocal]);
+  }, [recentEvents, localCommands, recordEventLocal]);
 
   const handleRotationOut = useCallback((playerId: string) => {
     setOutPlayerId(playerId);
@@ -918,38 +1016,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     setSheet(null);
   }, [positionChangePlayerId, getCurrentPosition, clock, recordEventLocal, squad, onFieldPlayers]);
 
-  // Merged events: server events + local-only events (not yet synced or synced but not yet in server poll)
-  const mergedEvents = useMemo(() => {
-    const localOnly = localEvents.filter((e) => {
-      if (e.synced) return false;
-      if (e.eventType === "EVENT_REVERSED") return false; // reversals are handled by removing the original
-      return true;
-    });
-    const localSummaries: LiveEventSummary[] = localOnly.map((e) => ({
-      id: e.clientEventId,
-      eventType: e.eventType as LiveEventSummary["eventType"],
-      period: (e.period as LiveEventSummary["period"]) ?? null,
-      matchSeconds: e.matchSeconds ?? null,
-      wallClockTime: null,
-      playerId: e.playerId ?? null,
-      secondaryPlayerId: e.secondaryPlayerId ?? null,
-      isCorrected: false,
-      isReversed: false,
-      correctsEventId: e.correctsEventId ?? null,
-      positionChange: derivePositionChangeFromPayload(e.eventType, e.payload),
-    }));
-    const all = [...recentEvents, ...localSummaries];
-    const seen = new Set<string>();
-    return all.filter((e) => {
-      if (seen.has(e.id)) return false;
-      seen.add(e.id);
-      return true;
-    }).sort((a, b) => {
-      const aTime = a.wallClockTime ? new Date(a.wallClockTime).getTime() : 0;
-      const bTime = b.wallClockTime ? new Date(b.wallClockTime).getTime() : 0;
-      return bTime - aTime;
-    }).slice(0, 15);
-  }, [recentEvents, localEvents]);
+  // Merged events: server events + not-yet-PERSISTED local commands (ADR-0138 Bundle 6's
+  // `overlayPendingCommands` — extracted from this exact previous inline logic for testability).
+  const mergedEvents = useMemo(() => overlayPendingCommands(recentEvents, localCommands), [recentEvents, localCommands]);
 
   const isOver = isMatchOver(clock.period);
   const currentPeriodLabel = periodConfig.find((p) => p.key === clock.period)?.label ?? clock.period.replace(/_/g, " ");
@@ -1019,7 +1088,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             own={!isHome && markOwnTeam}
           />
         </div>
-        <SyncStatusIndicator status={syncStatus} pendingCount={unsyncedCount} />
+        <SyncStatusIndicator pendingCount={unsyncedCount} needsReviewCount={pendingSyncSummary.needsReviewCount} isOffline={isOffline} />
       </div>
 
       {/* Period control */}

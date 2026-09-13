@@ -8,17 +8,20 @@ import { render, waitFor, act } from "@testing-library/react";
  * `createLeagueActions` directly). IndexedDB is faked since jsdom has no real IndexedDB.
  */
 
-const { mockGetUnsyncedEvents, mockMarkEventSynced } = vi.hoisted(() => ({
-  mockGetUnsyncedEvents: vi.fn().mockResolvedValue([]),
-  mockMarkEventSynced: vi.fn().mockResolvedValue(undefined),
+const { mockGetRetryableCommands, mockUpdateCommandStatus } = vi.hoisted(() => ({
+  mockGetRetryableCommands: vi.fn().mockResolvedValue([]),
+  mockUpdateCommandStatus: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/live-match/local/live-local-store", () => ({
-  saveEventLocally: vi.fn().mockResolvedValue(undefined),
-  markEventSynced: mockMarkEventSynced,
-  getUnsyncedEvents: mockGetUnsyncedEvents,
-  getAllLocalEvents: vi.fn().mockResolvedValue([]),
-  clearLocalEvents: vi.fn().mockResolvedValue(undefined),
+  saveCommandLocally: vi.fn().mockResolvedValue(undefined),
+  updateCommandStatus: mockUpdateCommandStatus,
+  getNextLocalOrdinal: vi.fn().mockResolvedValue(1),
+  getAllCommands: vi.fn().mockResolvedValue([]),
+  getRetryableCommands: mockGetRetryableCommands,
+  getUnresolvedCommands: vi.fn().mockResolvedValue([]),
+  recoverInterruptedSends: vi.fn().mockResolvedValue([]),
+  clearPersistedCommands: vi.fn().mockResolvedValue({ removed: 0, retainedUnresolved: 0 }),
   saveSessionLocally: vi.fn().mockResolvedValue(undefined),
   getLocalSession: vi.fn().mockResolvedValue(null),
   clearLocalSession: vi.fn().mockResolvedValue(undefined),
@@ -45,7 +48,7 @@ function makeActions(overrides: Partial<LiveMatchActions> = {}): LiveMatchAction
 describe("LiveMatchClient realtime wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetUnsyncedEvents.mockResolvedValue([]);
+    mockGetRetryableCommands.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -88,15 +91,15 @@ describe("LiveMatchClient realtime wiring", () => {
     expect(getRecentEvents.mock.calls.length).toBeGreaterThan(callsBeforeBroadcast);
   });
 
-  // ADR-0138 (Bundle 4 follow-up fix) — a real, reproducible CI regression: recording an
-  // action before the realtime WebSocket finishes its initial handshake means the coordinator
-  // path fails (not yet connected), and — since Bundle 4 removed the HTTP fallback that used
-  // to silently cover this race — nothing retried it once the connection actually completed a
-  // moment later (only `online`/`visibilitychange` did, neither of which fires merely because
-  // a WebSocket handshake finished). `useLiveRealtime`'s own "connected" handler already calls
-  // the same `onLiveUpdate` notification used for broadcasts, so this proves that notification
-  // now also retries the local outbox.
-  it("an onLiveUpdate notification (including the one fired when realtime first connects) retries any unsynced local events", async () => {
+  // ADR-0138 (Bundle 4 follow-up fix, generalized in Bundle 6) — a real, reproducible CI
+  // regression: recording an action before the realtime WebSocket finishes its initial
+  // handshake means the coordinator path fails (not yet connected), and — since Bundle 4
+  // removed the HTTP fallback that used to silently cover this race — nothing retried it once
+  // the connection actually completed a moment later. `useLiveRealtime`'s own "connected"
+  // handler already calls the same `onLiveUpdate` notification used for broadcasts, so this
+  // proves that notification now also retries the local outbox (`syncPendingCommands`, Bundle
+  // 6's rewrite of what was `syncUnsyncedEvents`).
+  it("an onLiveUpdate notification (including the one fired when realtime first connects) retries any pending local commands", async () => {
     let subscribedCallback: (() => void) | undefined;
     const onLiveUpdate = vi.fn((cb: () => void) => {
       subscribedCallback = cb;
@@ -104,15 +107,18 @@ describe("LiveMatchClient realtime wiring", () => {
     });
     const recordEvent = vi.fn().mockResolvedValue({ success: true, data: {} });
     const actions = makeActions({ onLiveUpdate, recordEvent });
-    mockGetUnsyncedEvents.mockResolvedValue([
+    mockGetRetryableCommands.mockResolvedValue([
       {
-        id: "evt-1",
-        matchId: "match-1",
+        clientEventId: "evt-1",
+        subjectType: "LEAGUE",
+        subjectId: "match-1",
         sessionId: "session-1",
         eventType: "GOAL_FOR",
-        clientEventId: "evt-1",
-        synced: false,
+        status: "LOCAL_PENDING",
+        localOrdinal: 1,
         createdAt: Date.now(),
+        updatedAt: Date.now(),
+        attemptCount: 0,
       },
     ]);
 
@@ -128,7 +134,7 @@ describe("LiveMatchClient realtime wiring", () => {
     });
 
     await waitFor(() => expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ clientEventId: "evt-1" })));
-    expect(mockMarkEventSynced).toHaveBeenCalledWith("evt-1");
+    expect(mockUpdateCommandStatus).toHaveBeenCalledWith("evt-1", "PERSISTED");
   });
 
   it("calls reconnectRealtime when the browser fires an online event", async () => {
