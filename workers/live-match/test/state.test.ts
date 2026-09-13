@@ -7,6 +7,7 @@ import {
   evaluateClockPrecondition,
   evaluateLineupPrecondition,
   evaluateAnnotationPrecondition,
+  derivePositionChange,
   evaluateAuthenticate,
   evaluateRecordEvent,
   evaluateSyncPending,
@@ -428,17 +429,53 @@ describe("evaluateLineupPrecondition (ADR-0138, Bundle 3, DECISIONS.md D10)", ()
     expect(evaluateLineupPrecondition("ROTATION_IN", { playerId: "noah" }, { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set() })).toEqual({ ok: true });
   });
 
-  it("POSITIONS_CHANGED conflicts when a referenced player was already rotated off in this session", () => {
+  // Bundle 5 (ADR-0138) — the real `POSITIONS_CHANGED` payload shape was confirmed as one event
+  // per moved player (top-level `playerId`, `{ fromPosition, toPosition }` on `payload`), not a
+  // batched `{ assignments: [...] }` array. The array shape asserted here before Bundle 5 never
+  // actually occurred, so this precondition never fired in practice — fixed to the real shape.
+  it("POSITIONS_CHANGED conflicts when the moved player was already rotated off in this session", () => {
     const result = evaluateLineupPrecondition(
       "POSITIONS_CHANGED",
-      { assignments: [{ playerId: "henrik", position: "CM" }] },
+      { playerId: "henrik", payload: { fromPosition: "CM", toPosition: "CB" } },
       { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set(["henrik"]) },
     );
     expect(result).toEqual({ ok: false, conflictCode: "POSITION_ASSIGNMENT_CHANGED" });
   });
 
-  it("POSITIONS_CHANGED with an unrecognized payload shape never blocks", () => {
+  it("POSITIONS_CHANGED for a player currently on field is permitted", () => {
+    const result = evaluateLineupPrecondition(
+      "POSITIONS_CHANGED",
+      { playerId: "henrik", payload: { fromPosition: "CM", toPosition: "CB" } },
+      { onFieldPlayerIds: new Set(["henrik"]), touchedPlayerIds: new Set(["henrik"]) },
+    );
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("POSITIONS_CHANGED with no playerId never blocks", () => {
     expect(evaluateLineupPrecondition("POSITIONS_CHANGED", { somethingElse: true }, { onFieldPlayerIds: new Set(), touchedPlayerIds: new Set() })).toEqual({ ok: true });
+  });
+});
+
+describe("derivePositionChange (ADR-0138 Bundle 5)", () => {
+  it("derives fromPosition/toPosition for a POSITIONS_CHANGED payload", () => {
+    expect(derivePositionChange("POSITIONS_CHANGED", { fromPosition: "CM", toPosition: "CB" })).toEqual({
+      fromPosition: "CM",
+      toPosition: "CB",
+    });
+  });
+
+  it("treats a missing fromPosition as null, not a rejection", () => {
+    expect(derivePositionChange("POSITIONS_CHANGED", { toPosition: "ST" })).toEqual({ fromPosition: null, toPosition: "ST" });
+  });
+
+  it("returns null for a non-POSITIONS_CHANGED event type, even with a payload shaped the same way", () => {
+    expect(derivePositionChange("ROTATION_OUT", { fromPosition: "CM", toPosition: "CB" })).toBeNull();
+  });
+
+  it("returns null for a malformed or missing payload", () => {
+    expect(derivePositionChange("POSITIONS_CHANGED", undefined)).toBeNull();
+    expect(derivePositionChange("POSITIONS_CHANGED", { toPosition: 123 })).toBeNull();
+    expect(derivePositionChange("POSITIONS_CHANGED", "not-an-object")).toBeNull();
   });
 });
 

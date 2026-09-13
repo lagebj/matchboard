@@ -112,6 +112,10 @@ export interface LiveEventSummary {
   isReversed: boolean;
   /** For an `EVENT_REVERSED` row: the id of the event it reverses. Null otherwise. */
   correctsEventId: string | null;
+  /** For a `POSITIONS_CHANGED` row only: the confirmed real payload shape (one row per moved
+   * player). Null for every other event type (ADR-0138 Bundle 5, mirrors
+   * `CanonicalLiveEvent.positionChange`). */
+  positionChange: { fromPosition: string | null; toPosition: string } | null;
 }
 
 export const GOAL_DETAIL_INACTIVITY_TIMEOUT_MS = 90_000;

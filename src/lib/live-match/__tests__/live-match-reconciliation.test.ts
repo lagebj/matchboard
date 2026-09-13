@@ -12,6 +12,7 @@ function ev(partial: Partial<LiveEventSummary> & Pick<LiveEventSummary, "id" | "
     isCorrected: false,
     isReversed: false,
     correctsEventId: null,
+    positionChange: null,
     ...partial,
   };
 }
@@ -55,5 +56,27 @@ describe("reconcileFromServerEvents (ADR-0133 H6)", () => {
     const r = reconcileFromServerEvents(events, new Set(["p1", "p2", "p3"]));
     // p1 rotated out, p9 rotated in, p2's rotation-out was reversed so p2 stays on.
     expect(r.onFieldPlayerIds).toEqual(new Set(["p2", "p3", "p9"]));
+  });
+
+  // ADR-0138 Bundle 5 — positions now come from the same shared reducer Follow Live uses
+  // (`reduceLiveEvents`), so the reporter's own reload path can survive a page refresh.
+  it("tracks each player's most recent position from POSITIONS_CHANGED events", () => {
+    const events: LiveEventSummary[] = [
+      ev({ id: "pc1", eventType: "POSITIONS_CHANGED", playerId: "p1", positionChange: { fromPosition: "CM", toPosition: "CB" } }),
+      ev({ id: "pc2", eventType: "POSITIONS_CHANGED", playerId: "p1", positionChange: { fromPosition: "CB", toPosition: "RB" } }),
+      ev({ id: "pc3", eventType: "POSITIONS_CHANGED", playerId: "p2", positionChange: { fromPosition: "ST", toPosition: "LW" } }),
+    ];
+
+    const r = reconcileFromServerEvents(events, new Set(), {});
+    expect(r.positions).toEqual({ p1: "RB", p2: "LW" });
+  });
+
+  it("survives reload — an initial positions floor passed in is preserved for players with no new event", () => {
+    const events: LiveEventSummary[] = [
+      ev({ id: "pc1", eventType: "POSITIONS_CHANGED", playerId: "p1", positionChange: { fromPosition: "CM", toPosition: "CB" } }),
+    ];
+
+    const r = reconcileFromServerEvents(events, new Set(), { p2: "ST" });
+    expect(r.positions).toEqual({ p1: "CB", p2: "ST" });
   });
 });

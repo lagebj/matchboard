@@ -7,7 +7,7 @@ import { runWithTenantOrganisationId, setTenantOrganisationId } from "@/lib/tena
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
-import { validateLiveEventInput } from "./live-match-domain";
+import { validateLiveEventInput, derivePositionChangeFromPayload } from "./live-match-domain";
 import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
 
 /**
@@ -217,6 +217,14 @@ function toCanonicalLiveEvent(
     createdAt: event.createdAt.toISOString(),
     playerId: input.playerId ?? undefined,
     secondaryPlayerId: input.secondaryPlayerId ?? undefined,
+    // Bundle 5 (ADR-0138) — these were silently dropped before, even though `input` (and the
+    // `LiveMatchEvent` row just written from it) already carries them: the internal persist
+    // endpoint's response becomes the live `applyEvent` broadcast in the normal (non-failure)
+    // path, so every successfully-persisted live event's `matchClock`/positions were missing on
+    // arrival at Follow Live, not merely displayed incorrectly.
+    period: input.period ?? undefined,
+    matchSeconds: input.matchSeconds ?? undefined,
+    positionChange: derivePositionChangeFromPayload(event.eventType, input.payload),
     sequence: event.sequence,
     correctionType: event.correctionType as CanonicalLiveEvent["correctionType"],
     correctsEventId: event.correctsEventId,
@@ -251,6 +259,7 @@ export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[
       secondaryPlayerId: true,
       correctionType: true,
       correctsEventId: true,
+      payload: true,
     },
   });
 
@@ -265,6 +274,7 @@ export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[
     isCorrected: e.correctionType === "CORRECTION",
     isReversed: e.correctionType === "REVERSAL",
     correctsEventId: e.correctsEventId ?? null,
+    positionChange: derivePositionChangeFromPayload(e.eventType, e.payload),
   }));
 }
 
@@ -289,6 +299,7 @@ export async function getRecentEvents(
       secondaryPlayerId: true,
       correctionType: true,
       correctsEventId: true,
+      payload: true,
     },
   });
 
@@ -303,6 +314,7 @@ export async function getRecentEvents(
     isCorrected: e.correctionType === "CORRECTION",
     isReversed: e.correctionType === "REVERSAL",
     correctsEventId: e.correctsEventId ?? null,
+    positionChange: derivePositionChangeFromPayload(e.eventType, e.payload),
   }));
 }
 

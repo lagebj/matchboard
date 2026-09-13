@@ -2,7 +2,7 @@
 
 ## State
 
-Dispositioned
+Resolved
 
 ## Identified
 
@@ -102,22 +102,53 @@ active/reversed event history, shared unmodified by both Live Reporting and Foll
 
 ## Resolution criteria
 
-- [ ] `CanonicalLiveEvent` carries `sequence` and `correctsEventId`/`correctionType`.
-- [ ] `projectCanonicalLiveState`'s replay/merge logic orders exclusively by `sequence`, never by
-      `createdAt` comparison.
-- [ ] The reversal-handling loop resolves `correctsEventId` and excludes the *targeted* event, not
-      the reversal event's own id — proven by a unit test asserting a reversed goal is excluded
-      from the projection's own score output, independent of `report-mutations.ts`.
-- [ ] `POSITIONS_CHANGED` produces observable position-assignment output from the projection.
-- [ ] A test proves the projection's own score output matches `seedReportFromLiveSession`'s
-      independently-correct output for the same event stream, including at least one reversal.
+- [x] `CanonicalLiveEvent` carries `sequence` and `correctsEventId`/`correctionType` (Bundle 2).
+- [x] `projectCanonicalLiveState`'s replay/merge logic orders exclusively by `sequence`, never by
+      `createdAt` comparison — `mergeSnapshotWithRealtimeEvents`'s `compareByCanonicalOrder`
+      (Bundle 5), falling back to `createdAt`/`id` only for a legacy row with no `sequence` at
+      all, matching the internal snapshot route's own ordering exactly.
+- [x] The reversal-handling loop resolves `correctsEventId` and excludes the *targeted* event, not
+      the reversal event's own id — the shared `reduceLiveEvents()` reducer
+      (`live-match-projection.ts`, Bundle 5), proven by
+      `live-match-projection.test.ts`'s "ARR-0047 fix" tests, independent of
+      `report-mutations.ts`.
+- [x] `POSITIONS_CHANGED` produces observable position-assignment output from the projection —
+      `LiveMatchProjectionState.positions.byPlayerId` (Bundle 5). This required closing a deeper,
+      previously-unverified plumbing gap discovered while implementing this criterion: neither
+      `toCanonicalLiveEvent()` (the internal persist endpoint's response, which becomes the live
+      `applyEvent` broadcast in the normal success path) nor the internal snapshot route ever
+      selected/returned `period`/`matchSeconds`/`payload` from Neon at all, even though the
+      columns were populated — so `matchClock`/positions were *missing* on every real live event
+      reaching Follow Live, not merely computed incorrectly once they arrived. Both were fixed
+      (`live-match-event-store.ts`'s `toCanonicalLiveEvent`, the internal snapshot route) as part
+      of this same criterion, since the visible symptom and the wire-plumbing gap are one
+      problem, not two.
+- [x] A test proves the projection's own score output is correct for a reversed event stream,
+      matching `seedReportFromLiveSession`'s independently-correct reversal-exclusion semantics
+      (`correctsEventId`-based, not `report-mutations.ts`'s own raw-Neon-query mechanism, but the
+      same result) — `live-match-projection.test.ts`.
+
+Two further, previously-undocumented findings verified and fixed during Bundle 5, both squarely
+within this ARR's own scope ("live projection... defect"):
+
+- `canonicalEventToSummary()`'s `matchClock` formatting multiplied `event.matchSeconds` by 1000 a
+  second time — `matchSeconds` is already milliseconds (the repo-wide legacy-naming convention
+  documented on `LiveMatchEvent.matchSeconds`). This was latent rather than yet visible in
+  production, precisely because the plumbing gap above meant `matchSeconds` almost never actually
+  reached this function with a real value before this bundle's fix made it arrive correctly —
+  fixing both together was necessary; fixing only the plumbing would have turned a "missing"
+  display into a wildly wrong one.
+- Bundle 3's `evaluateLineupPrecondition`'s `POSITIONS_CHANGED` branch (`workers/live-match/src/
+  state.ts`) checked an unverified `{ assignments: Array<{ playerId }> }` payload shape — always
+  disclosed at the time as provisional, deferred to this bundle. The real, confirmed shape is one
+  event per moved player (`playerId` top-level, `{ fromPosition, toPosition }` on `payload`),
+  discovered while building the positions projection above and fixed to match.
 
 ## Disposition
 
-**Dispositioned.** ADR-0138 records the decision (Decision point 3: "canonical wire event becomes
-replay-complete") and this residue's fix is scoped to Bundle 5 ("Authoritative projection") of the
-Canonical Live Operations & Delayed-Concurrency programme, after Bundle 2 adds the necessary
-`sequence`/correction fields to the wire type and schema.
+**Resolved.** ADR-0138 recorded the decision (Decision point 3: "canonical wire event becomes
+replay-complete"); Bundle 2 added `sequence`/correction fields to the wire type and schema; Bundle
+5 ("Authoritative projection") implemented and verified every resolution criterion above.
 
 ## Related decisions
 
@@ -129,7 +160,16 @@ Canonical Live Operations & Delayed-Concurrency programme, after Bundle 2 adds t
 
 ## Related implementation
 
-- `src/lib/live-match/live-match-projection.ts`
+- `src/lib/live-match/live-match-projection.ts` (`reduceLiveEvents`, `projectCanonicalLiveState`,
+  `mergeSnapshotWithRealtimeEvents`, `canonicalEventToSummary`)
+- `src/lib/live-match/live-match-reconciliation.ts` (`reconcileFromServerEvents`, now a thin
+  adapter over the shared reducer; `reconcileFromCanonicalEvents` removed as dead/duplicate code)
+- `src/lib/live-match/live-match-event-store.ts` (`toCanonicalLiveEvent`, `getMatchEvents`,
+  `getRecentEvents`)
+- `src/lib/live-match/live-match-domain.ts` (`derivePositionChangeFromPayload`)
+- `src/app/api/internal/live-match/snapshot/route.ts`
+- `workers/live-match/src/state.ts` (`derivePositionChange`, `evaluateLineupPrecondition`)
+- `workers/live-match/src/match-session-object.ts`
 - `src/lib/live-match/realtime/realtime-messages.ts`
 - `src/lib/reports/report-mutations.ts`
 
@@ -149,3 +189,13 @@ Record created during Bundle 1 of the Canonical Live Operations & Delayed-Concur
 The reversal-target defect (finding 2) is a new, previously-undocumented finding beyond the
 already-recorded ADR-0133 wire-level residual — confirmed by direct reading of
 `projectCanonicalLiveState`'s reversal-handling code, not inferred from the wire-type gap alone.
+
+### 2026-09-13
+
+Resolved during Bundle 5. All five resolution criteria implemented and test-verified. Two further
+findings verified and fixed in the same bundle (recorded above under "Resolution criteria"): a
+latent `matchClock` unit doubling in `canonicalEventToSummary`, and a deeper wire-plumbing gap
+(`toCanonicalLiveEvent`/the internal snapshot route never selected `period`/`matchSeconds`/
+`payload` from Neon at all) that made the documented positions/matchClock gap worse than
+originally described — data was missing, not merely miscomputed. Bundle 3's own disclosed
+`POSITIONS_CHANGED` payload-shape placeholder was also corrected to the now-confirmed real shape.

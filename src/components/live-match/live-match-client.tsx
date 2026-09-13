@@ -12,7 +12,7 @@ import {
   isBreakPeriod,
   getPeriodAfter,
 } from "@/lib/live-match/match-clock";
-import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
+import { getEventTypeLabel, getFairPlayCategoryLabel, derivePositionChangeFromPayload } from "@/lib/live-match/live-match-domain";
 import type { LiveEventSummary, MatchClockState } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
 // The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
@@ -344,6 +344,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // this session recorded, so the "On field" overview and the picker reflect reality immediately
   // without waiting on a server round-trip. Falls back to the squad's own planned `position`.
   const [positionOverrides, setPositionOverrides] = useState<Record<string, string>>({});
+  // ADR-0138 (Bundle 5) — canonical positions reconciled from server events (the same shared
+  // reducer Follow Live uses), so a position change survives a page reload/session resume
+  // rather than only living in the optimistic `positionOverrides` state above, which resets to
+  // empty on mount (ARR-0047's documented "no position state survives reload" gap). Read
+  // *underneath* `positionOverrides` in `getCurrentPosition` below — the override always wins
+  // for the instant-feedback case, this is the reconciled floor once the override is gone
+  // (e.g. after a reload, before this session records anything new).
+  const [reconciledPositions, setReconciledPositions] = useState<Record<string, string | null>>({});
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetContent>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ type: "period" | "end"; nextPeriod?: string } | null>(null);
@@ -533,6 +541,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         setGoalsFor(reconciled.goalsFor);
         setGoalsAgainst(reconciled.goalsAgainst);
         setOnFieldIds(reconciled.onFieldPlayerIds);
+        setReconciledPositions(reconciled.positions);
       }
     }
   }, [actions, matchId, squad]);
@@ -840,8 +849,13 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // type already produced when a planned position-only rotation change is applied
   // (planned-rotation-live-actions.ts) — this is the manual live-reporting equivalent of that.
   const getCurrentPosition = useCallback((playerId: string): string | null => {
-    return positionOverrides[playerId] ?? squad.find((p) => p.playerId === playerId)?.position ?? null;
-  }, [positionOverrides, squad]);
+    return (
+      positionOverrides[playerId] ??
+      reconciledPositions[playerId] ??
+      squad.find((p) => p.playerId === playerId)?.position ??
+      null
+    );
+  }, [positionOverrides, reconciledPositions, squad]);
 
   const handleStartPositionChange = useCallback(() => {
     setPositionChangePlayerId(null);
@@ -922,6 +936,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       isCorrected: false,
       isReversed: false,
       correctsEventId: e.correctsEventId ?? null,
+      positionChange: derivePositionChangeFromPayload(e.eventType, e.payload),
     }));
     const all = [...recentEvents, ...localSummaries];
     const seen = new Set<string>();

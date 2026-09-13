@@ -13,6 +13,28 @@ import {
   FAIR_PLAY_CONCERN_CATEGORIES,
 } from "./live-match-types";
 
+/**
+ * Bundle 5 (ADR-0138) — the confirmed real `POSITIONS_CHANGED` payload shape is one event per
+ * moved player: `{ fromPosition, toPosition }` on the event's own `payload`, with `playerId`
+ * carried as a top-level field (not a batched `{ assignments: [...] }` array — an earlier,
+ * unverified assumption in the Bundle 3 coordinator precondition code). This is the one shared
+ * derivation used by both the internal persist endpoint's response builder and the internal
+ * snapshot route, so a `CanonicalLiveEvent`'s `positionChange` field is populated identically
+ * regardless of which path produced it.
+ */
+export function derivePositionChangeFromPayload(
+  eventType: string,
+  payload: unknown,
+): { fromPosition: string | null; toPosition: string } | null {
+  if (eventType !== "POSITIONS_CHANGED") return null;
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const toPosition = record.toPosition;
+  if (typeof toPosition !== "string" || toPosition.length === 0) return null;
+  const fromPosition = typeof record.fromPosition === "string" ? record.fromPosition : null;
+  return { fromPosition, toPosition };
+}
+
 export function isValidEventType(type: string): type is LiveMatchEventType {
   const validTypes: LiveMatchEventType[] = [
     "MATCH_START",

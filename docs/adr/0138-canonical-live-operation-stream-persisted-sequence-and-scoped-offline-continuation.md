@@ -350,3 +350,18 @@ Record created (Bundle 1 of the Canonical Live Operations & Delayed-Concurrency 
 ADR documents the accepted architecture direction ahead of implementation; protocol v2, persisted
 sequence, the durable local outbox, and scoped offline continuation are not yet implemented in
 code as of this entry. See `PROGRAMME_STATE.md` for live bundle-by-bundle progress and evidence.
+
+### 2026-09-13
+
+Bundle 5 ("Authoritative projection") complete: `projectCanonicalLiveState`/`reduceLiveEvents`
+implement Decision point 3 in full — sequence-ordered replay, `correctsEventId`-based
+reversal/correction resolution, an exhaustive event-type switch, and a positions projection.
+Resolves ARR-0047 in full, including two further findings verified during implementation: a
+latent match-time unit doubling in event-summary formatting, and a deeper wire-plumbing gap
+(neither the internal persist endpoint's response nor the internal snapshot route ever carried
+`period`/`matchSeconds`/position payload data through from Neon, despite the columns being
+populated) that made the Follow Live positions/matchClock gap this ADR's Decision point 3
+anticipated actually worse in practice than documented — see ARR-0047's own History for the full
+account. The Live Reporting client's own reconciliation (`reconcileFromServerEvents`) is now a
+thin adapter over the same shared reducer Follow Live's projection uses, closing the "two
+independent implementations of which goals count" gap ARR-0047 identified.
