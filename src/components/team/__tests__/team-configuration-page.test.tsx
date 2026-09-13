@@ -19,6 +19,7 @@ function makeConfig(overrides: Partial<TeamConfiguration> = {}): TeamConfigurati
     name: "Bla",
     coreGroup: "12 active players",
     active: true,
+    kitColor: null,
     targetSquadSize: 11,
     minAcceptedSquadSize: 7,
     maxSquadSize: 14,

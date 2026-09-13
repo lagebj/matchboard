@@ -3,6 +3,8 @@ export interface TeamConfiguration {
   name: string;
   coreGroup: string;
   active: boolean;
+  /** Atlas Follow-up: validated `KitColorId` (`src/lib/teams/kit-color.ts`), or `null` for unset. */
+  kitColor: string | null;
   targetSquadSize: number;
   minAcceptedSquadSize: number;
   maxSquadSize: number;
@@ -33,6 +35,8 @@ export interface TeamRuleConfiguration {
 export interface UpdateTeamConfigurationInput {
   name?: string;
   active?: boolean;
+  /** Set to `null` to clear (revert to the neutral Touchline shirt). */
+  kitColor?: string | null;
   targetSquadSize?: number;
   minAcceptedSquadSize?: number;
   maxSquadSize?: number;

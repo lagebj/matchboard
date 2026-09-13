@@ -1,6 +1,7 @@
 import type { TeamConfiguration, TeamRuleConfiguration } from "./types";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { isValidKitColor } from "@/lib/teams/kit-color";
 
 export const KNOWN_RULES: TeamRuleConfiguration[] = [
   {
@@ -104,6 +105,7 @@ export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilter
     name: team.name,
     coreGroup: `${team.corePlayers.length} active players`,
     active: !team.archivedAt,
+    kitColor: team.kitColor,
     targetSquadSize: team.targetSquadSize,
     minAcceptedSquadSize: team.minAcceptedSquadSize,
     maxSquadSize: team.maxSquadSize,
@@ -122,6 +124,7 @@ export async function updateTeamConfiguration(
   input: {
     name?: string;
     active?: boolean;
+    kitColor?: string | null;
     targetSquadSize?: number;
     minAcceptedSquadSize?: number;
     maxSquadSize?: number;
@@ -137,6 +140,10 @@ export async function updateTeamConfiguration(
 
   if (input.targetSquadSize !== undefined && input.targetSquadSize <= 0) {
     throw new Error("Target squad size must be greater than 0.");
+  }
+
+  if (input.kitColor !== undefined && input.kitColor !== null && !isValidKitColor(input.kitColor)) {
+    throw new Error("Kit colour must be one of the product palette values.");
   }
 
   const existing = await db.team.findUniqueOrThrow({ where: { id: teamId, ...orgWhere }, select: { targetSquadSize: true, minAcceptedSquadSize: true, maxSquadSize: true } });
@@ -155,6 +162,7 @@ export async function updateTeamConfiguration(
   if (input.name !== undefined) data.name = input.name;
   if (input.active === false) data.archivedAt = new Date();
   if (input.active === true) data.archivedAt = null;
+  if (input.kitColor !== undefined) data.kitColor = input.kitColor;
   if (input.targetSquadSize !== undefined) data.targetSquadSize = input.targetSquadSize;
   if (input.minAcceptedSquadSize !== undefined) data.minAcceptedSquadSize = input.minAcceptedSquadSize;
   if (input.maxSquadSize !== undefined) data.maxSquadSize = input.maxSquadSize;

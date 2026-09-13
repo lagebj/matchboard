@@ -69,5 +69,8 @@ export type { QuickAction } from "./widget/quick-action-grid";
 export { PitchPlayerToken, PitchEmptySlot } from "./pitch/pitch-player-token";
 export type { PitchPlayerTokenStatus } from "./pitch/pitch-player-token";
 
+export { TeamKitMark } from "./identity/team-kit-mark";
+export type { TeamKitMarkSize, TeamKitMarkProps } from "./identity/team-kit-mark";
+
 export { LiveActionGrid } from "./live/live-action-grid";
 export type { LiveAction, LiveActionTone } from "./live/live-action-grid";

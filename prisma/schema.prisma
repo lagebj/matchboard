@@ -21,6 +21,11 @@ model Team {
   maxSupportCount          Int                     @default(0)
   maxPlayerChangesPerRound Int                     @default(0)
   supportPriority          Int                     @default(0)
+  // Atlas Follow-up (05_SHIRT_IDENTITY_AND_TEAM_KIT_COLOR.md): one canonical presentation-only
+  // kit colour, validated server-side against a fixed product palette (src/lib/teams/kit-color.ts).
+  // Drives TeamKitMark's dynamic fill. Not a design/branding system — no stripes/patterns/home-away
+  // kits, one value per team. Unset renders the neutral Touchline shirt.
+  kitColor                 String?
   minSupportPlayers        Int                     @default(0)
   developmentSlots         Int                     @default(0)
   archivedAt               DateTime?
