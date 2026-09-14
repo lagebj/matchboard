@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -94,21 +94,26 @@ live Event match), not a residue-cleanup task — it needs an ADR, not a code fi
 
 ## Resolution criteria
 
-- [ ] An ADR decides whether Event live-reporting mutation authorization should match League's
+- [x] An ADR decides whether Event live-reporting mutation authorization should match League's
       group-level model, stay org-level-only for consistency with Event's other actions, or some
       other explicit direction.
-- [ ] The decided direction is implemented and covered by an authorization regression test
+- [x] The decided direction is implemented and covered by an authorization regression test
       (mirroring the existing League `requireMatchGroupMutationRole` rejection test) proving the
       chosen behavior, not merely absence of a check.
 
 ## Disposition
 
-Undispositioned — awaiting the ADR described above. Recorded now (rather than silently left
-unrecorded) per this codebase's "when an ARR is discovered during code work, record it before
-continuing" rule.
+Resolved by ADR-0140. Event live-reporting mutation authorization now matches League's model:
+report-mode mutation requires organisation mutation authority (`OWNER`, `ADMIN`, or `COACH`) plus,
+for non-admin users, `GROUP_COACH` authority on the Event's `footballGroupId`. `OWNER`/`ADMIN`
+retain the same administrative bypass League already had. Event Follow Live remains readable by
+both `GROUP_COACH` and `GROUP_VIEWER`, unchanged. This decision applies to live execution and the
+live-to-report handoff only — Event's broader planning authorization model (squad generation,
+lineup editing, other Event actions) was deliberately not changed.
 
 ## Related decisions
 
+- ADR-0140 (Event live-reporting mutation is group-role-aware) — resolves this ARR.
 - ADR-0138 (Canonical Live Operation Stream, Persisted Sequence, and Scoped Offline Continuation)
   — Bundle 8 surfaced this while wiring Event's realtime-ticket "report"/"view" dispatch.
 - ADR-0086 (Live match realtime coordination runs on Cloudflare Durable Objects) — the
@@ -118,8 +123,9 @@ continuing" rule.
 
 - `src/app/api/live-match/[matchId]/realtime-ticket/route.ts`
 - `src/app/(app)/events/[eventId]/event-live-actions.ts`
+- `src/app/(app)/events/[eventId]/event-live-report-handoff.ts`
 - `src/lib/auth/actor-context.ts` (`requireMutationRole`, `requireMatchGroupMutationRole`,
-  `requireGroupAccessFromContext`)
+  `requireGroupAccessFromContext`, `requireGroupMutationRoleFromContext`)
 
 ## Supersedes
 
@@ -137,3 +143,12 @@ Record created during ADR-0138 Bundle 8 (Canonical Live Operations & Delayed-Con
 programme), while implementing Event's realtime-ticket "report"/"view" dispatch. Confirmed via
 direct code audit that Event's live-reporting mutation authorization has always been org-level
 only, with no equivalent to League's group-level `requireMatchGroupMutationRole` check.
+
+### 2026-09-14
+
+Resolved by ADR-0140. Event report-mode live mutation now requires organisation mutation
+authority plus `GROUP_COACH` authority on the Event's `footballGroupId` for non-admin users,
+enforced at every caller-facing Event live mutation boundary (report-ticket issuance, session
+start, heartbeat, clock persistence, session end, and live-to-report handoff). Follow Live
+remains unchanged. Covered by authorization regression tests.
+

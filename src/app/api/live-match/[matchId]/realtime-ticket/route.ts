@@ -6,6 +6,7 @@ import {
   requireMatchGroupAccess,
   requireMatchGroupMutationRole,
   requireGroupAccessFromContext,
+  requireGroupMutationRoleFromContext,
 } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { rateLimit } from "@/lib/rate-limit";
@@ -81,17 +82,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
 
   try {
     if (subjectType === "EVENT") {
-      // ADR-0138 Bundle 8 — Event parity. "report" mode deliberately matches Event's own
-      // existing authorization pattern everywhere else in this codebase (org-level
-      // `requireMutationRole` only, checked unconditionally above, no group-level check) rather
-      // than inventing a stricter check League happens to have and Event does not — see
-      // ARR-0048 for that pre-existing, separate asymmetry, recorded rather than silently fixed
-      // here (out of scope for "wire Event into the coordinator"). "view" mode (Follow Live,
-      // Bundle 8 work item 7) is a genuinely new, additive capability with no prior Event
-      // precedent to match — it reuses the exact same group-access model League's own Follow
-      // Live already established (`requireGroupAccessFromContext`, GROUP_COACH or
-      // GROUP_VIEWER on the Event's own `footballGroupId`), since that is this specific
-      // feature's own design, not a change to Event's existing mutation-authorization pattern.
+      // ADR-0140 — Event report-mode mutation now requires org-level mutation role (checked
+      // unconditionally above) AND `GROUP_COACH` authority on the Event's own
+      // `footballGroupId`, matching League's `requireMatchGroupMutationRole` model. This closes
+      // ARR-0048. "view" mode (Follow Live) keeps its existing group-access model
+      // (`requireGroupAccessFromContext`, GROUP_COACH or GROUP_VIEWER), unchanged by this ADR.
       const eventMatch = await db.eventMatch.findUnique({
         where: { id: matchId },
         select: { id: true, organisationId: true, event: { select: { footballGroupId: true } } },
@@ -109,6 +104,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ mat
           requireGroupAccessFromContext(ctx, eventMatch.event.footballGroupId);
         } catch {
           return NextResponse.json({ error: "You do not have access to follow this event match live." }, { status: 403 });
+        }
+      } else {
+        try {
+          requireGroupMutationRoleFromContext(ctx, eventMatch.event.footballGroupId);
+        } catch {
+          return NextResponse.json({ error: "You do not have reporting authority for this event's group." }, { status: 403 });
         }
       }
 

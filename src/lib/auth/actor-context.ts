@@ -302,10 +302,27 @@ export async function requireMatchGroupMutationRole(
     throw new AuthorizationError("Match not found or access denied.");
   }
 
-  const access = ctx.groupAccesses.find((ga) => ga.footballGroupId === team.footballGroupId);
+  requireGroupMutationRoleFromContext(ctx, team.footballGroupId);
+}
+
+/**
+ * Shared group-role-aware mutation gate for any operation scoped to a single `footballGroupId`.
+ * `OWNER`/`ADMIN` retain the existing administrative bypass. For every other org role, the
+ * caller must hold `GROUP_COACH` access to the group — `GROUP_VIEWER` (or no access at all) is
+ * rejected. This is the one shared decision function behind both League's
+ * `requireMatchGroupMutationRole()` (ADR-0138/ARR-0048 pre-existing behavior) and Event's live
+ * reporting mutation boundaries added by ADR-0140.
+ */
+export function requireGroupMutationRoleFromContext(
+  ctx: ActorContext,
+  groupId: string,
+): void {
+  if (ADMIN_ROLES.includes(ctx.role)) return;
+
+  const access = ctx.groupAccesses.find((ga) => ga.footballGroupId === groupId);
   if (!access || access.role !== "GROUP_COACH") {
     throw new AuthorizationError(
-      "You have view-only access to this match's group and cannot report on it.",
+      "You have view-only access to this group and cannot report on it.",
     );
   }
 }

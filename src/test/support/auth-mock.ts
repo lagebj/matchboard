@@ -13,7 +13,9 @@ const {
   mockRequireTeamGroupAccess,
   mockRequirePlayerGroupAccess,
   mockRequireMatchGroupAccess,
+  mockRequireMatchGroupMutationRole,
   mockRequireGroupAccessFromContext,
+  mockRequireGroupMutationRoleFromContext,
   mockTeamFilterFromContext,
   mockGroupFilterFromContext,
   mockTeamOrGroupFilter,
@@ -31,7 +33,9 @@ const {
   mockRequireTeamGroupAccess: vi.fn(),
   mockRequirePlayerGroupAccess: vi.fn(),
   mockRequireMatchGroupAccess: vi.fn(),
+  mockRequireMatchGroupMutationRole: vi.fn(),
   mockRequireGroupAccessFromContext: vi.fn(),
+  mockRequireGroupMutationRoleFromContext: vi.fn(),
   mockTeamFilterFromContext: vi.fn(),
   mockGroupFilterFromContext: vi.fn(),
   mockTeamOrGroupFilter: vi.fn(),
@@ -55,7 +59,9 @@ vi.mock("@/lib/auth/actor-context", () => ({
   requireTeamGroupAccess: mockRequireTeamGroupAccess,
   requirePlayerGroupAccess: mockRequirePlayerGroupAccess,
   requireMatchGroupAccess: mockRequireMatchGroupAccess,
+  requireMatchGroupMutationRole: mockRequireMatchGroupMutationRole,
   requireGroupAccessFromContext: mockRequireGroupAccessFromContext,
+  requireGroupMutationRoleFromContext: mockRequireGroupMutationRoleFromContext,
   teamFilterFromContext: mockTeamFilterFromContext,
   groupFilterFromContext: mockGroupFilterFromContext,
   teamOrGroupFilter: mockTeamOrGroupFilter,
@@ -128,6 +134,7 @@ export type MockAuthOverrides = {
   organisationSlug?: string;
   role?: "OWNER" | "ADMIN" | "COACH" | "VIEWER";
   accessibleGroupIds?: string[];
+  groupAccesses?: { footballGroupId: string; role: "GROUP_COACH" | "GROUP_VIEWER" }[];
 };
 
 export function mockAuthContext(overrides?: MockAuthOverrides) {
@@ -179,8 +186,10 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
   mockRequireTeamGroupAccess.mockResolvedValue(undefined);
   mockRequirePlayerGroupAccess.mockResolvedValue(null);
   mockRequireMatchGroupAccess.mockResolvedValue(null);
+  mockRequireMatchGroupMutationRole.mockResolvedValue(undefined);
   mockRequireTeamGroupAccess.mockResolvedValue(null);
   mockRequireGroupAccessFromContext.mockImplementation(() => {});
+  mockRequireGroupMutationRoleFromContext.mockImplementation(() => {});
   mockTeamFilterFromContext.mockReturnValue(null);
   mockGroupFilterFromContext.mockReturnValue(null);
   mockTeamOrGroupFilter.mockReturnValue(null);
@@ -198,7 +207,9 @@ export function mockAuthContext(overrides?: MockAuthOverrides) {
     mockRequireTeamGroupAccess,
     mockRequirePlayerGroupAccess,
     mockRequireMatchGroupAccess,
+    mockRequireMatchGroupMutationRole,
     mockRequireGroupAccessFromContext,
+    mockRequireGroupMutationRoleFromContext,
     mockTeamFilterFromContext,
     mockGroupFilterFromContext,
     mockTeamOrGroupFilter,

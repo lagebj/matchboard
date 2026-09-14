@@ -9,6 +9,7 @@ const {
   mockRequireMatchGroupAccess,
   mockRequireMatchGroupMutationRole,
   mockRequireGroupAccessFromContext,
+  mockRequireGroupMutationRoleFromContext,
   mockRateLimit,
   mockDb,
 } = vi.hoisted(() => ({
@@ -17,6 +18,7 @@ const {
   mockRequireMatchGroupAccess: vi.fn(),
   mockRequireMatchGroupMutationRole: vi.fn(),
   mockRequireGroupAccessFromContext: vi.fn(),
+  mockRequireGroupMutationRoleFromContext: vi.fn(),
   mockRateLimit: vi.fn(),
   mockDb: {
     match: { findUnique: vi.fn() },
@@ -34,6 +36,7 @@ vi.mock("@/lib/auth/actor-context", () => ({
   requireMatchGroupAccess: mockRequireMatchGroupAccess,
   requireMatchGroupMutationRole: mockRequireMatchGroupMutationRole,
   requireGroupAccessFromContext: mockRequireGroupAccessFromContext,
+  requireGroupMutationRoleFromContext: mockRequireGroupMutationRoleFromContext,
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
@@ -198,13 +201,15 @@ describe("POST /api/live-match/[matchId]/realtime-ticket", () => {
   });
 });
 
-// ADR-0138 Bundle 8 — Event parity (closes ARR-0046, and work item 7's "view" gate).
+// ADR-0140 — Event report-mode mutation now requires org-level mutation role AND `GROUP_COACH`
+// authority on the Event's `footballGroupId`, matching League's model and closing ARR-0048.
 describe("POST /api/live-match/[matchId]/realtime-ticket (subjectType: EVENT)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRequireActorContext.mockResolvedValue(ctx);
     mockRequireMutationRole.mockImplementation(() => {});
     mockRequireGroupAccessFromContext.mockImplementation(() => {});
+    mockRequireGroupMutationRoleFromContext.mockImplementation(() => {});
     mockRateLimit.mockResolvedValue({ allowed: true });
   });
 
@@ -222,7 +227,7 @@ describe("POST /api/live-match/[matchId]/realtime-ticket (subjectType: EVENT)", 
     expect(res.status).toBe(404);
   });
 
-  it("issues a report-mode ticket via org-level requireMutationRole only, no group check (matching Event's existing mutation-authorization pattern)", async () => {
+  it("issues a report-mode ticket gated by requireGroupMutationRoleFromContext on the Event's footballGroupId (ADR-0140)", async () => {
     mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
     mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
     const { POST } = await import("../route");
@@ -233,7 +238,19 @@ describe("POST /api/live-match/[matchId]/realtime-ticket (subjectType: EVENT)", 
     expect(claims.capabilities).toEqual(["report"]);
     expect(claims.subjectType).toBe("EVENT");
     expect(mockRequireMutationRole).toHaveBeenCalled();
+    expect(mockRequireGroupMutationRoleFromContext).toHaveBeenCalledWith(ctx, "group-1");
     expect(mockRequireGroupAccessFromContext).not.toHaveBeenCalled();
+  });
+
+  it("rejects report mode when the caller only has GROUP_VIEWER (or no) access to the Event's group", async () => {
+    mockDb.eventMatch.findUnique.mockResolvedValue({ id: "event-match-1", organisationId: "org-1", event: { footballGroupId: "group-1" } });
+    mockDb.eventLiveMatchSession.findUnique.mockResolvedValue({ id: "session-1", organisationId: "org-1", status: "ACTIVE" });
+    mockRequireGroupMutationRoleFromContext.mockImplementation(() => {
+      throw new AuthorizationError("You have view-only access to this group and cannot report on it.");
+    });
+    const { POST } = await import("../route");
+    const res = await POST(makeRequest({ subjectType: "EVENT", mode: "report" }), makeParams("event-match-1"));
+    expect(res.status).toBe(403);
   });
 
   it("issues a view-mode ticket gated by requireGroupAccessFromContext on the Event's footballGroupId", async () => {
@@ -247,6 +264,7 @@ describe("POST /api/live-match/[matchId]/realtime-ticket (subjectType: EVENT)", 
     expect(claims.capabilities).toEqual(["view"]);
     expect(claims.subjectType).toBe("EVENT");
     expect(mockRequireGroupAccessFromContext).toHaveBeenCalledWith(ctx, "group-1");
+    expect(mockRequireGroupMutationRoleFromContext).not.toHaveBeenCalled();
     expect(mockRequireMutationRole).not.toHaveBeenCalled();
   });
 

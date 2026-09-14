@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireGroupMutationRoleFromContext } from "@/lib/auth/actor-context";
 import { endEventLiveSession } from "@/lib/live-match/event-live-match-session";
 import { seedEventReportFromLiveSession } from "@/lib/reports/event-report-mutations";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -26,6 +26,9 @@ async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFi
  * consistency for this entry point, then delegates the two owning transitions — "this live
  * session ends" and "the first DRAFT event post-match report exists" — to their domain
  * functions instead of reimplementing either write here.
+ *
+ * ADR-0140 — group mutation authority is required BEFORE either transition. A `GROUP_VIEWER`
+ * must not be able to complete the live-to-report handoff.
  */
 export async function endEventLiveSessionAndCreateReportAction(sessionId: string, eventMatchId: string) {
   try {
@@ -35,7 +38,13 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
 
     const session = await db.eventLiveMatchSession.findFirst({
       where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
-      select: { id: true, eventMatchId: true, status: true, organisationId: true },
+      select: {
+        id: true,
+        eventMatchId: true,
+        status: true,
+        organisationId: true,
+        eventMatch: { select: { event: { select: { footballGroupId: true } } } },
+      },
     });
 
     if (!session) {
@@ -53,6 +62,8 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
     if (session.organisationId !== ctx.orgFilter.organisationId) {
       return { success: false as const, error: "Session not found or access denied." };
     }
+
+    requireGroupMutationRoleFromContext(ctx, session.eventMatch.event.footballGroupId);
 
     await endEventLiveSession(sessionId);
 

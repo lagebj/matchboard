@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { startEventLiveSession, endEventLiveSession, getEventActiveSession, heartbeatEventSession } from "@/lib/live-match/event-live-match-session";
+import { startEventLiveSession, endEventLiveSession, getEventActiveSession, heartbeatEventSession, persistEventLiveSessionClock } from "@/lib/live-match/event-live-match-session";
 import { getEventMatchEvents, getRecentEventEvents } from "@/lib/live-match/event-live-match-event-store";
 import { db } from "@/lib/db";
-import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireGroupMutationRoleFromContext } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { MatchClockState } from "@/lib/live-match/live-match-types";
 import { getUnavailableParticipantIdsForMatch } from "@/lib/events/event-match-availability";
 
 // Takes an already-resolved `orgFilter` (established once, at the top of each exported action
@@ -20,13 +21,19 @@ import { getUnavailableParticipantIdsForMatch } from "@/lib/events/event-match-a
 // see ARR-0029 "Bug 3" and src/lib/db.ts's own comment on getExplicitOrgId()). That silently left
 // every later query in a caller like getEventLiveMatchPreMatchPackageAction unscoped, which
 // src/lib/db.ts's fail-closed tenantRLS extension (ADR-0087) correctly refused to run.
-async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
+//
+// ADR-0140 — now also returns `footballGroupId` so every caller-facing Event live mutation can
+// require `GROUP_COACH` authority for the Event's own group before mutating.
+async function requireEventMatchOrgAccess(
+  eventMatchId: string,
+  orgFilter: OrgFilterMode,
+): Promise<{ eventId: string; footballGroupId: string }> {
   const match = await db.eventMatch.findFirst({
     where: { id: eventMatchId, organisationId: orgFilter.organisationId },
-    select: { eventId: true },
+    select: { eventId: true, event: { select: { footballGroupId: true } } },
   });
   if (!match) throw new Error("Event match not found or access denied.");
-  return { eventId: match.eventId };
+  return { eventId: match.eventId, footballGroupId: match.event.footballGroupId };
 }
 
 export async function startEventLiveSessionAction(eventMatchId: string) {
@@ -34,7 +41,8 @@ export async function startEventLiveSessionAction(eventMatchId: string) {
     const ctx = await requirePageActorContext();
     setTenantOrganisationId(ctx.organisationId);
     requireMutationRole(ctx);
-    const { eventId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
+    const { eventId, footballGroupId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
+    requireGroupMutationRoleFromContext(ctx, footballGroupId);
     const session = await startEventLiveSession(eventMatchId);
     revalidatePath(`/events/${eventId}`);
     revalidatePath(`/events/${eventId}/matches/${eventMatchId}/live`);
@@ -63,9 +71,10 @@ export async function endEventLiveSessionAction(sessionId: string) {
     requireMutationRole(ctx);
     const session = await db.eventLiveMatchSession.findFirst({
       where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
-      select: { eventMatchId: true },
+      select: { eventMatchId: true, eventMatch: { select: { event: { select: { footballGroupId: true } } } } },
     });
     if (!session) throw new Error("Live session not found or access denied.");
+    requireGroupMutationRoleFromContext(ctx, session.eventMatch.event.footballGroupId);
     const ended = await endEventLiveSession(sessionId);
     const { eventId } = await requireEventMatchOrgAccess(ended.eventMatchId, ctx.orgFilter);
     revalidatePath(`/events/${eventId}`);
@@ -83,13 +92,51 @@ export async function heartbeatEventAction(sessionId: string) {
     requireMutationRole(ctx);
     const session = await db.eventLiveMatchSession.findFirst({
       where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
-      select: { id: true },
+      select: { id: true, eventMatch: { select: { event: { select: { footballGroupId: true } } } } },
     });
     if (!session) throw new Error("Live session not found or access denied.");
+    requireGroupMutationRoleFromContext(ctx, session.eventMatch.event.footballGroupId);
     await heartbeatEventSession(sessionId);
     return { success: true as const };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Heartbeat failed." };
+  }
+}
+
+/**
+ * Persist the Event live-match clock on a period transition — identical contract to League's
+ * `persistLiveSessionClockAction` (ADR-0133 H2 / ADR-0140 parity). Called from the client on
+ * every period advance / pause / resume / adjust, never on the per-second tick. Best-effort: a
+ * failure here must never disrupt live reporting.
+ */
+export async function persistEventLiveSessionClockAction(
+  sessionId: string,
+  clock: {
+    period: MatchClockState["period"];
+    running: boolean;
+    startedAt: string | null;
+    elapsedBeforeStartMs: number;
+  },
+) {
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    requireMutationRole(ctx);
+    const session = await db.eventLiveMatchSession.findFirst({
+      where: { id: sessionId, organisationId: ctx.orgFilter.organisationId },
+      select: { eventMatch: { select: { event: { select: { footballGroupId: true } } } } },
+    });
+    if (!session) throw new Error("Live session not found or access denied.");
+    requireGroupMutationRoleFromContext(ctx, session.eventMatch.event.footballGroupId);
+    await persistEventLiveSessionClock(sessionId, {
+      period: clock.period,
+      running: clock.running,
+      startedAt: clock.startedAt ? new Date(clock.startedAt) : null,
+      elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
+    });
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Failed to persist clock." };
   }
 }
 
@@ -273,6 +320,14 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
               id: activeSession.id,
               coachId: activeSession.coachId,
               startedAt: activeSession.startedAt.toISOString(),
+              // Persisted Event match clock (ADR-0140 parity with League's ADR-0133 H2) — the
+              // client rehydrates from this on mount instead of starting at "before kickoff".
+              clock: {
+                period: activeSession.clock.period,
+                running: activeSession.clock.running,
+                startedAt: activeSession.clock.startedAt?.toISOString() ?? null,
+                elapsedBeforeStartMs: activeSession.clock.elapsedBeforeStartMs,
+              },
             }
           : null,
         eventId,
