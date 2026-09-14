@@ -120,8 +120,6 @@ async function sequentialDeleteAllTables(db: PrismaClient): Promise<void> {
   await db.selection.deleteMany().catch(() => {});
   await db.availability.deleteMany().catch(() => {});
   await db.playerLock.deleteMany().catch(() => {});
-  await db.playerProfileSuggestionEvidence.deleteMany().catch(() => {});
-  await db.playerProfileSuggestion.deleteMany().catch(() => {});
   await db.match.deleteMany().catch(() => {});
   await db.matchRound.deleteMany().catch(() => {});
   await db.leagueSeason.deleteMany().catch(() => {});

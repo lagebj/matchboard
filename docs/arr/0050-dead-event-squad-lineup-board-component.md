@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -84,22 +84,27 @@ planned future work.
 
 ## Resolution criteria
 
-- [ ] A maintainer decision on whether to delete `EventSquadLineupBoard` and
+- [x] A maintainer decision on whether to delete `EventSquadLineupBoard` and
       `event-lineup-assignment.ts` outright (the squad-level read-only preview concept is fully
       superseded by the per-match editable panel and not worth reviving), or to genuinely wire a
       read-only squad-level lineup preview back into `event-detail.tsx`'s Squads tab (e.g.,
       showing each squad's overall formation placement at a glance, distinct from per-match
       editing) as a deliberate, separate product decision.
-- [ ] Once decided: either both files are deleted with a regression check confirming no remaining
+- [x] Once decided: either both files are deleted with a regression check confirming no remaining
       reference exists, or the component is genuinely wired into a real route/page and migrated to
       `TouchlinePlanningPitch` (`readOnly` mode, no `editableGrid`) at that time, with its own
       test coverage added (neither file has any today).
 
 ## Disposition
 
-Undispositioned — awaiting the maintainer decision above. Recorded now, per this repository's
-"when an ARR is discovered during code work, record it before continuing" rule, rather than
-silently skipping this item in Phase F7's migration order without explanation.
+Resolved (2026-09-14): `EventSquadLineupBoard` (`src/components/events/event-squad-lineup-board.tsx`)
+and `event-lineup-assignment.ts` (`src/lib/events/event-lineup-assignment.ts`) were deleted
+outright, as fully superseded by the reachable per-match `EventMatchLineupPanel` implementation.
+No replacement squad-level preview was created; no helpers were preserved. The corresponding
+`describe('computeLineupAssignment', ...)` test block in
+`src/lib/events/__tests__/event-squad-generation.test.ts` (which tested the removed module) was
+deleted alongside it. A repository-wide search after deletion confirms no remaining import of
+`EventSquadLineupBoard`, `computeLineupAssignment`, or either removed module path.
 
 ## Related decisions
 

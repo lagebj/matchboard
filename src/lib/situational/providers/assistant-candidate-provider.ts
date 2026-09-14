@@ -36,12 +36,11 @@ const CATEGORY_CONSEQUENCES: Record<AssistantWorkCategory, DecisionConsequence[]
   event_report_incomplete: ["REPORTING_DEBT"],
   upcoming_round: ["INFORMATION_ONLY"],
   live_report_available: ["RESPONSIBILITY_GAP"],
-  pending_profile_suggestions: ["DEVELOPMENT_SIGNAL"],
   planned_rotation_delayed: ["RESPONSIBILITY_GAP"],
 };
 
 /** Categories describing longitudinal/developmental signal rather than an immediate operational fact. */
-const LONG_TERM_CATEGORIES = new Set<AssistantWorkCategory>(["pending_profile_suggestions"]);
+const LONG_TERM_CATEGORIES = new Set<AssistantWorkCategory>([]);
 
 export type MatchDeadlineLookup = (matchId: string | undefined) => string | undefined;
 

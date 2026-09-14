@@ -112,7 +112,6 @@ model Player {
   locks                     PlayerLock[]
   readinessSignals          PlayerReadinessSignal[]
   developmentObservations   PlayerDevelopmentObservation[]
-  profileSuggestions        PlayerProfileSuggestion[]
   postMatchActuals          PostMatchPlayerActual[]
   selections                Selection[]
   matchHelperAssignments    MatchHelperAssignment[]
@@ -2478,7 +2477,6 @@ model Organisation {
   policyDecisionLogs            PolicyDecisionLog[]
   opponentSportingEvidence      OpponentSportingEvidence[]
   developmentObservations       PlayerDevelopmentObservation[]
-  profileSuggestions            PlayerProfileSuggestion[]
   ruleConfigs                   RuleConfig[]
   reviewRequests                ReviewRequest[]
   decisionReviews               DecisionReview[]
@@ -2734,7 +2732,6 @@ model PlayerDevelopmentObservation {
   match              Match?                            @relation(fields: [matchId], references: [id], onDelete: Cascade)
   eventMatch         EventMatch?                       @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   organisation       Organisation?                     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  suggestionEvidence PlayerProfileSuggestionEvidence[]
 
   // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint
   // added by hand to the generated migration SQL (Prisma cannot express this).
@@ -2746,48 +2743,6 @@ model PlayerDevelopmentObservation {
   @@index([eventMatchId])
   @@index([organisationId])
   @@index([recordedBy])
-}
-
-model PlayerProfileSuggestion {
-  id               String                            @id @default(cuid())
-  organisationId   String
-  playerId         String
-  targetType       DevelopmentObservationKind
-  attributeKey     String?
-  positionId       String?
-  confidence       SuggestionConfidence
-  direction        DevelopmentDirection
-  currentSnapshot  Json
-  proposedSnapshot Json
-  evidenceSummary  Json
-  status           SuggestionStatus                  @default(PENDING)
-  decidedAt        DateTime?
-  decidedBy        String?
-  createdAt        DateTime                          @default(now())
-  updatedAt        DateTime                          @updatedAt
-  player           Player                            @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  organisation     Organisation?                     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  evidenceLinks    PlayerProfileSuggestionEvidence[]
-
-  @@unique([playerId, targetType, attributeKey, positionId, status])
-  @@index([playerId, status])
-  @@index([playerId, targetType])
-  @@index([organisationId])
-  @@index([status])
-  @@index([decidedAt])
-}
-
-model PlayerProfileSuggestionEvidence {
-  id            String                       @id @default(cuid())
-  suggestionId  String
-  observationId String
-  createdAt     DateTime                     @default(now())
-  suggestion    PlayerProfileSuggestion      @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
-  observation   PlayerDevelopmentObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
-
-  @@unique([suggestionId, observationId])
-  @@index([suggestionId])
-  @@index([observationId])
 }
 
 enum OpponentWeightingMethod {
@@ -2808,19 +2763,6 @@ enum DevelopmentObservationKind {
 enum DevelopmentDirection {
   POSITIVE
   NEGATIVE
-}
-
-enum SuggestionConfidence {
-  MEDIUM
-  HIGH
-}
-
-enum SuggestionStatus {
-  PENDING
-  ACCEPTED
-  ADJUSTED
-  REJECTED
-  SUPERSEDED
 }
 
 // ─── Transactional email outbox ──────────────────────────────────────────────

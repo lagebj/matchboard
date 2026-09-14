@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Resolved
 
 ## Identified
 
@@ -113,7 +113,7 @@ likewise reused as the observation-fetch query. Everything else named above rema
 
 ## Resolution criteria
 
-- [ ] A maintainer decision on whether to delete the whole dead subsystem outright (schema
+- [x] A maintainer decision on whether to delete the whole dead subsystem outright (schema
       migration dropping `PlayerProfileSuggestion`/`PlayerProfileSuggestionEvidence`, removing
       `suggestions.ts`, `observations.ts`, the two orphaned routes, and
       `DevelopmentObservationSection`) or to revive the `kind: "POSITION"`/`kind: "ATTRIBUTE"`
@@ -121,14 +121,42 @@ likewise reused as the observation-fetch query. Everything else named above rema
       `evaluatePositionEvidence()`/`getPositionExperienceForPlayer()` would need extracting to a
       standalone module first if the deletion path is chosen, so ADR-0139's dependency on them
       survives.
-- [ ] Once decided, either the deletion or the revival is implemented with its own regression
+- [x] Once decided, either the deletion or the revival is implemented with its own regression
       tests.
 
 ## Disposition
 
-Undispositioned — awaiting the maintainer decision above. Recorded now, per this repository's
-"when an ARR is discovered during code work, record it before continuing" rule, rather than
-silently building Phase F3 on top of an unexplained pre-existing gap.
+Resolved (2026-09-14, PR 2 / archaeology cleanup bundle): the approval-gated
+`PlayerProfileSuggestion` architecture was deleted outright, along with its orphan
+routes/service/component:
+
+- `src/lib/player-development/suggestions.ts`
+- `src/lib/player-development/observations.ts`
+- `src/app/api/players/suggestions/route.ts`
+- `src/app/api/players/development-observations/route.ts`
+- `src/components/player-development/development-observation-section.tsx`
+- `src/lib/player-development/__tests__/observations.test.ts`
+- the `PlayerProfileSuggestion` and `PlayerProfileSuggestionEvidence` Prisma models, their
+  `SuggestionConfidence`/`SuggestionStatus` enums, and the now-orphaned `Player.profileSuggestions`
+  / `Organisation.profileSuggestions` / `PlayerDevelopmentObservation.suggestionEvidence` relation
+  fields (migration `20260914183000_drop_player_profile_suggestion_subsystem`)
+
+A mandatory zero-row preflight was run against both Production and Test immediately before
+authoring the destructive migration (`SELECT COUNT(*) FROM "PlayerProfileSuggestion"` /
+`"PlayerProfileSuggestionEvidence"`); both returned `0` in both environments, confirming no
+historical suggestion rows existed anywhere, so no migration mapping was needed.
+
+`PlayerDevelopmentObservation` was retained unchanged (including its League/Event dual-FK
+constraints) because it is used by the canonical football-observation pipeline for ATTRIBUTE
+observations. `evaluatePositionEvidence()`/`getPositionExperienceForPlayer()`
+(`position-experience.ts`) and `getObservationSignals()` (`position-experience-signals.ts`) were
+retained because ADR-0139 consumes them directly for automatic position evolution; their comments
+were updated to describe them as a retained canonical POSITION-observation evidence reader, not a
+salvaged fragment of a still-partially-dead subsystem.
+
+No approval queue replaces the deleted subsystem, and no position-observation UI was added in
+this PR. Normal evidence-driven position evolution continues to auto-apply through ADR-0139 and
+`DecisionRecord`, exactly as before.
 
 ## Related decisions
 

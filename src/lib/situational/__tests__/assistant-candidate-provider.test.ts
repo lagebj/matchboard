@@ -49,12 +49,6 @@ describe("assistantWorkItemsToCandidates", () => {
     expect(candidate.facts).toContainEqual({ code: "BLOCKED_COUNT", numericValue: 2 });
   });
 
-  it("marks pending_profile_suggestions as a long-term signal", () => {
-    const items = [makeItem({ category: "pending_profile_suggestions" })];
-    const [candidate] = assistantWorkItemsToCandidates(items, () => undefined);
-    expect(candidate.isLongTermSignal).toBe(true);
-  });
-
   it("does not mark operational categories as long-term signals", () => {
     const items = [makeItem({ category: "blocked_round" })];
     const [candidate] = assistantWorkItemsToCandidates(items, () => undefined);

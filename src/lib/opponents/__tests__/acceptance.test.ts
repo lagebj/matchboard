@@ -135,16 +135,6 @@ describe("Acceptance: D — Sporting and environment separation", () => {
   });
 });
 
-describe("Acceptance: F — Sparse development observations", () => {
-  it("Observation requires actual participant (enforced in createDevelopmentObservation)", () => {
-    expect(true).toBe(true);
-  });
-
-  it("Goals do not mutate rating (no auto-observation from goals)", () => {
-    expect(true).toBe(true);
-  });
-});
-
 describe("Acceptance: G — Attribute evidence", () => {
   it("G1: One positive observation remains LOW evidence", () => {
     const obs = [{ id: "o1", direction: "POSITIVE", observedAt: new Date(), matchId: "m1", attributeKey: "passing" }];
@@ -152,16 +142,6 @@ describe("Acceptance: G — Attribute evidence", () => {
     expect(result).not.toBeNull();
     expect(result!.confidence).toBe("LOW");
     expect(result!.direction).toBeNull();
-  });
-
-  it("G5: Re-evaluation does not create duplicate pending suggestion (enforced in createOrUpdatePendingSuggestion)", () => {
-    expect(true).toBe(true);
-  });
-});
-
-describe("Acceptance: H — Attribute decision lifecycle", () => {
-  it("Accept creates value change and decision audit (enforced in decideAttributeSuggestion)", () => {
-    expect(true).toBe(true);
   });
 });
 

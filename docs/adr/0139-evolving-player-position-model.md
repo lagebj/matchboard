@@ -262,3 +262,16 @@ None.
 
 Record created alongside the first implementation of the evolving player-position model
 (Atlas Follow-up Phase F3).
+
+### 2026-09-14
+
+ARR-0049 resolved (PR 2, archaeology cleanup bundle): the dead `PlayerProfileSuggestion`/
+`PlayerProfileSuggestionEvidence` approval-gated workflow described above, along with its
+orphaned `suggestions.ts`, `observations.ts`, two API routes, and UI component, was deleted
+outright (a zero-row preflight against both Production and Test confirmed no historical
+suggestion rows existed). `position-experience.ts` and `position-experience-signals.ts` were
+retained unchanged — they remain this ADR's live evidence-input dependency — and their comments
+were updated to describe them as a retained canonical POSITION-observation evidence reader rather
+than salvaged pieces of a still-partially-dead subsystem. No approval queue replaces the deleted
+subsystem; normal evidence-driven position evolution continues to auto-apply through this ADR and
+`DecisionRecord`, unchanged.
