@@ -112,6 +112,22 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   // page load under concurrent load in CI. See docs/domain/touchline-atlas-provenance.md §14 for
   // the full account — a real, disclosed scope reduction, not a silent regression.
 
+  // A plain closure over a Server Action (e.g. `(input) => serverAction({ orgSlug, ...input })`)
+  // is NOT itself a Server Action reference — passing one as a Client Component prop throws a
+  // Server Components render error at runtime (React error #441), invisible to component tests
+  // that render `AssistantCommandCentrePage` directly with props and never cross the real
+  // server/client serialization boundary. An inline action (its own `"use server"` directive)
+  // closing over `orgSlug` is itself a valid, directly-passable Server Action reference.
+  async function applyRecommendation(input: {
+    playerId: string;
+    targetMatchId: string;
+    role: "CORE" | "SUPPORT" | "DEVELOPMENT";
+    recommendationFingerprint: string;
+  }) {
+    "use server";
+    return applyTodaySelectionRecommendationAction({ orgSlug, ...input });
+  }
+
   // Browser-local state (ADR-0141, `04_BROWSER_LOCAL_STATE.md`) — an opaque scope so the
   // `localStorage` key on the coach's device never carries a raw organisation/member id, and the
   // "since your last visit" facts the client diffs against its own previous snapshot.
@@ -144,7 +160,7 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
       squadStatus={squadStatus}
       liveNow={liveNow}
       selectionDecisions={selectionDecisions}
-      applyRecommendation={(input) => applyTodaySelectionRecommendationAction({ orgSlug, ...input })}
+      applyRecommendation={applyRecommendation}
       sinceLastVisitScope={scope}
       sinceLastVisitFacts={sinceLastVisitFacts}
     />
