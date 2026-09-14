@@ -365,3 +365,15 @@ anticipated actually worse in practice than documented — see ARR-0047's own Hi
 account. The Live Reporting client's own reconciliation (`reconcileFromServerEvents`) is now a
 thin adapter over the same shared reducer Follow Live's projection uses, closing the "two
 independent implementations of which goals count" gap ARR-0047 identified.
+
+### 2026-09-14
+
+Production cutover executed, per `03_PRODUCTION_CUTOVER_RUNBOOK.md` (matchboard_close_live_archaeology_docs_2026-09-14 programme), after PR1 (Event live-architecture closure, ADR-0140/ARR-0048) merged and deployed:
+
+- Confirmed Vercel Production and the Cloudflare realtime Worker on PR1's merged commit; `prisma migrate status` against Production reported the schema up to date (113 migrations applied, including the Event live-session clock migration).
+- The initial active-session check found one Event live session (`EventLiveMatchSession` id ending `...kyewi`) still `ACTIVE` — a stale/orphaned session from 2026-09-05 whose heartbeat had stopped roughly 30 minutes after it started and whose clock never left the `BEFORE` period, for an Event that had itself concluded nine days earlier. Confirmed with the product owner that no Event live session should have been active at the time. Closed it with the same `status: ENDED, endedAt: now()` transition `endEventLiveSession()` performs (no other side effects), then re-ran the active-session check and `check:live-diagnostics --cutover-check` — both clean.
+- Pre-backfill gap counts: League sessions with a sequence gap: 8; Event sessions with a sequence gap: 20; 506 total rows without a persisted `sequence`.
+- Executed `npm run backfill:live-event-sequence` against Production: 506 rows assigned a deterministic sequence.
+- Post-backfill verification: `backfill:live-event-sequence --dry-run` reported 0 rows remaining; `check:live-diagnostics --cutover-check` reported `cutoverSafe: true`; the active-session query returned zero rows.
+
+No player names, secrets, or connection strings are recorded here or elsewhere from this run; production credentials used for the runbook were transient and deleted immediately after use.

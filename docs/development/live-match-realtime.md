@@ -50,6 +50,20 @@ the HTTP-fallback described in the sections below (`recordLiveEventAction`/`reco
 is **removed from both**, not just League; a genuine coordinator-detected conflict surfaces to
 the coach via a "Needs review" panel rather than being silently retried forever; and Event has
 its own "Follow Live" viewer reading through the same shared canonical projection League's does.
+**Production cutover executed (2026-09-14).** The third disclosed item above — actually running
+the Production cutover checklist — is now closed. After PR1 of the
+`matchboard_close_live_archaeology_docs_2026-09-14` programme (Event clock-persistence parity,
+ADR-0140 group-mutation authorization, resolving ARR-0048 — the other two items listed above)
+merged and deployed, the runbook in that programme's `03_PRODUCTION_CUTOVER_RUNBOOK.md` ran
+against real Production data: one stale/orphaned Event live session from 2026-09-05 (heartbeat
+stopped ~30 minutes after start, clock never left `BEFORE`, for an Event that had itself ended
+nine days earlier) was found ACTIVE and properly closed via the same transition
+`endEventLiveSession()` performs; the zero-active-session gate and
+`check:live-diagnostics --cutover-check` then passed cleanly; `npm run backfill:live-event-sequence`
+assigned a deterministic `sequence` to the 506 rows that predated protocol v2 (8 League sessions,
+20 Event sessions with gaps); post-write verification confirmed zero remaining gaps and
+`cutoverSafe: true`. See ADR-0138's History (2026-09-14 entry) for the full record.
+
 The sections below still describe the architecture largely as it existed **before Bundle 2's
 protocol/sequence work landed** (per the paragraph above) — treat AGENTS.md as authoritative for
 exactly what has shipped since; this document has not yet been fully rewritten bundle-by-bundle
