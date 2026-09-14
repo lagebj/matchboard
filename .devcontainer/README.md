@@ -7,6 +7,7 @@ This configuration provides:
 - GitHub CLI, PostgreSQL client, `jq`, `ripgrep`, `lsof`, `dig`, and process tools
 - OpenCode Web on private forwarded port `4096`
 - Claude Code CLI (installed via Anthropic devcontainer feature)
+- GitHub Copilot CLI (`@github/copilot`) for the repository-root CLI workflow
 - Matchboard development preview on private forwarded port `3333`
 - Direct Ollama Cloud access through the OpenAI-compatible API
 - Automatic OpenCode startup whenever the Codespace starts and both required secrets exist
@@ -25,6 +26,7 @@ This configuration provides:
 | npm | bundled | Package manager |
 | OpenCode | 1.18.8 | Coding agent |
 | Claude Code | latest (via feature) | Coding agent (peer) |
+| GitHub Copilot CLI | latest (`@github/copilot`) | Coding agent (peer) |
 | PostgreSQL client | 15 | `psql`, `pg_dump`, `pg_restore`, `pg_isready`, `createdb`, `dropdb` |
 | Neon CLI | 2.38.5 | `neon` — branch management and operational queries |
 | Vercel CLI | 58.4.4 | `vercel` — deployment inspection and previews |
@@ -197,7 +199,7 @@ It also creates repository-relative symlinks for Claude Code's project skill dir
 .claude/skills/
 ```
 
-Both agents discover the same canonical skill directories. No skill content is duplicated.
+Both agents discover the same canonical skill directories. GitHub Copilot CLI uses the repository-root bootstrap and relevant `docs/agents/` modules instead of eagerly inlining large skill bodies into every session. No skill content is duplicated.
 
 The upstream `addyosmani/agent-skills` collection is installed first. The `lagebj/agent-skills` collection is installed second and overrides an identically named upstream skill. Unmanaged files already present in the OpenCode skills directory are not overwritten.
 
@@ -214,10 +216,12 @@ bash .devcontainer/validate-agent-parity.sh
 ```
 
 This checks that:
-1. `AGENTS.md` exists at the repository root
+1. `AGENTS.md` exists at the repository root and stays compact enough to stay in the fast auto-loaded bootstrap path
 2. `CLAUDE.md` exists and imports `AGENTS.md` (single source of truth)
-3. Claude managed settings enforce Claude.ai login and isolate API keys
-4. Every managed skill present for OpenCode is also discoverable by Claude
+3. `docs/agents/README.md` exists as the modular reference index
+4. GitHub Copilot CLI is installed and the repository-root bootstrap is active without `--no-custom-instructions`
+5. Claude managed settings enforce Claude.ai login and isolate API keys
+6. Every managed skill present for OpenCode is also discoverable by Claude
 
 Optional version controls:
 
