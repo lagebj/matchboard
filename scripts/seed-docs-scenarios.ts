@@ -101,8 +101,19 @@ export async function seedScenarios(ctx: SeedContext) {
     // rows, both already produced by rebuildActualTimeline() and the direct Goal/Assist creates
     // above. Tolerate this one step failing; still fail loudly on actualTimeline/opponent/
     // combinations, which this script does depend on.
+    //
+    // "positionEvolution" hits the same class of "no real Next.js server context" problem, from
+    // a different direction: `sync-effective-position.ts` -> `get-effective-position-profile.ts`
+    // (Atlas Follow-up Phase F8, #573) is guarded by `import "server-only"`, which unconditionally
+    // throws when the module is reached from plain `tsx` execution (no bundler "react-server"
+    // export condition is set outside Next's own build). This script never ran the position-model
+    // pipeline before Phase F8 added it, so the tolerance list here was never updated for it.
+    // Player position profiles are unaffected for docs-screenshot purposes: they derive on read
+    // from the player's declared position plus `ActualPositionInterval` rows (already produced by
+    // `rebuildActualTimeline()` above), not from this write-time evolution step.
+    const TOLERATED_STEP_FAILURES = new Set(["players", "positionEvolution"]);
     const failed = Object.entries(result).filter(
-      ([step, v]) => step !== "players" && (v as { status: string }).status === "FAILED",
+      ([step, v]) => !TOLERATED_STEP_FAILURES.has(step) && (v as { status: string }).status === "FAILED",
     );
     if (failed.length > 0) {
       throw new Error(`Post-match learning failed for match ${matchId}: ${JSON.stringify(failed)}`);
