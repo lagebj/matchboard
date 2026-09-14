@@ -83,6 +83,8 @@ Use the relevant skill when the task matches it. Do not eagerly inline full skil
 - Do not commit secrets, tokens, provider state, or other sensitive material.
 - Run the project’s required validation before considering a branch complete.
 - Never add `@` imports of large documents back into auto-loaded instruction files; this reintroduces the static-context problem.
+- Work pull requests sequentially, never in parallel: open at most one PR at a time, wait for its CI checks to go green, squash-merge (or get it merged) and sync local `main`, and only then branch for the next unit of work. Do not open a second PR while an earlier one is still open/unmerged.
+- `main` is closed to direct pushes: every change, including documentation-only and instruction-file edits, must go through a feature branch and pull request (see the `git-branch-commit-pr` skill for the full delivery workflow). Never commit or push directly to `main`.
 
 ## Detailed guidance is task-local
 
