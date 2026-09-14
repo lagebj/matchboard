@@ -252,6 +252,15 @@ export function formatDateInDisplayTimezone(value: Date): string {
   }).format(value);
 }
 
+/**
+ * The Europe/Oslo "display date" as a stable `YYYY-MM-DD` key (ADR-0137/ADR-0141) — used to
+ * compare "is this still today" across a page load without re-deriving day boundaries client
+ * side. Deliberately reuses `MATCHBOARD_DISPLAY_TIMEZONE`, never a second timezone policy.
+ */
+export function getDisplayDateKey(value: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: MATCHBOARD_DISPLAY_TIMEZONE }).format(value);
+}
+
 /** Get today's date as YYYY-MM-DD in the browser's local timezone for date input defaults. */
 export function getTodayLocalDateInputValue(): string {
   const now = new Date();

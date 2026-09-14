@@ -1,93 +1,66 @@
-import {
-  TouchlinePageHeader,
-  TouchlineButton,
-} from "@/components/touchline";
-import {
-  NextMatchHero,
-  AttentionWidget,
-  SquadReadinessWidget,
-  RecentFootballWidget,
-  ScheduleWidget,
-  EvidenceSpotlightWidget,
-} from "@/components/touchline/widgets";
-import { PhaseBars } from "@/components/touchline/viz";
-import { UiLabShell } from "../../../ui-lab-shells";
-import { atlasNav, todayViewModel } from "../../fixtures";
+"use client";
 
-/**
- * Today — `05_ROUTE_COMPOSITION_TODAY_LEAGUE_HISTORY.md §A`.
- * Golden: today-desktop-light.png / today-mobile-dark.png.
- *
- * Desktop 12-col: [8 hero | 4 squad status] / [8 recent football | 4 attention] / [7 schedule | 5 evidence].
- * Mobile: greeting/date → hero → attention (if items exist) → recent football → schedule → evidence.
- * No external league table (see docs/domain/touchline-atlas-provenance.md §0.5).
- */
-export default function AtlasTodayPage() {
-  const vm = todayViewModel;
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { UiLabShell } from "../../../ui-lab-shells";
+import { atlasNav } from "../../fixtures";
+import { OrgSlugProvider } from "@/components/shell/org-slug-context";
+import { AssistantCommandCentrePage } from "@/components/assistant/assistant-command-centre-page";
+import { TabRail, type TabItem } from "@/components/ui/tab-rail";
+import { buildTodayFixture, TODAY_FIXTURE_STATES, type TodayFixtureStateKey } from "./today-operational-fixtures";
+
+const TABS: TabItem<TodayFixtureStateKey>[] = TODAY_FIXTURE_STATES.map(({ key, label }) => ({
+  key,
+  label,
+  href: `?state=${key}`,
+}));
+
+function isFixtureState(value: string | null): value is TodayFixtureStateKey {
+  return value !== null && TODAY_FIXTURE_STATES.some((s) => s.key === value);
+}
+
+function AtlasTodayPageInner() {
+  const searchParams = useSearchParams();
+  const stateParam = searchParams.get("state");
+  const activeState: TodayFixtureStateKey = isFixtureState(stateParam) ? stateParam : "primary";
+  const fixture = buildTodayFixture(activeState);
 
   return (
     <UiLabShell activeKey="today" contentWidthClass="max-w-[1180px]" navBuilder={atlasNav}>
-      <TouchlinePageHeader title="Today" context={vm.dateLabel} />
-
-      <div className="mt-5 grid grid-cols-1 gap-5 expanded:grid-cols-12">
-        <div className="expanded:col-span-8">
-          {vm.heroKind === "match" && vm.heroMatch ? (
-            <NextMatchHero
-              presentation={vm.heroMatch}
-              contextLabel="G2015 · League"
-              contextLine="Slemmestad · Pitch 1"
-              primaryAction={<TouchlineButton variant="primary">Match details →</TouchlineButton>}
-            />
-          ) : vm.heroKind === "attention" && vm.heroDecision ? (
-            <AttentionWidget items={[{ id: vm.heroDecision.id, title: vm.heroDecision.title, summary: vm.heroDecision.summary, urgency: vm.heroDecision.urgency }]} />
-          ) : null}
-        </div>
-        <div className="expanded:col-span-4">
-          {vm.squadStatus ? (
-            <SquadReadinessWidget
-              available={vm.squadStatus.available}
-              doubtful={vm.squadStatus.doubtful}
-              unavailable={vm.squadStatus.unavailable}
-              exceptions={vm.squadStatus.notAvailable}
-            />
-          ) : null}
-        </div>
-
-        {vm.attentionItems.length > 0 ? (
-          <div className="order-first expanded:order-none expanded:col-span-4 expanded:col-start-9">
-            <AttentionWidget
-              items={vm.attentionItems.map((d) => ({ id: d.id, title: d.title, summary: d.summary, urgency: d.urgency, href: d.deepLink }))}
-              overflowCount={vm.attentionOverflowCount}
-            />
-          </div>
-        ) : null}
-        <div className="expanded:col-span-8">
-          <RecentFootballWidget matches={vm.recentMatches} viewAllHref="/dev/ui-lab/atlas/routes/league" />
-        </div>
-
-        <div className="expanded:col-span-7">
-          <ScheduleWidget items={vm.scheduleItems.map((s) => ({ id: s.id, timeLabel: s.timeLabel, title: s.title, sublabel: s.sublabel, state: s.isNow ? "current" : "later" }))} />
-        </div>
-        <div className="expanded:col-span-5">
-          {vm.evidenceSpotlight ? (
-            <EvidenceSpotlightWidget
-              question={vm.evidenceSpotlight.question}
-              label={vm.evidenceSpotlight.label}
-              title={vm.evidenceSpotlight.title}
-              value={vm.evidenceSpotlight.value}
-              valueCaption={vm.evidenceSpotlight.valueCaption}
-              visual={
-                vm.evidenceSpotlight.phaseSegments ? (
-                  <PhaseBars question={vm.evidenceSpotlight.question} segments={vm.evidenceSpotlight.phaseSegments} />
-                ) : undefined
-              }
-              sample={vm.evidenceSpotlight.sample}
-              confidence={vm.evidenceSpotlight.confidence}
-              detailHref={vm.evidenceSpotlight.detailHref}
-            />
-          ) : null}
-        </div>
+      <div className="mb-4">
+        <TabRail items={TABS} activeKey={activeState} ariaLabel="Today fixture state" />
       </div>
+      <OrgSlugProvider orgSlug="uilab-demo-org">
+        <AssistantCommandCentrePage
+          commandCentre={fixture.commandCentre}
+          projection={fixture.projection}
+          recentMatches={fixture.recentMatches}
+          squadStatus={fixture.squadStatus}
+          liveNow={fixture.liveNow}
+          selectionDecisions={fixture.selectionDecisions}
+          applyRecommendation={fixture.applyRecommendation}
+          sinceLastVisitScope={fixture.sinceLastVisitScope}
+          sinceLastVisitFacts={fixture.sinceLastVisitFacts}
+        />
+      </OrgSlugProvider>
     </UiLabShell>
+  );
+}
+
+/**
+ * Today — ADR-0141 Today Operational Command Surface, replacing the earlier Atlas Today fixture
+ * (which rendered widgets no longer used by the production route). This composition renders the
+ * real production `AssistantCommandCentrePage` against representative in-memory data, matching
+ * `05_IMPLEMENTATION_PLAN.md` §"UI Lab": `primary` (golden — live match, coordinated decisions,
+ * since-last-visit, carry-forward report, recent football), `planning` (no live match, concrete
+ * Next Action), `ready` (no immediate action), `coordination` (second decision waits on the
+ * first). State is UI-Lab-only and URL-backed (`?state=...`) — the production route has no
+ * equivalent query parameter.
+ */
+export default function AtlasTodayPage() {
+  return (
+    <Suspense fallback={<div className="touchline p-6 text-sm text-[var(--text-muted)]">Loading…</div>}>
+      <AtlasTodayPageInner />
+    </Suspense>
   );
 }

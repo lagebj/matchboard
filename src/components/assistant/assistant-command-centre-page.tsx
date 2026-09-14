@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { formatKickoffTime } from "@/lib/date-utils";
+import { formatKickoffTime, getDisplayDateKey } from "@/lib/date-utils";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import { todayMatchPresentation, resolveFeaturedUpcomingMatch } from "@/lib/matches/today-match-presentation";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
@@ -33,10 +33,16 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { Surface } from "@/components/ui/surface";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusPill } from "@/components/ui/status-pill";
-import { MetricTile } from "@/components/ui/metric-tile";
 import { IssueMarker } from "@/components/ui/issue-marker";
 import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { TodayAtmosphere } from "@/components/touchline/today/today-atmosphere";
+import { TodayLiveNow } from "@/components/touchline/today/today-live-now";
+import { TodaySelectionDecisions, type ApplyRecommendationFn } from "@/components/touchline/today/today-selection-decisions";
+import { TodaySinceLastVisit } from "@/components/touchline/today/today-since-last-visit";
+import type { TodayLiveNowResult } from "@/lib/live-match/get-today-live-match-summaries";
+import type { TodaySelectionDecision } from "@/lib/touchline/presentation/today-selection-recommendation-plan";
+import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
 import {
   OctagonAlert,
   AlertTriangle,
@@ -44,7 +50,6 @@ import {
   CalendarRange,
   CalendarDays,
   ArrowRight,
-  ShieldAlert,
   Eye,
   FileText,
   Timer,
@@ -704,6 +709,11 @@ export function AssistantCommandCentrePage({
   weeklyContext,
   recentMatches,
   squadStatus,
+  liveNow,
+  selectionDecisions,
+  applyRecommendation,
+  sinceLastVisitScope,
+  sinceLastVisitFacts,
 }: {
   commandCentre: AssistantCommandCentre;
   /** Situational projection (ADR-0107, docs/domain/situational-decision-support.md). When
@@ -721,6 +731,13 @@ export function AssistantCommandCentrePage({
    * `today/page.tsx`'s own comment and `docs/domain/touchline-atlas-provenance.md` §14. */
   recentMatches?: MatchPresentation[];
   squadStatus?: TodaySquadStatus | null;
+  /** Today Operational Command Surface additions (ADR-0141). All optional so the component
+   * remains usable without them (existing tests, or a caller that hasn't wired them yet). */
+  liveNow?: TodayLiveNowResult;
+  selectionDecisions?: TodaySelectionDecision[];
+  applyRecommendation?: ApplyRecommendationFn;
+  sinceLastVisitScope?: string;
+  sinceLastVisitFacts?: TodayVisitCurrentFacts;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -740,37 +757,54 @@ export function AssistantCommandCentrePage({
       : orgUrl(`/matches/${featuredMatch.matchId}`)
     : undefined;
 
-  // Metric aggregates
-  const blockedCount = actionable.reduce((sum, i) => sum + (i.blockedCount ?? 0), 0);
-  const decisionCount = actionable.reduce((sum, i) => sum + (i.decisionRequiredCount ?? 0), 0);
+  // Metric aggregates — only `reviewCount` still feeds a rendered link ("View peer reviews").
+  // The rest (`blockedCount`/`decisionCount`/`reportCount`/`upcomingCount`) fed the removed
+  // "At a glance" tile row (ADR-0141) and are gone with it, not silently dropped.
   const reviewCount = actionable.filter((i) => i.category === "review_assigned" || i.category === "review_changes_requested").length;
-  const reportCount = actionable.filter((i) => i.category === "post_match_report").length;
-  const upcomingCount = upcoming.length;
 
   return (
-    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134).
+    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134). `relative` lifts this
+    // into the same stacking context as the `.today-atmosphere` decorative layer so real content
+    // (below, at `relative z-10`) always paints above it regardless of DOM order.
     // Phase 10 hoists `.touchline` to the app shell and removes this wrapper.
-    <div className="touchline flex flex-col gap-6">
+    <div className="touchline relative flex flex-col gap-6">
+      <TodayAtmosphere />
+      <div className="relative z-10 flex flex-col gap-6">
       <TouchlinePageHeader
         title="Today"
         context={leagueSeasonName ?? "What needs attention before the next matches."}
       />
 
       {/*
-       * Compact composition order (ADR-0124 §6 / ADR-0125 / adaptive-interaction-design.md §7):
+       * Compact composition order (ADR-0124 §6 / ADR-0125 / adaptive-interaction-design.md §7,
+       * extended by ADR-0141 §Today Operational Command Surface):
        *   1. title/context (above)
        *   2. matchday "now" anchor
-       *   3. dominant Next Action
-       *   4. OperationalTimeline — today's matches on one chronological rail
-       *   5. next-round readiness + grouped work
-       *   6. objective totals (demoted below the operational flow — never leads the page)
-       *   7. secondary coaching context (weekly)
-       *   8. distant/upcoming
-       *   9. non-operational (PWA install)
+       *   3. durable Live Now summary
+       *   4. dominant Next Action
+       *   5. OperationalTimeline — today's matches on one chronological rail
+       *   6. next-round readiness + grouped work
+       *   7. selection decisions (coordinated recommendations)
+       *   8. secondary coaching context (weekly)
+       *   9. distant/upcoming
+       *   10. since-your-last-visit (browser-local)
+       *   11. non-operational (PWA install)
+       *
+       * The former "At a glance" objective-totals tile row (ADR-0141 §Fixed product decisions)
+       * was removed — it duplicated counts already visible in the grouped work sections below
+       * without adding a decision.
        */}
 
       {projection && (
         <MatchdayContextBanner projection={projection} todayMatches={commandCentre.todayMatches} orgUrl={orgUrl} />
+      )}
+
+      {liveNow && (
+        <TodayLiveNow
+          primary={liveNow.primary}
+          otherLiveCount={liveNow.otherLiveCount}
+          matchHref={(matchId) => orgUrl(`/matches/${matchId}/live`)}
+        />
       )}
 
       {/* Next action hero — dominant, before any detached metrics */}
@@ -882,43 +916,17 @@ export function AssistantCommandCentrePage({
         return <StandardGroup key={group.key} group={group} items={filtered} deferredIds={deferredWorkItemIds} />;
       })}
 
-      {/* Objective totals — a deliberate unfiltered summary (see situational-decision-support
-          notes in AGENTS.md), demoted below the next action so it never leads the page. */}
-      <div>
-        <p className="mb-2 text-[var(--text-meta)] font-medium text-[var(--text-muted)]">At a glance</p>
-        <div className="grid grid-cols-2 gap-3 medium:grid-cols-3 expanded:grid-cols-5">
-          <MetricTile
-            label="Blocked"
-            value={blockedCount}
-            tone={blockedCount > 0 ? "danger" : "neutral"}
-            icon={<OctagonAlert className="h-4 w-4" />}
-          />
-          <MetricTile
-            label="Decisions"
-            value={decisionCount}
-            tone={decisionCount > 0 ? "warning" : "neutral"}
-            icon={<AlertTriangle className="h-4 w-4" />}
-          />
-          <MetricTile
-            label="Peer reviews"
-            value={reviewCount}
-            tone={reviewCount > 0 ? "warning" : "neutral"}
-            icon={<Eye className="h-4 w-4" />}
-          />
-          <MetricTile
-            label="Reports"
-            value={reportCount}
-            tone={reportCount > 0 ? "info" : "neutral"}
-            icon={<CalendarRange className="h-4 w-4" />}
-          />
-          <MetricTile
-            label="Upcoming"
-            value={upcomingCount}
-            tone="neutral"
-            icon={<ShieldAlert className="h-4 w-4" />}
-          />
-        </div>
-      </div>
+      {/* Selection decisions — coordinated recommendations for available players without a
+          planned opportunity this round (ADR-0141). */}
+      {selectionDecisions && applyRecommendation && (
+        <TodaySelectionDecisions
+          decisions={selectionDecisions}
+          scope={sinceLastVisitScope ?? "default"}
+          displayDateKey={getDisplayDateKey()}
+          onApply={applyRecommendation}
+          roundBoardBaseHref={orgUrl("/rounds")}
+        />
+      )}
 
       {projection && (
         <WeeklyCoachingContextSection
@@ -942,7 +950,14 @@ export function AssistantCommandCentrePage({
         </Surface>
       )}
 
+      {/* Since your last visit — browser-local snapshot diff (ADR-0141). Renders nothing on a
+          first visit or when the caller hasn't supplied current facts. */}
+      {sinceLastVisitScope && sinceLastVisitFacts && (
+        <TodaySinceLastVisit scope={sinceLastVisitScope} facts={sinceLastVisitFacts} />
+      )}
+
       <InstallPwaCard dismissible />
+      </div>
     </div>
   );
 }
