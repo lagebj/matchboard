@@ -5,6 +5,7 @@ ARG OPENCODE_VERSION=1.18.8
 ARG NEONCLI_VERSION=2.38.5
 ARG VERCEL_VERSION=58.4.4
 ARG BREVO_VERSION=2.0.1
+ARG GITHUB_COPILOT_VERSION=latest
 ARG SWAMP_VERSION=20260819.011806.0-sha.a9c7ee9a
 
 # Security tool versions (pinned for reproducibility)
@@ -56,6 +57,7 @@ RUN npm install --global \
         "neonctl@${NEONCLI_VERSION}" \
         "vercel@${VERCEL_VERSION}" \
         "@getbrevo/cli@${BREVO_VERSION}" \
+        "@github/copilot@${GITHUB_COPILOT_VERSION}" \
     && npm cache clean --force
 
 # Install Semgrep via pip (official recommended method for Linux)

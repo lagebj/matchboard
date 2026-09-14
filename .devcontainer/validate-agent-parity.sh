@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# validate-agent-parity.sh — structural verification that OpenCode and Claude
-# receive the same repository instructions and agent skills.
+# validate-agent-parity.sh — structural verification that the repo-root bootstrap
+# remains small and each coding agent still receives the right instructions and skills.
 #
 # This script verifies:
-# 1. AGENTS.md exists at the repository root
+# 1. AGENTS.md remains compact and repository-root discoverable
 # 2. CLAUDE.md exists at the repository root and imports AGENTS.md
-# 3. Every canonical skill installed for OpenCode is also discoverable by Claude
-# 4. Claude managed-settings.json enforces Claude.ai login and isolates API keys
+# 3. GitHub Copilot CLI has a small repo-root instruction bootstrap
+# 4. Every canonical skill installed for OpenCode is also discoverable by Claude
+# 5. Claude managed-settings.json enforces Claude.ai login and isolates API keys
 #
 # Run: bash .devcontainer/validate-agent-parity.sh
 
@@ -27,7 +28,18 @@ else
   errors=$((errors + 1))
 fi
 
-# 2. CLAUDE.md exists and imports AGENTS.md
+# 2. AGENTS.md stays in the compact bootstrap path
+if [[ -f AGENTS.md ]]; then
+  size_bytes=$(wc -c < AGENTS.md | tr -d '[:space:]')
+  if (( size_bytes <= 12288 )); then
+    printf '[OK] AGENTS.md remains compact (%s bytes <= 12 KiB)\n' "$size_bytes"
+  else
+    printf '[FAIL] AGENTS.md is too large (%s bytes > 12 KiB)\n' "$size_bytes" >&2
+    errors=$((errors + 1))
+  fi
+fi
+
+# 3. CLAUDE.md exists and imports AGENTS.md
 if [[ -f CLAUDE.md ]]; then
   printf '[OK] CLAUDE.md exists at repository root\n'
   if grep -q '@AGENTS.md' CLAUDE.md; then
@@ -40,7 +52,30 @@ else
   errors=$((errors + 1))
 fi
 
-# 3. Claude managed settings enforce Claude.ai login
+# 4. Agent index exists for modular reference loading
+if [[ -f docs/agents/README.md ]]; then
+  printf '[OK] docs/agents/README.md exists\n'
+else
+  printf '[FAIL] docs/agents/README.md not found\n' >&2
+  errors=$((errors + 1))
+fi
+
+# 5. GitHub Copilot CLI is installed for repo-root bootstrapping
+if command -v copilot >/dev/null 2>&1; then
+  printf '[OK] GitHub Copilot CLI is installed\n'
+else
+  printf '[FAIL] GitHub Copilot CLI is not installed\n' >&2
+  errors=$((errors + 1))
+fi
+
+if [[ -f .github/copilot-instructions.md ]]; then
+  printf '[OK] .github/copilot-instructions.md exists for GH Copilot bootstrap\n'
+else
+  printf '[FAIL] .github/copilot-instructions.md is missing\n' >&2
+  errors=$((errors + 1))
+fi
+
+# 6. Claude managed settings enforce Claude.ai login
 managed_settings=".devcontainer/managed-settings.json"
 if [[ -f "$managed_settings" ]]; then
   printf '[OK] %s exists\n' "$managed_settings"
