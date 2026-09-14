@@ -3228,7 +3228,9 @@ Feature: Matchboard football operations workspace
   Rule: Match Round Board
 
     The Round Board is the main weekly planning workspace.
-    It shows each team match in a column and supports safe drag-and-drop editing.
+    It shows each team match in a column and supports safe drag-and-drop editing as a desktop
+    accelerator. The primary interaction on every device is select player, then choose
+    assignment (Atlas Follow-up Phase F9 — drag is never required to complete any workflow).
 
     Scenario: Coach sees all teams in one round board
       Given match round "R1" contains Team A, Team B, and Team C matches
@@ -3237,6 +3239,22 @@ Feature: Matchboard football operations workspace
       And show an available players column listing all unassigned players
       And show selected players grouped by role in each match column
       And show round-level warnings
+
+    Scenario: Selecting a player shows assignment destinations
+      Given match round "R1" is in draft state
+      And player "p1" is not selected for any match
+      When the coach selects player "p1"
+      Then the board must show suggested assignment destinations for "p1"
+      And each suggestion must show the resulting squad count and reasons drawn from canonical planning logic
+      And the coach must be able to assign "p1" to a match without dragging
+
+    Scenario: Mobile Round Board is match-first
+      Given the coach opens Round Board on a compact viewport
+      Then the board must offer a round overview with decisions and attention first
+      And a match list with per-match readiness state
+      And opening one match shows its squad with an explicit assign action
+      And selecting a player opens an assignment sheet with suggested destinations
+      And no workflow must require drag
 
     Scenario: Dragging player from available column adds to match
       Given match round "R1" is in draft state

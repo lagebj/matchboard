@@ -19,6 +19,7 @@ import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrit
 import { isMatchPlanningEditable, isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 import { WarningSeverity } from "@/generated/prisma/client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 
 type RoundBoardPageProps = {
   params: Promise<{
@@ -55,6 +56,7 @@ export default async function RoundBoardPage({
               minAcceptedSquadSize: true,
               minSupportPlayers: true,
               developmentSlots: true,
+              kitColor: true,
             },
           },
         },
@@ -92,6 +94,7 @@ export default async function RoundBoardPage({
             firstName: true,
             lastName: true,
             primaryPosition: true,
+            shirtNumber: true,
             coreTeamId: true,
             nonRotatable: true,
             currentAvailability: true,
@@ -155,7 +158,8 @@ export default async function RoundBoardPage({
       lastName: true,
       coreTeamId: true,
       primaryPosition: true,
-      coreTeam: { select: { id: true, name: true } },
+      shirtNumber: true,
+      coreTeam: { select: { id: true, name: true, kitColor: true } },
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
@@ -183,6 +187,30 @@ export default async function RoundBoardPage({
     coreTeamId: p.coreTeamId ?? "",
     primaryPosition: p.primaryPosition,
   }));
+
+  // Shirt identity (Atlas Follow-up Phase F9): shirt number + resolved kit hex per player, from
+  // the player's core team's kitColor — one lookup each, built from the two queries above.
+  const playerShirtNumberById = new Map<string, number | null>();
+  const playerKitColorById = new Map<string, string | null>();
+  const kitColorByTeamId = new Map<string, string | null>();
+  for (const match of matchRound.matches) {
+    if (!kitColorByTeamId.has(match.team.id)) {
+      kitColorByTeamId.set(match.team.id, match.team.kitColor ?? null);
+    }
+  }
+  for (const sel of selections) {
+    playerShirtNumberById.set(sel.player.id, sel.player.shirtNumber ?? null);
+    playerKitColorById.set(
+      sel.player.id,
+      resolveKitColorSwatch(sel.player.coreTeamId ? (kitColorByTeamId.get(sel.player.coreTeamId) ?? null) : null)?.hex ?? null,
+    );
+  }
+  for (const p of eligiblePlayers) {
+    if (!playerShirtNumberById.has(p.id)) playerShirtNumberById.set(p.id, p.shirtNumber ?? null);
+    if (!playerKitColorById.has(p.id)) {
+      playerKitColorById.set(p.id, resolveKitColorSwatch(p.coreTeam?.kitColor ?? null)?.hex ?? null);
+    }
+  }
 
   const selectionsByMatchId = new Map<string, typeof selections>();
   for (const sel of selections) {
@@ -442,6 +470,7 @@ export default async function RoundBoardPage({
       matchId: s.matchId,
       teamId: matchRecord?.teamId ?? "",
       teamName: s.teamName,
+      teamKitColor: matchRecord?.team?.kitColor ?? null,
       opponent: s.opponent,
       matchDate: s.matchDate,
       targetSquadSize: s.targetSquadSize,
@@ -463,6 +492,8 @@ export default async function RoundBoardPage({
              matchdayResponsibility: p.matchdayResponsibility,
              selectionReason: p.selectionReason,
              explanations: p.explanations,
+             shirtNumber: playerShirtNumberById.get(p.playerId) ?? null,
+             kitColor: playerKitColorById.get(p.playerId) ?? null,
               warningCount: (() => {
               const playerWarnings = unresolvedSignals.filter(
                 (sig) => (sig.matchId === s.matchId || sig.teamId === (matchRecord?.teamId ?? "")) && sig.playerId === p.playerId,
@@ -480,6 +511,8 @@ export default async function RoundBoardPage({
     coreTeamName: p.coreTeamName,
     coreTeamId: p.coreTeamId,
     primaryPosition: p.primaryPosition,
+    shirtNumber: playerShirtNumberById.get(p.id) ?? null,
+    kitColor: playerKitColorById.get(p.id) ?? null,
     negativeReadinessSignals: playerNegativeReadiness.get(p.id) ?? [],
   }));
 

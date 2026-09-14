@@ -14,9 +14,6 @@ import {
 } from "lucide-react";
 import { generateEmergencyRepairOptionsAction } from "@/app/(app)/matches/emergency-repair-actions";
 import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-options";
-import { WorkbenchSummaryStrip } from "@/components/touchline/workbench/workbench-summary-strip";
-import { WorkbenchToolbar } from "@/components/touchline/workbench/workbench-toolbar";
-import { buildRoundWorkbenchSummaryItems } from "@/lib/rounds/get-round-workbench-summary";
 import { FairnessSummary } from "@/components/round/fairness-summary";
 import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-automatic-role";
 import { renderReason } from "@/lib/formatters/recommendation-reason-text";
@@ -39,14 +36,28 @@ import {
   type PlayerChipAvailability,
   type PlayerChipRoleHint,
 } from "@/components/ui/player-chip";
-import { Surface } from "@/components/ui/surface";
 import { TouchlineButton } from "@/components/touchline";
+import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
+import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
 import { StatusPill } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Dialog } from "@/components/ui/dialog";
-import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { RoundStatusStrip } from "@/components/touchline/round-board/round-status-strip";
+import { RoundAttentionList } from "@/components/touchline/round-board/round-attention-list";
+import { PlayerAssignmentInspector } from "@/components/touchline/round-board/player-assignment-inspector";
+import { PlayerAssignmentSheet } from "@/components/touchline/round-board/player-assignment-sheet";
+import { AllocationMatrix } from "@/components/touchline/round-board/allocation-matrix";
+import type {
+  RoundBoardAttentionItem,
+  RoundBoardAssignmentSuggestion,
+} from "@/lib/touchline/presentation/round-board-view-model";
+import {
+  buildRoundBoardViewModel,
+  buildAssignmentContext,
+  buildAllocationMatrix,
+} from "@/lib/touchline/presentation/round-board-production-adapter";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { formatKickoffDate, formatKickoffTime } from "@/lib/date-utils";
+import { formatKickoffDate, formatKickoffTime, formatKickoffDateTime } from "@/lib/date-utils";
 
 type SelectionRole = UISelectionRole;
 
@@ -73,12 +84,16 @@ type PlayerInColumn = {
     hardRule?: boolean;
     reason?: import("@/lib/explanations/recommendation-reason").RecommendationReason;
   }>;
+  /** Shirt identity (Atlas Follow-up Phase F9): resolved kit hex + shirt number. */
+  shirtNumber?: number | null;
+  kitColor?: string | null;
 };
 
 type MatchColumn = {
   matchId: string;
   teamId: string;
   teamName: string;
+  teamKitColor: string | null;
   opponent: string;
   matchDate: Date;
   targetSquadSize: number;
@@ -258,7 +273,14 @@ function BoardPlayerChip({
   );
 }
 
-function MatchColumnComponent({
+/**
+ * One match lane (Atlas Follow-up Phase F9, `02_ROUND_BOARD_CONTRACT.md §4`) — the Gate D
+ * lane anatomy (kit-mark identity, squad/target pill, state pill, progress bar, dense role-
+ * grouped player rows, "+ Add player" affordance) applied to the production board, with the
+ * production player chips and their remove/move/repair affordances preserved verbatim inside.
+ * Still the drag/touch-drop target the previous column was — every mutation path is unchanged.
+ */
+function MatchLane({
   match,
   isPending,
   onDragOver,
@@ -268,6 +290,8 @@ function MatchColumnComponent({
   onMovePlayer,
   onRepairPlayer,
   onTouchStartPlayer,
+  onSelectPlayer,
+  onAddPlayer,
   isTouchHighlight,
   touchDragPlayerId,
   fullWidth = false,
@@ -287,6 +311,9 @@ function MatchColumnComponent({
   onRemovePlayer: (matchId: string, playerId: string) => void;
   onMovePlayer: (matchId: string, playerId: string, playerName: string) => void;
   onRepairPlayer: (matchId: string, playerId: string, playerName: string) => void;
+  /** Primary interaction (contract §3): selecting a player populates the inspector / opens the sheet. */
+  onSelectPlayer: (playerId: string) => void;
+  onAddPlayer?: (matchId: string) => void;
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
   touchDragPlayerId?: string | null;
@@ -306,6 +333,8 @@ function MatchColumnComponent({
   const selectedCount = match.players.filter((p) =>
     DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
   ).length;
+  const needsCount = Math.max(0, match.targetSquadSize - selectedCount);
+  const progressPct = match.targetSquadSize > 0 ? Math.min(100, Math.round((selectedCount / match.targetSquadSize) * 100)) : 0;
 
   const squadFilling =
     selectedCount >= match.targetSquadSize
@@ -351,30 +380,36 @@ function MatchColumnComponent({
       }}
     >
       <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <p className="text-sm font-semibold text-[var(--foreground)] truncate">{match.teamName}</p>
-          <p className="text-[11px] text-[var(--text-muted)]">
-            vs {match.opponent} · {dateStr}
-          </p>
-          {!match.isFinalized && (
-            <CoachingIntentSelector
-              scopeType="MATCH"
-              scopeId={match.matchId}
-              currentIntent={match.coachingIntentCategory}
-              currentIntentId={match.coachingIntentId}
-            />
-          )}
-          {match.isFinalized && match.coachingIntentCategory && (
-            <span className="text-[11px] text-[var(--text-muted)]">
-              {COACHING_INTENT_LABELS[
-                match.coachingIntentCategory as keyof typeof COACHING_INTENT_LABELS
-              ] ?? match.coachingIntentCategory}
-            </span>
-          )}
+        <div className="flex min-w-0 items-start gap-2">
+          <TeamKitMark color={match.teamKitColor} size="sm" ariaLabel={`${match.teamName} shirt`} />
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <p className="text-sm font-semibold text-[var(--foreground)] truncate">{match.teamName}</p>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              vs {match.opponent} · {dateStr}
+            </p>
+            {!match.isFinalized && (
+              <CoachingIntentSelector
+                scopeType="MATCH"
+                scopeId={match.matchId}
+                currentIntent={match.coachingIntentCategory}
+                currentIntentId={match.coachingIntentId}
+              />
+            )}
+            {match.isFinalized && match.coachingIntentCategory && (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                {COACHING_INTENT_LABELS[
+                  match.coachingIntentCategory as keyof typeof COACHING_INTENT_LABELS
+                ] ?? match.coachingIntentCategory}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <span className="rounded-full bg-[var(--accent-subtle)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent-strong)]">
+            Squad ({selectedCount})
+          </span>
           <StatusPill variant={fillVariant}>
-            {selectedCount}/{match.targetSquadSize}
+            {needsCount > 0 ? `Needs ${needsCount}` : `${selectedCount}/${match.targetSquadSize}`}
           </StatusPill>
           {match.isFinalized && (
             <span
@@ -384,6 +419,11 @@ function MatchColumnComponent({
               <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
           )}
+        </div>
+      </div>
+      <div className="px-3 pt-1.5" aria-hidden="true">
+        <div className="h-1 overflow-hidden rounded-full bg-[var(--border-soft)]">
+          <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${progressPct}%` }} />
         </div>
       </div>
 
@@ -399,25 +439,37 @@ function MatchColumnComponent({
               </div>
               <div className="flex flex-col gap-1">
                 {players.map((p) => (
-                  <BoardPlayerChip
-                    key={p.id}
-                    player={p}
-                    isDraggable
-                    isFinalized={match.isFinalized}
-                    isPending={isPending}
-                    onDragStart={(e) => onDragStart(e, p.id, match.matchId, p.role)}
-                    onRemove={() => onRemovePlayer(match.matchId, p.id)}
-                    onMove={() => onMovePlayer(match.matchId, p.id, p.name)}
-                    onRepair={
-                      match.isFinalized ? undefined : () => onRepairPlayer(match.matchId, p.id, p.name)
-                    }
-                    onTouchStart={
-                      onTouchStartPlayer
-                        ? () => onTouchStartPlayer(p.id, match.matchId, p.role)
-                        : undefined
-                    }
-                    isTouchDragging={touchDragPlayerId === p.id}
-                  />
+                  <div key={p.id} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSelectPlayer(p.id)}
+                      aria-label={`Select ${p.name}`}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                    >
+                      <span aria-hidden="true" className="text-[11px] font-semibold">→</span>
+                      <span className="sr-only">Select</span>
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <BoardPlayerChip
+                        player={p}
+                        isDraggable
+                        isFinalized={match.isFinalized}
+                        isPending={isPending}
+                        onDragStart={(e) => onDragStart(e, p.id, match.matchId, p.role)}
+                        onRemove={() => onRemovePlayer(match.matchId, p.id)}
+                        onMove={() => onMovePlayer(match.matchId, p.id, p.name)}
+                        onRepair={
+                          match.isFinalized ? undefined : () => onRepairPlayer(match.matchId, p.id, p.name)
+                        }
+                        onTouchStart={
+                          onTouchStartPlayer
+                            ? () => onTouchStartPlayer(p.id, match.matchId, p.role)
+                            : undefined
+                        }
+                        isTouchDragging={touchDragPlayerId === p.id}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -425,10 +477,22 @@ function MatchColumnComponent({
         })}
         {selectedCount === 0 && (
           <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
-            Drop players here
+            Select or drop players here
           </p>
         )}
       </div>
+
+      {onAddPlayer && !match.isFinalized ? (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={() => onAddPlayer(match.matchId)}
+            className="w-full rounded-md border border-dashed border-[var(--border-soft)] py-1.5 text-[12px] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            + Add player
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -451,25 +515,38 @@ export function RoundBoard({
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason] = useState("");
 
-  // Compact one-match view (ADR-0124 §12): the selected match is URL-backed (`?match=<id>`) so
-  // it survives refresh and back navigation. Falls back to the first match; an unknown id is
-  // ignored. Expanded/large keeps the full multi-match workbench below.
-  const rawSelectedMatch = searchParams.get("match");
-  const selectedMatchId =
-    matches.find((m) => m.matchId === rawSelectedMatch)?.matchId ?? matches[0]?.matchId ?? null;
-  const setSelectedMatch = useCallback(
-    (matchId: string) => {
+  // Primary interaction state (contract §3): select player → choose destination.
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [desktopView, setDesktopView] = useState<"board" | "allocation">("board");
+
+  // Compact match-first modes (contract §7): Overview → Matches → one match's squad. The
+  // drilled-into match is URL-backed (`?match=<id>`, ADR-0124 §12) so it survives refresh/back;
+  // an unknown or absent id falls back to the Overview mode rather than guessing a match.
+  const rawMobileMatch = searchParams.get("match");
+  const [mobileMode, setMobileMode] = useState<"overview" | "matches" | "match">(() =>
+    rawMobileMatch && matches.some((m) => m.matchId === rawMobileMatch) ? "match" : "overview",
+  );
+  const [mobileMatchId, setMobileMatchId] = useState<string | null>(() =>
+    rawMobileMatch && matches.some((m) => m.matchId === rawMobileMatch) ? rawMobileMatch : null,
+  );
+  const setMobileMatchUrl = useCallback(
+    (matchId: string | null) => {
       const params = new URLSearchParams(Array.from(searchParams.entries()));
-      params.set("match", matchId);
-      router.replace(`?${params.toString()}`, { scroll: false });
+      if (matchId) {
+        params.set("match", matchId);
+      } else {
+        params.delete("match");
+      }
+      const query = params.toString();
+      router.replace(query ? `?${query}` : "?", { scroll: false });
     },
     [router, searchParams],
   );
 
-  // Non-drag "Move to..." alternative (PROGRAMME.md §50). Desktop/expanded
-  // viewports get a Dialog-based list (no dropdown/menu primitive exists
-  // yet); medium/compact viewports get BottomSheet, matching §22's own
-  // "Tap player → Move to: ..." example.
+  // Non-drag "Move to..." alternative (PROGRAMME.md §50), kept for the chip's own Move button:
+  // on compact viewports this is superseded by the assignment sheet, but the chip affordance
+  // remains and routes into the same destination picker on expanded viewports.
   const [movePicker, setMovePicker] = useState<{
     playerId: string;
     playerName: string;
@@ -552,30 +629,6 @@ export function RoundBoard({
     [matches, initialAvailable, rotationPathMap],
   );
 
-  const totalSelected = matches.reduce(
-    (sum, m) =>
-      sum +
-      m.players.filter((p) => DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole))
-        .length,
-    0,
-  );
-  const totalTarget = matches.reduce((sum, m) => sum + m.targetSquadSize, 0);
-  const completeTeams = matches.filter((m) => {
-    const count = m.players.filter((p) =>
-      DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
-    ).length;
-    return count >= m.targetSquadSize;
-  }).length;
-  const teamsNeedingSupport = matches.filter((m) => {
-    const assigned = m.players.filter((p) =>
-      DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
-    ).length;
-    return assigned < m.minSquadSize;
-  }).length;
-  const squadRepairNeeded = matches.reduce(
-    (sum, m) => sum + m.players.filter((p) => p.role === "BACKFILL").length,
-    0,
-  );
   const blockedCount = signalSummary?.blocked ?? 0;
   const decisionRequiredCount = signalSummary?.decisionRequired ?? 0;
 
@@ -602,9 +655,10 @@ export function RoundBoard({
   );
 
   // Single source of truth for "move a player to a match" — used by drag/drop,
-  // touch-drag, and the explicit non-drag Move action below. Never duplicate
-  // this sequence (PROGRAMME.md §50's non-drag alternative must produce the
-  // identical result as drag/drop, not a parallel implementation).
+  // touch-drag, the explicit non-drag Move action, the inspector/sheet suggestion
+  // cards, and the allocation matrix below. Never duplicate this sequence
+  // (PROGRAMME.md §50's non-drag alternative must produce the identical result as
+  // drag/drop, not a parallel implementation) — the contract's §3/§6 one-command rule.
   const movePlayerToMatch = useCallback(
     async (playerId: string, fromMatchId: string | null, targetMatchId: string) => {
       const role = determineRole(playerId, targetMatchId);
@@ -706,6 +760,27 @@ export function RoundBoard({
     [movePicker, movePlayerToMatch, startTransition, router],
   );
 
+  // Primary interaction commit (contract §3/§5): a suggestion card's single explicit assignment
+  // action — the exact same movePlayerToMatch command drag/drop uses.
+  const handleAssignSuggestion = useCallback(
+    (suggestion: RoundBoardAssignmentSuggestion) => {
+      if (!selectedPlayerId) return;
+      const fromMatchId =
+        matches.find((m) => m.players.some((p) => p.id === selectedPlayerId))?.matchId ?? null;
+      startTransition(async () => {
+        await movePlayerToMatch(selectedPlayerId, fromMatchId, suggestion.matchId);
+        router.refresh();
+      });
+      setSheetOpen(false);
+    },
+    [selectedPlayerId, matches, movePlayerToMatch, startTransition, router],
+  );
+
+  const handleSelectPlayer = useCallback((playerId: string) => {
+    setSelectedPlayerId(playerId);
+    if (isCompactViewport) setSheetOpen(true);
+  }, [isCompactViewport]);
+
   // Touch drag helpers — preserved verbatim from previous implementation.
   const findDropTargetAt = (
     x: number,
@@ -769,62 +844,211 @@ export function RoundBoard({
     ? matches.filter((m) => m.matchId !== movePicker.fromMatchId)
     : [];
 
+  // --- Gate D view model (Phase F9): the page's canonical data → the approved composition.
+
+  const attentionItems: RoundBoardAttentionItem[] = warnings
+    .filter((w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE")
+    .map((w, i) => ({
+      id: `${w.code}-${i}`,
+      playerId: w.playerId ?? null,
+      matchId: null,
+      summary: w.playerName ?? w.teamName ?? w.code,
+      detail: w.message,
+      severity: w.severity === "HARD_BLOCK" ? ("BLOCKED" as const) : ("DECISION_REQUIRED" as const),
+    }));
+
+  const vm = buildRoundBoardViewModel({
+    roundLabel,
+    dateRangeLabel: matches.length > 0 ? formatKickoffDateTime(matches[0]!.matchDate) : roundLabel,
+    matches: matches.map((m) => ({
+      matchId: m.matchId,
+      teamName: m.teamName,
+      teamKitColor: m.teamKitColor,
+      opponent: m.opponent,
+      matchDate: m.matchDate,
+      targetSquadSize: m.targetSquadSize,
+      minSquadSize: m.minSquadSize,
+      isFinalized: m.isFinalized,
+      players: m.players.map((p) => ({
+        playerId: p.id,
+        displayName: p.name,
+        shirtNumber: p.shirtNumber ?? null,
+        kitColor: p.kitColor ?? m.teamKitColor,
+        position: p.primaryPosition ?? null,
+        role: (p.role ?? "CORE") as "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT" | "CONFIDENCE_REBUILD",
+        attention: (p.warningCount ?? 0) > 0,
+      })),
+    })),
+    attentionSignals: attentionItems.map((a) => ({
+      id: a.id,
+      summary: a.summary,
+      detail: a.detail,
+      severity: a.severity,
+      playerId: a.playerId,
+    })),
+    availablePlayerCount: unassignedPlayers.length,
+  });
+
+  // --- Selected-player assignment context (the contract's separate contextual view model).
+
+  const allPlayersById = new Map<string, PlayerInColumn>();
+  for (const p of initialAvailable) allPlayersById.set(p.id, p);
+  for (const m of matches) {
+    for (const p of m.players) if (!allPlayersById.has(p.id)) allPlayersById.set(p.id, p);
+  }
+  const selectedPlayer = selectedPlayerId ? (allPlayersById.get(selectedPlayerId) ?? null) : null;
+  const selectedPlayerMatchId = selectedPlayerId
+    ? (matches.find((m) => m.players.some((p) => p.id === selectedPlayerId))?.matchId ?? null)
+    : null;
+
+  const assignmentContext = selectedPlayer
+    ? buildAssignmentContext(
+        {
+          playerId: selectedPlayer.id,
+          displayName: selectedPlayer.name,
+          shirtNumber: selectedPlayer.shirtNumber ?? null,
+          kitColor: selectedPlayer.kitColor ?? null,
+          positions: selectedPlayer.primaryPosition ? [selectedPlayer.primaryPosition] : [],
+          attentionSummary:
+            selectedPlayer.warningCount && selectedPlayer.warningCount > 0
+              ? "This player is affected by unresolved plan signals."
+              : null,
+        },
+        matches
+          .filter((m) => m.matchId !== selectedPlayerMatchId)
+          .map((m) => {
+            const selectedCount = m.players.filter((p) =>
+              DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+            ).length;
+            const paths = rotationPathMap[`${selectedPlayer.coreTeamId ?? ""}:${m.teamId}`] ?? [];
+            return {
+              matchId: m.matchId,
+              teamName: `${m.teamName} vs ${m.opponent}`,
+              teamKitColor: m.teamKitColor,
+              targetTeamId: m.teamId,
+              currentSquadCount: selectedCount,
+              targetCount: m.targetSquadSize,
+              derivedRole: determineAutomaticRoleFromPaths(selectedPlayer.coreTeamId, m.teamId, paths),
+              isCoreTeam: selectedPlayer.coreTeamId === m.teamId,
+              hasRotationPath: paths.length > 0,
+            };
+          }),
+      )
+    : null;
+
+  // --- Allocation matrix (desktop secondary mode, contract §8 — same assignment command).
+
+  const matrix = buildAllocationMatrix(
+    matches.map((m) => ({
+      matchId: m.matchId,
+      teamName: m.teamName,
+      teamKitColor: m.teamKitColor,
+      opponent: m.opponent,
+      matchDate: m.matchDate,
+      targetSquadSize: m.targetSquadSize,
+      minSquadSize: m.minSquadSize,
+      isFinalized: m.isFinalized,
+      players: [],
+    })),
+    initialAvailable.map((p) => ({
+      playerId: p.id,
+      displayName: p.name,
+      shirtNumber: p.shirtNumber ?? null,
+      kitColor: p.kitColor ?? null,
+    })),
+    new Map(matches.flatMap((m) => m.players.map((p) => [p.id, m.matchId] as const))),
+    1,
+  );
+
+  const handleMatrixToggle = useCallback(
+    (playerId: string, matchId: string) => {
+      const currentMatchId =
+        matches.find((m) => m.players.some((p) => p.id === playerId))?.matchId ?? null;
+      const target = matches.find((m) => m.matchId === matchId);
+      if (!target || target.isFinalized) return;
+
+      if (currentMatchId === matchId) {
+        // Toggle off = remove from the match (drop back to available).
+        startTransition(async () => {
+          const fd = new FormData();
+          fd.set("matchId", matchId);
+          fd.set("playerId", playerId);
+          fd.set("matchRoundId", matchRoundId);
+          await removePlayerFromMatchAction(fd);
+          router.refresh();
+        });
+        return;
+      }
+
+      startTransition(async () => {
+        await movePlayerToMatch(playerId, currentMatchId, matchId);
+        router.refresh();
+      });
+    },
+    [matches, matchRoundId, movePlayerToMatch, startTransition, router],
+  );
+
+  const mobileMatch = mobileMatchId ? matches.find((m) => m.matchId === mobileMatchId) : null;
+
   return (
     // Touchline island (theme-aware, no longer dark-pinned — ADR-0134). Also
     // rendered directly by the org-scoped round page, which island-wraps too; nested
     // `.touchline` is idempotent.
     <div className="touchline flex flex-col gap-5">
-      {/* Touchline Design Atlas (ADR-0136, Phase 5): `WorkbenchSummaryStrip` -- a Touchline
-          Finish primitive (ADR-0135) purpose-built for exactly this spot but never actually
-          wired in until now. Same facts, same conditions as the previous `RoundStatusStrip`/
-          `MetricTile`-grid rendering it replaces -- no new query, no logic change. */}
-      <WorkbenchSummaryStrip
-        items={buildRoundWorkbenchSummaryItems({
-          totalTeams: matches.length,
-          completeTeams,
-          teamsNeedingSupport,
-          squadRepairNeeded,
-          blockedCount,
-          decisionRequiredCount,
-          totalSelected,
-          totalTarget,
-        })}
-      />
+      {/* Exception-first status strip (Atlas Follow-up Phase F9, contract §4/§6) — decisions
+          needing attention is the visually dominant tile, before any routine allocation. */}
+      <RoundStatusStrip summary={vm.summary} />
 
-      {/* Touchline Design Atlas (ADR-0136, Phase 5): `WorkbenchToolbar` -- "toolbar/context" is
-          the first item in the spec's desktop composition. Same Regenerate/Clear buttons, same
-          handlers, only the wrapping layout changes (context label + right-aligned actions). */}
       {planningBoundaryOpen && (
-        <WorkbenchToolbar
-          context={<span className="font-[650] text-[var(--foreground)]">{roundLabel}</span>}
-          actions={
-            <>
-              <TouchlineButton
-                variant="secondary"
-                disabled={isPending}
-                leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-                onClick={() => {
-                  startTransition(async () => {
-                    const fd = new FormData();
-                    fd.set("matchRoundId", matchRoundId);
-                    await regenerateRoundAction({ error: "" }, fd);
-                    router.refresh();
-                  });
-                }}
-              >
-                Regenerate
-              </TouchlineButton>
-              <TouchlineButton
-                variant="danger"
-                disabled={isPending}
-                leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
-                onClick={() => setShowClearRoundDialog(true)}
-              >
-                Clear
-              </TouchlineButton>
-            </>
-          }
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[12px] text-[var(--text-muted)]">
+            {vm.roundLabel}
+            {vm.dateRangeLabel ? ` · ${vm.dateRangeLabel}` : ""}
+          </span>
+          <div className="hidden items-center gap-1 medium:flex">
+            <button
+              type="button"
+              onClick={() => setDesktopView("board")}
+              aria-pressed={desktopView === "board"}
+              className={`rounded-full px-3 py-1 text-[12px] font-medium ${desktopView === "board" ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}`}
+            >
+              Board
+            </button>
+            <button
+              type="button"
+              onClick={() => setDesktopView("allocation")}
+              aria-pressed={desktopView === "allocation"}
+              className={`rounded-full px-3 py-1 text-[12px] font-medium ${desktopView === "allocation" ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]" : "text-[var(--text-muted)]"}`}
+            >
+              Allocation
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <TouchlineButton
+              variant="secondary"
+              disabled={isPending}
+              leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+              onClick={() => {
+                startTransition(async () => {
+                  const fd = new FormData();
+                  fd.set("matchRoundId", matchRoundId);
+                  await regenerateRoundAction({ error: "" }, fd);
+                  router.refresh();
+                });
+              }}
+            >
+              Regenerate
+            </TouchlineButton>
+            <TouchlineButton
+              variant="danger"
+              disabled={isPending}
+              leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+              onClick={() => setShowClearRoundDialog(true)}
+            >
+              Clear
+            </TouchlineButton>
+          </div>
+        </div>
       )}
 
       {!planningBoundaryOpen && (
@@ -839,33 +1063,13 @@ export function RoundBoard({
         />
       )}
 
-      {blockedCount > 0 && (
-        <DecisionBanner
-          variant="blocked"
-          title={
-            <>
-              Plan checks · {blockedCount} blocked{" "}
-              {blockedCount === 1 ? "condition" : "conditions"}
-            </>
-          }
-           description="Resolve or record an override reason before kickoff."
-        />
-      )}
-
-      {decisionRequiredCount > 0 && (
-        <DecisionBanner
-          variant="decision"
-          title={
-            <>
-              Plan checks ·{" "}
-              {decisionRequiredCount === 1
-                ? "1 decision needs review"
-                : `${decisionRequiredCount} decisions need review`}
-            </>
-          }
-           description="Coach judgement required before kickoff."
-        />
-      )}
+      {/* Unresolved decisions before routine allocations (contract §6). */}
+      <RoundAttentionList
+        items={attentionItems}
+        onResolve={(item) => {
+          if (item.playerId) handleSelectPlayer(item.playerId);
+        }}
+      />
 
       {planningNotes.length > 0 && (
         <details className="text-xs">
@@ -874,11 +1078,9 @@ export function RoundBoard({
           </summary>
           <div className="mt-2 flex flex-col gap-1.5">
             {planningNotes.map((w, i) => (
-              <Surface
+              <div
                 key={`note-${w.code}-${i}`}
-                variant="subtle"
-                padding="none"
-                className="px-3 py-1.5 text-[11px] text-[var(--text-soft)]"
+                className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-1.5 text-[11px] text-[var(--text-soft)]"
               >
                 {w.playerName && (
                   <span className="font-medium text-[var(--foreground)]">
@@ -886,196 +1088,362 @@ export function RoundBoard({
                   </span>
                 )}
                 {w.message}
-              </Surface>
+              </div>
             ))}
           </div>
         </details>
       )}
 
-      {/* Compact one-match selector (ADR-0124 §12). Expanded shows every match at once below. */}
-      {isCompactViewport && matches.length > 1 && (
+      {/* --- Desktop workbench (medium+): lanes + inspector, or the allocation matrix. --- */}
+      {desktopView === "board" ? (
         <div
-          role="tablist"
-          aria-label="Select match"
-          className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1 expanded:hidden"
-        >
-          {matches.map((m) => {
-            const active = m.matchId === selectedMatchId;
-            return (
-              <button
-                key={m.matchId}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setSelectedMatch(m.matchId)}
-                className={[
-                  "shrink-0 rounded-lg border px-3 py-2 text-left transition-colors min-h-[44px]",
-                  active
-                    ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)] text-[var(--foreground)]"
-                    : "border-[var(--border-soft)] bg-[var(--surface-base)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)]",
-                ].join(" ")}
-              >
-                <span className="flex items-baseline gap-1.5 max-w-[10rem]">
-                  <span className="block flex-1 truncate text-[13px] font-medium">{m.teamName}</span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-[var(--text-muted)]">
-                    {formatKickoffTime(m.matchDate)}
-                  </span>
-                </span>
-                <span className="block text-[11px] text-[var(--text-muted)] truncate max-w-[10rem]">
-                  vs {m.opponent}
-                </span>
-              </button>
+          className="hidden medium:grid medium:gap-4"
+          style={{
+            gridTemplateColumns: `minmax(200px, 1fr) repeat(${Math.min(matches.length, 3)}, minmax(220px, 1.4fr)) minmax(260px, 1.3fr)`,
+          }}
+          onTouchMove={(e) => {
+            if (!touchDragRef.current) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = findDropTargetAt(touch.clientX, touch.clientY);
+            setTouchDropTarget(
+              target ? (target.type === "available" ? "available" : target.matchId) : null,
             );
-          })}
-        </div>
-      )}
-
-      {/* Below `expanded` (840px), fixed-width match columns don't fit — a phone or a
-          medium-tier tablet needs horizontal scroll-snap instead of a squeezed grid.
-          On compact only the URL-selected match column renders (one match at a time);
-          `gridTemplateColumns` only takes effect once `display: grid` is active
-          (expanded:grid below), so it's harmless to set unconditionally. */}
-      <div
-        className={
-          isCompactViewport
-            ? "flex flex-col gap-4"
-            : "flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 expanded:mx-0 expanded:px-0 expanded:grid expanded:overflow-visible expanded:snap-none expanded:pb-0"
-        }
-        style={{
-          gridTemplateColumns: `minmax(200px, 1fr) repeat(${matches.length}, minmax(220px, 2fr))`,
-        }}
-        onTouchMove={(e) => {
-          if (!touchDragRef.current) return;
-          e.preventDefault();
-          const touch = e.touches[0];
-          const target = findDropTargetAt(touch.clientX, touch.clientY);
-          setTouchDropTarget(
-            target ? (target.type === "available" ? "available" : target.matchId) : null,
-          );
-        }}
-        onTouchEnd={(e) => {
-          if (!touchDragRef.current) return;
-          e.preventDefault();
-          const touch = e.changedTouches[0];
-          const target = findDropTargetAt(touch.clientX, touch.clientY);
-          if (target) {
-            handleTouchDrop(target);
-          } else {
+          }}
+          onTouchEnd={(e) => {
+            if (!touchDragRef.current) return;
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            const target = findDropTargetAt(touch.clientX, touch.clientY);
+            if (target) {
+              handleTouchDrop(target);
+            } else {
+              touchDragRef.current = null;
+              setTouchDragPlayerId(null);
+              setTouchDropTarget(null);
+            }
+          }}
+          onTouchCancel={() => {
             touchDragRef.current = null;
             setTouchDragPlayerId(null);
             setTouchDropTarget(null);
-          }
-        }}
-        onTouchCancel={() => {
-          touchDragRef.current = null;
-          setTouchDragPlayerId(null);
-          setTouchDropTarget(null);
-        }}
-      >
-        <div
-          data-drop-available
-          className={[
-            "flex flex-col rounded-[var(--tl-c-radius-object)] border transition-colors",
-            isCompactViewport
-              ? "w-full"
-              : "shrink-0 w-[82vw] max-w-[340px] snap-start expanded:w-auto expanded:max-w-none expanded:shrink",
-            availableDragOver || touchDropTarget === "available"
-              ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
-              : "border-[var(--border-soft)] bg-[var(--surface-base)]",
-          ].join(" ")}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setAvailableDragOver(true);
-          }}
-          onDragEnter={(e) => {
-            e.preventDefault();
-            setAvailableDragOver(true);
-          }}
-          onDragLeave={() => setAvailableDragOver(false)}
-          onDrop={(e) => {
-            setAvailableDragOver(false);
-            handleDropOnAvailable(e);
           }}
         >
-          <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
-            <div>
-              <p className="text-sm font-semibold text-[var(--foreground)]">Available</p>
-              <p className="text-[11px] text-[var(--text-muted)]">
-                {unassignedPlayers.length} unassigned
-              </p>
-            </div>
-            <GripVertical className="h-3.5 w-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-          </div>
-          <div className="flex-1 px-3 py-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
-            {unassignedPlayers.length === 0 ? (
-              <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
-                All players assigned
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {unassignedPlayers.map((p) => (
-                  <BoardPlayerChip
-                    key={p.id}
-                    player={p}
-                    isDraggable
-                    isFinalized={false}
-                    isPending={isPending}
-                    onDragStart={(e) => handleDragStart(e, p.id, null, p.role)}
-                    onMove={
-                      matches.length > 0
-                        ? () => setMovePicker({ playerId: p.id, playerName: p.name, fromMatchId: null })
-                        : undefined
-                    }
-                    onTouchStart={() => {
-                      touchDragRef.current = {
-                        playerId: p.id,
-                        fromMatchId: null,
-                        currentRole: p.role ?? "CORE",
-                      };
-                      setTouchDragPlayerId(p.id);
-                    }}
-                    isTouchDragging={touchDragPlayerId === p.id}
-                  />
-                ))}
+          {/* Available players column — preserved as the drag source and the unassigned list. */}
+          <div
+            data-drop-available
+            className={[
+              "flex flex-col rounded-[var(--tl-c-radius-object)] border transition-colors",
+              availableDragOver || touchDropTarget === "available"
+                ? "border-[var(--accent)]/55 bg-[var(--accent-subtle)]"
+                : "border-[var(--border-soft)] bg-[var(--surface-base)]",
+            ].join(" ")}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setAvailableDragOver(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setAvailableDragOver(true);
+            }}
+            onDragLeave={() => setAvailableDragOver(false)}
+            onDrop={(e) => {
+              setAvailableDragOver(false);
+              handleDropOnAvailable(e);
+            }}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2">
+              <div>
+                <p className="text-sm font-semibold text-[var(--foreground)]">Available</p>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  {unassignedPlayers.length} unassigned
+                </p>
               </div>
-            )}
+              <GripVertical className="h-3.5 w-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+            </div>
+            <div className="flex-1 px-3 py-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
+              {unassignedPlayers.length === 0 ? (
+                <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
+                  All players assigned
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {unassignedPlayers.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPlayer(p.id)}
+                        aria-label={`Select ${p.name}`}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                      >
+                        <span aria-hidden="true" className="text-[11px] font-semibold">→</span>
+                        <span className="sr-only">Select</span>
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <BoardPlayerChip
+                          player={p}
+                          isDraggable
+                          isFinalized={false}
+                          isPending={isPending}
+                          onDragStart={(e) => handleDragStart(e, p.id, null, p.role)}
+                          onMove={
+                            matches.length > 0
+                              ? () => setMovePicker({ playerId: p.id, playerName: p.name, fromMatchId: null })
+                              : undefined
+                          }
+                          onTouchStart={() => {
+                            touchDragRef.current = {
+                              playerId: p.id,
+                              fromMatchId: null,
+                              currentRole: p.role ?? "CORE",
+                            };
+                            setTouchDragPlayerId(p.id);
+                          }}
+                          isTouchDragging={touchDragPlayerId === p.id}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {matches.map((match) => (
+            <MatchLane
+              key={match.matchId}
+              match={match}
+              isPending={isPending}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDropOnMatch(match.matchId, e)}
+              onDragStart={(e, playerId, _fromMatchId, currentRole) =>
+                handleDragStart(e, playerId, match.matchId, currentRole)
+              }
+              onRemovePlayer={handleRemovePlayer}
+              onMovePlayer={(matchId, playerId, playerName) =>
+                setMovePicker({ playerId, playerName, fromMatchId: matchId })
+              }
+              onRepairPlayer={(matchId, playerId, playerName) =>
+                handleOpenRepair(matchId, playerId, playerName)
+              }
+              onSelectPlayer={handleSelectPlayer}
+              onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
+                touchDragRef.current = {
+                  playerId,
+                  fromMatchId,
+                  currentRole: currentRole ?? "CORE",
+                };
+                setTouchDragPlayerId(playerId);
+              }}
+              isTouchHighlight={touchDropTarget === match.matchId}
+              touchDragPlayerId={touchDragPlayerId}
+            />
+          ))}
+
+          {/* Selected-player inspector (contract §5): the primary interaction's destination
+              chooser — suggestion reasons from canonical planning logic, one explicit assign
+              action per suggestion, the same command as drag. */}
+          <div className="flex flex-col gap-3">
+            <PlayerAssignmentInspector
+              context={assignmentContext}
+              onAssign={handleAssignSuggestion}
+              onClose={() => setSelectedPlayerId(null)}
+            />
           </div>
         </div>
+      ) : (
+        <AllocationMatrix
+          columns={matrix.columns}
+          rows={matrix.rows}
+          onToggleCell={handleMatrixToggle}
+          className="hidden medium:block"
+        />
+      )}
 
-        {(isCompactViewport && selectedMatchId
-          ? matches.filter((m) => m.matchId === selectedMatchId)
-          : matches
-        ).map((match) => (
-          <MatchColumnComponent
-            key={match.matchId}
-            match={match}
-            isPending={isPending}
-            fullWidth={isCompactViewport}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleDropOnMatch(match.matchId, e)}
-            onDragStart={(e, playerId, _fromMatchId, currentRole) =>
-              handleDragStart(e, playerId, match.matchId, currentRole)
-            }
-            onRemovePlayer={handleRemovePlayer}
-            onMovePlayer={(matchId, playerId, playerName) =>
-              setMovePicker({ playerId, playerName, fromMatchId: matchId })
-            }
-            onRepairPlayer={(matchId, playerId, playerName) =>
-              handleOpenRepair(matchId, playerId, playerName)
-            }
-            onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
-              touchDragRef.current = {
-                playerId,
-                fromMatchId,
-                currentRole: currentRole ?? "CORE",
-              };
-              setTouchDragPlayerId(playerId);
-            }}
-            isTouchHighlight={touchDropTarget === match.matchId}
-            touchDragPlayerId={touchDragPlayerId}
-          />
-        ))}
+      {/* --- Compact: match-first composition (contract §7) — never a compressed kanban. --- */}
+      <div className="flex flex-col gap-4 medium:hidden">
+        <div className="flex gap-1 border-b border-[var(--border-soft)]" role="tablist" aria-label="Round board views">
+          {(["overview", "matches"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="tab"
+              aria-selected={mobileMode === mode || (mobileMode === "match" && mode === "matches")}
+              onClick={() => {
+                setMobileMode(mode);
+                setMobileMatchId(null);
+                setMobileMatchUrl(null);
+              }}
+              className={`px-3 py-2 text-[13px] font-medium capitalize border-b-2 -mb-px ${
+                mobileMode === mode || (mobileMode === "match" && mode === "matches")
+                  ? "border-[var(--accent-strong)] text-[var(--foreground)]"
+                  : "border-transparent text-[var(--text-muted)]"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        {mobileMode === "overview" ? (
+          <>
+            <RoundAttentionList
+              items={attentionItems}
+              onResolve={(item) => {
+                if (item.playerId) handleSelectPlayer(item.playerId);
+              }}
+            />
+            <TouchlineWidget padding="compact">
+              <p className="text-[12px] text-[var(--text-muted)]">
+                {vm.summary.plannedOpportunities} of {vm.summary.targetOpportunities} planned
+                opportunities across {vm.summary.matches}{" "}
+                {vm.summary.matches === 1 ? "match" : "matches"}.
+                {" "}
+                {blockedCount > 0
+                  ? `${blockedCount} blocked ${blockedCount === 1 ? "condition" : "conditions"}.`
+                  : decisionRequiredCount > 0
+                    ? `${decisionRequiredCount} ${decisionRequiredCount === 1 ? "decision" : "decisions"} needed.`
+                    : "No unresolved conditions."}
+              </p>
+            </TouchlineWidget>
+          </>
+        ) : null}
+
+        {mobileMode === "matches" && !mobileMatch ? (
+          <ul className="flex flex-col gap-2">
+            {matches.map((lane) => {
+              const selectedCount = lane.players.filter((p) =>
+                DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+              ).length;
+              const needsCount = Math.max(0, lane.targetSquadSize - selectedCount);
+              return (
+                <li key={lane.matchId}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMatchId(lane.matchId);
+                      setMobileMode("match");
+                      setMobileMatchUrl(lane.matchId);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-base)] p-3 text-left"
+                  >
+                    <TeamKitMark color={lane.teamKitColor} size="sm" ariaLabel={`${lane.teamName} shirt`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-[700] text-[var(--foreground)]">{lane.teamName}</p>
+                      <p className="truncate text-[11px] text-[var(--text-muted)]">
+                        vs {lane.opponent} · {formatKickoffTime(lane.matchDate)}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        needsCount === 0
+                          ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]"
+                          : "bg-[var(--warning-subtle)] text-[var(--warning)]"
+                      }`}
+                    >
+                      {needsCount > 0 ? `Needs ${needsCount}` : "Complete"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        {mobileMode === "match" && mobileMatch ? (
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMatchId(null);
+                setMobileMode("matches");
+                setMobileMatchUrl(null);
+              }}
+              className="mb-2 text-[12px] text-[var(--text-muted)] hover:underline"
+            >
+              &larr; All matches
+            </button>
+            <MatchLane
+              match={mobileMatch}
+              isPending={isPending}
+              fullWidth
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDropOnMatch(mobileMatch.matchId, e)}
+              onDragStart={(e, playerId, _fromMatchId, currentRole) =>
+                handleDragStart(e, playerId, mobileMatch.matchId, currentRole)
+              }
+              onRemovePlayer={handleRemovePlayer}
+              onMovePlayer={(matchId, playerId, playerName) =>
+                setMovePicker({ playerId, playerName, fromMatchId: matchId })
+              }
+              onRepairPlayer={(matchId, playerId, playerName) =>
+                handleOpenRepair(matchId, playerId, playerName)
+              }
+              onSelectPlayer={handleSelectPlayer}
+              onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
+                touchDragRef.current = {
+                  playerId,
+                  fromMatchId,
+                  currentRole: currentRole ?? "CORE",
+                };
+                setTouchDragPlayerId(playerId);
+              }}
+              isTouchHighlight={touchDropTarget === mobileMatch.matchId}
+              touchDragPlayerId={touchDragPlayerId}
+            />
+            <div className="mt-3">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Available
+              </p>
+              {unassignedPlayers.length === 0 ? (
+                <p className="text-[11px] text-[var(--text-muted)]">All players assigned</p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {unassignedPlayers.slice(0, 8).map((p) => (
+                    <div key={p.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPlayer(p.id)}
+                        aria-label={`Select ${p.name}`}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                      >
+                        <span aria-hidden="true" className="text-[11px] font-semibold">→</span>
+                        <span className="sr-only">Select</span>
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <BoardPlayerChip
+                          player={p}
+                          isDraggable
+                          isFinalized={false}
+                          isPending={isPending}
+                          onTouchStart={() => {
+                            touchDragRef.current = {
+                              playerId: p.id,
+                              fromMatchId: null,
+                              currentRole: p.role ?? "CORE",
+                            };
+                            setTouchDragPlayerId(p.id);
+                          }}
+                          isTouchDragging={touchDragPlayerId === p.id}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
+
+      {/* Mobile assignment sheet (contract §7): the compact commit path — identical suggestion
+          cards to the desktop inspector (one shared rendering), one sticky dominant action. */}
+      <PlayerAssignmentSheet
+        isOpen={sheetOpen}
+        context={assignmentContext}
+        onAssign={handleAssignSuggestion}
+        onClose={() => setSheetOpen(false)}
+      />
 
       <FairnessSummary metrics={fairnessMetrics} movementSummary={movementSummary} />
 
@@ -1193,24 +1561,9 @@ export function RoundBoard({
         )}
       </Dialog>
 
-      {isCompactViewport ? (
-        <BottomSheet
-          isOpen={!!movePicker}
-          onClose={() => setMovePicker(null)}
-          title={movePicker ? `Move ${movePicker.playerName} to...` : ""}
-          footer={
-            <TouchlineButton variant="secondary" onClick={() => setMovePicker(null)}>
-              Cancel
-            </TouchlineButton>
-          }
-        >
-          <MoveDestinationList
-            destinations={moveDestinations}
-            isPending={isPending}
-            onSelect={handleConfirmMove}
-          />
-        </BottomSheet>
-      ) : (
+      {/* Expanded-viewport destination picker for the chip's own "Move to..." affordance —
+          compact viewports reach the same destinations through the assignment sheet instead. */}
+      {!isCompactViewport && (
         <Dialog
           isOpen={!!movePicker}
           onClose={() => setMovePicker(null)}

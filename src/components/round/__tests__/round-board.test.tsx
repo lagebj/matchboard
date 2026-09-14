@@ -46,6 +46,7 @@ function baseProps() {
         matchId: "m-blue",
         teamId: "team-blue",
         teamName: "Blue",
+        teamKitColor: "#1d4fa8",
         opponent: "Rivals",
         matchDate: new Date("2026-01-01"),
         targetSquadSize: 11,
@@ -66,6 +67,7 @@ function baseProps() {
         matchId: "m-white",
         teamId: "team-white",
         teamName: "White",
+        teamKitColor: "#f2f2f2",
         opponent: "Foxes",
         matchDate: new Date("2026-01-01"),
         targetSquadSize: 11,
@@ -293,56 +295,53 @@ describe("RoundBoard — emergency repair options (Phase 9)", () => {
   });
 });
 
-describe("RoundBoard — phone-responsive match columns", () => {
-  it("gives match columns horizontal-scroll-snap classes below the expanded tier, and a grid at expanded+", () => {
+// Atlas Follow-up Phase F9 superseded the old scroll-snap phone tier (ADR-0124 §12's original
+// "one column, horizontally snap-scrollable below expanded" design) with a match-first
+// drill-down (Overview -> Matches -> one match's squad, feature file "Mobile Round Board is
+// match-first"): the desktop multi-match workbench is now a plain grid shown only at `medium+`,
+// and everything below that renders the separate compact composition instead of a
+// scroll-snapped copy of the same columns.
+describe("RoundBoard — desktop multi-match workbench vs. compact match-first composition", () => {
+  it("desktop workbench (medium+) is a plain grid, hidden below medium — no scroll-snap tier", () => {
     const { container } = render(<RoundBoard {...baseProps()} />);
-    const scrollContainer = container.querySelector('[data-drop-available]')?.parentElement;
-    expect(scrollContainer?.className).toContain("overflow-x-auto");
-    expect(scrollContainer?.className).toContain("snap-x");
-    expect(scrollContainer?.className).toContain("expanded:grid");
-    expect(scrollContainer?.className).toContain("expanded:snap-none");
+    const desktopWorkbench = container.querySelector('[data-drop-available]')?.parentElement;
+    expect(desktopWorkbench?.className).toContain("hidden");
+    expect(desktopWorkbench?.className).toContain("medium:grid");
+    expect(desktopWorkbench?.className).not.toContain("overflow-x-auto");
+    expect(desktopWorkbench?.className).not.toContain("snap-x");
   });
 
-  it("gives each column a bounded width for snap-scrolling, reset to auto at expanded+", () => {
-    const { container } = render(<RoundBoard {...baseProps()} />);
-    const availableColumn = container.querySelector('[data-drop-available]');
-    const matchColumn = container.querySelector('[data-drop-match="m-blue"]');
-    for (const el of [availableColumn, matchColumn]) {
-      expect(el?.className).toContain("snap-start");
-      expect(el?.className).toContain("expanded:w-auto");
-    }
-  });
-
-  it("non-compact viewport: no one-match selector, every match column renders", () => {
+  it("non-compact viewport: no compact match selector, every match column renders in the desktop workbench", () => {
     const { container } = render(<RoundBoard {...baseProps()} />);
     expect(screen.queryByRole("tablist", { name: /select match/i })).toBeNull();
     expect(container.querySelector('[data-drop-match="m-blue"]')).toBeTruthy();
     expect(container.querySelector('[data-drop-match="m-white"]')).toBeTruthy();
   });
 
-  it("compact viewport: renders a one-match selector and only the URL-selected match column (ADR-0124 §12)", () => {
-    const orig = window.matchMedia;
-    window.matchMedia = ((q: string) => ({
-      matches: true,
-      media: q,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia;
-    try {
-      const { container } = render(<RoundBoard {...baseProps()} />);
-      const tablist = screen.getByRole("tablist", { name: /select match/i });
-      expect(within(tablist).getByRole("tab", { name: /Blue/ })).toBeTruthy();
-      expect(within(tablist).getByRole("tab", { name: /White/ })).toBeTruthy();
-      // One match at a time: only the first (default-selected) match column is mounted.
-      expect(container.querySelector('[data-drop-match="m-blue"]')).toBeTruthy();
-      expect(container.querySelector('[data-drop-match="m-white"]')).toBeNull();
-    } finally {
-      window.matchMedia = orig;
-    }
+  it("compact viewport: Overview first, then a match list, then one match's squad on drill-in (ADR-0124 §12 / contract §7)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<RoundBoard {...baseProps()} />);
+    // The desktop grid is always mounted (CSS-hidden below `medium`, not JS-conditional), so
+    // scope every assertion to the compact composition's own wrapper to avoid matching it.
+    const compactSection = container.querySelector('[class*="medium:hidden"]') as HTMLElement;
+    expect(compactSection).toBeTruthy();
+
+    // Overview mode by default: the "Round board views" tab strip is present, no match's squad
+    // is mounted yet in the compact composition — it only mounts once the coach drills in.
+    const viewTabs = within(compactSection).getByRole("tablist", { name: /round board views/i });
+    expect(within(viewTabs).getByRole("tab", { name: /overview/i })).toBeTruthy();
+    expect(compactSection.querySelector('[data-drop-match="m-blue"]')).toBeNull();
+
+    // Matches mode: a list of matches with per-match readiness, not a column.
+    await user.click(within(viewTabs).getByRole("tab", { name: /matches/i }));
+    expect(within(compactSection).getByRole("button", { name: /Blue/ })).toBeTruthy();
+    expect(within(compactSection).getByRole("button", { name: /White/ })).toBeTruthy();
+    expect(compactSection.querySelector('[data-drop-match="m-blue"]')).toBeNull();
+
+    // Drilling into one match mounts only that match's squad within the compact composition.
+    await user.click(within(compactSection).getByRole("button", { name: /Blue/ }));
+    expect(compactSection.querySelector('[data-drop-match="m-blue"]')).toBeTruthy();
+    expect(compactSection.querySelector('[data-drop-match="m-white"]')).toBeNull();
   });
 });
 
