@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { UiLabShell } from "../../../ui-lab-shells";
 import { atlasNav } from "../../fixtures";
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
-import { AssistantCommandCentrePage } from "@/components/assistant/assistant-command-centre-page";
+import { TodaySurface } from "@/components/touchline/today/today-surface";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
 import { buildTodayFixture, TODAY_FIXTURE_STATES, type TodayFixtureStateKey } from "./today-operational-fixtures";
 
@@ -31,7 +31,7 @@ function AtlasTodayPageInner() {
         <TabRail items={TABS} activeKey={activeState} ariaLabel="Today fixture state" />
       </div>
       <OrgSlugProvider orgSlug="uilab-demo-org">
-        <AssistantCommandCentrePage
+        <TodaySurface
           commandCentre={fixture.commandCentre}
           projection={fixture.projection}
           recentMatches={fixture.recentMatches}
@@ -41,6 +41,7 @@ function AtlasTodayPageInner() {
           applyRecommendation={fixture.applyRecommendation}
           sinceLastVisitScope={fixture.sinceLastVisitScope}
           sinceLastVisitFacts={fixture.sinceLastVisitFacts}
+          carryForwardItems={fixture.carryForwardItems}
         />
       </OrgSlugProvider>
     </UiLabShell>
@@ -48,14 +49,13 @@ function AtlasTodayPageInner() {
 }
 
 /**
- * Today — ADR-0141 Today Operational Command Surface, replacing the earlier Atlas Today fixture
- * (which rendered widgets no longer used by the production route). This composition renders the
- * real production `AssistantCommandCentrePage` against representative in-memory data, matching
- * `05_IMPLEMENTATION_PLAN.md` §"UI Lab": `primary` (golden — live match, coordinated decisions,
- * since-last-visit, carry-forward report, recent football), `planning` (no live match, concrete
- * Next Action), `ready` (no immediate action), `coordination` (second decision waits on the
- * first). State is UI-Lab-only and URL-backed (`?state=...`) — the production route has no
- * equivalent query parameter.
+ * Today — ADR-0141/ADR-0142 Today Operational Command Surface. This composition renders the real
+ * production `TodaySurface` (the sole Today composition owner) against representative in-memory
+ * data, matching `02_PRODUCTION_COMPOSITION_CONTRACT.md`: `primary` (golden — live match,
+ * coordinated decisions, since-last-visit, carry-forward report, recent football), `planning`
+ * (no live match, concrete Next Action), `ready` (no immediate action), `coordination` (second
+ * decision waits on the first). State is UI-Lab-only and URL-backed (`?state=...`) — the
+ * production route has no equivalent query parameter.
  */
 export default function AtlasTodayPage() {
   return (

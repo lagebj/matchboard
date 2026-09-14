@@ -51,6 +51,10 @@ next-env.d.ts
 /blob-report/
 /e2e/.auth/
 
+# Generated visual-verification evidence (e.g. ADR-0142 Today corrective convergence) — attached
+# to PRs as evidence, never committed as tracked binaries.
+/artifacts/
+
 # Data directories (never commit real data)
 /data/
 /exports/

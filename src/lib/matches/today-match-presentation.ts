@@ -7,7 +7,7 @@ import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/ma
  * state + time (its "Follow live" action is the value).
  *
  * Shared by the Today server page (`(app)/o/[orgSlug]/today/page.tsx`, which needs it to build
- * the Atlas "next match" hero presentation server-side) and `AssistantCommandCentrePage`'s
+ * the Atlas "next match" hero presentation server-side) and `TodaySurface`'s
  * `TodayOperationalTimeline` (which needs it client-side, for org-relative hrefs via
  * `useOrgUrl()`) — moved out of the client component so a plain, non-hook data transform isn't
  * defined inside a `"use client"` module a server component would otherwise need to import from.
