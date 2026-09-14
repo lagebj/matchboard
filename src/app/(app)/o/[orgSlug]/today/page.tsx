@@ -18,6 +18,11 @@ import type { DecisionCandidateProvider } from "@/lib/situational/situation-type
 import { getOrgActivePlayerAvailability } from "@/lib/players/get-org-active-player-availability";
 import { getRecentCompletedMatches } from "@/lib/matches/get-recent-completed-matches";
 import { summarizeSquadStatus } from "@/lib/touchline/presentation/today-view-model";
+import { getTodaySelectionRecommendations } from "@/lib/touchline/get-today-selection-recommendations";
+import { getTodayLiveMatchSummaries } from "@/lib/live-match/get-today-live-match-summaries";
+import { getTodayLocalStateScope } from "@/lib/touchline/presentation/today-local-state-scope";
+import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
+import { applyTodaySelectionRecommendationAction } from "@/app/(app)/o/[orgSlug]/today/actions";
 
 export default async function TodayPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -86,9 +91,15 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   // evidence-spotlight removal below. See docs/domain/touchline-atlas-provenance.md §14/§17 for
   // the full account.
   const orgUrl = (path: string) => `/o/${orgSlug}${path}`;
-  const [recentMatches, orgPlayerAvailability] = await Promise.all([
+  const [recentMatches, orgPlayerAvailability, selectionDecisions, liveNow] = await Promise.all([
     getRecentCompletedMatches(ctx.orgFilter, orgUrl),
     getOrgActivePlayerAvailability(ctx.orgFilter),
+    getTodaySelectionRecommendations(ctx.organisationId, commandCentre.roundPlanIntegrities, orgSlug, projection.decisions),
+    getTodayLiveMatchSummaries(
+      ctx.organisationId,
+      commandCentre.todayMatches.filter((m) => m.hasActiveLiveSession).map((m) => m.matchId),
+      situationContext.activeMatchId,
+    ),
   ]);
   const squadStatus = orgPlayerAvailability.length > 0 ? summarizeSquadStatus(orgPlayerAvailability) : null;
 
@@ -101,6 +112,29 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   // page load under concurrent load in CI. See docs/domain/touchline-atlas-provenance.md §14 for
   // the full account — a real, disclosed scope reduction, not a silent regression.
 
+  // Browser-local state (ADR-0141, `04_BROWSER_LOCAL_STATE.md`) — an opaque scope so the
+  // `localStorage` key on the coach's device never carries a raw organisation/member id, and the
+  // "since your last visit" facts the client diffs against its own previous snapshot.
+  const scope = getTodayLocalStateScope(ctx.organisationId, ctx.membershipId);
+  const sinceLastVisitFacts: TodayVisitCurrentFacts = {
+    liveMatchIds: commandCentre.todayMatches.filter((m) => m.hasActiveLiveSession).map((m) => m.matchId),
+    matches: commandCentre.todayMatches.map((m) => ({
+      matchId: m.matchId,
+      kickoffIso: m.startsAt,
+      reportState: (m.reportStatus ?? "none").toUpperCase(),
+      label: `${m.teamName} vs ${m.opponent}`,
+    })),
+    planSignals: Object.values(commandCentre.roundPlanIntegrities).flatMap((integrity) =>
+      integrity.signals.map((s) => ({ signalKey: s.idempotencyKey, title: s.title })),
+    ),
+    rounds: Object.values(commandCentre.roundPlanIntegrities).map((integrity) => ({
+      roundId: integrity.matchRoundId,
+      label: commandCentre.todayMatches.find((m) => m.matchRoundId === integrity.matchRoundId)?.matchRoundName ?? "This round",
+      blocked: integrity.signals.filter((s) => s.kind === "BLOCKED").length,
+      decisions: integrity.signals.filter((s) => s.kind === "DECISION_REQUIRED").length,
+    })),
+  };
+
   return (
     <AssistantCommandCentrePage
       commandCentre={commandCentre}
@@ -108,6 +142,11 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
       weeklyContext={weeklyContext}
       recentMatches={recentMatches}
       squadStatus={squadStatus}
+      liveNow={liveNow}
+      selectionDecisions={selectionDecisions}
+      applyRecommendation={(input) => applyTodaySelectionRecommendationAction({ orgSlug, ...input })}
+      sinceLastVisitScope={scope}
+      sinceLastVisitFacts={sinceLastVisitFacts}
     />
   );
 }

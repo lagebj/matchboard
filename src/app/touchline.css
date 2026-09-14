@@ -59,6 +59,13 @@
   --tl-atmosphere-accent: rgba(199, 245, 74, 0.06);
   --tl-atmosphere-cool: rgba(120, 169, 255, 0.04);
 
+  /* Today football-atmosphere decorative layer (ADR-0141) — static repository-owned SVG,
+   * theme-specific image + opacity only. No second theme system: light values are duplicated
+   * into the explicit-light block and the system prefers-color-scheme:light block below,
+   * exactly like every other palette token in this file. */
+  --tl-today-atmosphere-image: url("/touchline/today-atmosphere-dark.svg");
+  --tl-today-atmosphere-opacity: 0.44;
+
   /* --- Touchline Finish & Visual Convergence follow-up (03 §A) -------------
    * Widget / floating-control-glass / pitch semantic tokens. Additive to the
    * palette above — never a second active token system. */
@@ -144,6 +151,9 @@
   --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
   --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
 
+  --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.svg");
+  --tl-today-atmosphere-opacity: 0.16;
+
   /* Touchline Finish & Visual Convergence follow-up (03 §A) — light values. */
   --tl-widget: #ffffff;
   --tl-widget-strong: #f7f9f5;
@@ -219,6 +229,9 @@
 
     --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
     --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
+
+    --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.svg");
+    --tl-today-atmosphere-opacity: 0.16;
 
     --tl-widget: #ffffff;
     --tl-widget-strong: #f7f9f5;
@@ -623,5 +636,37 @@
   .tl-sticky-actions {
     position: static;
     bottom: auto;
+  }
+}
+
+/* --- Today football-atmosphere decorative layer (ADR-0141) -------------- */
+.today-atmosphere {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 330px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.today-atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--tl-today-atmosphere-image);
+  background-position: top right;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: var(--tl-today-atmosphere-opacity);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 44%, rgba(0, 0, 0, 0.72) 64%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 44%, rgba(0, 0, 0, 0.72) 64%, transparent 100%);
+}
+
+@media (max-width: 599px) {
+  .today-atmosphere {
+    height: 235px;
+  }
+  .today-atmosphere::before {
+    opacity: calc(var(--tl-today-atmosphere-opacity) * 0.72);
   }
 }

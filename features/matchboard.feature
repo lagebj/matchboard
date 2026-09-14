@@ -8303,6 +8303,47 @@ Feature: Matchboard football operations workspace
         When the coach views Today
         Then a work item must prompt the coach to resolve the delayed change
 
+    Rule: Today presents each missing-opportunity plan-integrity signal as a concrete decision with a safe inline recommendation (ADR-0141)
+
+      Scenario: An available player without a planned opportunity shows an inline safe recommendation on Today
+        Given player "p1" is available and has no planned match assignment this round
+        And a real destination match exists whose planning boundary is still open
+        When the coach views Today
+        Then Today must show the raw missing-opportunity decision for "p1", not a generic aggregate count
+        And Today must offer an inline "Add to <team> as <role>" action for a directly actionable recommendation
+        And the offered role must come from the same rotation-path role-derivation rule the Round Board uses, never a guessed role
+
+      Scenario: A second coordinated recommendation waits for the first to be resolved
+        Given two missing-opportunity decisions would recommend the same destination match on Today
+        When the coach views Today
+        Then only the first decision may show a directly actionable recommendation
+        And the second decision must show that it depends on resolving the first, never a second conflicting direct action
+
+      Scenario: Applying a Today recommendation re-validates before writing
+        Given the coach applies a Today recommendation
+        When the underlying availability, target match, or plan-integrity state has changed since the recommendation was computed
+        Then the mutation must be rejected as stale
+        And no selection may be written from a stale recommendation
+
+      Scenario: A coach can dismiss a Today decision for the rest of the day
+        Given the coach dismisses a decision shown on Today
+        When the coach reloads Today the same day
+        Then that decision must remain hidden for the rest of that day on that device
+        And dismissal must not change any server-side plan-integrity state
+
+      Scenario: Since your last visit summarizes what changed, once per visit
+        Given the coach previously viewed Today and something relevant changed since then (a match went live, a report's state changed, a new plan-integrity signal appeared, or a signal resolved)
+        When the coach opens Today again
+        Then Today must show a bounded "Since your last visit" summary of what changed
+        And this summary must not be recomputed again during the same mounted visit
+        And this state must be stored only in the browser, never on the server
+
+      Scenario: Today's Live Now uses only durable canonical live data
+        Given a match has an active live reporting session
+        When the coach views Today
+        Then the Live Now summary's score and clock must be derived from the same canonical live-match event/session data live reporting itself uses
+        And Today must never show a fabricated or estimated score or clock
+
   # --- Progressive Web App installation (ADR-0123) ---
 
   Feature: Progressive Web App installation

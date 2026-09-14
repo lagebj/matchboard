@@ -1777,3 +1777,76 @@ consolidated set is wanted before sign-off.
 final state on `main` (through PR #550) and approved. This closes Section F and the whole
 `14_ACCEPTANCE_AND_CONFORMANCE.md` gate checklist — the last open item from Phase 10. The
 Touchline Design Atlas & Composition Convergence programme (ADR-0136) is complete.
+
+## 42. Today Operational Command Surface (2026-09-14, ADR-0141)
+
+A second, later Today revision — after §14/§17/§18 above, and independent of the Touchline
+Design Atlas programme (ADR-0136) they belong to. Source:
+`.matchboard-work/matchboard_today_operational_surface_2026-09-14/`. Turns Today from a
+dashboard-style summary into a coach-facing **operational command surface**: concrete
+plan-integrity decisions with an inline safe recommendation, a durable Live Now summary, and
+browser-local "Dismiss today"/"Since your last visit" state. No new domain algorithm was
+invented — every new section reuses existing machinery (plan integrity, Round Board assignment
+context, rotation-path role derivation, the live-match reducer/clock helpers).
+
+**Production owner unchanged**: still `(app)/o/[orgSlug]/today/page.tsx` →
+`AssistantCommandCentrePage`, augmented in place (not rewritten) — the existing matchday banner,
+grouped work sections, decision-review section, weekly coaching context, and upcoming rounds are
+frozen and unchanged.
+
+**New, real (non-fixture) additions**:
+- **Live Now** (`TodayLiveNow`, backed by `getTodayLiveMatchSummaries()`) — one durable summary
+  (score, period label, running/paused clock) for the primary live match plus a `+N live` count
+  for any others, derived the same way live reporting itself does: `reduceLiveEvents()` over
+  already-ordered `LiveMatchEvent` rows and `persistedToClockState()`/`getElapsedMs()` for the
+  clock. Never estimates or fakes a score/clock when the underlying data can't support one.
+- **Selection decisions** (`TodaySelectionDecisions`, backed by
+  `getTodaySelectionRecommendations()` and `today-selection-recommendation-plan.ts`) — renders
+  each real plan-integrity "available player without planned opportunity" signal directly (not a
+  generic aggregate count) with an inline "Add to `<team>` as `<role>`" action when the pure
+  planner marks it `directlyActionable` (destination/role derived from the same Round Board
+  assignment-context/rotation-path machinery used elsewhere), "Resolve earlier decision first"
+  when it `dependsOnPrior` a sibling recommendation in the same coordinated batch, or a Round
+  Board link otherwise. The action posts through a new, conservative server mutation
+  (`today/actions.ts`) that re-validates authorization, availability, and a recommendation
+  fingerprint (stale-state safe) before writing.
+- **Since your last visit** (`TodaySinceLastVisit`) and **Dismiss today** (inline on each
+  decision) — both entirely browser-local (`localStorage`, scoped by an opaque
+  `sha256(orgId|membershipId)` hash, never a server-persisted field). Diffs the current visit's
+  facts against the last-seen snapshot (newly live, kickoff changed, report lifecycle, new
+  signal, resolved signal, round-ready-suppressed-by-resolved-signal), capped at 5 rows + an
+  overflow count, and never re-diffs mid-visit (mount-once semantics) so an RSC refresh mid-visit
+  isn't misread as a second visit.
+- **Static atmosphere art** (`TodayAtmosphere`, `public/touchline/today-atmosphere-{light,dark}.svg`)
+  — a purely decorative, `aria-hidden`, non-interactive background layer. No stacking-order
+  surprises: real content is wrapped in its own `relative z-10` container so it always paints
+  above the absolutely-positioned decorative layer regardless of DOM order.
+- **Removed**: the "At a glance" metric-tile grid (`blockedCount`/`decisionCount`/
+  `reportCount`/`upcomingCount`) — duplicative of the raw plan-integrity signals now shown
+  directly above, and explicitly called out as obsolete by the bundle. `reviewCount` (feeding
+  "View peer reviews") is the only survivor of that block.
+
+**Field-table update to §1 above**: "Attention items" is superseded for missing-opportunity
+signals specifically by the new Selection decisions section (raw signals, not a generic
+aggregate); "one evidence spotlight" remains intentionally absent (§0.5 item 8's
+`PROHIBITED_ILLUSTRATIVE` class still applies — no new evidence-spotlight story was reintroduced
+here). New EXISTING_DIRECT/EXISTING_QUERYABLE fields: live match score/period/clock
+(`LiveMatchSession`/`LiveMatchEvent`, already-canonical), per-signal recommendation
+directness/dependency (pure function of `RoundPlanIntegrity` + Round Board assignment context,
+computed fresh every load — never stored), and the browser-local visit/dismiss state (client-only,
+no server field).
+
+**Not done, disclosed scope reduction**: given the bundle's size relative to available
+implementation effort, this was an in-place composition update of the existing
+`AssistantCommandCentrePage`, not a from-scratch pixel-perfect rebuild against the bundle's golden
+references — the golden images in `02_GOLDEN_AND_VISUAL_CONTRACT.md` were used as directional
+guidance for section order/content, not traced literally. UI Lab (`/dev/ui-lab/atlas/routes/today`)
+now composes the same production `AssistantCommandCentrePage` against representative fixtures
+covering `primary`/`planning`/`ready`/`coordination` states (UI-Lab-only `?state=` parameter; the
+production route has no equivalent).
+
+Verified: `getTodaySelectionRecommendations()` (10 tests), `getTodayLiveMatchSummaries()` (10
+tests), `today-visit-snapshot.ts`/`today-dismiss-state.ts` (19 tests), the mutation action's
+authorization/stale-state suite (10 tests), and the full pre-existing
+`assistant-command-centre-page.test.tsx` suite (27 tests) all passing unchanged. Full
+`npm run validate` run before the PR (see the PR description for the final results).
