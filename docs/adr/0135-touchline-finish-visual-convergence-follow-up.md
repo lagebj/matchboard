@@ -2,10 +2,12 @@
 
 ## Status
 
-Accepted (2026-09-11). **Phases F0–F4 implemented and merged (#517); F5–F9 gated on human
-UI-Lab approval.** A full post-merge verification sweep (local `npm run validate`, plus feasible
+Accepted (2026-09-11). **Phases F0–F4 implemented and merged (#517); all four Hard Gates (F7
+Pitch, F8 Player Detail/Players Overview, F9 Round Board) subsequently approved and migrated to
+production.** A full post-merge verification sweep (local `npm run validate`, plus feasible
 E2E/accessibility/PWA evidence against the deployed Test slot) ran clean the same day — see
-"Post-merge verification sweep" below.
+"Post-merge verification sweep" below — and a full programme-completion sweep ran again on
+2026-09-14 after the final gate (Round Board) merged — see "Programme completion sweep" below.
 
 This is a follow-up to ADR-0134 ("Matchboard Visual Identity & Frontend Reset 1.0" / Touchline),
 not a new visual system. ADR-0134's Touchline foundation (theme system, accent, sports
@@ -170,6 +172,46 @@ limit, not a silent skip.
 No selection/fairness/lineup/rotation/match-lifecycle/live-state/attendance/guest-player/evidence/
 permissions/audit test failed or was skipped for domain-relevance reasons — every skip above is a
 resource/environment constraint, not a domain-scope decision.
+
+## Programme completion sweep (2026-09-14)
+
+All four Hard Gates opened by the Atlas Follow-up bundle have now reached human-approved
+production migration: Gate A (Pitch, Phase F7), Gate B (Player Detail, Phase F8), Gate C (Players
+Overview, Phase F8), Gate D (Round Board, Phase F9, PR #577). Doc screenshots for the affected
+scenarios (`round-board-plan-integrity`, `round-board-plan-integrity-mobile`,
+`players-season-overview`) were regenerated against the new Touchline composition (PR #578).
+
+**Full local `npm run validate` re-run on `main`, post-merge of both PRs — 12 of 14 steps
+passed:** lint, typecheck, typecheck (workers), unit + component tests (128 tests across the
+affected suite plus the full run), worker tests, policy verify, version verify (`0.121.0`),
+terminology check, architecture check (140 files / 5 domain directories, 0 violations), Prisma
+query fields (4,325 literals), forbidden SQL, supply chain integrity.
+
+Two steps did not pass, both pre-existing/environmental, not regressions introduced by F7–F9:
+
+- **`docs check`**: fails on the same `AGENTS.md` "Primary navigation (N items, in this order)"
+  section-extraction issue already present before this work (introduced by an unrelated
+  agent-instruction-bootstrap commit, `5f96cb22`); confirmed via `git stash` re-run against the
+  same pre-existing commit.
+- **`build`**: the Turbopack production build was killed (OOM) in this sandbox's memory-
+  constrained arm64 container. Not a code regression — both PR #577 and PR #578 had this same
+  build step run and pass green on GitHub Actions' dedicated CI runners before merge.
+
+A dead-code audit of the surfaces touched across the whole Atlas Follow-up programme found two
+genuine, confirmed-unreachable residue items (beyond the already-recorded ARR-0050): the
+`PlayerTable` component (superseded by `PlayerRosterTable`/`PlayerCompactRow`) and seven unused
+legacy Product Surface 1.0 CSS utility classes in `globals.css`. Both were unambiguous — fully
+superseded, zero reachable references, no product-decision required — and were removed directly
+(not recorded as a new ARR, unlike ARR-0050's genuinely undecided restore-vs-delete question) in a
+dedicated cleanup PR (#579).
+
+No further numbered phase (F10+) is defined by any committed document — the bundle's own
+execution-sequence contract files were intentionally not committed (ephemeral working-bundle
+convention, see "What shipped in this pass" above). Migrating additional surfaces (e.g. Today,
+Insights, League · History, Live Reporting) under this Hard Gate discipline would require first
+producing genuine golden references and securing human visual approval for each, exactly as Gates
+A–D did; no such references exist in-repo for those surfaces today, so no further gate was opened
+without that prerequisite.
 
 ## Consequences
 
