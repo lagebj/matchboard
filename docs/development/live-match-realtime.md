@@ -1,175 +1,206 @@
-# Live match realtime (Cloudflare Durable Objects)
+# Live match realtime
 
-Live match reporting is normally local-first and HTTP-only (`src/lib/live-match/`). The
-live-match-realtime programme adds an optional, additive realtime coordination layer on top
-of that using a Cloudflare Worker + Durable Object per active match. See
-`docs/adr/0086-live-match-realtime-cloudflare-durable-objects.md` for the architecture
-decision (why Cloudflare Durable Objects, the trust boundary, the Free-plan design, and the
-HTTP-fallback rollback story) before changing anything here.
+Live match reporting is coordinated in real time by a Cloudflare Worker + Durable Object per
+active match, backed by Neon/Postgres as the durable system of record and a browser-side
+IndexedDB outbox for durability across disconnects. This document describes the architecture
+as it exists today, after ADR-0086 (initial Durable Object coordination), ADR-0138 (canonical
+operation stream, persisted sequence, scoped offline continuation), and ADR-0140 (Event
+live-reporting group-mutation authorization) all shipped and the Production cutover completed.
 
-**Canonical Live Operations & Delayed-Concurrency programme (ADR-0138, in progress).** The
-"HTTP-fallback rollback story" referenced above — a direct HTTP write is an equally-valid
-canonical path whenever the Durable Object is unavailable — is being amended by ADR-0138: after
-that programme's migration cutover, the Durable Object becomes the only normal canonical-ordering
-path, and an unavailable coordinator means the browser queues the command locally rather than
-writing an independently-ordered canonical event over HTTP. ADR-0138 also introduces a persisted
-per-session canonical `sequence`, domain-aware conflict preconditions (replacing the single
-`baseVersion` this document currently describes below), a durable local-outbox state machine, and
-scoped offline continuation for an already-established live session. This document's remaining
-sections describe the architecture as it exists **before** that migration completes; see
-`docs/adr/0138-canonical-live-operation-stream-persisted-sequence-and-scoped-offline-continuation.md`
-and ARR-0045/0046/0047 for the target state and the specific gaps it closes. This document will be
-updated bundle-by-bundle as that migration lands — do not treat a mismatch between this section and
-the sections below as an error; it is the documented in-progress state.
+Read `docs/adr/0086-live-match-realtime-cloudflare-durable-objects.md`,
+`docs/adr/0138-canonical-live-operation-stream-persisted-sequence-and-scoped-offline-continuation.md`,
+and `docs/adr/0140-event-live-reporting-group-mutation-authorization.md` for the full decision
+records before changing anything here.
 
-**Programme progress as of Bundle 9 (2026-09-13, most-current-first — see AGENTS.md's "Live
-match realtime session files" section for the full per-bundle account, and ARR-0046/0048 for the
-Event-specific detail).** All nine bundles of the programme are functionally implemented, with
-three disclosed items remaining, each requiring action beyond this session's own scope: Event
-clock-persistence parity (`EventLiveMatchSession` still has no equivalent to League's ADR-0133
-H2 persisted clock columns — a schema migration, deliberately not bundled into Bundle 9's own
-observability/cleanup scope), ARR-0048 (Event's live-reporting *mutation* authorization is
-org-level-only, unlike League's group-level model — an undecided authorization question needing
-its own ADR), and actually running the Production cutover checklist
-(`OBSERVABILITY_RECOVERY_ROLLOUT.md` §8) — Bundle 9 built the tooling
-(`npm run check:live-diagnostics -- --cutover-check`) but did not and could not run it against
-real Production data itself. As of Bundle 9: structured telemetry now covers the
-accept/conflict/duplicate/connect/end/retry-success paths (previously only failures were
-logged); a projection-divergence diagnostic and a legacy-session cutover check both exist as
-read-only, runnable tools; the legacy sequence backfill script was re-verified (still clean, no
-behavior change) and remains the maintainer's action to run against Production; an
-evidence-consumer audit found and fixed the same reversal-exclusion bug class recurring
-independently three more times beyond its two prior fixes (Event's `seedEventReportFromLiveSession()`;
-League's and Event's actual-timeline reconstruction), now centralized in one shared helper so a
-sixth recurrence cannot happen silently; and `MatchSessionSnapshot.protocolVersion`'s `1 | 2`
-migration-compatibility widening (Bundle 2) was narrowed back to the literal `2` it has always
-actually carried since Bundle 2 shipped — a pure type-level cleanup with zero runtime behavior
-change, since nothing ever branched on this field's value. As of Bundle 8 (unchanged by Bundle
-9): the single-canonical-mutation-path cutover (Bundle 4) applies to **both** League and Event —
-the HTTP-fallback described in the sections below (`recordLiveEventAction`/`recordEventEvent()`)
-is **removed from both**, not just League; a genuine coordinator-detected conflict surfaces to
-the coach via a "Needs review" panel rather than being silently retried forever; and Event has
-its own "Follow Live" viewer reading through the same shared canonical projection League's does.
-**Production cutover executed (2026-09-14).** The third disclosed item above — actually running
-the Production cutover checklist — is now closed. After PR1 of the
-`matchboard_close_live_archaeology_docs_2026-09-14` programme (Event clock-persistence parity,
-ADR-0140 group-mutation authorization, resolving ARR-0048 — the other two items listed above)
-merged and deployed, the runbook in that programme's `03_PRODUCTION_CUTOVER_RUNBOOK.md` ran
-against real Production data: one stale/orphaned Event live session from 2026-09-05 (heartbeat
-stopped ~30 minutes after start, clock never left `BEFORE`, for an Event that had itself ended
-nine days earlier) was found ACTIVE and properly closed via the same transition
-`endEventLiveSession()` performs; the zero-active-session gate and
-`check:live-diagnostics --cutover-check` then passed cleanly; `npm run backfill:live-event-sequence`
-assigned a deterministic `sequence` to the 506 rows that predated protocol v2 (8 League sessions,
-20 Event sessions with gaps); post-write verification confirmed zero remaining gaps and
-`cutoverSafe: true`. See ADR-0138's History (2026-09-14 entry) for the full record.
+## Current architecture
 
-The sections below still describe the architecture largely as it existed **before Bundle 2's
-protocol/sequence work landed** (per the paragraph above) — treat AGENTS.md as authoritative for
-exactly what has shipped since; this document has not yet been fully rewritten bundle-by-bundle
-as originally planned.
+- The Cloudflare Durable Object (`MatchSessionObject`, `workers/live-match/`) is the only
+  normal canonical-ordering authority for new live operations, for both League and Event. A
+  direct HTTP write to Neon is never a valid alternate canonical path while the coordinator is
+  reachable — this replaces ADR-0086's original "HTTP is an equally-valid concurrent path"
+  design, per ADR-0138.
+- Neon/Postgres is the durable system of record. Every canonical event, regardless of which
+  path accepted it, is written by the same owning persistence function
+  (`recordEventForActor()`); nothing a coach or parent ultimately sees (season stats, match
+  reports, fairness calculations) ever reads Durable Object storage directly.
+- The browser uses a durable IndexedDB outbox, not a `synced: boolean` flag: every live action
+  is persisted locally (`LOCAL_PENDING`) before any network attempt, then moves through
+  `SENDING` → `ACCEPTED_PENDING_PERSISTENCE` → `PERSISTED`, with `NEEDS_REVIEW` and
+  `FAILED_TERMINAL` as terminal-but-retained states. A browser crash after the local write
+  never loses the action, and automated cleanup may only remove rows that are durably
+  `PERSISTED` and past a short retention window.
+- No direct browser HTTP fallback is allowed to create an independently-ordered canonical live
+  event. When the coordinator is unavailable, the browser keeps the command in its local
+  outbox and retries — it does not fall through to an alternate canonical write surface. The
+  existing HTTP server action still exists, but only as an internal step the coordinator's own
+  persistence flow uses (via the signed internal endpoint), not as a caller-facing canonical
+  path.
+- League and Event both use protocol v2 and the shared realtime coordinator — see "League and
+  Event parity" below.
+- Canonical sequence is persisted per session (see "Canonical operation ordering" below).
+- A shared projection/reducer feeds both the reporter's own view and the read-only Follow Live
+  viewer — no surface maintains an independently-calculated score, clock, on-field set, or
+  position state.
+- Conflicts are domain-aware: a state-sensitive operation whose precondition no longer holds
+  becomes a structured, machine-readable conflict outcome and a browser-local `NEEDS_REVIEW`
+  state — never last-write-wins, silent drop, or an invented equivalent operation.
+- Prepared live sessions support scoped offline continuation (see "Offline continuation"
+  below) — this is deliberately not broad offline Matchboard mode.
 
-## Current status: all 7 stages + "Follow live" viewer complete
+## League and Event parity
 
-This was delivered in stages (see the ADR's linked programme spec), plus one
-maintainer-directed addition beyond the original stage plan. As of this document:
+Both League and Event now share one behavioural contract for live reporting:
 
-- **Shipped**: Stage 1 (protocol types, browser realtime client abstraction — `src/lib/
-  live-match/realtime/`) and Stage 2 (`/api/live-match/[matchId]/realtime-ticket`, short-lived
-  connection tickets).
-- **Shipped**: Stage 3 — the Cloudflare Worker and `MatchSessionObject` Durable Object
-  (`workers/live-match/`). One object per match, WebSocket Hibernation API,
-  `authenticate`/`getSnapshot`/`recordEvent`/`syncPending`/`endSession` RPC handling, session
-  versioning, minimal presence.
-- **Shipped in this change**: "Follow live" — a read-only viewer capability (ADR-0086's
-  amendment), beyond Stage 3's original scope. A ticket is now issued in one of two modes:
-  - `mode: "report"` (default, existing behavior) — the coach actually running the match.
-    Requires org mutation role **and** `GROUP_COACH` role on the match's `FootballGroup`
-    (`requireMatchGroupMutationRole()`, new — closes a gap where a `GROUP_VIEWER`-role coach
-    with an org-mutation-capable role could otherwise report). Capability: `["report"]`.
-  - `mode: "view"` — a second coach following along read-only. Requires only group access
-    (`GROUP_COACH` or `GROUP_VIEWER`, no org-mutation-role requirement). Capability:
-    `["view"]`.
-  `MatchSessionObject` now enforces capabilities server-side: `recordEvent`/`endSession`
-  reject any connection without `"report"` (previously unenforced — any authenticated
-  connection could mutate). The reporting page
-  (`src/components/live-match/league-live-match-client.tsx`) opens a `"report"`-mode
-  connection so viewers see live updates; at the time this capability shipped, that connection
-  was a best-effort broadcast alongside an unconditional HTTP write — Stage 5 (below) later
-  made it the primary write path instead. The viewer itself is
-  `src/components/live-match/follow-live-client.tsx`, reached via "Follow live" on the match
-  detail page (shown only when a session is `ACTIVE` and the coach has at least `GROUP_VIEWER`
-  access — enforced server-side, not just hidden in the UI).
-- **Shipped**: Stage 4 — signed internal persistence API (SPEC.md §17-19). The Durable
-  Object's `handleRecordEvent` now signs and sends accepted events to a new
-  `POST /api/internal/live-match/events` (HMAC-only, never a browser-facing API), which calls
-  the same `recordEventForActor()` the browser-facing `recordEvent()` wrapper uses, writing
-  the canonical event to Neon and deduplicating by `clientEventId`. On success,
-  `persistenceStatus` becomes `"persisted"` and `eventPersistenceChanged` broadcasts to all
-  connections; on failure it stays `"pending"` (retry/backoff is Stage 6's outbox, not built
-  yet). A `GET /api/internal/live-match/snapshot` endpoint also exists (returns canonical
-  session status + events for a match/session) — built now per SPEC.md §17, but nothing calls
-  it yet; the Durable Object *consuming* it for reconciliation is Stage 6 (§23). A direct,
-  now-resolved consequence of Stage 4 landing: `endSession` can succeed for a session whose
-  events have actually persisted, which was structurally impossible before this stage.
-- **Shipped**: Stage 5 — realtime event path integration (SPEC.md §5, §20, §22, §27, §28).
-  The reporting coach's own write path (`createLeagueActions.recordEvent` in
-  `league-live-match-client.tsx`) now tries realtime first via `tryRecordEvent()` and only
-  falls through to the existing, byte-for-byte-unchanged HTTP path
-  (`recordLiveEventAction`) when realtime is unavailable, the RPC throws/rejects, or
-  persistence comes back `"pending"` (a deliberate immediate corrective write, safe due to
-  `clientEventId` dedup — see ADR-0086's Stage 5 subsection for the full reasoning). A second
-  reporter's `applyEvent`/`presenceChanged`/`sessionEnded` broadcasts now trigger an immediate
-  refresh via a new `LiveMatchActions.onLiveUpdate` subscription instead of waiting up to 5s
-  for the existing poll, and the browser `online`/`visibilitychange` handlers now also force
-  an immediate realtime reconnect (`LiveMatchActions.reconnectRealtime`) rather than waiting on
-  the client's own backoff timer. No changes to `RealtimeMatchClient` itself (Stage 1) or to
-  the HTTP fallback path's own behavior.
-- **Shipped**: Stage 6 — reliability (SPEC.md §21, §23, §29). A retryable canonical-persistence
-  failure (5xx, or no response at all) leaves the event `"pending"` with an exponential
-  backoff (`computeBackoffDelayMs`, 1s base doubling to a 60s cap) and (re)arms the Durable
-  Object's single alarm slot for the earliest still-due retry (`nextAlarmTime`) — one alarm
-  firing sweeps every currently-due event, never one alarm per event. A terminal
-  domain-validation failure (exactly HTTP 422 — `LiveMatchDomainError`,
-  `live-match-event-store.ts`; every other status, including other 4xx, is retryable — see
-  Stage 8 below for why that matters) is classified separately (`classifyPersistenceFailure`)
-  and marked `"failed_terminal"`
-  immediately, with no retry ever scheduled; `RecordEventResult`/`PersistenceChangedCallback`
-  both now carry `"failed_terminal"` as a real outcome, not just `"pending"`/`"persisted"`.
-  `handleAuthenticate`'s `"initialize"` outcome now reconciles against the internal snapshot
-  endpoint (`evaluateReconciliation`) — canonical events the HTTP fallback wrote while this
-  object was disconnected (or never existed yet) are assigned a realtime version and folded
-  into this object's own storage, so `handleGetSnapshot` returns a genuinely complete event
-  list instead of Stage 3/4's placeholder empty array. `endSession` can now resolve for real
-  once a previously-pending event's retry succeeds (end-to-end tested, not just structurally
-  possible).
-- **Shipped**: Stage 7 — production hardening (SPEC.md §31, §32, §35, §42). Message size
-  limits (64 KiB) and protocol-version rejection (`PROTOCOL_UNSUPPORTED`) were already built
-  and tested in Stage 1 (`protocol-schemas.ts`) — confirmed still correctly enforced and that
-  the browser client's generic RPC-rejection fallback covers this error code too. Structured
-  logging added on both sides: the Worker's `console.error`/`console.log` calls are now JSON
-  objects (ids/status/timing only, per §32's never-log list — no secrets, signatures, or full
-  payloads), and the internal Vercel routes log `latencyMs`/`errorCode` alongside the existing
-  correlation ids. This document's "Architecture walkthrough" section below is §42's required
-  documentation deliverable.
-- **Shipped**: Stage 8 — incident hardening (2026-09-04). Root-caused and fixed a real production
-  incident: `/api/internal/**` was redirected (HTTP 307) by `proxy.ts`'s base authenticated-session
-  gate, which had never been exempted the way the adjacent preview-allowlist gate was (Stage 6
-  History). Every canonical persistence attempt from the Worker failed this way, was classified
-  `"retryable"` (only 422 is terminal), and retried forever at the 60s backoff cap with no ceiling
-  — three production Durable Objects sustained tens of thousands of alarm invocations over several
-  days before this was found. No match data was ever lost (Stage 5's HTTP fallback always ran
-  regardless). Two independent hardening mechanisms were added: a bounded retry ceiling
-  (`evaluateRetry`, `MAX_RETRY_ATTEMPTS`=10 / `MAX_RETRY_AGE_MS`=24h, moving an exhausted event to
-  a new `"failed_exhausted"` status that never blocks `endSession`), and a finite,
-  activity-independent session lifecycle (`evaluateLifecycleExpiry`: kickoff + match duration +
-  a 30-minute grace period, then 15 minutes of no `recordEvent` activity, auto-marks
-  `SessionMeta.endedAt`/`endReason: "AUTO_EXPIRED"` — never a canonical Postgres write or report
-  submission, and never affected by a "Follow live" viewer's connection presence). See
-  ADR-0086's "Stage 8" section for full root-cause detail and production evidence.
-- **Explicitly out of scope**: PWA push notifications (service worker, Web Push) — discussed
-  and deferred; "Follow live" is in-browser only for now, per `AGENTS.md`'s PWA section's
-  existing v1 scope boundary.
+- both use coordinator ordering (protocol v2, the shared Durable Object model) — Event gained
+  real Durable Object coordination in ADR-0138's migration, closing the gap where
+  `event-live-match-client.tsx` previously called its record-event action unconditionally with
+  no realtime client, no reconnect/presence wiring, and zero coordinator involvement;
+- both have persisted session clocks — `EventLiveMatchSession` gained the same clock-persistence
+  columns League's `LiveMatchSession` already had (ADR-0133 H2), closing the parity gap
+  disclosed through Bundle 9 of the live-match-realtime programme;
+- both can Follow Live — Event has its own read-only "Follow Live" viewer reading through the
+  same shared canonical projection League's does;
+- both report-mode paths require organisation mutation authority plus group mutation authority
+  for non-admin users (ADR-0140 brought Event's authorization in line with League's — see
+  "Reporter vs Follow Live authorization" below);
+- Event planning outside live reporting (squad generation, lineup editing, and other Event
+  planning actions) is unchanged by any of this — it remains outside the live-reporting
+  authorization model described here.
+
+Do not describe Event as lacking clock persistence, lacking Durable Object coordination, or
+having org-only live-mutation authorization — all three were true historically (see ADR-0138's
+Context and ADR-0140's Context for the specific pre-cutover findings) but are not true of the
+current architecture.
+
+## Canonical operation ordering
+
+Every canonically accepted live operation receives an explicit per-session integer `sequence`
+(starts at 1, increments by 1, unique per session, persisted in Neon, never reconstructed from
+`createdAt`). `sequence` is acceptance order — a distinct concept from the existing `period` +
+`matchSeconds` football-time fields, and from `capturedAtClientMs`/`acceptedAt` diagnostic
+wall-clock timestamps. In particular, a late offline operation can carry an earlier football
+time but a later canonical sequence, and replay always orders by sequence, never by wall-clock
+time.
+
+The single global `baseVersion` precondition (ADR-0086) has been replaced by domain revisions
+(`clockRevision`, `lineupRevision`, `annotationRevision`) plus explicit semantic precondition
+checks evaluated against current canonical projected state — e.g. `ROTATION_OUT` requires the
+target participant to currently be on field; `EVENT_REVERSED` requires its target event to
+exist and still be active. An additive goal no longer invalidates an unrelated pending
+rotation, because only lineup operations touch `lineupRevision`, and the rotation's actual
+precondition (is the player still on field) is what is checked — not "has anything changed
+since I last saw canonical state."
+
+Every `LiveMatchEventType` has an explicit, exhaustive append-safe/state-sensitive
+classification; a new event type must fail a test or compile-time exhaustiveness check until
+explicitly classified.
+
+## Persistence and replay
+
+`CanonicalLiveEvent` carries `sequence` and complete correction metadata (`correctionType`,
+`correctsEventId`), so a consumer can replay exact observable truth without a further database
+lookup. The shared projection's reversal handling resolves against target-event-id, and its own
+replay/merge ordering compares `sequence`, never `createdAt`. The projection also produces
+position-state output (not just score/clock/on-field state) and is the one pure function both
+Live Reporting and Follow Live consume for every observable fact.
+
+Legacy pre-sequence rows were backfilled deterministically (session, then `createdAt`, then row
+id as tie-breaker) for replay compatibility during the v2 cutover — this establishes
+deterministic *historical* replay order, not proof of original realtime acceptance order;
+strong ordering guarantees begin at the v2 cutover itself. No replay may mutate a locked report
+or retroactively change a player's profile attributes/positions as if replay were a new
+observation.
+
+## Clock persistence
+
+Both League's `LiveMatchSession` and Event's `EventLiveMatchSession` persist the match clock
+(period, running/paused state, and the timestamps needed to reconstruct elapsed time on
+reload) rather than holding it only in browser memory — a page reload or reconnect always
+recovers the actual clock state from Neon via the coordinator's snapshot/reconciliation path,
+never a client-side guess. `persistClock` is wired through the same shared realtime coordinator
+for both League and Event; there is no separate Event-only clock code path.
+
+## Offline continuation
+
+This is scoped offline continuation, not general offline mode — the existing "no offline
+caching, no service worker" invariant (`features/matchboard.feature`'s "Progressive Web App
+installation" feature; ADR-0123) is narrowed, not removed:
+
+A device that has successfully established a live-reporting session and downloaded the
+required match package while online can continue to record match operations when
+connectivity disappears — through temporary network loss, WebSocket-only loss, full network
+loss, page refresh, or an installed-PWA/browser restart on the same device. A never-prepared
+device opening Matchboard for the first time without network access remains out of scope and
+shows an explicit "connect to prepare this match" state, not stale or fabricated content.
+
+Any service worker used for this purpose caches only the static shell/assets required to
+render the established live route and a generic offline fallback — never arbitrary
+authenticated SSR HTML, and never longitudinal player development data. The prepared match
+package (roster, starting line-up/positions, period configuration, last canonical snapshot,
+local outbox) lives in IndexedDB, not Cache Storage.
+
+Session end (`MATCH_END`) ends the football clock and normal live-action mode, but does not
+immediately destroy unsynchronized local intent or clear the local queue. During the bounded
+window while the post-match report remains mutable, delayed append-safe operations may still
+synchronize and delayed state-sensitive operations are evaluated normally (accept or
+`NEEDS_REVIEW`). The canonical stream becomes sealed when the post-match report is
+completed/locked (the existing report-lock boundary, not a new independent seal timestamp) —
+after sealing, no new canonical live operations are accepted, and a locked report is never
+mutated by a late-arriving local command.
+
+## Reporter vs Follow Live authorization
+
+A connection ticket is issued in one of two modes, and `MatchSessionObject` enforces the
+resulting capability server-side (`recordEvent`/`endSession` reject any connection without
+`"report"` capability):
+
+**Report mode** (mutation) — requires organisation mutation authority (`OWNER`, `ADMIN`, or
+`COACH`) **and**, for non-admin users, `GROUP_COACH` authority on the match's `FootballGroup`:
+
+| Organisation role | Group role | Report allowed |
+|---|---|---|
+| `OWNER` / `ADMIN` | any | Yes (administrative bypass) |
+| `COACH` | `GROUP_COACH` | Yes |
+| `COACH` | `GROUP_VIEWER` | No |
+| `COACH` | no group access | No |
+
+This matrix is identical for League and Event as of ADR-0140 — Event live-reporting mutation
+(start live session, report-mode realtime ticket issuance, live clock persistence,
+heartbeat/session maintenance mutation, end live session, live-session-to-post-match-report
+handoff) now requires the same group-mutation authority League already required. ADR-0140 does
+not change the wider Event planning authorization model — Event squad generation, lineup
+editing, and other Event planning actions are unaffected.
+
+**View mode** (read-only, "Follow Live") — requires only group access, `GROUP_COACH` or
+`GROUP_VIEWER`, no organisation-mutation-role requirement, subject to normal
+organisation/tenant access. A view ticket never receives report capability, for either League
+or Event.
+
+## Worker and Vercel trust boundary
+
+1. Browser calls `POST /api/live-match/[matchId]/realtime-ticket` (League) or the Event
+   equivalent with `{ mode: "report" | "view" }` — authenticated via the normal session
+   cookie, authorized via `requireMatchGroupMutationRole` (report) or
+   `requireMatchGroupAccess` (view).
+2. Vercel issues a short-lived (60-120s) JWT ticket (`LIVE_MATCH_REALTIME_SECRET`) carrying
+   `userId`/`organisationId`/`matchId`/`sessionId`/`capabilities`.
+3. Browser opens a WebSocket to the Worker; the connection starts **unauthenticated** — the
+   only RPC it may call is `authenticate`.
+4. `authenticate` verifies the ticket, checks it matches the object's own routed `matchId` and
+   (if a session is already active) `sessionId`/`organisationId`, and — on first
+   authentication for a session — runs reconciliation against Neon's canonical state.
+5. Every subsequent RPC trusts only the connection's own server-attached identity
+   (`ConnectionAttachment`, populated once at authenticate time), never anything the browser
+   sends as RPC parameters.
+6. The Worker→Vercel leg is a *separate* trust boundary: `LIVE_MATCH_INTERNAL_SECRET` (never
+   the ticket secret) signs each request via HMAC-SHA256 over `<timestamp>.<raw body>` (or, for
+   the snapshot `GET`, `<timestamp>.<query string>`) — binding the signature to exactly which
+   match/session is being asked for, not just that *some* valid Worker request arrived.
+
+The Durable Object's `version`/coordination metadata exists only so connected clients can
+detect gaps and so state-sensitive actions can be rejected as stale — it is never a business
+sequence number and is not the same thing as the persisted canonical `sequence` described
+above.
 
 ## Local development
 
@@ -184,13 +215,12 @@ Next.js            http://localhost:3333
 Realtime Worker     ws://localhost:8787
 ```
 
-`workers/live-match/wrangler.jsonc`'s top-level (no `--env`) config is the local-dev
-default, with `MATCHBOARD_APP_ORIGINS`/`MATCHBOARD_API_BASE_URL` both set to
-`http://localhost:3333`. The Worker also needs `LIVE_MATCH_REALTIME_SECRET` and (Stage 4)
-`LIVE_MATCH_INTERNAL_SECRET` set locally to the same values as the Next.js app's own `.env` —
-Wrangler reads Worker secrets from a local `.dev.vars` file
-(`workers/live-match/.dev.vars`, gitignored) for `wrangler dev`, not from the repository's
-root `.env`:
+`workers/live-match/wrangler.jsonc`'s top-level (no `--env`) config is the local-dev default,
+with `MATCHBOARD_APP_ORIGINS`/`MATCHBOARD_API_BASE_URL` both set to `http://localhost:3333`.
+The Worker also needs `LIVE_MATCH_REALTIME_SECRET` and `LIVE_MATCH_INTERNAL_SECRET` set locally
+to the same values as the Next.js app's own `.env` — Wrangler reads Worker secrets from a local
+`.dev.vars` file (`workers/live-match/.dev.vars`, gitignored) for `wrangler dev`, not from the
+repository's root `.env`:
 
 ```text
 # workers/live-match/.dev.vars (not committed)
@@ -223,243 +253,64 @@ Two Worker secrets, two different provisioning stories:
   (and again with `--env test`) — a one-time, human-run step independent of code deploys,
   mirroring how `AUTH_SECRET` is already set by hand in Vercel's dashboard
   (`docs/security/secret-rotation-procedures.md`) — no vault is in use for either.
-- `LIVE_MATCH_INTERNAL_SECRET` (Stage 4) is different: `deploy-live-match-worker.yml` reads it
-  from two GitHub Actions secrets (`LIVE_MATCH_INTERNAL_SECRET_PRODUCTION`/`_TEST`) and pushes
-  it to each Worker via `wrangler secret put` automatically on every deploy — no manual
-  `wrangler secret put` needed for this one. The two GitHub secrets themselves are still a
-  one-time human-set step (same as any repository secret), and must match the corresponding
-  Vercel `LIVE_MATCH_INTERNAL_SECRET` env var exactly, per environment.
+- `LIVE_MATCH_INTERNAL_SECRET` is different: `deploy-live-match-worker.yml` reads it from two
+  GitHub Actions secrets (`LIVE_MATCH_INTERNAL_SECRET_PRODUCTION`/`_TEST`) and pushes it to
+  each Worker via `wrangler secret put` automatically on every deploy — no manual `wrangler
+  secret put` needed for this one. The two GitHub secrets themselves are still a one-time
+  human-set step (same as any repository secret), and must match the corresponding Vercel
+  `LIVE_MATCH_INTERNAL_SECRET` env var exactly, per environment.
 
-## Project layout and why it's separate from the main app
+## Production diagnostics and recovery
 
-```text
-workers/live-match/
-    wrangler.jsonc
-    tsconfig.json        # separate from the root tsconfig — Workers runtime types, not DOM
-    vitest.config.ts      # separate from the root vitest config — no TEST_DATABASE_URL needed
-    src/
-        index.ts               # routing/validation only: Origin allowlist, matchId shape, WS upgrade
-        match-session-object.ts # the Durable Object: all session/protocol logic
-        state.ts                # pure decision functions (no Workers runtime dependency)
-        rpc.ts                   # RPC envelope construction helpers
-        auth.ts                  # ticket verification + Origin/matchId validation
-        internal-client.ts       # Stage 4: signs + sends persistence/snapshot requests to Vercel
-        worker-types.ts          # Env bindings
-    test/
-        state.test.ts
-        auth.test.ts
-        rpc.test.ts
-        internal-client.test.ts
-        match-session-object.test.ts  # Stage 6: class-level orchestration (alarm sweep, reconciliation)
-```
+Three read-only/opt-in operational tools exist for diagnosing and, where necessary, repairing
+canonical live-operation data. None of them run automatically — each is an explicit maintainer
+action:
 
-Stage 4 also added, on the main Next.js side:
+- `npm run check:live-diagnostics -- --cutover-check` — reports any `ACTIVE` live session that
+  looks stale (no recent heartbeat), and reports whether the environment is safe to cut over
+  to protocol v2 (`cutoverSafe: true/false`). Read-only.
+- `scripts/backfill-live-event-sequence.ts` (`npm run backfill:live-event-sequence`, with a
+  `--dry-run` flag) — assigns the deterministic legacy backfill `sequence` described in
+  "Persistence and replay" above to any pre-v2 rows still missing one. Idempotent — running it
+  again after a successful backfill reports zero remaining rows.
+- A projection-divergence diagnostic — compares the shared projection's computed state against
+  raw canonical events for a session, to catch a projection bug before it reaches a coach or
+  parent.
 
-| File | Purpose |
-|------|---------|
-| `src/lib/live-match/realtime/internal-signature.ts` | Shared HMAC sign/verify (Web Crypto, used by both the Worker and Vercel) |
-| `src/lib/live-match/realtime/internal-auth.ts` | Vercel-side `verifyInternalRequest()` — raw-body HMAC verification |
-| `src/app/api/internal/live-match/events/route.ts` | `POST` — HMAC-only internal endpoint, calls `recordEventForActor()` |
-| `src/app/api/internal/live-match/snapshot/route.ts` | `GET` — HMAC-only internal endpoint, canonical session/events for reconciliation |
+All three are designed to run against `DATABASE_URL`/`DIRECT_URL` pointed at any environment
+(local, Test, or Production), using `runWithTenantOrganisationId()` to iterate every
+organisation the invoking role can see. Running any of them against Production requires
+Production database credentials, obtained per that environment's own access process — never
+committed to the repository, never left in a shell history file.
 
-The root `tsconfig.json` excludes `workers/` entirely — Workers runtime types
-(`@cloudflare/workers-types`) are not compatible with the main app's `dom` lib, so they are
-type-checked as a fully separate TypeScript project (`npm run typecheck:workers`). The root
-`vitest.config.ts` only includes `src/**/*.test.ts`, so this Worker's own tests run via a
-separate config (`npm run test:workers`) rather than the main `npm test` gate — the same
-pattern already used for `vitest.config.components.ts`.
+## Operational cutover status
 
-**Both scripts are mandatory delivery gates, not just local commands** (ARR-0025, AIP-1): `npm
-run validate` runs them alongside the main app's checks, and `.github/workflows/ci-checks.yml`
-runs them as their own `typecheck-workers`/`test-workers` jobs on every push/PR to `main`.
-`.github/workflows/deploy-live-match-worker.yml` only deploys after this workflow's overall run
-succeeds, so a Worker typecheck/test failure blocks its own deploy — the "CI success" that
-triggers the deploy workflow now actually covers the Worker's own code, which it did not before.
+The Production cutover described by ADR-0138 and the `matchboard_close_live_archaeology_docs_2026-09-14`
+programme's Production Cutover Runbook completed on **2026-09-14**:
 
-Shared application protocol code (`src/lib/live-match/realtime/protocol.ts`,
-`protocol-schemas.ts`, `realtime-messages.ts`, `realtime-ticket.ts`) is imported directly by
-relative path from `workers/live-match/`, not duplicated — none of it depends on Next.js,
-React, or a running Prisma client (the one Prisma-derived type it touches,
-`MatchPeriod`, is a type-only import, erased at build time).
+- ADR-0138 protocol-v2 cutover is complete — the Durable Object is the only normal
+  canonical-ordering path in Production, for both League and Event.
+- The legacy sequence backfill ran against Production: 506 rows across 8 League sessions and
+  20 Event sessions were assigned a deterministic sequence.
+- Post-backfill gap count is zero, confirmed by both a dry-run backfill re-check and
+  `check:live-diagnostics --cutover-check`.
+- The Production cutover check reports clean (`cutoverSafe: true`), with zero `ACTIVE` live
+  sessions at time of verification (one genuinely stale, orphaned Event session from
+  2026-09-05 was found and closed via the same transition `endEventLiveSession()` performs,
+  before the backfill ran).
+- See ADR-0138's History (2026-09-14 entry) for the full execution record.
 
-## Test coverage — what is and isn't covered
+## Relevant ADRs
 
-- **Covered by plain Vitest** (`npm run test:workers`): every decision `state.ts` makes
-  (event classification, authenticate/re-arm/mismatch outcomes, record-event idempotency and
-  version assignment, stale-state rejection, end-session pending-persistence gating), the
-  Worker's Origin/matchId validation helpers, and RPC envelope construction. These need zero
-  Workers runtime and are the highest-value tests for this stage's actual logic.
-- **Stage 4 additions**: HMAC sign/verify round-trip (including tampered-body, wrong-secret,
-  stale-timestamp, and boundary-timestamp cases) — `internal-signature.test.ts`, zero Workers
-  runtime needed (`crypto.subtle` works identically in Node). Both internal routes have full
-  request-level tests including a real end-to-end signature computed and verified through the
-  actual route handler, not just mocked-away. `recordEventForActor()` has direct integration
-  tests against a real test database (session/match/org consistency, dedup, explicit-actor
-  usage with no `requireActorContext()` call) alongside the pre-existing `recordEvent()`
-  tests, proving the refactor didn't change browser-facing behavior.
-- **Stage 5 additions** (`src/components/live-match/__tests__/`, plain Vitest against jsdom
-  via `vitest.config.components.ts` — no real WebSocket needed, `RealtimeMatchClient` is
-  faked): the primary/fallback decision in `createLeagueActions.recordEvent` (persisted skips
-  HTTP; pending, unavailable, and thrown-rejection cases all fall through to HTTP), the
-  `STALE_STATE` self-heal in `useLiveRealtime.tryRecordEvent`, `onLiveUpdate` firing for
-  `applyEvent`/`presenceChanged`/`sessionEnded` and stopping after unsubscribe,
-  `getSnapshot`-driven version re-derivation on reconnect, `reconnectNow`'s no-new-client
-  behavior, and `LiveMatchClient`'s own wiring of `onLiveUpdate`/`reconnectRealtime` (immediate
-  refresh on broadcast, immediate reconnect attempt on the browser `online` event).
-- **Stage 6 additions**: `classifyPersistenceFailure`/`computeBackoffDelayMs`/
-  `selectDueRetries`/`nextAlarmTime`/`evaluateReconciliation` (`state.ts`) are all pure and
-  fully covered the same way as every prior stage's decision logic. Beyond that,
-  `match-session-object.test.ts` exercises the *real* `MatchSessionObject` class end to end —
-  `webSocketMessage` → `dispatch` → `handleRecordEvent`/`handleAuthenticate`/`alarm()` — not a
-  reimplementation of its logic. This still does not use `@cloudflare/vitest-pool-workers`/
-  Miniflare (re-evaluated a third time at Stage 6, the trigger Stage 3/4 both named for
-  revisiting this — see ADR-0086's Stage 6 amendment for the fuller reasoning); instead,
-  `cloudflare:workers` (unresolvable outside the real Workers runtime) is mocked with a
-  minimal `DurableObject` base class, and Durable Object storage/WebSocket primitives are
-  hand-rolled in-memory fakes (a `Map`-backed storage supporting `get`/`put`/`delete`/
-  `setAlarm`/`deleteAlarm`/`getAlarm`, and a fake `WebSocket` supporting `serializeAttachment`/
-  `send`/`close`). Tickets are genuinely signed with the real `signRealtimeTicket` (pure
-  crypto, no I/O) rather than faked, so `verifyRealtimeTicket` inside `handleAuthenticate` is
-  exercised for real too. This proves the alarm sweep's actual storage mutations (retry count,
-  `nextRetryAt`, terminal vs. persisted transitions, alarm scheduling/clearing) and
-  reconciliation's actual effect on a subsequent `getSnapshot` call, using the real class —
-  meaningfully more than pure-function tests alone, without adopting the full Miniflare
-  toolchain. What this still doesn't cover: WebSocket upgrade handling and hibernation
-  survival themselves (the literal `WebSocketPair`/`ctx.acceptWebSocket` platform mechanics,
-  which have no Node equivalent to fake credibly) — `npx wrangler deploy --dry-run` and manual
-  verification via `npm run dev:realtime` against a real local Worker runtime remain the
-  substitute for that specific gap.
-- **Stage 7 additions**: a test confirming `useLiveRealtime.tryRecordEvent` falls through
-  (returns `null`, so `createLeagueActions.recordEvent` falls through to HTTP) on a
-  `PROTOCOL_UNSUPPORTED` rejection specifically, not just the generic-rejection case already
-  covered. Message-size and protocol-version enforcement themselves were already tested in
-  Stage 1 (`protocol-schemas.test.ts`).
-
-## Architecture walkthrough (SPEC.md §42)
-
-### The four concepts and how they relate
-
-- **`Match`** — the durable, canonical Matchboard fixture (Prisma model). Exists whether or
-  not it is ever reported live.
-- **`LiveMatchSession`** — one reporting session for a `Match` (start/end timestamps, status).
-  A `Match` may have zero or more `LiveMatchSession`s over time (e.g. a re-opened report).
-  This is the row `MatchSessionObject` authenticates against and the row `endSession`
-  ultimately reflects.
-- **`MatchSessionObject`** — the Cloudflare Durable Object actor coordinating exactly one
-  currently-active `LiveMatchSession` in real time (`env.MATCH_SESSIONS.idFromName(matchId)`
-  — keyed by `matchId`, so a match's object persists conceptually across a session's
-  start/end, but its *storage* is cleared and re-initialized each time a genuinely new session
-  authenticates — see "Version semantics" below).
-- **`MatchClientCapability`** — SPEC.md's name for the server→browser RPC interface
-  (`applySnapshot`/`applyEvent`/`eventPersistenceChanged`/`presenceChanged`/`sessionEnded`/
-  `forceResync`, `protocol.ts`'s `CLIENT_METHODS`) — not a permission concept despite the
-  name; ticket **capabilities** (`"report"`/`"view"`, a separate and unrelated string field on
-  the connection ticket) are what actually gates who may call `recordEvent`/`endSession`.
-
-### Responsibility boundaries
-
-| Layer | Answers | Never |
-|---|---|---|
-| IndexedDB (browser) | "What has this device recorded that Neon hasn't confirmed yet?" | Business truth beyond this one device's unsynced queue |
-| `MatchSessionObject` (Durable Object) | "Who's connected, what order were actions accepted in, what's still waiting on Neon?" | A second season history database — storage is minimal and short-lived (SPEC.md §15) |
-| Neon (via the internal API) | "What actually happened? Which events are canonical?" | Realtime coordination — Neon has no idea a WebSocket exists |
-
-**Why the Durable Object is not another source of business truth** (SPEC.md §42's own explicit
-requirement — ADR-0086's "What system of record still means" section makes the same argument
-in more detail, referenced rather than repeated here): the object's `version` counter and
-`AcceptedEventRecord` storage exist purely to answer realtime-coordination questions —
-ordering, dedup, "is this client caught up." Every one of those records is disposable: if the
-object were destroyed and recreated from scratch, `reconcileFromCanonicalSnapshot` would
-rebuild an equivalent (if renumbered) view purely from what Neon already has. Nothing a coach
-or parent ultimately sees — season stats, match reports, fairness calculations — ever reads
-from Durable Object storage; all of it reads Neon, via the exact same domain code
-(`recordEventForActor`, `getMatchEvents`, etc.) whether the event arrived via HTTP or realtime.
-
-### End-to-end flow
-
-```mermaid
-sequenceDiagram
-    participant IDB as IndexedDB
-    participant RC as RealtimeMatchClient
-    participant DO as MatchSessionObject
-    participant API as Vercel internal API
-    participant Neon
-
-    IDB->>IDB: save event (synced=false)
-    RC->>DO: recordEvent(clientEventId, baseVersion, event)
-    DO->>DO: evaluateRecordEvent (dedup, version, stale-state check)
-    DO-->>RC: applyEvent broadcast (immediate, optimistic)
-    DO->>API: POST /internal/live-match/events (HMAC-signed)
-    API->>API: verify signature, timestamp
-    API->>Neon: recordEventForActor (session/match/org check, dedup, write)
-    Neon-->>API: canonical event
-    API-->>DO: canonical event
-    DO->>DO: mark persisted
-    DO-->>RC: eventPersistenceChanged (persisted)
-    RC-->>IDB: mark synced=true
-```
-
-**Where HTTP fallback re-enters**: if `RC->>DO` never happens (no connection) or the RPC call
-itself throws, the browser calls the existing `recordLiveEventAction` (HTTP) directly instead
-— skipping the Durable Object entirely and going straight to the same `recordEventForActor` the
-internal API also calls. If the Durable Object *did* accept the event but the `DO->>API` leg
-failed (Vercel/Neon temporarily down), the browser's realtime result comes back
-`persistenceStatus: "pending"`, and Stage 5's client-side logic immediately also calls the
-HTTP path as a corrective write — safe regardless of whether the Durable Object's own attempt
-partially succeeded, because `recordEventForActor`'s `clientEventId` dedup means at most one
-canonical Neon row is ever created no matter how many paths attempt it (SPEC.md §22 Case E).
-Independently, Stage 6's alarm-driven retry (`alarm()`) will also keep attempting the same
-call on the Durable Object's own schedule until it succeeds or is classified terminal — the
-two retry paths (immediate client-side, and the Durable Object's own backoff) are complementary,
-not conflicting: whichever succeeds first wins, and the dedup makes either order safe.
-
-### Authentication flow
-
-1. Browser calls `POST /api/live-match/[matchId]/realtime-ticket` with `{ mode: "report" |
-   "view" }` — authenticated via the normal session cookie, authorized via
-   `requireMatchGroupMutationRole` (report) or `requireMatchGroupAccess` (view).
-2. Vercel issues a short-lived (60-120s) JWT ticket (`LIVE_MATCH_REALTIME_SECRET`) carrying
-   `userId`/`organisationId`/`matchId`/`sessionId`/`capabilities`.
-3. Browser opens a WebSocket to the Worker; the connection starts **unauthenticated** — the
-   only RPC it may call is `authenticate`.
-4. `authenticate` verifies the ticket, checks it matches the object's own routed `matchId` and
-   (if a session is already active) `sessionId`/`organisationId`, and — on first
-   authentication for a session — runs reconciliation (see below).
-5. Every subsequent RPC trusts only the connection's own server-attached identity
-   (`ConnectionAttachment`, populated once at authenticate time), never anything the browser
-   sends as RPC parameters (SPEC.md §13, §35).
-6. The Worker→Vercel leg is a *separate* trust boundary: `LIVE_MATCH_INTERNAL_SECRET` (never
-   the ticket secret) signs each request via HMAC-SHA256 over `<timestamp>.<raw body>` (or, for
-   the snapshot `GET`, `<timestamp>.<query string>` — binding the signature to exactly which
-   match/session is being asked for, not just that *some* valid Worker request arrived).
-
-### Version semantics
-
-The Durable Object's `version` counter is **coordination metadata**, not a business sequence
-number (SPEC.md §23) — it exists only so connected clients can detect gaps ("I'm at version 5,
-I just received version 8, I'm missing something — request a fresh snapshot") and so
-state-sensitive actions (period transitions, rotations) can be rejected as stale when another
-client already moved the match forward. It resets to 0 every time `evaluateAuthenticate`
-returns `"initialize"` — either a truly fresh object, or re-arming for a *new*
-`LiveMatchSession` after the previous one ended. `clientEventId` is the durable, cross-session
-idempotency key that survives this reset (it's what Neon's own dedup keys on); realtime
-`version` never is.
-
-### Failure handling summary
-
-| Failure | What happens |
-|---|---|
-| WebSocket unavailable | HTTP fallback handles everything; realtime never re-enters (SPEC.md §22 Case A) |
-| Durable Object accepts, Vercel/Neon down | Event stays `"pending"`; Stage 6 alarm retries with backoff; client-side immediate HTTP write also attempts it (§22 Case B) |
-| Domain-validation failure (exactly HTTP 422) | `"failed_terminal"` immediately, never retried, clients notified via `eventPersistenceChanged` |
-| Entire network down | IndexedDB records locally; replays on reconnect (§22 Case C/D) |
-| Duplicate delivery (HTTP + realtime both eventually try the same event) | `clientEventId` dedup guarantees exactly one canonical row (§22 Case E) |
-| Reconnect after being offline | Fresh ticket, reconnect, authenticate (reconciles if a new session), `getSnapshot`, replay unsynced local events (§27) |
-| Protocol version mismatch | `PROTOCOL_UNSUPPORTED`; browser falls through to HTTP exactly like any other RPC rejection |
-| Oversized message | Rejected before JSON parsing (`MESSAGE_TOO_LARGE`, 64 KiB limit, Stage 1) |
-| Match ends with pending events | Blocked (`PERSISTENCE_UNAVAILABLE`) until they resolve — never silently discarded (§29) |
-| Sustained non-422 failure (e.g. a routing/auth-gate problem — the Stage 8 incident) | Retries until `evaluateRetry`'s bounded ceiling (10 attempts or 24h) is reached, then `"failed_exhausted"` — no infinite retry, event's own HTTP-fallback copy is unaffected |
-| Reporter closes browser without ending the session | `evaluateLifecycleExpiry` auto-marks the session `endedAt`/`"AUTO_EXPIRED"` once kickoff + duration + grace + inactivity has elapsed — transport bookkeeping only, never a report submission |
-
-See "Local development" and "Deployed environments" above for the operational
-configuration side of this walkthrough.
+- ADR-0086 — Live match realtime, Cloudflare Durable Objects (original architecture, trust
+  boundary, Free-plan design, staged rollout).
+- ADR-0104 — Canonical post-match learning pipeline (evidence pipeline consuming live-reported
+  match facts).
+- ADR-0109 — Planning boundary / report-lock model (the boundary session-end sealing reuses).
+- ADR-0112 — Unified reporter and Follow Live projection.
+- ADR-0123 — Progressive Web App installation scope (the "no general offline mode" invariant
+  that ADR-0138 narrows, not removes).
+- ADR-0133 — Clock persistence, score reconciliation, and keepalive hardening (League).
+- ADR-0138 — Canonical live operation stream, persisted sequence, and scoped offline
+  continuation (the migration this document primarily describes).
+- ADR-0140 — Event live-reporting mutation is group-role-aware (resolves ARR-0048).

@@ -13,6 +13,14 @@ Matchboard is deployed through Vercel and persists data in Neon PostgreSQL. The 
 - Auth and authorization rely on server-side trusted context; client-supplied IDs or route values are never authority.
 - Schemas and migration changes should be paired with the code that relies on the new shape.
 
+## Live match operation sequencing
+
+For live match reporting, the Cloudflare Durable Object coordinator is the only normal
+canonical-ordering authority for new operations; Neon persists the resulting canonical events
+as the durable system of record. Production sequence backfills and diagnostic tooling
+(`check:live-diagnostics`, `backfill-live-event-sequence`) are explicit, opt-in maintainer
+actions — they never run automatically. See `docs/development/live-match-realtime.md`.
+
 ## Change hygiene
 
 When a task changes architecture, schema, deployment, or provider state, capture the durable rule in the relevant ADR or architecture notes. Remove stale artifacts and ensure the docs, implementation, and feature file are aligned.
