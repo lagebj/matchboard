@@ -20,7 +20,13 @@ test.skip(
 test("Today UI Lab primary state matches the approved implementation baseline", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1672, height: 941 });
-  await page.goto("/dev/ui-lab/atlas/routes/today?state=primary", { waitUntil: "networkidle" });
+  await page.goto("/dev/ui-lab/atlas/routes/today?state=primary");
+
+  // Wait for a stable, always-present element rather than "networkidle" — the Today surface's
+  // live-match polling/SWR revalidation means the network is never fully idle, which caused this
+  // spec to time out against the real (slower) Test slot deployment even though the page had
+  // already finished rendering.
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
 
   await expect(page).toHaveScreenshot("today-primary.png", {
     maxDiffPixelRatio: 0.02,
