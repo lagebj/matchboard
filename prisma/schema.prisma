@@ -1115,17 +1115,17 @@ model LiveMatchEvent {
   /// until Bundle 4's single-mutation-path cutover) never went through the coordinator and has
   /// no coordinator-assigned sequence. Never reconstructed from `createdAt` once present — see
   /// `docs/adr/0138-canonical-live-operation-stream-persisted-sequence-and-scoped-offline-continuation.md`.
-  sequence               Int?
+  sequence         Int?
   /// The coordinator's own acceptance wall-clock time (ms epoch, converted to a Date), distinct
   /// from `createdAt` (this row's Neon insert time, which can lag acceptance under retry). Null
   /// for a row with no coordinator involvement.
-  acceptedAt             DateTime?
+  acceptedAt       DateTime?
   /// Diagnostic-only local capture wall-clock time from the originating device. Never an
   /// ordering authority (ADR-0138 D07).
-  clientCapturedAt       DateTime?
+  clientCapturedAt DateTime?
   /// Diagnostic-only originating client identifier, for correlating a delayed/offline command
   /// back to its device. Never an authority for anything domain-meaningful.
-  originClientId         String?
+  originClientId   String?
 
   match                Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
   session              LiveMatchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -1557,6 +1557,14 @@ model EventLiveMatchSession {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  // Persisted match clock (ADR-0140 / parity with LiveMatchSession's ADR-0133 H2 contract).
+  // Uses the identical fields/semantics/helpers as League's clock — no second clock model.
+  clockPeriod          MatchPeriod @default(BEFORE)
+  clockRunning         Boolean     @default(false)
+  clockPeriodStartedAt DateTime?
+  clockElapsedBeforeMs Int         @default(0)
+  clockUpdatedAt       DateTime?
+
   eventMatch   EventMatch            @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   organisation Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   events       EventLiveMatchEvent[]
@@ -1587,10 +1595,10 @@ model EventLiveMatchEvent {
   /// See `LiveMatchEvent.sequence`'s doc comment (ADR-0138). Nullable while Event live
   /// reporting has no Durable Object coordination yet (ARR-0046) — always null until Bundle 8
   /// wires Event into the coordinator.
-  sequence          Int?
-  acceptedAt        DateTime?
-  clientCapturedAt  DateTime?
-  originClientId    String?
+  sequence         Int?
+  acceptedAt       DateTime?
+  clientCapturedAt DateTime?
+  originClientId   String?
 
   eventMatch      EventMatch            @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   session         EventLiveMatchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -2974,7 +2982,9 @@ model DecisionReview {
   organisationId String
   targetType     DecisionReviewTargetType
   targetId       String
-  /** Material-fields fingerprint of the target when this review was scheduled. */
+  /**
+   * Material-fields fingerprint of the target when this review was scheduled.
+   */
   targetRevision String
   dueAt          DateTime
   status         DecisionReviewStatus     @default(PENDING)

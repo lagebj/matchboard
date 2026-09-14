@@ -3,6 +3,9 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireActorContext } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { persistedToClockState, clockStateToPersisted, isForwardClockTransition } from "./session-clock";
+import { createInitialClockState } from "./match-clock";
+import type { MatchClockState, MatchPeriod } from "./live-match-types";
 
 export interface EventLiveSessionInfo {
   id: string;
@@ -12,6 +15,42 @@ export interface EventLiveSessionInfo {
   startedAt: Date;
   endedAt: Date | null;
   lastHeartbeatAt: Date | null;
+  clock: MatchClockState;
+}
+
+type EventLiveMatchSessionRow = {
+  id: string;
+  eventMatchId: string;
+  coachId: string;
+  status: "ACTIVE" | "ENDED";
+  startedAt: Date;
+  endedAt: Date | null;
+  lastHeartbeatAt: Date | null;
+  clockPeriod: MatchPeriod;
+  clockRunning: boolean;
+  clockPeriodStartedAt: Date | null;
+  clockElapsedBeforeMs: number;
+};
+
+// Mirrors League's `toLiveSessionInfo` (`live-match-session.ts`) — one mapper shared by every
+// return path below, so the clock is never manually rebuilt per call site.
+function toEventLiveSessionInfo(row: EventLiveMatchSessionRow): EventLiveSessionInfo {
+  return {
+    id: row.id,
+    eventMatchId: row.eventMatchId,
+    coachId: row.coachId,
+    status: row.status,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    lastHeartbeatAt: row.lastHeartbeatAt,
+    clock:
+      persistedToClockState({
+        clockPeriod: row.clockPeriod,
+        clockRunning: row.clockRunning,
+        clockPeriodStartedAt: row.clockPeriodStartedAt,
+        clockElapsedBeforeMs: row.clockElapsedBeforeMs,
+      }) ?? createInitialClockState(),
+  };
 }
 
 export async function startEventLiveSession(eventMatchId: string): Promise<EventLiveSessionInfo> {
@@ -36,15 +75,7 @@ export async function startEventLiveSession(eventMatchId: string): Promise<Event
   });
 
   if (existing && existing.status === "ACTIVE") {
-    return {
-      id: existing.id,
-      eventMatchId: existing.eventMatchId,
-      coachId: existing.coachId,
-      status: existing.status,
-      startedAt: existing.startedAt,
-      endedAt: existing.endedAt,
-      lastHeartbeatAt: existing.lastHeartbeatAt,
-    };
+    return toEventLiveSessionInfo(existing);
   }
 
   if (existing && existing.status === "ENDED") {
@@ -60,15 +91,7 @@ export async function startEventLiveSession(eventMatchId: string): Promise<Event
     },
   });
 
-  return {
-    id: session.id,
-    eventMatchId: session.eventMatchId,
-    coachId: session.coachId,
-    status: session.status,
-    startedAt: session.startedAt,
-    endedAt: session.endedAt,
-    lastHeartbeatAt: session.lastHeartbeatAt,
-  };
+  return toEventLiveSessionInfo(session);
 }
 
 export async function getEventActiveSession(eventMatchId: string): Promise<EventLiveSessionInfo | null> {
@@ -87,15 +110,7 @@ export async function getEventActiveSession(eventMatchId: string): Promise<Event
     return null;
   }
 
-  return {
-    id: session.id,
-    eventMatchId: session.eventMatchId,
-    coachId: session.coachId,
-    status: session.status,
-    startedAt: session.startedAt,
-    endedAt: session.endedAt,
-    lastHeartbeatAt: session.lastHeartbeatAt,
-  };
+  return toEventLiveSessionInfo(session);
 }
 
 export async function endEventLiveSession(sessionId: string): Promise<EventLiveSessionInfo> {
@@ -126,15 +141,36 @@ export async function endEventLiveSession(sessionId: string): Promise<EventLiveS
     },
   });
 
-  return {
-    id: updated.id,
-    eventMatchId: updated.eventMatchId,
-    coachId: updated.coachId,
-    status: updated.status,
-    startedAt: updated.startedAt,
-    endedAt: updated.endedAt,
-    lastHeartbeatAt: updated.lastHeartbeatAt,
-  };
+  return toEventLiveSessionInfo(updated);
+}
+
+/**
+ * Persist the Event live-match clock for an ACTIVE session — identical semantics to League's
+ * `persistLiveSessionClock` (ADR-0133 H2 / ADR-0140 parity). Best-effort: a clock-persist
+ * failure must never break event recording. Guarded so a stale/reloaded client cannot move the
+ * stored period backwards over a running clock.
+ */
+export async function persistEventLiveSessionClock(sessionId: string, clock: MatchClockState): Promise<void> {
+  const ctx = await requireActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+
+  const session = await db.eventLiveMatchSession.findUnique({
+    where: { id: sessionId },
+    select: { organisationId: true, status: true, clockPeriod: true },
+  });
+
+  if (!session || session.organisationId !== ctx.organisationId || session.status !== "ACTIVE") {
+    return;
+  }
+
+  if (!isForwardClockTransition(session.clockPeriod, clock.period)) {
+    return;
+  }
+
+  await db.eventLiveMatchSession.update({
+    where: { id: sessionId },
+    data: { ...clockStateToPersisted(clock), clockUpdatedAt: new Date() },
+  });
 }
 
 export async function heartbeatEventSession(sessionId: string): Promise<void> {

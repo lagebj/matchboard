@@ -22,6 +22,7 @@ import {
   requirePlayerGroupAccess,
   requireMatchGroupAccess,
   requireMatchGroupMutationRole,
+  requireGroupMutationRoleFromContext,
   teamFilterFromContext,
   groupFilterFromContext,
   teamOrGroupFilter,
@@ -433,6 +434,38 @@ describe("requireMatchGroupMutationRole", () => {
     (db.match.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ teamId: null });
     const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_VIEWER" }]);
     await expect(requireMatchGroupMutationRole(ctx, "match-1")).resolves.toBeUndefined();
+  });
+});
+
+describe("requireGroupMutationRoleFromContext", () => {
+  it("allows ADMIN regardless of groupAccesses", () => {
+    const ctx = makeContext("ADMIN");
+    expect(() => requireGroupMutationRoleFromContext(ctx, "group-1")).not.toThrow();
+  });
+
+  it("allows OWNER regardless of groupAccesses", () => {
+    const ctx = makeContext("OWNER");
+    expect(() => requireGroupMutationRoleFromContext(ctx, "group-1")).not.toThrow();
+  });
+
+  it("allows a COACH with GROUP_COACH access to the group", () => {
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_COACH" }]);
+    expect(() => requireGroupMutationRoleFromContext(ctx, "group-1")).not.toThrow();
+  });
+
+  it("rejects a COACH with only GROUP_VIEWER access to the group", () => {
+    const ctx = makeContext("COACH", ["group-1"], [{ footballGroupId: "group-1", role: "GROUP_VIEWER" }]);
+    expect(() => requireGroupMutationRoleFromContext(ctx, "group-1")).toThrow(AuthorizationError);
+  });
+
+  it("rejects a COACH with no access to the group at all", () => {
+    const ctx = makeContext("COACH", [], []);
+    expect(() => requireGroupMutationRoleFromContext(ctx, "group-1")).toThrow(AuthorizationError);
+  });
+
+  it("rejects a COACH with GROUP_COACH access to a different group", () => {
+    const ctx = makeContext("COACH", ["group-2"], [{ footballGroupId: "group-2", role: "GROUP_COACH" }]);
+    expect(() => requireGroupMutationRoleFromContext(ctx, "group-1")).toThrow(AuthorizationError);
   });
 });
 

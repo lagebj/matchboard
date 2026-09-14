@@ -9,6 +9,7 @@ import {
   heartbeatEventAction,
   getRecentEventEventsAction,
   getEventLiveMatchPreMatchPackageAction,
+  persistEventLiveSessionClockAction,
 } from "@/app/(app)/events/[eventId]/event-live-actions";
 import { endEventLiveSessionAndCreateReportAction } from "@/app/(app)/events/[eventId]/event-live-report-handoff";
 import { useLiveRealtime } from "@/components/live-match/use-live-realtime";
@@ -58,6 +59,17 @@ export function createEventActions(
     },
     heartbeat: async (sessionId) => {
       await heartbeatEventAction(sessionId);
+    },
+    persistClock: async (sessionId, clock) => {
+      // ADR-0140 parity with League's ADR-0133 H2 — best-effort clock persistence on a
+      // transition. The shared `LiveMatchClient` remains the owner of clock interaction; no
+      // Event-specific client clock state is added here.
+      return persistEventLiveSessionClockAction(sessionId, {
+        period: clock.period,
+        running: clock.running,
+        startedAt: clock.startedAt ? clock.startedAt.toISOString() : null,
+        elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
+      });
     },
     recordEvent: async (input) => {
       const outcome = await realtime.tryRecordEvent({
