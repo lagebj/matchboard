@@ -204,22 +204,6 @@ textarea:disabled {
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.app-meta {
-  font-size: var(--text-meta);
-  color: var(--text-muted);
-}
-.app-title {
-  font-size: var(--text-title);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--foreground);
-}
-.app-section {
-  font-size: var(--text-section);
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  color: var(--foreground);
-}
 .app-row-title {
   font-size: var(--text-row-title);
   font-weight: 550;
@@ -240,62 +224,7 @@ textarea:disabled {
   letter-spacing: -0.02em;
   line-height: 1.05;
 }
-/* Tabular numerals for score/time/minutes columns */
-.app-nums {
-  font-variant-numeric: tabular-nums;
-}
 
-/* Compact contextual row — keeps season/team/round/event context recoverable
-   on narrow viewports (ADR-0124 §3). e.g. "Autumn 2026 · Round 7". */
-.app-context-strip {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: var(--text-meta);
-  color: var(--text-muted);
-  min-height: 2rem;
-}
-.app-context-strip > * {
-  min-width: 0;
-}
-
-/* Sticky primary-action pattern. On compact the action bar floats above the
-   fixed bottom nav and the safe-area inset; from medium up it is static.
-   Pages using this must add padding-bottom of at least the bar height so the
-   bar never covers content (see .app-sticky-actions-spacer). */
-.app-sticky-actions {
-  position: sticky;
-  bottom: var(--nav-clearance);
-  z-index: 30;
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-  margin-inline: -1rem;
-  border-top: 1px solid var(--border-soft);
-  background: var(--surface-overlay);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-@media (min-width: 600px) {
-  .app-sticky-actions {
-    position: static;
-    margin-inline: 0;
-    padding: 0;
-    border-top: 0;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-/* Minimum comfortable touch target (~44x44 CSS px) for compact interactive
-   controls that would otherwise render smaller. */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
-}
-
-/* Legacy helpers — prefer <Surface /> in new code */
 .app-hairline {
   border-color: var(--border-soft);
 }
