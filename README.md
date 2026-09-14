@@ -29,7 +29,7 @@ The canonical primary navigation is: Today, League, Events, Players, More.
 - League (`/fixtures`) provides the league-season, round, and match hierarchy with populate all/generate actions. There is no finalize action — a round/match becomes historical automatically once its planning boundary closes. League teams are reachable via a header link on this page, not their own primary nav item.
 - Round Board is the primary squad decision surface.
 - Events (`/events`) provides event squad planning for cups, tournaments, and friendly days.
-- Players (`/players`) provides three modes: Season overview, Current round attention, and Manage base groups.
+- Players (`/players`) provides four modes: Overview, Current round, Development, and Manage base groups.
 - More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Peer reviews.
 
 ## Adaptive interaction design
@@ -43,19 +43,23 @@ compact `<600`, medium `600–839`, expanded `840–1199`, large `1200–1599`, 
 team/season/round context recoverable, never requires drag or hover, respects safe areas and
 installed-PWA standalone display, and keeps the primary action clear of the fixed bottom nav.
 
-> The visual system is being reset — **Matchboard Visual Identity & Frontend Reset 1.0
-> (ADR-0134)** supersedes Product Surface 1.0's visual doctrine (luminous yellow-green accent,
-> System/Light/Dark appearance, editorial sports hierarchy, Barlow Condensed for
-> scores/clocks). It is being built behind a `/dev/ui-lab` human-approval gate; production
-> routes still render Product Surface 1.0 below until that migration lands. See
+> **Touchline (ADR-0134) is the production visual system**, superseding Product Surface 1.0's
+> visual doctrine (luminous yellow-green accent, System/Light/Dark appearance, editorial sports
+> hierarchy, Barlow Condensed for scores/clocks). Touchline defines the theme/token system,
+> shell/navigation, overview widget grammar, workbench grammar, floating controls, evidence
+> composition, and canonical football pitch presentation. Approved production migrations
+> include Round Board, Players Overview, Player Detail, Lineup/Tactics/Formations, and Event
+> match lineup. Some surfaces may still receive later visual-convergence work, but that is not
+> evidence that Product Surface 1.0 remains the active production doctrine — ADR-0134 plus
+> ADR-0135/ADR-0136 are the active visual decisions. See
 > `docs/adr/0134-visual-identity-frontend-reset-touchline.md`.
 
-**Product Surface 1.0** (ADR-0130) is the current production visual system: a quiet solid dark canvas with
+The historical **Product Surface 1.0** (ADR-0130) design system — a quiet solid dark canvas with
 one subtle radial atmosphere (no pitch-line texture), cool near-white foreground, cool hairline
 borders, a blue focus ring, and five surface families (temporal flow, match/result scan,
-planning workspace, evidence/story, reference/configuration) — the same design system does not
-mean an identical card everywhere; scan lists use dividers, not a card per row. A match result
-is shown neutrally: a win is never green and a loss is never a danger/error colour; `--live` is
+planning workspace, evidence/story, reference/configuration) — remains historical context only,
+not the current production visual system. A match result is shown neutrally: a win is never
+green and a loss is never a danger/error colour; `--live` is
 its own distinct colour, not `--danger`. A single canonical match visual grammar — one
 `MatchPresentation` projection rendered through four variants (`MatchRow`, `MatchCard`,
 `MatchHeader`, `MatchLiveStrip`), scheduled / live / final / cancelled — is used across Today,

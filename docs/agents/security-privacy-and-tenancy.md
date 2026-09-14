@@ -13,6 +13,15 @@ This module captures the repository's non-negotiable security and tenancy constr
 - Unsafe raw SQL is forbidden in application code.
 - Secrets must never be committed to Git or logged in clear text.
 
+## Group-scoped live reporting authorization
+
+Organisation mutation role alone is not sufficient authority for group-scoped live match
+reporting by a non-admin coach: League and Event report-mode mutation both require
+`GROUP_COACH` authority on the match's football group in addition to organisation mutation
+role (`OWNER`/`ADMIN` retain an administrative bypass). `GROUP_VIEWER` must remain read-only
+for live reporting, exactly as it is for planning. See ADR-0140 and
+`docs/development/live-match-realtime.md`.
+
 ## Tenant isolation and provider configuration
 
 The app must keep tenant data isolated, audit logs sanitized, and provider configuration explicit and documented rather than implicit. When a change touches Vercel, Neon, GitHub, or other provider configuration, update the durable repository guidance and avoid pure-implicit production actions.
