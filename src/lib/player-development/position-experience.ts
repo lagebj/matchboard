@@ -1,6 +1,16 @@
 import { db } from "@/lib/db";
 import { type OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
+/**
+ * Retained canonical POSITION-observation evidence reader (see ARR-0049), not part of a dead
+ * subsystem. ARR-0049 removed the old `PlayerProfileSuggestion` approval-gated
+ * accept/adjust/reject workflow and its orphaned routes/service/component; this module's
+ * `getPositionExperienceForPlayer()`/`evaluatePositionEvidence()` were kept because ADR-0139
+ * consumes them directly for automatic position evolution. POSITION observation input has no
+ * dedicated current UI, so in practice this reads an empty set for most players today — a
+ * disclosed, honest limitation of ADR-0139, not a bug in this reader.
+ */
+
 export type PositionExperienceRow = {
   playerId: string;
   positionId: string;
