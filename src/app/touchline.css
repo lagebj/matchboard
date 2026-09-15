@@ -59,12 +59,13 @@
   --tl-atmosphere-accent: rgba(199, 245, 74, 0.06);
   --tl-atmosphere-cool: rgba(120, 169, 255, 0.04);
 
-  /* Today football-atmosphere decorative layer (ADR-0141, superseded to WebP by ADR-0142) —
-   * static repository-owned WebP raster, theme-specific image + opacity only. No second theme
-   * system: light values are duplicated into the explicit-light block and the system
-   * prefers-color-scheme:light block below, exactly like every other palette token in this file. */
+  /* Today football-atmosphere decorative layer (ADR-0141, superseded to WebP by ADR-0142,
+   * artwork/blend finished by the Today Atmosphere Finish follow-up) — static repository-owned
+   * WebP raster, theme-specific image + opacity only. No second theme system: light values are
+   * duplicated into the explicit-light block and the system prefers-color-scheme:light block
+   * below, exactly like every other palette token in this file. */
   --tl-today-atmosphere-image: url("/touchline/today-atmosphere-dark.webp");
-  --tl-today-atmosphere-opacity: 0.78;
+  --tl-today-atmosphere-opacity: 0.58;
 
   /* --- Touchline Finish & Visual Convergence follow-up (03 §A) -------------
    * Widget / floating-control-glass / pitch semantic tokens. Additive to the
@@ -152,7 +153,7 @@
   --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
 
   --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.webp");
-  --tl-today-atmosphere-opacity: 0.32;
+  --tl-today-atmosphere-opacity: 0.24;
 
   /* Touchline Finish & Visual Convergence follow-up (03 §A) — light values. */
   --tl-widget: #ffffff;
@@ -231,7 +232,7 @@
     --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
 
     --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.webp");
-    --tl-today-atmosphere-opacity: 0.32;
+    --tl-today-atmosphere-opacity: 0.24;
 
     --tl-widget: #ffffff;
     --tl-widget-strong: #f7f9f5;
@@ -639,52 +640,106 @@
   }
 }
 
-/* --- Today football-atmosphere decorative layer (ADR-0141, ADR-0142) ----
+/* --- Today football-atmosphere decorative layer (ADR-0141, ADR-0142, Today Atmosphere Finish) ---
  * Repository-owned WebP raster (floodlit pitch), theme-specific image + opacity tokens above.
- * CSS owns the one vertical fade into the page canvas — see ADR-0142 `04_ATMOSPHERE_ASSET_CONTRACT.md`. */
+ * CSS owns all blending: a bottom mask fades the photograph itself to transparent, and a
+ * secondary colour wash (::after) converges the final pixels onto the exact active `--tl-canvas`
+ * token on both the left and bottom edges — this is intentional redundancy for visual
+ * robustness (mask antialiasing/browser differences), not two competing blend systems. See the
+ * Today Atmosphere Finish bundle's `02_BLEND_IMPLEMENTATION_CONTRACT.md`. */
 .today-atmosphere {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 300px;
+  height: 340px;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+
+  /* The true page colour owns every pixel revealed by the fades. */
+  background-color: var(--tl-canvas);
 }
 
 .today-atmosphere::before {
   content: "";
   position: absolute;
   inset: 0;
+
   background-image: var(--tl-today-atmosphere-image);
-  background-position: center right;
   background-repeat: no-repeat;
   background-size: cover;
+
+  /* Keeps the approved goal/stadium/floodlight composition in frame when cover crops vertically. */
+  background-position: right 15%;
+
   opacity: var(--tl-today-atmosphere-opacity);
 
+  /* Primary bottom fade. The image itself reaches true transparency before the atmosphere box ends. */
   -webkit-mask-image: linear-gradient(
     to bottom,
     #000 0%,
-    #000 44%,
-    rgba(0, 0, 0, 0.76) 66%,
+    #000 50%,
+    rgba(0, 0, 0, 0.72) 68%,
     transparent 100%
   );
 
   mask-image: linear-gradient(
     to bottom,
     #000 0%,
-    #000 44%,
-    rgba(0, 0, 0, 0.76) 66%,
+    #000 50%,
+    rgba(0, 0, 0, 0.72) 68%,
     transparent 100%
   );
 }
 
-@media (max-width: 599px) {
+.today-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /*
+   * Secondary colour wash.
+   *
+   * The left wash protects the Today heading and removes any perceived left image boundary.
+   * The bottom wash lands on the exact active Touchline canvas colour, which guarantees that
+   * the image does not terminate as a visible horizontal rectangle even if antialiasing or
+   * mask implementation differs slightly between browsers.
+   */
+  background:
+    linear-gradient(
+      to right,
+      var(--tl-canvas) 0%,
+      color-mix(in srgb, var(--tl-canvas) 92%, transparent) 10%,
+      color-mix(in srgb, var(--tl-canvas) 58%, transparent) 22%,
+      transparent 42%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 50%,
+      color-mix(in srgb, var(--tl-canvas) 15%, transparent) 64%,
+      color-mix(in srgb, var(--tl-canvas) 72%, transparent) 84%,
+      var(--tl-canvas) 100%
+    );
+}
+
+@media (min-width: 600px) and (max-width: 1199px) {
   .today-atmosphere {
-    height: 220px;
+    height: 300px;
   }
 
   .today-atmosphere::before {
+    background-position: 72% 15%;
+  }
+}
+
+@media (max-width: 599px) {
+  .today-atmosphere {
+    height: 230px;
+  }
+
+  .today-atmosphere::before {
+    background-position: 72% 12%;
     opacity: calc(var(--tl-today-atmosphere-opacity) * 0.72);
-    background-position: 62% top;
   }
 }

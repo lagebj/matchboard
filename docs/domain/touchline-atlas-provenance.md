@@ -1990,3 +1990,73 @@ Gate execution notes for this pass:
   captured from the approved implementation screenshot above (not the conceptual golden), per
   "Automated regression after human approval". Skips itself when
   `PLAYWRIGHT_BASE_URL` targets production (the route 404s there by design).
+
+## 44. Today atmosphere artwork/blend finish (2026-09-14, ADR-0142 follow-up)
+
+**Scope**: artwork and blend-CSS only, per
+`.matchboard-work/matchboard_today_atmosphere_finish_2026-09-14/00_EXECUTION_CONTRACT.md`. No
+Today composition, domain behaviour, data loaders, navigation, or auth changed. This pass
+supersedes only the previous atmosphere-finish CSS values recorded in §43 above (the
+`0.78`/`0.32` opacities and the single-mask `::before`-only implementation) — the corrective
+convergence bundle otherwise remains authoritative for Today's composition.
+
+**Why another pass was needed**: the WebP rasters delivered in §43 (PR #586/#587) were
+low-fidelity/illustrated stand-ins, not the intended photographic floodlit-pitch atmosphere,
+and the single `::before` mask alone still produced a visible rectangular seam against the
+Touchline canvas at the bottom and left edges in both themes.
+
+**Assets replaced again**: `public/touchline/today-atmosphere-{dark,light}.webp` were replaced
+with new, repository-owned, photographically realistic stadium/pitch images supplied by the
+programme, verified byte-for-byte against
+`.matchboard-work/matchboard_today_atmosphere_finish_2026-09-14/ASSET_SHA256.txt` before and
+after copying into `public/touchline/`. No upload/object-storage/remote-image-fetch capability
+was introduced.
+
+**Blend CSS rewritten** in `src/app/touchline.css` per
+`02_BLEND_IMPLEMENTATION_CONTRACT.md`/`03_RESPONSIVE_AND_THEME_CONTRACT.md`:
+- `--tl-today-atmosphere-opacity` changed from `0.78`/`0.32` to `0.58` (dark) / `0.24` (light,
+  both the explicit `[data-theme="light"]` block and the `@media (prefers-color-scheme: light)`
+  system block).
+- `.today-atmosphere` gained an explicit `background-color: var(--tl-canvas)` fallback and its
+  expanded height increased to `340px` (was `300px`).
+- `.today-atmosphere::before` background-position changed to `right 15%` (was `center right`);
+  its mask gradient stops changed to `#000 0%, #000 50%, rgba(0,0,0,0.72) 68%, transparent 100%`
+  (was `44%`/`66%`/`0.76`).
+- A new `.today-atmosphere::after` pseudo-element was added implementing a two-axis
+  `color-mix(in srgb, var(--tl-canvas) X%, transparent)` wash along the left and bottom edges —
+  always derived from the live `--tl-canvas` token (`#090b0f` dark / `#f3f5f1` light), never a
+  hard-coded hex value, so the wash tracks the theme automatically and eliminates the residual
+  seam the single-mask implementation left behind.
+- Added a new medium breakpoint `@media (min-width: 600px) and (max-width: 1199px)`
+  (height `300px`, position `72% 15%`); the compact breakpoint `@media (max-width: 599px)` was
+  revised to height `230px` (was `220px`), position `72% 12%` (was `62% top`), opacity unchanged
+  at ×`0.72` of the base token.
+- `TodaySurface`'s root wrapper gained `isolate` (now `relative isolate`) to establish the
+  stacking context the new `::after` wash requires, without changing DOM structure, semantics, or
+  any Today composition/behaviour.
+- `TodayAtmosphere`'s doc comment was updated to reference ADR-0142 and this Atmosphere Finish
+  pass instead of the superseded SVG-era comment; the component's implementation (`aria-hidden`,
+  no interactivity, no theme branching) was already correct and needed no logic change.
+
+**Visual acceptance gate executed** per `04_VISUAL_ACCEPTANCE_GATE.md`: authenticated via the
+existing `test-agent` Credentials provider (`TEST_AGENT_AUTH_ENABLED=true`) against a local dev
+server, captured screenshots at dark/light × expanded (1672×941), compact (390×844), and one
+medium-width (900×900) check. Confirmed by direct visual inspection (including zoomed edge crops)
+that: the photograph fades completely into the canvas before the "Next Action" card (no bottom
+seam), the left edge near the "Today" title is calm and blended with no rectangular boundary, the
+correct theme-specific asset is shown in each theme, and both new assets are realistic
+photographic pitches with correct goal/perspective geometry. Evidence saved to
+`artifacts/today-atmosphere-finish/{dark,light}-{expanded-1672x941,compact-390x844}.png`
+(gitignored — `/artifacts/` — attached to the PR rather than committed).
+
+**Playwright baseline regeneration note**: `e2e/today-visual-regression.spec.ts-snapshots/
+today-primary-chromium-linux.png` was regenerated against the new artwork. Notably, an initial
+plain `--update-snapshots` run left the stale baseline in place *and reported all tests passing*,
+because Playwright's `toHaveScreenshot` pixelmatch comparison tolerated the diff between the old
+and new dark-mode images (both share large near-black regions) within the existing
+`maxDiffPixelRatio: 0.02` threshold, and because bare `--update-snapshots` only rewrites
+snapshots that fail comparison (Playwright 1.62.1's default mode is `"changed"`, not `"all"`).
+The baseline was correctly regenerated using `--update-snapshots=all`, then re-verified stable
+across repeated runs against the new baseline. Lesson recorded here: a "passed" run after a major
+artwork change does not by itself prove the baseline was updated — always force full
+regeneration and re-diff the resulting PNG against the intended new capture.
