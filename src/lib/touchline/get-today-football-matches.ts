@@ -9,6 +9,7 @@
  */
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { getDisplayDateKey } from "@/lib/date-utils";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import type { RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
@@ -100,6 +101,25 @@ export async function getTodayFootballMatches(
     .map((m) => leagueMatchToTodayFootballMatch(m, orgUrl));
 
   const featured = selectFeaturedTodayFootballMatch([...leagueFootballMatches, ...eventFootballMatches]);
+
+  // TEMPORARY diagnostic (remove after root-causing the "no Matchday controls" production
+  // report) — logs the exact shape this loader saw so we can see why `featured` did/didn't
+  // resolve without needing direct prod DB access.
+  logger.info(
+    {
+      todayKey,
+      todayLeagueMatchesInput: todayLeagueMatches.length,
+      leagueFootballMatchesAfterDateFilter: leagueFootballMatches.length,
+      eventMatchesRaw: eventMatches.length,
+      eventFootballMatchesAfterDateFilter: eventFootballMatches.length,
+      leagueStartsAt: todayLeagueMatches.map((m) => m.startsAt),
+      leagueHasActiveLiveSession: todayLeagueMatches.map((m) => m.hasActiveLiveSession),
+      featuredId: featured?.id ?? null,
+      featuredSource: featured?.source ?? null,
+    },
+    "[today-matchday-diagnostic] getTodayFootballMatches",
+  );
+
   if (!featured) return null;
 
   const readiness =
