@@ -24,7 +24,6 @@ import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-m
 import type { CoachSituationProjection } from "@/lib/situational/situation-types";
 import type { WeeklyCoachingContextResult } from "@/lib/weekly/weekly-coaching-context-types";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
-import { resolveFeaturedUpcomingMatch } from "@/lib/matches/today-match-presentation";
 import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import { TodayAtmosphere } from "@/components/touchline/today/today-atmosphere";
@@ -39,10 +38,15 @@ import { TodayContextRail } from "@/components/touchline/today/today-context-rai
 import { DueDecisionReviewSection } from "@/components/assistant/due-decision-review-section";
 import { resolveTodayPrimaryAction } from "@/lib/touchline/presentation/today-primary-action";
 import { workItemIdFromCandidateId } from "@/lib/situational/providers/assistant-candidate-provider";
+import { idempotencyKeyFromCandidateId } from "@/lib/situational/providers/plan-integrity-candidate-provider";
 import type { TodaySelectionDecision } from "@/lib/touchline/presentation/today-selection-recommendation-plan";
 import type { TodayLiveNowResult } from "@/lib/live-match/get-today-live-match-summaries";
 import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
 import type { TodayCarryForwardItem } from "@/lib/touchline/presentation/today-carry-forward";
+import { TodayMatchday } from "@/components/touchline/today/today-matchday";
+import type { TodayMatchdayContext } from "@/lib/touchline/get-today-football-matches";
+import { resolveTodayMatchdayAction } from "@/lib/touchline/presentation/today-matchday-readiness";
+import { resolveTodayMatchdayPhase } from "@/lib/touchline/presentation/today-matchday-phase";
 
 function isActionable(item: AssistantCommandCentre["items"][number]): boolean {
   return item.category !== "upcoming_round";
@@ -60,6 +64,7 @@ export function TodaySurface({
   sinceLastVisitScope,
   sinceLastVisitFacts,
   carryForwardItems,
+  matchdayContext,
 }: {
   commandCentre: AssistantCommandCentre;
   projection?: CoachSituationProjection;
@@ -74,25 +79,56 @@ export function TodaySurface({
   sinceLastVisitScope?: string;
   sinceLastVisitFacts?: TodayVisitCurrentFacts;
   carryForwardItems: TodayCarryForwardItem[];
+  /** The one deterministically featured same-day match and its readiness (ADR-0143) — null
+   * when Live Now already owns the anchor, or there is no eligible same-day match at all. */
+  matchdayContext?: TodayMatchdayContext;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
   const actionable = items.filter(isActionable);
+  const nowIso = new Date().toISOString();
+
+  const matchdayPhase = matchdayContext
+    ? resolveTodayMatchdayPhase({
+        nowIso,
+        startsAtIso: matchdayContext.featured.startsAt,
+        lifecycleStatus: matchdayContext.featured.lifecycleStatus,
+        hasActiveLiveSession: matchdayContext.featured.hasActiveLiveSession,
+        canEnterLiveReporting: matchdayContext.featured.liveEntryHref != null,
+      }).phase
+    : null;
+
+  // Every readiness/review action Matchday offers points at the match/event's own canonical
+  // detail page and the same live-entry route Live Now's own "Follow live" action already uses —
+  // no second lineup/availability/live-start route is introduced (ADR-0143).
+  const matchdayAction =
+    matchdayContext && matchdayPhase
+      ? resolveTodayMatchdayAction({
+          phase: matchdayPhase,
+          readiness: matchdayContext.readiness,
+          canEnterLiveReporting: matchdayContext.featured.liveEntryHref != null,
+          startLiveHref: matchdayContext.featured.liveEntryHref ?? matchdayContext.featured.href,
+          reviewHref: matchdayContext.featured.href,
+          availabilityReviewHref: matchdayContext.featured.href,
+          lineupReviewHref: matchdayContext.featured.href,
+        })
+      : null;
+
+  const matchdayConsumedSignalId = matchdayAction?.consumedSignalId ?? null;
 
   const primaryAction = resolveTodayPrimaryAction({
     projectionDecisions: projection?.decisions ?? [],
     selectionDecisions,
     roundPlanIntegrities: commandCentre.roundPlanIntegrities,
     todayMatches: commandCentre.todayMatches,
+    excludedCandidateIds: matchdayConsumedSignalId
+      ? new Set(
+          (projection?.decisions ?? [])
+            .filter((d) => idempotencyKeyFromCandidateId(d.candidateId) === matchdayConsumedSignalId)
+            .map((d) => d.candidateId),
+        )
+      : undefined,
   });
-
-  const featuredMatch =
-    primaryAction.kind === "NONE" ? resolveFeaturedUpcomingMatch(commandCentre.todayMatches) : undefined;
-  const featuredMatchHref = featuredMatch
-    ? featuredMatch.squadStatus === "not_generated"
-      ? orgUrl("/fixtures")
-      : orgUrl(`/matches/${featuredMatch.matchId}`)
-    : undefined;
 
   // Exclude whichever signal/decision was promoted to the primary action from the lower
   // full-detail sections, to avoid duplication (ADR-0142 "Primary-action resolution correction").
@@ -101,8 +137,12 @@ export function TodaySurface({
   const promotedWorkItemId =
     primaryAction.kind === "GENERIC" ? workItemIdFromCandidateId(primaryAction.decision.candidateId) : null;
 
-  const remainingSelectionDecisions = selectionDecisions.filter((d) => d.signalKey !== promotedSelectionSignalKey);
-  const excludedFromPlanningAttention = new Set<string>(promotedPlanIntegrityKey ? [promotedPlanIntegrityKey] : []);
+  const remainingSelectionDecisions = selectionDecisions.filter(
+    (d) => d.signalKey !== promotedSelectionSignalKey && d.signalKey !== matchdayConsumedSignalId,
+  );
+  const excludedFromPlanningAttention = new Set<string>(
+    [promotedPlanIntegrityKey, matchdayConsumedSignalId].filter((key): key is string => Boolean(key)),
+  );
   const planningAttentionSignals = selectTodayPlanningAttentionSignals(
     commandCentre.roundPlanIntegrities,
     excludedFromPlanningAttention,
@@ -110,6 +150,13 @@ export function TodaySurface({
 
   const otherAttentionExcludeIds = new Set<string>(promotedWorkItemId ? [promotedWorkItemId] : []);
   const otherAttentionItems = selectTodayOtherAttentionItems(actionable, otherAttentionExcludeIds);
+
+  // The match Live Now or Matchday already owns must not also appear as still-unaddressed lower
+  // chronology (ADR-0143 §4.5/§4.7) — Event matches never appear in this League-only timeline, so
+  // only a League-sourced featured match needs excluding here.
+  const timelineExcludedMatchId =
+    liveNow?.primary?.matchId ??
+    (matchdayContext?.featured.source === "LEAGUE" ? matchdayContext.featured.id : null);
 
   const reviewCount = actionable.filter(
     (i) => i.category === "review_assigned" || i.category === "review_changes_requested",
@@ -131,12 +178,22 @@ export function TodaySurface({
           context={leagueSeasonName ?? "What needs attention before the next matches."}
         />
 
-        {liveNow && (
+        {liveNow ? (
           <TodayLiveNow
             primary={liveNow.primary}
             otherLiveCount={liveNow.otherLiveCount}
             matchHref={(matchId) => orgUrl(`/matches/${matchId}/live`)}
           />
+        ) : (
+          matchdayContext &&
+          matchdayAction && (
+            <TodayMatchday
+              match={matchdayContext.featured}
+              readiness={matchdayContext.readiness}
+              action={matchdayAction}
+              nowIso={nowIso}
+            />
+          )
         )}
 
         <div className={hasContextRailContent ? "grid grid-cols-1 gap-5 expanded:grid-cols-12" : ""}>
@@ -149,8 +206,6 @@ export function TodaySurface({
               onApply={applyRecommendation}
               roundBoardBaseHref={orgUrl("/rounds")}
               orgUrl={orgUrl}
-              featuredMatch={featuredMatch}
-              featuredMatchHref={featuredMatchHref}
             />
 
             <TodaySelectionDecisions
@@ -165,7 +220,11 @@ export function TodaySurface({
 
             <TodayOtherAttention items={otherAttentionItems} />
 
-            <TodayOperationalTimeline matches={commandCentre.todayMatches} orgUrl={orgUrl} />
+            <TodayOperationalTimeline
+              matches={commandCentre.todayMatches}
+              orgUrl={orgUrl}
+              excludedMatchId={timelineExcludedMatchId}
+            />
 
             <DueDecisionReviewSection reviews={commandCentre.dueDecisionReviews} />
 

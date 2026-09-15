@@ -11,9 +11,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { TouchlineButton } from "@/components/touchline";
-import { NextMatchHero } from "@/components/touchline/widgets";
 import { EmptyState } from "@/components/ui/empty-state";
-import { todayMatchPresentation } from "@/lib/matches/today-match-presentation";
 import type { TodayPrimaryAction } from "@/lib/touchline/presentation/today-primary-action";
 import { TodayDecisionRow, type ApplyRecommendationFn } from "@/components/touchline/today/today-selection-decisions";
 import type { CoachSituationProjectionStatus } from "@/lib/situational/situation-types";
@@ -42,8 +40,6 @@ export function TodayNextAction({
   onApply,
   roundBoardBaseHref,
   orgUrl,
-  featuredMatch,
-  featuredMatchHref,
 }: {
   action: TodayPrimaryAction;
   status: CoachSituationProjectionStatus | undefined;
@@ -52,8 +48,6 @@ export function TodayNextAction({
   onApply: ApplyRecommendationFn;
   roundBoardBaseHref: string;
   orgUrl: (path: string) => string;
-  featuredMatch?: Parameters<typeof todayMatchPresentation>[0];
-  featuredMatchHref?: string;
 }) {
   if (action.kind === "SELECTION_DECISION") {
     return (
@@ -128,26 +122,9 @@ export function TodayNextAction({
     );
   }
 
-  // NONE — nothing forced to feature. A featured upcoming match becomes the hero instead of a
-  // bare empty state when one exists; otherwise a genuinely quiet-day empty state.
-  if (featuredMatch && featuredMatchHref) {
-    return (
-      <NextMatchHero
-        presentation={todayMatchPresentation(featuredMatch, featuredMatchHref)}
-        primaryAction={
-          <TouchlineButton
-            as={Link}
-            href={featuredMatchHref}
-            variant="primary"
-            trailingIcon={<ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />}
-          >
-            Match details
-          </TouchlineButton>
-        }
-      />
-    );
-  }
-
+  // NONE — nothing forced to feature. Matchday (ADR-0143) now owns the featured-upcoming-match
+  // role that previously lived here as a `NextMatchHero` fallback; this is a genuinely quiet-day
+  // empty state (no live/imminent match, no plan-integrity signal, no situational decision).
   const readyState = readyStateCopy(status);
   return (
     <EmptyState

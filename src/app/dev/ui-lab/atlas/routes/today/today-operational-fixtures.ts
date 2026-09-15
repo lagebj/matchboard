@@ -9,21 +9,42 @@
 import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/match-presentation";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
 import type { CoachDecision, CoachSituationProjection } from "@/lib/situational/situation-types";
-import type { RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import type { RoundPlanIntegrity, PlanIntegritySignal } from "@/lib/selection/compute-plan-integrity";
 import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import type { TodayLiveNowResult } from "@/lib/live-match/get-today-live-match-summaries";
 import type { TodaySelectionDecision } from "@/lib/touchline/presentation/today-selection-recommendation-plan";
 import type { ApplyRecommendationFn } from "@/components/touchline/today/today-selection-decisions";
 import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
 import type { TodayCarryForwardItem } from "@/lib/touchline/presentation/today-carry-forward";
+import type { TodayFootballMatch } from "@/lib/touchline/presentation/today-football-match";
+import type { TodayMatchdayReadiness } from "@/lib/touchline/presentation/today-matchday-readiness";
+import type { TodayMatchdayContext } from "@/lib/touchline/get-today-football-matches";
 
-export type TodayFixtureStateKey = "primary" | "planning" | "ready" | "coordination";
+export type TodayFixtureStateKey =
+  | "primary"
+  | "planning"
+  | "ready"
+  | "coordination"
+  | "matchday-prepare"
+  | "matchday-verify-problem"
+  | "matchday-imminent-ready"
+  | "matchday-live"
+  | "matchday-post"
+  | "matchday-multiple"
+  | "matchday-event";
 
 export const TODAY_FIXTURE_STATES: { key: TodayFixtureStateKey; label: string }[] = [
   { key: "primary", label: "Primary (golden)" },
   { key: "planning", label: "Planning — no live match" },
   { key: "ready", label: "Ready — no immediate action" },
   { key: "coordination", label: "Coordination — second decision waits" },
+  { key: "matchday-prepare", label: "Matchday — prepare" },
+  { key: "matchday-verify-problem", label: "Matchday — verify (doubtful player)" },
+  { key: "matchday-imminent-ready", label: "Matchday — imminent, ready" },
+  { key: "matchday-live", label: "Matchday — live (Live Now owns anchor)" },
+  { key: "matchday-post", label: "Matchday — post-match" },
+  { key: "matchday-multiple", label: "Matchday — multiple same-day matches" },
+  { key: "matchday-event", label: "Matchday — Event match" },
 ];
 
 function makeItem(overrides: Partial<AssistantWorkItem> & Pick<AssistantWorkItem, "category" | "id">): AssistantWorkItem {
@@ -247,7 +268,54 @@ export type TodayFixture = {
   sinceLastVisitScope: string;
   sinceLastVisitFacts: TodayVisitCurrentFacts | undefined;
   carryForwardItems: TodayCarryForwardItem[];
+  matchdayContext: TodayMatchdayContext | undefined;
 };
+
+/* --- Matchday (ADR-0143) fixture helpers ---------------------------------------------------- */
+function makeFootballMatch(overrides: Partial<TodayFootballMatch> & Pick<TodayFootballMatch, "id">): TodayFootballMatch {
+  return {
+    source: "LEAGUE",
+    containerId: "round-42",
+    containerLabel: "Round 42",
+    teamOrSquadName: "Rød",
+    opponentName: "Konnerud Blå",
+    startsAt: null,
+    venueLabel: "Home",
+    lifecycleStatus: "planning_open",
+    hasActiveLiveSession: false,
+    reportState: null,
+    score: null,
+    href: `/matches/${overrides.id}`,
+    liveEntryHref: `/matches/${overrides.id}/live`,
+    ...overrides,
+  };
+}
+
+function makeReadiness(input: {
+  availableCount: number;
+  doubtfulCount: number;
+  unavailableCount: number;
+  affectedPlayers?: NonNullable<TodayMatchdayReadiness["selectedAvailability"]>["affectedPlayers"];
+  blockingSignals?: PlanIntegritySignal[];
+}): TodayMatchdayReadiness {
+  const selectedCount = input.availableCount + input.doubtfulCount + input.unavailableCount;
+  return {
+    selection: { state: "FINALIZED", selectedCount, targetCount: selectedCount },
+    selectedAvailability: {
+      selectedCount,
+      availableCount: input.availableCount,
+      doubtfulCount: input.doubtfulCount,
+      unavailableCount: input.unavailableCount,
+      unknownCount: 0,
+      affectedPlayers: input.affectedPlayers ?? [],
+    },
+    lineup: { state: "READY" },
+    tactics: { state: "UNKNOWN" },
+    plannedRotations: null,
+    blockingSignals: input.blockingSignals ?? [],
+    decisionSignals: [],
+  };
+}
 
 export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
   switch (state) {
@@ -271,6 +339,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         sinceLastVisitScope: "uilab-primary",
         sinceLastVisitFacts,
         carryForwardItems,
+        matchdayContext: undefined,
       };
     case "planning":
       return {
@@ -291,6 +360,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         sinceLastVisitScope: "uilab-planning",
         sinceLastVisitFacts: undefined,
         carryForwardItems: [],
+        matchdayContext: undefined,
       };
     case "ready":
       return {
@@ -309,6 +379,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         sinceLastVisitScope: "uilab-ready",
         sinceLastVisitFacts: undefined,
         carryForwardItems: [],
+        matchdayContext: undefined,
       };
     case "coordination":
       return {
@@ -327,6 +398,208 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         sinceLastVisitScope: "uilab-coordination",
         sinceLastVisitFacts: undefined,
         carryForwardItems: [],
+        matchdayContext: undefined,
+      };
+    case "matchday-prepare":
+      return {
+        commandCentre: makeCommandCentre([], []),
+        projection: makeProjection({ primarySituation: "NEXT" }),
+        recentMatches,
+        squadStatus,
+        liveNow: undefined,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-prepare",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: {
+          featured: makeFootballMatch({
+            id: "match-w42",
+            startsAt: new Date(Date.now() + 3 * 3_600_000 + 25 * 60_000).toISOString(),
+            containerLabel: "Round 42",
+          }),
+          readiness: makeReadiness({ availableCount: 10, doubtfulCount: 0, unavailableCount: 0 }),
+        },
+      };
+    case "matchday-verify-problem":
+      return {
+        commandCentre: makeCommandCentre([], []),
+        projection: makeProjection({ primarySituation: "NEXT" }),
+        recentMatches,
+        squadStatus,
+        liveNow: undefined,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-verify",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: {
+          featured: makeFootballMatch({
+            id: "match-w42",
+            startsAt: new Date(Date.now() + 95 * 60_000).toISOString(),
+            containerLabel: "Round 42",
+          }),
+          readiness: makeReadiness({
+            availableCount: 9,
+            doubtfulCount: 1,
+            unavailableCount: 0,
+            affectedPlayers: [{ playerId: "player-noah", displayName: "Noah", state: "DOUBTFUL" }],
+          }),
+        },
+      };
+    case "matchday-imminent-ready":
+      return {
+        commandCentre: makeCommandCentre([], []),
+        projection: makeProjection({ primarySituation: "MATCHDAY" }),
+        recentMatches,
+        squadStatus,
+        liveNow: undefined,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-imminent",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: {
+          featured: makeFootballMatch({
+            id: "match-w42",
+            startsAt: new Date(Date.now() + 28 * 60_000).toISOString(),
+            containerLabel: "Round 42",
+          }),
+          readiness: makeReadiness({ availableCount: 10, doubtfulCount: 0, unavailableCount: 0 }),
+        },
+      };
+    case "matchday-live":
+      // A live session already exists for today's match — Live Now owns the anchor and Matchday
+      // is not computed at all for this fixture (ADR-0143 §4.5), mirroring production wiring
+      // exactly (`matchdayContext` is `undefined` whenever `liveNow` is present).
+      return {
+        commandCentre: makeCommandCentre(
+          [],
+          [
+            makeTodayMatch({
+              matchId: "match-live-1",
+              matchRoundId: "round-42",
+              matchRoundName: "Round 42",
+              teamName: "Rød",
+              opponent: "Konnerud Blå",
+              homeAway: "HOME",
+              startsAt: new Date(Date.now() - 40 * 60_000).toISOString(),
+              hasActiveLiveSession: true,
+              lifecycleStatus: "live",
+              homeScore: 1,
+              awayScore: 0,
+            }),
+          ],
+        ),
+        projection: makeProjection({ primarySituation: "MATCHDAY", activeMatchId: "match-live-1" }, "LIVE"),
+        recentMatches,
+        squadStatus,
+        liveNow: {
+          primary: {
+            matchId: "match-live-1",
+            sessionId: "session-live-1",
+            teamName: "Rød",
+            opponentName: "Konnerud Blå",
+            goalsFor: 1,
+            goalsAgainst: 0,
+            periodLabel: "First half",
+            elapsedLabel: "38:12",
+            isRunning: true,
+          },
+          otherLiveCount: 0,
+        },
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-live",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: undefined,
+      };
+    case "matchday-post":
+      return {
+        commandCentre: makeCommandCentre([], []),
+        projection: makeProjection({ primarySituation: "NEXT" }),
+        recentMatches,
+        squadStatus,
+        liveNow: undefined,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-post",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: {
+          featured: makeFootballMatch({
+            id: "match-w42",
+            startsAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+            containerLabel: "Round 42",
+            lifecycleStatus: "report_incomplete",
+            score: { own: 5, opponent: 3 },
+            reportState: "reported",
+          }),
+          readiness: makeReadiness({ availableCount: 10, doubtfulCount: 0, unavailableCount: 0 }),
+        },
+      };
+    case "matchday-multiple":
+      return {
+        commandCentre: makeCommandCentre(
+          [],
+          [
+            makeTodayMatch({
+              matchId: "match-w42-b",
+              matchRoundId: "round-35",
+              matchRoundName: "Round 35",
+              teamName: "Hvit",
+              opponent: "Tofte",
+              homeAway: "AWAY",
+              startsAt: new Date(Date.now() + 5 * 3_600_000).toISOString(),
+              lifecycleStatus: "planning_open",
+            }),
+          ],
+        ),
+        projection: makeProjection({ primarySituation: "NEXT" }),
+        recentMatches,
+        squadStatus,
+        liveNow: undefined,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-multiple",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: {
+          featured: makeFootballMatch({
+            id: "match-w42-a",
+            startsAt: new Date(Date.now() + 90 * 60_000).toISOString(),
+            containerLabel: "Round 42",
+          }),
+          readiness: makeReadiness({ availableCount: 10, doubtfulCount: 0, unavailableCount: 0 }),
+        },
+      };
+    case "matchday-event":
+      return {
+        commandCentre: makeCommandCentre([], []),
+        projection: makeProjection({ primarySituation: "NEXT" }),
+        recentMatches,
+        squadStatus,
+        liveNow: undefined,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-matchday-event",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
+        matchdayContext: {
+          featured: makeFootballMatch({
+            id: "event-match-1",
+            source: "EVENT",
+            teamOrSquadName: "Hvit",
+            opponentName: "Summer Cup Rivals",
+            containerLabel: "Summer Cup",
+            venueLabel: null,
+            startsAt: new Date(Date.now() + 42 * 60_000).toISOString(),
+            href: "/events/summer-cup",
+            liveEntryHref: "/events/summer-cup/matches/event-match-1/live",
+          }),
+          readiness: makeReadiness({ availableCount: 8, doubtfulCount: 0, unavailableCount: 0 }),
+        },
       };
   }
 }
