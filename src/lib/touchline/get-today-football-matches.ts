@@ -110,6 +110,12 @@ export async function getTodayFootballMatches(
   return { featured, readiness };
 }
 
+// `Player.name` does not exist in the schema (first/last only) — mirrors the existing
+// `firstName + (lastName ? " " + lastName : "")` convention used across src/lib/insights/*.
+function formatPlayerDisplayName(firstName: string, lastName: string | null): string {
+  return lastName ? `${firstName} ${lastName}` : firstName;
+}
+
 async function buildLeagueMatchdayReadiness(
   matchId: string,
   roundPlanIntegrities: Record<string, RoundPlanIntegrity>,
@@ -121,7 +127,7 @@ async function buildLeagueMatchdayReadiness(
         status: true,
         matchRoundId: true,
         match: { select: { team: { select: { targetSquadSize: true } } } },
-        player: { select: { id: true, name: true, currentAvailability: true } },
+        player: { select: { id: true, firstName: true, lastName: true, currentAvailability: true } },
       },
     }),
     db.matchLineup.findFirst({ where: { matchId }, select: { id: true } }),
@@ -146,7 +152,7 @@ async function buildLeagueMatchdayReadiness(
     selectedAvailability: buildSelectedAvailability(
       selections.map((s) => ({
         playerId: s.player.id,
-        displayName: s.player.name,
+        displayName: formatPlayerDisplayName(s.player.firstName, s.player.lastName),
         availability: s.player.currentAvailability,
       })),
     ),
@@ -165,7 +171,7 @@ async function buildEventMatchdayReadiness(eventMatchId: string, eventId: string
     db.eventMatchAvailability.findMany({
       where: { eventMatchId },
       select: {
-        player: { select: { id: true, name: true } },
+        player: { select: { id: true, firstName: true, lastName: true } },
         guestPlayer: { select: { id: true, name: true } },
       },
     }),
@@ -196,7 +202,7 @@ async function buildEventMatchdayReadiness(eventMatchId: string, eventId: string
       status === "AVAILABLE" ? "AVAILABLE" : status === "UNAVAILABLE" || status === "WITHDRAWN" ? "UNAVAILABLE" : "UNKNOWN";
     return {
       playerId: a.player?.id ?? a.guestPlayer!.id,
-      displayName: a.player?.name ?? a.guestPlayer!.name,
+      displayName: a.player ? formatPlayerDisplayName(a.player.firstName, a.player.lastName) : a.guestPlayer!.name,
       availability,
     };
   });
