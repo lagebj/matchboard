@@ -112,7 +112,7 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
     activePeriod?.rounds.some((r) => r.selectionState === "NOT_GENERATED") ?? false;
 
   return (
-    <div className="touchline flex flex-col gap-6">
+    <div className="touchline flex min-w-0 flex-col gap-6">
       <TouchlinePageHeader
         title="League"
         context={

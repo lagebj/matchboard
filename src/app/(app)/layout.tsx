@@ -65,7 +65,7 @@ export default async function AppLayout({
             <UserNav />
           </div>
         </header>
-        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main className="min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
           <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
             {children}
           </div>
@@ -95,7 +95,7 @@ export default async function AppLayout({
         <aside className="sticky top-0 z-30 hidden h-screen w-[216px] shrink-0 flex-col expanded:flex">
           <SidebarNav orgSlug={orgSlug} />
         </aside>
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header
             className="sticky top-0 z-20 flex items-center border-b border-[var(--border-soft)] bg-[var(--tl-c-canvas-raised)]"
           >
@@ -111,7 +111,7 @@ export default async function AppLayout({
               <UserNav />
             </div>
           </header>
-          <main className="flex-1 pb-[var(--nav-clearance)]">
+          <main className="min-w-0 flex-1 pb-[var(--nav-clearance)]">
             <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6">
               {children}
             </div>

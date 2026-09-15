@@ -23,7 +23,7 @@ export function LeagueSurface({ viewModel, onSelectRound, earlierExpanded, onTog
   const { railSlots, focusedRound, recentRounds, earlierRounds } = viewModel;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       {railSlots.length > 0 ? <LeagueSeasonRail slots={railSlots} onSelect={onSelectRound} /> : null}
 
       {focusedRound ? (
