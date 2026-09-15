@@ -176,6 +176,12 @@ const liveNowPrimary: TodayLiveNowResult = {
   otherLiveCount: 1,
 };
 
+/* --- Live Now: no active live match — `getTodayLiveMatchSummaries()` always resolves to this
+ * defined `{ primary: null, otherLiveCount: 0 }` shape, never `null`/`undefined` (confirmed after
+ * a production incident where fixtures using `liveNow: undefined` masked a bug that only the real
+ * always-defined shape exposed — see `today-surface.tsx`'s `liveNow?.primary` gate). ------------ */
+const noLiveMatch: TodayLiveNowResult = { primary: null, otherLiveCount: 0 };
+
 /* --- Selection decisions: two missing-opportunity signals, second coordinated on the first - */
 const decisionOne: TodaySelectionDecision = {
   signalKey: "signal-elias-w35",
@@ -354,7 +360,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [decisionOne, decisionTwo],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-planning",
@@ -373,7 +379,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }, "READY"),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-ready",
@@ -392,7 +398,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [decisionOne, decisionTwo],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-coordination",
@@ -406,7 +412,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-matchday-prepare",
@@ -427,7 +433,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-matchday-verify",
@@ -453,7 +459,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "MATCHDAY" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-matchday-imminent",
@@ -521,7 +527,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-matchday-post",
@@ -559,7 +565,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-matchday-multiple",
@@ -580,7 +586,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         projection: makeProjection({ primarySituation: "NEXT" }),
         recentMatches,
         squadStatus,
-        liveNow: undefined,
+        liveNow: noLiveMatch,
         selectionDecisions: [],
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-matchday-event",

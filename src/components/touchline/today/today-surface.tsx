@@ -178,7 +178,7 @@ export function TodaySurface({
           context={leagueSeasonName ?? "What needs attention before the next matches."}
         />
 
-        {liveNow ? (
+        {liveNow?.primary ? (
           <TodayLiveNow
             primary={liveNow.primary}
             otherLiveCount={liveNow.otherLiveCount}
