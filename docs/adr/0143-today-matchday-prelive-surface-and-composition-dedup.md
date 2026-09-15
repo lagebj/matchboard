@@ -62,6 +62,10 @@ The Matchday phase model and featured-match selection are new pure, unit-tested 
 
 The existing golden visual-regression baseline (`today-primary-chromium-linux.png`) becomes stale by design (§4.7's one-match rule now also excludes an anchor-owned Live Now match from the lower timeline) and needs a human-approved rebaseline; this is tracked as a follow-up in the delivering PR rather than performed unilaterally by this change.
 
+### Incident addendum (2026-09-15): Live Now/Matchday anchor gate
+
+The delivering PR (#589) gated the shared Live Now/Matchday anchor slot on `liveNow` truthiness (`liveNow ? <TodayLiveNow /> : (matchdayContext && ...)`), following the pre-existing `{liveNow && <TodayLiveNow />}` pattern it replaced. That pre-existing pattern was safe only because nothing else occupied the `else` branch; `getTodayLiveMatchSummaries()` has always resolved to a defined `{ primary: null, otherLiveCount: 0 }` object rather than `null`/`undefined` when there is no live match, so `liveNow` itself is always truthy in production — the `<TodayLiveNow />` branch always won and `<TodayMatchday />` never rendered for a real same-day match. UI-Lab's fixtures did not catch this because they hand-authored `liveNow: undefined` directly instead of the loader's real always-defined shape. Fixed by gating on `liveNow?.primary` instead of `liveNow`, with a regression test rendering `TodaySurface` directly against the real loader shape, and UI-Lab fixtures updated to use the same always-defined `{ primary: null, otherLiveCount: 0 }` shape the production loader returns.
+
 ## Relationship
 
 Extends ADR-0141 (Today as an operational command surface) with a new pre-live matchday phase model.
