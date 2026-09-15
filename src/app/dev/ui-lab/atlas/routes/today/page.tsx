@@ -42,6 +42,7 @@ function AtlasTodayPageInner() {
           sinceLastVisitScope={fixture.sinceLastVisitScope}
           sinceLastVisitFacts={fixture.sinceLastVisitFacts}
           carryForwardItems={fixture.carryForwardItems}
+          matchdayContext={fixture.matchdayContext}
         />
       </OrgSlugProvider>
     </UiLabShell>

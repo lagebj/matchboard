@@ -23,11 +23,16 @@ import type { TimelineNodeState } from "@/components/touchline/timeline/touchlin
 export function TodayOperationalTimeline({
   matches,
   orgUrl,
+  excludedMatchId,
 }: {
   matches: TodayMatch[];
   orgUrl: (path: string) => string;
+  /** The League match id already featured by Matchday or owned by Live Now (ADR-0143 §4.7) —
+   * excluded here so it is never shown a second time as still-unaddressed lower chronology. */
+  excludedMatchId?: string | null;
 }) {
-  const sorted = [...matches].sort((a, b) => {
+  const visibleMatches = excludedMatchId ? matches.filter((m) => m.matchId !== excludedMatchId) : matches;
+  const sorted = [...visibleMatches].sort((a, b) => {
     const av = a.startsAt ? Date.parse(a.startsAt) : Number.MAX_SAFE_INTEGER;
     const bv = b.startsAt ? Date.parse(b.startsAt) : Number.MAX_SAFE_INTEGER;
     return av - bv;
@@ -37,9 +42,9 @@ export function TodayOperationalTimeline({
 
   // First still-upcoming (not live, not played) match is NEXT; the rest LATER. Same selection
   // the Today Atlas hero features (`resolveFeaturedUpcomingMatch()`).
-  const firstUpcomingId = resolveFeaturedUpcomingMatch(matches)?.matchId;
+  const firstUpcomingId = resolveFeaturedUpcomingMatch(visibleMatches)?.matchId;
 
-  const liveCount = matches.filter((m) => m.hasActiveLiveSession).length;
+  const liveCount = visibleMatches.filter((m) => m.hasActiveLiveSession).length;
   const rows: ReactNode[] = [];
   const lastIndex = sorted.length - 1;
 
@@ -115,7 +120,7 @@ export function TodayOperationalTimeline({
         </div>
         <span className="text-[12px] text-[var(--text-muted)]">
           {liveCount > 0 ? `${liveCount} live · ` : ""}
-          {matches.length} {matches.length === 1 ? "match" : "matches"}
+          {visibleMatches.length} {visibleMatches.length === 1 ? "match" : "matches"}
         </span>
       </div>
       <OperationalTimeline aria-label="Today's operational timeline">{rows}</OperationalTimeline>

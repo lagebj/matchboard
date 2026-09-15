@@ -2060,3 +2060,62 @@ The baseline was correctly regenerated using `--update-snapshots=all`, then re-v
 across repeated runs against the new baseline. Lesson recorded here: a "passed" run after a major
 artwork change does not by itself prove the baseline was updated — always force full
 regeneration and re-diff the resulting PNG against the intended new capture.
+
+## 45. Today Matchday follow-up — pre-live surface and composition dedup (2026-09-15, ADR-0143)
+
+Implemented `.matchboard-work/matchboard_today_matchday_followup_2026-09-15/` — the fixed-scope
+(D1–D15) follow-up bundle adding a first-class pre-live "Matchday" surface to Today, per the new
+ADR-0143 (extends ADR-0141/ADR-0142).
+
+**New domain logic** (pure, unit-tested):
+- `src/lib/touchline/presentation/today-matchday-phase.ts` — deterministic
+  PREPARE/VERIFY/IMMINENT/LIVE/POST_MATCH phase resolver (carried over from the prior session).
+- `src/lib/touchline/presentation/today-football-match.ts` — `TodayFootballMatch` shared
+  League/Event adapter type, `leagueMatchToTodayFootballMatch()`,
+  `eventMatchToTodayFootballMatch()`/`deriveEventMatchLifecycleStatus()`, and the deterministic
+  `selectFeaturedTodayFootballMatch()` (never live; nearest-upcoming > most-recent-unresolved
+  post-match > most-recently-completed > cancelled-only-if-all-cancelled).
+- `src/lib/touchline/presentation/today-matchday-readiness.ts` — `TodayMatchdayReadiness` type,
+  availability/formatting helpers, and `resolveTodayMatchdayAction()` implementing the exact
+  §3.11 8-step action priority (hard blocker → unavailable player → doubtful player → missing
+  lineup → missing tactics → planning signal → start-live (IMMINENT only) → review/open).
+- `src/lib/touchline/get-today-football-matches.ts` — the DB loader: combines League
+  `TodayMatch[]` with a same-day Event-matches query, adapts both, selects the one featured
+  match, and — only for that match — batch-loads League or Event readiness facts from existing
+  Selection/availability/lineup/plan-integrity records. Returns no context whenever any today
+  match is live (Live Now's exclusive anchor ownership).
+
+**Composition wiring** (`src/components/touchline/today/today-surface.tsx`): Matchday is a
+conditional occupant of the same anchor position `TodayLiveNow` already owns — rendered only when
+no match is live. `excludedCandidateIds` (new optional parameter on
+`resolveTodayPrimaryAction()`) and `excludedMatchId` (new optional prop on
+`TodayOperationalTimeline`) implement §4.7's one-match rule and §4.8's identity-based dedup
+mechanism: whichever match/signal the anchor (Live Now or Matchday) already represents is
+excluded from Selection Decisions, Planning Attention, and the lower "Today in order" chronology,
+never re-derived by text similarity. `TodayNextAction`'s `NextMatchHero` fallback was removed —
+Matchday now owns that role exclusively.
+
+**No new routes were invented**: League/Event "Review lineup" and "Start live reporting" actions
+reuse the existing match/event detail pages and the confirmed canonical live-entry routes
+(`/matches/{matchId}/live`, `/events/{eventId}/matches/{eventMatchId}/live`) — no separate
+lineup/availability/tactics page exists in the domain model, and Matchday never fabricates one
+(no "Review tactics" action is ever rendered; `tactics.state` is always `"UNKNOWN"`).
+
+**UI-Lab fixtures**: `src/app/dev/ui-lab/atlas/routes/today/today-operational-fixtures.ts` gained
+seven new `matchday-*` states (`matchday-prepare`, `matchday-verify-problem`,
+`matchday-imminent-ready`, `matchday-live`, `matchday-post`, `matchday-multiple`,
+`matchday-event`) built from new `makeFootballMatch()`/`makeReadiness()` fixture helpers; all four
+pre-existing states got an explicit `matchdayContext: undefined` (no behavioural change — none of
+them has a same-day match without an active live session). All seven new states and the four
+pre-existing states were rendered and visually confirmed via a local Playwright script (this
+sandbox lacks `TEST_AGENT_AUTH_ENABLED`-compatible seeded users, so the repository's own
+`e2e/today-visual-regression.spec.ts` auth-gated suite could not be run directly here).
+
+**Golden baseline impact — found, not silently absorbed**: manual visual comparison against
+`e2e/today-visual-regression.spec.ts-snapshots/today-primary-chromium-linux.png` found that the
+new §4.7 one-match rule also removes the anchor-owned Live Now match from the golden fixture's
+"Today in order" lower-timeline count (`1 live · 2 matches` → `1 match`). This is the intended,
+spec-required behaviour, not a defect, and is recorded as a required human-approved rebaseline
+follow-up (this pass does not overwrite the baseline unilaterally, consistent with the
+human-approval discipline `today-visual-regression.spec.ts`'s own header comment and §42/§44 of
+this log already establish for that file).

@@ -36,8 +36,14 @@ export function resolveTodayPrimaryAction(input: {
   selectionDecisions: TodaySelectionDecision[];
   roundPlanIntegrities: Record<string, RoundPlanIntegrity>;
   todayMatches: TodayMatch[];
+  /** Candidate ids already represented by Matchday's own primary action (ADR-0143 §4.9) — this
+   * resolver skips them and takes the next decision in the projection's own order, without
+   * reranking the remaining decisions. */
+  excludedCandidateIds?: ReadonlySet<string>;
 }): TodayPrimaryAction {
-  const topDecision = input.projectionDecisions[0];
+  const topDecision = input.excludedCandidateIds
+    ? input.projectionDecisions.find((d) => !input.excludedCandidateIds!.has(d.candidateId))
+    : input.projectionDecisions[0];
   if (!topDecision) return { kind: "NONE" };
 
   const signalKey = idempotencyKeyFromCandidateId(topDecision.candidateId);
