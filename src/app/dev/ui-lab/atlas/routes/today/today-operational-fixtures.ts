@@ -8,13 +8,14 @@
  */
 import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/match-presentation";
 import type { AssistantCommandCentre, AssistantWorkItem, TodayMatch } from "@/lib/assistant/types";
-import type { CoachSituationProjection } from "@/lib/situational/situation-types";
+import type { CoachDecision, CoachSituationProjection } from "@/lib/situational/situation-types";
 import type { RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import type { TodayLiveNowResult } from "@/lib/live-match/get-today-live-match-summaries";
 import type { TodaySelectionDecision } from "@/lib/touchline/presentation/today-selection-recommendation-plan";
 import type { ApplyRecommendationFn } from "@/components/touchline/today/today-selection-decisions";
 import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
+import type { TodayCarryForwardItem } from "@/lib/touchline/presentation/today-carry-forward";
 
 export type TodayFixtureStateKey = "primary" | "planning" | "ready" | "coordination";
 
@@ -75,7 +76,11 @@ function makeTodayMatch(overrides: Partial<TodayMatch> & Pick<TodayMatch, "match
   };
 }
 
-function makeProjection(overrides: Partial<CoachSituationProjection["situation"]>, status: CoachSituationProjection["status"] = "ACTION_REQUIRED"): CoachSituationProjection {
+function makeProjection(
+  overrides: Partial<CoachSituationProjection["situation"]>,
+  status: CoachSituationProjection["status"] = "ACTION_REQUIRED",
+  decisions: CoachDecision[] = [],
+): CoachSituationProjection {
   return {
     situation: {
       nowIso: new Date().toISOString(),
@@ -84,12 +89,35 @@ function makeProjection(overrides: Partial<CoachSituationProjection["situation"]
       temporal: {},
       ...overrides,
     },
-    decisions: [],
+    decisions,
     deferredCount: 0,
     status,
     policyRuntimeStatus: "HEALTHY",
   };
 }
+
+/* --- Primary fixture's top decision: a raw, generically-rendered CoachDecision (the "no
+ * natural raw-signal mapping" GENERIC path in resolveTodayPrimaryAction()) representing the
+ * outstanding post-match report for the completed Sætre Lions vs Rød match (mirrors "report-1"
+ * below — same match, same real fixture fact, not an invented one). Its candidateId
+ * deliberately uses a provider prefix ("assistant-work-items") distinct from the plan-integrity
+ * and live-session candidate providers, so it resolves via GENERIC rather than accidentally
+ * matching either of those. */
+const reportDecision: CoachDecision = {
+  id: "decision-report-1",
+  candidateId: "assistant-work-items|report-1",
+  situation: "MATCHDAY",
+  horizon: "NOW",
+  visibility: "PROMOTE",
+  urgency: "SOON",
+  interaction: "REVIEW",
+  title: "Complete the Sætre Lions vs Rød post-match report",
+  summary: "Rød won 4–2 against Sætre Lions. Evidence is not locked until the report is submitted.",
+  recommendedAction: { label: "Complete report", href: "/matches/h1" },
+  alternatives: [],
+  affectedEntities: [{ entityType: "MATCH", entityId: "h1" }],
+  reasonCodes: ["POST_MATCH_REPORT_MISSING"],
+};
 
 const noop: ApplyRecommendationFn = async () => ({ success: true, message: "Applied (UI Lab fixture — no real mutation)." });
 
@@ -154,6 +182,7 @@ const decisionOne: TodaySelectionDecision = {
     unavailableReason: null,
   },
   roundBoardHref: "/dev/ui-lab/atlas/routes/round-board",
+  decisionFingerprint: "fixture-fingerprint-elias-w35-v1",
 };
 
 const decisionTwo: TodaySelectionDecision = {
@@ -181,6 +210,7 @@ const decisionTwo: TodaySelectionDecision = {
     unavailableReason: null,
   },
   roundBoardHref: "/dev/ui-lab/atlas/routes/round-board",
+  decisionFingerprint: "fixture-fingerprint-noah-w35-v1",
 };
 
 /* --- Since your last visit ----------------------------------------------------------------- */
@@ -201,6 +231,11 @@ const sinceLastVisitFacts: TodayVisitCurrentFacts = {
   ],
 };
 
+/* --- Carry forward (weekly context compact adapter output) -------------------------------- */
+const carryForwardItems: TodayCarryForwardItem[] = [
+  { id: "report:h1", label: "Report still needed — Sætre Lions vs Rød", href: "/matches/h1" },
+];
+
 export type TodayFixture = {
   commandCentre: AssistantCommandCentre;
   projection: CoachSituationProjection;
@@ -211,6 +246,7 @@ export type TodayFixture = {
   applyRecommendation: ApplyRecommendationFn;
   sinceLastVisitScope: string;
   sinceLastVisitFacts: TodayVisitCurrentFacts | undefined;
+  carryForwardItems: TodayCarryForwardItem[];
 };
 
 export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
@@ -226,7 +262,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
             makeTodayMatch({ matchId: "match-hvit-tofte", matchRoundId: "round-35", teamName: "Hvit", opponent: "Tofte", homeAway: "AWAY", startsAt: new Date(Date.now() + 3 * 3_600_000).toISOString(), lifecycleStatus: "planning_open" }),
           ],
         ),
-        projection: makeProjection({ primarySituation: "MATCHDAY", activeMatchId: "match-live-1" }, "LIVE"),
+        projection: makeProjection({ primarySituation: "MATCHDAY", activeMatchId: "match-live-1" }, "LIVE", [reportDecision]),
         recentMatches,
         squadStatus,
         liveNow: liveNowPrimary,
@@ -234,6 +270,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-primary",
         sinceLastVisitFacts,
+        carryForwardItems,
       };
     case "planning":
       return {
@@ -253,6 +290,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-planning",
         sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
       };
     case "ready":
       return {
@@ -270,6 +308,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-ready",
         sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
       };
     case "coordination":
       return {
@@ -287,6 +326,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         applyRecommendation: noop,
         sinceLastVisitScope: "uilab-coordination",
         sinceLastVisitFacts: undefined,
+        carryForwardItems: [],
       };
   }
 }

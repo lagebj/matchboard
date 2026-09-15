@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Today "Selection decisions" section (ADR-0141, `03_DATA_AND_RECOMMENDATION_CONTRACT.md`).
- * Renders one concrete plan-integrity decision per affected player with an inline safe
- * recommendation — "Add to <team> as <role>" when directly actionable, "Resolve earlier decision
- * first" when it depends on a prior recommendation in the same coordinated batch, or a Round
- * Board link when neither applies. Never renders invented certainty: `directlyActionable` and
- * `dependsOnPrior` come straight from the pure planner, never guessed client-side.
+ * Today "Selection decisions" section (ADR-0141, ADR-0142
+ * `03_DECISION_PRESENTATION_AND_LOGIC_FIXES.md`). Renders one concrete plan-integrity decision
+ * per affected player with a three-zone anatomy — PLAYER/PROBLEM | WHY | ACTION — never rendering
+ * invented certainty: `directlyActionable` and `dependsOnPrior` come straight from the pure
+ * planner, never guessed client-side. Dismissal keys against `decisionFingerprint` (a hash of the
+ * decision's current material state), not the stable `signalKey`, so a materially changed
+ * decision reappears automatically instead of staying hidden behind a stale dismissal.
  */
 
 import { useState, useTransition, useEffect as useEffectOnMount } from "react";
@@ -52,24 +53,40 @@ function writeDismissedState(storageKey: string, state: TodayDismissedStateV1) {
   }
 }
 
-function roleLabel(role: "CORE" | "SUPPORT" | "DEVELOPMENT"): string {
-  if (role === "CORE") return "core";
-  if (role === "SUPPORT") return "support";
-  return "development";
+/** WHY-zone heading. `RECOMMENDED BECAUSE` only when Matchboard has a real safe one-click
+ * recommendation; `COORDINATED PLAN` for a dependent row; `CURRENT SITUATION` for review-only —
+ * never fake "recommendation" language when there is no safe direct action (ADR-0142). */
+function whyHeading(decision: TodaySelectionDecision): string {
+  const rec = decision.recommendation;
+  if (rec?.directlyActionable) return "RECOMMENDED BECAUSE";
+  if (rec?.dependsOnPrior) return "COORDINATED PLAN";
+  return "CURRENT SITUATION";
 }
 
-function DecisionRow({
+function primaryActionLabel(decision: TodaySelectionDecision, compact: boolean): string | null {
+  const rec = decision.recommendation;
+  if (!rec?.directlyActionable) return null;
+  return compact
+    ? `Add to ${rec.targetTeamName} vs ${rec.opponentName}`
+    : `Add ${decision.displayName} to ${rec.targetTeamName} vs ${rec.opponentName}`;
+}
+
+export function TodayDecisionRow({
   decision,
   scope,
   displayDateKey,
   onApply,
   roundBoardBaseHref,
+  /** True when this decision is currently promoted into the page's primary Next Action slot —
+   * hides "Dismiss today" while primary (ADR-0142 "Primary-action dismissal"). */
+  isPrimary = false,
 }: {
   decision: TodaySelectionDecision;
   scope: string;
   displayDateKey: string;
   onApply: ApplyRecommendationFn;
   roundBoardBaseHref: string;
+  isPrimary?: boolean;
 }) {
   const storageKey = `matchboard:today:dismissed:v1:${scope}`;
   const [dismissed, setDismissed] = useState(false);
@@ -78,25 +95,26 @@ function DecisionRow({
   const [isPending, startTransition] = useTransition();
 
   const rec = decision.recommendation;
+  const fingerprint = decision.decisionFingerprint;
 
   // Read the persisted dismissal after mount only — the server render has no localStorage, and
   // checking here (rather than in a lazy `useState` initializer) avoids a hydration mismatch.
   useEffectOnMount(() => {
     const state = readDismissedState(storageKey, displayDateKey);
-    if (isDismissed(state, decision.signalKey, displayDateKey)) setDismissed(true);
+    if (isDismissed(state, fingerprint, displayDateKey)) setDismissed(true);
     // Intentionally runs once on mount only — reading the persisted dismissal state at any other
     // time would re-trigger on every prop change.
   }, []);
 
   function dismiss() {
     const state = readDismissedState(storageKey, displayDateKey);
-    writeDismissedState(storageKey, withDismissal(state, decision.signalKey, displayDateKey));
+    writeDismissedState(storageKey, withDismissal(state, fingerprint, displayDateKey));
     setDismissed(true);
   }
 
   function restore() {
     const state = readDismissedState(storageKey, displayDateKey);
-    writeDismissedState(storageKey, withoutDismissal(state, decision.signalKey));
+    writeDismissedState(storageKey, withoutDismissal(state, fingerprint));
     setDismissed(false);
   }
 
@@ -125,33 +143,46 @@ function DecisionRow({
     );
   }
 
+  const actionLabelExpanded = primaryActionLabel(decision, false);
+  const actionLabelCompact = primaryActionLabel(decision, true);
+
   return (
-    <li className="flex flex-col gap-2 border-b border-[var(--border-soft)] py-3 last:border-b-0">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-[var(--foreground)]">{decision.problemTitle}</p>
-          {decision.reasons.length > 0 && (
-            <ul className="mt-1 flex flex-col gap-0.5">
-              {decision.reasons.map((r, i) => (
-                <li key={i} className="text-xs text-[var(--text-muted)]">
-                  {r.text}
-                </li>
-              ))}
-            </ul>
-          )}
+    <li className="grid grid-cols-1 gap-3 border-b border-[var(--border-soft)] py-3 last:border-b-0 expanded:grid-cols-[minmax(0,4fr)_minmax(0,5fr)_minmax(0,4fr)] expanded:items-start">
+      {/* PLAYER / PROBLEM zone */}
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-[var(--foreground)] truncate">{decision.displayName}</p>
+          <StatusPill variant={decision.availability === "AVAILABLE" ? "success" : "neutral"} size="sm">
+            {decision.availability === "AVAILABLE" ? "Available" : decision.availability === "TENTATIVE" ? "Tentative" : "Unavailable"}
+          </StatusPill>
         </div>
-        <StatusPill variant={decision.availability === "AVAILABLE" ? "success" : "neutral"} size="sm">
-          {decision.availability === "AVAILABLE" ? "Available" : decision.availability === "TENTATIVE" ? "Tentative" : "Unavailable"}
-        </StatusPill>
+        <p className="mt-0.5 text-xs text-[var(--text-muted)]">{decision.problemDetail}</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* WHY zone */}
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          {whyHeading(decision)}
+        </p>
+        {decision.reasons.length > 0 && (
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {decision.reasons.map((r, i) => (
+              <li key={i} className="text-xs text-[var(--text-soft)]">
+                {r.text}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* ACTION zone */}
+      <div className="flex flex-col items-start gap-2 expanded:items-end">
         {applied ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)]">
             <Check className="h-3.5 w-3.5" aria-hidden="true" />
             {message ?? "Added."}
           </span>
-        ) : rec?.directlyActionable ? (
+        ) : actionLabelExpanded ? (
           <TouchlineButton
             variant="primary"
             size="sm"
@@ -159,7 +190,8 @@ function DecisionRow({
             disabled={isPending}
             leadingIcon={<UserPlus className="h-3.5 w-3.5" aria-hidden="true" />}
           >
-            Add to {rec.targetTeamName} as {roleLabel(rec.role)}
+            <span className="expanded:hidden">{actionLabelCompact}</span>
+            <span className="hidden expanded:inline">{actionLabelExpanded}</span>
           </TouchlineButton>
         ) : rec?.dependsOnPrior ? (
           <span className="text-xs text-[var(--text-muted)]">Resolve earlier decision first.</span>
@@ -174,20 +206,20 @@ function DecisionRow({
           size="sm"
           trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
         >
-          Round Board
+          Review in Round Board
         </TouchlineButton>
 
-        {!applied && (
+        {!applied && !isPrimary && (
           <button
             type="button"
             onClick={dismiss}
-            className="ml-auto text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--foreground)]"
+            className="text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--foreground)]"
           >
             Dismiss today
           </button>
         )}
 
-        {message && !applied && <span className="w-full text-xs text-[var(--danger)]">{message}</span>}
+        {message && !applied && <span className="text-xs text-[var(--danger)]">{message}</span>}
       </div>
     </li>
   );
@@ -217,7 +249,7 @@ export function TodaySelectionDecisions({
       />
       <ul className="flex flex-col">
         {decisions.map((decision) => (
-          <DecisionRow
+          <TodayDecisionRow
             key={decision.signalKey}
             decision={decision}
             scope={scope}

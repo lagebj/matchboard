@@ -59,12 +59,12 @@
   --tl-atmosphere-accent: rgba(199, 245, 74, 0.06);
   --tl-atmosphere-cool: rgba(120, 169, 255, 0.04);
 
-  /* Today football-atmosphere decorative layer (ADR-0141) — static repository-owned SVG,
-   * theme-specific image + opacity only. No second theme system: light values are duplicated
-   * into the explicit-light block and the system prefers-color-scheme:light block below,
-   * exactly like every other palette token in this file. */
-  --tl-today-atmosphere-image: url("/touchline/today-atmosphere-dark.svg");
-  --tl-today-atmosphere-opacity: 0.44;
+  /* Today football-atmosphere decorative layer (ADR-0141, superseded to WebP by ADR-0142) —
+   * static repository-owned WebP raster, theme-specific image + opacity only. No second theme
+   * system: light values are duplicated into the explicit-light block and the system
+   * prefers-color-scheme:light block below, exactly like every other palette token in this file. */
+  --tl-today-atmosphere-image: url("/touchline/today-atmosphere-dark.webp");
+  --tl-today-atmosphere-opacity: 0.78;
 
   /* --- Touchline Finish & Visual Convergence follow-up (03 §A) -------------
    * Widget / floating-control-glass / pitch semantic tokens. Additive to the
@@ -151,8 +151,8 @@
   --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
   --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
 
-  --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.svg");
-  --tl-today-atmosphere-opacity: 0.16;
+  --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.webp");
+  --tl-today-atmosphere-opacity: 0.32;
 
   /* Touchline Finish & Visual Convergence follow-up (03 §A) — light values. */
   --tl-widget: #ffffff;
@@ -230,8 +230,8 @@
     --tl-atmosphere-accent: rgba(88, 116, 0, 0.05);
     --tl-atmosphere-cool: rgba(47, 100, 178, 0.03);
 
-    --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.svg");
-    --tl-today-atmosphere-opacity: 0.16;
+    --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.webp");
+    --tl-today-atmosphere-opacity: 0.32;
 
     --tl-widget: #ffffff;
     --tl-widget-strong: #f7f9f5;
@@ -639,13 +639,15 @@
   }
 }
 
-/* --- Today football-atmosphere decorative layer (ADR-0141) -------------- */
+/* --- Today football-atmosphere decorative layer (ADR-0141, ADR-0142) ----
+ * Repository-owned WebP raster (floodlit pitch), theme-specific image + opacity tokens above.
+ * CSS owns the one vertical fade into the page canvas — see ADR-0142 `04_ATMOSPHERE_ASSET_CONTRACT.md`. */
 .today-atmosphere {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 330px;
-  pointer-events: none;
+  height: 300px;
   overflow: hidden;
+  pointer-events: none;
   z-index: 0;
 }
 
@@ -654,19 +656,35 @@
   position: absolute;
   inset: 0;
   background-image: var(--tl-today-atmosphere-image);
-  background-position: top right;
+  background-position: center right;
   background-repeat: no-repeat;
   background-size: cover;
   opacity: var(--tl-today-atmosphere-opacity);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 44%, rgba(0, 0, 0, 0.72) 64%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 44%, rgba(0, 0, 0, 0.72) 64%, transparent 100%);
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 44%,
+    rgba(0, 0, 0, 0.76) 66%,
+    transparent 100%
+  );
+
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 44%,
+    rgba(0, 0, 0, 0.76) 66%,
+    transparent 100%
+  );
 }
 
 @media (max-width: 599px) {
   .today-atmosphere {
-    height: 235px;
+    height: 220px;
   }
+
   .today-atmosphere::before {
     opacity: calc(var(--tl-today-atmosphere-opacity) * 0.72);
+    background-position: 62% top;
   }
 }

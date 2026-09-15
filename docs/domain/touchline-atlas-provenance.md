@@ -1850,3 +1850,143 @@ tests), `today-visit-snapshot.ts`/`today-dismiss-state.ts` (19 tests), the mutat
 authorization/stale-state suite (10 tests), and the full pre-existing
 `assistant-command-centre-page.test.tsx` suite (27 tests) all passing unchanged. Full
 `npm run validate` run before the PR (see the PR description for the final results).
+
+## 43. Today corrective convergence (2026-09-14, ADR-0142)
+
+A corrective follow-up to §42/ADR-0141, after PR #586 shipped. Source:
+`.matchboard-work/matchboard_today_corrective_convergence_2026-09-14/`. PR #586's functional
+engines (recommendation planning, inline mutation, Live Now loader, browser-local dismiss/visit
+state) were sound, but the production route composition was wrong: the new sections were inserted
+into the *existing* `AssistantCommandCentrePage` dashboard composition instead of replacing it, so
+old dashboard elements (matchday banner, next-round readiness, generic grouped Blockers/Decisions
+cards, a top-level Recent-Football+Squad-Status pair, full-width weekly context) remained
+alongside the new concrete decision surfaces — producing duplicate representations of the same
+facts (e.g. an aggregate "2 decisions required" card sitting directly above the same two decisions
+rendered concretely below it) and a visual layout that did not match the approved golden reference.
+
+**New sole production composition owner**: `src/components/touchline/today/today-surface.tsx`
+(`TodaySurface`) replaces `AssistantCommandCentrePage`, which is deleted along with its test file
+— there was no other production or UI Lab caller. The route
+(`(app)/o/[orgSlug]/today/page.tsx`) and the UI Lab route (`/dev/ui-lab/atlas/routes/today`) both
+render `TodaySurface` directly.
+
+**Composition change**: a 9/3 operational/context-rail layout at the expanded breakpoint
+(`expanded:col-span-9` / `expanded:col-span-3`), collapsing to one column below it. Main column:
+Live Now → Next Action → Selection decisions → Planning attention (new — concrete, ungrouped
+plan-integrity signal rows, replacing the generic Blockers/Decisions cards) → Other attention (the
+remaining setup/events/reviews/reports work items) → Today in order. Context rail: Since your last
+visit → Squad today (now dropping the exceptions list and "View all" link) → Carry forward (new
+compact adapter, see below) → Recent football. No generic count-only round/decision summary
+renders anywhere — `blocked_round`/`decision_required` categories are never their own card; their
+raw signals always render as Planning attention rows, Selection decisions, or the primary action
+instead.
+
+**Primary-action resolution correction** (`src/lib/touchline/presentation/today-primary-action.ts`,
+`resolveTodayPrimaryAction()`): the prior `resolveNextAction()` only mapped a top situational
+decision back to an `AssistantWorkItem` id and silently fell back to raw `actionable[0]` order when
+a plan-integrity-sourced decision didn't map — defeating the point of situational ordering for
+exactly the highest-value case. The new resolver tries, in order, against `projection.decisions[0]`
+only: a `TodaySelectionDecision` (via `idempotencyKeyFromCandidateId`), a raw `PlanIntegritySignal`
+(same key, against `roundPlanIntegrities`), an `AssistantWorkItem`-backed `CoachDecision` rendered
+generically from its own title/summary/recommendedAction fields, or `NONE`. It never falls back to
+unrelated assistant-item order.
+
+**Decision anatomy redesign** (`today-selection-decisions.tsx`, `TodayDecisionRow`): each row now
+has three visual zones — PLAYER/PROBLEM, WHY (heading `RECOMMENDED BECAUSE` only when
+`directlyActionable`, `COORDINATED PLAN` when `dependsOnPrior`, `CURRENT SITUATION` otherwise —
+never fake "recommendation" language for a review-only row), and ACTION (primary mutation button
+labeled `Add {displayName} to {targetTeamName} vs {opponentName}`, falling back to a compact
+`Add to {targetTeamName} vs {opponentName}` form; secondary `Review in Round Board`; tertiary
+`Dismiss today`, hidden while the row is promoted into the primary Next Action slot).
+
+**Two logic/state fixes in the planner** (`today-selection-recommendation-plan.ts`):
+1. *Contradictory capacity copy* — `buildReasons()` previously asserted a core-team destination
+   "has room" unconditionally, even when the same destination was simultaneously disabled for
+   being "already at its target squad size". Reason text is now branched on the destination's
+   actual (unprojected) `currentSquadCount` vs `targetSquadSize` into BELOW/AT/ABOVE-target
+   phrasing; only the BELOW state uses "has room" language. Two new tests cover this.
+2. *Dismissal fingerprint bug* — the client passed the stable `signalKey` into the dismiss-state
+   helpers (already generically named `fingerprint`), so a materially changed recommendation could
+   remain hidden behind a stale dismissal. `TodaySelectionDecision` gained a `decisionFingerprint`
+   field — a sha256 hash over schema version, signal key, player id, availability,
+   same-round-assignment state, repeated-missed count, sorted candidate-match facts (match/team
+   id, actual squad count, target size, planning-open state, active path roles), the selected
+   target+role, and the recommendation fingerprint when present — and the component now dismisses
+   against that instead. A new test asserts the fingerprint changes when the destination's actual
+   capacity state changes.
+
+**Atmosphere assets replaced**: the original `today-atmosphere-{dark,light}.svg` mask gradients
+used absolute coordinates without `gradientUnits="userSpaceOnUse"`, defaulting to
+object-bounding-box units and making the mask effectively fully transparent — the production route
+never actually showed the floodlit atmosphere PR #586 intended. Replaced with supplied,
+repository-owned WebP rasters (`public/touchline/today-atmosphere-{dark,light}.webp`, checked
+against the programme's `ASSET_SHA256.txt`) and a corrected `.today-atmosphere`/`::before` CSS
+contract in `src/app/touchline.css` (300px/220px heights, `background-position: center right`,
+mask stops `#000 0%, #000 44%, rgba(0,0,0,0.76) 66%, transparent 100%`, a mobile override at
+`62% top`). Opacities changed to `0.78` (dark) / `0.32` (light) to match the new raster's actual
+visual weight. No upload/object-storage/remote-image capability was introduced.
+
+**Carry forward** (`src/lib/touchline/presentation/today-carry-forward.ts`,
+`buildTodayCarryForwardItems()`): a new, pure, Today-specific compact adapter over
+`WeeklyCoachingContextResult` — never the full-width `WeeklyCoachingContextSection` on Today.
+Priority order: incomplete older reports, named weekly opportunity exceptions, planned-but-absent
+exceptions, then other concrete unresolved weekly context (unplanned appearances, support
+movement, no-recorded-appearance), capped at three rail items.
+
+**Planning attention** (`src/lib/touchline/presentation/today-planning-attention.ts` +
+`today-planning-attention.tsx`): a new pure selector/component pair rendering every raw
+plan-integrity signal not already represented by Selection decisions
+(`AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` is always excluded here) or by the primary action,
+each as its own row (real title/current-state/consequence/action) — never collapsed into a
+`3 blocked`/`2 decisions required` count. `BLOCKED` signals render with the stronger `IssueMarker`
+treatment and are never dismissible.
+
+**ADR-0142** (`docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md`)
+records this decision, extending/clarifying ADR-0141 and superseding it only on the SVG-atmosphere
+implementation-format detail — the five-item information architecture and canonical plan-integrity
+rules are unchanged.
+
+**Visual verification gate**: per ADR-0142, the deterministic UI Lab `?state=primary` composition
+at 1672×941 dark is the implementation review surface for a side-by-side comparison against
+`reference/approved-today-golden.png` before merge; the resulting implementation screenshot, once
+approved, becomes the Playwright visual-regression baseline (not the conceptual golden image
+itself).
+
+Gate execution notes for this pass:
+- The `primary` UI Lab fixture (`today-operational-fixtures.ts`) previously left
+  `projection.decisions` empty, so `resolveTodayPrimaryAction()` always returned `NONE` there and
+  the hero rendered the `NextMatchHero` fallback instead of a real "Next action" — the golden's
+  single most prominent structural feature was untestable. Added `reportDecision`, a raw
+  `CoachDecision` for the same real fixture fact already present as the `report-1` work item
+  (Sætre Lions vs Rød's outstanding post-match report), with a `"assistant-work-items|report-1"`
+  candidateId — the same provider prefix `workItemIdFromCandidateId()` recognises, so it also
+  correctly excludes `report-1` from "Other attention" once promoted, avoiding duplication.
+- Confirmed the `/touchline/*.webp` atmosphere assets are gated by the base session/email check in
+  `src/proxy.ts` (`/touchline/` is not a `PUBLIC_ROUTES` entry) — an unauthenticated browser
+  session viewing `/dev/ui-lab/**` (itself auth-exempt via `isDevToolingRoute()`) still gets a
+  `/signin` redirect for the background-image request itself, so the atmosphere silently fails to
+  paint. This is not a production defect (a real Today visit is always authenticated, so the asset
+  request always carries a valid session), only a gap in how to *screenshot* the UI Lab
+  unauthenticated; verification used the existing `test-agent` Credentials provider
+  (`TEST_AGENT_AUTH_ENABLED=true`, `src/auth.ts`) to establish a real session first.
+  `TodaySinceLastVisit` (pre-existing, `today-since-last-visit.tsx`, unmodified by this pass) only
+  renders once a previous browser-local snapshot exists — confirmed by seeding a valid
+  `TodayVisitSnapshotV1` into `localStorage` before reload; it correctly renders nothing on a
+  genuine first visit, per its own documented "first visit renders nothing" contract. (Separately
+  noted, not fixed as out-of-scope: React Strict Mode's dev-only double-effect-invocation makes
+  this same effect appear to erase its own diff on visits 2+ in local dev, because the effect
+  isn't idempotent under double-invoke — reproducible only with `reactStrictMode` on, i.e. dev
+  only; production performs one real mount per navigation.)
+- Implementation screenshot captured via a throwaway Playwright script against `?state=primary` at
+  1672×941 dark, authenticated as a `test-agent` persona; approved against the checklist in
+  `06_VISUAL_VERIFICATION_GATE.md` (atmosphere visible, title over it, 9/3 split, Live Now →
+  Next Action → Selection decisions → Today in order main-column order, three-zone decision rows,
+  Since-last-visit/Squad today/Carry forward/Recent football rail order, no generic
+  Decisions/Next-Round-readiness/weekly-slab cards, no invented literal golden text). Saved to
+  `artifacts/today-convergence/{approved-golden,implementation-dark-1672x941}.png` (gitignored —
+  `/artifacts/` — attached to the PR as evidence rather than committed).
+- Added `e2e/today-visual-regression.spec.ts` — the first Playwright screenshot-regression spec in
+  this repository — asserting the UI Lab `?state=primary` route against a committed baseline PNG
+  captured from the approved implementation screenshot above (not the conceptual golden), per
+  "Automated regression after human approval". Skips itself when
+  `PLAYWRIGHT_BASE_URL` targets production (the route 404s there by design).

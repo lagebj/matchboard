@@ -176,6 +176,34 @@ describe("planTodaySelectionRecommendations", () => {
     expect(decisions[2].recommendation?.unavailableReason).toBeTruthy();
   });
 
+  it("never claims a core team 'has room' when it is actually already at or above target size (ADR-0142)", () => {
+    const [atTarget] = planTodaySelectionRecommendations([
+      candidate({
+        signalKey: "sig-at",
+        playerId: "p-at",
+        coreTeamId: "team-bla",
+        candidateMatches: [
+          destination({ matchId: "m-bla", teamId: "team-bla", isCoreTeam: true, currentSquadCount: 10, targetSquadSize: 10 }),
+        ],
+      }),
+    ]);
+    expect(atTarget.reasons.some((r) => /has room/i.test(r.text))).toBe(false);
+    expect(atTarget.reasons.some((r) => /target squad size/i.test(r.text))).toBe(true);
+
+    const [aboveTarget] = planTodaySelectionRecommendations([
+      candidate({
+        signalKey: "sig-above",
+        playerId: "p-above",
+        coreTeamId: "team-bla",
+        candidateMatches: [
+          destination({ matchId: "m-bla", teamId: "team-bla", isCoreTeam: true, currentSquadCount: 11, targetSquadSize: 10 }),
+        ],
+      }),
+    ]);
+    expect(aboveTarget.reasons.some((r) => /has room/i.test(r.text))).toBe(false);
+    expect(aboveTarget.reasons.some((r) => /already above its target squad size/i.test(r.text))).toBe(true);
+  });
+
   it("surfaces repeated missed opportunity as a material reason", () => {
     const [decision] = planTodaySelectionRecommendations([
       candidate({
@@ -194,6 +222,31 @@ describe("planTodaySelectionRecommendations", () => {
 
   it("returns no recommendation-specific work when there are no candidates", () => {
     expect(planTodaySelectionRecommendations([])).toEqual([]);
+  });
+
+  it("produces a decisionFingerprint that changes when material decision state changes (ADR-0142)", () => {
+    const base = candidate({
+      signalKey: "sig-fp",
+      playerId: "p-fp",
+      coreTeamId: "team-bla",
+      candidateMatches: [
+        destination({ matchId: "m-bla", teamId: "team-bla", isCoreTeam: true, currentSquadCount: 9, targetSquadSize: 10 }),
+      ],
+    });
+    const first = planTodaySelectionRecommendations([base])[0].decisionFingerprint;
+    const second = planTodaySelectionRecommendations([base])[0].decisionFingerprint;
+    expect(first).toBe(second);
+
+    const resolved = candidate({
+      signalKey: "sig-fp",
+      playerId: "p-fp",
+      coreTeamId: "team-bla",
+      candidateMatches: [
+        destination({ matchId: "m-bla", teamId: "team-bla", isCoreTeam: true, currentSquadCount: 10, targetSquadSize: 10 }),
+      ],
+    });
+    const third = planTodaySelectionRecommendations([resolved])[0].decisionFingerprint;
+    expect(third).not.toBe(first);
   });
 
   it("produces a stable fingerprint for stable input and a different one when target count changes", () => {

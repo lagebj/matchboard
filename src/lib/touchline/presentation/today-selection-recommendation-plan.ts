@@ -100,6 +100,11 @@ export type TodaySelectionDecision = {
   reasons: TodayRecommendationReason[];
   recommendation: TodaySelectionRecommendation | null;
   roundBoardHref: string;
+  /** sha256 fingerprint of this decision's material current state (ADR-0142). Browser-local
+   * dismissal keys against this, not the stable `signalKey` — a materially changed decision
+   * (different target, different reasons, resolved/re-opened) therefore reappears automatically
+   * instead of staying hidden behind a dismissal that no longer describes the current state. */
+  decisionFingerprint: string;
 };
 
 const SCHEMA_VERSION = 1;
@@ -222,9 +227,20 @@ function computeFingerprint(input: {
   return createHash("sha256").update(canonical).digest("hex");
 }
 
+/** Factual (never projected) capacity state of a candidate destination match, used only for
+ * reason-text wording — never for the eligible/directlyActionable decision itself, which stays
+ * driven by the coordinated projection (ADR-0142 "Recommendation capacity language"). */
+type ActualCapacityState = "BELOW" | "AT" | "ABOVE";
+
+function actualCapacityState(match: TodayCandidateDestinationMatch): ActualCapacityState {
+  if (match.currentSquadCount < match.targetSquadSize) return "BELOW";
+  if (match.currentSquadCount === match.targetSquadSize) return "AT";
+  return "ABOVE";
+}
+
 function buildReasons(
   candidate: TodayMissingOpportunityCandidate,
-  target: { teamName: string; role: TodaySelectionRole; validPath: boolean } | null,
+  target: { matchId: string; teamName: string; role: TodaySelectionRole; validPath: boolean } | null,
 ): TodayRecommendationReason[] {
   const reasons: TodayRecommendationReason[] = [];
 
@@ -233,15 +249,37 @@ function buildReasons(
     text: `No planned match opportunity in ${candidate.roundLabel}.`,
   });
 
-  // 2 & 3. why the target needs a player now / why this player can legitimately move there.
+  // 2 & 3. why the target needs a player now / why this player can legitimately move there. Uses
+  // the target's ACTUAL (unprojected) squad count/target size for factual capacity language —
+  // never asserts "has room" when the destination is already at or above its target size, even
+  // when `target.role === "CORE"` (the exact contradiction bug ADR-0142 corrects).
   if (target) {
+    const targetMatch = candidate.candidateMatches.find((m) => m.matchId === target.matchId);
+    const capacity = targetMatch ? actualCapacityState(targetMatch) : "BELOW";
+
     if (target.role === "CORE" && target.validPath) {
-      reasons.push({ text: `${target.teamName} is ${candidate.displayName.split(" ")[0]}'s core team and has room this round.` });
+      if (capacity === "BELOW") {
+        reasons.push({ text: `${target.teamName} is ${candidate.displayName.split(" ")[0]}'s core team and has room this round.` });
+      } else if (capacity === "AT") {
+        reasons.push({ text: `${target.teamName} is ${candidate.displayName.split(" ")[0]}'s core team, currently at its target squad size.` });
+      } else {
+        reasons.push({ text: `${target.teamName} is ${candidate.displayName.split(" ")[0]}'s core team, already above its target squad size.` });
+      }
     } else if (target.role === "SUPPORT") {
-      reasons.push({ text: `${target.teamName} has a support opening this round.` });
+      reasons.push({
+        text:
+          capacity === "BELOW"
+            ? `${target.teamName} has a support opening this round.`
+            : `${target.teamName} has a possible support role this round, though squad size is already at or above target.`,
+      });
       reasons.push({ text: "Counts as support opportunity." });
     } else if (target.role === "DEVELOPMENT") {
-      reasons.push({ text: `${target.teamName} has a development opening this round.` });
+      reasons.push({
+        text:
+          capacity === "BELOW"
+            ? `${target.teamName} has a development opening this round.`
+            : `${target.teamName} has a possible development role this round, though squad size is already at or above target.`,
+      });
       reasons.push({ text: "Development movement via rotation path." });
     } else {
       reasons.push({ text: `${target.teamName} has an opening but no active rotation path.` });
@@ -258,6 +296,30 @@ function buildReasons(
   }
 
   return reasons.slice(0, MAX_VISIBLE_REASONS);
+}
+
+function computeDecisionFingerprint(input: {
+  signalKey: string;
+  playerId: string;
+  availability: TodaySelectionAvailability;
+  hasSameRoundAssignment: boolean;
+  repeatedMissedRoundCount: number;
+  candidateMatchFacts: Array<{ matchId: string; teamId: string; currentSquadCount: number; targetSquadSize: number; planningOpen: boolean; activePathRoles: string[] }>;
+  selectedTarget: { matchId: string; role: TodaySelectionRole } | null;
+  recommendationFingerprint: string | null;
+}): string {
+  const canonical = JSON.stringify({
+    schemaVersion: SCHEMA_VERSION,
+    signalKey: input.signalKey,
+    playerId: input.playerId,
+    availability: input.availability,
+    hasSameRoundAssignment: input.hasSameRoundAssignment,
+    repeatedMissedRoundCount: input.repeatedMissedRoundCount,
+    candidateMatchFacts: [...input.candidateMatchFacts].sort((a, b) => a.matchId.localeCompare(b.matchId)),
+    selectedTarget: input.selectedTarget,
+    recommendationFingerprint: input.recommendationFingerprint,
+  });
+  return createHash("sha256").update(canonical).digest("hex");
 }
 
 /**
@@ -310,6 +372,23 @@ export function planTodaySelectionRecommendations(
         reasons,
         recommendation: null,
         roundBoardHref: candidate.roundBoardHref,
+        decisionFingerprint: computeDecisionFingerprint({
+          signalKey: candidate.signalKey,
+          playerId: candidate.playerId,
+          availability: candidate.availability,
+          hasSameRoundAssignment: candidate.hasSameRoundAssignment,
+          repeatedMissedRoundCount: candidate.repeatedMissedRoundCount,
+          candidateMatchFacts: candidate.candidateMatches.map((m) => ({
+            matchId: m.matchId,
+            teamId: m.teamId,
+            currentSquadCount: m.currentSquadCount,
+            targetSquadSize: m.targetSquadSize,
+            planningOpen: m.planningOpen,
+            activePathRoles: [...m.activePathRoles].sort(),
+          })),
+          selectedTarget: null,
+          recommendationFingerprint: null,
+        }),
       });
       continue;
     }
@@ -390,6 +469,23 @@ export function planTodaySelectionRecommendations(
       reasons,
       recommendation,
       roundBoardHref: candidate.roundBoardHref,
+      decisionFingerprint: computeDecisionFingerprint({
+        signalKey: candidate.signalKey,
+        playerId: candidate.playerId,
+        availability: candidate.availability,
+        hasSameRoundAssignment: candidate.hasSameRoundAssignment,
+        repeatedMissedRoundCount: candidate.repeatedMissedRoundCount,
+        candidateMatchFacts: candidate.candidateMatches.map((m) => ({
+          matchId: m.matchId,
+          teamId: m.teamId,
+          currentSquadCount: m.currentSquadCount,
+          targetSquadSize: m.targetSquadSize,
+          planningOpen: m.planningOpen,
+          activePathRoles: [...m.activePathRoles].sort(),
+        })),
+        selectedTarget: { matchId: projectedTarget.matchId, role: projectedTarget.role },
+        recommendationFingerprint: recommendation.fingerprint,
+      }),
     });
   }
 

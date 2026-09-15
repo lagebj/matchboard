@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getAssistantCommandCentre } from "@/lib/assistant/get-assistant-command-centre";
-import { AssistantCommandCentrePage } from "@/components/assistant/assistant-command-centre-page";
+import { TodaySurface } from "@/components/touchline/today/today-surface";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getWeeklyCoachingContext } from "@/lib/weekly/get-weekly-coaching-context";
 import { formatIsoWeekKey } from "@/lib/date-utils";
@@ -22,6 +22,7 @@ import { getTodaySelectionRecommendations } from "@/lib/touchline/get-today-sele
 import { getTodayLiveMatchSummaries } from "@/lib/live-match/get-today-live-match-summaries";
 import { getTodayLocalStateScope } from "@/lib/touchline/presentation/today-local-state-scope";
 import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
+import { buildTodayCarryForwardItems } from "@/lib/touchline/presentation/today-carry-forward";
 import { applyTodaySelectionRecommendationAction } from "@/app/(app)/o/[orgSlug]/today/actions";
 
 export default async function TodayPage({ params }: { params: Promise<{ orgSlug: string }> }) {
@@ -115,7 +116,7 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   // A plain closure over a Server Action (e.g. `(input) => serverAction({ orgSlug, ...input })`)
   // is NOT itself a Server Action reference — passing one as a Client Component prop throws a
   // Server Components render error at runtime (React error #441), invisible to component tests
-  // that render `AssistantCommandCentrePage` directly with props and never cross the real
+  // that render `TodaySurface` directly with props and never cross the real
   // server/client serialization boundary. An inline action (its own `"use server"` directive)
   // closing over `orgSlug` is itself a valid, directly-passable Server Action reference.
   async function applyRecommendation(input: {
@@ -151,8 +152,10 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
     })),
   };
 
+  const carryForwardItems = buildTodayCarryForwardItems(weeklyContext);
+
   return (
-    <AssistantCommandCentrePage
+    <TodaySurface
       commandCentre={commandCentre}
       projection={projection}
       weeklyContext={weeklyContext}
@@ -163,6 +166,7 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
       applyRecommendation={applyRecommendation}
       sinceLastVisitScope={scope}
       sinceLastVisitFacts={sinceLastVisitFacts}
+      carryForwardItems={carryForwardItems}
     />
   );
 }

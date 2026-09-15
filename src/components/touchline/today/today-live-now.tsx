@@ -50,7 +50,7 @@ export function TodayLiveNow({
       </div>
       <div>
         <TouchlineButton as={Link} href={matchHref(primary.matchId)} variant="secondary" size="sm">
-          Open Live Reporting
+          Follow live
         </TouchlineButton>
       </div>
     </Surface>
