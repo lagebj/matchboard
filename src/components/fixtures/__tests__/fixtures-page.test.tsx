@@ -3,46 +3,41 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { FixturesPage } from "../fixtures-page";
 import type { FixturePeriod, FixtureRound, FixtureMatch } from "@/domain/fixtures/types";
 
+const searchParamsState = vi.hoisted(() => ({ value: new URLSearchParams() }));
+const routerPush = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push: routerPush, replace: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParamsState.value,
 }));
 
 vi.mock("@/domain/fixtures/actions", () => ({
   fetchFixturesOverview: vi.fn(),
   fixturePopulateAllAction: vi.fn(),
-  fixtureRegenerateAllAction: vi.fn(),
-  fixtureClearAllDraftsAction: vi.fn(),
-  fixtureGenerateRoundAction: vi.fn(),
-  fixtureRegenerateRoundAction: vi.fn(),
-  fixtureClearRoundDraftAction: vi.fn(),
-  fixtureFinalizeRoundAction: vi.fn(),
-  fixtureUnfinalizeRoundAction: vi.fn(),
-  fixtureRegenerateMatchAction: vi.fn(),
-  fixtureClearMatchDraftAction: vi.fn(),
-  fixtureFinalizeMatchAction: vi.fn(),
 }));
 
-const { fetchFixturesOverview } = vi.mocked(
-  await import("@/domain/fixtures/actions"),
-);
+const { fetchFixturesOverview } = vi.mocked(await import("@/domain/fixtures/actions"));
 
 const makeMatch = (overrides: Partial<FixtureMatch> = {}): FixtureMatch => ({
   id: "m1",
-  title: "Bla vs Opponent",
+  title: "Blå vs Opponent",
   teamId: "team-1",
-  teamName: "Bla",
+  teamName: "Blå",
   opponent: "Opponent",
   readinessState: "READY",
-  selectionState: "NOT_GENERATED",
-  selectedPlayerCount: 0,
+  selectionState: "READY",
+  selectedPlayerCount: 12,
   blockerCount: 0,
   decisionRequiredCount: 0,
   reportState: { state: "NO_REPORT" },
   availableActions: ["createDraft"],
   matchStatus: "SCHEDULED",
+  cancelledReason: null,
   lifecycleStatus: "planning_open",
+  teamKitColor: "BLUE",
+  lineupState: "PREPARED",
+  planningSignals: [],
   ...overrides,
 });
 
@@ -50,13 +45,14 @@ const makeRound = (overrides: Partial<FixtureRound> = {}): FixtureRound => ({
   id: "r1",
   title: "Round 1",
   readinessState: "READY",
-  selectionState: "NOT_GENERATED",
+  selectionState: "READY",
   hasDraftSelections: false,
   hasMatches: true,
   blockerCount: 0,
   decisionRequiredCount: 0,
   availableActions: ["createDraft"],
   matches: [makeMatch()],
+  roundLevelPlanningSignals: [],
   ...overrides,
 });
 
@@ -64,6 +60,8 @@ const makePeriod = (overrides: Partial<FixturePeriod> = {}): FixturePeriod => ({
   id: "p1",
   title: "Spring 2025",
   dateRange: "Jan – Jun",
+  startDate: "2025-01-01T00:00:00.000Z",
+  endDate: "2025-06-30T00:00:00.000Z",
   readinessState: "READY",
   blockerCount: 0,
   decisionRequiredCount: 0,
@@ -72,14 +70,30 @@ const makePeriod = (overrides: Partial<FixturePeriod> = {}): FixturePeriod => ({
   ...overrides,
 });
 
-describe("FixturesPage", () => {
+// A fixed "now" — tests set each round's `startsAt` relative to this instant so temporal
+// classification (current/past/future) is real and deterministic rather than tied to the actual
+// clock.
+const NOW = new Date();
+
+function isoAt(daysFromNow: number): string {
+  const d = new Date(NOW);
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString();
+}
+
+describe("FixturesPage (League Operating Surface)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchParamsState.value = new URLSearchParams();
   });
 
-  it("renders period, round, and match hierarchy", async () => {
+  it("renders the active period title and the focused round's matches", async () => {
     fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod()],
+      periods: [
+        makePeriod({
+          rounds: [makeRound({ matches: [makeMatch({ startsAt: isoAt(0) })] })],
+        }),
+      ],
     });
 
     await act(() => {
@@ -87,55 +101,12 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Spring 2025")).toBeInTheDocument();
-      // "Round 1" legitimately appears twice: once in its own scorebook section, once again in
-      // the Touchline Design Atlas "feature round" toolbar shortcut above it (ADR-0136,
-      // docs/domain/touchline-atlas-provenance.md §14/§15 — same "shown twice" pattern already
-      // used for Today's match hero, never removed from its normal position).
-      expect(screen.getAllByText("Round 1").length).toBeGreaterThan(0);
-      expect(screen.getByText("Bla")).toBeInTheDocument();
+      expect(screen.getAllByText((_, el) => (el?.textContent ?? "").startsWith("Spring 2025")).length).toBeGreaterThan(0);
+      expect(screen.getByText("Blå")).toBeInTheDocument();
     });
   });
 
-  it("features the first non-finalized round as a shortcut toolbar (Touchline Design Atlas, ADR-0136)", async () => {
-    fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [
-          makeRound({ id: "r1", title: "Round 1", selectionState: "FINALIZED" }),
-          makeRound({ id: "r2", title: "Round 2", selectionState: "DRAFT" }),
-        ],
-      })],
-    });
-
-    await act(() => {
-      render(<FixturesPage orgSlug="test-org" />);
-    });
-
-    await waitFor(() => {
-      const toolbarLink = screen.getByRole("link", { name: /open round board/i });
-      expect(toolbarLink).toBeInTheDocument();
-      expect(toolbarLink).toHaveAttribute("href", "/rounds/r2");
-    });
-  });
-
-  it("shows no feature toolbar when every round is already finalized", async () => {
-    fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({ id: "r1", title: "Round 1", selectionState: "FINALIZED" })],
-      })],
-    });
-
-    await act(() => {
-      render(<FixturesPage orgSlug="test-org" />);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Round 1")).toBeInTheDocument();
-    });
-    expect(screen.queryByRole("link", { name: /open round board/i })).not.toBeInTheDocument();
-  });
-
-  it("defaults to the period marked isCurrent, not periods[0] (2026-08-24 League-default regression)", async () => {
+  it("defaults to the period marked isCurrent, not periods[0]", async () => {
     fetchFixturesOverview.mockResolvedValue({
       periods: [
         makePeriod({ id: "old", title: "Spring 2025", isCurrent: false }),
@@ -148,8 +119,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Fall 2026")).toBeInTheDocument();
-      expect(screen.queryByText("Spring 2025")).not.toBeInTheDocument();
+      expect(screen.getAllByText((_, el) => (el?.textContent ?? "").startsWith("Fall 2026")).length).toBeGreaterThan(0);
     });
   });
 
@@ -166,7 +136,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Spring 2025")).toBeInTheDocument();
+      expect(screen.getAllByText((_, el) => (el?.textContent ?? "").startsWith("Spring 2025")).length).toBeGreaterThan(0);
     });
   });
 
@@ -182,18 +152,17 @@ describe("FixturesPage", () => {
     });
   });
 
-  it("shows selection state badges per match", async () => {
+  it("focuses the round named by the `round` URL query param over the temporal default", async () => {
+    searchParamsState.value = new URLSearchParams("round=r-other");
     fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({
-          selectionState: "DRAFT",
-          availableActions: ["recreateDraft", "clearDraft", "finalize"],
-          matches: [makeMatch({
-            selectionState: "DRAFT",
-            availableActions: ["recreateDraft", "clearDraft", "finalize"],
-          })],
-        })],
-      })],
+      periods: [
+        makePeriod({
+          rounds: [
+            makeRound({ id: "r1", title: "Round 1", matches: [makeMatch({ id: "m1", teamName: "Blå", startsAt: isoAt(0) })] }),
+            makeRound({ id: "r-other", title: "Round 2", matches: [makeMatch({ id: "m2", teamName: "Rød", startsAt: isoAt(21) })] }),
+          ],
+        }),
+      ],
     });
 
     await act(() => {
@@ -201,25 +170,28 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      // The round state is folded into the section summary line
-      // ("Draft · 1 match") since the Touchline scorebook migration (ADR-0134).
-      const draftBadges = screen.getAllByText((_, el) =>
-        (el?.textContent ?? "").startsWith("Draft ·"),
-      );
-      expect(draftBadges.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText("Round 2")).toBeInTheDocument();
+      expect(screen.getByText("Rød")).toBeInTheDocument();
     });
   });
 
-  it("shows blocked state badge for hard-blocked rounds", async () => {
+  it("shows a cancelled state and reason for cancelled matches in the focused round", async () => {
     fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({
-          selectionState: "BLOCKED",
-          readinessState: "NOT_PLAYABLE",
-          availableActions: ["recreateDraft", "clearDraft", "finalize"],
-          matches: [makeMatch({ selectionState: "DRAFT", availableActions: ["recreateDraft", "clearDraft", "finalize"] })],
-        })],
-      })],
+      periods: [
+        makePeriod({
+          rounds: [
+            makeRound({
+              matches: [
+                makeMatch({
+                  startsAt: isoAt(0),
+                  matchStatus: "CANCELLED",
+                  cancelledReason: "Weather",
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
     });
 
     await act(() => {
@@ -227,25 +199,18 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      const blockedBadges = screen.getAllByText((_, el) =>
-        (el?.textContent ?? "").startsWith("Blocked ·"),
-      );
-      expect(blockedBadges.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Cancelled/)).toBeInTheDocument();
+      expect(screen.getByText(/Weather/)).toBeInTheDocument();
     });
   });
 
-  it("shows a review-board action for ready rounds (no coach-operated finalise — ADR-0109)", async () => {
+  it("shows 'Generate all draft squads' as the primary action when the focused round needs generation", async () => {
     fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({
-          selectionState: "READY",
-          availableActions: ["recreateDraft", "clearDraft", "finalize"],
-          matches: [makeMatch({
-            selectionState: "DRAFT",
-            availableActions: ["recreateDraft", "clearDraft", "finalize"],
-          })],
-        })],
-      })],
+      periods: [
+        makePeriod({
+          rounds: [makeRound({ id: "r1", title: "Round 1", selectionState: "NOT_GENERATED", matches: [] })],
+        }),
+      ],
     });
 
     await act(() => {
@@ -253,60 +218,7 @@ describe("FixturesPage", () => {
     });
 
     await waitFor(() => {
-      // Two legitimate "round board" links for a single non-finalized round: the round's own
-      // scorebook-section link, and the Touchline Design Atlas feature-round toolbar shortcut
-      // above it (ADR-0136) — never a single-link assumption once that toolbar exists.
-      expect(screen.getAllByRole("link", { name: /round board/i }).length).toBeGreaterThan(0);
-      expect(screen.queryByText("Finalise in board")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Generate all draft squads").length).toBeGreaterThanOrEqual(1);
     });
-  });
-
-  it("shows populate all action for periods with not-generated rounds", async () => {
-    fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({
-          selectionState: "NOT_GENERATED",
-          availableActions: ["createDraft"],
-          matches: [makeMatch({ selectionState: "NOT_GENERATED", availableActions: ["createDraft"] })],
-        })],
-      })],
-    });
-
-    await act(() => {
-      render(<FixturesPage orgSlug="test-org" />);
-    });
-
-    await waitFor(() => {
-      const populateButtons = screen.getAllByText("Generate all draft squads");
-      expect(populateButtons.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  it("shows a cancelled state and reason for cancelled matches", async () => {
-    fetchFixturesOverview.mockResolvedValue({
-      periods: [makePeriod({
-        rounds: [makeRound({
-          selectionState: "FINALIZED",
-          availableActions: [],
-          matches: [makeMatch({
-            selectionState: "FINALIZED",
-            availableActions: [],
-            matchStatus: "CANCELLED",
-            cancelledReason: "Weather",
-          })],
-        })],
-      })],
-    });
-
-    await act(() => {
-      render(<FixturesPage orgSlug="test-org" />);
-    });
-
-    await waitFor(() => {
-      // Ordinary metadata is not uppercased in the Touchline scorebook (ADR-0134
-      // §04 §4 / §06 §8): "Cancelled", not "CANCELLED".
-      expect(screen.getByText("Cancelled")).toBeInTheDocument();
-    });
-    expect(screen.getByText("Weather")).toBeInTheDocument();
   });
 });

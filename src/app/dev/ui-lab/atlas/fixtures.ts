@@ -8,7 +8,8 @@
 import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/match-presentation";
 import { buildTouchlineNav, type TouchlineNavKey } from "@/components/touchline";
 import { buildTodayViewModel, type TodayViewModelInput } from "@/lib/touchline/presentation/today-view-model";
-import { buildLeagueViewModel, type LeaguePeriodInput } from "@/lib/touchline/presentation/league-view-model";
+import { buildLeagueOperatingViewModel } from "@/lib/touchline/presentation/league-view-model";
+import type { FixtureMatch, FixturePeriod, FixtureRound, FixturePlanningSignal } from "@/domain/fixtures/types";
 import { buildHistoryViewModel, type HistoryViewModelInput } from "@/lib/touchline/presentation/history-view-model";
 import { buildInsightsOverviewViewModel, type InsightsGroupInput } from "@/lib/touchline/presentation/insights-view-model";
 import { buildPlayerDetailViewModel, type PlayerDetailViewModelInput } from "@/lib/touchline/presentation/player-detail-view-model";
@@ -91,22 +92,239 @@ const todayInput: TodayViewModelInput = {
 };
 export const todayViewModel = buildTodayViewModel(todayInput);
 
-/* --- League --------------------------------------------------------------- */
-const leaguePeriods: LeaguePeriodInput[] = [{
-  id: "p1", title: "Autumn 2026", isCurrent: true,
-  rounds: [
-    { id: "r34", title: "W34", selectionState: "FINALIZED", blockerCount: 0, decisionRequiredCount: 0, isCurrent: false,
-      matches: [{ id: "m1", title: "Rød vs Graabein United", teamName: "Rød", selectionState: "FINALIZED", blockerCount: 0, decisionRequiredCount: 0, matchStatus: "SCHEDULED" }] },
-    { id: "r35", title: "W35", selectionState: "READY", blockerCount: 0, decisionRequiredCount: 1, isCurrent: true,
+/* --- League (League Operating Surface bundle, `08_UI_LAB_AND_VISUAL_MERGE_GATE.md`) -------- */
+
+/** Fixed anchor so every League UI Lab state is deterministic regardless of the real calendar
+ * date — round kickoffs are always expressed as whole-week offsets from this instant. */
+const LEAGUE_NOW = new Date("2026-09-15T09:00:00.000Z");
+
+function weeksFromNow(weeks: number, hour = 12): string {
+  const d = new Date(LEAGUE_NOW);
+  d.setUTCDate(d.getUTCDate() + weeks * 7);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+
+function leagueSignal(overrides: Partial<FixturePlanningSignal> & Pick<FixturePlanningSignal, "kind" | "matchId">): FixturePlanningSignal {
+  return {
+    idempotencyKey: `${overrides.matchId}-${overrides.kind}`,
+    kind: overrides.kind,
+    ruleCode: overrides.ruleCode ?? "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY",
+    title: overrides.title ?? "1 player has no planned opportunity",
+    currentState: overrides.currentState ?? overrides.title ?? "1 player has no planned opportunity",
+    consequence: overrides.consequence ?? "A selected player may not get any match minutes.",
+    primaryActionLabel: overrides.primaryActionLabel ?? "Review selection",
+    primaryActionTarget: overrides.primaryActionTarget ?? `/matches/${overrides.matchId}?tab=squad`,
+    matchId: overrides.matchId,
+    teamId: overrides.teamId,
+    playerId: overrides.playerId,
+  };
+}
+
+function leagueMatch(input: {
+  id: string;
+  teamName: string;
+  opponent: string;
+  teamKitColor?: string | null;
+  weeksFromNowOffset: number;
+  venue?: string;
+  lifecycleStatus?: FixtureMatch["lifecycleStatus"];
+  lineupState?: FixtureMatch["lineupState"];
+  selectionState?: FixtureMatch["selectionState"];
+  selectedPlayerCount?: number;
+  planningSignals?: FixturePlanningSignal[];
+  matchStatus?: FixtureMatch["matchStatus"];
+  cancelledReason?: string | null;
+  reportState?: FixtureMatch["reportState"];
+}): FixtureMatch {
+  return {
+    id: input.id,
+    title: `${input.teamName} vs ${input.opponent}`,
+    teamId: `${input.id}-team`,
+    teamName: input.teamName,
+    opponent: input.opponent,
+    opponentTeamId: null,
+    startsAt: weeksFromNow(input.weeksFromNowOffset),
+    venue: input.venue ?? "Home",
+    selectionState: input.selectionState ?? "READY",
+    selectedPlayerCount: input.selectedPlayerCount,
+    blockerCount: input.planningSignals?.filter((s) => s.kind === "BLOCKED").length ?? 0,
+    decisionRequiredCount: input.planningSignals?.filter((s) => s.kind === "DECISION_REQUIRED").length ?? 0,
+    postMatchStatus: undefined,
+    reportState: input.reportState ?? { state: "NO_REPORT" },
+    availableActions: [],
+    matchStatus: input.matchStatus ?? "SCHEDULED",
+    cancelledReason: input.cancelledReason ?? null,
+    lifecycleStatus: input.lifecycleStatus ?? "planning_open",
+    teamKitColor: input.teamKitColor ?? null,
+    lineupState: input.lineupState ?? "PREPARED",
+    planningSignals: input.planningSignals ?? [],
+  };
+}
+
+function leagueRound(input: {
+  id: string;
+  title: string;
+  matches: FixtureMatch[];
+  selectionState?: FixtureRound["selectionState"];
+  roundLevelPlanningSignals?: FixturePlanningSignal[];
+}): FixtureRound {
+  const signals = input.roundLevelPlanningSignals ?? [];
+  return {
+    id: input.id,
+    title: input.title,
+    dateRange: undefined,
+    selectionState: input.selectionState ?? (input.matches.length === 0 ? "NOT_GENERATED" : "READY"),
+    hasDraftSelections: input.matches.some((m) => m.selectionState === "DRAFT"),
+    hasMatches: input.matches.length > 0,
+    blockerCount: signals.filter((s) => s.kind === "BLOCKED").length,
+    decisionRequiredCount: signals.filter((s) => s.kind === "DECISION_REQUIRED").length,
+    availableActions: [],
+    matches: input.matches,
+    roundLevelPlanningSignals: signals,
+  };
+}
+
+function leaguePeriod(id: string, title: string, rounds: FixtureRound[]): FixturePeriod {
+  return {
+    id,
+    title,
+    dateRange: "Aug–Dec 2026",
+    startDate: weeksFromNow(-6),
+    endDate: weeksFromNow(10),
+    blockerCount: rounds.reduce((sum, r) => sum + r.blockerCount, 0),
+    decisionRequiredCount: rounds.reduce((sum, r) => sum + r.decisionRequiredCount, 0),
+    rounds,
+    isCurrent: true,
+  };
+}
+
+/** `current-attention` (primary visual state): current round with 3 matches — one concrete
+ * decision-required issue, one tactics-missing, one ready — RED/WHITE/BLUE kits, a past
+ * needs-closure rail marker, and finalized recent history. */
+const currentAttentionPeriods: FixturePeriod[] = [
+  leaguePeriod("p1", "Autumn 2026", [
+    leagueRound({
+      id: "r-2-past-final",
+      title: "W35",
       matches: [
-        { id: "m2", title: "Rød vs Sætre Lions", teamName: "Rød", selectionState: "READY", blockerCount: 0, decisionRequiredCount: 1, matchStatus: "SCHEDULED" },
-        { id: "m3", title: "Hvit vs Tofte", teamName: "Hvit", selectionState: "DRAFT", blockerCount: 0, decisionRequiredCount: 0, matchStatus: "SCHEDULED" },
-      ] },
-    { id: "r36", title: "W36", selectionState: "NOT_GENERATED", blockerCount: 0, decisionRequiredCount: 0, isCurrent: false, matches: [] },
-  ],
-}];
-export const leagueViewModel = buildLeagueViewModel(leaguePeriods);
-export const leagueScorebookRounds = { w34: [recentMatches[1]], w35: [recentMatches[0]] };
+        leagueMatch({ id: "m-final-1", teamName: "Rød", opponent: "Graabein United", teamKitColor: "RED", weeksFromNowOffset: -2, lifecycleStatus: "done", reportState: { state: "COMPLETED", result: { goalsFor: 3, goalsAgainst: 1, outcome: "WON", displayScore: "3–1" } } }),
+      ],
+    }),
+    leagueRound({
+      id: "r-1-past-closure",
+      title: "W36",
+      matches: [
+        leagueMatch({ id: "m-closure-1", teamName: "Rød", opponent: "Sætre Lions", teamKitColor: "RED", weeksFromNowOffset: -1, lifecycleStatus: "played" }),
+      ],
+    }),
+    leagueRound({
+      id: "r0-current",
+      title: "W37",
+      matches: [
+        leagueMatch({
+          id: "m-decision", teamName: "Rød", opponent: "Konnerud Blå", teamKitColor: "RED", weeksFromNowOffset: 0,
+          planningSignals: [leagueSignal({ kind: "DECISION_REQUIRED", matchId: "m-decision", ruleCode: "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY", title: "1 player has no planned opportunity" })],
+        }),
+        leagueMatch({ id: "m-tactics", teamName: "Hvit", opponent: "Tofte", teamKitColor: "WHITE", weeksFromNowOffset: 0, lineupState: "MISSING", selectedPlayerCount: 14 }),
+        leagueMatch({ id: "m-ready", teamName: "Blå", opponent: "Åsgårdstrand", teamKitColor: "BLUE", weeksFromNowOffset: 0, selectedPlayerCount: 12 }),
+      ],
+    }),
+    leagueRound({
+      id: "r1-future",
+      title: "W38",
+      matches: [leagueMatch({ id: "m-future-1", teamName: "Rød", opponent: "Nesbru", teamKitColor: "RED", weeksFromNowOffset: 1 })],
+    }),
+  ]),
+];
+
+/** `current-ready`: current round, no blockers/decisions, MatchLineup present for every match,
+ * selected counts, every row Ready. */
+const currentReadyPeriods: FixturePeriod[] = [
+  leaguePeriod("p1", "Autumn 2026", [
+    leagueRound({
+      id: "r0-current",
+      title: "W37",
+      matches: [
+        leagueMatch({ id: "m-ready-1", teamName: "Rød", opponent: "Konnerud Blå", teamKitColor: "RED", weeksFromNowOffset: 0, selectedPlayerCount: 12 }),
+        leagueMatch({ id: "m-ready-2", teamName: "Hvit", opponent: "Tofte", teamKitColor: "WHITE", weeksFromNowOffset: 0, selectedPlayerCount: 14 }),
+        leagueMatch({ id: "m-ready-3", teamName: "Blå", opponent: "Åsgårdstrand", teamKitColor: "BLUE", weeksFromNowOffset: 0, selectedPlayerCount: 13 }),
+      ],
+    }),
+  ]),
+];
+
+/** `past-needs-closure`: a selected past round with at least two unresolved report states and
+ * report actions, with finalized history below. */
+const pastNeedsClosurePeriods: FixturePeriod[] = [
+  leaguePeriod("p1", "Autumn 2026", [
+    leagueRound({
+      id: "r-3-final",
+      title: "W34",
+      matches: [leagueMatch({ id: "m-old-final", teamName: "Rød", opponent: "Nesbru", teamKitColor: "RED", weeksFromNowOffset: -3, lifecycleStatus: "done", reportState: { state: "COMPLETED", result: { goalsFor: 2, goalsAgainst: 2, outcome: "DRAWN", displayScore: "2–2" } } })],
+    }),
+    leagueRound({
+      id: "r-2-needs-closure",
+      title: "W35",
+      matches: [
+        leagueMatch({ id: "m-report-missing", teamName: "Rød", opponent: "Graabein United", teamKitColor: "RED", weeksFromNowOffset: -2, lifecycleStatus: "played" }),
+        leagueMatch({ id: "m-report-incomplete", teamName: "Hvit", opponent: "Tofte", teamKitColor: "WHITE", weeksFromNowOffset: -2, lifecycleStatus: "report_incomplete" }),
+      ],
+    }),
+    leagueRound({
+      id: "r0-current",
+      title: "W37",
+      matches: [leagueMatch({ id: "m-current-1", teamName: "Rød", opponent: "Sætre Lions", teamKitColor: "RED", weeksFromNowOffset: 0, selectedPlayerCount: 12 })],
+    }),
+  ]),
+];
+const pastNeedsClosureSelectedRoundId = "r-2-needs-closure";
+
+/** `all-history`: no current/future rounds — default focus resolves to the most recent past
+ * round; the rail still provides orientation. */
+const allHistoryPeriods: FixturePeriod[] = [
+  leaguePeriod("p1", "Autumn 2026", [
+    leagueRound({
+      id: "r-3-final",
+      title: "W30",
+      matches: [leagueMatch({ id: "m-h1", teamName: "Rød", opponent: "Nesbru", teamKitColor: "RED", weeksFromNowOffset: -6, lifecycleStatus: "done", reportState: { state: "COMPLETED", result: { goalsFor: 4, goalsAgainst: 0, outcome: "WON", displayScore: "4–0" } } })],
+    }),
+    leagueRound({
+      id: "r-2-final",
+      title: "W31",
+      matches: [leagueMatch({ id: "m-h2", teamName: "Rød", opponent: "Tofte", teamKitColor: "RED", weeksFromNowOffset: -5, lifecycleStatus: "done", reportState: { state: "COMPLETED", result: { goalsFor: 1, goalsAgainst: 1, outcome: "DRAWN", displayScore: "1–1" } } })],
+    }),
+    leagueRound({
+      id: "r-1-final",
+      title: "W32",
+      matches: [leagueMatch({ id: "m-h3", teamName: "Rød", opponent: "Graabein United", teamKitColor: "RED", weeksFromNowOffset: -4, lifecycleStatus: "done", reportState: { state: "COMPLETED", result: { goalsFor: 2, goalsAgainst: 3, outcome: "LOST", displayScore: "2–3" } } })],
+    }),
+  ]),
+];
+
+/** `not-generated`: default/selected future round with no generated selections; "Generate all
+ * draft squads" remains reachable. */
+const notGeneratedPeriods: FixturePeriod[] = [
+  leaguePeriod("p1", "Autumn 2026", [
+    leagueRound({
+      id: "r-1-final",
+      title: "W36",
+      matches: [leagueMatch({ id: "m-ng-past", teamName: "Rød", opponent: "Nesbru", teamKitColor: "RED", weeksFromNowOffset: -1, lifecycleStatus: "done", reportState: { state: "COMPLETED", result: { goalsFor: 1, goalsAgainst: 0, outcome: "WON", displayScore: "1–0" } } })],
+    }),
+    leagueRound({ id: "r1-not-generated", title: "W38", matches: [], selectionState: "NOT_GENERATED" }),
+  ]),
+];
+const notGeneratedSelectedRoundId = "r1-not-generated";
+
+export type LeagueUiLabStateKey = "current-attention" | "current-ready" | "past-needs-closure" | "all-history" | "not-generated";
+
+export const leagueUiLabStates: Record<LeagueUiLabStateKey, ReturnType<typeof buildLeagueOperatingViewModel>> = {
+  "current-attention": buildLeagueOperatingViewModel({ periods: currentAttentionPeriods, selectedPeriodId: "p1", selectedRoundId: null, now: LEAGUE_NOW }),
+  "current-ready": buildLeagueOperatingViewModel({ periods: currentReadyPeriods, selectedPeriodId: "p1", selectedRoundId: null, now: LEAGUE_NOW }),
+  "past-needs-closure": buildLeagueOperatingViewModel({ periods: pastNeedsClosurePeriods, selectedPeriodId: "p1", selectedRoundId: pastNeedsClosureSelectedRoundId, now: LEAGUE_NOW }),
+  "all-history": buildLeagueOperatingViewModel({ periods: allHistoryPeriods, selectedPeriodId: "p1", selectedRoundId: null, now: LEAGUE_NOW }),
+  "not-generated": buildLeagueOperatingViewModel({ periods: notGeneratedPeriods, selectedPeriodId: "p1", selectedRoundId: notGeneratedSelectedRoundId, now: LEAGUE_NOW }),
+};
 
 /* --- History --------------------------------------------------------------- */
 const historyInput: HistoryViewModelInput = {

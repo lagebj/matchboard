@@ -1,12 +1,42 @@
-import type { FixturesOverview, FixturePeriod, FixtureRound, FixtureMatch, FixtureReportState, CompletedFixtureResult } from "./types";
+import type {
+  FixturesOverview,
+  FixturePeriod,
+  FixtureRound,
+  FixtureMatch,
+  FixtureReportState,
+  CompletedFixtureResult,
+  FixturePlanningSignal,
+} from "./types";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { db } from "@/lib/db";
 import { deriveRoundStatus } from "@/lib/round-status";
 import { getRoundActions, deriveMatchSelectionState } from "./selection-state-utils";
-import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { computeRoundPlanIntegrity, type PlanIntegritySignal } from "@/lib/selection/compute-plan-integrity";
 import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
+
+/**
+ * Project a canonical `PlanIntegritySignal` down to the narrow client-safe
+ * `FixturePlanningSignal` shape (League Operating Surface,
+ * `03_DATA_CONTRACT_AND_VIEW_MODEL.md`). Never re-runs/duplicates the plan-integrity
+ * computation — this only re-shapes the already-computed signal.
+ */
+function toFixturePlanningSignal(signal: PlanIntegritySignal): FixturePlanningSignal {
+  return {
+    idempotencyKey: signal.idempotencyKey,
+    kind: signal.kind,
+    ruleCode: signal.ruleCode,
+    title: signal.title,
+    currentState: signal.currentState,
+    consequence: signal.consequence,
+    primaryActionLabel: signal.primaryActionLabel,
+    primaryActionTarget: signal.primaryActionTarget,
+    matchId: signal.matchId,
+    teamId: signal.teamId,
+    playerId: signal.playerId,
+  };
+}
 
 function mapReadiness(blockerCount: number, decisionRequiredCount: number): "READY" | "AT_RISK" | "NOT_PLAYABLE" {
   if (blockerCount > 0) return "NOT_PLAYABLE";
@@ -48,7 +78,7 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
     ),
   );
 
-  const [allSelections, postMatchReports, activeLiveSessions] = await Promise.all([
+  const [allSelections, postMatchReports, activeLiveSessions, allMatchLineups] = await Promise.all([
     allMatchIds.length > 0
       ? db.selection.findMany({
           where: { matchId: { in: allMatchIds }, organisationId },
@@ -65,9 +95,25 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
           select: { matchId: true },
         })
       : Promise.resolve([]),
+    // One bounded batch query for every match's tactical preparation state (League Operating
+    // Surface, `03_DATA_CONTRACT_AND_VIEW_MODEL.md` "Efficient lineup loading") — never a
+    // per-match lineup query. Only `formationId` is loaded; formation slots/assignments are not
+    // needed to decide League's compact "Tactics not prepared" signal.
+    allMatchIds.length > 0
+      ? db.matchLineup.findMany({
+          where: { matchId: { in: allMatchIds }, organisationId },
+          select: { matchId: true, formationId: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const liveMatchIds = new Set(activeLiveSessions.map((s) => s.matchId));
+
+  // A match can have more than one MatchLineup (per-team). Any one prepared lineup (non-null
+  // formationId) is enough to satisfy the fixed tactics-preparation rule.
+  const preparedLineupMatchIds = new Set(
+    allMatchLineups.filter((l) => l.formationId != null).map((l) => l.matchId),
+  );
 
   const matchDraftCounts = new Map<string, number>();
   const matchFinalizedCounts = new Map<string, number>();
@@ -99,7 +145,7 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
       for (const round of period.matchRounds) {
         let blockerCount = 0;
         let decisionRequiredCount = 0;
-        let matchSignals: Array<{ matchId: string | undefined; kind: string }> = [];
+        let roundSignals: PlanIntegritySignal[] = [];
 
         if (round.status !== "FINALIZED") {
           try {
@@ -110,11 +156,28 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
             }
             blockerCount = integrity.summary.blockerCount;
             decisionRequiredCount = integrity.summary.decisionRequiredCount;
-            matchSignals = integrity.signals.map((s) => ({ matchId: s.matchId, kind: s.kind }));
+            roundSignals = integrity.signals;
           } catch {
             // fallback to zero if computation fails
           }
         }
+
+        // Truthful signal-to-match ownership only (03§"Mapping round signals to a focused match
+        // row"): matchId first, then teamId, otherwise the signal stays round-level. Never
+        // attach an unscoped signal to a visually convenient match.
+        const claimedSignalKeys = new Set<string>();
+        const signalsForMatch = (matchId: string, teamId: string): FixturePlanningSignal[] => {
+          return roundSignals
+            .filter((s) => {
+              if (s.matchId) return s.matchId === matchId;
+              if (s.teamId) return s.teamId === teamId;
+              return false;
+            })
+            .map((s) => {
+              claimedSignalKeys.add(s.idempotencyKey);
+              return toFixturePlanningSignal(s);
+            });
+        };
 
         const roundDraftSelectionCount = round.matches.reduce(
           (sum, m) => sum + (matchDraftCounts.get(m.id) ?? 0), 0,
@@ -139,11 +202,10 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
             matchFinalizedCount > 0,
           );
 
-          const matchBlockerCount = matchSignals.filter(
-            (s) => s.matchId === match.id && s.kind === "BLOCKED",
-          ).length;
-          const matchDecisionCount = matchSignals.filter(
-            (s) => s.matchId === match.id && s.kind === "DECISION_REQUIRED",
+          const matchPlanningSignals = signalsForMatch(match.id, match.teamId);
+          const matchBlockerCount = matchPlanningSignals.filter((s) => s.kind === "BLOCKED").length;
+          const matchDecisionCount = matchPlanningSignals.filter(
+            (s) => s.kind === "DECISION_REQUIRED",
           ).length;
 
           const postMatchStatus = postMatchStatusMap.get(match.id);
@@ -186,6 +248,9 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
             availableActions: getRoundActions(derivedRoundStatus, hasMatches),
             matchStatus: match.status ?? "SCHEDULED",
             cancelledReason: match.cancelledReason ?? null,
+            teamKitColor: match.team.kitColor ?? null,
+            lineupState: preparedLineupMatchIds.has(match.id) ? "PREPARED" : "MISSING",
+            planningSignals: matchPlanningSignals,
             // Primary, football-action-oriented status (ADR-0101) — kept visually distinct from
             // reportState's FT-score/W-D-L display, which remains a separate fact (AGENTS.md
             // "Fixtures result display rules").
@@ -203,6 +268,13 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
 
         const roundActions = getRoundActions(derivedRoundStatus, hasMatches);
 
+        // Any signal not claimed by a match/team above remains genuinely round-level (03§
+        // "Mapping round signals to a focused match row") — shown in the focused-round summary,
+        // never assigned to an arbitrary match.
+        const roundLevelPlanningSignals = roundSignals
+          .filter((s) => !claimedSignalKeys.has(s.idempotencyKey))
+          .map(toFixturePlanningSignal);
+
         rounds.push({
           id: round.id,
           title: round.name,
@@ -215,6 +287,7 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
           decisionRequiredCount,
           availableActions: roundActions,
           matches,
+          roundLevelPlanningSignals,
         });
       }
 
@@ -232,6 +305,8 @@ export async function getFixturesOverview(orgFilter: OrgFilterMode): Promise<Fix
         id: period.id,
         title: phaseDisplay.combinedLabel,
         dateRange: phaseDisplay.dateRangeLabel,
+        startDate: period.startDate.toISOString(),
+        endDate: period.endDate.toISOString(),
         readinessState: mapReadiness(periodBlockerCount, periodDecisionCount),
         blockerCount: periodBlockerCount,
         decisionRequiredCount: periodDecisionCount,

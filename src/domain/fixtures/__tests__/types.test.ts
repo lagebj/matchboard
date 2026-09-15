@@ -27,6 +27,8 @@ describe("Fixtures Service unit tests", () => {
         id: "p1",
         title: "Test Period",
         dateRange: "Jan – Jun",
+        startDate: "2026-01-01T00:00:00.000Z",
+        endDate: "2026-06-30T00:00:00.000Z",
         readinessState: "READY",
         blockerCount: 0,
         decisionRequiredCount: 0,
@@ -49,6 +51,7 @@ describe("Fixtures Service unit tests", () => {
         decisionRequiredCount: 0,
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
         matches: [],
+        roundLevelPlanningSignals: [],
       };
       expect(round.selectionState).toBe("DRAFT");
       expect(round.hasDraftSelections).toBe(true);
@@ -71,6 +74,9 @@ describe("Fixtures Service unit tests", () => {
         availableActions: ["recreateDraft", "clearDraft", "finalize"],
         matchStatus: "SCHEDULED",
         lifecycleStatus: "planning_open",
+        teamKitColor: null,
+        lineupState: "MISSING",
+        planningSignals: [],
       };
       expect(match.teamId).toBe("team-1");
       expect(match.selectionState).toBe("DRAFT");

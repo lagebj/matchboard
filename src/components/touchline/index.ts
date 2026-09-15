@@ -71,6 +71,8 @@ export type { PitchPlayerTokenStatus } from "./pitch/pitch-player-token";
 
 export { TeamKitMark } from "./identity/team-kit-mark";
 export type { TeamKitMarkSize, TeamKitMarkProps } from "./identity/team-kit-mark";
+export { TeamIdentityStrip } from "./identity/team-identity-strip";
+export type { TeamIdentityStripProps } from "./identity/team-identity-strip";
 
 export { TouchlinePlanningPitch } from "./pitch/touchline-planning-pitch";
 export type { PlanningPitchSlot, PlanningPitchAssignment, PlanningPitchEditableGrid } from "./pitch/touchline-planning-pitch";
