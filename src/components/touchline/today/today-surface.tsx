@@ -123,7 +123,7 @@ export function TodaySurface({
   );
 
   return (
-    <div className="touchline relative flex flex-col gap-6">
+    <div className="touchline relative isolate flex flex-col gap-6">
       <TodayAtmosphere />
       <div className="relative z-10 flex flex-col gap-6">
         <TouchlinePageHeader
