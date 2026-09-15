@@ -261,6 +261,25 @@ export function getDisplayDateKey(value: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: MATCHBOARD_DISPLAY_TIMEZONE }).format(value);
 }
 
+/**
+ * Resolve an instant to its display ISO week key (`YYYY-Www`), Europe/Oslo calendar date first
+ * (League Operating Surface, `02_ROUND_TEMPORAL_AND_OPERATIONAL_MODEL.md`). Reuses
+ * `getDisplayDateKey()` — the single Europe/Oslo display-date resolver (ADR-0137) — rather than
+ * adding a second timezone constant, then computes the ISO week from that resolved calendar date
+ * (parsed at UTC midnight so `getIsoWeekParts()`'s UTC-based ISO week/year-rollover math applies
+ * to the correct calendar day regardless of the runtime's own timezone).
+ */
+export function getDisplayIsoWeekKey(value: Date = new Date()): string {
+  const [year, month, day] = getDisplayDateKey(value).split("-").map(Number);
+  return formatIsoWeekKey(new Date(Date.UTC(year, month - 1, day)));
+}
+
+/** Display ISO week label (e.g. "W42 2026") for an instant — see `getDisplayIsoWeekKey()`. */
+export function getDisplayIsoWeekLabel(value: Date = new Date()): string {
+  const [year, month, day] = getDisplayDateKey(value).split("-").map(Number);
+  return formatIsoWeekLabel(new Date(Date.UTC(year, month - 1, day)));
+}
+
 /** Get today's date as YYYY-MM-DD in the browser's local timezone for date input defaults. */
 export function getTodayLocalDateInputValue(): string {
   const now = new Date();

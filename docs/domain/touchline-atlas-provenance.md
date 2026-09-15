@@ -2119,3 +2119,71 @@ spec-required behaviour, not a defect, and is recorded as a required human-appro
 follow-up (this pass does not overwrite the baseline unilaterally, consistent with the
 human-approval discipline `today-visual-regression.spec.ts`'s own header comment and §42/§44 of
 this log already establish for that file).
+
+## 46. League Operating Surface — season rail, focused round, compact history (2026-09-15, ADR-0144)
+
+Implemented `.matchboard-work/matchboard_league_operating_surface_2026-09-15/` — replaces
+League's history-dominant composition with a season rail → focused operational round → compact
+recent scorebook history design, per the new ADR-0144.
+
+**Corrects §15's documented defect A**: §15 above ("Real bug found and fixed while wiring real
+data") already found that `buildLeagueViewModel()`'s "first non-finalized round" fallback
+misrepresents a round's temporal status, and fixed `featureRound` resolving to `null` when every
+round is finalized. This pass goes further and removes the fallback and the entire prior
+`buildLeagueViewModel()`/`LeaguePeriodInput`/`LeagueRoundInput` API outright: "current" is now a
+temporal fact (real kickoff dates resolved to Matchboard's Europe/Oslo display ISO week —
+ADR-0137), never inferred from `MatchRound`/`FixtureRound.selectionState`.
+
+**New domain logic** (pure, unit-tested):
+- `src/lib/date-utils.ts` gained `getDisplayIsoWeekKey()`/`getDisplayIsoWeekLabel()` — Europe/Oslo
+  ISO-week resolution reusing the existing `getDisplayDateKey()` + `formatIsoWeekKey`.
+- `src/lib/touchline/presentation/league-view-model.ts` — full rewrite. New
+  `buildLeagueOperatingViewModel()` computes, per league season: season-rail week slots
+  (`LeagueRailSlot[]`, including empty non-interactive weeks), round temporal
+  classification (CURRENT/PAST/FUTURE/UNSCHEDULED), past-round closure (canonical
+  `MatchLifecycleStatus`, never `MatchRound.status === "FINALIZED"` alone), the exact default-focus
+  resolution order (`?round=` → current → nearest future → most-recent-past-needing-closure →
+  most-recent-past → first unscheduled → none), each match's one primary operational issue
+  (`resolveMatchIssue()`, exported — CANCELLED > owned BLOCKED > owned DECISION_REQUIRED > report
+  missing/incomplete > report complete > tactics/lineup missing > live > ready), and the
+  recent(≤2)/earlier history split.
+
+**Data contract additions** (`src/domain/fixtures/types.ts` / `src/domain/fixtures/service.ts`):
+`FixturePeriod.startDate`/`endDate` (from `LeagueSeason.startDate`/`endDate`, for the rail's week
+range); `FixtureMatch.teamKitColor` (from the existing `Team.kitColor`, resolved via the existing
+`resolveKitColorSwatch()` — no new colour model); `FixtureMatch.lineupState` (`"PREPARED"` iff a
+`MatchLineup` row exists with a non-null `formationId`, checked via one batched query across all
+matches — no per-match query); `FixturePlanningSignal` (a narrow client-safe projection of
+`PlanIntegritySignal`) with truthful match/team signal ownership (`FixtureMatch.planningSignals`
+vs. leftover `FixtureRound.roundLevelPlanningSignals`) — a signal is never assigned to a "visually
+convenient" match it doesn't actually own. The existing cached `computeRoundPlanIntegrity()` call
+per round is reused, not duplicated.
+
+**New composition** (`src/components/fixtures/`): `LeagueSurface` (production composition owner)
+→ `LeagueSeasonRail` (calendar rail, click/select real rounds, auto-scroll current/selected into
+view) → `LeagueFocusedRound` (heading/status badge/summary/"Open round board" +
+`LeagueOperationalMatchRow` per match) → `LeagueRecentRounds`/`LeagueEarlierRounds` (reuse the
+existing `ScorebookRoundSection`/`ScorebookMatchRow` grammar unchanged for finished history, with
+a local non-persisted "Show earlier rounds" disclosure). New primitive
+`src/components/touchline/identity/team-identity-strip.tsx` (`TeamIdentityStrip`) renders the
+team-kit accent — decorative (`aria-hidden`), team-identity-only, never re-used to encode
+warning/result/current-selection state.
+
+`src/components/fixtures/fixtures-page.tsx` was rewritten: `season`/`round` URL query params are
+now the sole selection authority (no separate client-only selection state), and "Generate all
+draft squads" is contextual — primary action when the focused round itself needs generation, else
+a compact phase-level secondary action.
+
+**UI Lab**: `src/app/dev/ui-lab/atlas/routes/league/page.tsx` now exercises the real production
+`LeagueSurface` component against 5 deterministic fixture states in
+`src/app/dev/ui-lab/atlas/fixtures.ts` (`current-attention`, `current-ready`,
+`past-needs-closure`, `all-history`, `not-generated`) via a state switcher, rather than a
+bespoke lab-only layout.
+
+**Verified**: `npm run lint`/`typecheck`/`test` (4,261 + 295 tests, all passing),
+`terminology:check`, `architecture:check`, `prisma:check-fields`, `policy:verify` all pass.
+`npm run build` (Turbopack) fails in this ARM64 sandbox with a pre-existing `postcss` subprocess
+crash reproduced identically on unmodified `main` — an environment/resource limitation, not a
+defect introduced by this change; CI's amd64 build job is the authoritative signal.
+`docs:check`'s one pre-existing "Primary navigation" extraction-pattern issue is likewise
+reproduced unmodified on `main`.
