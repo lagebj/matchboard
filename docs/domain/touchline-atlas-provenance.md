@@ -2253,3 +2253,65 @@ environment, so live-browser visual verification could not be performed directly
 the UI Lab league route was confirmed to render (`200 OK`) via the dev server, and correctness of
 the contained-scroll/no-page-overflow/connector-geometry/wheel-boundary behaviour is covered by the
 rewritten component test suite instead.
+
+## 48. Events Operating Surface — next-Event hero, readiness/attention, single-rail Event Season (2026-09-16, ADR-0145)
+
+Implemented `.matchboard-work/matchboard_events_operating_surface_2026-09-16/` — replaces the
+sparse month-grouped Events list documented in §16 below with a next-Event hero →
+readiness/attention/participating-squads/facts → single-rail Event Season composition, per the
+new ADR-0145. This fully supersedes §16's "Events list — new" entry: the "Next event" feature
+widget and the month-grouped upcoming/past lists are removed outright, not kept alongside the new
+composition.
+
+**New domain logic** (pure, unit-tested, DB-free):
+`src/lib/touchline/presentation/events-overview-view-model.ts` — new
+`buildEventsOperatingViewModel()`. Reuses `buildEventListViewModel()`'s existing featured-Event
+selection rule verbatim (earliest upcoming non-finalized Event; earliest upcoming Event if every
+upcoming Event is finalized; `null` if none) rather than deriving a second, divergent rule.
+Computes factual readiness counts (squads drafted/locked, configured `EventMatch` count, helper
+assignment count, guest-player count) with no invented percentages/denominators, a
+priority-ordered Needs-Attention list (no squads → empty squad → below-minimum → below-target →
+unavailable/withdrawn aggregate → no matches configured, exported cap `EVENTS_ATTENTION_MAX = 4`
+applied by the component, not the view model, so the "Show N more" disclosure has real items to
+reveal), participating-squads rows (`Ready` derived only from `EventSquad.status === "LOCKED"`,
+never inferred from player count), and Event Season row ordering/action-label
+(`Open`/`View` derived from real elapsed time vs. `now`, never from `status`). Dates are formatted
+against `MATCHBOARD_DISPLAY_TIMEZONE` (ADR-0137) inside the view model because the Events page is
+a Server Component.
+
+**New bounded loader**: `src/lib/events/get-events-overview.ts` (`getEventsOverview()`) — a
+separate, tenant-scoped query returning only the fields this route needs. The existing
+`getEvents()` (`src/app/(app)/events/actions.ts`) is unchanged and keeps serving its existing
+consumers.
+
+**New composition** (`src/components/events/`): `EventsOperatingSurface` (production composition
+owner) → `EventsAtmosphere` (decorative, `aria-hidden` background layer, its own dedicated
+tokens/assets — not a re-skin of `TodayAtmosphere`'s) → `EventsNextEventHero` →
+`EventsReadiness`/`EventsAttention`/`EventsParticipatingSquads`/`EventsFacts` (8/12+4/12
+responsive grid) → `EventsSeason` (single continuous `data-testid="events-season-connector"`
+element behind all rows — deliberately not built on the existing per-row
+`TouchlineTimeline`/`TimelineItem` primitive, which draws a line segment per `<li>`, not one
+continuous connector).
+
+**Event detail tabs made URL-addressable**: `src/app/(app)/events/[eventId]/event-detail.tsx`'s
+`activeTab` is now derived purely from `?tab=` (validated against the real tab list, falling back
+to `overview`), replacing a local `useState` that could drift from the shareable URL — the same
+principle §46 applied to League's `season`/`round` params.
+
+**UI Lab**: `src/app/dev/ui-lab/atlas/routes/events/page.tsx` now exercises the real production
+`EventsOperatingSurface` component against 5 deterministic fixture states in
+`src/app/dev/ui-lab/atlas/fixtures.ts` (`primary`, `no-upcoming`, `empty`, `finalized-next`,
+`attention-heavy`) via a state switcher, replacing the old bespoke prototype markup.
+
+**Deliberately not reproduced from the bundle's golden reference image**: a Location facts row, a
+"Helpers confirmed N/M" denominator, and generated age-group labels — none have a backing Prisma
+field (no Event-level venue field, no canonical "confirmed" semantics beyond a factual assignment
+count, no age-group field), so building them would fabricate data rather than resolve it. The
+golden governs composition/visual hierarchy; the bundle's written data/copy rules override it
+wherever they conflict — the same discipline ADR-0144 applied to League's team-kit-colour
+resolution.
+
+**Verified**: `npx tsc --noEmit`, `eslint` on all touched files, the new
+`events-overview-view-model.test.ts` (18/18), the new `event-detail.test.tsx` (5/5 for URL-driven
+tab selection), and the full component suite (`vitest.config.components.ts`, 48 files/313 tests)
+all pass with no regressions.

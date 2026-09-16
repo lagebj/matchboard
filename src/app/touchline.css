@@ -67,6 +67,13 @@
   --tl-today-atmosphere-image: url("/touchline/today-atmosphere-dark.webp");
   --tl-today-atmosphere-opacity: 0.58;
 
+  /* Events football-atmosphere decorative layer (Matchboard Events Operating Surface bundle,
+   * `02_ATMOSPHERE_ASSET_AND_BLEND_CONTRACT.md`) — same static repository-owned WebP + CSS-blend
+   * approach as Today's atmosphere layer above, its own dedicated dark/light artwork and its own
+   * opacity value (0.50 dark / 0.24 light, per the bundle — not a copy of Today's tuning). */
+  --tl-events-atmosphere-image: url("/touchline/events-atmosphere-dark.webp");
+  --tl-events-atmosphere-opacity: 0.5;
+
   /* --- Touchline Finish & Visual Convergence follow-up (03 §A) -------------
    * Widget / floating-control-glass / pitch semantic tokens. Additive to the
    * palette above — never a second active token system. */
@@ -155,6 +162,9 @@
   --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.webp");
   --tl-today-atmosphere-opacity: 0.24;
 
+  --tl-events-atmosphere-image: url("/touchline/events-atmosphere-light.webp");
+  --tl-events-atmosphere-opacity: 0.24;
+
   /* Touchline Finish & Visual Convergence follow-up (03 §A) — light values. */
   --tl-widget: #ffffff;
   --tl-widget-strong: #f7f9f5;
@@ -233,6 +243,9 @@
 
     --tl-today-atmosphere-image: url("/touchline/today-atmosphere-light.webp");
     --tl-today-atmosphere-opacity: 0.24;
+
+    --tl-events-atmosphere-image: url("/touchline/events-atmosphere-light.webp");
+    --tl-events-atmosphere-opacity: 0.24;
 
     --tl-widget: #ffffff;
     --tl-widget-strong: #f7f9f5;
@@ -741,5 +754,100 @@
   .today-atmosphere::before {
     background-position: 72% 12%;
     opacity: calc(var(--tl-today-atmosphere-opacity) * 0.72);
+  }
+}
+
+/* --- Events football-atmosphere decorative layer (Matchboard Events Operating Surface bundle,
+ * `02_ATMOSPHERE_ASSET_AND_BLEND_CONTRACT.md`) ---------------------------------------------
+ * Same mask + colour-wash blend mechanism as `.today-atmosphere` above (image-level bottom mask,
+ * then a canvas-colour wash pseudo-element) — its own class/tokens because Events has its own
+ * dedicated artwork, its own height/opacity tuning, and its own fade curve (52%/70% vs Today's
+ * 50%/68%), not a copy-pasted reskin of Today's atmosphere. Purely decorative (`aria-hidden`, no
+ * text, `pointer-events: none`), rendered only behind the Events route's upper hero region. */
+.events-atmosphere {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 380px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+
+  background-color: var(--tl-canvas);
+}
+
+.events-atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background-image: var(--tl-events-atmosphere-image);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 48%;
+
+  opacity: var(--tl-events-atmosphere-opacity);
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 52%,
+    rgba(0, 0, 0, 0.7) 70%,
+    transparent 100%
+  );
+
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 52%,
+    rgba(0, 0, 0, 0.7) 70%,
+    transparent 100%
+  );
+}
+
+.events-atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /* Left wash protects the "Events" heading/hero text; bottom wash converges onto the exact
+   * active canvas colour before the operational cards begin (no visible rectangular edge). */
+  background:
+    linear-gradient(
+      to right,
+      var(--tl-canvas) 0%,
+      color-mix(in srgb, var(--tl-canvas) 90%, transparent) 12%,
+      color-mix(in srgb, var(--tl-canvas) 55%, transparent) 26%,
+      transparent 46%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 48%,
+      color-mix(in srgb, var(--tl-canvas) 15%, transparent) 64%,
+      color-mix(in srgb, var(--tl-canvas) 75%, transparent) 84%,
+      var(--tl-canvas) 100%
+    );
+}
+
+@media (min-width: 600px) and (max-width: 1199px) {
+  .events-atmosphere {
+    height: 320px;
+  }
+
+  .events-atmosphere::before {
+    opacity: calc(var(--tl-events-atmosphere-opacity) * 0.86);
+  }
+}
+
+@media (max-width: 599px) {
+  .events-atmosphere {
+    height: 250px;
+  }
+
+  .events-atmosphere::before {
+    /* Crop biased toward the right half of the supplied image at narrow widths. */
+    background-position: right 42%;
+    opacity: calc(var(--tl-events-atmosphere-opacity) * 0.68);
   }
 }

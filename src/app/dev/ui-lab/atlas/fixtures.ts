@@ -14,6 +14,8 @@ import { buildHistoryViewModel, type HistoryViewModelInput } from "@/lib/touchli
 import { buildInsightsOverviewViewModel, type InsightsGroupInput } from "@/lib/touchline/presentation/insights-view-model";
 import { buildPlayerDetailViewModel, type PlayerDetailViewModelInput } from "@/lib/touchline/presentation/player-detail-view-model";
 import { buildEventListViewModel, buildEventDetailViewModel, type EventListRowInput, type EventDetailViewModelInput } from "@/lib/touchline/presentation/event-view-model";
+import { buildEventsOperatingViewModel } from "@/lib/touchline/presentation/events-overview-view-model";
+import type { EventsOverviewEventRow } from "@/lib/events/get-events-overview";
 import { buildEventSquadViewModel, type EventSquadViewModelInput } from "@/lib/touchline/presentation/event-squad-view-model";
 import { buildMatchViewModel, type MatchViewModelInput } from "@/lib/touchline/presentation/match-view-model";
 import { buildOpponentsViewModel, type OpponentsViewModelInput } from "@/lib/touchline/presentation/opponents-view-model";
@@ -438,6 +440,130 @@ const eventSquadInput: EventSquadViewModelInput = {
   guestCount: 1,
 };
 export const eventSquadViewModel = buildEventSquadViewModel(eventSquadInput);
+
+/* --- Events operating surface (Matchboard Events Operating Surface bundle, `08_UI_LAB_AND_VISUAL_MERGE_GATE.md`) ---
+ * Exercises the real production composition (`EventsOperatingSurface`) against the 5 required
+ * deterministic states, mirroring League's `leagueUiLabStates` pattern -- genuine visual evidence
+ * for the merge gate rather than a lookalike prototype.
+ */
+const EVENTS_NOW = "2026-09-16T08:00:00.000Z";
+
+function eventsSquad(
+  id: string,
+  name: string,
+  status: "DRAFT" | "LOCKED",
+  targetSize: number,
+  minSize: number | null,
+  playerCount: number,
+  guestCount = 0,
+): EventsOverviewEventRow["squads"][number] {
+  const players: EventsOverviewEventRow["squads"][number]["players"] = [];
+  for (let i = 0; i < playerCount; i += 1) {
+    const isGuest = i < guestCount;
+    players.push({
+      id: `${id}-p${i}`,
+      playerId: isGuest ? null : `${id}-player-${i}`,
+      guestPlayerId: isGuest ? `${id}-guest-${i}` : null,
+    });
+  }
+  return { id, name, status, targetSize, minSize, players };
+}
+
+function eventsMatch(id: string, status: "SCHEDULED" | "CANCELLED", supportCount: number): EventsOverviewEventRow["eventMatches"][number] {
+  return {
+    id,
+    status,
+    supportAssignments: Array.from({ length: supportCount }, (_, i) => ({ id: `${id}-support-${i}` })),
+  };
+}
+
+const primaryEvent: EventsOverviewEventRow = {
+  id: "ev-primary",
+  name: "Pors Kiwi Bama Cup",
+  eventType: "CUP",
+  startsAt: new Date("2026-09-20T09:00:00.000Z"),
+  endsAt: null,
+  status: "DRAFT",
+  squads: [
+    eventsSquad("sq-rod", "Rød", "LOCKED", 14, 10, 14),
+    eventsSquad("sq-hvit", "Hvit", "DRAFT", 14, 10, 8, 2),
+    eventsSquad("sq-bla", "Blå", "DRAFT", 14, 10, 12),
+  ],
+  players: [
+    ...Array.from({ length: 30 }, (_, i) => ({ id: `ep-${i}`, playerId: `player-${i}`, guestPlayerId: null, status: "AVAILABLE" })),
+    { id: "ep-guest-0", playerId: null, guestPlayerId: "sq-hvit-guest-0", status: "AVAILABLE" },
+    { id: "ep-guest-1", playerId: null, guestPlayerId: "sq-hvit-guest-1", status: "AVAILABLE" },
+    { id: "ep-unavailable-0", playerId: "player-unavailable-0", guestPlayerId: null, status: "UNAVAILABLE" },
+  ],
+  eventMatches: [eventsMatch("em-1", "SCHEDULED", 2), eventsMatch("em-2", "SCHEDULED", 1)],
+};
+
+const pastCompletedEvent1: EventsOverviewEventRow = {
+  id: "ev-past-1",
+  name: "Spring Cup",
+  eventType: "CUP",
+  startsAt: new Date("2026-05-10T09:00:00.000Z"),
+  endsAt: null,
+  status: "FINALIZED",
+  squads: [eventsSquad("sq-past1-a", "Rød", "LOCKED", 14, 10, 14)],
+  players: [],
+  eventMatches: [eventsMatch("em-past1-1", "SCHEDULED", 1)],
+};
+
+const pastCompletedEvent2: EventsOverviewEventRow = {
+  id: "ev-past-2",
+  name: "Midtsommer Friendly Day",
+  eventType: "FRIENDLY_DAY",
+  startsAt: new Date("2026-06-21T09:00:00.000Z"),
+  endsAt: null,
+  status: "FINALIZED",
+  squads: [eventsSquad("sq-past2-a", "Hvit", "LOCKED", 12, 8, 12)],
+  players: [],
+  eventMatches: [eventsMatch("em-past2-1", "SCHEDULED", 0)],
+};
+
+const primaryEvents: EventsOverviewEventRow[] = [primaryEvent, pastCompletedEvent1, pastCompletedEvent2];
+
+const noUpcomingEvents: EventsOverviewEventRow[] = [pastCompletedEvent1, pastCompletedEvent2];
+
+const emptyEvents: EventsOverviewEventRow[] = [];
+
+const finalizedNextEvent: EventsOverviewEventRow = {
+  ...primaryEvent,
+  id: "ev-finalized-next",
+  status: "FINALIZED",
+};
+const finalizedNextEvents: EventsOverviewEventRow[] = [finalizedNextEvent, pastCompletedEvent1];
+
+const attentionHeavyEvent: EventsOverviewEventRow = {
+  id: "ev-attention-heavy",
+  name: "Høst Turnering",
+  eventType: "TOURNAMENT",
+  startsAt: new Date("2026-09-25T09:00:00.000Z"),
+  endsAt: null,
+  status: "DRAFT",
+  squads: [
+    eventsSquad("sq-ah-a", "Rød", "DRAFT", 14, 10, 6),
+    eventsSquad("sq-ah-b", "Hvit", "DRAFT", 14, 10, 8),
+    eventsSquad("sq-ah-c", "Blå", "DRAFT", 14, 10, 0),
+  ],
+  players: [
+    { id: "ep-ah-0", playerId: "player-ah-0", guestPlayerId: null, status: "UNAVAILABLE" },
+    { id: "ep-ah-1", playerId: "player-ah-1", guestPlayerId: null, status: "WITHDRAWN" },
+  ],
+  eventMatches: [],
+};
+const attentionHeavyEvents: EventsOverviewEventRow[] = [attentionHeavyEvent];
+
+export type EventsUiLabStateKey = "primary" | "no-upcoming" | "empty" | "finalized-next" | "attention-heavy";
+
+export const eventsOverviewUiLabStates: Record<EventsUiLabStateKey, ReturnType<typeof buildEventsOperatingViewModel>> = {
+  primary: buildEventsOperatingViewModel(primaryEvents, EVENTS_NOW),
+  "no-upcoming": buildEventsOperatingViewModel(noUpcomingEvents, EVENTS_NOW),
+  empty: buildEventsOperatingViewModel(emptyEvents, EVENTS_NOW),
+  "finalized-next": buildEventsOperatingViewModel(finalizedNextEvents, EVENTS_NOW),
+  "attention-heavy": buildEventsOperatingViewModel(attentionHeavyEvents, EVENTS_NOW),
+};
 
 /* --- Match detail / planning hub ------------------------------------------ */
 const matchInput: MatchViewModelInput = {
