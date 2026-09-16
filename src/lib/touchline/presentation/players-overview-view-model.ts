@@ -17,6 +17,9 @@ export type PlayersOverviewRow = {
   shirtNumber: number | null;
   kitColor: string | null;
   coreTeamName: string | null;
+  /** Normalized effective-primary position code (e.g. `DM`, `DEFENDER`) — filtering authority. */
+  currentPrimaryPositionCode: string | null;
+  /** Human-readable compact label for the same code — table/inspector display authority. */
   currentPrimaryPosition: string | null;
   availabilityLabel: string;
   hasOpportunityThisWeek: boolean | null;
@@ -36,12 +39,23 @@ export type PlayersOverviewInspectorData = {
   displayName: string;
   shirtNumber: number | null;
   kitColor: string | null;
+  coreTeamName: string | null;
   currentPrimaryPosition: string | null;
+  /** Full human-readable label (e.g. "Winger") for the same position — the inspector identity
+      line pairs this with the compact code (e.g. "Winger (W)"), while the dense roster table
+      keeps using the compact form alone. Same value as `currentPrimaryPosition` when the compact
+      and full labels coincide (e.g. broad `Defender`), so the identity line never repeats itself. */
+  currentPrimaryPositionFull: string | null;
   availabilityLabel: string;
   opportunityLabel: string;
   effectivePositions: TouchlinePositionMapEntry[];
+  played: number;
+  goals: number;
+  assists: number;
+  core: number;
+  support: number;
+  development: number;
   activeDevelopmentFocus: string | null;
-  latestObservationNote: string | null;
   playerDetailHref: string;
 };
 

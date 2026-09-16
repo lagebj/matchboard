@@ -1,9 +1,9 @@
-import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
 import type { EffectivePlayerPositionProfile } from "@/lib/player-development/effective-position-profile";
 import type { PlayerMatchHistoryEntry } from "@/lib/players/get-player-match-history";
 import type { PlayerRecentOpportunity } from "@/lib/players/get-player-recent-opportunity";
 import { availabilityLabel } from "@/lib/players/availability-label";
 import { exactPositionLabel } from "./exact-position-labels";
+import { buildPositionMapEntries } from "./player-position-map-adapter";
 import type { PlayerIdentityViewModelInput } from "./player-identity-view-model";
 import type { PlayerOverviewViewModelInput, PlayerRecentMatchRow } from "./player-overview-view-model";
 import type { PlayerMatchesViewModelInput } from "./player-matches-view-model";
@@ -56,22 +56,6 @@ function availabilityTone(status: string): PlayerIdentityViewModelInput["availab
   if (status === "AVAILABLE") return "positive";
   if (status === "INJURED" || status === "SICK") return "attention";
   return "neutral";
-}
-
-/**
- * The effective profile → canonical position-map entries. A position with no legitimate support
- * never appears (`computeEffectivePlayerPositionProfile` already filters `rawScore > 0`);
- * unknown grid codes are filtered here too — never a placeholder dot (contract
- * `06_...md §7`/`08_...md §6`).
- */
-export function buildPositionMapEntries(profile: EffectivePlayerPositionProfile): TouchlinePositionMapEntry[] {
-  return profile.positions.map((p) => ({
-    positionCode: p.positionId,
-    positionLabel: exactPositionLabel(p.positionId),
-    rank: p.rank,
-    supportBand: p.supportBand,
-    confidence: p.confidence,
-  }));
 }
 
 export type PlayerOverviewSource = {

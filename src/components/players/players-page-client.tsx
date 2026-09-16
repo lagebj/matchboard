@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ManageBaseGroupsView } from "./manage-base-groups-view";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow } from "@/lib/players/get-players-overview";
@@ -9,11 +9,9 @@ import { formatLeagueSeasonDisplay } from "@/lib/date/format-phase-display";
 import { TouchlinePageHeader, TouchlineButton } from "@/components/touchline";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
 import { DecisionBanner } from "@/components/ui/decision-banner";
-import { MetricTile } from "@/components/ui/metric-tile";
-import { Users } from "lucide-react";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
-import { PlayerRosterTable } from "@/components/touchline/player/player-roster-table";
-import { PlayerInspector } from "@/components/touchline/player/player-inspector";
+import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
+import { PlayersOverviewSurface } from "@/components/touchline/player/players-overview-surface";
 import { PlayerCompactRow } from "@/components/touchline/player/player-compact-row";
 import {
   buildPlayersOverviewRows,
@@ -72,8 +70,15 @@ type PlayersPageClientProps = {
   seasonRows: PlayerSeasonOverviewRow[];
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
   developmentRows: PlayerDevelopmentOverviewRow[];
+  /** Batched, JSON-serializable effective-position profile entries per player — never re-fetched
+      or recomputed per row (Players Operating Surface bundle §4). */
+  effectivePositionsByPlayerId: Record<string, TouchlinePositionMapEntry[]>;
+  /** Active (non-removed) player count, loaded independently of `includeRemoved` mode so the
+      "Active players" metric never means something else while viewing removed players. */
+  activePlayerCount: number;
   selectedPeriodId: string;
   selectedRoundId?: string;
+  operationalRoundLabel?: string;
   includeRemoved?: boolean;
   removedPlayerCount?: number;
   initialMode?: string;
@@ -93,8 +98,11 @@ export function PlayersPageClient({
   seasonRows,
   currentRoundRows,
   developmentRows,
+  effectivePositionsByPlayerId,
+  activePlayerCount,
   selectedPeriodId,
   selectedRoundId,
+  operationalRoundLabel,
   includeRemoved,
   removedPlayerCount = 0,
   initialMode,
@@ -105,12 +113,9 @@ export function PlayersPageClient({
   const searchParams = useSearchParams();
   const orgUrl = useOrgUrl();
   const mode = resolveMode(initialMode);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
-  const selectedPeriod = leagueSeasons.find((p) => p.id === selectedPeriodId);
   const selectedRound = matchRounds.find((r) => r.id === selectedRoundId);
-  const periodLabel = selectedPeriod ? formatLeagueSeasonDisplay({ seasonName: selectedPeriod.name, leagueSeasonName: selectedPeriod.name, startDate: new Date(selectedPeriod.startDate), endDate: new Date(selectedPeriod.endDate) }).combinedLabel : "No league season";
-  const roundLabel = selectedRound?.name ?? "No round selected";
+  const roundLabel = operationalRoundLabel ?? selectedRound?.name ?? "No round selected";
 
   const roundsForPeriod = matchRounds.filter((r) => r.leagueSeasonId === selectedPeriodId);
 
@@ -149,15 +154,40 @@ export function PlayersPageClient({
     currentAvailability: p.currentAvailability,
   }));
 
-  const overviewRows = buildPlayersOverviewRows(identities, seasonRows, currentRoundRows);
+  const overviewRows = buildPlayersOverviewRows(identities, seasonRows, currentRoundRows, effectivePositionsByPlayerId);
   const currentRoundRowsVm = buildPlayersCurrentRoundViewModel({
     roundLabel,
     rows: buildPlayersCurrentRoundRows(identities, currentRoundRows),
   });
   const developmentRowsVm = buildPlayersDevelopmentRows(identities, developmentRows);
 
-  const selectedRow = selectedPlayerId ? overviewRows.find((r) => r.playerId === selectedPlayerId) ?? null : null;
-  const inspectorData = selectedRow ? buildPlayersOverviewInspectorData(selectedRow, orgUrl) : null;
+  // Summary metrics (§3 of 02_ROUTE_COMPOSITION_AND_VISUAL_CONTRACT.md) — operational
+  // summaries derived from the already-loaded rows, not decorative KPI tiles.
+  const opportunityGapsCount = currentRoundRows.filter((r) => r.integrityState === "DECISION_REQUIRED_NO_PLANNED_MATCH").length;
+  const supportUsageCount = overviewRows.filter((r) => r.support > 0).length;
+  const developmentFocusesCount = developmentRows.filter((r) => r.activeDevelopmentFocus != null).length;
+
+  // The shared `PlayersOverviewSurface` owns search/filter/selection state internally; this page
+  // only needs to resolve inspector data for whichever player it lands on.
+  const resolveInspectorData = useMemo(() => {
+    const rowsById = new Map(overviewRows.map((row) => [row.playerId, row]));
+    const developmentFocusById = new Map(developmentRows.map((row) => [row.playerId, row.activeDevelopmentFocus]));
+    return (playerId: string) => {
+      const row = rowsById.get(playerId);
+      if (!row) return null;
+      return buildPlayersOverviewInspectorData(
+        row,
+        effectivePositionsByPlayerId[playerId] ?? [],
+        developmentFocusById.get(playerId) ?? null,
+        orgUrl,
+      );
+    };
+  }, [overviewRows, developmentRows, effectivePositionsByPlayerId, orgUrl]);
+
+  const seasonOptions = leagueSeasons.map((p) => ({
+    id: p.id,
+    label: formatLeagueSeasonDisplay({ seasonName: p.name, leagueSeasonName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel,
+  }));
 
   return (
     // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 8).
@@ -179,69 +209,27 @@ export function PlayersPageClient({
       {saved === "removed" && <DecisionBanner variant="success" title="Player removed." />}
       {saved === "restored" && <DecisionBanner variant="success" title="Player restored." />}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <MetricTile
-          icon={<Users className="h-4 w-4" />}
-          label="Players"
-          value={players.length}
-        />
-        {removedPlayerCount > 0 && (
-          <button
-            type="button"
-            onClick={() => navigate({ showRemoved: includeRemoved ? undefined : "1" })}
-            className={`ml-2 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-              includeRemoved
-                ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] text-[var(--warning)]"
-                : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            {includeRemoved ? "Hide removed" : `Show removed (${removedPlayerCount})`}
-          </button>
-        )}
-      </div>
-
       <TabRail items={tabItems} activeKey={mode} ariaLabel="Players workspace modes" />
 
       {mode === "overview" && (
-        <>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-muted)]">League season:</span>
-              <select
-                value={selectedPeriodId}
-                onChange={(e) => navigate({ periodId: e.target.value, mode: "overview" })}
-                className={selectClass}
-              >
-                {leagueSeasons.map((p) => (
-                  <option key={p.id} value={p.id}>{formatLeagueSeasonDisplay({ seasonName: p.name, leagueSeasonName: p.name, startDate: new Date(p.startDate), endDate: new Date(p.endDate) }).combinedLabel}</option>
-                ))}
-              </select>
-            </label>
-            <span className="text-xs text-[var(--text-muted)]">{periodLabel}</span>
-          </div>
-
-          <div className="hidden medium:grid medium:grid-cols-[3fr_1fr] medium:gap-6">
-            <PlayerRosterTable rows={overviewRows} selectedPlayerId={selectedPlayerId} onSelectPlayer={setSelectedPlayerId} />
-            <PlayerInspector data={inspectorData} />
-          </div>
-          <ul className="flex flex-col divide-y divide-[var(--border-soft)] medium:hidden">
-            {overviewRows.map((row) => (
-              <li key={row.playerId}>
-                <PlayerCompactRow
-                  playerId={row.playerId}
-                  displayName={row.displayName}
-                  shirtNumber={row.shirtNumber}
-                  kitColor={row.kitColor}
-                  primaryPosition={row.currentPrimaryPosition}
-                  coreTeamName={row.coreTeamName}
-                  href={orgUrl(`/players/${row.playerId}`)}
-                  attentionMarker={row.attention}
-                  trailing={<span>{row.hasOpportunityThisWeek === null ? "—" : row.hasOpportunityThisWeek ? "1/1" : "0/1"}</span>}
-                />
-              </li>
-            ))}
-          </ul>
-        </>
+        <PlayersOverviewSurface
+          rows={overviewRows}
+          resolveInspectorData={resolveInspectorData}
+          summary={{
+            activePlayerCount,
+            opportunityGapsCount,
+            opportunityGapsDescription: `No planned match in ${roundLabel}`,
+            supportUsageCount,
+            developmentFocusesCount,
+          }}
+          seasonOptions={seasonOptions}
+          selectedSeasonId={selectedPeriodId}
+          onSeasonChange={(seasonId) => navigate({ periodId: seasonId, mode: "overview" })}
+          removedPlayerCount={removedPlayerCount}
+          includeRemoved={Boolean(includeRemoved)}
+          onToggleRemoved={() => navigate({ showRemoved: includeRemoved ? undefined : "1" })}
+          mobilePlayerHref={(playerId) => orgUrl(`/players/${playerId}`)}
+        />
       )}
 
       {mode === "current-round" && (

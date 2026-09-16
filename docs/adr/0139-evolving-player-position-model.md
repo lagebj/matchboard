@@ -275,3 +275,55 @@ were updated to describe them as a retained canonical POSITION-observation evide
 than salvaged pieces of a still-partially-dead subsystem. No approval queue replaces the deleted
 subsystem; normal evidence-driven position evolution continues to auto-apply through this ADR and
 `DecisionRecord`, unchanged.
+
+### 2026-09-16
+
+Matchboard Players Operating Surface bundle
+(`.matchboard-work/matchboard_players_operating_surface_2026-09-16/`): fixed two defects
+inherited from the Players Overview production migration (ADR-0136) — raw legacy position
+identifiers (e.g. `DEFENSIVE_MIDFIELDER`) leaking directly into roster/inspector display, and the
+Overview inspector's `effectivePositions` field being unconditionally hard-coded to `[]` (a
+deliberate, disclosed deferral at the time, per ADR-0136's Players section) — and completed the
+tabbed-restructuring follow-up ADR-0136 recorded as deferred.
+
+- **One canonical position-alias normalizer**
+  (`src/lib/player-development/position-code.ts`, `normalizePlayerPositionCode()`): passes
+  canonical exact/broad codes through unchanged, case-insensitively resolves a fixed legacy-alias
+  table, and never fabricates a code for a genuinely unrecognized value. Broad historical values
+  (`DEFENDER`/`MIDFIELDER`/`FORWARD`) are never silently upgraded to an exact code — they retain
+  broad semantics through display, per this ADR's evidence model.
+  `src/lib/touchline/presentation/exact-position-labels.ts` was rewritten on top of it as the
+  single label-formatting authority (`exactPositionLabel()`, `compactPositionLabel()`), replacing
+  the previous ad-hoc raw-code passthrough.
+- **Batched effective-position loading, no N+1 queries:** `getEffectivePlayerPositionProfilesForPlayers()`
+  (`get-effective-position-profile.ts`) computes the full effective-position profile for an
+  arbitrary batch of players in one round-trip per data source (one `player.findMany`, one batched
+  actual-position-history query, one batched observation query — see
+  `position-usage-history.ts`'s `getPlayersActualPositionHistory()` and
+  `position-experience-signals.ts`'s `getObservationSignalsForPlayers()`), then runs the existing
+  pure `computeEffectivePlayerPositionProfile()` once per player in-memory. The original
+  single-player readers (used by Player Detail) now delegate to their batched counterparts for
+  `[playerId]` — one owning grouping implementation per data source, shared by both surfaces, not
+  two divergent aggregations.
+- **Players Overview and Player Detail now share the same effective-position engine and the same
+  `PlayerPositionMapWidget`/canonical pitch rendering** — the Overview route's
+  `players-overview-production-adapter.ts` no longer defers this integration; it receives batched,
+  already-computed, JSON-serializable `TouchlinePositionMapEntry[]` per player (via the shared
+  `player-position-map-adapter.ts`'s `buildPositionMapEntries()`, previously duplicated between
+  Player Detail's adapter and unused elsewhere) and derives each row's effective primary position
+  from the rank-1 entry, falling back to the normalized declared position only when no profile
+  entry exists at all.
+- **Current operational round resolved from real kickoff dates**
+  (`src/lib/players/resolve-operational-round.ts`), replacing the previous `matchRounds[0].id`
+  ordering-artifact default — mirrors the League route's existing display-week "current round"
+  semantics (`getDisplayIsoWeekKey()`) without depending on its heavier `FixtureRound` view-model
+  machinery.
+- The Overview inspector was recomposed (no tabs, real season metrics, real effective-position
+  entries, a "current context" section, "Open player →") completing the page-hierarchy
+  restructuring ADR-0136 had deferred, and the route gained real search/team/position/availability
+  filtering and four operational summary metrics (Active players / Opportunity gaps / Support
+  usage / Development focuses) client-side over already-loaded rows — zero new queries introduced
+  by the filtering/metrics UX itself.
+- No schema change, no new pitch renderer, no new position model. Verified: full `npm run
+  validate`, all pre-existing and new unit/component tests passing (see this bundle's PR for the
+  exact count), real UI-Lab fixtures for the seven required deterministic Overview states.

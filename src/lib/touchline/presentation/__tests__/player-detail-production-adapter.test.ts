@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   buildIdentityInput,
-  buildPositionMapEntries,
   buildOverviewInput,
   buildMatchesInput,
   buildDevelopmentInput,
   buildEvidenceStories,
 } from "../player-detail-production-adapter";
+import { buildPositionMapEntries } from "../player-position-map-adapter";
 import { buildPlayerIdentityViewModel } from "../player-identity-view-model";
 import type { EffectivePlayerPositionProfile } from "@/lib/player-development/effective-position-profile";
 import type { PlayerMatchHistoryEntry } from "@/lib/players/get-player-match-history";

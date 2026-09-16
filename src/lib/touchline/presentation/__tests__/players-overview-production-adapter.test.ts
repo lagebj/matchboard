@@ -7,11 +7,12 @@ import {
   type PlayerIdentityInput,
 } from "../players-overview-production-adapter";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow } from "@/lib/players/get-players-overview";
+import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
 
 /**
- * Atlas Follow-up Phase F8 (Production Players migration, `03_PLAYER_OVERVIEW_CONTRACT.md`): the
- * pure mapping from the canonical `get-players-overview.ts` query results to the Phase F5 UI
- * Lab's view-model row shapes.
+ * Matchboard Players Operating Surface bundle (`06_EXACT_CODE_EXECUTION_PLAN.md` step 11): the
+ * pure mapping from the canonical `get-players-overview.ts` query results, plus batched
+ * effective-position map entries, to the Overview view-model row/inspector shapes.
  */
 function makeIdentity(overrides: Partial<PlayerIdentityInput> = {}): PlayerIdentityInput {
   return {
@@ -64,6 +65,14 @@ function makeCurrentRoundRow(overrides: Partial<PlayerCurrentRoundAttentionRow> 
   };
 }
 
+const CM_ENTRY: TouchlinePositionMapEntry = {
+  positionCode: "CM",
+  positionLabel: "Centre Midfield",
+  rank: 1,
+  supportBand: "STRONG",
+  confidence: "HIGH",
+};
+
 describe("buildPlayersOverviewRows", () => {
   it("maps season overview fields through directly", () => {
     const [row] = buildPlayersOverviewRows([makeIdentity()], [makeSeasonRow()], []);
@@ -75,9 +84,31 @@ describe("buildPlayersOverviewRows", () => {
     expect(row.matchdayAdditions).toBe(1);
   });
 
-  it("uses the live-synced Player.primaryPosition as currentPrimaryPosition", () => {
-    const [row] = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "LW" })], [makeSeasonRow()], []);
-    expect(row.currentPrimaryPosition).toBe("LW");
+  it("prefers the effective profile's rank-1 position over the declared identity position", () => {
+    const [row] = buildPlayersOverviewRows(
+      [makeIdentity({ primaryPosition: "CB" })],
+      [makeSeasonRow()],
+      [],
+      { p1: [CM_ENTRY] },
+    );
+    expect(row.currentPrimaryPositionCode).toBe("CM");
+    expect(row.currentPrimaryPosition).toBe("CM");
+  });
+
+  it("falls back to the normalized declared position when no effective profile entry exists", () => {
+    const [row] = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "DEFENSIVE_MIDFIELDER" })], [makeSeasonRow()], []);
+    expect(row.currentPrimaryPositionCode).toBe("DM");
+    expect(row.currentPrimaryPosition).toBe("DM");
+  });
+
+  it("never renders a raw legacy identifier as the display label", () => {
+    const [row] = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "GOALKEEPER" })], [makeSeasonRow()], []);
+    expect(row.currentPrimaryPosition).toBe("GK");
+  });
+
+  it("renders a broad declared position as a broad human label, not an upgraded exact code", () => {
+    const [row] = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "DEFENDER" })], [makeSeasonRow()], []);
+    expect(row.currentPrimaryPosition).toBe("Defender");
   });
 
   it("resolves shirt number and kit colour from the identity input", () => {
@@ -149,15 +180,21 @@ describe("buildPlayersOverviewRows", () => {
 });
 
 describe("buildPlayersOverviewInspectorData", () => {
-  it("always returns an empty effectivePositions array (deferred scope, never fabricated)", () => {
+  it("renders the real passed effective-position map entries, never a hard-coded empty array", () => {
+    const row = buildPlayersOverviewRows([makeIdentity()], [makeSeasonRow()], [], { p1: [CM_ENTRY] })[0];
+    const data = buildPlayersOverviewInspectorData(row, [CM_ENTRY], null, (p) => p);
+    expect(data.effectivePositions).toEqual([CM_ENTRY]);
+  });
+
+  it("renders an empty effectivePositions array honestly when no profile entries exist", () => {
     const row = buildPlayersOverviewRows([makeIdentity()], [makeSeasonRow()], [])[0];
-    const data = buildPlayersOverviewInspectorData(row, (p) => p);
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
     expect(data.effectivePositions).toEqual([]);
   });
 
   it("builds the player detail href via the provided org-scoped href resolver", () => {
     const row = buildPlayersOverviewRows([makeIdentity()], [makeSeasonRow()], [])[0];
-    const data = buildPlayersOverviewInspectorData(row, (p) => `/o/acme${p}`);
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => `/o/acme${p}`);
     expect(data.playerDetailHref).toBe("/o/acme/players/p1");
   });
 
@@ -167,8 +204,36 @@ describe("buildPlayersOverviewInspectorData", () => {
       [makeSeasonRow()],
       [makeCurrentRoundRow({ integrityState: "NOT_AVAILABLE" })],
     )[0];
-    const data = buildPlayersOverviewInspectorData(row, (p) => p);
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
     expect(data.opportunityLabel).toBe("Unavailable this round");
+  });
+
+  it("passes the active development focus through when present, null when absent", () => {
+    const row = buildPlayersOverviewRows([makeIdentity()], [makeSeasonRow()], [])[0];
+    const withFocus = buildPlayersOverviewInspectorData(row, [], "First-touch under pressure", (p) => p);
+    const withoutFocus = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
+    expect(withFocus.activeDevelopmentFocus).toBe("First-touch under pressure");
+    expect(withoutFocus.activeDevelopmentFocus).toBeNull();
+  });
+
+  it("carries the row's real season metrics through to the inspector", () => {
+    const row = buildPlayersOverviewRows([makeIdentity()], [makeSeasonRow({ actualAppearances: 12, goals: 3 })], [])[0];
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
+    expect(data.played).toBe(12);
+    expect(data.goals).toBe(3);
+  });
+
+  it("derives the full exact position label alongside the compact code", () => {
+    const row = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "CM" })], [makeSeasonRow()], [])[0];
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
+    expect(data.currentPrimaryPosition).toBe("CM");
+    expect(data.currentPrimaryPositionFull).toBe("Centre Midfield");
+  });
+
+  it("is null when there is no primary position at all", () => {
+    const row = buildPlayersOverviewRows([makeIdentity({ primaryPosition: null })], [makeSeasonRow()], [])[0];
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
+    expect(data.currentPrimaryPositionFull).toBeNull();
   });
 });
 

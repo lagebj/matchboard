@@ -1,24 +1,27 @@
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { availabilityLabel } from "@/lib/players/availability-label";
+import { normalizePlayerPositionCode } from "@/lib/player-development/position-code";
+import { compactPositionLabel, exactPositionLabel } from "./exact-position-labels";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow, IntegrityAttentionState } from "@/lib/players/get-players-overview";
 import type { PlayersOverviewRow, PlayersOverviewInspectorData } from "./players-overview-view-model";
+import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
 import type { PlayersCurrentRoundRow } from "./players-current-round-view-model";
 import type { PlayersDevelopmentRow } from "./players-development-view-model";
 
 /**
- * Atlas Follow-up Phase F8 (Production Players migration,
- * `03_PLAYER_OVERVIEW_CONTRACT.md`): adapts the existing, canonical `get-players-overview.ts`
- * query results (unchanged) into the Phase F5 UI Lab's view-model row shapes. Pure — no DB
- * access — so this exact mapping is directly unit-testable without mocking data-fetching.
+ * Matchboard Players Operating Surface bundle (`06_EXACT_CODE_EXECUTION_PLAN.md` step 11):
+ * adapts the canonical `get-players-overview.ts` query results — plus the batched
+ * effective-position map entries the page computed via
+ * `getEffectivePlayerPositionProfilesForPlayers()` (`04_DATA_AND_BATCH_LOADING_CONTRACT.md §4`)
+ * — into the Overview view-model row/inspector shapes. Pure — no DB access — so this exact
+ * mapping is directly unit-testable without mocking data-fetching.
  *
- * Deliberately deferred, disclosed scope (per `00_AUTHORITY_AND_EXECUTION_CONTRACT.md §4`, "omit
- * unsupported content cleanly, never fabricate it"): `PlayersOverviewInspectorData.effectivePositions`
- * is always `[]` here. Wiring the real `computeEffectivePlayerPositionProfile()` (ADR-0139) into
- * a display-ready `TouchlinePositionMapEntry[]` has no existing production entry point yet
- * (Phase F4's `PlayerPositionMapWidget` only ever took static fixtures) — building that DB-bound
- * wrapper once, shared by Player Detail and this inspector, is separately-scoped follow-up work
- * rather than built twice hastily here. An empty position array is a legitimate "no evidence"
- * state (matching `TouchlinePositionMap`'s own "no support = no dot" rule), not a lie.
+ * The prior `effectivePositions: []` deferral is gone: the selected-player inspector now renders
+ * the same canonical effective-position map entries Player Detail renders, built by the same
+ * shared `buildPositionMapEntries()` (`player-position-map-adapter.ts`). The page passes already-
+ * built, JSON-serializable `TouchlinePositionMapEntry[]` per player (no `Date` fields), so the
+ * profile computation itself stays server-side while this mapping remains a pure client-safe
+ * function.
  */
 
 export type PlayerIdentityInput = {
@@ -28,12 +31,9 @@ export type PlayerIdentityInput = {
   shirtNumber: number | null;
   coreTeamKitColor: string | null;
   /**
-   * `Player.primaryPosition` — kept live-synced by the position evolution engine
-   * (`sync-effective-position.ts` writes this field directly on every automatic promotion, see
-   * ADR-0139), so it already is the "current effective primary position" scalar the contract
-   * asks for; only the richer multi-position/support-band visualization needs the fuller
-   * `computeEffectivePlayerPositionProfile()` computation this adapter defers (see file doc
-   * comment above).
+   * `Player.primaryPosition` — used only as a fallback when no effective-position profile entry
+   * exists for this player (e.g. no declared position and no evidence at all). Prefer the
+   * effective profile's current primary position everywhere it's available.
    */
   primaryPosition: string | null;
   /** `Player.currentAvailability` — the same field `PlayerCurrentRoundAttentionRow.availability`
@@ -55,10 +55,22 @@ function hasOpportunityThisWeek(state: IntegrityAttentionState | undefined): boo
   return state === "COVERED";
 }
 
+/** The effective primary position code for a player: the profile's rank-1 entry when one
+ * exists, otherwise the normalized declared `Player.primaryPosition` as an honest fallback. */
+function effectivePrimaryCode(
+  positionEntries: TouchlinePositionMapEntry[] | undefined,
+  declaredPrimaryPosition: string | null | undefined,
+): string | null {
+  const primaryEntry = positionEntries?.find((e) => e.rank === 1);
+  if (primaryEntry) return primaryEntry.positionCode;
+  return normalizePlayerPositionCode(declaredPrimaryPosition);
+}
+
 export function buildPlayersOverviewRows(
   identities: PlayerIdentityInput[],
   seasonRows: PlayerSeasonOverviewRow[],
   currentRoundRows: PlayerCurrentRoundAttentionRow[],
+  effectivePositionsByPlayerId: Record<string, TouchlinePositionMapEntry[]> = {},
 ): PlayersOverviewRow[] {
   const identityById = new Map(identities.map((p) => [p.id, p]));
   const integrityByPlayer = new Map(currentRoundRows.map((r) => [r.playerId, r.integrityState]));
@@ -66,13 +78,16 @@ export function buildPlayersOverviewRows(
   return seasonRows.map((row): PlayersOverviewRow => {
     const identity = identityById.get(row.playerId);
     const integrityState = integrityByPlayer.get(row.playerId);
+    const positionEntries = effectivePositionsByPlayerId[row.playerId];
+    const primaryCode = effectivePrimaryCode(positionEntries, identity?.primaryPosition);
     return {
       playerId: row.playerId,
       displayName: row.displayName,
       shirtNumber: identity?.shirtNumber ?? null,
       kitColor: resolvedKitColor(identity?.coreTeamKitColor ?? null),
       coreTeamName: row.coreTeam?.name ?? null,
-      currentPrimaryPosition: identity?.primaryPosition ?? null,
+      currentPrimaryPositionCode: primaryCode,
+      currentPrimaryPosition: primaryCode ? compactPositionLabel(primaryCode) : null,
       availabilityLabel: availabilityLabel(identity?.currentAvailability ?? "UNKNOWN"),
       hasOpportunityThisWeek: hasOpportunityThisWeek(integrityState),
       played: row.actualAppearances,
@@ -90,6 +105,8 @@ export function buildPlayersOverviewRows(
 
 export function buildPlayersOverviewInspectorData(
   row: PlayersOverviewRow,
+  effectivePositions: TouchlinePositionMapEntry[],
+  activeDevelopmentFocus: string | null,
   orgSlugHref: (path: string) => string,
 ): PlayersOverviewInspectorData {
   return {
@@ -97,12 +114,19 @@ export function buildPlayersOverviewInspectorData(
     displayName: row.displayName,
     shirtNumber: row.shirtNumber,
     kitColor: row.kitColor,
+    coreTeamName: row.coreTeamName,
     currentPrimaryPosition: row.currentPrimaryPosition,
+    currentPrimaryPositionFull: row.currentPrimaryPositionCode ? exactPositionLabel(row.currentPrimaryPositionCode) : null,
     availabilityLabel: row.availabilityLabel,
     opportunityLabel: row.hasOpportunityThisWeek === null ? "Unavailable this round" : row.hasOpportunityThisWeek ? "Has planned opportunity" : "No planned opportunity",
-    effectivePositions: [],
-    activeDevelopmentFocus: null,
-    latestObservationNote: null,
+    effectivePositions,
+    played: row.played,
+    goals: row.goals,
+    assists: row.assists,
+    core: row.core,
+    support: row.support,
+    development: row.development,
+    activeDevelopmentFocus,
     playerDetailHref: orgSlugHref(`/players/${row.playerId}`),
   };
 }

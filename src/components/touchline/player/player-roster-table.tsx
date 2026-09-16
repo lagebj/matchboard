@@ -43,8 +43,18 @@ export function PlayerRosterTable({ rows, selectedPlayerId, onSelectPlayer, clas
               <tr
                 key={row.playerId}
                 onClick={() => onSelectPlayer(row.playerId)}
+                onKeyDown={(e) => {
+                  // Row selection must be keyboard-operable, not just clickable (WCAG 2.1.1).
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectPlayer(row.playerId);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
                 aria-selected={isSelected}
-                className={`cursor-pointer border-b border-[var(--border-soft)] transition-colors ${
+                className={`cursor-pointer border-b border-[var(--border-soft)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-strong)] focus-visible:-outline-offset-2 ${
                   isSelected ? "bg-[var(--tl-pitch-selected)]" : "hover:bg-[var(--surface-hover)]"
                 }`}
               >
