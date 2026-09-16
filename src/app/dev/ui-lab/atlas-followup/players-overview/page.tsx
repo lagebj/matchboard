@@ -1,15 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TabRail, type TabItem } from "@/components/ui/tab-rail";
 import { AppearanceControl } from "@/components/touchline";
-import { MetricTile } from "@/components/ui/metric-tile";
-import { Users, AlertTriangle, Shield, Target } from "lucide-react";
-import { PlayerRosterTable } from "@/components/touchline/player/player-roster-table";
-import { PlayerInspector } from "@/components/touchline/player/player-inspector";
 import { PlayerCompactRow } from "@/components/touchline/player/player-compact-row";
+import { PlayersOverviewSurface } from "@/components/touchline/player/players-overview-surface";
 import { buildPlayersOverviewViewModel } from "@/lib/touchline/presentation/players-overview-view-model";
 import { buildPlayersCurrentRoundViewModel } from "@/lib/touchline/presentation/players-current-round-view-model";
 import { buildPlayersDevelopmentViewModel } from "@/lib/touchline/presentation/players-development-view-model";
@@ -47,165 +44,42 @@ const STATE_KEYS: OverviewStateKey[] = [
 ];
 
 /**
- * Real production Overview composition (mirrors `PlayersPageClient`'s Overview section) driven by
- * one of the seven required deterministic fixture states (`07_UI_LAB_AND_VISUAL_MERGE_GATE.md
- * §1`). Not a separate demo UI — same metric tiles, filter row, roster table, and inspector the
- * production route renders.
+ * Real shared Overview composition — renders the same `PlayersOverviewSurface` production uses,
+ * driven by one of the seven required deterministic fixture states
+ * (`07_UI_LAB_AND_VISUAL_MERGE_GATE.md §1`). Not a separate demo UI (§4 of the visual-convergence
+ * follow-up) — UI-Lab must never manually rebuild this composition again.
  */
 function OverviewMode({ stateKey }: { stateKey: OverviewStateKey }) {
   const fixture = overviewStates[stateKey];
-  const [selected, setSelected] = useState<string | null>(fixture.initialSelectedPlayerId);
-  const [searchQuery, setSearchQuery] = useState(fixture.initialSearch);
-  const [teamFilter, setTeamFilter] = useState(fixture.initialTeamFilter);
-  const [positionFilter, setPositionFilter] = useState(fixture.initialPositionFilter);
-  const [availabilityFilter, setAvailabilityFilter] = useState(fixture.initialAvailabilityFilter);
-
-  const teamOptions = useMemo(() => {
-    const seen = new Set<string>();
-    for (const row of fixture.rows) if (row.coreTeamName) seen.add(row.coreTeamName);
-    return Array.from(seen).sort((a, b) => a.localeCompare(b));
-  }, [fixture.rows]);
-
-  const positionOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const row of fixture.rows) {
-      if (row.currentPrimaryPositionCode && row.currentPrimaryPosition) seen.set(row.currentPrimaryPositionCode, row.currentPrimaryPosition);
-    }
-    return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [fixture.rows]);
-
-  const availabilityOptions = useMemo(() => {
-    const seen = new Set<string>();
-    for (const row of fixture.rows) seen.add(row.availabilityLabel);
-    return Array.from(seen).sort((a, b) => a.localeCompare(b));
-  }, [fixture.rows]);
-
-  const trimmedSearch = searchQuery.trim().toLowerCase();
-  const filtersActive = trimmedSearch !== "" || teamFilter !== "" || positionFilter !== "" || availabilityFilter !== "";
-  const filteredRows = fixture.rows.filter((row) => {
-    if (trimmedSearch && !row.displayName.toLowerCase().includes(trimmedSearch)) return false;
-    if (teamFilter && row.coreTeamName !== teamFilter) return false;
-    if (positionFilter && row.currentPrimaryPositionCode !== positionFilter) return false;
-    if (availabilityFilter && row.availabilityLabel !== availabilityFilter) return false;
-    return true;
-  });
-
-  function clearFilters() {
-    setSearchQuery("");
-    setTeamFilter("");
-    setPositionFilter("");
-    setAvailabilityFilter("");
-  }
-
-  const effectiveSelectedRow =
-    (selected ? filteredRows.find((r) => r.playerId === selected) : undefined) ?? filteredRows[0] ?? null;
-  const inspectorData = effectiveSelectedRow ? (fixture.inspectorByPlayerId[effectiveSelectedRow.playerId] ?? null) : null;
-
-  const supportUsageCount = fixture.rows.filter((r) => r.support > 0).length;
-  const developmentFocusesCount = developmentRows.filter((r) => r.activeDevelopmentFocus != null).length;
-  const selectClass =
-    "h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-[var(--text-soft)] outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)]";
+  const [removed, setRemoved] = useState(false);
 
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <MetricTile icon={<Users className="h-4 w-4" />} label="Active players" value={fixture.activePlayerCount} />
-        <MetricTile
-          icon={<AlertTriangle className="h-4 w-4" />}
-          label="Opportunity gaps"
-          value={fixture.opportunityGapsCount}
-          tone={fixture.opportunityGapsCount > 0 ? "warning" : "neutral"}
-          description="No planned match in W34 2026"
-        />
-        <MetricTile icon={<Shield className="h-4 w-4" />} label="Support usage" value={supportUsageCount} description="Players used in support" />
-        <MetricTile icon={<Target className="h-4 w-4" />} label="Development focuses" value={developmentFocusesCount} description="Players with an active focus" />
-        {fixture.removedPlayerCount > 0 && (
-          <button
-            type="button"
-            className="ml-2 rounded border border-[var(--border-soft)] bg-[var(--surface-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]"
-          >
-            {`Show removed (${fixture.removedPlayerCount})`}
-          </button>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search players"
-          aria-label="Search players"
-          className={`${selectClass} w-full max-w-none sm:w-[220px]`}
-        />
-        <label className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)]">Core team:</span>
-          <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} className={selectClass}>
-            <option value="">All teams</option>
-            {teamOptions.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)]">Position:</span>
-          <select value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)} className={selectClass}>
-            <option value="">All positions</option>
-            {positionOptions.map(([code, label]) => (
-              <option key={code} value={code}>{label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)]">Availability:</span>
-          <select value={availabilityFilter} onChange={(e) => setAvailabilityFilter(e.target.value)} className={selectClass}>
-            <option value="">All availability</option>
-            {availabilityOptions.map((label) => (
-              <option key={label} value={label}>{label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {filteredRows.length === 0 ? (
-        <div className="flex flex-col items-start gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)] p-4 text-[13px] text-[var(--text-soft)]">
-          <p>No players match these filters.</p>
-          {filtersActive && (
-            <button type="button" onClick={clearFilters} className="text-[13px] font-medium text-[var(--accent)] hover:underline">
-              Clear filters
-            </button>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Desktop: dense table (~9/12) + inspector (~3/12). */}
-          <div className="hidden medium:grid medium:grid-cols-[3fr_1fr] medium:gap-6">
-            <PlayerRosterTable rows={filteredRows} selectedPlayerId={effectiveSelectedRow?.playerId ?? null} onSelectPlayer={setSelected} />
-            <PlayerInspector data={inspectorData} />
-          </div>
-          {/* Mobile: compact rows, tap opens Player Detail (no inspector). */}
-          <ul className="flex flex-col divide-y divide-[var(--border-soft)] medium:hidden">
-            {filteredRows.map((row) => (
-              <li key={row.playerId}>
-                <PlayerCompactRow
-                  playerId={row.playerId}
-                  displayName={row.displayName}
-                  shirtNumber={row.shirtNumber}
-                  kitColor={row.kitColor}
-                  primaryPosition={row.currentPrimaryPosition}
-                  coreTeamName={row.coreTeamName}
-                  href="/dev/ui-lab/atlas-followup/player-detail"
-                  attentionMarker={row.attention}
-                  trailing={<span>{row.hasOpportunityThisWeek === null ? "—" : row.hasOpportunityThisWeek ? "1/1" : "0/1"}</span>}
-                />
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </>
+    <PlayersOverviewSurface
+      rows={fixture.rows}
+      resolveInspectorData={(playerId) => fixture.inspectorByPlayerId[playerId] ?? null}
+      summary={{
+        activePlayerCount: fixture.activePlayerCount,
+        opportunityGapsCount: fixture.opportunityGapsCount,
+        opportunityGapsDescription: "No planned match in W34 2026",
+        supportUsageCount: fixture.supportUsageCount,
+        developmentFocusesCount: fixture.developmentFocusesCount,
+      }}
+      seasonOptions={[{ id: "autumn-2026", label: "Autumn 2026" }]}
+      selectedSeasonId="autumn-2026"
+      onSeasonChange={() => {}}
+      removedPlayerCount={fixture.removedPlayerCount}
+      includeRemoved={removed}
+      onToggleRemoved={() => setRemoved((v) => !v)}
+      mobilePlayerHref={() => "/dev/ui-lab/atlas-followup/player-detail"}
+      initialSelectedPlayerId={fixture.initialSelectedPlayerId}
+      initialSearch={fixture.initialSearch}
+      initialTeamFilter={fixture.initialTeamFilter}
+      initialPositionFilter={fixture.initialPositionFilter}
+      initialAvailabilityFilter={fixture.initialAvailabilityFilter}
+    />
   );
 }
+
 
 function CurrentRoundMode() {
   return (

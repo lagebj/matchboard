@@ -41,6 +41,11 @@ export type PlayersOverviewInspectorData = {
   kitColor: string | null;
   coreTeamName: string | null;
   currentPrimaryPosition: string | null;
+  /** Full human-readable label (e.g. "Winger") for the same position — the inspector identity
+      line pairs this with the compact code (e.g. "Winger (W)"), while the dense roster table
+      keeps using the compact form alone. Same value as `currentPrimaryPosition` when the compact
+      and full labels coincide (e.g. broad `Defender`), so the identity line never repeats itself. */
+  currentPrimaryPositionFull: string | null;
   availabilityLabel: string;
   opportunityLabel: string;
   effectivePositions: TouchlinePositionMapEntry[];

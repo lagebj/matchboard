@@ -222,6 +222,19 @@ describe("buildPlayersOverviewInspectorData", () => {
     expect(data.played).toBe(12);
     expect(data.goals).toBe(3);
   });
+
+  it("derives the full exact position label alongside the compact code", () => {
+    const row = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "CM" })], [makeSeasonRow()], [])[0];
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
+    expect(data.currentPrimaryPosition).toBe("CM");
+    expect(data.currentPrimaryPositionFull).toBe("Centre Midfield");
+  });
+
+  it("is null when there is no primary position at all", () => {
+    const row = buildPlayersOverviewRows([makeIdentity({ primaryPosition: null })], [makeSeasonRow()], [])[0];
+    const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
+    expect(data.currentPrimaryPositionFull).toBeNull();
+  });
 });
 
 describe("buildPlayersCurrentRoundRows", () => {

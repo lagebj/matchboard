@@ -137,14 +137,14 @@ describe("PlayersPageClient — Overview summary metrics", () => {
 describe("PlayersPageClient — Overview filters", () => {
   it("filters the roster by search query, case-insensitively", () => {
     renderClient();
-    fireEvent.change(screen.getByPlaceholderText("Search players"), { target: { value: "oskar" } });
+    fireEvent.change(screen.getByPlaceholderText("Search players…"), { target: { value: "oskar" } });
     expect(screen.getAllByText("Oskar Lund").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sander Berg")).not.toBeInTheDocument();
   });
 
   it("shows an honest empty-filter message with a Clear filters action", () => {
     renderClient();
-    fireEvent.change(screen.getByPlaceholderText("Search players"), { target: { value: "zzz-no-match" } });
+    fireEvent.change(screen.getByPlaceholderText("Search players…"), { target: { value: "zzz-no-match" } });
     expect(screen.getByText("No players match these filters.")).toBeInTheDocument();
     const clearButton = screen.getByRole("button", { name: "Clear filters" });
     fireEvent.click(clearButton);
@@ -157,7 +157,7 @@ describe("PlayersPageClient — selected-player fallback", () => {
     renderClient();
     fireEvent.click(screen.getAllByText("Oskar Lund")[0]);
     // Now filter to only Sander — the selection should fall back to Sander, not stay empty.
-    fireEvent.change(screen.getByPlaceholderText("Search players"), { target: { value: "sander" } });
+    fireEvent.change(screen.getByPlaceholderText("Search players…"), { target: { value: "sander" } });
     expect(screen.queryByText("No core team")).not.toBeInTheDocument();
   });
 });

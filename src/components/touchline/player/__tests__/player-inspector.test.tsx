@@ -16,6 +16,7 @@ function makeData(overrides: Partial<PlayersOverviewInspectorData> = {}): Player
     kitColor: null,
     coreTeamName: "U14 Lions",
     currentPrimaryPosition: "CM",
+    currentPrimaryPositionFull: "Centre Midfield",
     availabilityLabel: "Available",
     opportunityLabel: "Selected this round",
     effectivePositions: [{ positionCode: "CM", positionLabel: "Centre Midfield", rank: 1, supportBand: "STRONG", confidence: "HIGH" }],
@@ -63,9 +64,33 @@ describe("PlayerInspector", () => {
     expect(screen.getByText(/Core 8 · Support 2 · Development 0/)).toBeInTheDocument();
   });
 
-  it("renders 'No active focus' honestly when there is no development focus", () => {
+  it("omits the development-focus row entirely when there is no active focus (prefer omission over a negative state)", () => {
     render(<PlayerInspector data={makeData({ activeDevelopmentFocus: null })} />);
-    expect(screen.getByText("No active focus")).toBeInTheDocument();
+    expect(screen.queryByText("Development focus")).not.toBeInTheDocument();
+  });
+
+  it("pairs the full position label with its compact code in the identity line", () => {
+    render(<PlayerInspector data={makeData({ currentPrimaryPosition: "W", currentPrimaryPositionFull: "Wing" })} />);
+    expect(screen.getByText("Wing (W)")).toBeInTheDocument();
+  });
+
+  it("does not repeat itself when the compact and full labels coincide (broad codes)", () => {
+    render(<PlayerInspector data={makeData({ currentPrimaryPosition: "Defender", currentPrimaryPositionFull: "Defender" })} />);
+    expect(screen.getByText("Defender")).toBeInTheDocument();
+    expect(screen.queryByText("Defender (Defender)")).not.toBeInTheDocument();
+  });
+
+  it("renders as one cohesive surface (a single outer widget region), not multiple stacked cards", () => {
+    const { container } = render(<PlayerInspector data={makeData()} />);
+    // The recomposed inspector is one outer TouchlineWidget; internal sections use hairline
+    // dividers (`border-t`) rather than separate widget/card elements. Excludes `rounded-full`
+    // (the compact pitch's small position-dot markers) — those are pitch chrome, not cards.
+    const cardLikeElements = Array.from(container.querySelectorAll('[class*="rounded-"]')).filter(
+      (el) => !el.className.includes("rounded-full"),
+    );
+    // Only the outer widget frame and the CTA button should carry rounded-card styling — not a
+    // set of independently-bordered nested cards.
+    expect(cardLikeElements.length).toBeLessThanOrEqual(2);
   });
 
   it("navigates to the canonical Player Detail route via 'Open player →'", () => {

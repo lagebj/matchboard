@@ -1,7 +1,7 @@
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { availabilityLabel } from "@/lib/players/availability-label";
 import { normalizePlayerPositionCode } from "@/lib/player-development/position-code";
-import { compactPositionLabel } from "./exact-position-labels";
+import { compactPositionLabel, exactPositionLabel } from "./exact-position-labels";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow, IntegrityAttentionState } from "@/lib/players/get-players-overview";
 import type { PlayersOverviewRow, PlayersOverviewInspectorData } from "./players-overview-view-model";
 import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
@@ -116,6 +116,7 @@ export function buildPlayersOverviewInspectorData(
     kitColor: row.kitColor,
     coreTeamName: row.coreTeamName,
     currentPrimaryPosition: row.currentPrimaryPosition,
+    currentPrimaryPositionFull: row.currentPrimaryPositionCode ? exactPositionLabel(row.currentPrimaryPositionCode) : null,
     availabilityLabel: row.availabilityLabel,
     opportunityLabel: row.hasOpportunityThisWeek === null ? "Unavailable this round" : row.hasOpportunityThisWeek ? "Has planned opportunity" : "No planned opportunity",
     effectivePositions,
