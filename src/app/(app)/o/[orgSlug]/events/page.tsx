@@ -1,151 +1,27 @@
-import Link from 'next/link';
 import { requirePageActorContext } from '@/lib/auth/actor-context';
-import { getEvents } from '@/app/(app)/events/actions';
-import { formatKickoffTime } from '@/lib/date-utils';
-import { EmptyState } from '@/components/ui/empty-state';
-import { TouchlinePageHeader, TouchlineButton } from '@/components/touchline';
-import { formatEventType } from "@/lib/formatters/event-labels";
-import { buildEventListViewModel } from '@/lib/touchline/presentation/event-view-model';
-import { toEventListRowInput, readinessLabel } from '@/lib/events/event-list-presentation';
-
-type EventListItem = Awaited<ReturnType<typeof getEvents>>[number];
-
-function monthKey(d: Date): string {
-  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-}
-
-/** Chronological month groups (bundle 07 §5): upcoming ascending, then past descending. */
-function groupByMonth(events: EventListItem[]): Array<{ month: string; events: EventListItem[] }> {
-  const groups: Array<{ month: string; events: EventListItem[] }> = [];
-  for (const event of events) {
-    const key = monthKey(new Date(event.startsAt));
-    const last = groups[groups.length - 1];
-    if (last && last.month === key) last.events.push(event);
-    else groups.push({ month: key, events: [event] });
-  }
-  return groups;
-}
-
-function EventRow({ event, orgSlug }: { event: EventListItem; orgSlug: string }) {
-  const start = new Date(event.startsAt);
-  const end = event.endsAt ? new Date(event.endsAt) : null;
-  const dayLabel = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  const timeRange = end
-    ? `${formatKickoffTime(start)}–${formatKickoffTime(end)}`
-    : formatKickoffTime(start);
-
-  return (
-    <Link
-      href={`/o/${orgSlug}/events/${event.id}`}
-      className="-mx-2 flex items-start gap-3 rounded-[var(--tl-c-radius-control)] px-2 py-3 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
-    >
-      <span className="w-[3.5rem] shrink-0 pt-0.5 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
-        {dayLabel}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[16px] font-[600] text-[var(--foreground)]">{event.name}</p>
-        <p className="mt-0.5 truncate text-[13px] text-[var(--text-muted)]">
-          {formatEventType(event.eventType)} &middot; {timeRange}
-        </p>
-        <p className="mt-0.5 text-[13px] text-[var(--text-soft)]">{readinessLabel(event)}</p>
-      </div>
-    </Link>
-  );
-}
+import { getEventsOverview } from '@/lib/events/get-events-overview';
+import { buildEventsOperatingViewModel } from '@/lib/touchline/presentation/events-overview-view-model';
+import { EventsOperatingSurface } from '@/components/events/events-operating-surface';
 
 export const metadata = { title: 'Events' };
 
+/**
+ * Events — Event-level operating surface (Matchboard Events Operating Surface bundle). Replaces
+ * the previous sparse grouped-month list + small "Next event" widget (Touchline Design Atlas,
+ * ADR-0136) with a route composition that leads with the next Event's factual readiness/
+ * attention/participating squads/facts, and a single-rail Event Season list below.
+ *
+ * This page owns data fetching + view-model construction only; all layout/composition lives in
+ * `EventsOperatingSurface` and all readiness/attention/ordering computation lives in
+ * `buildEventsOperatingViewModel()` (no domain computation here, matching League's
+ * `FixturesPage` -> `LeagueSurface` -> `buildLeagueOperatingViewModel()` split).
+ */
 export default async function EventsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
   await requirePageActorContext(orgSlug);
-  const events = await getEvents();
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const upcoming = events
-    .filter((e) => new Date(e.startsAt) >= startOfToday)
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  const past = events
-    .filter((e) => new Date(e.startsAt) < startOfToday)
-    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  const events = await getEventsOverview();
+  const viewModel = buildEventsOperatingViewModel(events, new Date().toISOString());
 
-  // Touchline Design Atlas (ADR-0136): a "Next event" feature widget above the grouped lists —
-  // the same already-built `buildEventListViewModel()` used in the UI Lab, wired to real data
-  // for the first time. The featured event still also appears normally in its month group below
-  // (the same "shown twice, once as a shortcut" pattern as Today's hero and League's toolbar).
-  const nextEvent = buildEventListViewModel(events.map(toEventListRowInput), new Date().toISOString()).nextEvent;
-
-  const upcomingGroups = groupByMonth(upcoming);
-  const pastGroups = groupByMonth(past);
-
-  return (
-    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134).
-    <div className="touchline flex flex-col gap-6">
-      <TouchlinePageHeader
-        title="Events"
-        context="Cup, tournament and friendly-day squad planning."
-        actions={
-          <TouchlineButton as="a" href={`/o/${orgSlug}/events/new`} variant="primary">
-            Create event
-          </TouchlineButton>
-        }
-      />
-
-      {nextEvent ? (
-        <Link
-          href={`/o/${orgSlug}/events/${nextEvent.eventId}`}
-          className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget-strong)] p-4 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)]"
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--accent)]">Next event</p>
-          <p className="mt-1 text-[18px] font-[650] text-[var(--foreground)]">{nextEvent.name}</p>
-          <p className="mt-0.5 text-[13px] text-[var(--text-soft)]">
-            {new Date(nextEvent.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-            {nextEvent.opponentSummary ? ` · ${nextEvent.opponentSummary}` : ''} · {nextEvent.readiness}
-          </p>
-        </Link>
-      ) : null}
-
-      {events.length === 0 ? (
-        <EmptyState
-          title="No events yet"
-          description="Create an event to start planning cups, tournaments and friendly days."
-          illustration="emptyEvents"
-          action={
-            <TouchlineButton as="a" href={`/o/${orgSlug}/events/new`} variant="primary">
-              Create event
-            </TouchlineButton>
-          }
-        />
-      ) : (
-        <div className="flex flex-col gap-6">
-          {upcomingGroups.map((group) => (
-            <section key={`up-${group.month}`} className="flex flex-col">
-              <h2 className="text-[13px] font-medium text-[var(--text-muted)]">{group.month}</h2>
-              <div className="mt-1 divide-y divide-[var(--border-soft)]">
-                {group.events.map((event) => (
-                  <EventRow key={event.id} event={event} orgSlug={orgSlug} />
-                ))}
-              </div>
-            </section>
-          ))}
-
-          {pastGroups.length > 0 && (
-            <div className="flex flex-col gap-6 border-t border-[var(--border-soft)] pt-4">
-              <p className="text-[13px] font-medium text-[var(--text-muted)]">Past events</p>
-              {pastGroups.map((group) => (
-                <section key={`past-${group.month}`} className="flex flex-col">
-                  <h2 className="text-[13px] font-medium text-[var(--text-muted)]">{group.month}</h2>
-                  <div className="mt-1 divide-y divide-[var(--border-soft)] opacity-80">
-                    {group.events.map((event) => (
-                      <EventRow key={event.id} event={event} orgSlug={orgSlug} />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return <EventsOperatingSurface orgSlug={orgSlug} viewModel={viewModel} />;
 }

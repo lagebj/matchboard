@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { formatKickoffDate } from '@/lib/date-utils';
 import {
   generateEventSquadsAction,
@@ -204,6 +204,8 @@ type EventDetailData = {
 
 type TabKey = 'overview' | 'squads' | 'pool' | 'matches';
 
+const EVENT_DETAIL_TABS: TabKey[] = ['overview', 'squads', 'pool', 'matches'];
+
 const EVENT_TYPE_LABELS: Record<string, string> = {
   CUP: 'Cup',
   TOURNAMENT: 'Tournament',
@@ -249,8 +251,30 @@ const EVENT_STATUS_LABELS: Record<string, string> = {
 
 export function EventDetail({ data }: { data: EventDetailData }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const activeTabParam = searchParams.get('tab');
+  // URL is the sole authority for the selected tab (ADR-0144's "never keep a client-only
+  // selection state that can drift from the shareable URL" rule) -- an unknown/missing `tab`
+  // value falls back to `overview`, validated against the real tab list rather than a
+  // hand-maintained literal set (the exact regression `match-detail.tsx` documents avoiding).
+  const activeTab: TabKey = EVENT_DETAIL_TABS.includes(activeTabParam as TabKey)
+    ? (activeTabParam as TabKey)
+    : 'overview';
+  const setActiveTab = useCallback(
+    (key: TabKey) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (key === 'overview') {
+        params.delete('tab');
+      } else {
+        params.set('tab', key);
+      }
+      const query = params.toString();
+      router.push(query.length > 0 ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
   const [addFilter, setAddFilter] = useState<string>('');
   const [selectedToAdd, setSelectedToAdd] = useState<Set<string>>(new Set());
