@@ -2187,3 +2187,69 @@ crash reproduced identically on unmodified `main` — an environment/resource li
 defect introduced by this change; CI's amd64 build job is the authoritative signal.
 `docs:check`'s one pre-existing "Primary navigation" extraction-pattern issue is likewise
 reproduced unmodified on `main`.
+
+## 47. League season rail — full timeline restored, wheel/keyboard/edge-fade interaction added (2026-09-16)
+
+**Corrects a regression introduced by §46's own follow-up fix.** The season-rail overflow fix
+merged immediately after §46 (`fix(fixtures): contain league season rail overflow within
+viewport`, PR #594) correctly stopped the rail from widening the page, but did so by adding
+`ResizeObserver`-driven render-windowing: only a small symmetric slice of `slots` around the
+current/selected week was ever rendered, so most of the season's weeks were not merely
+off-screen — they were absent from the DOM and unreachable. That was never the intent; the rail
+must remain a fully-populated, horizontally scrollable timeline confined to its own viewport.
+
+`LeagueSeasonRail` (`src/components/fixtures/league-season-rail.tsx`) is corrected in place —
+same component, same props, same slot semantics (`LeagueRailSlot`/state/label rules, empty-week
+non-interactivity, URL-driven round selection) — with the render-windowing mechanism removed
+entirely and replaced by contained-viewport interaction:
+
+- Every slot in `slots` is always rendered; nothing is sliced or paginated.
+- The scroll viewport (`overflow-x-auto`, `min-w-0`, `max-w-full`) contains an inner `w-max`
+  timeline track that is free to exceed the viewport width — the page never widens.
+- The native scrollbar is hidden (`scrollbar-width: none` / `-ms-overflow-style: none` /
+  `::-webkit-scrollbar { display: none }`) while scrolling itself remains fully functional.
+- A desktop mouse-wheel gesture over the rail moves it horizontally (`deltaX` if the gesture is
+  already horizontal, else `deltaY`), consuming the event only while the rail can still move in
+  that direction; at either scroll boundary the event is left unconsumed so ordinary vertical page
+  scroll continues — the user is never trapped on the rail.
+- Touch swipe and native trackpad horizontal gestures are untouched (no custom drag-state
+  arithmetic, no carousel library).
+- Mild scroll-snap (`scroll-snap-type: x proximity` / `scroll-snap-align: center` per slot) settles
+  the view near a week without preventing stopping in between.
+- The selected/current slot is centred inside the rail viewport on mount/season/selection change
+  via a rail-local offset calculation and `scrollTo`/`scrollLeft` on the rail's own scroll
+  container — never `scrollIntoView()`, which can also move ancestor/page scroll.
+- Subtle `pointer-events-none` left/right edge fades (using the existing `--tl-c-canvas` token,
+  not a new colour) indicate more timeline is off-screen, updated on scroll/resize; no arrows,
+  chevrons, or "scroll" text.
+- The connector line — previously one fragment per rendered slot, positioned with a hard-coded
+  `top-[19px]` that did not track the marker's actual centre — is replaced by a single continuous
+  line owned by the timeline track, geometrically anchored (via measured
+  `getBoundingClientRect()` offsets, not slot-count assumptions) to the first and last marker's
+  measured centres, so it passes through every marker's vertical centre and never extends past the
+  first/last marker.
+- ArrowLeft/ArrowRight keyboard navigation moves focus between interactive (non-empty) rail
+  buttons only, skipping empty weeks; tab order is otherwise unchanged.
+
+No domain/view-model change: `buildLeagueOperatingViewModel()`, `LeagueRailSlot`, round
+temporal/closure classification, and the composition upstream of the rail (`LeagueSurface`,
+`FixturesPage`, the app-shell `min-w-0` containment chain from §46's PR #594) are unmodified.
+
+`src/components/fixtures/__tests__/league-season-rail.test.tsx` is rewritten: the previous
+"never renders the full season list when it exceeds the fallback visible window" test encoded the
+regression and is removed. New coverage asserts the full season is always rendered
+regardless of length, the viewport stays contained with its native scrollbar hidden, exactly one
+continuous connector element exists, wheel handling moves `scrollLeft`/calls `preventDefault()`
+only while the rail can still move (and does not trap page scroll at either boundary), and the
+edge-fade affordance tracks mocked scroll position correctly.
+
+**Verified**: `npm run lint`/`typecheck` clean; full suite 4,263 + 308 tests passing (rail
+component tests: 13, all new/rewritten); `terminology:check`/`architecture:check` clean;
+`docs:check` shows only the pre-existing unrelated "Primary navigation" extraction issue reproduced
+unmodified on `main`. `npm run build` (Turbopack) fails in this ARM64 sandbox with the same
+pre-existing `postcss` subprocess crash reproduced identically on unmodified `main` (§46); CI's
+amd64 build job is the authoritative signal. No `chrome-devtools` MCP server was configured in this
+environment, so live-browser visual verification could not be performed directly in this session —
+the UI Lab league route was confirmed to render (`200 OK`) via the dev server, and correctness of
+the contained-scroll/no-page-overflow/connector-geometry/wheel-boundary behaviour is covered by the
+rewritten component test suite instead.

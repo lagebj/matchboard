@@ -24,8 +24,8 @@ if (typeof window.matchMedia !== "function") {
 }
 
 // jsdom does not implement scrollIntoView. Components that auto-scroll a focused/selected item
-// into view (e.g. LeagueSeasonRail) call this on mount/update — provide a no-op so those
-// components can render in tests without crashing.
+// into view (e.g. TeamConfigurationPage's "jump to squad settings") call this on mount/update —
+// provide a no-op so those components can render in tests without crashing.
 if (typeof window.HTMLElement.prototype.scrollIntoView !== "function") {
   window.HTMLElement.prototype.scrollIntoView = () => {};
 }
