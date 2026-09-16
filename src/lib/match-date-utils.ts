@@ -1,3 +1,5 @@
+import { getDisplayDateKey } from "@/lib/date-utils";
+
 export type MatchWithDate = {
   startsAt: Date | null;
   matchDurationMinutes: number | null;
@@ -8,6 +10,21 @@ export type LeagueMatchWithDate = {
   startsAt: Date | null;
   status?: string | null;
 };
+
+/**
+ * Day-boundary comparisons below resolve "today" and the match's calendar day against the
+ * canonical `MATCHBOARD_DISPLAY_TIMEZONE` (Europe/Oslo, ADR-0137) via `getDisplayDateKey()`,
+ * not the JS runtime's own local getters (`getFullYear`/`getMonth`/`getDate`). Those getters
+ * resolve against whichever timezone the *executing process* happens to be configured with —
+ * correct only by coincidence, and a real risk for any match whose `startsAt` still carries
+ * ARR-0044's historical write-side skew (up to a couple of hours), since that skew can push a
+ * late-evening kickoff across a runtime-local (but not real Europe/Oslo) midnight boundary.
+ * Reusing `getDisplayDateKey()` keeps this the one documented timezone policy in the codebase —
+ * never a second one.
+ */
+function isAfterDisplayDay(reference: Date, boundary: Date): boolean {
+  return getDisplayDateKey(reference) > getDisplayDateKey(boundary);
+}
 
 export function hasMatchPassed(match: MatchWithDate, now?: Date): boolean {
   if (match.status === "CANCELLED") return false;
@@ -21,9 +38,7 @@ export function hasMatchPassed(match: MatchWithDate, now?: Date): boolean {
     return referenceDate >= endsAt;
   }
 
-  const startDay = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate());
-  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
-  return today > startDay;
+  return isAfterDisplayDay(referenceDate, startsAt);
 }
 
 export function hasLeagueMatchPassed(match: LeagueMatchWithDate, now?: Date): boolean {
@@ -32,7 +47,5 @@ export function hasLeagueMatchPassed(match: LeagueMatchWithDate, now?: Date): bo
 
   const referenceDate = now ?? new Date();
   const startsAt = match.startsAt instanceof Date ? match.startsAt : new Date(match.startsAt);
-  const matchDay = new Date(startsAt.getFullYear(), startsAt.getMonth(), startsAt.getDate());
-  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
-  return today > matchDay;
+  return isAfterDisplayDay(referenceDate, startsAt);
 }
