@@ -7,6 +7,10 @@ import { PlayersPageClient } from "@/components/players/players-page-client";
 import { getPlayerOverallRating } from "@/lib/ratings/player-rating";
 import type { RatingSummary } from "@/lib/ratings/player-rating";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { resolveDefaultOperationalRoundId } from "@/lib/players/resolve-operational-round";
+import { getEffectivePlayerPositionProfilesForPlayers } from "@/lib/player-development/get-effective-position-profile";
+import { buildPositionMapEntries } from "@/lib/touchline/presentation/player-position-map-adapter";
+import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
 
 type PlayersPageProps = {
   searchParams: Promise<{
@@ -31,12 +35,15 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
     ? { removedAt: { not: null } satisfies Prisma.DateTimeNullableFilter<"Player">, ...orgWhere }
     : { removedAt: null, active: true, ...orgWhere };
 
-  const [players, removedPlayerCount, teams, leagueSeasons, matchRounds] = await Promise.all([
+  const [players, activePlayerCount, removedPlayerCount, teams, leagueSeasons, matchRounds] = await Promise.all([
     db.player.findMany({
       where: playerFilter,
       include: { coreTeam: { select: { id: true, name: true, kitColor: true } } },
       orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
     }),
+    // Loaded independently of `includeRemoved` mode — the "Active players" metric must always
+    // mean active players, even while viewing removed players (02_ROUTE_COMPOSITION §4).
+    db.player.count({ where: { removedAt: null, active: true, ...orgWhere } }),
     db.player.count({ where: { removedAt: { not: null }, ...orgWhere } }),
     db.team.findMany({
       where: { archivedAt: null, ...orgWhere },
@@ -57,17 +64,35 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
 
   const selectedPeriodId = periodId ?? leagueSeasons[0]?.id ?? "";
 
-  const seasonData = selectedPeriodId
-    ? await getPlayersSeasonOverview(selectedPeriodId, { orgFilter: ctx.orgFilter })
-    : { leagueSeason: { id: "", label: "No phase" }, seasonRows: [] as PlayerSeasonOverviewRow[] };
+  const roundsForPeriod = matchRounds.filter((r) => r.leagueSeasonId === selectedPeriodId);
 
-  const selectedRoundId = roundId ?? (matchRounds.length > 0 ? matchRounds[0].id : undefined);
+  const [seasonData, resolvedDefaultRoundId] = await Promise.all([
+    selectedPeriodId
+      ? getPlayersSeasonOverview(selectedPeriodId, { orgFilter: ctx.orgFilter })
+      : Promise.resolve({ leagueSeason: { id: "", label: "No phase" }, seasonRows: [] as PlayerSeasonOverviewRow[] }),
+    roundId
+      ? Promise.resolve(undefined)
+      : resolveDefaultOperationalRoundId(roundsForPeriod.map((r) => r.id), ctx.orgFilter),
+  ]);
 
-  const currentRoundRows = selectedRoundId
-    ? await getPlayersCurrentRoundAttention(selectedRoundId, ctx.orgFilter)
-    : [];
+  const selectedRoundId = roundId ?? resolvedDefaultRoundId ?? (roundsForPeriod.length > 0 ? roundsForPeriod[0].id : undefined);
 
-  const developmentRows = await getPlayersDevelopmentOverview(ctx.orgFilter);
+  const [currentRoundRows, developmentRows] = await Promise.all([
+    selectedRoundId ? getPlayersCurrentRoundAttention(selectedRoundId, ctx.orgFilter) : Promise.resolve([]),
+    getPlayersDevelopmentOverview(ctx.orgFilter),
+  ]);
+
+  const effectivePositionProfiles = await getEffectivePlayerPositionProfilesForPlayers(
+    players.map((p) => p.id),
+    ctx.orgFilter,
+  );
+  const effectivePositionsByPlayerId: Record<string, TouchlinePositionMapEntry[]> = {};
+  for (const p of players) {
+    const profile = effectivePositionProfiles.get(p.id);
+    effectivePositionsByPlayerId[p.id] = profile ? buildPositionMapEntries(profile) : [];
+  }
+
+  const operationalRoundLabel = matchRounds.find((r) => r.id === selectedRoundId)?.name;
 
   const playerRatings = new Map<string, RatingSummary>();
   for (const p of players) {
@@ -110,8 +135,11 @@ export default async function PlayersPage({ params, searchParams }: { params: Pr
       seasonRows={seasonData.seasonRows}
       currentRoundRows={currentRoundRows}
       developmentRows={developmentRows}
+      effectivePositionsByPlayerId={effectivePositionsByPlayerId}
+      activePlayerCount={activePlayerCount}
       selectedPeriodId={selectedPeriodId}
       selectedRoundId={selectedRoundId}
+      operationalRoundLabel={operationalRoundLabel}
       includeRemoved={includeRemoved}
       removedPlayerCount={removedPlayerCount}
       initialMode={mode}

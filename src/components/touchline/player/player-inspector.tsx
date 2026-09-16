@@ -30,10 +30,39 @@ export function PlayerInspector({ data, className }: PlayerInspectorProps) {
           <TeamKitMark color={data.kitColor} number={data.shirtNumber} size="lg" ariaLabel={`${data.displayName}'s shirt`} />
           <div className="min-w-0">
             <p className="truncate text-[16px] font-[700] text-[var(--foreground)]">{data.displayName}</p>
-            <p className="text-[12px] text-[var(--text-soft)]">{data.currentPrimaryPosition ?? "No position set"}</p>
+            <p className="text-[12px] text-[var(--text-soft)]">
+              {data.coreTeamName ?? "No core team"} · {data.currentPrimaryPosition ?? "No position set"}
+            </p>
           </div>
         </div>
-        <dl className="mt-3 flex flex-col gap-1 text-[12px]">
+
+        {/* Compact season metrics — the inspector's own snapshot, not a duplicate of the
+            roster row (03_PLAYER_OVERVIEW_CONTRACT.md §4.7). */}
+        <dl className="mt-3 grid grid-cols-4 gap-2 text-center text-[12px]">
+          <div>
+            <dt className="text-[var(--text-muted)]">Played</dt>
+            <dd className="text-[14px] font-[700] text-[var(--foreground)]">{data.played}</dd>
+          </div>
+          <div>
+            <dt className="text-[var(--text-muted)]">Goals</dt>
+            <dd className="text-[14px] font-[700] text-[var(--foreground)]">{data.goals}</dd>
+          </div>
+          <div>
+            <dt className="text-[var(--text-muted)]">Support</dt>
+            <dd className="text-[14px] font-[700] text-[var(--foreground)]">{data.support}</dd>
+          </div>
+          <div>
+            <dt className="text-[var(--text-muted)]">Dev.</dt>
+            <dd className="text-[14px] font-[700] text-[var(--foreground)]">{data.development}</dd>
+          </div>
+        </dl>
+      </TouchlineWidget>
+
+      <PlayerPositionMapWidget positions={data.effectivePositions} />
+
+      <TouchlineWidget>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Current context</p>
+        <dl className="mt-2 flex flex-col gap-1 text-[12px]">
           <div className="flex items-center justify-between">
             <dt className="text-[var(--text-muted)]">Availability</dt>
             <dd className="text-[var(--text-soft)]">{data.availabilityLabel}</dd>
@@ -42,23 +71,18 @@ export function PlayerInspector({ data, className }: PlayerInspectorProps) {
             <dt className="text-[var(--text-muted)]">Opportunity</dt>
             <dd className="text-[var(--text-soft)]">{data.opportunityLabel}</dd>
           </div>
-          {data.activeDevelopmentFocus ? (
-            <div className="flex items-center justify-between">
-              <dt className="text-[var(--text-muted)]">Development focus</dt>
-              <dd className="text-[var(--text-soft)]">{data.activeDevelopmentFocus}</dd>
-            </div>
-          ) : null}
+          <div className="flex items-center justify-between">
+            <dt className="text-[var(--text-muted)]">Development focus</dt>
+            <dd className="text-[var(--text-soft)]">{data.activeDevelopmentFocus ?? "No active focus"}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-[var(--text-muted)]">Season usage</dt>
+            <dd className="text-[var(--text-soft)]">
+              Core {data.core} · Support {data.support} · Development {data.development}
+            </dd>
+          </div>
         </dl>
       </TouchlineWidget>
-
-      <PlayerPositionMapWidget positions={data.effectivePositions} />
-
-      {data.latestObservationNote ? (
-        <TouchlineWidget>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Latest observation</p>
-          <p className="mt-1 text-[13px] italic leading-snug text-[var(--foreground)]">{data.latestObservationNote}</p>
-        </TouchlineWidget>
-      ) : null}
 
       <Link
         href={data.playerDetailHref}

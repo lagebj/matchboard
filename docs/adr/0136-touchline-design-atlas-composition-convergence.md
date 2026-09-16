@@ -512,6 +512,12 @@ starting with Phase 4.
   there without a new explicit maintainer decision.
 - No behavioural, security, or production-visible change occurred in this pass; standard
   production verification gates (`npm run validate`) still apply and passed clean on this branch.
+- **Follow-up (2026-09-16, Matchboard Players Operating Surface bundle):** the tabbed
+  Overview/Matches/Development/Evidence restructuring recorded above as "deliberately deferred" —
+  and the accompanying "shows raw position identifiers" / "`effectivePositions` always empty"
+  defects it left in place — was completed as its own dedicated pass. See ADR-0139's 2026-09-16
+  history entry for the full account (batched effective-position loading, position-alias
+  normalization, and the recomposed Players Overview route/inspector).
 
 ## References
 

@@ -17,6 +17,9 @@ export type PlayersOverviewRow = {
   shirtNumber: number | null;
   kitColor: string | null;
   coreTeamName: string | null;
+  /** Normalized effective-primary position code (e.g. `DM`, `DEFENDER`) — filtering authority. */
+  currentPrimaryPositionCode: string | null;
+  /** Human-readable compact label for the same code — table/inspector display authority. */
   currentPrimaryPosition: string | null;
   availabilityLabel: string;
   hasOpportunityThisWeek: boolean | null;
@@ -36,12 +39,18 @@ export type PlayersOverviewInspectorData = {
   displayName: string;
   shirtNumber: number | null;
   kitColor: string | null;
+  coreTeamName: string | null;
   currentPrimaryPosition: string | null;
   availabilityLabel: string;
   opportunityLabel: string;
   effectivePositions: TouchlinePositionMapEntry[];
+  played: number;
+  goals: number;
+  assists: number;
+  core: number;
+  support: number;
+  development: number;
   activeDevelopmentFocus: string | null;
-  latestObservationNote: string | null;
   playerDetailHref: string;
 };
 

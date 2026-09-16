@@ -24,6 +24,13 @@ const POSITION_GRID: Record<string, { gridX: number; gridY: number }> = {
   W: { gridX: 1, gridY: 0 },
   ST: { gridX: 2, gridY: 0 },
   CF: { gridX: 2, gridY: 0 },
+  // Broad historical positions (Matchboard Players Operating Surface bundle,
+  // `03_POSITION_MODEL_AND_LABEL_CONTRACT.md §5`) — placed on the same central column as their
+  // exact-code counterparts (CB/CM/ST) since a broad declaration carries no left/right precision
+  // to place more specifically. Labels stay broad; only the coordinate is shared.
+  DEFENDER: { gridX: 2, gridY: 4 },
+  MIDFIELDER: { gridX: 2, gridY: 2 },
+  FORWARD: { gridX: 2, gridY: 0 },
 };
 
 export function positionCodeToPoint(code: string): NormalizedPitchPoint | null {
