@@ -50,11 +50,13 @@ Scope, deliberately narrow:
   needs it yet and building it speculatively would be exactly the kind of premature plumbing
   AGENTS.md's engineering principles warn against.
 - Applies to **date-only or genuinely read-only historical display**, not to any write path
-  (write paths already correctly resolve via the coach's own browser, per ARR-0044) and not to
-  any real-time comparison (`canStartLiveReporting`, ADR-0109's planning-boundary-closes-at-
-  kickoff, `hasLeagueMatchPassed`) — those compare true instants and need no timezone conversion
-  at all, only a correct absolute `startsAt`, which ARR-0044's write-side fix already provides
-  going forward.
+  (write paths already correctly resolve via the coach's own browser, per ARR-0044). Real-time
+  comparisons against "now" (`canStartLiveReporting`, ADR-0109's planning-boundary-closes-at-
+  kickoff) that compare true instants need no timezone conversion at all, only a correct absolute
+  `startsAt`. `hasLeagueMatchPassed`/`hasMatchPassed` are the one exception: they resolve a
+  *calendar-day* boundary, not an instant, so — corrected 2026-09-16 (ARR-0044 follow-up) — they
+  now also resolve that day boundary against this same `MATCHBOARD_DISPLAY_TIMEZONE` via
+  `getDisplayDateKey()`, rather than the runtime's own local getters.
 
 ## Consequences
 

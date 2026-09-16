@@ -254,3 +254,33 @@ new `formatDateInDisplayTimezone()`; deleted `previous-encounters-panel.tsx` as 
 code; audited `events/page.tsx` and `create-event-form.tsx` and found them out of scope
 (`Event.startsAt`/`endsAt` carry no time-of-day component, so there is no browser-vs-server
 instant bug possible there). All four resolution criteria are now met. State moved to Resolved.
+
+### 2026-09-16
+
+A coach reported "Start live reporting" hard to find near kickoff again, on a match created
+before this ARR's 2026-09-12 write-side fix, then only visible on the match-detail page after the
+match had already finished. Re-auditing `hasLeagueMatchPassed`/`hasMatchPassed`
+(`src/lib/match-date-utils.ts`) against ADR-0137 found the actual root cause of that lingering
+residual risk: ADR-0137's Decision section asserts these two functions "compare true instants and
+need no timezone conversion at all" — but the *implementation* does not compare instants; it
+compares calendar days using the JS `Date` object's local getters (`getFullYear`/`getMonth`/
+`getDate`), which resolve against the *executing process's own runtime timezone*, not
+`MATCHBOARD_DISPLAY_TIMEZONE`. That mismatch between ADR-0137's stated architecture and the real
+implementation is exactly what let a historically-skewed `startsAt` (this ARR's accepted,
+unremediated residual risk on old matches — see "Disposition") push a late-evening kickoff across
+a *runtime-local* midnight boundary that does not correspond to a real Europe/Oslo midnight,
+misclassifying `hasPassed` for hours in either direction depending on the runtime's own timezone
+configuration (previously a lucky non-issue only because the production runtime happens to be
+UTC and no affected match's skew happened to straddle a UTC midnight; not something to keep
+relying on by coincidence).
+
+Fixed by resolving both functions' day-boundary comparison against `getDisplayDateKey()`
+(`src/lib/date-utils.ts`, Europe/Oslo, ADR-0137) instead of local runtime getters — the same,
+single, already-documented timezone policy every other Server-Component read path uses, applied
+here for the first time to the *comparison* side rather than only the *display* side. This is a
+strict correctness improvement, verified deterministic under multiple runtime `TZ` settings in
+`src/lib/match-date-utils.test.ts`, and requires no further historical-data remediation (same
+reasoning as this ARR's original "Disposition": the fix removes the mechanism, not the old data).
+`canStartLiveReporting`'s own gating logic (`src/lib/matches/can-live-report.ts`) was re-verified
+unchanged and correct — it was never the defect; it depends entirely on the `lifecycleStatus` fed
+into it, which this fix corrects at the source.
