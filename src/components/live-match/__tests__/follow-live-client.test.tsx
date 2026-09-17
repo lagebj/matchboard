@@ -122,4 +122,44 @@ describe("FollowLiveClient (read-only)", () => {
 
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
+
+  // ADR-0146 (bundle §05.16): a guardrails warning may be *shown* read-only, but must not
+  // reintroduce mutation controls — no Continue/Finish actions for a viewer.
+  it("renders the strong guardrails warning with no action buttons when the session is past 240 minutes", async () => {
+    render(
+      <FollowLiveClient
+        matchId="match-1"
+        teamName="Blue"
+        opponentName="Red"
+        homeAway="HOME"
+        playerMap={{}}
+        squad={[]}
+        liveReportingStartedAt={new Date(Date.now() - 245 * 60 * 1000).toISOString()}
+        sessionFormat={{ numberOfPeriods: 2, periodDurationMinutes: 25, breakDurationMinutes: 10 }}
+      />,
+    );
+
+    expect(await screen.findByTestId("live-strong-warning")).toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByText(/Continue live reporting/i)).toBeNull();
+    expect(screen.queryByText(/Finish live reporting/i)).toBeNull();
+  });
+
+  it("shows no guardrails warning without liveReportingStartedAt (legacy caller contract unchanged)", async () => {
+    render(
+      <FollowLiveClient
+        matchId="match-1"
+        teamName="Blue"
+        opponentName="Red"
+        homeAway="HOME"
+        playerMap={{}}
+        squad={[]}
+      />,
+    );
+
+    await waitFor(() => expect(getSnapshotMock).toHaveBeenCalled());
+
+    expect(screen.queryByTestId("live-strong-warning")).toBeNull();
+    expect(screen.queryByTestId("live-legacy-fallback-warning")).toBeNull();
+  });
 });

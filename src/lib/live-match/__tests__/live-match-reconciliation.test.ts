@@ -4,6 +4,7 @@ import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
 
 function ev(partial: Partial<LiveEventSummary> & Pick<LiveEventSummary, "id" | "eventType">): LiveEventSummary {
   return {
+    clientEventId: null,
     period: null,
     matchSeconds: null,
     wallClockTime: null,

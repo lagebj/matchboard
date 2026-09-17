@@ -16,6 +16,8 @@ vi.mock("@/lib/live-match/local/live-local-store", () => ({
   getAllCommands: vi.fn().mockResolvedValue([]),
   getRetryableCommands: vi.fn().mockResolvedValue([]),
   getUnresolvedCommands: vi.fn().mockResolvedValue([]),
+  isActionableForCoach: (c: { status: string; resolvedByCoach?: boolean }) =>
+    c.status === "NEEDS_REVIEW" || (c.status === "FAILED_TERMINAL" && !c.resolvedByCoach),
   recoverInterruptedSends: vi.fn().mockResolvedValue([]),
   clearPersistedCommands: vi.fn().mockResolvedValue({ removed: 0, retainedUnresolved: 0 }),
   saveSessionLocally: vi.fn().mockResolvedValue(undefined),

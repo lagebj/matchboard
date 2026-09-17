@@ -8531,6 +8531,60 @@ Feature: Matchboard football operations workspace
         Then both support local durability, reconnect deduplication, domain-aware conflict handling, and read-only Follow Live equivalently
         And no behaviour is available for one match type that is silently absent for the other without a documented reason
 
+    Rule: Live Reporting guardrails are anchored to actual Live Reporting start, never scheduled kickoff (ADR-0146)
+
+      Scenario: A fixture moved in real life but not updated in Matchboard cannot trigger Live Reporting limits before Live Reporting starts
+        Given a match's scheduled kickoff is four hours in the past
+        And Live Reporting has not been started for that match
+        Then no Live Reporting warning or limit applies to that match
+        And the 240-minute warning and 270-minute hard limit only begin when Live Reporting actually starts
+
+      Scenario: The contextual long-session warning uses the frozen match format
+        Given a match's frozen format expects 60 minutes of wall-clock play
+        And Live Reporting has been active for more than 90 minutes
+        Then the live reporting client shows a contextual warning that live reporting has continued substantially longer than the configured format
+        And the warning does not end the session and does not change any recorded timing
+
+      Scenario: A legacy session with no frozen format uses the fixed 180-minute stale-session warning
+        Given a live reporting session has no frozen match format snapshot
+        And Live Reporting has been active for more than 180 minutes
+        Then the live reporting client shows the fixed stale-session warning
+        And no match format is inferred to produce the warning
+
+      Scenario: At 240 minutes the strong warning is persistent and names the automatic finish
+        Given Live Reporting has been active for at least 240 minutes
+        Then the live reporting client shows a persistent strong warning
+        And the warning states that live reporting will finish automatically 4 hours 30 minutes after it started
+        And dismissing or continuing does not extend the deadline
+
+      Scenario: A running period beyond its configured length shows a non-destructive overrun warning
+        Given a match's frozen format configures 25-minute periods
+        And the current period clock has been running for more than 35 minutes
+        Then the live reporting client shows a period overrun warning
+        And the warning does not stop the clock, end the period, or alter player minutes
+        And no automatic period end exists
+
+      Scenario: Follow Live shows warning-neutral live status without mutation controls
+        Given a live reporting session has passed a warning threshold
+        When a viewer opens Follow Live
+        Then the viewer may see the same warning information without any Continue or Finish action
+        And Follow Live exposes no reporting controls
+
+    Rule: The effective match format freezes at Live Reporting start (ADR-0146)
+
+      Scenario: A later Season or Team format change never reinterprets an already-live match
+        Given Live Reporting has started for a match and froze its effective format
+        When the league season's or team's match format is then changed
+        Then the live match's period timing continues to use the frozen snapshot
+        And a not-yet-live match resolves the current configuration at its own future start
+
+      Scenario: A match-specific format override has highest precedence and is refused once live
+        Given a match has a complete match-specific match format override
+        Then it takes precedence over the team override and the league season default
+        And a partial override is never accepted
+        When Live Reporting has started for that match
+        Then the match's format is frozen and the pre-live override control no longer presents itself as able to change the live timing
+
     Rule: A sealed live stream and a locked report cannot be mutated by a late reconnect
 
       Scenario: A locked post-match report is never mutated by a late-arriving offline command

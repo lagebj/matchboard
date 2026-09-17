@@ -9,7 +9,7 @@ import {
   type PeriodConfig,
 } from "./period-config";
 
-function snapshotToFormat(session: {
+export function snapshotToFormat(session: {
   formatNumberOfPeriods: number | null;
   formatPeriodDurationMinutes: number | null;
   formatBreakDurationMinutes: number | null;

@@ -61,6 +61,7 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
     select: {
       id: true,
       status: true,
+      startedAt: true,
       formatNumberOfPeriods: true,
       formatPeriodDurationMinutes: true,
       formatBreakDurationMinutes: true,
@@ -169,6 +170,16 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
       squad={baselineSquad}
       matchType={match.matchType}
       periodConfig={periodConfig}
+      liveReportingStartedAt={session.startedAt.toISOString()}
+      sessionFormat={
+        session.formatNumberOfPeriods != null && session.formatPeriodDurationMinutes != null && session.formatBreakDurationMinutes != null
+          ? {
+              numberOfPeriods: session.formatNumberOfPeriods,
+              periodDurationMinutes: session.formatPeriodDurationMinutes,
+              breakDurationMinutes: session.formatBreakDurationMinutes,
+            }
+          : null
+      }
     />
   );
 }

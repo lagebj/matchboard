@@ -15,6 +15,9 @@ import {
 import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
 import type { LiveEventSummary, MatchClockState, LiveMatchEventType } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
+import type { MatchFormatDefinition } from "@/lib/live-match/match-format";
+import { resolveLiveReportingWarning, type LiveReportingWarning } from "@/lib/live-match/live-reporting-guardrails";
+import { LiveReportingWarningBanner } from "@/components/live-match/live-reporting-warning-banner";
 // The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
 // the "Position" live-reporting action (recording a POSITIONS_CHANGED event for an on-field
 // player who moves without a substitution).
@@ -28,6 +31,7 @@ import {
   getNextLocalOrdinal,
   getAllCommands,
   getRetryableCommands,
+  isActionableForCoach,
   recoverInterruptedSends,
   clearPersistedCommands,
   saveSessionLocally,
@@ -42,6 +46,23 @@ import {
 import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-match/local/pending-overlay";
 import { registerLiveServiceWorker } from "@/lib/live-match/offline/register-live-service-worker";
 import { NeedsReviewPanel } from "@/components/live-match/needs-review-panel";
+
+/** ADR-0146 — a `MatchFormatDefinition` as it crosses a server-action boundary (plain numbers;
+ * there are no Date fields to serialize, but an explicit shape keeps the action contract honest). */
+export interface SerializedMatchFormat {
+  numberOfPeriods: number;
+  periodDurationMinutes: number;
+  breakDurationMinutes: number;
+}
+
+function deserializeMatchFormat(format: SerializedMatchFormat | null | undefined): MatchFormatDefinition | null {
+  if (!format) return null;
+  return {
+    numberOfPeriods: format.numberOfPeriods,
+    periodDurationMinutes: format.periodDurationMinutes,
+    breakDurationMinutes: format.breakDurationMinutes,
+  };
+}
 
 export interface SquadPlayer {
   playerId: string;
@@ -65,7 +86,7 @@ export interface SquadPlayer {
 }
 
 export interface LiveMatchActions {
-  startSession: (matchId: string) => Promise<{ success: boolean; data?: { id: string }; error?: string }>;
+  startSession: (matchId: string) => Promise<{ success: boolean; data?: { id: string; startedAt?: string; format?: SerializedMatchFormat | null }; error?: string }>;
   endSession: (sessionId: string) => Promise<{ success: boolean; data?: { reportId?: string; reportStatus?: string }; error?: string }>;
   heartbeat: (sessionId: string) => Promise<void>;
   recordEvent: (input: {
@@ -111,6 +132,9 @@ export interface LiveMatchActions {
         id: string;
         coachId: string;
         startedAt: string;
+        /** ADR-0146: the session's frozen format snapshot (complete-or-null), for the
+         * guardrails warning thresholds. */
+        format?: SerializedMatchFormat | null;
         /** Persisted match clock (ADR-0133 H2), serialized. */
         clock?: { period: string; running: boolean; startedAt: string | null; elapsedBeforeStartMs: number };
       } | null;
@@ -343,6 +367,10 @@ function SyncStatusIndicator({
   onOpenReview,
 }: {
   pendingCount: number;
+  /** Count of commands needing an explicit coach decision (`isActionableForCoach` —
+   * `NEEDS_REVIEW` or an unresolved `FAILED_TERMINAL`), not just live conflicts (2026-09-17
+   * incident follow-up: a permanently-failed command must surface here too, not disappear
+   * silently). */
   needsReviewCount: number;
   isOffline: boolean;
   /** ADR-0138 Bundle 8 — opens the "Needs review" panel. Undefined only in a context with no
@@ -375,6 +403,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const subjectId = matchId;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
+  // ADR-0146: the ACTUAL Live Reporting start (server-set once at session creation) and the
+  // session's frozen format snapshot — the only inputs the guardrails warnings may read.
+  // Never scheduled kickoff; never Season/Team config re-resolved client-side.
+  const [liveReportingStartedAt, setLiveReportingStartedAt] = useState<Date | null>(null);
+  const [sessionFormat, setSessionFormat] = useState<MatchFormatDefinition | null>(null);
+  // Bundle §03.15: "Continue live reporting" is presentation-only — a dismissed warning stays
+  // dismissed until the severity changes, but nothing persisted ever moves.
+  const [dismissedWarningKind, setDismissedWarningKind] = useState<LiveReportingWarning["kind"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   const [onFieldIds, setOnFieldIds] = useState<Set<string>>(new Set());
@@ -435,8 +471,11 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // the sync indicator can never drift out of sync with the outbox's own source of truth.
   const pendingSyncSummary = useMemo(() => summarizePendingCommands(localCommands), [localCommands]);
   const unsyncedCount = pendingSyncSummary.pendingCount;
-  // ADR-0138 Bundle 8 — the commands the "Needs review" panel actually lists.
-  const needsReviewCommands = useMemo(() => localCommands.filter((c) => c.status === "NEEDS_REVIEW"), [localCommands]);
+  // ADR-0138 Bundle 8 — the commands the "Needs review" panel actually lists. Widened past
+  // NEEDS_REVIEW alone (2026-09-17 incident follow-up, `isActionableForCoach`'s own doc comment)
+  // to also include an unresolved FAILED_TERMINAL command — a permanent rejection the coach has
+  // never been shown is exactly the silent-data-loss shape that incident's validation bug hit.
+  const needsReviewCommands = useMemo(() => localCommands.filter(isActionableForCoach), [localCommands]);
   const playerNameById = useMemo(() => Object.fromEntries(squad.map((p) => [p.playerId, p.playerName])), [squad]);
 
   const goalFlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -548,8 +587,21 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // retained, never deleted, for diagnostic history (D13). "Apply a new action now" leaves the
   // coach free to use the normal live control again, which records a fresh, unrelated
   // clientEventId; this handler's only job is to clear the stale record out of the active queue.
+  //
+  // 2026-09-17 incident follow-up — "acknowledge" resolves an already-`FAILED_TERMINAL` command
+  // (the panel now also lists those, see `needsReviewCommands`): deliberately does NOT set a new
+  // `terminalReason`, only `resolvedByCoach` — the command already carries the real reason it
+  // failed (e.g. "The server rejected this action and it will not be retried."), and overwriting
+  // it with a generic "Superseded"/"Discarded" string would destroy that diagnostic history for
+  // no reason (the command was never actually superseded or discarded — it failed on its own).
   const resolveNeedsReviewCommand = useCallback(
-    async (clientEventId: string, resolution: "apply_new" | "discard") => {
+    async (clientEventId: string, resolution: "apply_new" | "discard" | "acknowledge") => {
+      if (resolution === "acknowledge") {
+        const extra = { resolvedByCoach: true as const };
+        await updateCommandStatus(clientEventId, "FAILED_TERMINAL", extra);
+        applyLocalStatus(clientEventId, "FAILED_TERMINAL", extra);
+        return;
+      }
       const terminalReason =
         resolution === "apply_new"
           ? "Superseded — coach recorded a new action instead."
@@ -598,6 +650,62 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }, [sessionId, subjectType, subjectId, attemptSend]);
 
   // --- Retry pending commands (on reconnect, mount, or before ending session) ---
+  // 2026-09-17 production incident fix (second occurrence): a command the coordinator accepted
+  // as "pending" (ACCEPTED_PENDING_PERSISTENCE) or terminally rejected (a failed_terminal whose
+  // broadcast was missed) whose `eventPersistenceChanged` notification never arrives is wedged
+  // forever — it blocks "Finish live reporting" (UNRESOLVED_STATUSES) but nothing ever retries it
+  // (RETRYABLE_STATUSES is only LOCAL_PENDING, and recoverInterruptedSends only recovers SENDING).
+  // Neon is the canonical source of truth (ADR-0138), so reconcile the outbox against the
+  // server's own events by clientEventId:
+  //   - a command whose clientEventId exists server-side is PERSISTED (the broadcast was lost,
+  //     not the event);
+  //   - an unresolved command the server does NOT have returns to LOCAL_PENDING, so the normal
+  //     retry machinery owns it again (a resend is dedup-safe server-side by clientEventId).
+  const reconcileOutboxWithServer = useCallback(async (): Promise<LocalCommand[]> => {
+    const all = await getAllCommands(subjectId);
+    const unresolved = all.filter(
+      (c) => c.status === "SENDING" || c.status === "ACCEPTED_PENDING_PERSISTENCE" || c.status === "LOCAL_PENDING",
+    );
+    if (unresolved.length === 0) return all;
+
+    // A genuinely offline browser rejects this call outright (a network-level throw, not a
+    // resolved `{ success: false }`) — caught here the same way `attemptSend` already catches
+    // `actions.recordEvent`'s own network failures, so a real offline finish attempt falls
+    // through to "statuses unchanged, retried later" instead of throwing out of this function
+    // entirely and silently aborting whatever called it (e.g. `handleEndSession`, mid-flight,
+    // before it ever reaches its own "could not sync" error).
+    let result: Awaited<ReturnType<typeof actions.getRecentEvents>>;
+    try {
+      result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    } catch {
+      return all;
+    }
+    if (!result.success || !result.data) return all; // Offline/unreachable — statuses unchanged; retried later.
+
+    const persistedClientEventIds = new Set(result.data.map((e) => e.clientEventId).filter((id): id is string => id != null));
+    const resolutions = new Map<string, CommandStatus>();
+    for (const command of unresolved) {
+      if (persistedClientEventIds.has(command.clientEventId)) {
+        resolutions.set(command.clientEventId, "PERSISTED");
+      } else if (command.status !== "LOCAL_PENDING") {
+        // Not on the server, but not retryable locally either — the acceptance/terminal
+        // broadcast was lost and the event genuinely is not canonical. Back to the one
+        // status the retry loop acts on; a duplicate resend is deduped by clientEventId.
+        resolutions.set(command.clientEventId, "LOCAL_PENDING");
+      }
+    }
+    if (resolutions.size === 0) return all;
+
+    await Promise.all(Array.from(resolutions, ([clientEventId, status]) => updateCommandStatus(clientEventId, status)));
+    // Apply the resolved statuses in memory instead of re-reading the store: a caller
+    // (`handleEndSession`) acting on this return value immediately afterward must see the
+    // reconciled statuses even if the store's own read-after-write isn't guaranteed to be
+    // immediately visible to a concurrent `getAllCommands` call.
+    const reconciled = all.map((c) => (resolutions.has(c.clientEventId) ? { ...c, status: resolutions.get(c.clientEventId)! } : c));
+    setLocalCommands(reconciled);
+    return reconciled;
+  }, [actions, matchId, subjectId]);
+
   const syncPendingCommands = useCallback(async () => {
     if (!sessionId) return;
     try {
@@ -656,6 +764,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         if (result.data.activeSession) {
           setSessionId(result.data.activeSession.id);
           setSessionActive(true);
+          setLiveReportingStartedAt(new Date(result.data.activeSession.startedAt));
+          setSessionFormat(deserializeMatchFormat(result.data.activeSession.format));
           const savedSession = { subjectType, subjectId, id: result.data.activeSession.id, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
           await saveSessionLocally(savedSession);
           // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
@@ -709,7 +819,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     // true running score to that under-count on every 5s poll and every reconnect broadcast —
     // the coach saw goals "disappear". The recent-events display list is still capped downstream
     // (`mergedEvents` slices to 15).
-    const result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    //
+    // Called fire-and-forget (the 5s poll, mount, and reconnect below never await it) — a
+    // genuinely offline browser makes this reject outright (a network-level throw), and an
+    // uncaught rejection from a fire-and-forget call is still an unhandled promise rejection
+    // every 5 seconds for as long as the coach is offline. Caught the same way `attemptSend`
+    // already catches `actions.recordEvent`'s own network failures.
+    let result: Awaited<ReturnType<typeof actions.getRecentEvents>>;
+    try {
+      result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    } catch {
+      return;
+    }
     if (result.success && result.data) {
       setRecentEvents(result.data);
       if (squad.length > 0) {
@@ -720,8 +841,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         setOnFieldIds(reconciled.onFieldPlayerIds);
         setReconciledPositions(reconciled.positions);
       }
+      // 2026-09-17 incident fix: this same server-canonical event set also heals any wedged
+      // outbox command (lost persistence-confirmation broadcast). Cheap no-op when the outbox
+      // has nothing unresolved.
+      void reconcileOutboxWithServer();
     }
-  }, [actions, matchId, squad]);
+  }, [actions, matchId, squad, reconcileOutboxWithServer]);
 
   useEffect(() => {
     if (!sessionActive) return;
@@ -828,8 +953,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     if (result.success && result.data) {
       setSessionId(result.data.id);
       setSessionActive(true);
+      setLiveReportingStartedAt(result.data.startedAt ? new Date(result.data.startedAt) : new Date());
+      setSessionFormat(deserializeMatchFormat(result.data.format));
       setError(null);
-      await saveSessionLocally({ subjectType, subjectId, id: result.data.id, coachId: "", startedAt: new Date().toISOString() });
+      await saveSessionLocally({ subjectType, subjectId, id: result.data.id, coachId: "", startedAt: result.data.startedAt ?? new Date().toISOString() });
     } else {
       setError(result.error ?? "Failed to start session");
     }
@@ -841,8 +968,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     // Try syncing before ending, then verify against the local store directly — syncPendingCommands
     // can fail partway through and swallow the error, so stale in-memory state can't be trusted.
     await syncPendingCommands();
-    const remaining = await getAllCommands(subjectId);
-    setLocalCommands(remaining);
+    // 2026-09-17 incident fix: a command whose persistence-confirmation broadcast was lost can
+    // be genuinely canonical already (or genuinely lost) — reconcile against the server's own
+    // events before refusing to finish, instead of trusting the wedged local status forever.
+    // Uses the reconciled array returned directly rather than re-reading the store, since a
+    // store read immediately after the reconciling writes is not guaranteed to observe them.
+    const remaining = await reconcileOutboxWithServer();
     const stillInFlight = remaining.filter(
       (c) => c.status === "LOCAL_PENDING" || c.status === "SENDING" || c.status === "ACCEPTED_PENDING_PERSISTENCE",
     );
@@ -879,7 +1010,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     } else {
       setError(result.error ?? "Failed to end session");
     }
-  }, [sessionId, actions, subjectId, syncPendingCommands]);
+  }, [sessionId, actions, subjectId, syncPendingCommands, reconcileOutboxWithServer]);
 
   const handlePeriodAdvance = useCallback(() => {
     const nextPeriod = getPeriodAfter(clock.period, periodConfig);
@@ -1165,6 +1296,46 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     return `Next: ${nextLabel}`;
   }, [clock.period, periodConfig, currentPeriodLabel, isOver]);
 
+  // --- ADR-0146: Live Reporting guardrails warning (bundle §03.5–§03.8, §05.7–§05.11) ---
+  // A wall-clock tick while a session is active — the 180/240/270-minute thresholds anchor to
+  // the SESSION's start, not the period clock, so this ticks even while the clock is paused or
+  // in a break (a forgotten paused session is exactly the stale-session failure mode).
+  const [wallNow, setWallNow] = useState(Date.now());
+  useEffect(() => {
+    if (!sessionActive) return;
+    const id = setInterval(() => setWallNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [sessionActive]);
+
+  const activeGuardrailWarning = useMemo<LiveReportingWarning | null>(() => {
+    if (!sessionActive || !liveReportingStartedAt) return null;
+    // The active period's own elapsed (for the period-overrun warning): only meaningful while
+    // the clock is running inside a playing period with a configured intended duration.
+    const activePeriodConfig = periodConfig.find((p) => p.key === clock.period);
+    const activePeriodElapsedMs =
+      clock.running && activePeriodConfig?.type === "playing" && activePeriodConfig.durationMs != null
+        ? getElapsedMs(clock, wallNow)
+        : null;
+    const warning = resolveLiveReportingWarning({
+      format: sessionFormat,
+      liveReportingStartedAt,
+      nowMs: wallNow,
+      activePeriodElapsedMs,
+      activePeriodDurationMs: activePeriodConfig?.durationMs ?? null,
+    });
+    // Bundle §03.15: a dismissed warning stays dismissed until the severity changes; the
+    // STRONG/EXPIRED tiers are persistent by design (§03.7/§05.10 — visible until the session ends).
+    if (
+      warning &&
+      dismissedWarningKind === warning.kind &&
+      warning.kind !== "STRONG" &&
+      warning.kind !== "EXPIRED"
+    ) {
+      return null;
+    }
+    return warning;
+  }, [sessionActive, liveReportingStartedAt, sessionFormat, clock, periodConfig, wallNow, dismissedWarningKind]);
+
   // --- Render ---
   if (loading) {
     return (
@@ -1220,7 +1391,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </div>
         <SyncStatusIndicator
           pendingCount={unsyncedCount}
-          needsReviewCount={pendingSyncSummary.needsReviewCount}
+          // 2026-09-17 incident follow-up: `needsReviewCommands.length` (not
+          // `pendingSyncSummary.needsReviewCount`) — the badge must count every command needing
+          // a coach decision, including an unresolved FAILED_TERMINAL, not just a live conflict.
+          needsReviewCount={needsReviewCommands.length}
           isOffline={isOffline}
           onOpenReview={() => setReviewPanelOpen(true)}
         />
@@ -1235,6 +1409,16 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           void resolveNeedsReviewCommand(clientEventId, resolution);
         }}
       />
+
+      {/* ADR-0146: Live Reporting guardrails warning — non-destructive presentation only
+          (bundle §03.5: no clock stop, no period end, no player-minute change). */}
+      {activeGuardrailWarning && (
+        <LiveReportingWarningBanner
+          warning={activeGuardrailWarning}
+          onContinue={() => setDismissedWarningKind(activeGuardrailWarning.kind)}
+          onFinish={() => setConfirmDialog({ type: "end" })}
+        />
+      )}
 
       {/* Period control */}
       <div className="px-3 py-2 border-b border-[var(--border-soft)]">
@@ -1392,11 +1576,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         )}
       </div>
 
-      {/* Finish button */}
+      {/* Finish button — ADR-0146 bundle §05.6: a visible top-level action (never overflow/
+          settings/hidden), wording kept exactly. Danger-tinted since it ends the live session. */}
       <div className="px-3 py-3 border-t border-[var(--border-soft)]" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
         <button
           onClick={() => setConfirmDialog({ type: "end" })}
-          className="w-full py-3 text-sm text-[var(--text-muted)] hover:text-[var(--text-soft)] bg-[var(--surface-hover)]/50 hover:bg-[var(--surface-hover)] rounded-lg min-h-[48px] transition-colors"
+          className="w-full py-3 text-sm font-semibold text-[var(--danger)] bg-[var(--danger-subtle)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:brightness-105 active:brightness-95 rounded-lg min-h-[48px] transition-[filter]"
         >
           Finish live reporting
         </button>

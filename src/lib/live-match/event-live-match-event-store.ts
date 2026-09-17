@@ -175,6 +175,7 @@ export async function getRecentEventEvents(eventMatchId: string, limit = 10) {
 
 function toSummary(event: {
   id: string;
+  clientEventId?: string | null;
   eventType: LiveMatchEventType;
   period: MatchPeriod | null;
   matchSeconds: number | null;
@@ -187,6 +188,9 @@ function toSummary(event: {
 }): LiveEventSummary {
   return {
     id: event.id,
+    // ADR-0138 outbox-reconciliation fix (2026-09-17 incident): the reporter client reconciles
+    // its local command statuses against these server-canonical rows by clientEventId.
+    clientEventId: event.clientEventId ?? null,
     eventType: event.eventType,
     period: event.period,
     matchSeconds: event.matchSeconds,

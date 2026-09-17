@@ -72,6 +72,38 @@ having org-only live-mutation authorization — all three were true historically
 Context and ADR-0140's Context for the specific pre-cutover findings) but are not true of the
 current architecture.
 
+## Live Reporting guardrails and match format (ADR-0146)
+
+League and Event share one guardrails module
+(`src/lib/live-match/live-reporting-guardrails.ts`) — no per-domain duplicate of any threshold:
+
+- **Timestamp authority**: every guardrail is anchored ONLY to the session's actual `startedAt`
+  (set once, server-side, at session creation). Scheduled kickoff (`Match.startsAt`/
+  `EventMatch.startsAt`) is fixture/calendar context and is never an input to any warning or
+  limit — a fixture moved in real life but not updated in Matchboard can neither trigger nor
+  dodge a guardrail.
+- **Configured period duration is an expectation, not an automatic whistle.** No threshold
+  stops a clock, ends a period, or changes player minutes. An explicit coach "End period"
+  always preserves the actual elapsed duration, however long.
+- **Warnings** (all non-destructive, `LiveReportingWarningBanner`):
+  - period overrun: active period past `intended + max(10m, 25%)` (format snapshot required);
+  - contextual whole-match: session past `expected wall-clock + max(30m, 50%)` (format
+    snapshot required);
+  - legacy fallback: fixed 180 minutes when NO format snapshot exists — never a guessed format;
+  - strong at 240 minutes: persistent, names the automatic finish;
+  - expired presentation at 270 minutes: the client shows the expired status; the server-side
+    reconciliation job is the actual finish authority.
+  - "Continue live reporting" is presentation-only — it never moves `startedAt`, the format
+    snapshot, or any deadline.
+- **Match format freeze**: the effective format (Match override > Team override > LeagueSeason
+  default, complete-or-inherit) resolves once, at the same server transition that starts Live
+  Reporting, onto `LiveMatchSession`/`EventLiveMatchSession`
+  (`format*` + `formatSource` + `formatSnapshotAt`). A later Season/Team change never
+  reinterprets an already-live or completed match. A Match-level override is editable only
+  before Live Reporting starts; once live, the match detail shows the frozen format instead.
+- **Follow Live** renders the same warning information warning-neutral and read-only — no
+  Continue/Finish actions, no mutation controls (bundle §05.16).
+
 ## Canonical operation ordering
 
 Every canonically accepted live operation receives an explicit per-session integer `sequence`

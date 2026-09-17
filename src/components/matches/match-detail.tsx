@@ -26,6 +26,7 @@ import { CoachingIntentSelector } from "@/components/matches/coaching-intent-sel
 import { MatchdayResponsibilitySelector } from "@/components/matches/matchday-responsibility-selector";
 import { AbsenceControl } from "@/components/matches/absence-control";
 import { MatchEditForm } from "@/components/matches/match-edit-form";
+import { MatchFormatOverrideControls } from "@/components/matches/match-format-override-controls";
 import { MatchHelpersPanel } from "@/components/matches/match-helpers-panel";
 import { LeagueMatchGuestsPanel } from "@/components/matches/league-match-guests-panel";
 import { PlannedRotationPanel } from "@/components/matches/planned-rotation-panel";
@@ -131,6 +132,14 @@ type MatchData = {
   /** Whether a MatchLineup row exists for this match — feeds the "Preparation" checklist
    * (Touchline Design Atlas, ADR-0136). Lineup content itself is untouched here. */
   hasLineup?: boolean;
+  /** ADR-0146 — match-format override state, computed server-side (getMatchFormatOverrideState).
+   * Omitted when the match has no League match-format surface (e.g. an Event match context). */
+  matchFormatState?: {
+    matchOverride: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
+    inheritedFormat: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
+    liveReportingStarted: boolean;
+    frozenFormat: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
+  };
 };
 
 const roleOrder = [
@@ -426,6 +435,18 @@ export function MatchDetail({ match }: { match: MatchData }) {
             phaseEndDate={match.phaseEndDate ?? match.startsAt}
           />
         </div>
+
+        {match.matchFormatState && (
+          <div className="mt-3">
+            <MatchFormatOverrideControls
+              matchId={match.id}
+              matchOverride={match.matchFormatState.matchOverride}
+              inheritedFormat={match.matchFormatState.inheritedFormat}
+              liveReportingStarted={match.matchFormatState.liveReportingStarted}
+              frozenFormat={match.matchFormatState.frozenFormat}
+            />
+          </div>
+        )}
 
         <div className="mt-3">
           <CoachingIntentSelector

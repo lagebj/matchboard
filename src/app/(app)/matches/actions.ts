@@ -315,8 +315,35 @@ export async function deleteMatchAction(matchId: string) {
 
   revalidatePath(`/o/${ctx.organisationSlug}/fixtures`);
   revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
+   revalidatePath(`/o/${ctx.organisationSlug}/today`);
+   redirect(`/o/${ctx.organisationSlug}/fixtures?saved=deleted`);
+ }
+
+/**
+ * ADR-0146 (bundle §05.4) — set or clear a Match's complete match-format override (highest
+ * precedence over Team/LeagueSeason, pre-live only; refused once Live Reporting has started
+ * because the session's frozen snapshot is then authoritative). `format: null` reverts to
+ * inheriting Season/Team.
+ */
+export async function updateMatchFormatOverrideAction(
+  matchId: string,
+  format: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null,
+): Promise<{ success: true; format: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null } | { success: false; error: string }> {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  await requireMatchGroupAccess(ctx, matchId);
+
+  // Dynamic import: this module is `server-only` and this actions module is imported from
+  // client components — the action boundary keeps the import server-side at call time.
+  const { updateMatchFormatOverride } = await import("@/lib/matches/match-format-override");
+  const result = await updateMatchFormatOverride(matchId, ctx.organisationId, format);
+  if (!result.success) return result;
+
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}/live`);
   revalidatePath(`/o/${ctx.organisationSlug}/today`);
-  redirect(`/o/${ctx.organisationSlug}/fixtures?saved=deleted`);
+  return result;
 }
 
 export async function updateMatchAction(

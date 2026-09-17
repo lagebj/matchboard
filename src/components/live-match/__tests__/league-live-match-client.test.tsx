@@ -318,7 +318,7 @@ describe("createLeagueActions.recordEvent (ADR-0138 Bundle 4 — coordinator is 
 
   it("startSession connects realtime only after the HTTP session actually starts", async () => {
     const realtime = fakeRealtime();
-    mockStartLiveSessionAction.mockResolvedValue({ success: true, data: { id: "session-1" } });
+    mockStartLiveSessionAction.mockResolvedValue({ success: true, data: { id: "session-1", startedAt: new Date(), format: null } });
     const actions = createLeagueActions("match-1", realtime);
 
     await actions.startSession("match-1");

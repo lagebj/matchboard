@@ -2,7 +2,13 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 import { createTestUser } from "@/test/support/factories";
-import { seedReportFromFinalizedSquad, seedReportFromLiveSession, markMatchAbsence, clearMatchAbsence } from "@/lib/reports/report-mutations";
+import {
+  seedReportFromFinalizedSquad,
+  seedReportFromLiveSession,
+  markMatchAbsence,
+  clearMatchAbsence,
+  computeGoalAttributionGap,
+} from "@/lib/reports/report-mutations";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 /**
@@ -521,5 +527,109 @@ describe("markMatchAbsence / clearMatchAbsence (production consistency pass item
 
     const clearResult = await clearMatchAbsence(match.id, player.id, orgFilter(fixtureIds.organisationId));
     expect(clearResult.success).toBe(false);
+  });
+});
+
+// 2026-09-17 incident follow-up: a second, independent signal for the exact failure mode the
+// validation bug produced (every SCORER_SET/ASSIST_SET silently rejected, leaving a correct
+// score with zero scorer attribution) — computed straight from the canonical event stream, so it
+// catches a mismatch even if the live-reporting outbox's own surfacing is somehow missed.
+describe("computeGoalAttributionGap (2026-09-17 incident follow-up)", () => {
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 4 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  beforeEach(async () => {
+    await testDb.postMatchReport.deleteMany({});
+    await testDb.liveMatchEvent.deleteMany({});
+    await testDb.liveMatchSession.deleteMany({});
+    await testDb.selection.deleteMany({});
+  });
+
+  async function liveSessionFor(matchId: string) {
+    const user = await createTestUser(testDb);
+    return testDb.liveMatchSession.create({
+      data: { matchId, coachId: user.id, status: "ENDED", organisationId: fixtureIds.organisationId },
+    });
+  }
+
+  it("returns null when the match was never live-reported at all (no LiveMatchEvent rows)", async () => {
+    const match = await testDb.match.findFirstOrThrow({ where: { matchRoundId: fixtureIds.matchRoundId }, select: { id: true } });
+    const gap = await computeGoalAttributionGap(match.id, fixtureIds.organisationId);
+    expect(gap).toBeNull();
+  });
+
+  it("flags a gap when live GOAL_FOR events outnumber attributed Goal rows — the incident's exact shape", async () => {
+    const match = await testDb.match.findFirstOrThrow({ where: { matchRoundId: fixtureIds.matchRoundId }, select: { id: true } });
+    const session = await liveSessionFor(match.id);
+    await testDb.liveMatchEvent.create({
+      data: { matchId: match.id, sessionId: session.id, eventType: "GOAL_FOR", organisationId: fixtureIds.organisationId },
+    });
+    await testDb.liveMatchEvent.create({
+      data: { matchId: match.id, sessionId: session.id, eventType: "GOAL_FOR", organisationId: fixtureIds.organisationId },
+    });
+    // No SCORER_SET events at all, matching the incident — seeding the report yields zero Goal rows.
+    await seedReportFromLiveSession(match.id, fixtureIds.organisationId);
+
+    const gap = await computeGoalAttributionGap(match.id, fixtureIds.organisationId);
+    expect(gap).toEqual({ liveGoalsRecorded: 2, attributedGoals: 0, hasGap: true });
+  });
+
+  it("reports no gap once scorer attribution catches up to the live goal count", async () => {
+    const match = await testDb.match.findFirstOrThrow({ where: { matchRoundId: fixtureIds.matchRoundId }, select: { id: true, teamId: true } });
+    const player = fixtureIds.players.find((p) => p.coreTeamId === match.teamId)!;
+    const session = await liveSessionFor(match.id);
+    await testDb.liveMatchEvent.create({
+      data: { matchId: match.id, sessionId: session.id, eventType: "GOAL_FOR", organisationId: fixtureIds.organisationId },
+    });
+    await testDb.liveMatchEvent.create({
+      data: { matchId: match.id, sessionId: session.id, eventType: "SCORER_SET", playerId: player.id, organisationId: fixtureIds.organisationId },
+    });
+    await seedReportFromLiveSession(match.id, fixtureIds.organisationId);
+
+    const gap = await computeGoalAttributionGap(match.id, fixtureIds.organisationId);
+    expect(gap).toEqual({ liveGoalsRecorded: 1, attributedGoals: 1, hasGap: false });
+  });
+
+  it("excludes a reversed goal from the live count, matching seedReportFromLiveSession's own exclusion (ADR-0133 H1)", async () => {
+    const match = await testDb.match.findFirstOrThrow({ where: { matchRoundId: fixtureIds.matchRoundId }, select: { id: true } });
+    const session = await liveSessionFor(match.id);
+    const goal = await testDb.liveMatchEvent.create({
+      data: { matchId: match.id, sessionId: session.id, eventType: "GOAL_FOR", organisationId: fixtureIds.organisationId },
+    });
+    await testDb.liveMatchEvent.create({
+      data: {
+        matchId: match.id,
+        sessionId: session.id,
+        eventType: "EVENT_REVERSED",
+        correctionType: "REVERSAL",
+        correctsEventId: goal.id,
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    // The only GOAL_FOR that ever existed was reversed — nothing left to compare, same as never
+    // having been live-reported at all.
+    const gap = await computeGoalAttributionGap(match.id, fixtureIds.organisationId);
+    expect(gap).toBeNull();
+  });
+
+  it("does not flag a gap for a manually-created report with goals but no live session (no LiveMatchEvent rows to compare against)", async () => {
+    const match = await testDb.match.findFirstOrThrow({ where: { matchRoundId: fixtureIds.matchRoundId }, select: { id: true, teamId: true } });
+    const player = fixtureIds.players.find((p) => p.coreTeamId === match.teamId)!;
+    const seed = await seedReportFromFinalizedSquad(match.id);
+    expect(seed.success).toBe(true);
+    const report = await testDb.postMatchReport.findUniqueOrThrow({ where: { matchId: match.id }, select: { id: true } });
+    await testDb.goal.create({ data: { reportId: report.id, playerId: player.id, organisationId: fixtureIds.organisationId } });
+
+    const gap = await computeGoalAttributionGap(match.id, fixtureIds.organisationId);
+    expect(gap).toBeNull();
   });
 });

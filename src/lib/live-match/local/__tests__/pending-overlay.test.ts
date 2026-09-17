@@ -81,7 +81,7 @@ describe("overlayPendingCommands", () => {
 
   it("merges canonical and local-only events, sorted by wall-clock time (most recent first)", () => {
     const canonical: LiveEventSummary[] = [
-      { id: "server-1", eventType: "GOAL_AGAINST", period: null, matchSeconds: null, wallClockTime: new Date("2026-01-01T10:00:00Z"), playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
+      { id: "server-1", clientEventId: null, eventType: "GOAL_AGAINST", period: null, matchSeconds: null, wallClockTime: new Date("2026-01-01T10:00:00Z"), playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
     ];
     const local = [makeCommand({ clientEventId: "local-1", status: "LOCAL_PENDING" })];
     const merged = overlayPendingCommands(canonical, local);

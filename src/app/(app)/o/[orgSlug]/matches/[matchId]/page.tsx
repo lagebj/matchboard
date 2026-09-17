@@ -7,6 +7,7 @@ import { requirePageActorContext, hasGroupAccess } from "@/lib/auth/actor-contex
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
+import { getMatchFormatOverrideState } from "@/lib/matches/match-format-override";
 import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 
@@ -61,6 +62,10 @@ export default async function MatchDetailPage({
     select: { status: true },
   });
   const isLive = liveSession?.status === "ACTIVE";
+
+  // ADR-0146 — match-format override state for the Match detail's format control
+  // (complete-or-inherit, frozen once Live Reporting has started).
+  const matchFormatState = await getMatchFormatOverrideState(matchId, ctx.organisationId);
 
   const lifecycleStatus = deriveMatchLifecycleStatus({
     matchStatus: match.status,
@@ -257,6 +262,14 @@ export default async function MatchDetailPage({
            plannedRotation,
            isCancelled: match.status === "CANCELLED",
            hasLineup: Boolean(lineup),
+           matchFormatState: matchFormatState
+             ? {
+                 matchOverride: matchFormatState.matchOverride,
+                 inheritedFormat: matchFormatState.inheritedFormat,
+                 liveReportingStarted: matchFormatState.liveReportingStarted,
+                 frozenFormat: matchFormatState.frozenFormat,
+               }
+             : undefined,
          }}
       />
     </div>

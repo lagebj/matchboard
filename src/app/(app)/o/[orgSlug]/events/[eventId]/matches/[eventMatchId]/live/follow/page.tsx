@@ -78,6 +78,7 @@ export default async function EventFollowLivePage({ params }: EventFollowLivePag
     select: {
       id: true,
       status: true,
+      startedAt: true,
       formatNumberOfPeriods: true,
       formatPeriodDurationMinutes: true,
       formatBreakDurationMinutes: true,
@@ -158,6 +159,16 @@ export default async function EventFollowLivePage({ params }: EventFollowLivePag
       squad={baselineSquad}
       periodConfig={periodConfig}
       subjectType="EVENT"
+      liveReportingStartedAt={session.startedAt.toISOString()}
+      sessionFormat={
+        session.formatNumberOfPeriods != null && session.formatPeriodDurationMinutes != null && session.formatBreakDurationMinutes != null
+          ? {
+              numberOfPeriods: session.formatNumberOfPeriods,
+              periodDurationMinutes: session.formatPeriodDurationMinutes,
+              breakDurationMinutes: session.formatBreakDurationMinutes,
+            }
+          : null
+      }
     />
   );
 }

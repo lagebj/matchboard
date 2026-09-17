@@ -126,6 +126,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.1.0",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^10",
@@ -137,6 +138,7 @@
     "tailwindcss": "^4",
     "typescript": "^6",
     "vitest": "^4.1.11",
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.127.1",
+    "ws": "^8.21.0"
   }
 }

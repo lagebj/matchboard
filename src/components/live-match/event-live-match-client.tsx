@@ -45,7 +45,14 @@ export function createEventActions(
       const result = await startEventLiveSessionAction(matchId);
       if (result.success && result.data) {
         realtime.ensureConnected();
-        return { success: true, data: { id: result.data.id } };
+        return {
+          success: true,
+          data: {
+            id: result.data.id,
+            startedAt: result.data.startedAt.toISOString(),
+            format: result.data.format,
+          },
+        };
       }
       return { success: false, error: result.success === false ? result.error : "Failed to start session" };
     },
