@@ -23,6 +23,7 @@ function makeIdentity(overrides: Partial<PlayerIdentityInput> = {}): PlayerIdent
     coreTeamKitColor: null,
     primaryPosition: "CM",
     currentAvailability: "AVAILABLE",
+    rosterState: "ACTIVE",
     ...overrides,
   };
 }
@@ -176,6 +177,32 @@ describe("buildPlayersOverviewRows", () => {
   it("formats a known availability status into a readable label", () => {
     const [row] = buildPlayersOverviewRows([makeIdentity({ currentAvailability: "INJURED" })], [makeSeasonRow()], []);
     expect(row.availabilityLabel).toBe("Injured");
+  });
+
+  describe("roster state (roster-state-and-mobile-convergence pass §7/§8)", () => {
+    it("carries the identity's rosterState through onto the row", () => {
+      const [inactive] = buildPlayersOverviewRows([makeIdentity({ rosterState: "INACTIVE" })], [makeSeasonRow()], []);
+      const [removed] = buildPlayersOverviewRows([makeIdentity({ rosterState: "REMOVED" })], [makeSeasonRow()], []);
+      expect(inactive.rosterState).toBe("INACTIVE");
+      expect(removed.rosterState).toBe("REMOVED");
+    });
+
+    it("never derives a current-round opportunity gap for a non-active roster player, even when a matching integrity row exists", () => {
+      const [inactive] = buildPlayersOverviewRows(
+        [makeIdentity({ rosterState: "INACTIVE" })],
+        [makeSeasonRow()],
+        [makeCurrentRoundRow({ integrityState: "DECISION_REQUIRED_NO_PLANNED_MATCH" })],
+      );
+      const [removed] = buildPlayersOverviewRows(
+        [makeIdentity({ rosterState: "REMOVED" })],
+        [makeSeasonRow()],
+        [makeCurrentRoundRow({ integrityState: "DECISION_REQUIRED_NO_PLANNED_MATCH" })],
+      );
+      expect(inactive.hasOpportunityThisWeek).toBeNull();
+      expect(inactive.attention).toBe(false);
+      expect(removed.hasOpportunityThisWeek).toBeNull();
+      expect(removed.attention).toBe(false);
+    });
   });
 });
 

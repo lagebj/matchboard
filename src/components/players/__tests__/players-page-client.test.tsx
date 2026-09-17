@@ -10,8 +10,9 @@ import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDev
  * availability filters and the selected-player fallback order
  * (`05_INTERACTION_FILTER_AND_RESPONSIVE_CONTRACT.md §8`).
  */
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push, refresh: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -36,6 +37,7 @@ function makePlayer(overrides: Partial<Parameters<typeof PlayersPageClient>[0]["
     nonRotatable: false,
     reducedMatchLoadAllowed: false,
     overallRating: { value: null, displayValue: "—", ratedAttributeCount: 0, maxAttributeCount: 12 },
+    rosterState: "ACTIVE" as const,
     ...overrides,
   };
 }
@@ -90,6 +92,7 @@ function baseProps(overridesArr: {
     activePlayerCount: overridesArr.players?.length ?? 2,
     selectedPeriodId: "s1",
     selectedRoundId: "r1",
+    rosterFilter: "active" as const,
     initialMode: "overview",
   };
 }
@@ -124,6 +127,25 @@ describe("PlayersPageClient — Overview summary metrics", () => {
     expect(screen.getByText("Support usage")).toBeInTheDocument();
   });
 
+  it("computes Support usage from activeSeasonRows, not the (possibly roster-scoped) seasonRows, when both are supplied (§15)", () => {
+    render(
+      <OrgSlugProvider orgSlug="acme">
+        <PlayersPageClient
+          {...baseProps({
+            // Roster-scoped table data: three players with support appearances.
+            seasonRows: [
+              makeSeasonRow({ playerId: "p1", displayName: "Sander Berg", supportAppearances: 3 }),
+              makeSeasonRow({ playerId: "p2", displayName: "Oskar Lund", coreTeam: { id: "t2", name: "U13 Hawks" }, supportAppearances: 4 }),
+            ],
+          })}
+          // Active-only summary source: only one player has support appearances.
+          activeSeasonRows={[makeSeasonRow({ playerId: "p1", displayName: "Sander Berg", supportAppearances: 3 })]}
+        />
+      </OrgSlugProvider>,
+    );
+    expect(screen.getByText("Support usage").nextElementSibling).toHaveTextContent("1");
+  });
+
   it("renders Development focuses counted from active focus rows", () => {
     renderClient(
       baseProps({
@@ -149,6 +171,32 @@ describe("PlayersPageClient — Overview filters", () => {
     const clearButton = screen.getByRole("button", { name: "Clear filters" });
     fireEvent.click(clearButton);
     expect(screen.getAllByText("Sander Berg").length).toBeGreaterThan(0);
+  });
+});
+
+describe("PlayersPageClient — roster filter (roster-state-and-mobile-convergence pass)", () => {
+  it("renders a Roster selector and no standalone Show removed control", () => {
+    renderClient();
+    expect(screen.getByText("Player status").closest("label")!.querySelector("select")).toHaveValue("active");
+    expect(screen.queryByText(/Show removed/)).not.toBeInTheDocument();
+  });
+
+  it("navigates with a `roster` query param (never `showRemoved`) when the roster selector changes", () => {
+    push.mockClear();
+    renderClient();
+    fireEvent.change(screen.getByText("Player status").closest("label")!.querySelector("select")!, { target: { value: "removed" } });
+    expect(push).toHaveBeenCalledTimes(1);
+    const url = push.mock.calls[0][0] as string;
+    expect(url).toContain("roster=removed");
+    expect(url).not.toContain("showRemoved");
+  });
+
+  it("omits the `roster` query param entirely when navigating back to the default Active state", () => {
+    push.mockClear();
+    renderClient(baseProps({}));
+    fireEvent.change(screen.getByText("Player status").closest("label")!.querySelector("select")!, { target: { value: "active" } });
+    const url = push.mock.calls[0][0] as string;
+    expect(url).not.toContain("roster=");
   });
 });
 

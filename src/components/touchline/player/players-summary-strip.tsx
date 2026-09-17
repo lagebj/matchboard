@@ -2,15 +2,15 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * `PlayersSummaryStrip` (Players Operating Surface visual-convergence follow-up,
- * `07_UI_LAB_AND_VISUAL_MERGE_GATE.md §6` of the corrective bundle). A Players-route-specific
- * compact summary composition — deliberately not a reuse of the generic `MetricTile` (that
- * component stays as-is for Assistant/Round Board; this route needed a flatter, lower, more
- * horizontally-aligned treatment than its square dashboard-card silhouette).
+ * `PlayersSummaryStrip` (Players roster-state-and-mobile-convergence pass §9-10). One grouped
+ * operational strip — a single outer border/background with internal hairline separators between
+ * cells — never four independent bordered cards ("dashboard tile soup"). Four equal cells at
+ * `medium`+, a 2×2 grid below it, so the summary occupies roughly one compact block rather than
+ * dominating the first mobile viewport.
  *
- * Four equal operational summaries, one coherent visual family. No trend arrows, no progress
- * bars, no percentages — only the real semantic tone (`warning` on the opportunity-gap item when
- * its count is above zero; every other item stays neutral).
+ * No trend arrows, no progress bars, no percentages, no shadows — only the real semantic tone
+ * (`warning` on the opportunity-gap cell when its count is above zero; every other cell stays
+ * neutral), applied to that one cell only.
  */
 export type PlayersSummaryStripItem = {
   key: string;
@@ -28,15 +28,18 @@ export type PlayersSummaryStripProps = {
 
 export function PlayersSummaryStrip({ items, className }: PlayersSummaryStripProps) {
   return (
-    <div className={cn("flex flex-wrap items-stretch gap-2", className)}>
+    <div
+      className={cn(
+        "grid grid-cols-2 divide-x divide-y divide-[var(--border-soft)] overflow-hidden rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] medium:grid-cols-4 medium:divide-y-0",
+        className,
+      )}
+    >
       {items.map((item) => (
         <div
           key={item.key}
           className={cn(
-            "flex min-w-[150px] flex-1 items-start gap-2 rounded-md border px-3 py-2",
-            item.tone === "warning"
-              ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)]"
-              : "border-[var(--border-soft)] bg-[var(--surface-base)]",
+            "flex items-start gap-2 px-3 py-2",
+            item.tone === "warning" && "bg-[var(--warning-subtle)]",
           )}
         >
           <span
@@ -58,7 +61,11 @@ export function PlayersSummaryStrip({ items, className }: PlayersSummaryStripPro
               {item.value}
             </p>
             {item.description ? (
-              <p className="mt-1 truncate text-[10px] leading-snug text-[var(--text-muted)]">{item.description}</p>
+              // Hidden at the smallest widths so the mobile 2×2 block stays compact (§10) —
+              // the number and label, the load-bearing information, stay visible everywhere.
+              <p className="mt-1 hidden truncate text-[10px] leading-snug text-[var(--text-muted)] medium:block">
+                {item.description}
+              </p>
             ) : null}
           </div>
         </div>

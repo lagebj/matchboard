@@ -8,6 +8,8 @@ import { PlayersOverviewToolbar, type PlayersOverviewSeasonOption } from "./play
 import { PlayerRosterTable } from "./player-roster-table";
 import { PlayerInspector } from "./player-inspector";
 import { PlayerCompactRow } from "./player-compact-row";
+import type { PlayerRosterFilter } from "@/lib/players/roster-state";
+import { overviewMobileTrailingLabel, overviewMobileTrailingTone } from "@/lib/touchline/presentation/players-overview-production-adapter";
 import type { PlayersOverviewRow, PlayersOverviewInspectorData } from "@/lib/touchline/presentation/players-overview-view-model";
 
 /**
@@ -39,9 +41,10 @@ export type PlayersOverviewSurfaceProps = {
   seasonOptions: PlayersOverviewSeasonOption[];
   selectedSeasonId: string;
   onSeasonChange: (seasonId: string) => void;
-  removedPlayerCount: number;
-  includeRemoved: boolean;
-  onToggleRemoved: () => void;
+  /** The roster state — URL/server-backed navigation, distinct from the client-local filters this
+      component still owns below (roster-state-and-mobile-convergence pass §14). */
+  rosterFilter: PlayerRosterFilter;
+  onRosterFilterChange: (filter: PlayerRosterFilter) => void;
   /** Builds the Player Detail href for a given player id — mobile rows tap straight through. */
   mobilePlayerHref: (playerId: string) => string;
   initialSelectedPlayerId?: string | null;
@@ -59,9 +62,8 @@ export function PlayersOverviewSurface({
   seasonOptions,
   selectedSeasonId,
   onSeasonChange,
-  removedPlayerCount,
-  includeRemoved,
-  onToggleRemoved,
+  rosterFilter,
+  onRosterFilterChange,
   mobilePlayerHref,
   initialSelectedPlayerId = null,
   initialSearch = "",
@@ -153,23 +155,7 @@ export function PlayersOverviewSurface({
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <PlayersSummaryStrip items={summaryItems} className="flex-1" />
-        {removedPlayerCount > 0 && (
-          <button
-            type="button"
-            onClick={onToggleRemoved}
-            className={cn(
-              "shrink-0 rounded border px-2 py-1 text-[11px] font-medium transition-colors",
-              includeRemoved
-                ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[var(--warning-subtle)] text-[var(--warning)]"
-                : "border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]",
-            )}
-          >
-            {includeRemoved ? "Hide removed" : `Show removed (${removedPlayerCount})`}
-          </button>
-        )}
-      </div>
+      <PlayersSummaryStrip items={summaryItems} />
 
       <PlayersOverviewToolbar
         seasonOptions={seasonOptions}
@@ -177,6 +163,8 @@ export function PlayersOverviewSurface({
         onSeasonChange={onSeasonChange}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        rosterFilter={rosterFilter}
+        onRosterFilterChange={onRosterFilterChange}
         teamOptions={teamOptions}
         teamFilter={teamFilter}
         onTeamFilterChange={setTeamFilter}
@@ -212,21 +200,30 @@ export function PlayersOverviewSurface({
           </div>
           {/* Mobile: compact rows only, tap opens Player Detail — no inspector duplication. */}
           <ul className="flex flex-col divide-y divide-[var(--border-soft)] medium:hidden">
-            {filteredRows.map((row) => (
-              <li key={row.playerId}>
-                <PlayerCompactRow
-                  playerId={row.playerId}
-                  displayName={row.displayName}
-                  shirtNumber={row.shirtNumber}
-                  kitColor={row.kitColor}
-                  primaryPosition={row.currentPrimaryPosition}
-                  coreTeamName={row.coreTeamName}
-                  href={mobilePlayerHref(row.playerId)}
-                  attentionMarker={row.attention}
-                  trailing={<span>{row.hasOpportunityThisWeek === null ? "—" : row.hasOpportunityThisWeek ? "1/1" : "0/1"}</span>}
-                />
-              </li>
-            ))}
+            {filteredRows.map((row) => {
+              const trailingLabel = overviewMobileTrailingLabel(row.rosterState, row.hasOpportunityThisWeek);
+              // A non-default football availability is worth surfacing on an otherwise-ordinary
+              // active row; "Available" itself is the common case and stays silent (§20).
+              const availabilityNote =
+                row.rosterState === "ACTIVE" && row.availabilityLabel !== "Available" ? row.availabilityLabel : null;
+              return (
+                <li key={row.playerId}>
+                  <PlayerCompactRow
+                    playerId={row.playerId}
+                    displayName={row.displayName}
+                    shirtNumber={row.shirtNumber}
+                    kitColor={row.kitColor}
+                    primaryPosition={row.currentPrimaryPosition}
+                    coreTeamName={row.coreTeamName}
+                    href={mobilePlayerHref(row.playerId)}
+                    attentionMarker={row.attention}
+                    availabilityNote={availabilityNote}
+                    trailing={trailingLabel ? <span>{trailingLabel}</span> : null}
+                    trailingTone={overviewMobileTrailingTone(row.rosterState, row.hasOpportunityThisWeek)}
+                  />
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

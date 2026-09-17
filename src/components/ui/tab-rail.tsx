@@ -14,6 +14,10 @@ import type { ReactNode } from "react";
 export type TabItem<TKey extends string = string> = {
   key: TKey;
   label: string;
+  /** Shorter label shown at compact widths only (e.g. "Groups" for "Manage base groups") — the
+      underlying mode/key never changes, just the rendered text. Falls back to `label` when
+      omitted, so every existing caller keeps its current rendering unchanged. */
+  compactLabel?: string;
   icon?: ReactNode;
   href?: string;
   count?: number;
@@ -27,6 +31,10 @@ type TabRailProps<TKey extends string> = {
   variant?: "underline" | "pill";
   ariaLabel?: string;
   className?: string;
+  /** Hides the native horizontal-scroll scrollbar when the rail overflows its container — an
+      opt-in, backwards-compatible capability (existing callers keep the native scrollbar unless
+      they pass this). Scrolling itself, and reachability of every tab, is unaffected. */
+  hideScrollbar?: boolean;
 };
 
 export function TabRail<TKey extends string>({
@@ -36,6 +44,7 @@ export function TabRail<TKey extends string>({
   variant = "underline",
   ariaLabel = "Tabs",
   className = "",
+  hideScrollbar = false,
 }: TabRailProps<TKey>) {
   if (variant === "pill") {
     return (
@@ -104,6 +113,7 @@ export function TabRail<TKey extends string>({
       aria-label={ariaLabel}
       className={[
         "flex overflow-x-auto border-b border-[var(--border-soft)]",
+        hideScrollbar && "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         className,
       ]
         .filter(Boolean)
@@ -114,7 +124,8 @@ export function TabRail<TKey extends string>({
         const inner = (
           <span className="inline-flex items-center gap-1.5">
             {item.icon}
-            <span>{item.label}</span>
+            <span className={item.compactLabel ? "hidden medium:inline" : undefined}>{item.label}</span>
+            {item.compactLabel ? <span className="medium:hidden">{item.compactLabel}</span> : null}
             {item.count !== undefined && item.count > 0 && (
               <span
                 className={`text-[10px] tabular-nums ${

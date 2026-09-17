@@ -10,13 +10,20 @@ import { PlayersOverviewSurface } from "@/components/touchline/player/players-ov
 import { buildPlayersOverviewViewModel } from "@/lib/touchline/presentation/players-overview-view-model";
 import { buildPlayersCurrentRoundViewModel } from "@/lib/touchline/presentation/players-current-round-view-model";
 import { buildPlayersDevelopmentViewModel } from "@/lib/touchline/presentation/players-development-view-model";
+import type { PlayerRosterFilter } from "@/lib/players/roster-state";
 import { overviewRows, currentRoundRows, developmentRows, overviewStates, type OverviewStateKey } from "./fixtures";
 
-type ModeKey = "overview" | "current-round" | "development";
+type ModeKey = "overview" | "current-round" | "development" | "groups";
+// Mirrors production's real 4-mode `MODE_TABS` (`players-page-client.tsx`) — including the
+// "groups" tab and its compact "Groups" label — so this fixture page's tab rail is a true visual
+// check of the mobile tab-overflow/hidden-scrollbar fix (roster-state-and-mobile-convergence pass
+// §16-17), not a 3-tab stand-in that never exercises it. "groups" mode itself renders nothing here
+// (`ManageBaseGroupsView` needs real organisation data) — only the tab's reachability is in scope.
 const MODES: TabItem<ModeKey>[] = [
   { key: "overview", label: "Overview", href: "?mode=overview" },
   { key: "current-round", label: "Current round", href: "?mode=current-round" },
   { key: "development", label: "Development", href: "?mode=development" },
+  { key: "groups", label: "Manage base groups", compactLabel: "Groups", href: "?mode=groups" },
 ];
 
 const overviewVm = buildPlayersOverviewViewModel({ leagueSeasonLabel: "Autumn 2026", rows: overviewRows });
@@ -41,6 +48,8 @@ const STATE_KEYS: OverviewStateKey[] = [
   "players-overview-empty-filter",
   "players-overview-no-position-history",
   "players-overview-mobile",
+  "players-overview-inactive",
+  "players-overview-removed",
 ];
 
 /**
@@ -51,7 +60,11 @@ const STATE_KEYS: OverviewStateKey[] = [
  */
 function OverviewMode({ stateKey }: { stateKey: OverviewStateKey }) {
   const fixture = overviewStates[stateKey];
-  const [removed, setRemoved] = useState(false);
+  // Local, interactive roster filter seeded from the fixture's own state — each state represents
+  // one roster population (§31), but the roster selector itself stays interactive within it. Note
+  // this component is remounted (via `key={stateKey}` below) whenever the state changes, so this
+  // always re-seeds rather than carrying a stale value from the previous state.
+  const [rosterFilter, setRosterFilter] = useState<PlayerRosterFilter>(fixture.rosterFilter);
 
   return (
     <PlayersOverviewSurface
@@ -67,9 +80,8 @@ function OverviewMode({ stateKey }: { stateKey: OverviewStateKey }) {
       seasonOptions={[{ id: "autumn-2026", label: "Autumn 2026" }]}
       selectedSeasonId="autumn-2026"
       onSeasonChange={() => {}}
-      removedPlayerCount={fixture.removedPlayerCount}
-      includeRemoved={removed}
-      onToggleRemoved={() => setRemoved((v) => !v)}
+      rosterFilter={rosterFilter}
+      onRosterFilterChange={setRosterFilter}
       mobilePlayerHref={() => "/dev/ui-lab/atlas-followup/player-detail"}
       initialSelectedPlayerId={fixture.initialSelectedPlayerId}
       initialSearch={fixture.initialSearch}
@@ -152,7 +164,7 @@ function DevelopmentMode() {
 
 function PlayersOverviewFixtureInner() {
   const searchParams = useSearchParams();
-  const mode = (["overview", "current-round", "development"] as const).includes((searchParams.get("mode") as ModeKey) ?? "overview")
+  const mode = (["overview", "current-round", "development", "groups"] as const).includes((searchParams.get("mode") as ModeKey) ?? "overview")
     ? ((searchParams.get("mode") as ModeKey) ?? "overview")
     : "overview";
   const rawState = searchParams.get("state");
@@ -188,11 +200,17 @@ function PlayersOverviewFixtureInner() {
         </div>
       )}
 
-      <TabRail items={MODES} activeKey={mode} ariaLabel="Players workspace modes" />
+      <TabRail items={MODES} activeKey={mode} ariaLabel="Players workspace modes" hideScrollbar />
 
-      {mode === "overview" ? <OverviewMode stateKey={stateKey} /> : null}
+      {mode === "overview" ? <OverviewMode key={stateKey} stateKey={stateKey} /> : null}
       {mode === "current-round" ? <CurrentRoundMode /> : null}
       {mode === "development" ? <DevelopmentMode /> : null}
+      {mode === "groups" ? (
+        <p className="text-[13px] text-[var(--text-muted)]">
+          Manage base groups needs real organisation data and isn&apos;t reproduced here — this tab exists to verify it stays
+          reachable on the mobile tab rail.
+        </p>
+      ) : null}
     </div>
   );
 }

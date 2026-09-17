@@ -28,6 +28,7 @@ function makeRow(overrides: Partial<PlayersOverviewRow> = {}): PlayersOverviewRo
     matchdayAdditions: 0,
     plannedButAbsent: 0,
     attention: false,
+    rosterState: "ACTIVE",
     ...overrides,
   };
 }

@@ -106,6 +106,136 @@ describe("getPlayersSeasonOverview", () => {
     }
   });
 
+  describe("playerIds scoping (roster-state-and-mobile-convergence pass §5)", () => {
+    it("omits an inactive/removed player from the default (no playerIds) call", async () => {
+      const inactivePlayer = await db.player.create({
+        data: {
+          playerCode: 9001,
+          firstName: "Inactive",
+          lastName: "Player",
+          active: false,
+          coreTeamId: fixture.players[0].coreTeamId,
+          primaryPosition: "CM",
+          preferredFoot: "RIGHT",
+          secondaryFoot: "WEAK",
+          bestSide: "CENTER",
+          currentAvailability: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      const result = await getPlayersSeasonOverview(fixture.leagueSeasonId);
+      expect(result.seasonRows.some((r) => r.playerId === inactivePlayer.id)).toBe(false);
+    });
+
+    it("aggregates real historical stats for an inactive player when explicitly scoped by playerIds", async () => {
+      // A different match than the other tests in this file use for their own report — avoids a
+      // `PostMatchReport_matchId_key` unique-constraint collision with sibling tests.
+      const matchId = Object.values(fixture.matches)[1];
+      const inactivePlayer = await db.player.create({
+        data: {
+          playerCode: 9002,
+          firstName: "Inactive",
+          lastName: "WithHistory",
+          active: false,
+          coreTeamId: fixture.players[0].coreTeamId,
+          primaryPosition: "ST",
+          preferredFoot: "RIGHT",
+          secondaryFoot: "WEAK",
+          bestSide: "CENTER",
+          currentAvailability: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      let report = await db.postMatchReport.findFirst({ where: { matchId } });
+      if (!report) {
+        report = await db.postMatchReport.create({
+          data: { matchId, status: "REPORTED", homeGoals: 1, awayGoals: 0, organisationId: fixture.organisationId },
+        });
+      }
+      await db.postMatchPlayerActual.create({
+        data: {
+          reportId: report.id,
+          matchId,
+          playerId: inactivePlayer.id,
+          source: "PLANNED",
+          attendanceStatus: "PRESENT",
+          organisationId: fixture.organisationId,
+        },
+      });
+      await db.goal.create({
+        data: { reportId: report.id, playerId: inactivePlayer.id, type: "NORMAL", organisationId: fixture.organisationId },
+      });
+
+      const result = await getPlayersSeasonOverview(fixture.leagueSeasonId, { playerIds: [inactivePlayer.id] });
+      const row = result.seasonRows.find((r) => r.playerId === inactivePlayer.id);
+
+      expect(row).toBeDefined();
+      expect(row!.actualAppearances).toBeGreaterThanOrEqual(1);
+      expect(row!.goals).toBeGreaterThanOrEqual(1);
+    });
+
+    it("aggregates real historical stats for a removed player when explicitly scoped by playerIds", async () => {
+      const matchId = Object.values(fixture.matches)[2];
+      const removedPlayer = await db.player.create({
+        data: {
+          playerCode: 9003,
+          firstName: "Removed",
+          lastName: "WithHistory",
+          active: true,
+          removedAt: new Date("2026-08-01T00:00:00.000Z"),
+          coreTeamId: fixture.players[0].coreTeamId,
+          primaryPosition: "CB",
+          preferredFoot: "RIGHT",
+          secondaryFoot: "WEAK",
+          bestSide: "CENTER",
+          currentAvailability: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      let report = await db.postMatchReport.findFirst({ where: { matchId } });
+      if (!report) {
+        report = await db.postMatchReport.create({
+          data: { matchId, status: "REPORTED", homeGoals: 1, awayGoals: 0, organisationId: fixture.organisationId },
+        });
+      }
+      await db.postMatchPlayerActual.create({
+        data: {
+          reportId: report.id,
+          matchId,
+          playerId: removedPlayer.id,
+          source: "PLANNED",
+          attendanceStatus: "PRESENT",
+          organisationId: fixture.organisationId,
+        },
+      });
+      await db.assist.create({
+        data: { reportId: report.id, playerId: removedPlayer.id, type: "NORMAL", organisationId: fixture.organisationId },
+      });
+
+      const scoped = await getPlayersSeasonOverview(fixture.leagueSeasonId, { playerIds: [removedPlayer.id] });
+      const row = scoped.seasonRows.find((r) => r.playerId === removedPlayer.id);
+      expect(row).toBeDefined();
+      expect(row!.actualAppearances).toBeGreaterThanOrEqual(1);
+      expect(row!.assists).toBeGreaterThanOrEqual(1);
+
+      // Never zeroed out by omission from the default call, and the default call must still
+      // exclude the removed player (§4/§5).
+      const unscoped = await getPlayersSeasonOverview(fixture.leagueSeasonId);
+      expect(unscoped.seasonRows.some((r) => r.playerId === removedPlayer.id)).toBe(false);
+    });
+
+    it("stays scoped to the organisation even with a foreign playerId mixed in", async () => {
+      const result = await getPlayersSeasonOverview(fixture.leagueSeasonId, {
+        orgFilter: { type: "org", filter: { organisationId: fixture.organisationId }, filterNullable: { organisationId: fixture.organisationId }, organisationId: fixture.organisationId },
+        playerIds: [...fixture.players.map((p) => p.id), "not-a-real-player-id"],
+      });
+      expect(result.seasonRows.every((r) => fixture.players.some((p) => p.id === r.playerId))).toBe(true);
+    });
+  });
+
   it("counts actual appearances from reported post-match data", async () => {
     const matchId = Object.values(fixture.matches)[0];
     const player = fixture.players[0];
@@ -391,5 +521,61 @@ describe("getPlayersDevelopmentOverview", () => {
     const row = result.find((r) => r.playerId === player.id);
 
     expect(row?.activeDevelopmentFocus).toBe("Newer active focus");
+  });
+
+  describe("playerIds scoping (roster-state-and-mobile-convergence pass §6)", () => {
+    it("omits an inactive player from the default (no playerIds) call", async () => {
+      const inactivePlayer = await db.player.create({
+        data: {
+          playerCode: 9101,
+          firstName: "Inactive",
+          lastName: "Dev",
+          active: false,
+          coreTeamId: fixture.players[0].coreTeamId,
+          primaryPosition: "CM",
+          preferredFoot: "RIGHT",
+          secondaryFoot: "WEAK",
+          bestSide: "CENTER",
+          currentAvailability: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        },
+      });
+
+      const result = await getPlayersDevelopmentOverview(undefined);
+      expect(result.some((r) => r.playerId === inactivePlayer.id)).toBe(false);
+    });
+
+    it("returns a row (with its real active focus) for an inactive player when explicitly scoped by playerIds", async () => {
+      const inactivePlayer = await db.player.create({
+        data: {
+          playerCode: 9102,
+          firstName: "Inactive",
+          lastName: "DevWithFocus",
+          active: false,
+          coreTeamId: fixture.players[0].coreTeamId,
+          primaryPosition: "CM",
+          preferredFoot: "RIGHT",
+          secondaryFoot: "WEAK",
+          bestSide: "CENTER",
+          currentAvailability: "AVAILABLE",
+          organisationId: fixture.organisationId,
+        },
+      });
+      await db.developmentThread.create({
+        data: {
+          organisationId: fixture.organisationId,
+          playerId: inactivePlayer.id,
+          focus: "Composure on the ball",
+          status: "ACTIVE",
+          startedAt: new Date("2026-07-01T00:00:00.000Z"),
+        },
+      });
+
+      const result = await getPlayersDevelopmentOverview(undefined, { playerIds: [inactivePlayer.id] });
+      const row = result.find((r) => r.playerId === inactivePlayer.id);
+
+      expect(row).toBeDefined();
+      expect(row!.activeDevelopmentFocus).toBe("Composure on the ball");
+    });
   });
 });
