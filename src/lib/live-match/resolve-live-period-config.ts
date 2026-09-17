@@ -8,26 +8,9 @@ import {
   buildPeriodConfigFromFormat,
   type PeriodConfig,
 } from "./period-config";
+import { snapshotToFormat } from "./match-format";
 
-export function snapshotToFormat(session: {
-  formatNumberOfPeriods: number | null;
-  formatPeriodDurationMinutes: number | null;
-  formatBreakDurationMinutes: number | null;
-} | null) {
-  if (
-    !session ||
-    session.formatNumberOfPeriods == null ||
-    session.formatPeriodDurationMinutes == null ||
-    session.formatBreakDurationMinutes == null
-  ) {
-    return null;
-  }
-  return {
-    numberOfPeriods: session.formatNumberOfPeriods,
-    periodDurationMinutes: session.formatPeriodDurationMinutes,
-    breakDurationMinutes: session.formatBreakDurationMinutes,
-  };
-}
+export { snapshotToFormat };
 
 /**
  * The `PeriodConfig[]` that actually drives a League match's live clock (ADR-0146). If Live
