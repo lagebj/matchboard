@@ -51,3 +51,26 @@ match level — the "full Phase 6... remains open" gap this ADR named is closed 
 removes the coach-operated finalize/un-finalize mechanism itself (superseding ADR-0095/ADR-0100 on
 that point); this ADR's match-level derivation logic and status values are unchanged and remain in
 effect.
+
+## Bug fix (2026-09-17): report status must not win before kickoff
+
+Decision §2 ("Report status wins over round-finalization status") was implemented as report
+status winning over *everything* unconditionally — including a match that had not kicked off at
+all. Production incident: a League match still hours from kickoff displayed "Full time" (`report_incomplete` → `final` phase) because `markMatchAbsence()`
+(`src/lib/reports/report-mutations.ts`) had legitimately seeded an empty `DRAFT`
+`PostMatchReport` the evening before, purely to attach a pre-kickoff player-absence note — a
+feature that predates this ADR and was never reconciled with it. Nothing in the report-mutation
+layer prevents a report reaching `REPORTED`/`LOCKED` before kickoff either.
+
+Fixed in `deriveMatchLifecycleStatus()`: report status now only wins once the match has actually
+kicked off (a real `startsAt <= now` instant check, computed inside the function) or is live —
+never on `hasPassed` (`hasLeagueMatchPassed()`), which is a coarser Europe/Oslo *display-day*
+boundary that stays `false` for hours after a same-day match has already kicked off, played, and
+been fully reported — gating on it instead would have misclassified that ordinary case as
+pre-match. Before kickoff, a match with an early-seeded report now falls through to the same
+`planning_open`/`planning_closed` signals a report-less match uses — Decision §2's actual intent
+(report status outranks round-finalization status) is unchanged and still holds once the match is
+under way.
+
+No schema change. `src/lib/selection/__tests__/planning-boundary.test.ts` covers the pre-kickoff
+DRAFT/REPORTED/LOCKED cases and the same-day-already-kicked-off case that first drove this design.
