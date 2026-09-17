@@ -2,6 +2,7 @@ import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
 import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
 import { TouchlineButton } from "@/components/touchline/controls/touchline-button";
 import { PlayerPositionMapWidget } from "./player-position-map-widget";
+import { rosterStateLabel } from "@/lib/players/roster-state";
 import type { PlayersOverviewInspectorData } from "@/lib/touchline/presentation/players-overview-view-model";
 
 /**
@@ -47,6 +48,10 @@ export function PlayerInspector({ data, className }: PlayerInspectorProps) {
           <p className="truncate text-[12px] text-[var(--text-soft)]">{positionLine}</p>
           <p className="truncate text-[12px] text-[var(--text-muted)]">
             {data.coreTeamName ?? "No core team"} · {data.availabilityLabel}
+            {/* The roster context (distinct from football availability) only appears for a player
+                outside the active roster — never for the common ACTIVE case (roster-state-and-
+                mobile-convergence pass §8). */}
+            {data.rosterState !== "ACTIVE" ? ` · ${rosterStateLabel(data.rosterState)}` : ""}
           </p>
         </div>
       </div>
@@ -82,10 +87,14 @@ export function PlayerInspector({ data, className }: PlayerInspectorProps) {
       <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Current context</p>
         <dl className="mt-2 flex flex-col gap-1 text-[12px]">
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-[var(--text-muted)]">Opportunity</dt>
-            <dd className="truncate text-[var(--text-soft)]">{data.opportunityLabel}</dd>
-          </div>
+          {/* Current-round opportunity only applies to an ACTIVE roster player — omit the row
+              entirely for Inactive/Removed rather than render a manufactured state (§7). */}
+          {data.opportunityLabel !== null ? (
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-[var(--text-muted)]">Opportunity</dt>
+              <dd className="truncate text-[var(--text-soft)]">{data.opportunityLabel}</dd>
+            </div>
+          ) : null}
           {data.activeDevelopmentFocus ? (
             <div className="flex items-center justify-between gap-2">
               <dt className="text-[var(--text-muted)]">Development focus</dt>

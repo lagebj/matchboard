@@ -18,6 +18,7 @@ function makeData(overrides: Partial<PlayersOverviewInspectorData> = {}): Player
     currentPrimaryPosition: "CM",
     currentPrimaryPositionFull: "Centre Midfield",
     availabilityLabel: "Available",
+    rosterState: "ACTIVE",
     opportunityLabel: "Selected this round",
     effectivePositions: [{ positionCode: "CM", positionLabel: "Centre Midfield", rank: 1, supportBand: "STRONG", confidence: "HIGH" }],
     played: 10,
@@ -97,5 +98,34 @@ describe("PlayerInspector", () => {
     render(<PlayerInspector data={makeData({ playerDetailHref: "/o/acme/players/p1" })} />);
     const link = screen.getByRole("link", { name: /Open player/ });
     expect(link).toHaveAttribute("href", "/o/acme/players/p1");
+  });
+
+  describe("roster state (roster-state-and-mobile-convergence pass)", () => {
+    it("shows no roster context for the common ACTIVE case", () => {
+      render(<PlayerInspector data={makeData({ rosterState: "ACTIVE" })} />);
+      expect(screen.queryByText(/Inactive/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Removed/)).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Inactive' roster context in the identity line", () => {
+      render(<PlayerInspector data={makeData({ rosterState: "INACTIVE" })} />);
+      expect(screen.getByText(/Inactive/)).toBeInTheDocument();
+    });
+
+    it("surfaces 'Removed' roster context in the identity line", () => {
+      render(<PlayerInspector data={makeData({ rosterState: "REMOVED" })} />);
+      expect(screen.getByText(/Removed/)).toBeInTheDocument();
+    });
+
+    it("omits the Current-round opportunity row entirely for a non-active roster player", () => {
+      render(<PlayerInspector data={makeData({ rosterState: "INACTIVE", opportunityLabel: null })} />);
+      expect(screen.queryByText("Opportunity")).not.toBeInTheDocument();
+    });
+
+    it("renders the Current-round opportunity row for an ACTIVE roster player", () => {
+      render(<PlayerInspector data={makeData({ rosterState: "ACTIVE", opportunityLabel: "Has planned opportunity" })} />);
+      expect(screen.getByText("Opportunity")).toBeInTheDocument();
+      expect(screen.getByText("Has planned opportunity")).toBeInTheDocument();
+    });
   });
 });

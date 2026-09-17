@@ -1,4 +1,5 @@
 import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
+import type { PlayerRosterState } from "@/lib/players/roster-state";
 
 /**
  * Players Overview — the dense roster/workspace mode (Atlas Follow-up,
@@ -22,6 +23,8 @@ export type PlayersOverviewRow = {
   /** Human-readable compact label for the same code — table/inspector display authority. */
   currentPrimaryPosition: string | null;
   availabilityLabel: string;
+  /** Only ever non-null for an ACTIVE roster player — current-round opportunity semantics don't
+      apply to an inactive/removed player (roster-state-and-mobile-convergence pass §7). */
   hasOpportunityThisWeek: boolean | null;
   played: number;
   goals: number;
@@ -32,6 +35,11 @@ export type PlayersOverviewRow = {
   matchdayAdditions: number;
   plannedButAbsent: number;
   attention: boolean;
+  /** Roster state — distinct from football availability. Resolved once in the production
+      adapter/input from `active`/`removedAt`; never re-derived by a consuming component (roster
+      filter, mobile row presentation, selected-player inspector, accessibility text all reuse
+      this field). See `src/lib/players/roster-state.ts`. */
+  rosterState: PlayerRosterState;
 };
 
 export type PlayersOverviewInspectorData = {
@@ -47,7 +55,13 @@ export type PlayersOverviewInspectorData = {
       and full labels coincide (e.g. broad `Defender`), so the identity line never repeats itself. */
   currentPrimaryPositionFull: string | null;
   availabilityLabel: string;
-  opportunityLabel: string;
+  /** Roster state — see `PlayersOverviewRow.rosterState`. */
+  rosterState: PlayerRosterState;
+  /** Current-round opportunity summary, `null` for an Inactive/Removed player — the inspector
+      must omit the Current-round opportunity row entirely rather than render a manufactured
+      "no opportunity" state for a player outside the active roster (roster-state-and-mobile-
+      convergence pass §7). */
+  opportunityLabel: string | null;
   effectivePositions: TouchlinePositionMapEntry[];
   played: number;
   goals: number;

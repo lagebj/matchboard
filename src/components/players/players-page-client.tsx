@@ -21,6 +21,7 @@ import {
   type PlayerIdentityInput,
 } from "@/lib/touchline/presentation/players-overview-production-adapter";
 import { buildPlayersCurrentRoundViewModel } from "@/lib/touchline/presentation/players-current-round-view-model";
+import { rosterFilterQueryValue, type PlayerRosterFilter, type PlayerRosterState } from "@/lib/players/roster-state";
 
 /**
  * Atlas Follow-up Phase F8 (Production Players migration, `03_PLAYER_OVERVIEW_CONTRACT.md`).
@@ -32,11 +33,14 @@ import { buildPlayersCurrentRoundViewModel } from "@/lib/touchline/presentation/
  */
 type PlayersMode = "overview" | "current-round" | "development" | "groups";
 
-const MODE_TABS: { mode: PlayersMode; label: string }[] = [
+const MODE_TABS: { mode: PlayersMode; label: string; compactLabel?: string }[] = [
   { mode: "overview", label: "Overview" },
   { mode: "current-round", label: "Current round" },
   { mode: "development", label: "Development" },
-  { mode: "groups", label: "Manage base groups" },
+  // Compact/mobile keeps the same underlying "groups" mode — only the rendered text shortens
+  // (roster-state-and-mobile-convergence pass §16), so the tab stops being the widest one on a
+  // narrow rail and no longer drives the overflow that used to expose the native scrollbar.
+  { mode: "groups", label: "Manage base groups", compactLabel: "Groups" },
 ];
 
 const ATTENTION_LABEL: Record<string, string> = {
@@ -63,24 +67,39 @@ type PlayersPageClientProps = {
     reducedMatchLoadAllowed: boolean;
     overallRating: RatingSummary;
     removed?: boolean;
+    /** Resolved once by the server via `resolvePlayerRosterState()` — Active/Inactive/Removed,
+        distinct from football availability (roster-state-and-mobile-convergence pass §1/§8). */
+    rosterState: PlayerRosterState;
   }>;
   teams: Array<{ id: string; name: string }>;
   leagueSeasons: Array<{ id: string; name: string; startDate: Date; endDate: Date }>;
   matchRounds: Array<{ id: string; name: string; leagueSeasonId?: string | null }>;
+  /** Season overview rows for the currently loaded roster (may include Inactive/Removed players
+      when `rosterFilter` selects them) — feeds the Overview table/inspector. */
   seasonRows: PlayerSeasonOverviewRow[];
   currentRoundRows: PlayerCurrentRoundAttentionRow[];
+  /** Development rows for the currently loaded roster — feeds Development mode and the
+      inspector's development-focus lookup. */
   developmentRows: PlayerDevelopmentOverviewRow[];
+  /** Season rows scoped to the ACTIVE roster only, independent of `rosterFilter` — source for the
+      Support usage summary metric, which must never change while viewing Inactive/Removed/All
+      (§15). Falls back to `seasonRows` when omitted (the two coincide whenever `rosterFilter` is
+      already "active", which is what every existing caller/test passes). */
+  activeSeasonRows?: PlayerSeasonOverviewRow[];
+  /** Development rows scoped to the ACTIVE roster only — source for the Development focuses
+      summary metric, same independence guarantee as `activeSeasonRows` (§15). */
+  activeDevelopmentRows?: PlayerDevelopmentOverviewRow[];
   /** Batched, JSON-serializable effective-position profile entries per player — never re-fetched
       or recomputed per row (Players Operating Surface bundle §4). */
   effectivePositionsByPlayerId: Record<string, TouchlinePositionMapEntry[]>;
-  /** Active (non-removed) player count, loaded independently of `includeRemoved` mode so the
-      "Active players" metric never means something else while viewing removed players. */
+  /** Active (non-removed) player count, loaded independently of `rosterFilter` so the
+      "Active players" metric never means something else while viewing Inactive/Removed/All. */
   activePlayerCount: number;
   selectedPeriodId: string;
   selectedRoundId?: string;
   operationalRoundLabel?: string;
-  includeRemoved?: boolean;
-  removedPlayerCount?: number;
+  /** The roster state filter — URL-backed (§3); defaults to "active" server-side. */
+  rosterFilter: PlayerRosterFilter;
   initialMode?: string;
   error?: string;
   saved?: string;
@@ -98,13 +117,14 @@ export function PlayersPageClient({
   seasonRows,
   currentRoundRows,
   developmentRows,
+  activeSeasonRows,
+  activeDevelopmentRows,
   effectivePositionsByPlayerId,
   activePlayerCount,
   selectedPeriodId,
   selectedRoundId,
   operationalRoundLabel,
-  includeRemoved,
-  removedPlayerCount = 0,
+  rosterFilter,
   initialMode,
   error,
   saved,
@@ -138,6 +158,7 @@ export function PlayersPageClient({
   const tabItems: TabItem<PlayersMode>[] = MODE_TABS.map((t) => ({
     key: t.mode,
     label: t.label,
+    compactLabel: t.compactLabel,
     href: `?${paramsWith({ mode: t.mode })}`,
   }));
 
@@ -152,6 +173,7 @@ export function PlayersPageClient({
     coreTeamKitColor: p.coreTeamKitColor,
     primaryPosition: p.primaryPosition,
     currentAvailability: p.currentAvailability,
+    rosterState: p.rosterState,
   }));
 
   const overviewRows = buildPlayersOverviewRows(identities, seasonRows, currentRoundRows, effectivePositionsByPlayerId);
@@ -161,11 +183,15 @@ export function PlayersPageClient({
   });
   const developmentRowsVm = buildPlayersDevelopmentRows(identities, developmentRows);
 
-  // Summary metrics (§3 of 02_ROUTE_COMPOSITION_AND_VISUAL_CONTRACT.md) — operational
-  // summaries derived from the already-loaded rows, not decorative KPI tiles.
+  // Summary metrics (§3 of 02_ROUTE_COMPOSITION_AND_VISUAL_CONTRACT.md) — operational summaries
+  // derived from the already-loaded rows, not decorative KPI tiles. Support usage/Development
+  // focuses specifically read from the ACTIVE-only rows (falling back to the roster-scoped rows
+  // when the caller doesn't distinguish them, which is exactly the "active" roster-filter case):
+  // these two counts describe the active roster and must not change while a coach is browsing
+  // Inactive/Removed/All (roster-state-and-mobile-convergence pass §15).
   const opportunityGapsCount = currentRoundRows.filter((r) => r.integrityState === "DECISION_REQUIRED_NO_PLANNED_MATCH").length;
-  const supportUsageCount = overviewRows.filter((r) => r.support > 0).length;
-  const developmentFocusesCount = developmentRows.filter((r) => r.activeDevelopmentFocus != null).length;
+  const supportUsageCount = (activeSeasonRows ?? seasonRows).filter((r) => r.supportAppearances > 0).length;
+  const developmentFocusesCount = (activeDevelopmentRows ?? developmentRows).filter((r) => r.activeDevelopmentFocus != null).length;
 
   // The shared `PlayersOverviewSurface` owns search/filter/selection state internally; this page
   // only needs to resolve inspector data for whichever player it lands on.
@@ -209,7 +235,7 @@ export function PlayersPageClient({
       {saved === "removed" && <DecisionBanner variant="success" title="Player removed." />}
       {saved === "restored" && <DecisionBanner variant="success" title="Player restored." />}
 
-      <TabRail items={tabItems} activeKey={mode} ariaLabel="Players workspace modes" />
+      <TabRail items={tabItems} activeKey={mode} ariaLabel="Players workspace modes" hideScrollbar />
 
       {mode === "overview" && (
         <PlayersOverviewSurface
@@ -225,9 +251,8 @@ export function PlayersPageClient({
           seasonOptions={seasonOptions}
           selectedSeasonId={selectedPeriodId}
           onSeasonChange={(seasonId) => navigate({ periodId: seasonId, mode: "overview" })}
-          removedPlayerCount={removedPlayerCount}
-          includeRemoved={Boolean(includeRemoved)}
-          onToggleRemoved={() => navigate({ showRemoved: includeRemoved ? undefined : "1" })}
+          rosterFilter={rosterFilter}
+          onRosterFilterChange={(filter) => navigate({ roster: rosterFilterQueryValue(filter), showRemoved: undefined, mode: "overview" })}
           mobilePlayerHref={(playerId) => orgUrl(`/players/${playerId}`)}
         />
       )}

@@ -1,6 +1,7 @@
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { availabilityLabel } from "@/lib/players/availability-label";
 import { normalizePlayerPositionCode } from "@/lib/player-development/position-code";
+import type { PlayerRosterState } from "@/lib/players/roster-state";
 import { compactPositionLabel, exactPositionLabel } from "./exact-position-labels";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow, IntegrityAttentionState } from "@/lib/players/get-players-overview";
 import type { PlayersOverviewRow, PlayersOverviewInspectorData } from "./players-overview-view-model";
@@ -41,6 +42,9 @@ export type PlayerIdentityInput = {
    * `getPlayersCurrentRoundAttention()`), so Overview mode's own scan-level availability label
    * uses the identical source, not a second one. */
   currentAvailability: string;
+  /** Resolved once by the page from `active`/`removedAt` via `resolvePlayerRosterState()` —
+      this adapter never re-derives it from raw fields. */
+  rosterState: PlayerRosterState;
 };
 
 function resolvedKitColor(kitColor: string | null): string | null {
@@ -49,10 +53,40 @@ function resolvedKitColor(kitColor: string | null): string | null {
 
 /** Overview mode's "opportunity this week" reuses the same canonical signal Current Round mode
  * and Round Board already read (`computeRoundPlanIntegrity()`'s `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`,
- * surfaced here via `IntegrityAttentionState`) — never a second "missing opportunity" rule. */
-function hasOpportunityThisWeek(state: IntegrityAttentionState | undefined): boolean | null {
+ * surfaced here via `IntegrityAttentionState`) — never a second "missing opportunity" rule.
+ *
+ * Current-round opportunity semantics only ever apply to an ACTIVE roster player (roster-state-
+ * and-mobile-convergence pass §7) — an inactive/removed player must never receive a manufactured
+ * "no planned opportunity" gap merely because `getPlayersCurrentRoundAttention()` (itself
+ * active-only) has no row for them. In practice that query already guarantees `state` is
+ * `undefined` for a non-active player, so this check is a second, explicit guarantee rather than
+ * the only one. */
+function hasOpportunityThisWeek(rosterState: PlayerRosterState, state: IntegrityAttentionState | undefined): boolean | null {
+  if (rosterState !== "ACTIVE") return null;
   if (state === undefined || state === "NOT_AVAILABLE") return null;
   return state === "COVERED";
+}
+
+/**
+ * Mobile compact-row trailing label (roster-state-and-mobile-convergence pass §19) — roster state
+ * takes priority over the opportunity signal (and opportunity is never computed for a non-active
+ * player in the first place, per `hasOpportunityThisWeek()` above). Replaces the previous opaque
+ * "1/1" / "0/1" ratio with semantic, readable text — never colour-only.
+ */
+export function overviewMobileTrailingLabel(rosterState: PlayerRosterState, opportunityThisWeek: boolean | null): string | null {
+  if (rosterState === "INACTIVE") return "Inactive";
+  if (rosterState === "REMOVED") return "Removed";
+  if (opportunityThisWeek === true) return "Planned";
+  if (opportunityThisWeek === false) return "Needs plan";
+  return null;
+}
+
+/** Tone for the mobile trailing label above — "Needs plan" reads with attention tone, "Planned"
+ * stays quiet, and any non-active roster state stays neutral (it's a status, not a warning). */
+export function overviewMobileTrailingTone(rosterState: PlayerRosterState, opportunityThisWeek: boolean | null): "quiet" | "attention" | "neutral" {
+  if (rosterState !== "ACTIVE") return "neutral";
+  if (opportunityThisWeek === false) return "attention";
+  return "quiet";
 }
 
 /** The effective primary position code for a player: the profile's rank-1 entry when one
@@ -80,6 +114,7 @@ export function buildPlayersOverviewRows(
     const integrityState = integrityByPlayer.get(row.playerId);
     const positionEntries = effectivePositionsByPlayerId[row.playerId];
     const primaryCode = effectivePrimaryCode(positionEntries, identity?.primaryPosition);
+    const rosterState: PlayerRosterState = identity?.rosterState ?? "ACTIVE";
     return {
       playerId: row.playerId,
       displayName: row.displayName,
@@ -89,7 +124,7 @@ export function buildPlayersOverviewRows(
       currentPrimaryPositionCode: primaryCode,
       currentPrimaryPosition: primaryCode ? compactPositionLabel(primaryCode) : null,
       availabilityLabel: availabilityLabel(identity?.currentAvailability ?? "UNKNOWN"),
-      hasOpportunityThisWeek: hasOpportunityThisWeek(integrityState),
+      hasOpportunityThisWeek: hasOpportunityThisWeek(rosterState, integrityState),
       played: row.actualAppearances,
       goals: row.goals,
       assists: row.assists,
@@ -98,7 +133,15 @@ export function buildPlayersOverviewRows(
       development: row.developmentAppearances,
       matchdayAdditions: row.matchdayAdditions,
       plannedButAbsent: row.plannedButAbsent,
-      attention: integrityState !== undefined && integrityState !== "COVERED" && integrityState !== "NOT_AVAILABLE",
+      // Same active-only guarantee as `hasOpportunityThisWeek()` above — current-round attention
+      // is a signal about active-roster opportunity, so it never fires for an inactive/removed
+      // player even if `currentRoundRows` somehow carried a stray row for one (§7).
+      attention:
+        rosterState === "ACTIVE" &&
+        integrityState !== undefined &&
+        integrityState !== "COVERED" &&
+        integrityState !== "NOT_AVAILABLE",
+      rosterState,
     };
   });
 }
@@ -118,7 +161,18 @@ export function buildPlayersOverviewInspectorData(
     currentPrimaryPosition: row.currentPrimaryPosition,
     currentPrimaryPositionFull: row.currentPrimaryPositionCode ? exactPositionLabel(row.currentPrimaryPositionCode) : null,
     availabilityLabel: row.availabilityLabel,
-    opportunityLabel: row.hasOpportunityThisWeek === null ? "Unavailable this round" : row.hasOpportunityThisWeek ? "Has planned opportunity" : "No planned opportunity",
+    rosterState: row.rosterState,
+    // Only an ACTIVE roster player gets a current-round opportunity summary — the inspector
+    // omits the row entirely for Inactive/Removed rather than rendering a manufactured
+    // "unavailable"/"no planned opportunity" state (roster-state-and-mobile-convergence pass §7).
+    opportunityLabel:
+      row.rosterState !== "ACTIVE"
+        ? null
+        : row.hasOpportunityThisWeek === null
+          ? "Unavailable this round"
+          : row.hasOpportunityThisWeek
+            ? "Has planned opportunity"
+            : "No planned opportunity",
     effectivePositions,
     played: row.played,
     goals: row.goals,

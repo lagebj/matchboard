@@ -110,7 +110,7 @@ export type SeasonOverviewResult = {
 
 export async function getPlayersSeasonOverview(
   leagueSeasonId: string,
-  options?: { teamId?: string; orgFilter?: OrgFilterMode },
+  options?: { teamId?: string; orgFilter?: OrgFilterMode; playerIds?: string[] },
 ): Promise<SeasonOverviewResult> {
   const orgWhere = options?.orgFilter && options.orgFilter.type === 'org' ? options.orgFilter.filter : {};
 
@@ -131,8 +131,12 @@ export async function getPlayersSeasonOverview(
 
   const players = await db.player.findMany({
     where: {
-      active: true,
-      removedAt: null,
+      // When `playerIds` is supplied, aggregate the selected season for exactly those
+      // organisation-scoped players, regardless of active/removed state (roster-state-and-
+      // mobile-convergence pass §5) — an inactive/removed player's real historical season data
+      // must not silently become zero. When omitted, existing callers keep the prior
+      // active-non-removed default.
+      ...(options?.playerIds ? { id: { in: options.playerIds } } : { active: true, removedAt: null }),
       ...orgWhere,
       ...(options?.teamId ? { coreTeamId: options.teamId } : {}),
     },
@@ -1030,17 +1034,30 @@ export type PlayerDevelopmentOverviewRow = {
   focusStartedAt: Date | null;
 };
 
-export async function getPlayersDevelopmentOverview(orgFilter?: OrgFilterMode): Promise<PlayerDevelopmentOverviewRow[]> {
+export async function getPlayersDevelopmentOverview(
+  orgFilter?: OrgFilterMode,
+  options?: { playerIds?: string[] },
+): Promise<PlayerDevelopmentOverviewRow[]> {
   const orgWhere = orgFilter && orgFilter.type === 'org' ? orgFilter.filter : {};
 
   const players = await db.player.findMany({
-    where: { active: true, removedAt: null, ...orgWhere },
+    // Same optional-scope convention as `getPlayersSeasonOverview()` (roster-state-and-mobile-
+    // convergence pass §6): explicit `playerIds` aggregates exactly that roster population
+    // regardless of active/removed state; omitted preserves the prior active-only default.
+    where: {
+      ...(options?.playerIds ? { id: { in: options.playerIds } } : { active: true, removedAt: null }),
+      ...orgWhere,
+    },
     include: { coreTeam: { select: { id: true, name: true } } },
     orderBy: [{ coreTeam: { name: "asc" } }, { playerCode: "asc" }],
   });
 
   const activeThreads = await db.developmentThread.findMany({
-    where: { status: "ACTIVE", ...orgWhere },
+    where: {
+      status: "ACTIVE",
+      ...(options?.playerIds ? { playerId: { in: options.playerIds } } : {}),
+      ...orgWhere,
+    },
     select: { playerId: true, focus: true, startedAt: true },
     orderBy: { startedAt: "desc" },
   });

@@ -29,6 +29,7 @@ function makeRow(overrides: Partial<PlayersOverviewRow> = {}): PlayersOverviewRo
     matchdayAdditions: 0,
     plannedButAbsent: 0,
     attention: false,
+    rosterState: "ACTIVE",
     ...overrides,
   };
 }
@@ -43,6 +44,7 @@ function makeInspectorData(row: PlayersOverviewRow): PlayersOverviewInspectorDat
     currentPrimaryPosition: row.currentPrimaryPosition,
     currentPrimaryPositionFull: row.currentPrimaryPosition,
     availabilityLabel: row.availabilityLabel,
+    rosterState: row.rosterState,
     opportunityLabel: "Selected this round",
     effectivePositions: [],
     played: row.played,
@@ -80,9 +82,8 @@ function baseProps() {
     seasonOptions: [{ id: "s1", label: "Autumn 2026" }],
     selectedSeasonId: "s1",
     onSeasonChange: vi.fn(),
-    removedPlayerCount: 3,
-    includeRemoved: false,
-    onToggleRemoved: vi.fn(),
+    rosterFilter: "active" as const,
+    onRosterFilterChange: vi.fn(),
     mobilePlayerHref: (playerId: string) => `/o/acme/players/${playerId}`,
   };
 }
@@ -95,16 +96,17 @@ describe("PlayersOverviewSurface", () => {
     expect(screen.getByText("No planned match in W34 2026")).toBeInTheDocument();
   });
 
-  it("shows the real removed-player count in the toggle pill", () => {
+  it("renders a Roster selector defaulting to Active, and no standalone Show removed control", () => {
     render(<PlayersOverviewSurface {...baseProps()} />);
-    expect(screen.getByRole("button", { name: "Show removed (3)" })).toBeInTheDocument();
+    expect(screen.getByText("Player status").closest("label")!.querySelector("select")).toHaveValue("active");
+    expect(screen.queryByText(/Show removed/)).not.toBeInTheDocument();
   });
 
-  it("calls onToggleRemoved when the pill is activated", () => {
-    const onToggleRemoved = vi.fn();
-    render(<PlayersOverviewSurface {...baseProps()} onToggleRemoved={onToggleRemoved} />);
-    fireEvent.click(screen.getByRole("button", { name: "Show removed (3)" }));
-    expect(onToggleRemoved).toHaveBeenCalledTimes(1);
+  it("calls onRosterFilterChange when the roster selector changes", () => {
+    const onRosterFilterChange = vi.fn();
+    render(<PlayersOverviewSurface {...baseProps()} onRosterFilterChange={onRosterFilterChange} />);
+    fireEvent.change(screen.getByText("Player status").closest("label")!.querySelector("select")!, { target: { value: "removed" } });
+    expect(onRosterFilterChange).toHaveBeenCalledWith("removed");
   });
 
   it("calls onSeasonChange when the season selector changes", () => {
@@ -135,8 +137,58 @@ describe("PlayersOverviewSurface", () => {
     expect(screen.getAllByText("Sander Berg").length).toBeGreaterThan(0);
   });
 
-  it("does not render the removed-player pill when the count is zero", () => {
-    render(<PlayersOverviewSurface {...baseProps()} removedPlayerCount={0} />);
-    expect(screen.queryByText(/Show removed/)).not.toBeInTheDocument();
+  describe("mobile trailing label (roster-state-and-mobile-convergence pass §19)", () => {
+    it("never renders an opaque '1/1' or '0/1' ratio", () => {
+      render(<PlayersOverviewSurface {...baseProps()} />);
+      expect(screen.queryByText("1/1")).not.toBeInTheDocument();
+      expect(screen.queryByText("0/1")).not.toBeInTheDocument();
+    });
+
+    it("labels a covered active row 'Planned' and an uncovered one 'Needs plan'", () => {
+      const rows = [
+        makeRow({ playerId: "1", displayName: "Sander Berg", hasOpportunityThisWeek: true }),
+        makeRow({ playerId: "2", displayName: "Noah Iversen", hasOpportunityThisWeek: false }),
+      ];
+      render(
+        <PlayersOverviewSurface
+          {...baseProps()}
+          rows={rows}
+          resolveInspectorData={(id) => makeInspectorData(rows.find((r) => r.playerId === id)!)}
+        />,
+      );
+      expect(screen.getByText("Planned")).toBeInTheDocument();
+      expect(screen.getByText("Needs plan")).toBeInTheDocument();
+    });
+
+    it("labels an Inactive roster row 'Inactive' and a Removed roster row 'Removed'", () => {
+      const rows = [
+        makeRow({ playerId: "1", displayName: "Sander Berg", rosterState: "INACTIVE", hasOpportunityThisWeek: null }),
+        makeRow({ playerId: "2", displayName: "Noah Iversen", rosterState: "REMOVED", hasOpportunityThisWeek: null }),
+      ];
+      render(
+        <PlayersOverviewSurface
+          {...baseProps()}
+          rows={rows}
+          resolveInspectorData={(id) => makeInspectorData(rows.find((r) => r.playerId === id)!)}
+        />,
+      );
+      // `getAllByText` because "Inactive"/"Removed" also exist as `<option>` text in the Roster
+      // selector — the assertion is that the trailing label text renders somewhere, not that it's
+      // the only occurrence.
+      expect(screen.getAllByText("Inactive").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Removed").length).toBeGreaterThan(0);
+    });
+
+    it("surfaces a non-default availability on an active row's secondary line", () => {
+      const rows = [makeRow({ playerId: "1", displayName: "Sander Berg", availabilityLabel: "Doubtful" })];
+      render(
+        <PlayersOverviewSurface
+          {...baseProps()}
+          rows={rows}
+          resolveInspectorData={(id) => makeInspectorData(rows.find((r) => r.playerId === id)!)}
+        />,
+      );
+      expect(screen.getAllByText(/Doubtful/).length).toBeGreaterThan(0);
+    });
   });
 });

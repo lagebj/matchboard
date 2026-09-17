@@ -1,6 +1,7 @@
 import type { PlayersOverviewRow, PlayersOverviewInspectorData } from "@/lib/touchline/presentation/players-overview-view-model";
 import type { PlayersCurrentRoundRow } from "@/lib/touchline/presentation/players-current-round-view-model";
 import type { PlayersDevelopmentRow } from "@/lib/touchline/presentation/players-development-view-model";
+import type { PlayerRosterFilter } from "@/lib/players/roster-state";
 
 /**
  * Static fixtures for the Players Overview UI Lab (Matchboard Players Operating Surface bundle,
@@ -17,22 +18,40 @@ const GREEN_KIT = "#2c9c5b";
 
 export const overviewRows: PlayersOverviewRow[] = [
   // U14 Lions
-  { playerId: "1", displayName: "William", shirtNumber: 1, kitColor: null, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "GK", currentPrimaryPosition: "GK", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 12, goals: 0, assists: 0, core: 10, support: 2, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "2", displayName: "Lucas", shirtNumber: 2, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "RB", currentPrimaryPosition: "RB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 16, goals: 0, assists: 2, core: 11, support: 5, development: 0, matchdayAdditions: 1, plannedButAbsent: 0, attention: false },
-  { playerId: "3", displayName: "Leon", shirtNumber: 3, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "LB", currentPrimaryPosition: "LB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 13, goals: 0, assists: 0, core: 10, support: 3, development: 0, matchdayAdditions: 0, plannedButAbsent: 1, attention: false },
-  { playerId: "4", displayName: "Noah", shirtNumber: 4, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Doubtful", hasOpportunityThisWeek: false, played: 14, goals: 2, assists: 1, core: 11, support: 3, development: 0, matchdayAdditions: 1, plannedButAbsent: 0, attention: true },
-  { playerId: "5", displayName: "Emil", shirtNumber: 5, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 13, goals: 0, assists: 2, core: 9, support: 4, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "6", displayName: "Matteo", shirtNumber: 6, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "RW", currentPrimaryPosition: "RW", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 14, goals: 1, assists: 2, core: 14, support: 0, development: 3, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "7", displayName: "Elias", shirtNumber: 8, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CM", currentPrimaryPosition: "CM", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 13, goals: 4, assists: 2, core: 13, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
+  { playerId: "1", displayName: "William", shirtNumber: 1, kitColor: null, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "GK", currentPrimaryPosition: "GK", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 12, goals: 0, assists: 0, core: 10, support: 2, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "2", displayName: "Lucas", shirtNumber: 2, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "RB", currentPrimaryPosition: "RB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 16, goals: 0, assists: 2, core: 11, support: 5, development: 0, matchdayAdditions: 1, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "3", displayName: "Leon", shirtNumber: 3, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "LB", currentPrimaryPosition: "LB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 13, goals: 0, assists: 0, core: 10, support: 3, development: 0, matchdayAdditions: 0, plannedButAbsent: 1, attention: false, rosterState: "ACTIVE" },
+  { playerId: "4", displayName: "Noah", shirtNumber: 4, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Doubtful", hasOpportunityThisWeek: false, played: 14, goals: 2, assists: 1, core: 11, support: 3, development: 0, matchdayAdditions: 1, plannedButAbsent: 0, attention: true, rosterState: "ACTIVE" },
+  { playerId: "5", displayName: "Emil", shirtNumber: 5, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 13, goals: 0, assists: 2, core: 9, support: 4, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "6", displayName: "Matteo", shirtNumber: 6, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "RW", currentPrimaryPosition: "RW", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 14, goals: 1, assists: 2, core: 14, support: 0, development: 3, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "7", displayName: "Elias", shirtNumber: 8, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CM", currentPrimaryPosition: "CM", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 13, goals: 4, assists: 2, core: 13, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
   // U13 Hawks
-  { playerId: "8", displayName: "Oskar", shirtNumber: 9, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "CM", currentPrimaryPosition: "CM", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 9, goals: 1, assists: 0, core: 7, support: 2, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "9", displayName: "Henrik", shirtNumber: 10, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 8, goals: 0, assists: 0, core: 8, support: 0, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "10", displayName: "Aksel", shirtNumber: 11, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "LB", currentPrimaryPosition: "LB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 9, goals: 0, assists: 1, core: 8, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "11", displayName: "Isak", shirtNumber: 12, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "ST", currentPrimaryPosition: "ST", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 9, goals: 5, assists: 1, core: 9, support: 0, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
+  { playerId: "8", displayName: "Oskar", shirtNumber: 9, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "CM", currentPrimaryPosition: "CM", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 9, goals: 1, assists: 0, core: 7, support: 2, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "9", displayName: "Henrik", shirtNumber: 10, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 8, goals: 0, assists: 0, core: 8, support: 0, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "10", displayName: "Aksel", shirtNumber: 11, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "LB", currentPrimaryPosition: "LB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 9, goals: 0, assists: 1, core: 8, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "11", displayName: "Isak", shirtNumber: 12, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "ST", currentPrimaryPosition: "ST", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 9, goals: 5, assists: 1, core: 9, support: 0, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
   // U15 Falcons
-  { playerId: "12", displayName: "Filip", shirtNumber: 1, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "GK", currentPrimaryPosition: "GK", availabilityLabel: "Injured", hasOpportunityThisWeek: false, played: 6, goals: 0, assists: 0, core: 5, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 1, attention: true },
-  { playerId: "13", displayName: "Kasper", shirtNumber: 4, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 10, goals: 0, assists: 0, core: 9, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false },
-  { playerId: "14", displayName: "Theo", shirtNumber: 7, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "RW", currentPrimaryPosition: "RW", availabilityLabel: "Doubtful", hasOpportunityThisWeek: false, played: 8, goals: 2, assists: 0, core: 6, support: 2, development: 1, matchdayAdditions: 0, plannedButAbsent: 0, attention: true },
+  { playerId: "12", displayName: "Filip", shirtNumber: 1, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "GK", currentPrimaryPosition: "GK", availabilityLabel: "Injured", hasOpportunityThisWeek: false, played: 6, goals: 0, assists: 0, core: 5, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 1, attention: true, rosterState: "ACTIVE" },
+  { playerId: "13", displayName: "Kasper", shirtNumber: 4, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: true, played: 10, goals: 0, assists: 0, core: 9, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "ACTIVE" },
+  { playerId: "14", displayName: "Theo", shirtNumber: 7, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "RW", currentPrimaryPosition: "RW", availabilityLabel: "Doubtful", hasOpportunityThisWeek: false, played: 8, goals: 2, assists: 0, core: 6, support: 2, development: 1, matchdayAdditions: 0, plannedButAbsent: 0, attention: true, rosterState: "ACTIVE" },
+];
+
+/**
+ * Inactive/Removed roster-state rows (roster-state-and-mobile-convergence pass §31) — a
+ * dedicated set rather than the active roster with a flag flipped, because in production these
+ * roster states load an entirely different player population (`roster=inactive`/`roster=removed`
+ * scopes the server query itself, §4). Real, non-zero historical stats on both — an inactive or
+ * removed player's genuine season history is retained, never zeroed (§5). Neither ever carries an
+ * opportunity signal (§7).
+ */
+export const inactiveRows: PlayersOverviewRow[] = [
+  { playerId: "15", displayName: "Magnus", shirtNumber: 14, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CM", currentPrimaryPosition: "CM", availabilityLabel: "Available", hasOpportunityThisWeek: null, played: 6, goals: 1, assists: 0, core: 5, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "INACTIVE" },
+  { playerId: "16", displayName: "Jonas", shirtNumber: 15, kitColor: BLUE_KIT, coreTeamName: "U13 Hawks", currentPrimaryPositionCode: "LB", currentPrimaryPosition: "LB", availabilityLabel: "Available", hasOpportunityThisWeek: null, played: 3, goals: 0, assists: 0, core: 3, support: 0, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "INACTIVE" },
+];
+
+export const removedRows: PlayersOverviewRow[] = [
+  { playerId: "17", displayName: "Sindre", shirtNumber: 16, kitColor: GREEN_KIT, coreTeamName: "U15 Falcons", currentPrimaryPositionCode: "ST", currentPrimaryPosition: "ST", availabilityLabel: "Available", hasOpportunityThisWeek: null, played: 9, goals: 4, assists: 2, core: 8, support: 1, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "REMOVED" },
+  { playerId: "18", displayName: "Vetle", shirtNumber: 17, kitColor: RED_KIT, coreTeamName: "U14 Lions", currentPrimaryPositionCode: "CB", currentPrimaryPosition: "CB", availabilityLabel: "Available", hasOpportunityThisWeek: null, played: 2, goals: 0, assists: 0, core: 2, support: 0, development: 0, matchdayAdditions: 0, plannedButAbsent: 0, attention: false, rosterState: "REMOVED" },
 ];
 
 export const inspectorByPlayerId: Record<string, PlayersOverviewInspectorData> = {
@@ -45,6 +64,7 @@ export const inspectorByPlayerId: Record<string, PlayersOverviewInspectorData> =
     currentPrimaryPosition: "Centre Back",
     currentPrimaryPositionFull: "Centre Back",
     availabilityLabel: "Doubtful — minor knock",
+    rosterState: "ACTIVE",
     opportunityLabel: "No opportunity yet this round",
     effectivePositions: [
       { positionCode: "CB", positionLabel: "Centre Back", rank: 1, supportBand: "STRONGEST", confidence: "HIGH" },
@@ -57,6 +77,50 @@ export const inspectorByPlayerId: Record<string, PlayersOverviewInspectorData> =
     support: 3,
     development: 0,
     activeDevelopmentFocus: "Clinical finishing",
+    playerDetailHref: "#",
+  },
+  "15": {
+    playerId: "15",
+    displayName: "Magnus",
+    shirtNumber: 14,
+    kitColor: RED_KIT,
+    coreTeamName: "U14 Lions",
+    currentPrimaryPosition: "CM",
+    currentPrimaryPositionFull: "Centre Midfield",
+    availabilityLabel: "Available",
+    rosterState: "INACTIVE",
+    // No current-round opportunity row for a non-active roster player (§7) — the inspector omits
+    // it entirely rather than render a manufactured state.
+    opportunityLabel: null,
+    effectivePositions: [{ positionCode: "CM", positionLabel: "Centre Midfield", rank: 1, supportBand: "STRONG", confidence: "MEDIUM" }],
+    played: 6,
+    goals: 1,
+    assists: 0,
+    core: 5,
+    support: 1,
+    development: 0,
+    activeDevelopmentFocus: null,
+    playerDetailHref: "#",
+  },
+  "17": {
+    playerId: "17",
+    displayName: "Sindre",
+    shirtNumber: 16,
+    kitColor: GREEN_KIT,
+    coreTeamName: "U15 Falcons",
+    currentPrimaryPosition: "ST",
+    currentPrimaryPositionFull: "Striker",
+    availabilityLabel: "Available",
+    rosterState: "REMOVED",
+    opportunityLabel: null,
+    effectivePositions: [{ positionCode: "ST", positionLabel: "Striker", rank: 1, supportBand: "STRONGEST", confidence: "HIGH" }],
+    played: 9,
+    goals: 4,
+    assists: 2,
+    core: 8,
+    support: 1,
+    development: 0,
+    activeDevelopmentFocus: null,
     playerDetailHref: "#",
   },
 };
@@ -75,10 +139,11 @@ export const developmentRows: PlayersDevelopmentRow[] = [
 ];
 
 /**
- * The seven required deterministic Overview states (`07_UI_LAB_AND_VISUAL_MERGE_GATE.md §1`).
- * Each entry supplies exactly what the shared `PlayersOverviewSurface` needs — rows, inspector
- * data, summary counts, removed-player count, and any pre-applied filters — so the fixture page
- * can render the real shared component unmodified for every state.
+ * The required deterministic Overview states (`07_UI_LAB_AND_VISUAL_MERGE_GATE.md §1`, extended
+ * by the roster-state-and-mobile-convergence pass §31 with dedicated `-inactive`/`-removed`
+ * states). Each entry supplies exactly what the shared `PlayersOverviewSurface` needs — rows,
+ * inspector data, summary counts, the roster filter, and any pre-applied filters — so the fixture
+ * page can render the real shared component unmodified for every state.
  */
 export type OverviewStateKey =
   | "players-overview-selected"
@@ -87,13 +152,17 @@ export type OverviewStateKey =
   | "players-overview-filtered"
   | "players-overview-empty-filter"
   | "players-overview-no-position-history"
-  | "players-overview-mobile";
+  | "players-overview-mobile"
+  | "players-overview-inactive"
+  | "players-overview-removed";
 
 export type OverviewStateFixture = {
   rows: PlayersOverviewRow[];
   inspectorByPlayerId: Record<string, PlayersOverviewInspectorData>;
   activePlayerCount: number;
-  removedPlayerCount: number;
+  /** The roster filter this state represents — Overview's own summary counts always stay pinned
+      to the active roster (§15) regardless of this value. */
+  rosterFilter: PlayerRosterFilter;
   opportunityGapsCount: number;
   supportUsageCount: number;
   developmentFocusesCount: number;
@@ -104,6 +173,11 @@ export type OverviewStateFixture = {
   initialAvailabilityFilter: string;
 };
 
+// Active-roster-only summary figures, reused verbatim by every state (§15) — computed once here
+// rather than re-derived per state entry below.
+const ACTIVE_SUPPORT_USAGE_COUNT = overviewRows.filter((r) => r.support > 0).length;
+const ACTIVE_DEVELOPMENT_FOCUSES_COUNT = developmentRows.filter((r) => r.activeDevelopmentFocus != null).length;
+
 const BASE_INSPECTOR = inspectorByPlayerId["4"];
 
 export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
@@ -111,10 +185,10 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
     rows: overviewRows,
     inspectorByPlayerId,
     activePlayerCount: 14,
-    removedPlayerCount: 2,
+    rosterFilter: "active",
     opportunityGapsCount: 3,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: "4",
     initialSearch: "",
     initialTeamFilter: "",
@@ -131,12 +205,12 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
       "4": { ...BASE_INSPECTOR, opportunityLabel: "No planned match in W34 2026" },
     },
     activePlayerCount: 14,
-    removedPlayerCount: 0,
+    rosterFilter: "active",
     // Decision-required rows (§3 of 02_ROUTE_COMPOSITION): Noah, Leon, Emil, Filip and Theo all
     // lack a planned match in the current operational round.
     opportunityGapsCount: 5,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: "4",
     initialSearch: "",
     initialTeamFilter: "",
@@ -163,10 +237,10 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
       },
     },
     activePlayerCount: 14,
-    removedPlayerCount: 0,
+    rosterFilter: "active",
     opportunityGapsCount: 0,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: "4",
     initialSearch: "",
     initialTeamFilter: "",
@@ -177,10 +251,10 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
     rows: overviewRows,
     inspectorByPlayerId,
     activePlayerCount: 14,
-    removedPlayerCount: 0,
+    rosterFilter: "active",
     opportunityGapsCount: 3,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: "4",
     initialSearch: "",
     // Pre-applied core-team filter narrows fourteen rows down to the seven U14 Lions rows —
@@ -193,10 +267,10 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
     rows: overviewRows,
     inspectorByPlayerId,
     activePlayerCount: 14,
-    removedPlayerCount: 0,
+    rosterFilter: "active",
     opportunityGapsCount: 3,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: null,
     // A search query that matches no player's display name — real "no rows match" state, not a
     // fabricated empty-roster state.
@@ -233,10 +307,10 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
       },
     },
     activePlayerCount: 14,
-    removedPlayerCount: 0,
+    rosterFilter: "active",
     opportunityGapsCount: 0,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: "4",
     initialSearch: "",
     initialTeamFilter: "",
@@ -249,11 +323,43 @@ export const overviewStates: Record<OverviewStateKey, OverviewStateFixture> = {
     rows: overviewRows,
     inspectorByPlayerId,
     activePlayerCount: 14,
-    removedPlayerCount: 2,
+    rosterFilter: "active",
     opportunityGapsCount: 3,
-    supportUsageCount: overviewRows.filter((r) => r.support > 0).length,
-    developmentFocusesCount: developmentRows.filter((r) => r.activeDevelopmentFocus != null).length,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
     initialSelectedPlayerId: "4",
+    initialSearch: "",
+    initialTeamFilter: "",
+    initialPositionFilter: "",
+    initialAvailabilityFilter: "",
+  },
+  "players-overview-inactive": {
+    // A distinct population, not the active roster with a flag flipped — matches how
+    // `roster=inactive` actually scopes the server query in production (§4). Summary counts stay
+    // pinned to the active roster (§15); the two inactive rows carry real, non-zero historical
+    // stats (§5) and no opportunity signal (§7).
+    rows: inactiveRows,
+    inspectorByPlayerId,
+    activePlayerCount: 14,
+    rosterFilter: "inactive",
+    opportunityGapsCount: 3,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
+    initialSelectedPlayerId: "15",
+    initialSearch: "",
+    initialTeamFilter: "",
+    initialPositionFilter: "",
+    initialAvailabilityFilter: "",
+  },
+  "players-overview-removed": {
+    rows: removedRows,
+    inspectorByPlayerId,
+    activePlayerCount: 14,
+    rosterFilter: "removed",
+    opportunityGapsCount: 3,
+    supportUsageCount: ACTIVE_SUPPORT_USAGE_COUNT,
+    developmentFocusesCount: ACTIVE_DEVELOPMENT_FOCUSES_COUNT,
+    initialSelectedPlayerId: "17",
     initialSearch: "",
     initialTeamFilter: "",
     initialPositionFilter: "",

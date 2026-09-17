@@ -518,6 +518,32 @@ starting with Phase 4.
   defects it left in place — was completed as its own dedicated pass. See ADR-0139's 2026-09-16
   history entry for the full account (batched effective-position loading, position-alias
   normalization, and the recomposed Players Overview route/inspector).
+- **Follow-up (2026-09-17, roster-state-and-mobile-convergence pass):** a corrective pass on the
+  Players route (still no position-engine or pitch-renderer change). Product decisions were fixed
+  by the requester, not redesigned here:
+  - a dedicated, URL-backed roster-state filter (`?roster=active|inactive|removed|all`, default
+    `active`) replaces the prior binary "Show removed" toggle; roster state (Active/Inactive/
+    Removed) is explicitly kept separate from football availability, which continues to default to
+    "All availability" rather than "Available" so an unavailable active player stays visible;
+  - `getPlayersSeasonOverview()` and `getPlayersDevelopmentOverview()` both gained an optional
+    `playerIds` scope so an inactive/removed player's real historical season/development data is
+    aggregated rather than fabricated as empty, while every existing caller's default (active-only)
+    behaviour is unchanged;
+  - current-round opportunity semantics stay active-roster-only — the inspector omits the
+    Current-round row entirely for a non-active player rather than rendering a manufactured state;
+  - `PlayersSummaryStrip` became one grouped strip (internal hairline dividers, 2×2 on mobile)
+    instead of four independent bordered cards; the mobile route-tab rail gained an optional
+    `compactLabel` ("Groups" for "Manage base groups") and an optional hidden-scrollbar mode;
+    mobile roster rows replaced the opaque "1/1"/"0/1" trailing ratio with semantic text
+    ("Planned"/"Needs plan"/"Inactive"/"Removed") and surface non-default football availability on
+    an active row's secondary line.
+  - Terminology note: the corrective request's own vocabulary for this filter ("Roster
+    state"/"Roster filter") collides with this repository's banned-term mapping
+    (`docs/domain/terminology.md` — "Roster" is reserved as a banned synonym for "Squad", the
+    match-day selection concept, which this filter is not). Code/type/URL-param identifiers keep
+    "roster" (`PlayerRosterState`, `PlayerRosterFilter`, `?roster=`) per this repo's own convention
+    that internal identifiers translate at the product boundary; the one visible/accessible control
+    label instead reads "Player status".
 
 ## References
 
