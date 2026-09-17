@@ -1,4 +1,5 @@
 import type { MatchPeriod, MatchType } from "@/generated/prisma/client";
+import type { MatchFormatDefinition } from "./match-format";
 
 export interface PeriodConfig {
   key: MatchPeriod;
@@ -35,17 +36,62 @@ export function getLeaguePeriodConfig(matchType: MatchType): PeriodConfig[] {
   return matchType === "CUP" ? LEAGUE_PERIOD_CONFIG : REGULATION_ONLY_PERIOD_CONFIG;
 }
 
+/**
+ * Builds a `PeriodConfig[]` from a resolved `MatchFormatDefinition` (ADR-0146) -- the one shared
+ * builder both League and Event use once a format is configured/resolved. `numberOfPeriods` is
+ * `1` (single continuous "Match" period) or `2` (First half/Half time/Second half); see
+ * `match-format.ts`'s module doc comment for why the domain validates only those two values.
+ * League's live clock falls back to the hardcoded `LEAGUE_PERIOD_CONFIG`/
+ * `REGULATION_ONLY_PERIOD_CONFIG` below when no format is configured/resolved -- this builder is
+ * never called with a null/absent format.
+ */
+export function buildPeriodConfigFromFormat(format: MatchFormatDefinition): PeriodConfig[] {
+  const durationMs = format.periodDurationMinutes * 60 * 1000;
+
+  if (format.numberOfPeriods === 2) {
+    const breakMs = format.breakDurationMinutes * 60 * 1000;
+    return [
+      { key: "BEFORE", label: "Before match", type: "break", durationMs: null },
+      { key: "FIRST_HALF", label: "First half", type: "playing", durationMs },
+      { key: "HALF_TIME", label: "Half time", type: "break", durationMs: breakMs },
+      { key: "SECOND_HALF", label: "Second half", type: "playing", durationMs },
+      { key: "FULL_TIME", label: "Full time", type: "break", durationMs: null },
+    ];
+  }
+
+  return [
+    { key: "BEFORE", label: "Before match", type: "break", durationMs: null },
+    { key: "FIRST_HALF", label: "Match", type: "playing", durationMs },
+    { key: "FULL_TIME", label: "Full time", type: "break", durationMs: null },
+  ];
+}
+
 // matchDurationMinutes is always the length of ONE half. For the default numberOfHalves=1 that
 // is trivially the whole match (single continuous "Match" period, unchanged from before halves
 // support existed). numberOfHalves=2 mirrors League's regulation-time period model exactly
 // (First half/Half time/Second half) -- same MatchPeriod keys, so LiveMatchClient needs no
 // changes to consume either shape.
+//
+// Thin wrapper over buildPeriodConfigFromFormat() (ADR-0146) -- generalized so League can share
+// the same builder instead of a second implementation. Kept for every existing Event call site;
+// behavior is unchanged (a null matchDurationMinutes still produces a config with durationMs:
+// null entries, which buildPeriodConfigFromFormat cannot express directly since it requires a
+// resolved format, so this wrapper still builds the null-tolerant shape itself rather than
+// delegating when duration is unset).
 export function getEventPeriodConfig(
   matchDurationMinutes: number | null,
   numberOfHalves: number = 1,
   breakDurationMinutes: number | null = null,
 ): PeriodConfig[] {
-  const durationMs = matchDurationMinutes != null ? matchDurationMinutes * 60 * 1000 : null;
+  if (matchDurationMinutes != null) {
+    return buildPeriodConfigFromFormat({
+      numberOfPeriods: numberOfHalves,
+      periodDurationMinutes: matchDurationMinutes,
+      breakDurationMinutes: breakDurationMinutes ?? 0,
+    });
+  }
+
+  const durationMs = null;
 
   if (numberOfHalves === 2) {
     const breakMs = breakDurationMinutes != null ? breakDurationMinutes * 60 * 1000 : null;

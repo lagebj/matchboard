@@ -131,4 +131,46 @@ describe("Team Configuration Service", () => {
       await expect(updateTeamConfiguration(hvitId, { name: "Bla Updated" })).rejects.toThrow();
     });
   });
+
+  // ADR-0146: Team match-format override — a complete override or null (inherit), never partial.
+  describe("updateTeamConfiguration — matchFormatOverride", () => {
+    it("has no override by default (inherits the League Season format)", async () => {
+      const teamId = fixture.teams["Rod"];
+      const config = await getTeamConfiguration(teamId);
+      expect(config!.matchFormatOverride).toBeNull();
+    });
+
+    it("sets a complete match-format override", async () => {
+      const teamId = fixture.teams["Rod"];
+      const result = await updateTeamConfiguration(teamId, {
+        matchFormatOverride: { numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 15 },
+      });
+      expect(result.matchFormatOverride).toEqual({ numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 15 });
+    });
+
+    it("rejects an out-of-range override", async () => {
+      const teamId = fixture.teams["Rod"];
+      await expect(
+        updateTeamConfiguration(teamId, { matchFormatOverride: { numberOfPeriods: 3, periodDurationMinutes: 30, breakDurationMinutes: 15 } }),
+      ).rejects.toThrow("Invalid match format override");
+    });
+
+    it("clears the override back to null (revert to inherit) when explicitly set to null", async () => {
+      const teamId = fixture.teams["Rod"];
+      await updateTeamConfiguration(teamId, {
+        matchFormatOverride: { numberOfPeriods: 1, periodDurationMinutes: 40, breakDurationMinutes: 0 },
+      });
+      const cleared = await updateTeamConfiguration(teamId, { matchFormatOverride: null });
+      expect(cleared.matchFormatOverride).toBeNull();
+    });
+
+    it("leaves the override untouched when omitted from the update", async () => {
+      const teamId = fixture.teams["Rod"];
+      await updateTeamConfiguration(teamId, {
+        matchFormatOverride: { numberOfPeriods: 2, periodDurationMinutes: 20, breakDurationMinutes: 5 },
+      });
+      const result = await updateTeamConfiguration(teamId, { supportPriority: 2 });
+      expect(result.matchFormatOverride).toEqual({ numberOfPeriods: 2, periodDurationMinutes: 20, breakDurationMinutes: 5 });
+    });
+  });
 });

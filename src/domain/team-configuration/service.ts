@@ -2,6 +2,7 @@ import type { TeamConfiguration, TeamRuleConfiguration } from "./types";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { isValidKitColor } from "@/lib/teams/kit-color";
+import { validateMatchFormatDefinition } from "@/lib/live-match/match-format";
 
 export const KNOWN_RULES: TeamRuleConfiguration[] = [
   {
@@ -86,6 +87,9 @@ export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilter
         select: { id: true, name: true, slug: true, type: true },
       },
     },
+    // numberOfPeriodsOverride/periodDurationMinutesOverride/breakDurationMinutesOverride are
+    // plain Team columns (ADR-0146) -- included automatically by `db.team.findFirst`'s default
+    // scalar selection; called out here only in the return mapping below.
   });
 
   if (!team) return null;
@@ -113,6 +117,16 @@ export async function getTeamConfiguration(teamId: string, orgFilter?: OrgFilter
     supportPriority: team.supportPriority,
     minSupportPlayers: team.minSupportPlayers,
     developmentSlots: team.developmentSlots,
+    matchFormatOverride:
+      team.numberOfPeriodsOverride != null &&
+      team.periodDurationMinutesOverride != null &&
+      team.breakDurationMinutesOverride != null
+        ? {
+            numberOfPeriods: team.numberOfPeriodsOverride,
+            periodDurationMinutes: team.periodDurationMinutesOverride,
+            breakDurationMinutes: team.breakDurationMinutesOverride,
+          }
+        : null,
     footballGroupId: team.footballGroupId,
     footballGroup: { id: team.group.id, name: team.group.name, slug: team.group.slug, type: team.group.type },
     rules,
@@ -132,6 +146,7 @@ export async function updateTeamConfiguration(
     supportPriority?: number;
     minSupportPlayers?: number;
     developmentSlots?: number;
+    matchFormatOverride?: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
     footballGroupId?: string;
   },
   orgFilter?: OrgFilterMode,
@@ -144,6 +159,13 @@ export async function updateTeamConfiguration(
 
   if (input.kitColor !== undefined && input.kitColor !== null && !isValidKitColor(input.kitColor)) {
     throw new Error("Kit colour must be one of the product palette values.");
+  }
+
+  if (input.matchFormatOverride !== undefined && input.matchFormatOverride !== null) {
+    const errors = validateMatchFormatDefinition(input.matchFormatOverride);
+    if (errors.length > 0) {
+      throw new Error(`Invalid match format override: ${errors.join(", ")}`);
+    }
   }
 
   const existing = await db.team.findUniqueOrThrow({ where: { id: teamId, ...orgWhere }, select: { targetSquadSize: true, minAcceptedSquadSize: true, maxSquadSize: true } });
@@ -171,6 +193,13 @@ export async function updateTeamConfiguration(
   if (input.minSupportPlayers !== undefined) data.minSupportPlayers = input.minSupportPlayers;
   if (input.developmentSlots !== undefined) data.developmentSlots = input.developmentSlots;
   if (input.footballGroupId !== undefined) data.footballGroupId = input.footballGroupId;
+  if (input.matchFormatOverride !== undefined) {
+    // null clears the override (revert to inherit the League Season format); a set value is
+    // already validated as a complete format above (ADR-0146 — never a partial/merged override).
+    data.numberOfPeriodsOverride = input.matchFormatOverride?.numberOfPeriods ?? null;
+    data.periodDurationMinutesOverride = input.matchFormatOverride?.periodDurationMinutes ?? null;
+    data.breakDurationMinutesOverride = input.matchFormatOverride?.breakDurationMinutes ?? null;
+  }
 
   await db.team.update({ where: { id: teamId, ...orgWhere }, data });
 

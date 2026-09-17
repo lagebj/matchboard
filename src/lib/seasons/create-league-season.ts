@@ -5,6 +5,7 @@ import {
   formatLeagueSeasonLabel,
   type LeagueSeasonPart,
 } from "@/lib/seasons/league-season";
+import { validateMatchFormatDefinition, type MatchFormatDefinition } from "@/lib/live-match/match-format";
 import { revalidatePath } from "next/cache";
 
 export type CreateLeagueSeasonResult = {
@@ -21,6 +22,9 @@ export async function createLeagueSeason(
     year: number;
     part: LeagueSeasonPart;
     footballGroupId?: string;
+    // Required for every newly created season (ADR-0146 §1, bundle §02.3) -- existing legacy
+    // seasons may stay unconfigured; a new one may not.
+    matchFormat: MatchFormatDefinition;
   },
 ): Promise<CreateLeagueSeasonResult> {
   if (!data.year || data.year < 2000 || data.year > 2100) {
@@ -29,6 +33,11 @@ export async function createLeagueSeason(
 
   if (!data.part || !["SPRING", "FALL"].includes(data.part)) {
     return { success: false, error: "Part must be SPRING or FALL." };
+  }
+
+  const matchFormatErrors = validateMatchFormatDefinition(data.matchFormat);
+  if (matchFormatErrors.length > 0) {
+    return { success: false, error: `Invalid match format: ${matchFormatErrors.join(", ")}` };
   }
 
   const dateRange = getLeagueSeasonDateRange(data.year, data.part);
@@ -73,6 +82,9 @@ export async function createLeagueSeason(
       endDate: dateRange.endDate,
       organisationId,
       footballGroupId,
+      defaultNumberOfPeriods: data.matchFormat.numberOfPeriods,
+      defaultPeriodDurationMinutes: data.matchFormat.periodDurationMinutes,
+      defaultBreakDurationMinutes: data.matchFormat.breakDurationMinutes,
     },
   });
 

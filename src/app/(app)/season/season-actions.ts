@@ -5,8 +5,23 @@ import {
   unfinalizeLeagueSeason,
   validateLeagueSeasonFinalization,
 } from "@/lib/seasons/finalize-league-season";
+import {
+  updateLeagueSeasonMatchFormat,
+  type UpdateLeagueSeasonMatchFormatResult,
+} from "@/lib/seasons/league-season-match-format";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-context";
+
+export async function updateLeagueSeasonMatchFormatAction(
+  leagueSeasonId: string,
+  format: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number },
+): Promise<UpdateLeagueSeasonMatchFormatResult> {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+
+  return updateLeagueSeasonMatchFormat(leagueSeasonId, ctx.organisationId, format);
+}
 
 export async function finalizeLeagueSeasonAction(leagueSeasonId: string): Promise<{
   success: boolean;

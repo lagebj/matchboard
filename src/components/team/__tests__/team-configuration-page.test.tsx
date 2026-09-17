@@ -27,6 +27,7 @@ function makeConfig(overrides: Partial<TeamConfiguration> = {}): TeamConfigurati
     supportPriority: 3,
     minSupportPlayers: 1,
     developmentSlots: 2,
+    matchFormatOverride: null,
     footballGroupId: "group-1",
     footballGroup: { id: "group-1", name: "Boys 2015", slug: "boys-2015", type: "AGE_GROUP" },
     rules: [

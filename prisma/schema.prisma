@@ -9,45 +9,53 @@ datasource db {
 }
 
 model Team {
-  id                       String                  @id @default(cuid())
-  name                     String
-  organisationId           String
-  targetSquadSize          Int                     @default(11)
-  minAcceptedSquadSize     Int                     @default(9)
-  maxSquadSize             Int                     @default(14)
-  minCorePlayers           Int                     @default(8)
-  minSupportCount          Int                     @default(0)
-  targetSupportCount       Int                     @default(0)
-  maxSupportCount          Int                     @default(0)
-  maxPlayerChangesPerRound Int                     @default(0)
-  supportPriority          Int                     @default(0)
+  id                            String                  @id @default(cuid())
+  name                          String
+  organisationId                String
+  targetSquadSize               Int                     @default(11)
+  minAcceptedSquadSize          Int                     @default(9)
+  maxSquadSize                  Int                     @default(14)
+  minCorePlayers                Int                     @default(8)
+  minSupportCount               Int                     @default(0)
+  targetSupportCount            Int                     @default(0)
+  maxSupportCount               Int                     @default(0)
+  maxPlayerChangesPerRound      Int                     @default(0)
+  supportPriority               Int                     @default(0)
   // Atlas Follow-up (05_SHIRT_IDENTITY_AND_TEAM_KIT_COLOR.md): one canonical presentation-only
   // kit colour, validated server-side against a fixed product palette (src/lib/teams/kit-color.ts).
   // Drives TeamKitMark's dynamic fill. Not a design/branding system — no stripes/patterns/home-away
   // kits, one value per team. Unset renders the neutral Touchline shirt.
-  kitColor                 String?
-  minSupportPlayers        Int                     @default(0)
-  developmentSlots         Int                     @default(0)
-  archivedAt               DateTime?
-  footballGroupId          String
-  createdAt                DateTime                @default(now())
-  updatedAt                DateTime                @updatedAt
-  formations               Formation[]
-  matches                  Match[]
-  lineups                  MatchLineup[]
-  ledgerFromTeam           MovementLedger[]        @relation("LedgerFromTeam")
-  ledgerToTeam             MovementLedger[]        @relation("LedgerToTeam")
-  corePlayers              Player[]                @relation("CoreTeam")
-  fromRotationPaths        RotationPath[]          @relation("FromTeam")
-  toRotationPaths          RotationPath[]          @relation("ToTeam")
-  teamSeasonSnapshots      TeamSeasonSnapshot[]
-  matchHelperAssignments   MatchHelperAssignment[] @relation("HelperSourceTeam")
-  groupPlayers             FootballGroupPlayer[]   @relation("GroupPlayerCoreTeam")
-  bestLineup               TeamBestLineup?
-  plannedRotations         PlannedRotation[]
-  teamFocuses              TeamFocus[]
-  group                    FootballGroup           @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
-  organisation             Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  kitColor                      String?
+  minSupportPlayers             Int                     @default(0)
+  developmentSlots              Int                     @default(0)
+  archivedAt                    DateTime?
+  footballGroupId               String
+  // Match-format override (ADR-0146), same complete-override-or-inherit convention as
+  // EventSquad's *Override fields: null across all three = inherit the LeagueSeason default;
+  // a team-specific format must set all three (partial overrides are rejected at the app layer,
+  // not enforced by a DB constraint -- see resolveLeagueMatchFormat()). Changing this only
+  // affects matches that have not yet frozen their effective format at Live Reporting start.
+  numberOfPeriodsOverride       Int?
+  periodDurationMinutesOverride Int?
+  breakDurationMinutesOverride  Int?
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
+  formations                    Formation[]
+  matches                       Match[]
+  lineups                       MatchLineup[]
+  ledgerFromTeam                MovementLedger[]        @relation("LedgerFromTeam")
+  ledgerToTeam                  MovementLedger[]        @relation("LedgerToTeam")
+  corePlayers                   Player[]                @relation("CoreTeam")
+  fromRotationPaths             RotationPath[]          @relation("FromTeam")
+  toRotationPaths               RotationPath[]          @relation("ToTeam")
+  teamSeasonSnapshots           TeamSeasonSnapshot[]
+  matchHelperAssignments        MatchHelperAssignment[] @relation("HelperSourceTeam")
+  groupPlayers                  FootballGroupPlayer[]   @relation("GroupPlayerCoreTeam")
+  bestLineup                    TeamBestLineup?
+  plannedRotations              PlannedRotation[]
+  teamFocuses                   TeamFocus[]
+  group                         FootballGroup           @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
+  organisation                  Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([organisationId, name])
   @@index([archivedAt, name])
@@ -145,19 +153,19 @@ model Player {
 }
 
 model Match {
-  id                          String                         @id @default(cuid())
-  organisationId              String
-  matchRoundId                String
-  teamId                      String
-  opponent                    String
-  startsAt                    DateTime
-  homeAway                    MatchVenue
-  squadSize                   Int                            @default(11)
-  availableForDevelopmentSlot Boolean                        @default(false)
-  matchType                   MatchType                      @default(FRIENDLY)
-  gameFormat                  GameFormat                     @default(ELEVEN_A_SIDE)
-  formation                   String?
-  matchFit                    MatchFit                       @default(UNKNOWN)
+  id                            String                         @id @default(cuid())
+  organisationId                String
+  matchRoundId                  String
+  teamId                        String
+  opponent                      String
+  startsAt                      DateTime
+  homeAway                      MatchVenue
+  squadSize                     Int                            @default(11)
+  availableForDevelopmentSlot   Boolean                        @default(false)
+  matchType                     MatchType                      @default(FRIENDLY)
+  gameFormat                    GameFormat                     @default(ELEVEN_A_SIDE)
+  formation                     String?
+  matchFit                      MatchFit                       @default(UNKNOWN)
   // Bug fix (user-documentation-experience Phase 2): src/lib/evidence/actual-timeline.ts and
   // combination-topology.ts have unconditionally queried this field since the
   // evidence-driven-coaching-loop merge, to cap the final actual-position interval at match end
@@ -165,40 +173,48 @@ model Match {
   // field" on every real invocation and had zero non-test callers until this programme's seed
   // script first exercised them end-to-end. Nullable/optional: null preserves prior behaviour
   // (final interval left open-ended); no UI sets this yet.
-  matchDurationMinutes        Int?
-  notes                       String?
-  createdAt                   DateTime                       @default(now())
-  updatedAt                   DateTime                       @updatedAt
-  opponentTeamId              String?
-  status                      MatchStatus                    @default(SCHEDULED)
-  planningClosedAt            DateTime?
-  cancelledAt                 DateTime?
-  cancelledReason             String?
-  category                    MatchCategory                  @default(LEAGUE)
-  matchRound                  MatchRound                     @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  opponentTeam                OpponentTeam?                  @relation(fields: [opponentTeamId], references: [id])
-  team                        Team                           @relation(fields: [teamId], references: [id])
-  organisation                Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  executionFeedback           MatchExecutionFeedback[]
-  lineups                     MatchLineup[]
-  liveSession                 LiveMatchSession?
-  liveEvents                  LiveMatchEvent[]
-  rotations                   MatchRotation[]
-  plannedRotations            PlannedRotation[]
-  fairPlayObservations        FairPlayObservation[]
-  movementLedger              MovementLedger[]
-  opponentObservation         OpponentEncounterObservation?
-  sportingEvidence            OpponentSportingEvidence?
-  developmentObservations     PlayerDevelopmentObservation[]
-  selections                  Selection[]
-  teamReflection              TeamReflection?
-  helperAssignments           MatchHelperAssignment[]
-  threadObservations          DevelopmentThreadObservation[]
-  actualPositionIntervals     ActualPositionInterval[]
-  combinationEvidences        CombinationEvidence[]
-  postMatchLearningRuns       PostMatchLearningRun[]
-  quickObservations           QuickObservation[]
-  guestAssignments            LeagueMatchGuestAssignment[]
+  matchDurationMinutes          Int?
+  // Match-specific match-format override (ADR-0146), highest precedence over Team/LeagueSeason.
+  // Same complete-override-or-inherit convention as Team's *Override fields above. Editable only
+  // before Live Reporting starts -- see resolveLeagueMatchFormat()/the effective-format freeze
+  // snapshotted onto LiveMatchSession at startLiveSession(). Distinct from the pre-existing
+  // matchDurationMinutes field above, which is a single evidence end-cap value, not a format.
+  numberOfPeriodsOverride       Int?
+  periodDurationMinutesOverride Int?
+  breakDurationMinutesOverride  Int?
+  notes                         String?
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  opponentTeamId                String?
+  status                        MatchStatus                    @default(SCHEDULED)
+  planningClosedAt              DateTime?
+  cancelledAt                   DateTime?
+  cancelledReason               String?
+  category                      MatchCategory                  @default(LEAGUE)
+  matchRound                    MatchRound                     @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
+  opponentTeam                  OpponentTeam?                  @relation(fields: [opponentTeamId], references: [id])
+  team                          Team                           @relation(fields: [teamId], references: [id])
+  organisation                  Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  executionFeedback             MatchExecutionFeedback[]
+  lineups                       MatchLineup[]
+  liveSession                   LiveMatchSession?
+  liveEvents                    LiveMatchEvent[]
+  rotations                     MatchRotation[]
+  plannedRotations              PlannedRotation[]
+  fairPlayObservations          FairPlayObservation[]
+  movementLedger                MovementLedger[]
+  opponentObservation           OpponentEncounterObservation?
+  sportingEvidence              OpponentSportingEvidence?
+  developmentObservations       PlayerDevelopmentObservation[]
+  selections                    Selection[]
+  teamReflection                TeamReflection?
+  helperAssignments             MatchHelperAssignment[]
+  threadObservations            DevelopmentThreadObservation[]
+  actualPositionIntervals       ActualPositionInterval[]
+  combinationEvidences          CombinationEvidence[]
+  postMatchLearningRuns         PostMatchLearningRun[]
+  quickObservations             QuickObservation[]
+  guestAssignments              LeagueMatchGuestAssignment[]
 
   @@index([startsAt, createdAt])
   @@index([opponentTeamId])
@@ -1805,25 +1821,35 @@ model EventMatchLineupAssignment {
 }
 
 model LeagueSeason {
-  id                   String                @id @default(cuid())
-  organisationId       String
-  name                 String
-  seasonId             String
-  part                 LeagueSeasonPart
-  startDate            DateTime
-  endDate              DateTime
-  status               LeagueSeasonStatus    @default(OPEN)
-  finalizedAt          DateTime?
-  finalizedBy          String?
-  footballGroupId      String
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  matchRounds          MatchRound[]
-  combinationEvidences CombinationEvidence[]
-  season               Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  periodSnapshot       SeasonPeriodSnapshot?
-  group                FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
-  organisation         Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id                           String                @id @default(cuid())
+  organisationId               String
+  name                         String
+  seasonId                     String
+  part                         LeagueSeasonPart
+  startDate                    DateTime
+  endDate                      DateTime
+  status                       LeagueSeasonStatus    @default(OPEN)
+  finalizedAt                  DateTime?
+  finalizedBy                  String?
+  footballGroupId              String
+  // Match-format default (ADR-0146). Null on every season that predates this field or was never
+  // explicitly configured -- a legacy/unconfigured season is a valid, permanent state (do not
+  // infer one from age or scheduled duration). Application validation requires all three fields
+  // together for a NEWLY CREATED season going forward; no DB-level NOT NULL, since existing and
+  // deliberately-left-unconfigured seasons must be able to stay null indefinitely. Resolved via
+  // resolveLeagueMatchFormat() (src/lib/live-match/match-format.ts) -- read this field directly
+  // nowhere else.
+  defaultNumberOfPeriods       Int?
+  defaultPeriodDurationMinutes Int?
+  defaultBreakDurationMinutes  Int?
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  matchRounds                  MatchRound[]
+  combinationEvidences         CombinationEvidence[]
+  season                       Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  periodSnapshot               SeasonPeriodSnapshot?
+  group                        FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
+  organisation                 Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([organisationId, name])
   @@index([seasonId])
@@ -2713,25 +2739,25 @@ model OpponentAssessmentChange {
 }
 
 model PlayerDevelopmentObservation {
-  id                 String                            @id @default(cuid())
-  organisationId     String
-  playerId           String
-  sourceType         DevelopmentObservationSource      @default(LEAGUE_MATCH)
-  matchId            String?
-  eventMatchId       String?
-  kind               DevelopmentObservationKind
-  attributeKey       String?
-  positionId         String?
-  direction          DevelopmentDirection
-  observableNote     String?
-  observedAt         DateTime
-  recordedBy         String
-  createdAt          DateTime                          @default(now())
-  updatedAt          DateTime                          @updatedAt
-  player             Player                            @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  match              Match?                            @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  eventMatch         EventMatch?                       @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
-  organisation       Organisation?                     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id             String                       @id @default(cuid())
+  organisationId String
+  playerId       String
+  sourceType     DevelopmentObservationSource @default(LEAGUE_MATCH)
+  matchId        String?
+  eventMatchId   String?
+  kind           DevelopmentObservationKind
+  attributeKey   String?
+  positionId     String?
+  direction      DevelopmentDirection
+  observableNote String?
+  observedAt     DateTime
+  recordedBy     String
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  player         Player                       @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  match          Match?                       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch     EventMatch?                  @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  organisation   Organisation?                @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint
   // added by hand to the generated migration SQL (Prisma cannot express this).

@@ -3,6 +3,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { SeasonOverviewClient } from "@/app/(app)/season/season-client";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { SeasonFinalizeControls } from "@/app/(app)/season/season-finalize-controls";
+import { SeasonMatchFormatControls } from "@/app/(app)/season/season-match-format-controls";
 import { TouchlinePageHeader, TouchlineButton } from "@/components/touchline";
 import { CapacityBar } from "@/components/touchline/widget/capacity-bar";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -31,7 +32,18 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
   const leagueSeasons = await db.leagueSeason.findMany({
     where: orgWhere,
     orderBy: { startDate: "desc" },
-    select: { id: true, name: true, startDate: true, endDate: true, status: true, finalizedAt: true, finalizedBy: true },
+    select: {
+      id: true,
+      name: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+      finalizedAt: true,
+      finalizedBy: true,
+      defaultNumberOfPeriods: true,
+      defaultPeriodDurationMinutes: true,
+      defaultBreakDurationMinutes: true,
+    },
   });
 
   const activeLeagueSeason = leagueSeasons[0] ?? null;
@@ -154,6 +166,14 @@ export default async function SeasonPage({ params, searchParams }: { params: Pro
           status={activeLeagueSeason.status}
           finalizedAt={activeLeagueSeason.finalizedAt}
           finalizedBy={activeLeagueSeason.finalizedBy}
+        />
+      )}
+      {activeLeagueSeason && (
+        <SeasonMatchFormatControls
+          leagueSeasonId={activeLeagueSeason.id}
+          numberOfPeriods={activeLeagueSeason.defaultNumberOfPeriods}
+          periodDurationMinutes={activeLeagueSeason.defaultPeriodDurationMinutes}
+          breakDurationMinutes={activeLeagueSeason.defaultBreakDurationMinutes}
         />
       )}
       {activeLeagueSeason && (

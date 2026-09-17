@@ -5,6 +5,7 @@ import { requirePageActorContext, requireMutationRole } from "@/lib/auth/actor-c
 import { createLeagueSeason, getFootballGroupsForOrganisation } from "@/lib/seasons/create-league-season";
 import type { LeagueSeasonPart } from "@/lib/seasons/league-season";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { validateMatchFormatDefinition } from "@/lib/live-match/match-format";
 
 export async function createLeagueSeasonAction(
   _prevState: { error?: string },
@@ -29,11 +30,26 @@ export async function createLeagueSeasonAction(
     return { error: "Part must be SPRING or FALL." };
   }
 
+  const numberOfPeriodsStr = formData.get("numberOfPeriods") as string | null;
+  const periodDurationMinutesStr = formData.get("periodDurationMinutes") as string | null;
+  const breakDurationMinutesStr = formData.get("breakDurationMinutes") as string | null;
+
+  const numberOfPeriods = numberOfPeriodsStr ? parseInt(numberOfPeriodsStr, 10) : NaN;
+  const periodDurationMinutes = periodDurationMinutesStr ? parseInt(periodDurationMinutesStr, 10) : NaN;
+  const breakDurationMinutes = breakDurationMinutesStr ? parseInt(breakDurationMinutesStr, 10) : NaN;
+
+  const matchFormat = { numberOfPeriods, periodDurationMinutes, breakDurationMinutes };
+  const matchFormatErrors = validateMatchFormatDefinition(matchFormat);
+  if (matchFormatErrors.length > 0) {
+    return { error: "Set a valid match format: number of periods, period length, and break length are all required." };
+  }
+
   const result = await createLeagueSeason(ctx.organisationId, {
     year,
     part: part as LeagueSeasonPart,
     name: name || undefined,
     footballGroupId: footballGroupId || undefined,
+    matchFormat,
   });
 
   if (!result.success) {
