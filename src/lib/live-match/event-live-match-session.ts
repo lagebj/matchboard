@@ -6,6 +6,7 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { persistedToClockState, clockStateToPersisted, isForwardClockTransition } from "./session-clock";
 import { createInitialClockState } from "./match-clock";
 import type { MatchClockState, MatchPeriod } from "./live-match-types";
+import { resolveEventMatchFormatSnapshot } from "./format-snapshot";
 
 export interface EventLiveSessionInfo {
   id: string;
@@ -82,12 +83,17 @@ export async function startEventLiveSession(eventMatchId: string): Promise<Event
     throw new Error("Live session has already ended. Create a new report or resume from post-match.");
   }
 
+  // Effective match-format freeze (ADR-0146 §1) — see the identical League comment in
+  // live-match-session.ts's startLiveSession().
+  const formatSnapshot = await resolveEventMatchFormatSnapshot(eventMatchId);
+
   const session = await db.eventLiveMatchSession.create({
     data: {
       eventMatchId,
       coachId: ctx.userId,
       organisationId: ctx.organisationId,
       status: "ACTIVE",
+      ...formatSnapshot,
     },
   });
 
