@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PlayersPageClient } from "../players-page-client";
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
@@ -9,12 +9,22 @@ import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDev
  * (`02_ROUTE_COMPOSITION_AND_VISUAL_CONTRACT.md §3`), client-side search/team/position/
  * availability filters and the selected-player fallback order
  * (`05_INTERACTION_FILTER_AND_RESPONSIVE_CONTRACT.md §8`).
+ *
+ * `searchParamsRef` (organisation-scoped-navigation bug fix, 2026-09-17): the existing
+ * `useSearchParams()` mock always returned an empty `URLSearchParams` — fine for tests that don't
+ * care about pre-existing query state, but it can't represent "the coach is already on
+ * `?mode=overview&periodId=...`" for the query-preservation regression tests below. A mutable ref
+ * read by the mock lets each test set the "current URL" it navigates away from.
  */
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, searchParamsRef } = vi.hoisted(() => ({ push: vi.fn(), searchParamsRef: { current: "" } }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(searchParamsRef.current),
 }));
+
+beforeEach(() => {
+  searchParamsRef.current = "";
+});
 
 // `ManageBaseGroupsView` (the "groups" mode) imports a real `"use server"` action module that
 // transitively pulls in next-auth/db — mocked here purely to keep this client-component test
@@ -197,6 +207,109 @@ describe("PlayersPageClient — roster filter (roster-state-and-mobile-convergen
     fireEvent.change(screen.getByText("Player status").closest("label")!.querySelector("select")!, { target: { value: "active" } });
     const url = push.mock.calls[0][0] as string;
     expect(url).not.toContain("roster=");
+  });
+});
+
+describe("PlayersPageClient — organisation-scoped navigation (bug fix, 2026-09-17)", () => {
+  // Root cause: `navigate()` pushed the bare `/players?...` route instead of the canonical
+  // `/o/[orgSlug]/players`. Next.js resolved that back to the org-scoped page with no `roster`
+  // param, which re-derives the default ("active") — so every non-Active roster selection
+  // appeared to instantly "snap back" to Active. Fixed by routing every imperative Players
+  // navigation through the existing `orgUrl()` helper.
+  function renderAt(search: string, props = baseProps()) {
+    searchParamsRef.current = search;
+    return render(
+      <OrgSlugProvider orgSlug="test-org">
+        <PlayersPageClient {...props} />
+      </OrgSlugProvider>,
+    );
+  }
+
+  function selectRoster(value: string) {
+    fireEvent.change(screen.getByText("Player status").closest("label")!.querySelector("select")!, { target: { value } });
+  }
+
+  function lastPushedUrl(): string {
+    expect(push).toHaveBeenCalled();
+    return push.mock.calls[push.mock.calls.length - 1][0] as string;
+  }
+
+  beforeEach(() => {
+    push.mockClear();
+  });
+
+  it("A: Active -> Inactive navigates under the organisation path with roster=inactive", () => {
+    renderAt("mode=overview");
+    selectRoster("inactive");
+    expect(lastPushedUrl()).toBe("/o/test-org/players?mode=overview&roster=inactive");
+  });
+
+  it("B: (already on Inactive) -> Removed stays under the organisation path with roster=removed", () => {
+    renderAt("mode=overview&roster=inactive");
+    selectRoster("removed");
+    expect(lastPushedUrl()).toBe("/o/test-org/players?mode=overview&roster=removed");
+  });
+
+  it("C: Removed -> All", () => {
+    renderAt("mode=overview&roster=removed");
+    selectRoster("all");
+    expect(lastPushedUrl()).toBe("/o/test-org/players?mode=overview&roster=all");
+  });
+
+  it("D: All -> Active removes the roster param entirely, never ?roster=active", () => {
+    renderAt("mode=overview&roster=all");
+    selectRoster("active");
+    const url = lastPushedUrl();
+    expect(url).toBe("/o/test-org/players?mode=overview");
+    expect(url).not.toContain("roster=active");
+  });
+
+  it("E: preserves an existing season (periodId) param when changing roster", () => {
+    renderAt("mode=overview&periodId=season-123");
+    selectRoster("removed");
+    const [path, query] = lastPushedUrl().split("?");
+    expect(path).toBe("/o/test-org/players");
+    const params = new URLSearchParams(query);
+    expect(params.get("mode")).toBe("overview");
+    expect(params.get("periodId")).toBe("season-123");
+    expect(params.get("roster")).toBe("removed");
+  });
+
+  it("F: changing roster state removes a legacy showRemoved param rather than carrying it forward", () => {
+    renderAt("showRemoved=1");
+    selectRoster("inactive");
+    const url = lastPushedUrl();
+    expect(url).not.toContain("showRemoved");
+    expect(url).toContain("roster=inactive");
+  });
+
+  it("G: imperative Players navigation always stays under /o/test-org/players, never bare /players", () => {
+    renderAt("mode=overview");
+    selectRoster("inactive");
+    const url = lastPushedUrl();
+    expect(url.startsWith("/o/test-org/players")).toBe(true);
+    expect(url.startsWith("/players")).toBe(false);
+  });
+
+  it("season selection (a different navigate() caller) is also organisation-scoped", () => {
+    renderAt("mode=overview");
+    const seasonSelect = screen.getByText("League season").closest("label")!.querySelector("select")!;
+    fireEvent.change(seasonSelect, { target: { value: "s1" } });
+    const url = lastPushedUrl();
+    expect(url.startsWith("/o/test-org/players?")).toBe(true);
+    expect(url).toContain("periodId=s1");
+  });
+
+  it("Current round mode's season/round selectors (a different navigate() caller) are also organisation-scoped", () => {
+    // `initialMode` (not the mocked search string) is what actually resolves which mode renders
+    // — it mirrors the real server page reading `mode` from its own `searchParams`.
+    renderAt("mode=current-round", { ...baseProps(), initialMode: "current-round" });
+    // Two selects render in Current round mode: League season, then Round.
+    const selects = screen.getAllByRole("combobox");
+    fireEvent.change(selects[1], { target: { value: "r1" } });
+    const url = lastPushedUrl();
+    expect(url.startsWith("/o/test-org/players?")).toBe(true);
+    expect(url).toContain("roundId=r1");
   });
 });
 

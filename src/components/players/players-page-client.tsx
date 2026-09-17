@@ -152,7 +152,14 @@ export function PlayersPageClient({
   }
 
   function navigate(params: Record<string, string | undefined>) {
-    router.push(`/players?${paramsWith(params)}`);
+    // Organisation-scoped (bug fix, 2026-09-17): the Players route is `/o/[orgSlug]/players`, not
+    // `/players` — a bare `router.push(\`/players?...\`)` left the canonical org-scoped route
+    // entirely, so the page it actually resolved to re-derived roster state from an absent
+    // `roster` param and fell back to the default ("active"), making every non-Active roster
+    // selection appear to instantly "snap back" to Active. `orgUrl()` (already used elsewhere in
+    // this component) keeps every imperative navigation under the organisation path.
+    const query = paramsWith(params);
+    router.push(orgUrl(`/players${query ? `?${query}` : ""}`));
   }
 
   const tabItems: TabItem<PlayersMode>[] = MODE_TABS.map((t) => ({
