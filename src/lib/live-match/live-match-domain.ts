@@ -76,7 +76,16 @@ export function validateLiveEventInput(input: LiveEventInput): string | null {
     return "correctionType requires correctsEventId";
   }
 
-  if (input.correctsEventId && !input.correctionType) {
+  // 2026-09-17 production incident: `correctsEventId` on SCORER_SET/ASSIST_SET is an
+  // *annotation* target (which goal this scorer/assist belongs to — ADR-0138 Bundle 3's
+  // explicit-target change in live-match-client.tsx's goal flow), not a correction: these
+  // events are recorded with `correctsEventId` and no `correctionType` by design, and this
+  // rule previously rejected them (422 → the coordinator marked each one failed_terminal,
+  // never retried) — silently losing every scorer/assist of every match. `correctionType`
+  // still requires `correctsEventId` in all cases; only the converse is narrowed to the
+  // genuinely correcting event types.
+  const isAnnotationEvent = input.eventType === "SCORER_SET" || input.eventType === "ASSIST_SET";
+  if (input.correctsEventId && !input.correctionType && !isAnnotationEvent) {
     return "correctsEventId requires correctionType";
   }
 

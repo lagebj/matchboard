@@ -15,13 +15,14 @@
  * D13's "never silently discarded") until a coach resolves them (Bundle 8).
  *
  * Known, disclosed limitation carried over unchanged from the pre-Bundle-6 implementation: a
- * local overlay entry is keyed by its own `clientEventId`, while its eventual canonical
- * counterpart is keyed by a server-generated id — `LiveEventSummary` carries no `clientEventId`
- * to correlate the two, and `RecordEventResult` never returns the resulting canonical id either.
- * This means the two ids never structurally collide, so the identity-based dedup below is a
- * best-effort safety net, not a guarantee — the primary de-duplication mechanism is excluding a
- * command from the overlay the moment it reaches `PERSISTED`, matching the previous
- * `synced`-boolean-based exclusion exactly, only generalized to the new status model.
+ * local overlay entry is keyed by its own `clientEventId` (its `id` field is set to it), while
+ * its eventual canonical counterpart is keyed by a server-generated row id — the two `id`s never
+ * structurally collide, so the identity-based dedup below is a best-effort safety net, not a
+ * guarantee; the primary de-duplication mechanism is excluding a command from the overlay the
+ * moment it reaches `PERSISTED`, matching the previous `synced`-boolean-based exclusion exactly,
+ * only generalized to the new status model. `LiveEventSummary.clientEventId` (added for the
+ * 2026-09-17 incident's outbox-reconciliation fix) could correlate the two directly, but nothing
+ * here does that yet — a disclosed gap, not a regression.
  */
 
 import type { LiveEventSummary } from "../live-match-types";
@@ -63,6 +64,7 @@ export function overlayPendingCommands(
   const localOnly = commands.filter((c) => c.status !== "PERSISTED" && c.eventType !== "EVENT_REVERSED");
   const localSummaries: LiveEventSummary[] = localOnly.map((c) => ({
     id: c.clientEventId,
+    clientEventId: c.clientEventId,
     eventType: c.eventType as LiveEventSummary["eventType"],
     period: (c.period as LiveEventSummary["period"]) ?? null,
     matchSeconds: c.matchSeconds ?? null,

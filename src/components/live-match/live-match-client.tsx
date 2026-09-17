@@ -629,6 +629,51 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   }, [sessionId, subjectType, subjectId, attemptSend]);
 
   // --- Retry pending commands (on reconnect, mount, or before ending session) ---
+  // 2026-09-17 production incident fix (second occurrence): a command the coordinator accepted
+  // as "pending" (ACCEPTED_PENDING_PERSISTENCE) or terminally rejected (a failed_terminal whose
+  // broadcast was missed) whose `eventPersistenceChanged` notification never arrives is wedged
+  // forever — it blocks "Finish live reporting" (UNRESOLVED_STATUSES) but nothing ever retries it
+  // (RETRYABLE_STATUSES is only LOCAL_PENDING, and recoverInterruptedSends only recovers SENDING).
+  // Neon is the canonical source of truth (ADR-0138), so reconcile the outbox against the
+  // server's own events by clientEventId:
+  //   - a command whose clientEventId exists server-side is PERSISTED (the broadcast was lost,
+  //     not the event);
+  //   - an unresolved command the server does NOT have returns to LOCAL_PENDING, so the normal
+  //     retry machinery owns it again (a resend is dedup-safe server-side by clientEventId).
+  const reconcileOutboxWithServer = useCallback(async (): Promise<LocalCommand[]> => {
+    const all = await getAllCommands(subjectId);
+    const unresolved = all.filter(
+      (c) => c.status === "SENDING" || c.status === "ACCEPTED_PENDING_PERSISTENCE" || c.status === "LOCAL_PENDING",
+    );
+    if (unresolved.length === 0) return all;
+
+    const result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    if (!result.success || !result.data) return all; // Offline/unreachable — statuses unchanged; retried later.
+
+    const persistedClientEventIds = new Set(result.data.map((e) => e.clientEventId).filter((id): id is string => id != null));
+    const resolutions = new Map<string, CommandStatus>();
+    for (const command of unresolved) {
+      if (persistedClientEventIds.has(command.clientEventId)) {
+        resolutions.set(command.clientEventId, "PERSISTED");
+      } else if (command.status !== "LOCAL_PENDING") {
+        // Not on the server, but not retryable locally either — the acceptance/terminal
+        // broadcast was lost and the event genuinely is not canonical. Back to the one
+        // status the retry loop acts on; a duplicate resend is deduped by clientEventId.
+        resolutions.set(command.clientEventId, "LOCAL_PENDING");
+      }
+    }
+    if (resolutions.size === 0) return all;
+
+    await Promise.all(Array.from(resolutions, ([clientEventId, status]) => updateCommandStatus(clientEventId, status)));
+    // Apply the resolved statuses in memory instead of re-reading the store: a caller
+    // (`handleEndSession`) acting on this return value immediately afterward must see the
+    // reconciled statuses even if the store's own read-after-write isn't guaranteed to be
+    // immediately visible to a concurrent `getAllCommands` call.
+    const reconciled = all.map((c) => (resolutions.has(c.clientEventId) ? { ...c, status: resolutions.get(c.clientEventId)! } : c));
+    setLocalCommands(reconciled);
+    return reconciled;
+  }, [actions, matchId, subjectId]);
+
   const syncPendingCommands = useCallback(async () => {
     if (!sessionId) return;
     try {
@@ -753,8 +798,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         setOnFieldIds(reconciled.onFieldPlayerIds);
         setReconciledPositions(reconciled.positions);
       }
+      // 2026-09-17 incident fix: this same server-canonical event set also heals any wedged
+      // outbox command (lost persistence-confirmation broadcast). Cheap no-op when the outbox
+      // has nothing unresolved.
+      void reconcileOutboxWithServer();
     }
-  }, [actions, matchId, squad]);
+  }, [actions, matchId, squad, reconcileOutboxWithServer]);
 
   useEffect(() => {
     if (!sessionActive) return;
@@ -876,8 +925,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     // Try syncing before ending, then verify against the local store directly — syncPendingCommands
     // can fail partway through and swallow the error, so stale in-memory state can't be trusted.
     await syncPendingCommands();
-    const remaining = await getAllCommands(subjectId);
-    setLocalCommands(remaining);
+    // 2026-09-17 incident fix: a command whose persistence-confirmation broadcast was lost can
+    // be genuinely canonical already (or genuinely lost) — reconcile against the server's own
+    // events before refusing to finish, instead of trusting the wedged local status forever.
+    // Uses the reconciled array returned directly rather than re-reading the store, since a
+    // store read immediately after the reconciling writes is not guaranteed to observe them.
+    const remaining = await reconcileOutboxWithServer();
     const stillInFlight = remaining.filter(
       (c) => c.status === "LOCAL_PENDING" || c.status === "SENDING" || c.status === "ACCEPTED_PENDING_PERSISTENCE",
     );
@@ -914,7 +967,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     } else {
       setError(result.error ?? "Failed to end session");
     }
-  }, [sessionId, actions, subjectId, syncPendingCommands]);
+  }, [sessionId, actions, subjectId, syncPendingCommands, reconcileOutboxWithServer]);
 
   const handlePeriodAdvance = useCallback(() => {
     const nextPeriod = getPeriodAfter(clock.period, periodConfig);

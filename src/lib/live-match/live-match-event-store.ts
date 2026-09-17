@@ -251,6 +251,7 @@ export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
+      clientEventId: true,
       eventType: true,
       period: true,
       matchSeconds: true,
@@ -265,6 +266,9 @@ export async function getMatchEvents(matchId: string): Promise<LiveEventSummary[
 
   return events.map((e) => ({
     id: e.id,
+    // ADR-0138 outbox-reconciliation fix (2026-09-17 incident): the reporter client reconciles
+    // its local command statuses against these server-canonical rows by clientEventId.
+    clientEventId: e.clientEventId ?? null,
     eventType: e.eventType as LiveMatchEventType,
     period: e.period as MatchPeriod | null,
     matchSeconds: e.matchSeconds,
@@ -291,6 +295,7 @@ export async function getRecentEvents(
     take: limit,
     select: {
       id: true,
+      clientEventId: true,
       eventType: true,
       period: true,
       matchSeconds: true,
@@ -305,6 +310,9 @@ export async function getRecentEvents(
 
   return events.reverse().map((e) => ({
     id: e.id,
+    // ADR-0138 outbox-reconciliation fix (2026-09-17 incident): the reporter client reconciles
+    // its local command statuses against these server-canonical rows by clientEventId.
+    clientEventId: e.clientEventId ?? null,
     eventType: e.eventType as LiveMatchEventType,
     period: e.period as MatchPeriod | null,
     matchSeconds: e.matchSeconds,

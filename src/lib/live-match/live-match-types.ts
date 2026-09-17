@@ -105,6 +105,11 @@ export interface LiveMatchProjection {
 
 export interface LiveEventSummary {
   id: string;
+  /** ADR-0138 outbox-reconciliation fix (2026-09-17 incident): the clientEventId this
+   * server-canonical row was recorded under — the join key the reporter client uses to
+   * reconcile its local outbox statuses against server truth (null on legacy rows recorded
+   * before the clientEventId column existed). */
+  clientEventId: string | null;
   eventType: LiveMatchEventType;
   period: MatchPeriod | null;
   matchSeconds: number | null;

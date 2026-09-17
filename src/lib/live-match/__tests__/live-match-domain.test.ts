@@ -80,8 +80,40 @@ describe("validateLiveEventInput", () => {
     expect(validateLiveEventInput({ ...validBase, correctionType: "CORRECTION" as const, correctsEventId: undefined })).toBe("correctionType requires correctsEventId");
   });
 
-  it("requires correctionType when correctsEventId is set", () => {
+  it("requires correctionType when correctsEventId is set on a non-annotation event", () => {
     expect(validateLiveEventInput({ ...validBase, correctsEventId: "evt-123" })).toBe("correctsEventId requires correctionType");
+  });
+
+  // 2026-09-17 production incident (Graabein City match): the client's goal flow records
+  // SCORER_SET/ASSIST_SET with `correctsEventId` targeting the goal (an *annotation* — which
+  // goal this scorer/assist belongs to, ADR-0138 Bundle 3's explicit-target change) but no
+  // `correctionType`, because these events do not *correct* anything. The validation rule
+  // above rejected them as 422-domain-terminal — every scorer/assist of every match since
+  // silently failed canonical persistence (the DO marked each one failed_terminal, never
+  // retried), so seeded post-match reports had no goals/assists at all.
+  it("allows correctsEventId without correctionType on the annotation events SCORER_SET/ASSIST_SET (incident regression)", () => {
+    const scorer = validateLiveEventInput({
+      ...validBase,
+      eventType: "SCORER_SET" as LiveMatchEventType,
+      playerId: "p1",
+      correctsEventId: "goal-evt",
+    });
+    expect(scorer).toBeNull();
+
+    const assist = validateLiveEventInput({
+      ...validBase,
+      eventType: "ASSIST_SET" as LiveMatchEventType,
+      playerId: "p2",
+      secondaryPlayerId: "p1",
+      correctsEventId: "goal-evt",
+    });
+    expect(assist).toBeNull();
+  });
+
+  it("still requires correctionType when an annotation event actually corrects something (EVENT_CORRECTED/EVENT_REVERSED semantics)", () => {
+    expect(
+      validateLiveEventInput({ ...validBase, eventType: "GOAL_FOR" as LiveMatchEventType, correctsEventId: "evt-123", correctionType: undefined }),
+    ).toBe("correctsEventId requires correctionType");
   });
 });
 
