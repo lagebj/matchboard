@@ -7,6 +7,7 @@ import {
   getAllCommands,
   getRetryableCommands,
   getUnresolvedCommands,
+  isActionableForCoach,
   recoverInterruptedSends,
   clearPersistedCommands,
   saveSessionLocally,
@@ -203,6 +204,34 @@ describe("getUnresolvedCommands", () => {
     // Retained, never deleted — just excluded from "still needs attention".
     const all = await getAllCommands(subjectId);
     expect(all.map((c) => c.clientEventId).sort()).toEqual(["coach-resolved", "unresolved-terminal"]);
+  });
+});
+
+// 2026-09-17 incident follow-up: a FAILED_TERMINAL command previously reached neither the live
+// "Needs review" badge/panel nor the post-match banner's actionable list — only NEEDS_REVIEW did.
+// This pure predicate is now the one place both surfaces decide "does the coach still need to
+// see this?", so they can no longer independently drift on it.
+describe("isActionableForCoach", () => {
+  it("is true for NEEDS_REVIEW", () => {
+    expect(isActionableForCoach(makeCommand("s", { status: "NEEDS_REVIEW" }))).toBe(true);
+  });
+
+  it("is true for an unresolved FAILED_TERMINAL", () => {
+    expect(isActionableForCoach(makeCommand("s", { status: "FAILED_TERMINAL" }))).toBe(true);
+  });
+
+  it("is false for a coach-resolved FAILED_TERMINAL", () => {
+    expect(isActionableForCoach(makeCommand("s", { status: "FAILED_TERMINAL", resolvedByCoach: true }))).toBe(false);
+  });
+
+  it("is false for a command still genuinely converging (LOCAL_PENDING/SENDING/ACCEPTED_PENDING_PERSISTENCE)", () => {
+    expect(isActionableForCoach(makeCommand("s", { status: "LOCAL_PENDING" }))).toBe(false);
+    expect(isActionableForCoach(makeCommand("s", { status: "SENDING" }))).toBe(false);
+    expect(isActionableForCoach(makeCommand("s", { status: "ACCEPTED_PENDING_PERSISTENCE" }))).toBe(false);
+  });
+
+  it("is false for PERSISTED", () => {
+    expect(isActionableForCoach(makeCommand("s", { status: "PERSISTED" }))).toBe(false);
   });
 });
 

@@ -12,6 +12,8 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PostMatchReportShell } from "@/components/matches/post-match-report-shell";
 import { PostMatchUnresolvedBanner } from "@/components/live-match/post-match-unresolved-banner";
+import { GoalAttributionGapBanner } from "@/components/matches/goal-attribution-gap-banner";
+import type { GoalAttributionGap } from "@/lib/reports/report-mutations";
 import type {
   PostMatchReportViewModel,
   PostMatchReportActions,
@@ -75,7 +77,7 @@ function toViewModel(report: ReportData): PostMatchReportViewModel {
   };
 }
 
-export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalizedSelections }: { matchId: string; initialReport: ReportData | null; allPlayers: Array<{ id: string; name: string; teamName: string }>; hasFinalizedSelections?: boolean }) {
+export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalizedSelections, goalAttributionGap }: { matchId: string; initialReport: ReportData | null; allPlayers: Array<{ id: string; name: string; teamName: string }>; hasFinalizedSelections?: boolean; goalAttributionGap?: GoalAttributionGap | null }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [teamNote, setTeamNote] = useState(initialReport?.teamNote ?? "");
@@ -194,6 +196,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
       </div>
 
       <PostMatchUnresolvedBanner subjectId={matchId} playerNameById={playerNameById} />
+      <GoalAttributionGapBanner gap={goalAttributionGap ?? null} />
 
       {/* Reason selector for manually-added players (League-only capability) feeds the shell's addPlayer call above. */}
       {!isLocked && (

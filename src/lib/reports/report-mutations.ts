@@ -487,6 +487,62 @@ export async function seedReportFromLiveSession(
   };
 }
 
+export interface GoalAttributionGap {
+  liveGoalsRecorded: number;
+  attributedGoals: number;
+  hasGap: boolean;
+}
+
+/**
+ * A second, independent signal for the 2026-09-17 incident's exact failure mode: a persistence
+ * bug silently dropped every `SCORER_SET` for a match, leaving a correct score with zero scorer
+ * attribution in the seeded report — and nothing surfaced that until a coach happened to check
+ * the report by eye. `live-match-client.tsx`'s outbox surfacing (`isActionableForCoach`) and
+ * `PostMatchUnresolvedBanner` now catch this class of failure from the coach's own device, but
+ * this check catches it independently, straight from the canonical event stream in Neon — so a
+ * mismatch is still caught even if the device-local surfacing is somehow missed (a different
+ * device finishes the match, the outbox was cleared, etc.).
+ *
+ * Compares `GOAL_FOR` events actually persisted (minus any reversed — the same ADR-0133 H1
+ * exclusion `seedReportFromLiveSession` applies) against `Goal` rows on the report. Only ever
+ * flags a gap when this match was genuinely live-reported at all: returns `null` (nothing to
+ * compare) when there are no non-reversed `GOAL_FOR` events, so a manually-created report with no
+ * live session behind it — a completely different, non-buggy scenario — never produces a false
+ * positive. Deliberately does not compare assists: unlike a scorer, a goal legitimately has no
+ * assist, so an assist/goal-count mismatch is not on its own evidence of anything wrong.
+ *
+ * League-only for now (`LiveMatchEvent`/`PostMatchReport.goals`) — Event's own separate
+ * persistence path (`EventLiveMatchEvent`) is not covered here; see ARR-0045/ARR-0046 for the
+ * documented League/Event dual-path asymmetry this would need to bridge.
+ */
+export async function computeGoalAttributionGap(
+  matchId: string,
+  organisationId: string,
+): Promise<GoalAttributionGap | null> {
+  const goalForEvents = await db.liveMatchEvent.findMany({
+    where: {
+      matchId,
+      organisationId,
+      eventType: "GOAL_FOR",
+      OR: [{ correctionType: null }, { correctionType: "CORRECTION" }],
+    },
+    select: { id: true },
+  });
+  if (goalForEvents.length === 0) return null;
+
+  const reversalRows = await db.liveMatchEvent.findMany({
+    where: { matchId, organisationId, eventType: "EVENT_REVERSED", correctsEventId: { not: null } },
+    select: { correctsEventId: true },
+  });
+  const reversedEventIds = new Set(reversalRows.map((r) => r.correctsEventId as string));
+  const liveGoalsRecorded = goalForEvents.filter((e) => !reversedEventIds.has(e.id)).length;
+  if (liveGoalsRecorded === 0) return null;
+
+  const attributedGoals = await db.goal.count({ where: { report: { matchId, organisationId } } });
+
+  return { liveGoalsRecorded, attributedGoals, hasGap: attributedGoals < liveGoalsRecorded };
+}
+
 export async function updateReportResult(
   reportId: string,
   data: { homeGoals?: number; awayGoals?: number; teamNote?: string },

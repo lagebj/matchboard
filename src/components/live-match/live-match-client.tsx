@@ -31,6 +31,7 @@ import {
   getNextLocalOrdinal,
   getAllCommands,
   getRetryableCommands,
+  isActionableForCoach,
   recoverInterruptedSends,
   clearPersistedCommands,
   saveSessionLocally,
@@ -366,6 +367,10 @@ function SyncStatusIndicator({
   onOpenReview,
 }: {
   pendingCount: number;
+  /** Count of commands needing an explicit coach decision (`isActionableForCoach` —
+   * `NEEDS_REVIEW` or an unresolved `FAILED_TERMINAL`), not just live conflicts (2026-09-17
+   * incident follow-up: a permanently-failed command must surface here too, not disappear
+   * silently). */
   needsReviewCount: number;
   isOffline: boolean;
   /** ADR-0138 Bundle 8 — opens the "Needs review" panel. Undefined only in a context with no
@@ -466,8 +471,11 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // the sync indicator can never drift out of sync with the outbox's own source of truth.
   const pendingSyncSummary = useMemo(() => summarizePendingCommands(localCommands), [localCommands]);
   const unsyncedCount = pendingSyncSummary.pendingCount;
-  // ADR-0138 Bundle 8 — the commands the "Needs review" panel actually lists.
-  const needsReviewCommands = useMemo(() => localCommands.filter((c) => c.status === "NEEDS_REVIEW"), [localCommands]);
+  // ADR-0138 Bundle 8 — the commands the "Needs review" panel actually lists. Widened past
+  // NEEDS_REVIEW alone (2026-09-17 incident follow-up, `isActionableForCoach`'s own doc comment)
+  // to also include an unresolved FAILED_TERMINAL command — a permanent rejection the coach has
+  // never been shown is exactly the silent-data-loss shape that incident's validation bug hit.
+  const needsReviewCommands = useMemo(() => localCommands.filter(isActionableForCoach), [localCommands]);
   const playerNameById = useMemo(() => Object.fromEntries(squad.map((p) => [p.playerId, p.playerName])), [squad]);
 
   const goalFlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -579,8 +587,21 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // retained, never deleted, for diagnostic history (D13). "Apply a new action now" leaves the
   // coach free to use the normal live control again, which records a fresh, unrelated
   // clientEventId; this handler's only job is to clear the stale record out of the active queue.
+  //
+  // 2026-09-17 incident follow-up — "acknowledge" resolves an already-`FAILED_TERMINAL` command
+  // (the panel now also lists those, see `needsReviewCommands`): deliberately does NOT set a new
+  // `terminalReason`, only `resolvedByCoach` — the command already carries the real reason it
+  // failed (e.g. "The server rejected this action and it will not be retried."), and overwriting
+  // it with a generic "Superseded"/"Discarded" string would destroy that diagnostic history for
+  // no reason (the command was never actually superseded or discarded — it failed on its own).
   const resolveNeedsReviewCommand = useCallback(
-    async (clientEventId: string, resolution: "apply_new" | "discard") => {
+    async (clientEventId: string, resolution: "apply_new" | "discard" | "acknowledge") => {
+      if (resolution === "acknowledge") {
+        const extra = { resolvedByCoach: true as const };
+        await updateCommandStatus(clientEventId, "FAILED_TERMINAL", extra);
+        applyLocalStatus(clientEventId, "FAILED_TERMINAL", extra);
+        return;
+      }
       const terminalReason =
         resolution === "apply_new"
           ? "Superseded — coach recorded a new action instead."
@@ -1348,7 +1369,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </div>
         <SyncStatusIndicator
           pendingCount={unsyncedCount}
-          needsReviewCount={pendingSyncSummary.needsReviewCount}
+          // 2026-09-17 incident follow-up: `needsReviewCommands.length` (not
+          // `pendingSyncSummary.needsReviewCount`) — the badge must count every command needing
+          // a coach decision, including an unresolved FAILED_TERMINAL, not just a live conflict.
+          needsReviewCount={needsReviewCommands.length}
           isOffline={isOffline}
           onOpenReview={() => setReviewPanelOpen(true)}
         />

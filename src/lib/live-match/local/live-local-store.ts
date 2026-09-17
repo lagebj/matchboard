@@ -340,6 +340,24 @@ export async function getUnresolvedCommands(subjectId: string): Promise<LocalCom
   return all.filter((c) => UNRESOLVED_STATUSES.includes(c.status) && !(c.status === "FAILED_TERMINAL" && c.resolvedByCoach));
 }
 
+/** A command needing an explicit coach decision before it can be considered resolved — a live,
+ * coordinator-detected conflict (`NEEDS_REVIEW`) or a permanently-failed action the coach has not
+ * yet acknowledged (`FAILED_TERMINAL` with `resolvedByCoach` not yet true). Narrower than
+ * `getUnresolvedCommands()`'s own filter: deliberately excludes a command still genuinely
+ * converging (`LOCAL_PENDING`/`SENDING`/`ACCEPTED_PENDING_PERSISTENCE`), which will resolve on
+ * its own without any coach decision and is surfaced separately (a "Syncing N changes"
+ * indicator, not a review action).
+ *
+ * Shared by the live "Needs review" badge/panel (`live-match-client.tsx`) and the post-match
+ * handoff banner (`PostMatchUnresolvedBanner`) so the two surfaces can never independently drift
+ * on what counts as "needs attention" — the 2026-09-17 incident's actual failure mode was
+ * exactly that drift: a `FAILED_TERMINAL` command (the validation bug's 18 wrongly-rejected
+ * `SCORER_SET`/`ASSIST_SET` events) reached neither surface at all, silently invisible for the
+ * whole match and the post-match handoff alike. */
+export function isActionableForCoach(command: LocalCommand): boolean {
+  return command.status === "NEEDS_REVIEW" || (command.status === "FAILED_TERMINAL" && !command.resolvedByCoach);
+}
+
 /** A `SENDING` row found on load means a prior send attempt was interrupted (browser crash, tab
  * closed mid-request, reload) before its outcome was ever recorded — the coordinator may or may
  * not have received it. Demoting to `LOCAL_PENDING` for retry is safe either way: a genuine

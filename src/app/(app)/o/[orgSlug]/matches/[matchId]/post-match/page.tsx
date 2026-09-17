@@ -5,6 +5,7 @@ import { LegacyMatchFeedbackSection } from "@/components/matches/legacy-match-fe
 import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
 import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
 import { getMatchCombinationEvidence } from "@/lib/evidence/combination-aggregation";
+import { computeGoalAttributionGap } from "@/lib/reports/report-mutations";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
@@ -165,7 +166,11 @@ export default async function PostMatchRoute({ params }: PageProps) {
     plannedSelections,
   } : null;
 
-  const [feedbackEntries, teamReflection, existingObservation, footballObservations] = await Promise.all([
+  // 2026-09-17 incident follow-up — a report-review-time signal, independent of the live-
+  // reporting outbox's own surfacing, that a match was live-reported but goals are missing
+  // scorer attribution (`computeGoalAttributionGap`'s own doc comment). Only meaningful once a
+  // report exists to compare against.
+  const [feedbackEntries, teamReflection, existingObservation, footballObservations, goalAttributionGap] = await Promise.all([
     db.matchExecutionFeedback.findMany({
       where: { matchId },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
@@ -214,6 +219,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
         observedAt: true,
       },
     }),
+    report ? computeGoalAttributionGap(matchId, ctx.organisationId) : Promise.resolve(null),
   ]);
 
   const feedbackData = feedbackEntries.map((f) => ({
@@ -284,7 +290,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     // idempotent. The sibling observation/feedback/reflection/evidence sections below are not
     // self-wrapped and rely on this page-level island.
     <div className="touchline flex flex-col gap-4">
-      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} />
+      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} goalAttributionGap={goalAttributionGap} />
       <ObservationSection
         matchId={matchId}
         existingObservation={existingObservation}

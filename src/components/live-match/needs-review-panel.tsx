@@ -13,6 +13,16 @@
  * terminal state rather than inventing a seventh `CommandStatus` value, and keeping the record
  * retained (never deleted) for diagnostic history, matching this outbox's existing "never
  * silently discarded" discipline (D13).
+ *
+ * 2026-09-17 incident follow-up: this panel also accepts an already-`FAILED_TERMINAL` command
+ * (one the server permanently rejected, e.g. a domain-validation failure — not a live conflict).
+ * Before this, such a command reached neither this panel nor `PostMatchUnresolvedBanner`'s
+ * actionable list at all — only `NEEDS_REVIEW` did — so the validation bug that rejected every
+ * `SCORER_SET`/`ASSIST_SET` in the 2026-09-17 match went completely unsurfaced to the coach. A
+ * `FAILED_TERMINAL` entry shows the real `terminalReason` (not a conflict explanation — there was
+ * no conflict, no coordinator round-trip to renegotiate) and a single "Acknowledge" action: both
+ * of the conflict resolutions above already reduce to the same dismissal for a command that is
+ * already dead, so offering two would be a distinction without a difference.
  */
 
 import type { LocalCommand } from "@/lib/live-match/local/live-local-store";
@@ -46,7 +56,7 @@ function getConflictExplanation(conflictCode?: string): string {
   return "This action could not be applied because the match state changed in the meantime.";
 }
 
-export type NeedsReviewResolution = "apply_new" | "discard";
+export type NeedsReviewResolution = "apply_new" | "discard" | "acknowledge";
 
 interface NeedsReviewPanelProps {
   open: boolean;
@@ -77,26 +87,41 @@ export function NeedsReviewPanel({ open, onClose, commands, playerNameById, onRe
             {commands.map((command) => {
               const playerName = command.playerId ? playerNameById[command.playerId] : undefined;
               const label = getEventTypeLabel(command.eventType as LiveMatchEventType);
+              const isFailedTerminal = command.status === "FAILED_TERMINAL";
+              const explanation = isFailedTerminal
+                ? (command.terminalReason ?? "This action could not be saved and will not be retried.")
+                : getConflictExplanation(command.conflictCode);
               return (
                 <li key={command.clientEventId} className="rounded-lg border border-[var(--border-soft)] p-3">
                   <p className="text-sm font-medium text-[var(--foreground)]">
                     {label}
                     {playerName ? ` — ${playerName}` : ""}
                   </p>
-                  <p className="text-xs text-[var(--text-soft)] mt-1">{getConflictExplanation(command.conflictCode)}</p>
+                  <p className="text-xs text-[var(--text-soft)] mt-1">{explanation}</p>
                   <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => onResolve(command.clientEventId, "apply_new")}
-                      className="flex-1 py-2 px-3 rounded-lg bg-[var(--accent)] text-[var(--tl-c-accent-on-fill)] text-xs font-medium min-h-[40px]"
-                    >
-                      Apply a new action now
-                    </button>
-                    <button
-                      onClick={() => onResolve(command.clientEventId, "discard")}
-                      className="flex-1 py-2 px-3 rounded-lg bg-[var(--surface-hover)] text-[var(--text-soft)] text-xs font-medium min-h-[40px]"
-                    >
-                      Discard local intent
-                    </button>
+                    {isFailedTerminal ? (
+                      <button
+                        onClick={() => onResolve(command.clientEventId, "acknowledge")}
+                        className="flex-1 py-2 px-3 rounded-lg bg-[var(--surface-hover)] text-[var(--text-soft)] text-xs font-medium min-h-[40px]"
+                      >
+                        Acknowledge
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => onResolve(command.clientEventId, "apply_new")}
+                          className="flex-1 py-2 px-3 rounded-lg bg-[var(--accent)] text-[var(--tl-c-accent-on-fill)] text-xs font-medium min-h-[40px]"
+                        >
+                          Apply a new action now
+                        </button>
+                        <button
+                          onClick={() => onResolve(command.clientEventId, "discard")}
+                          className="flex-1 py-2 px-3 rounded-lg bg-[var(--surface-hover)] text-[var(--text-soft)] text-xs font-medium min-h-[40px]"
+                        >
+                          Discard local intent
+                        </button>
+                      </>
+                    )}
                   </div>
                 </li>
               );

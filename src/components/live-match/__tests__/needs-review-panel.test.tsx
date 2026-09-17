@@ -71,4 +71,46 @@ describe("NeedsReviewPanel (ADR-0138 Bundle 8, work item 1)", () => {
     fireEvent.click(screen.getByText("Close"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // 2026-09-17 incident follow-up: a FAILED_TERMINAL command (permanently rejected, never a live
+  // conflict) previously never appeared here at all — only NEEDS_REVIEW did. It gets its own
+  // explanation (the real `terminalReason`, not a conflict label) and a single acknowledgement
+  // action, since "apply a new action"/"discard" both already meant the same thing for it.
+  it("shows the actual failure reason (not a conflict explanation) and a single Acknowledge action for a FAILED_TERMINAL command", () => {
+    const onResolve = vi.fn();
+    render(
+      <NeedsReviewPanel
+        open
+        onClose={vi.fn()}
+        commands={[
+          makeCommand({
+            status: "FAILED_TERMINAL",
+            terminalReason: "The server rejected this action and it will not be retried.",
+            playerId: "p1",
+          }),
+        ]}
+        playerNameById={{ p1: "Alex Berg" }}
+        onResolve={onResolve}
+      />,
+    );
+    expect(screen.getByText("The server rejected this action and it will not be retried.")).toBeInTheDocument();
+    expect(screen.queryByText("Apply a new action now")).not.toBeInTheDocument();
+    expect(screen.queryByText("Discard local intent")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Acknowledge"));
+    expect(onResolve).toHaveBeenCalledWith("evt-1", "acknowledge");
+  });
+
+  it("falls back to a generic failure explanation when a FAILED_TERMINAL command has no terminalReason", () => {
+    render(
+      <NeedsReviewPanel
+        open
+        onClose={vi.fn()}
+        commands={[makeCommand({ status: "FAILED_TERMINAL", terminalReason: undefined })]}
+        playerNameById={{}}
+        onResolve={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("This action could not be saved and will not be retried.")).toBeInTheDocument();
+  });
 });
