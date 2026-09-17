@@ -24,6 +24,7 @@ export async function updateTeamConfigurationAction(
     supportPriority?: number;
     minSupportPlayers?: number;
     developmentSlots?: number;
+    matchFormatOverride?: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
     footballGroupId?: string;
   },
 ) {

@@ -268,6 +268,94 @@ function SquadSettingsForm({ config }: { config: TeamConfiguration }) {
   );
 }
 
+/**
+ * Team match-format override (ADR-0146 §1, bundle §05.3). Default state is "use season match
+ * format"; enabling the override requires a complete format (all three fields), never a
+ * field-by-field merge with the season default. Changing this only affects matches that have not
+ * yet frozen their effective format at Live Reporting start.
+ */
+function MatchFormatOverrideForm({ config, onSaved }: { config: TeamConfiguration; onSaved: () => void }) {
+  const [useOverride, setUseOverride] = useState(config.matchFormatOverride != null);
+  const [numberOfPeriods, setNumberOfPeriods] = useState(config.matchFormatOverride?.numberOfPeriods ?? 2);
+  const [periodDurationMinutes, setPeriodDurationMinutes] = useState(config.matchFormatOverride?.periodDurationMinutes ?? 25);
+  const [breakDurationMinutes, setBreakDurationMinutes] = useState(config.matchFormatOverride?.breakDurationMinutes ?? 10);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  function handleSave() {
+    setError(null);
+    setSuccess(false);
+    startTransition(async () => {
+      try {
+        await updateTeamConfigurationAction(config.teamId, {
+          matchFormatOverride: useOverride ? { numberOfPeriods, periodDurationMinutes, breakDurationMinutes } : null,
+        });
+        setSuccess(true);
+        onSaved();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to update");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <label className="flex items-center gap-2 text-sm text-[var(--text-soft)]">
+        <input
+          type="checkbox"
+          checked={useOverride}
+          onChange={(e) => setUseOverride(e.target.checked)}
+          className="h-4 w-4"
+        />
+        Use a team-specific match format instead of the league season's default
+      </label>
+      {useOverride && (
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">Periods</label>
+            <select
+              value={numberOfPeriods}
+              onChange={(e) => setNumberOfPeriods(Number(e.target.value))}
+              className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">Period length (min)</label>
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={periodDurationMinutes}
+              onChange={(e) => setPeriodDurationMinutes(Number(e.target.value))}
+              className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">Break length (min)</label>
+            <input
+              type="number"
+              min={0}
+              max={60}
+              value={breakDurationMinutes}
+              onChange={(e) => setBreakDurationMinutes(Number(e.target.value))}
+              className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+        </div>
+      )}
+      {error && <DecisionBanner variant="blocked" title={error} />}
+      {success && <DecisionBanner variant="success" title="Match format saved." />}
+      <TouchlineButton variant="secondary" size="sm" disabled={isPending} onClick={handleSave}>
+        {isPending ? "Saving..." : "Save match format"}
+      </TouchlineButton>
+    </div>
+  );
+}
+
 export function TeamConfigurationPage({ teamId }: { teamId: string }) {
   const orgUrl = useOrgUrl();
   const [config, setConfig] = useState<TeamConfiguration | null>(null);
@@ -344,6 +432,11 @@ export function TeamConfigurationPage({ teamId }: { teamId: string }) {
       <section ref={squadSettingsRef} className="flex flex-col gap-2">
         <SectionHeader title="Squad settings" />
         <SquadSettingsForm config={config} />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <SectionHeader title="Match format" description="Overrides the league season's default match format for this team's matches." />
+        <MatchFormatOverrideForm config={config} onSaved={refreshConfig} />
       </section>
 
       <section className="flex flex-col gap-2">

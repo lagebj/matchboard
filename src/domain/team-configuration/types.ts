@@ -12,6 +12,9 @@ export interface TeamConfiguration {
   supportPriority: number;
   minSupportPlayers: number;
   developmentSlots: number;
+  /** Match-format override (ADR-0146) — `null` means "use the League Season match format";
+   * a set value is a complete override, never merged field-by-field. */
+  matchFormatOverride: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
   footballGroupId: string;
   footballGroup: {
     id: string;
@@ -44,6 +47,9 @@ export interface UpdateTeamConfigurationInput {
   supportPriority?: number;
   minSupportPlayers?: number;
   developmentSlots?: number;
+  /** Set a complete format to override, or `null` to clear the override (revert to the League
+   * Season match format). `undefined` (omitted) leaves it unchanged. */
+  matchFormatOverride?: { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number } | null;
   footballGroupId?: string;
   rules?: Array<{
     ruleId: string;
