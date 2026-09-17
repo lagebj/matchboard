@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getLeaguePeriodConfig,
   getEventPeriodConfig,
+  buildPeriodConfigFromFormat,
   getCumulativePeriodOffsetsMs,
   toAbsoluteMatchMs,
   getTotalPeriodDurationMs,
@@ -102,6 +103,44 @@ describe("getEventPeriodConfig", () => {
 
   it("ending the second half of a 2-half event match goes to full time", () => {
     const config = getEventPeriodConfig(20, 2);
+    const next = advancePeriod(
+      { period: "SECOND_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 },
+      config,
+    );
+    expect(next.period).toBe("FULL_TIME");
+  });
+});
+
+/**
+ * ADR-0146: the shared match-format domain builder both League and Event use once a format is
+ * configured/resolved. getEventPeriodConfig() (above) becomes a thin wrapper over this for the
+ * "duration is set" case -- these tests pin down the builder directly.
+ */
+describe("buildPeriodConfigFromFormat", () => {
+  it("numberOfPeriods=1 produces a single continuous 'Match' period, matching getEventPeriodConfig's existing 1-half shape", () => {
+    const config = buildPeriodConfigFromFormat({ numberOfPeriods: 1, periodDurationMinutes: 40, breakDurationMinutes: 0 });
+    expect(config).toEqual(getEventPeriodConfig(40, 1));
+  });
+
+  it("numberOfPeriods=2 produces First half/Half time/Second half/Full time, matching getEventPeriodConfig's existing 2-half shape", () => {
+    const config = buildPeriodConfigFromFormat({ numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 10 });
+    expect(config).toEqual(getEventPeriodConfig(30, 2, 10));
+  });
+
+  it("applies periodDurationMinutes to each period individually (not split across the match)", () => {
+    const config = buildPeriodConfigFromFormat({ numberOfPeriods: 2, periodDurationMinutes: 25, breakDurationMinutes: 5 });
+    expect(config.find((p) => p.key === "FIRST_HALF")?.durationMs).toBe(25 * 60 * 1000);
+    expect(config.find((p) => p.key === "SECOND_HALF")?.durationMs).toBe(25 * 60 * 1000);
+    expect(config.find((p) => p.key === "HALF_TIME")?.durationMs).toBe(5 * 60 * 1000);
+  });
+
+  it("a zero break duration is a tracked zero, not 'untracked'", () => {
+    const config = buildPeriodConfigFromFormat({ numberOfPeriods: 2, periodDurationMinutes: 25, breakDurationMinutes: 0 });
+    expect(config.find((p) => p.key === "HALF_TIME")?.durationMs).toBe(0);
+  });
+
+  it("ending the second half of a numberOfPeriods=2 format goes to full time, exactly like advancing League's/Event's existing 2-half configs", () => {
+    const config = buildPeriodConfigFromFormat({ numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 10 });
     const next = advancePeriod(
       { period: "SECOND_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 },
       config,
