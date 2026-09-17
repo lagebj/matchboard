@@ -8,6 +8,7 @@ import { ensureMatchPlanningBaselineCaptured } from "@/lib/selection/capture-pla
 import { persistedToClockState, clockStateToPersisted, isForwardClockTransition } from "./session-clock";
 import { createInitialClockState } from "./match-clock";
 import type { MatchClockState } from "./live-match-types";
+import { resolveLeagueMatchFormatSnapshot } from "./format-snapshot";
 
 type LiveMatchSessionRow = {
   id: string;
@@ -71,12 +72,19 @@ export async function startLiveSession(matchId: string): Promise<LiveSessionInfo
     throw new Error("Live session has already ended. Create a new report or resume from post-match.");
   }
 
+  // Effective match-format freeze (ADR-0146 §1): resolved and snapshotted once, right here, at
+  // the same transition that creates the session -- never re-resolved on a later idempotent
+  // "already ACTIVE" call (the branch above), so a later Season/Team configuration change can
+  // never reinterpret this match once it goes live.
+  const formatSnapshot = await resolveLeagueMatchFormatSnapshot(matchId);
+
   const session = await db.liveMatchSession.create({
     data: {
       matchId,
       coachId: ctx.userId,
       organisationId: ctx.organisationId,
       status: "ACTIVE",
+      ...formatSnapshot,
     },
   });
 

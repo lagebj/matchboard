@@ -1091,6 +1091,17 @@ model LiveMatchSession {
   clockElapsedBeforeMs Int         @default(0)
   clockUpdatedAt       DateTime?
 
+  // Effective match-format snapshot (ADR-0146), frozen once at the same transition that creates
+  // this session (Live Reporting start) — never re-resolved afterward, even if the Season/Team
+  // configuration later changes. Null when no format was resolvable at that moment (legacy/
+  // unconfigured season) -- `startedAt` above remains the actual Live Reporting start (TTL
+  // anchor) regardless of whether a format snapshot exists.
+  formatNumberOfPeriods       Int?
+  formatPeriodDurationMinutes Int?
+  formatBreakDurationMinutes  Int?
+  formatSource                MatchFormatSnapshotSource?
+  formatSnapshotAt            DateTime?
+
   match        Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
   organisation Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   events       LiveMatchEvent[]
@@ -1579,6 +1590,14 @@ model EventLiveMatchSession {
   clockPeriodStartedAt DateTime?
   clockElapsedBeforeMs Int         @default(0)
   clockUpdatedAt       DateTime?
+
+  // Effective match-format snapshot (ADR-0146) -- same semantics as LiveMatchSession's fields
+  // above, no second snapshot model.
+  formatNumberOfPeriods       Int?
+  formatPeriodDurationMinutes Int?
+  formatBreakDurationMinutes  Int?
+  formatSource                MatchFormatSnapshotSource?
+  formatSnapshotAt            DateTime?
 
   eventMatch   EventMatch            @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
   organisation Organisation?         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
@@ -2348,6 +2367,15 @@ enum MachinePrincipalStatus {
 enum LiveSessionStatus {
   ACTIVE
   ENDED
+}
+
+// Diagnostic-only source of a frozen match-format snapshot (ADR-0146) -- the frozen values
+// themselves are authoritative for the live session regardless of source.
+enum MatchFormatSnapshotSource {
+  SEASON
+  TEAM
+  MATCH
+  EVENT
 }
 
 enum LiveMatchEventType {
