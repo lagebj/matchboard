@@ -3,6 +3,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { EventLiveMatchClient } from "@/components/live-match/event-live-match-client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getEffectiveEventSquadMatchTiming } from "@/lib/events/event-types";
+import { resolveEventMatchPeriodConfig } from "@/lib/live-match/resolve-live-period-config";
 
 export const dynamic = "force-dynamic";
 
@@ -61,15 +62,22 @@ export default async function EventLiveMatchPage({ params }: EventLiveMatchPageP
     breakDurationMinutesOverride: null,
   });
 
+  // ADR-0146: the frozen Live Reporting snapshot (if a session has started) is authoritative;
+  // otherwise falls back to the existing pre-live effective timing unchanged.
+  const periodConfig = await resolveEventMatchPeriodConfig({
+    eventMatchId: match.id,
+    fallbackMatchDurationMinutes: timing.matchDurationMinutes,
+    fallbackNumberOfHalves: timing.numberOfHalves,
+    fallbackBreakDurationMinutes: timing.breakDurationMinutes,
+  });
+
   return (
     <EventLiveMatchClient
       eventMatchId={match.id}
       teamName={match.eventSquad?.name ?? "Squad"}
       opponentName={match.opponentName}
       eventName={match.event.name}
-      matchDurationMinutes={timing.matchDurationMinutes}
-      numberOfHalves={timing.numberOfHalves}
-      breakDurationMinutes={timing.breakDurationMinutes}
+      periodConfig={periodConfig}
       eventId={eventId}
     />
   );

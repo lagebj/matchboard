@@ -3,6 +3,7 @@ import { requirePageActorContext, requireMatchGroupAccess } from "@/lib/auth/act
 import { AuthorizationError } from "@/lib/auth";
 import { FollowLiveClient } from "@/components/live-match/follow-live-client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getLeagueMatchPeriodConfig } from "@/lib/live-match/period-config";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,13 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
 
   const session = await db.liveMatchSession.findUnique({
     where: { matchId, ...ctx.orgFilter.filter },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      formatNumberOfPeriods: true,
+      formatPeriodDurationMinutes: true,
+      formatBreakDurationMinutes: true,
+    },
   });
 
   if (!session || session.status !== "ACTIVE") {
@@ -67,6 +74,19 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
       </div>
     );
   }
+
+  // ADR-0146: the frozen format snapshot drives the same period config the reporter's own client
+  // uses, instead of always falling back to the hardcoded legacy config.
+  const periodConfig = getLeagueMatchPeriodConfig(
+    match.matchType,
+    session.formatNumberOfPeriods != null && session.formatPeriodDurationMinutes != null && session.formatBreakDurationMinutes != null
+      ? {
+          numberOfPeriods: session.formatNumberOfPeriods,
+          periodDurationMinutes: session.formatPeriodDurationMinutes,
+          breakDurationMinutes: session.formatBreakDurationMinutes,
+        }
+      : null,
+  );
 
   // Build playerId → playerName map and baseline squad with startingOnField.
   // Uses the effective roster: normal squad + match helpers (ADR-0077) + match
@@ -148,6 +168,7 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
       playerMap={playerMap}
       squad={baselineSquad}
       matchType={match.matchType}
+      periodConfig={periodConfig}
     />
   );
 }

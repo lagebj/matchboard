@@ -3,6 +3,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { LeagueLiveMatchWithRotation } from "@/components/live-match/league-live-match-with-rotation";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
+import { resolveLeagueMatchPeriodConfig } from "@/lib/live-match/resolve-live-period-config";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
   }
 
   const plannedRotation = await getPlannedRotation(match.id, match.teamId, ctx.orgFilter);
+  const periodConfig = await resolveLeagueMatchPeriodConfig(match.id, match.matchType);
 
   return (
     <LeagueLiveMatchWithRotation
@@ -51,6 +53,7 @@ export default async function LiveMatchPage({ params }: LiveMatchPageProps) {
         teamId: match.teamId,
         roundName: match.matchRound?.name ?? null,
         matchType: match.matchType,
+        periodConfig,
       }}
       plannedRotation={plannedRotation}
     />

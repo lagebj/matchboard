@@ -13,6 +13,7 @@ import {
 } from "@/app/(app)/matches/planned-rotation-live-actions";
 
 import type { MatchType } from "@/generated/prisma/client";
+import type { PeriodConfig } from "@/lib/live-match/period-config";
 
 const plannedChangeActions = {
   applyChange: async (rotationId: string, changeId: string, overrides?: { outPlayerId?: string; inPlayerId?: string; outPosition?: string | null; inPosition?: string | null; changedNote?: string }) => {
@@ -51,6 +52,9 @@ interface LeagueLiveMatchWithRotationProps {
     teamId: string;
     roundName: string | null;
     matchType: MatchType;
+    // ADR-0146: resolved server-side (frozen snapshot if Live Reporting has started, else the
+    // existing hardcoded legacy config) -- see resolveLeagueMatchPeriodConfig().
+    periodConfig: PeriodConfig[];
   };
   plannedRotation: PlannedRotationWithChanges | null;
 }

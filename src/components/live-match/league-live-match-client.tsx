@@ -11,7 +11,7 @@ import {
   persistLiveSessionClockAction,
 } from "@/app/(app)/matches/[matchId]/live/live-actions";
 import { endLiveSessionAndCreateReportAction } from "@/app/(app)/matches/[matchId]/live/live-report-handoff";
-import { getLeaguePeriodConfig } from "@/lib/live-match/period-config";
+import type { PeriodConfig } from "@/lib/live-match/period-config";
 import type { MatchType } from "@/generated/prisma/client";
 import { useLiveRealtime } from "@/components/live-match/use-live-realtime";
 
@@ -28,6 +28,9 @@ interface LiveMatchClientProps {
     teamId: string;
     roundName: string | null;
     matchType: MatchType;
+    // ADR-0146: resolved server-side by the page (resolveLeagueMatchPeriodConfig) -- the frozen
+    // Live Reporting snapshot when one exists, else the existing hardcoded legacy config.
+    periodConfig: PeriodConfig[];
   };
 }
 
@@ -144,7 +147,7 @@ export function LeagueLiveMatchClient({ matchId, matchInfo }: LiveMatchClientPro
       teamName={matchInfo.teamName}
       opponentName={matchInfo.opponent}
       contextLabel={matchInfo.roundName}
-      periodConfig={getLeaguePeriodConfig(matchInfo.matchType)}
+      periodConfig={matchInfo.periodConfig}
       actions={leagueActions}
       isHome={matchInfo.homeAway === "HOME"}
       subjectType="LEAGUE"
