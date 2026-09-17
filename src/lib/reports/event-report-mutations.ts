@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import type { MatchReportStatus } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { canTransitionTo, hasUnknownAttendance } from "./report-domain";
@@ -124,45 +125,67 @@ export async function seedEventReportFromLiveSession(
   const scorerEvents = liveEvents.filter((e) => e.eventType === "SCORER_SET" && e.playerId !== null);
   const assistEvents = liveEvents.filter((e) => e.eventType === "ASSIST_SET" && e.playerId !== null);
 
-  const report = await db.eventPostMatchReport.create({
-    data: {
-      eventMatchId,
-      status: "DRAFT",
-      ourScore: goalsFor,
-      opponentScore: goalsAgainst,
-      organisationId,
-      playerReports: {
-        create: Array.from(allPlayerIds).map((playerId) => ({
-          playerId,
-          attendanceStatus: "PRESENT",
-          role: supportPlayerRoles.get(playerId) ?? undefined,
-          organisationId,
-        })),
+  try {
+    const report = await db.eventPostMatchReport.create({
+      data: {
+        eventMatchId,
+        status: "DRAFT",
+        ourScore: goalsFor,
+        opponentScore: goalsAgainst,
+        organisationId,
+        playerReports: {
+          create: Array.from(allPlayerIds).map((playerId) => ({
+            playerId,
+            attendanceStatus: "PRESENT",
+            role: supportPlayerRoles.get(playerId) ?? undefined,
+            organisationId,
+          })),
+        },
+        goalEvents: {
+          create: scorerEvents.map((e) => ({
+            playerId: e.playerId!,
+            type: "NORMAL",
+            organisationId,
+          })),
+        },
+        assistEvents: {
+          create: assistEvents.map((e) => ({
+            playerId: e.playerId!,
+            type: "NORMAL",
+            organisationId,
+          })),
+        },
       },
-      goalEvents: {
-        create: scorerEvents.map((e) => ({
-          playerId: e.playerId!,
-          type: "NORMAL",
-          organisationId,
-        })),
-      },
-      assistEvents: {
-        create: assistEvents.map((e) => ({
-          playerId: e.playerId!,
-          type: "NORMAL",
-          organisationId,
-        })),
-      },
-    },
-  });
+    });
 
-  return {
-    success: true,
-    eventMatchId,
-    reportId: report.id,
-    status: report.status,
-    alreadyExisted: false,
-  };
+    return {
+      success: true,
+      eventMatchId,
+      reportId: report.id,
+      status: report.status,
+      alreadyExisted: false,
+    };
+  } catch (error) {
+    // ADR-0146 §12 — a genuine race (manual and TIMEOUT `finishLiveReporting` both reaching this
+    // branch for the same event match): both compute identical derived data from the same,
+    // already-persisted EventLiveMatchEvent rows, so adopting whichever create() actually won is
+    // correct, not a data loss — mirrors League's seedReportFromLiveSession() hardening above.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const existingAfterRace = await db.eventPostMatchReport.findFirst({
+        where: { eventMatchId, organisationId },
+        select: { id: true, status: true },
+      });
+      if (!existingAfterRace) throw error;
+      return {
+        success: true,
+        eventMatchId,
+        reportId: existingAfterRace.id,
+        status: existingAfterRace.status,
+        alreadyExisted: true,
+      };
+    }
+    throw error;
+  }
 }
 
 export type CompleteEventReportResult =

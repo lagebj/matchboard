@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import type { MatchReportStatus, PlannedAbsenceReason, UnplannedAppearanceReason, PostMatchAttendanceStatus, GoalType, AssistType, FairPlayCategory } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import {
@@ -392,50 +393,69 @@ export async function seedReportFromLiveSession(
     }
   } else {
     // ── CREATE a fresh report from the live session ────────────────────────────
-    const created = await db.postMatchReport.create({
-      data: {
-        matchId,
-        status: "DRAFT",
-        homeGoals,
-        awayGoals,
-        organisationId,
-        playerActuals: {
-          create: [
-            ...selections.map((s) => ({
-              matchId,
-              playerId: s.playerId,
-              source: "PLANNED" as const,
-              attendanceStatus: "PRESENT" as const,
+    try {
+      const created = await db.postMatchReport.create({
+        data: {
+          matchId,
+          status: "DRAFT",
+          homeGoals,
+          awayGoals,
+          organisationId,
+          playerActuals: {
+            create: [
+              ...selections.map((s) => ({
+                matchId,
+                playerId: s.playerId,
+                source: "PLANNED" as const,
+                attendanceStatus: "PRESENT" as const,
+                organisationId,
+              })),
+              ...helperPlayerIds.map((playerId) => ({
+                matchId,
+                playerId,
+                source: "EMERGENCY_BACKFILL" as const,
+                attendanceStatus: "PRESENT" as const,
+                unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
+                organisationId,
+              })),
+            ],
+          },
+          goals: {
+            create: scorerEvents.map((e) => ({
+              playerId: e.playerId!,
+              type: "NORMAL",
               organisationId,
             })),
-            ...helperPlayerIds.map((playerId) => ({
-              matchId,
-              playerId,
-              source: "EMERGENCY_BACKFILL" as const,
-              attendanceStatus: "PRESENT" as const,
-              unplannedAppearanceReason: "EMERGENCY_SQUAD_COVER" as const,
+          },
+          assists: {
+            create: assistEvents.map((e) => ({
+              playerId: e.playerId!,
+              type: "NORMAL",
               organisationId,
             })),
-          ],
+          },
         },
-        goals: {
-          create: scorerEvents.map((e) => ({
-            playerId: e.playerId!,
-            type: "NORMAL",
-            organisationId,
-          })),
-        },
-        assists: {
-          create: assistEvents.map((e) => ({
-            playerId: e.playerId!,
-            type: "NORMAL",
-            organisationId,
-          })),
-        },
-      },
-    });
-    reportId = created.id;
-    reportStatus = created.status;
+      });
+      reportId = created.id;
+      reportStatus = created.status;
+    } catch (error) {
+      // ADR-0146 §12 — a genuine race (e.g. manual and TIMEOUT `finishLiveReporting` both
+      // reaching this branch for the same match): both compute identical derived data from the
+      // same, already-persisted LiveMatchEvent rows, so adopting whichever create() actually won
+      // is correct, not a data loss — mirrors recordEventForActor's own clientEventId-conflict
+      // idempotency (live-match-event-store.ts).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const existingAfterRace = await db.postMatchReport.findFirst({
+          where: { matchId, organisationId },
+          select: { id: true, status: true },
+        });
+        if (!existingAfterRace) throw error;
+        reportId = existingAfterRace.id;
+        reportStatus = existingAfterRace.status;
+        return { success: true, matchId, reportId, status: reportStatus, alreadyExisted: true, merged: false };
+      }
+      throw error;
+    }
   }
 
   // Fair-play observations and rotations are match-scoped (not report-scoped) and derived from

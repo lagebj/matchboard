@@ -3,15 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
-import { endLiveSession } from "@/lib/live-match/live-match-session";
-import { seedReportFromLiveSession } from "@/lib/reports/report-mutations";
+import { finishLiveReporting } from "@/lib/live-match/finish-live-reporting";
+import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 /**
- * Run -> Learn handoff adapter (ADR-0088): validates session/match/organisation consistency for
- * this specific server-action entry point, then delegates the two owning transitions —
- * "this live session ends" and "the first DRAFT post-match report exists" — to their domain
- * functions instead of reimplementing either write here.
+ * Run -> Learn handoff adapter (ADR-0088/ADR-0146): validates session/match/organisation
+ * consistency and authorization for this specific server-action entry point, then delegates the
+ * actual completion — "this live session ends, any still-active period is resolved, the first
+ * DRAFT post-match report exists" — to the one shared `finishLiveReporting` operation
+ * (ADR-0146 §5/D11) also used by the automatic timeout path (slice 4), rather than
+ * reimplementing any of it here.
  */
 export async function endLiveSessionAndCreateReportAction(sessionId: string, matchId: string) {
   try {
@@ -42,11 +44,11 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
 
     await requireMatchGroupAccess(ctx, matchId);
 
-    await endLiveSession(sessionId);
+    const ref = await buildLeagueMatchRef(matchId);
+    const result = await finishLiveReporting(ref, "MANUAL", { organisationId: session.organisationId });
 
-    const result = await seedReportFromLiveSession(matchId, session.organisationId);
-    if (!result.success) {
-      return { success: false as const, error: result.error };
+    if (!result.reportId || !result.reportStatus) {
+      return { success: false as const, error: "Failed to end session and create report." };
     }
 
     revalidatePath(`/matches/${matchId}`);
@@ -59,7 +61,7 @@ export async function endLiveSessionAndCreateReportAction(sessionId: string, mat
         sessionId,
         matchId,
         reportId: result.reportId,
-        reportStatus: result.status,
+        reportStatus: result.reportStatus,
       },
     };
   } catch (error) {

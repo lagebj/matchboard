@@ -11,12 +11,70 @@ import { MATCH_PERIOD_ORDER } from "@/lib/live-match/live-match-types";
 import {
   getCumulativePeriodOffsetsMs,
   getEventPeriodConfig,
-  getLeaguePeriodConfig,
+  getLeagueMatchPeriodConfig,
+  getPeriodDurations,
   getTotalPeriodDurationMs,
   toAbsoluteMatchMs,
+  buildPeriodConfigFromFormat,
+  type PeriodConfig,
 } from "@/lib/live-match/period-config";
+// Deliberately from the pure `match-format.ts`, not the `"server-only"`-guarded
+// `resolve-live-period-config.ts` — this file also exports pure, DB-free utilities (e.g.
+// `sanitizePeriodOffsetMs` below) that non-server test/utility code imports on their own; pulling
+// in a server-only module merely to reach one pure mapping function would break every one of
+// those callers outside a server context.
+import { snapshotToFormat } from "@/lib/live-match/match-format";
 import { getEffectiveEventSquadMatchTiming } from "@/lib/events/event-types";
 import { getLeagueReversedEventIds, getEventReversedEventIds } from "@/lib/live-match/reversal-resolution";
+
+/**
+ * ADR-0146 §4 — the bounded end-of-match cap, replacing the single static
+ * `Match.matchDurationMinutes` value (unset by any UI today, so `matchEndMs` was `null` — no cap
+ * at all — in practice for every match; this is the direct cause of the "four hours of player
+ * minutes from a forgotten clock" failure mode this ADR closes). Only applies when Live Reporting
+ * was actually used (a session exists): a match reported through some other means keeps today's
+ * exact `matchDurationMinutes`-or-null behavior — out of this ADR's scope, not a regression.
+ *
+ * `lastKnownPeriod` is the session's own persisted `clockPeriod` — however far the match actually
+ * got. A still-`ACTIVE` session (finish never ran, or the reconciliation hasn't reached it yet)
+ * is capped exactly like a finished one; nothing here is finish-specific, so a projection
+ * requested mid-match is bounded too. `FULL_TIME` means every intended period played out, so the
+ * cap is the full intended total (adjusted for any period that was resolved differently — in
+ * practice, slice 3 only ever writes a resolution row for the one period active at finish, so
+ * this mostly matters for `lastKnownPeriod !== "FULL_TIME"`, the abandoned-mid-period case).
+ *
+ * Deliberately does NOT recompute `periodConfig`'s cumulative offsets from resolved durations —
+ * only the *final* reached period's own contribution is corrected. An earlier period that
+ * legitimately ran long via an explicit `End Period` (D7) without needing recovery still uses its
+ * *intended* offset for any later period's own relative-timestamp conversion — a pre-existing,
+ * separate limitation this ADR does not commit to fixing (out of scope; the abandoned-period
+ * scenario this ADR targets structurally only ever affects the last period before finish, since
+ * an earlier period cannot be "still active" once a later one has started).
+ */
+function computeResolvedMatchEndMs(params: {
+  periodConfig: PeriodConfig[];
+  lastKnownPeriod: MatchPeriod;
+  resolutions: readonly { period: MatchPeriod; resolvedDurationMs: number }[];
+}): number | null {
+  const durations = getPeriodDurations(params.periodConfig);
+  const resolvedByPeriod = new Map(params.resolutions.map((r) => [r.period, r.resolvedDurationMs]));
+
+  if (params.lastKnownPeriod === "FULL_TIME") {
+    const total = getTotalPeriodDurationMs(params.periodConfig);
+    if (total == null) return null;
+    let adjusted = total;
+    for (const [period, resolvedDurationMs] of resolvedByPeriod) {
+      adjusted = adjusted - (durations[period] ?? 0) + resolvedDurationMs;
+    }
+    return adjusted;
+  }
+
+  const offsets = getCumulativePeriodOffsetsMs(params.periodConfig);
+  const offset = offsets[params.lastKnownPeriod];
+  if (offset == null) return null;
+  const lastPeriodDurationMs = resolvedByPeriod.get(params.lastKnownPeriod) ?? durations[params.lastKnownPeriod] ?? 0;
+  return offset + lastPeriodDurationMs;
+}
 
 /**
  * `LiveMatchEvent.matchSeconds` / `MatchRotation.matchSeconds` hold MILLISECONDS since period
@@ -77,14 +135,43 @@ export async function rebuildActualTimeline(matchId: string): Promise<{
     throw new Error("Match not found.");
   }
 
-  const matchEndMs = match.matchDurationMinutes
-    ? match.matchDurationMinutes * 60 * 1000
-    : null;
+  // ADR-0146 §1/§4: the session's own frozen format snapshot is authoritative once Live
+  // Reporting has started (same read the live clock itself uses,
+  // `resolve-live-period-config.ts`'s `resolveLeagueMatchPeriodConfig`) -- falls back to the
+  // legacy hardcoded config, byte-identical to pre-ADR-0146 behavior, when no session/snapshot
+  // exists yet. One query, not the DB-touching wrapper -- see this file's `snapshotToFormat`
+  // import comment for why.
+  const session = await db.liveMatchSession.findUnique({
+    where: { matchId },
+    select: {
+      clockPeriod: true,
+      formatNumberOfPeriods: true,
+      formatPeriodDurationMinutes: true,
+      formatBreakDurationMinutes: true,
+    },
+  });
+  const periodConfig = getLeagueMatchPeriodConfig(match.matchType, snapshotToFormat(session));
+
+  let matchEndMs: number | null;
+  if (session) {
+    const resolutions = await db.matchPeriodTimingResolution.findMany({
+      where: { matchId, organisationId: match.organisationId },
+      select: { period: true, resolvedDurationMs: true },
+    });
+    matchEndMs = computeResolvedMatchEndMs({ periodConfig, lastKnownPeriod: session.clockPeriod, resolutions });
+    // Defensive fallback only -- computeResolvedMatchEndMs returns null only when the resolved
+    // period config itself has no known total (an edge case a real frozen/legacy config never
+    // hits); never regress a configured match to "no cap at all".
+    matchEndMs ??= match.matchDurationMinutes ? match.matchDurationMinutes * 60 * 1000 : null;
+  } else {
+    // No Live Reporting session ever existed for this match (e.g. reported entirely post-match)
+    // -- unchanged legacy behavior, out of this ADR's scope.
+    matchEndMs = match.matchDurationMinutes ? match.matchDurationMinutes * 60 * 1000 : null;
+  }
 
   // Rotations/position-change events are recorded relative to their OWN period (each period's
   // live clock restarts at 0 -- see period-config.ts's getCumulativePeriodOffsetsMs) and must be
   // converted to one continuous absolute match-clock before ordering across periods.
-  const periodConfig = getLeaguePeriodConfig(match.matchType);
   const periodOffsets = getCumulativePeriodOffsetsMs(periodConfig);
 
   const starters = await getStartingLineup(matchId);
@@ -189,13 +276,45 @@ export async function rebuildEventActualTimeline(eventMatchId: string): Promise<
   // default alone: a squad's own halves/duration/break override must be honoured here exactly
   // as it is for live reporting and lineup formation selection.
   const timing = getEffectiveEventSquadMatchTiming(eventMatch.event, eventMatch.eventSquad);
-  const periodConfig = getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
+  // ADR-0146 §1/§4: the session's own frozen format snapshot is authoritative once Live
+  // Reporting has started (same read the live clock itself uses,
+  // `resolve-live-period-config.ts`'s `resolveEventMatchPeriodConfig`) -- falls back to the
+  // pre-live effective squad timing, byte-identical to pre-ADR-0146 behavior, when no
+  // session/snapshot exists yet. One query, not the DB-touching wrapper -- see this file's
+  // `snapshotToFormat` import comment for why.
+  const eventSession = await db.eventLiveMatchSession.findUnique({
+    where: { eventMatchId },
+    select: {
+      clockPeriod: true,
+      formatNumberOfPeriods: true,
+      formatPeriodDurationMinutes: true,
+      formatBreakDurationMinutes: true,
+    },
+  });
+  const eventFormat = snapshotToFormat(eventSession);
+  const periodConfig = eventFormat
+    ? buildPeriodConfigFromFormat(eventFormat)
+    : getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
   const periodOffsets = getCumulativePeriodOffsetsMs(periodConfig);
+
   // Total elapsed match-clock duration (both halves + tracked break, when numberOfHalves=2) --
-  // previously this only ever used the Event's single per-half `matchDurationMinutes`, silently
-  // truncating the actual timeline (and every downstream evidence computation) at the end of the
-  // FIRST half for any two-half Event match.
-  const matchEndMs = getTotalPeriodDurationMs(periodConfig);
+  // previously this only ever used the full intended total regardless of what Live Reporting
+  // actually reached, silently over-crediting a period abandoned before the match's later
+  // periods ever started (ADR-0146 §4) -- and, before that, only the Event's single per-half
+  // `matchDurationMinutes`, silently truncating the timeline at the end of the FIRST half for
+  // any two-half Event match. `eventSession` absent (never live-reported) keeps the full-total
+  // behavior, out of this ADR's scope.
+  let matchEndMs: number | null;
+  if (eventSession) {
+    const resolutions = await db.matchPeriodTimingResolution.findMany({
+      where: { eventMatchId, organisationId: eventMatch.organisationId },
+      select: { period: true, resolvedDurationMs: true },
+    });
+    matchEndMs = computeResolvedMatchEndMs({ periodConfig, lastKnownPeriod: eventSession.clockPeriod, resolutions });
+    matchEndMs ??= getTotalPeriodDurationMs(periodConfig);
+  } else {
+    matchEndMs = getTotalPeriodDurationMs(periodConfig);
+  }
 
   const starters = await getEventStartingLineup(eventMatchId);
   const { rotations, positionChanges } = await getEventRotationsAndPositionChanges(eventMatchId, eventMatch.organisationId, periodOffsets);

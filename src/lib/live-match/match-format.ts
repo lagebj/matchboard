@@ -170,6 +170,41 @@ export function eventSquadMatchTimingToFormat(timing: {
 /** Source of a frozen match-format snapshot (diagnostic metadata only — see ADR-0146 §1). */
 export type MatchFormatSnapshotSource = "SEASON" | "TEAM" | "MATCH" | "EVENT";
 
+/** The frozen-snapshot columns as persisted on `LiveMatchSession`/`EventLiveMatchSession`. */
+export interface MatchFormatSnapshotRow {
+  formatNumberOfPeriods: number | null;
+  formatPeriodDurationMinutes: number | null;
+  formatBreakDurationMinutes: number | null;
+}
+
+/**
+ * Reconstructs a `MatchFormatDefinition` from a session's persisted snapshot columns —
+ * complete-or-null, matching `resolveLeagueMatchFormat`'s own "never a partial format" contract
+ * (a session snapshot is written by `resolveLeagueMatchFormatSnapshot`/
+ * `resolveEventMatchFormatSnapshot`, so it is always all-three-or-none in practice; this treats
+ * an unexpected partial row the same way, defensively). Deliberately a pure function with no `db`
+ * import — `resolve-live-period-config.ts` (which does the actual live-clock-facing DB read) and
+ * `actual-timeline.ts` (its own, separately-scoped DB read for the resolved-timeline recompute,
+ * ADR-0146 §4) both need this exact mapping without pulling in a `"server-only"`-guarded module
+ * merely to reach it — a file that also exports pure, DB-free utilities (like
+ * `actual-timeline.ts`'s own `sanitizePeriodOffsetMs`) must never be forced to load one.
+ */
+export function snapshotToFormat(session: MatchFormatSnapshotRow | null): MatchFormatDefinition | null {
+  if (
+    !session ||
+    session.formatNumberOfPeriods == null ||
+    session.formatPeriodDurationMinutes == null ||
+    session.formatBreakDurationMinutes == null
+  ) {
+    return null;
+  }
+  return {
+    numberOfPeriods: session.formatNumberOfPeriods,
+    periodDurationMinutes: session.formatPeriodDurationMinutes,
+    breakDurationMinutes: session.formatBreakDurationMinutes,
+  };
+}
+
 /**
  * Which scope a resolved League format actually came from, for snapshot diagnostics
  * (`LiveMatchSession.formatSource`). Mirrors `resolveLeagueMatchFormat`'s own precedence walk so

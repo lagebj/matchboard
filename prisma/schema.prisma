@@ -211,6 +211,7 @@ model Match {
   helperAssignments             MatchHelperAssignment[]
   threadObservations            DevelopmentThreadObservation[]
   actualPositionIntervals       ActualPositionInterval[]
+  matchPeriodTimingResolutions  MatchPeriodTimingResolution[]
   combinationEvidences          CombinationEvidence[]
   postMatchLearningRuns         PostMatchLearningRun[]
   quickObservations             QuickObservation[]
@@ -833,6 +834,45 @@ model ActualPositionInterval {
   @@index([eventMatchId, startedAtMs])
   @@index([guestPlayerId])
   @@index([organisationId])
+}
+
+/// ADR-0146 §4 — the resolved period timeline. One row per period that actually occurred,
+/// written when that period closes: an explicit coach "End Period"/"Finish Live Reporting" with
+/// no active period needs no row (the raw event timeline already fully captures a normally-closed
+/// period), while `finishLiveReporting` resolving a still-*active* period at completion time
+/// always writes one — that is the one case where "how long did this period actually last" is not
+/// otherwise recoverable from raw data alone. `rebuildActualTimeline`/`rebuildEventActualTimeline`
+/// (`actual-timeline.ts`) read this table to cap that period's contribution instead of trusting an
+/// unbounded raw elapsed duration — the exact "four hours of player minutes from a forgotten
+/// clock" failure mode this ADR closes. `rawElapsedMs` is set only when `resolutionSource` is
+/// `RECOVERED_BOUNDED` (the raw, uncapped elapsed duration the ceiling clamped) — kept for
+/// diagnostics and post-match review, never used directly for derived minutes.
+model MatchPeriodTimingResolution {
+  id                 String                 @id @default(cuid())
+  organisationId     String
+  matchId            String?
+  eventMatchId       String?
+  period             MatchPeriod
+  rawElapsedMs       Int?
+  resolvedDurationMs Int
+  resolutionSource   TimingResolutionSource
+  reviewStatus       TimingReviewStatus     @default(NOT_REQUIRED)
+  reviewedAt         DateTime?
+  reviewedBy         String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  match        Match?        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch   EventMatch?   @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint added by
+  // hand to the generated migration SQL (Prisma cannot express this), matching
+  // ActualPositionInterval's own convention above.
+  @@unique([matchId, period])
+  @@unique([eventMatchId, period])
+  @@index([organisationId])
+  @@index([reviewStatus])
 }
 
 model Goal {
@@ -1555,12 +1595,13 @@ model EventMatch {
   liveSession EventLiveMatchSession?
   liveEvents  EventLiveMatchEvent[]
 
-  actualPositionIntervals  ActualPositionInterval[]
-  opponentSportingEvidence OpponentSportingEvidence?
-  combinationEvidence      CombinationEvidence[]
-  postMatchLearningRuns    PostMatchLearningRun[]
-  developmentObservations  PlayerDevelopmentObservation[]
-  matchAvailabilities      EventMatchAvailability[]
+  actualPositionIntervals      ActualPositionInterval[]
+  matchPeriodTimingResolutions MatchPeriodTimingResolution[]
+  opponentSportingEvidence     OpponentSportingEvidence?
+  combinationEvidence          CombinationEvidence[]
+  postMatchLearningRuns        PostMatchLearningRun[]
+  developmentObservations      PlayerDevelopmentObservation[]
+  matchAvailabilities          EventMatchAvailability[]
 
   @@index([eventId])
   @@index([eventSquadId])
@@ -2150,6 +2191,36 @@ enum ActualIntervalSource {
   LIVE_RECORDED
 }
 
+/// ADR-0146 §8 — how a MatchPeriodTimingResolution row's `resolvedDurationMs` was established.
+/// Deliberately does NOT include a `TIMEOUT` value: `TIMEOUT` is `finishLiveReporting`'s own
+/// trigger/audit metadata (manual vs. automatic completion), not a period-resolution mechanism —
+/// both triggers resolve an active period through the identical `FINISH_LIVE_REPORTING`/
+/// `RECOVERED_BOUNDED` path (ADR-0146 §6, §10 "manual and TIMEOUT finish use identical active-
+/// period recovery").
+enum TimingResolutionSource {
+  /// A coach explicitly ended the period; the full raw elapsed duration is trusted verbatim, no
+  /// matter how long — an explicit End Period is always authoritative (ADR-0146 §6/D7).
+  EXPLICIT_PERIOD_END
+  /// `finishLiveReporting` found the period still active and resolved it without needing to clamp
+  /// (raw elapsed was within the recovery ceiling) — not itself evidence of anything wrong.
+  FINISH_LIVE_REPORTING
+  /// `finishLiveReporting` found the period still active and raw elapsed exceeded the recovery
+  /// ceiling — resolved duration is the ceiling, not the raw value (preserved in `rawElapsedMs`).
+  /// Requires coach review before final post-match submission (ADR-0146 §8/D14).
+  RECOVERED_BOUNDED
+}
+
+enum TimingReviewStatus {
+  /// The default for `EXPLICIT_PERIOD_END`/un-clamped `FINISH_LIVE_REPORTING` rows — nothing to
+  /// review, the resolved duration is not a safety assumption.
+  NOT_REQUIRED
+  /// A `RECOVERED_BOUNDED` row the coach has not yet reviewed — blocks final post-match
+  /// submission (ADR-0146 §8/D14).
+  NEEDS_REVIEW
+  /// The coach explicitly confirmed or corrected the recovered duration.
+  REVIEWED
+}
+
 enum GoalType {
   NORMAL
   OWN_GOAL
@@ -2547,6 +2618,7 @@ model Organisation {
   threadObservations            DevelopmentThreadObservation[]
   teamFocuses                   TeamFocus[]
   actualPositionIntervals       ActualPositionInterval[]
+  matchPeriodTimingResolutions  MatchPeriodTimingResolution[]
   combinationEvidences          CombinationEvidence[]
   postMatchLearningRuns         PostMatchLearningRun[]
   quickObservations             QuickObservation[]

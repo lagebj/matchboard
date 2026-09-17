@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePageActorContext, requireMutationRole, requireGroupMutationRoleFromContext } from "@/lib/auth/actor-context";
-import { endEventLiveSession } from "@/lib/live-match/event-live-match-session";
-import { seedEventReportFromLiveSession } from "@/lib/reports/event-report-mutations";
+import { finishLiveReporting } from "@/lib/live-match/finish-live-reporting";
+import { buildEventMatchRef } from "@/lib/evidence/adapters/event-evidence-adapter";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
@@ -21,11 +21,11 @@ async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFi
 }
 
 /**
- * Event-side Run -> Learn handoff adapter (ADR-0088), parallel to
+ * Event-side Run -> Learn handoff adapter (ADR-0088/ADR-0146), parallel to
  * `endLiveSessionAndCreateReportAction` for League matches: validates session/match/organisation
- * consistency for this entry point, then delegates the two owning transitions — "this live
- * session ends" and "the first DRAFT event post-match report exists" — to their domain
- * functions instead of reimplementing either write here.
+ * consistency and authorization for this entry point, then delegates the actual completion to
+ * the one shared `finishLiveReporting` operation (ADR-0146 §5/D11) also used by the automatic
+ * timeout path (slice 4), rather than reimplementing any of it here.
  *
  * ADR-0140 — group mutation authority is required BEFORE either transition. A `GROUP_VIEWER`
  * must not be able to complete the live-to-report handoff.
@@ -65,11 +65,11 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
 
     requireGroupMutationRoleFromContext(ctx, session.eventMatch.event.footballGroupId);
 
-    await endEventLiveSession(sessionId);
+    const ref = await buildEventMatchRef(eventMatchId);
+    const result = await finishLiveReporting(ref, "MANUAL", { organisationId: session.organisationId });
 
-    const result = await seedEventReportFromLiveSession(eventMatchId, session.organisationId);
-    if (!result.success) {
-      return { success: false as const, error: result.error };
+    if (!result.reportId || !result.reportStatus) {
+      return { success: false as const, error: "Failed to end session and create report." };
     }
 
     const { eventId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
@@ -82,7 +82,7 @@ export async function endEventLiveSessionAndCreateReportAction(sessionId: string
         sessionId,
         eventMatchId,
         reportId: result.reportId,
-        reportStatus: result.status,
+        reportStatus: result.reportStatus,
       },
     };
   } catch (error) {

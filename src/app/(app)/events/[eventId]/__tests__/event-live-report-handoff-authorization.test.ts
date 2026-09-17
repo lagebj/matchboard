@@ -10,23 +10,23 @@ import { mockAuthContext } from "@/test/support/auth-mock";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-const { mockDb, mockEndEventLiveSession, mockSeedEventReportFromLiveSession } = vi.hoisted(() => ({
+const { mockDb, mockFinishLiveReporting, mockBuildEventMatchRef } = vi.hoisted(() => ({
   mockDb: {
     eventLiveMatchSession: { findFirst: vi.fn() },
     eventMatch: { findFirst: vi.fn() },
   },
-  mockEndEventLiveSession: vi.fn(),
-  mockSeedEventReportFromLiveSession: vi.fn(),
+  mockFinishLiveReporting: vi.fn(),
+  mockBuildEventMatchRef: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
 
-vi.mock("@/lib/live-match/event-live-match-session", () => ({
-  endEventLiveSession: mockEndEventLiveSession,
+vi.mock("@/lib/live-match/finish-live-reporting", () => ({
+  finishLiveReporting: mockFinishLiveReporting,
 }));
 
-vi.mock("@/lib/reports/event-report-mutations", () => ({
-  seedEventReportFromLiveSession: mockSeedEventReportFromLiveSession,
+vi.mock("@/lib/evidence/adapters/event-evidence-adapter", () => ({
+  buildEventMatchRef: mockBuildEventMatchRef,
 }));
 
 const GROUP_ID = "group-1";
@@ -44,11 +44,16 @@ describe("endEventLiveSessionAndCreateReportAction: group mutation authorization
       eventMatch: { event: { footballGroupId: GROUP_ID } },
     });
     mockDb.eventMatch.findFirst.mockResolvedValue({ eventId: "event-1" });
-    mockEndEventLiveSession.mockResolvedValue({ id: SESSION_ID, eventMatchId: EVENT_MATCH_ID });
-    mockSeedEventReportFromLiveSession.mockResolvedValue({ success: true, reportId: "report-1", status: "DRAFT" });
+    mockBuildEventMatchRef.mockResolvedValue({ kind: "EVENT_MATCH", eventMatchId: EVENT_MATCH_ID, eventId: "event-1", evidenceLeagueSeasonId: null });
+    mockFinishLiveReporting.mockResolvedValue({
+      reportId: "report-1",
+      reportStatus: "DRAFT",
+      alreadyCompleted: false,
+      activePeriodResolution: null,
+    });
   });
 
-  it("denies the handoff for a COACH with only GROUP_VIEWER access, before ending the session or seeding a report", async () => {
+  it("denies the handoff for a COACH with only GROUP_VIEWER access, before finishing Live Reporting", async () => {
     const auth = mockAuthContext({ role: "COACH", groupAccesses: [{ footballGroupId: GROUP_ID, role: "GROUP_VIEWER" }] });
     (auth.mockRequireGroupMutationRoleFromContext as ReturnType<typeof vi.fn>).mockImplementation(() => {
       throw new AuthorizationError("You have view-only access to this group and cannot report on it.");
@@ -58,8 +63,7 @@ describe("endEventLiveSessionAndCreateReportAction: group mutation authorization
     const result = await endEventLiveSessionAndCreateReportAction(SESSION_ID, EVENT_MATCH_ID);
 
     expect(result.success).toBe(false);
-    expect(mockEndEventLiveSession).not.toHaveBeenCalled();
-    expect(mockSeedEventReportFromLiveSession).not.toHaveBeenCalled();
+    expect(mockFinishLiveReporting).not.toHaveBeenCalled();
   });
 
   it("denies the handoff for a COACH with no group access at all", async () => {
@@ -72,7 +76,7 @@ describe("endEventLiveSessionAndCreateReportAction: group mutation authorization
     const result = await endEventLiveSessionAndCreateReportAction(SESSION_ID, EVENT_MATCH_ID);
 
     expect(result.success).toBe(false);
-    expect(mockEndEventLiveSession).not.toHaveBeenCalled();
+    expect(mockFinishLiveReporting).not.toHaveBeenCalled();
   });
 
   it("allows the handoff for a COACH with GROUP_COACH access", async () => {
@@ -83,8 +87,11 @@ describe("endEventLiveSessionAndCreateReportAction: group mutation authorization
 
     expect(result.success).toBe(true);
     expect(auth.mockRequireGroupMutationRoleFromContext).toHaveBeenCalledWith(expect.anything(), GROUP_ID);
-    expect(mockEndEventLiveSession).toHaveBeenCalledWith(SESSION_ID);
-    expect(mockSeedEventReportFromLiveSession).toHaveBeenCalled();
+    expect(mockFinishLiveReporting).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "EVENT_MATCH", eventMatchId: EVENT_MATCH_ID }),
+      "MANUAL",
+      { organisationId: "test-org-id" },
+    );
   });
 
   it("allows the handoff for OWNER via the administrative bypass", async () => {
