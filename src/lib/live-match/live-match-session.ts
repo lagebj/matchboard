@@ -9,6 +9,7 @@ import { persistedToClockState, clockStateToPersisted, isForwardClockTransition 
 import { createInitialClockState } from "./match-clock";
 import type { MatchClockState } from "./live-match-types";
 import { resolveLeagueMatchFormatSnapshot } from "./format-snapshot";
+import { snapshotToFormat } from "./resolve-live-period-config";
 
 type LiveMatchSessionRow = {
   id: string;
@@ -22,6 +23,9 @@ type LiveMatchSessionRow = {
   clockRunning: boolean;
   clockPeriodStartedAt: Date | null;
   clockElapsedBeforeMs: number;
+  formatNumberOfPeriods: number | null;
+  formatPeriodDurationMinutes: number | null;
+  formatBreakDurationMinutes: number | null;
 };
 
 function toLiveSessionInfo(row: LiveMatchSessionRow): LiveSessionInfo {
@@ -33,6 +37,9 @@ function toLiveSessionInfo(row: LiveMatchSessionRow): LiveSessionInfo {
     startedAt: row.startedAt,
     endedAt: row.endedAt,
     lastHeartbeatAt: row.lastHeartbeatAt,
+    // ADR-0146: the session's own frozen format snapshot (complete-or-null), for the
+    // guardrails warning thresholds — same read discipline as resolveLeagueMatchPeriodConfig.
+    format: snapshotToFormat(row),
     clock:
       persistedToClockState({
         clockPeriod: row.clockPeriod,

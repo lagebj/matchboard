@@ -109,7 +109,7 @@ describe("createEventActions.recordEvent (ADR-0138 Bundle 8 — Event coordinato
 
   it("startSession connects realtime only after the HTTP session actually starts", async () => {
     const realtime = fakeRealtime();
-    mockStartEventLiveSessionAction.mockResolvedValue({ success: true, data: { id: "session-1" } });
+    mockStartEventLiveSessionAction.mockResolvedValue({ success: true, data: { id: "session-1", startedAt: new Date(), format: null } });
     const actions = createEventActions("event-match-1", "event-1", realtime);
 
     await actions.startSession("event-match-1");

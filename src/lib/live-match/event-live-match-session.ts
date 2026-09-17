@@ -6,7 +6,9 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { persistedToClockState, clockStateToPersisted, isForwardClockTransition } from "./session-clock";
 import { createInitialClockState } from "./match-clock";
 import type { MatchClockState, MatchPeriod } from "./live-match-types";
+import type { MatchFormatDefinition } from "./match-format";
 import { resolveEventMatchFormatSnapshot } from "./format-snapshot";
+import { snapshotToFormat } from "./resolve-live-period-config";
 
 export interface EventLiveSessionInfo {
   id: string;
@@ -17,6 +19,8 @@ export interface EventLiveSessionInfo {
   endedAt: Date | null;
   lastHeartbeatAt: Date | null;
   clock: MatchClockState;
+  /** ADR-0146: the session's own frozen format snapshot, complete-or-null (League parity). */
+  format: MatchFormatDefinition | null;
 }
 
 type EventLiveMatchSessionRow = {
@@ -31,6 +35,9 @@ type EventLiveMatchSessionRow = {
   clockRunning: boolean;
   clockPeriodStartedAt: Date | null;
   clockElapsedBeforeMs: number;
+  formatNumberOfPeriods: number | null;
+  formatPeriodDurationMinutes: number | null;
+  formatBreakDurationMinutes: number | null;
 };
 
 // Mirrors League's `toLiveSessionInfo` (`live-match-session.ts`) — one mapper shared by every
@@ -44,6 +51,7 @@ function toEventLiveSessionInfo(row: EventLiveMatchSessionRow): EventLiveSession
     startedAt: row.startedAt,
     endedAt: row.endedAt,
     lastHeartbeatAt: row.lastHeartbeatAt,
+    format: snapshotToFormat(row),
     clock:
       persistedToClockState({
         clockPeriod: row.clockPeriod,

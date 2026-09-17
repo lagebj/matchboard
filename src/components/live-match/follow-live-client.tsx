@@ -50,6 +50,9 @@ import {
 } from "@/lib/live-match/match-clock";
 import type { MatchClockState } from "@/lib/live-match/live-match-types";
 import { getLeaguePeriodConfig, type PeriodConfig } from "@/lib/live-match/period-config";
+import type { MatchFormatDefinition } from "@/lib/live-match/match-format";
+import { resolveLiveReportingWarning, type LiveReportingWarning } from "@/lib/live-match/live-reporting-guardrails";
+import { LiveReportingWarningBanner } from "@/components/live-match/live-reporting-warning-banner";
 
 const LOG_PREFIX = "[live-match:follow]";
 
@@ -73,6 +76,11 @@ interface FollowLiveClientProps {
   /** ADR-0138 Bundle 8 — which persistence adapter/coordinator subject this match is. Defaults
    * to `"LEAGUE"`, matching every pre-Bundle-8 caller's only behavior. */
   subjectType?: "LEAGUE" | "EVENT";
+  /** ADR-0146 — the session's ACTUAL start (server-set once) and frozen format snapshot, for
+   * the warning-neutral live status a read-only viewer may see (bundle §05.16: no actionable
+   * controls — `readOnly` rendering, warning presentation only). */
+  liveReportingStartedAt?: string | null;
+  sessionFormat?: MatchFormatDefinition | null;
 }
 
 const CONNECTION_LABEL: Record<RealtimeConnectionState, string> = {
@@ -95,6 +103,8 @@ export function FollowLiveClient({
   matchType = "LEAGUE",
   periodConfig: periodConfigProp,
   subjectType = "LEAGUE",
+  liveReportingStartedAt,
+  sessionFormat,
 }: FollowLiveClientProps) {
   const [connectionState, setConnectionState] = useState<RealtimeConnectionState>("connecting");
   const [connectedCount, setConnectedCount] = useState(0);
@@ -244,6 +254,16 @@ export function FollowLiveClient({
     return () => clearInterval(id);
   }, [projection?.clock.running]);
 
+  // ADR-0146: a slower wall-clock tick for the session-level guardrails status — runs while
+  // connected even when the match clock is paused/stopped, since the 180/240/270-minute
+  // thresholds anchor to the session's start, not the period clock.
+  const [wallNow, setWallNow] = useState(Date.now());
+  useEffect(() => {
+    if (connectionState !== "connected") return;
+    const id = setInterval(() => setWallNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [connectionState]);
+
   const elapsedMs = projection?.clock.running
     ? getElapsedMs(clockState, now)
     : projection
@@ -251,6 +271,19 @@ export function FollowLiveClient({
       : 0;
 
   const periodLabel = periodConfig.find((p) => p.key === clockState.period)?.label ?? clockState.period.replace(/_/g, " ");
+
+  // ADR-0146: warning-neutral live status (bundle §05.16) — the same thresholds the reporter
+  // sees, rendered read-only: no Continue/Finish actions, never any mutation control.
+  const liveWarning: LiveReportingWarning | null = useMemo(() => {
+    if (!liveReportingStartedAt) return null;
+    return resolveLiveReportingWarning({
+      format: sessionFormat ?? null,
+      liveReportingStartedAt: new Date(liveReportingStartedAt),
+      nowMs: wallNow,
+      activePeriodElapsedMs: null,
+      activePeriodDurationMs: null,
+    });
+  }, [liveReportingStartedAt, sessionFormat, wallNow]);
 
   const onFieldPlayers = useMemo(() => {
     if (!projection) return [];
@@ -294,6 +327,10 @@ export function FollowLiveClient({
         <p className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] p-4 text-[13px] text-[var(--text-soft)]">
           This live session has ended.
         </p>
+      )}
+
+      {!sessionEnded && liveWarning && (
+        <LiveReportingWarningBanner warning={liveWarning} readOnly />
       )}
 
       {connectionState === "error" && (

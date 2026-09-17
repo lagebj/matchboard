@@ -15,6 +15,9 @@ import {
 import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
 import type { LiveEventSummary, MatchClockState, LiveMatchEventType } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
+import type { MatchFormatDefinition } from "@/lib/live-match/match-format";
+import { resolveLiveReportingWarning, type LiveReportingWarning } from "@/lib/live-match/live-reporting-guardrails";
+import { LiveReportingWarningBanner } from "@/components/live-match/live-reporting-warning-banner";
 // The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
 // the "Position" live-reporting action (recording a POSITIONS_CHANGED event for an on-field
 // player who moves without a substitution).
@@ -43,6 +46,23 @@ import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-mat
 import { registerLiveServiceWorker } from "@/lib/live-match/offline/register-live-service-worker";
 import { NeedsReviewPanel } from "@/components/live-match/needs-review-panel";
 
+/** ADR-0146 — a `MatchFormatDefinition` as it crosses a server-action boundary (plain numbers;
+ * there are no Date fields to serialize, but an explicit shape keeps the action contract honest). */
+export interface SerializedMatchFormat {
+  numberOfPeriods: number;
+  periodDurationMinutes: number;
+  breakDurationMinutes: number;
+}
+
+function deserializeMatchFormat(format: SerializedMatchFormat | null | undefined): MatchFormatDefinition | null {
+  if (!format) return null;
+  return {
+    numberOfPeriods: format.numberOfPeriods,
+    periodDurationMinutes: format.periodDurationMinutes,
+    breakDurationMinutes: format.breakDurationMinutes,
+  };
+}
+
 export interface SquadPlayer {
   playerId: string;
   playerName: string;
@@ -65,7 +85,7 @@ export interface SquadPlayer {
 }
 
 export interface LiveMatchActions {
-  startSession: (matchId: string) => Promise<{ success: boolean; data?: { id: string }; error?: string }>;
+  startSession: (matchId: string) => Promise<{ success: boolean; data?: { id: string; startedAt?: string; format?: SerializedMatchFormat | null }; error?: string }>;
   endSession: (sessionId: string) => Promise<{ success: boolean; data?: { reportId?: string; reportStatus?: string }; error?: string }>;
   heartbeat: (sessionId: string) => Promise<void>;
   recordEvent: (input: {
@@ -111,6 +131,9 @@ export interface LiveMatchActions {
         id: string;
         coachId: string;
         startedAt: string;
+        /** ADR-0146: the session's frozen format snapshot (complete-or-null), for the
+         * guardrails warning thresholds. */
+        format?: SerializedMatchFormat | null;
         /** Persisted match clock (ADR-0133 H2), serialized. */
         clock?: { period: string; running: boolean; startedAt: string | null; elapsedBeforeStartMs: number };
       } | null;
@@ -375,6 +398,14 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const subjectId = matchId;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
+  // ADR-0146: the ACTUAL Live Reporting start (server-set once at session creation) and the
+  // session's frozen format snapshot — the only inputs the guardrails warnings may read.
+  // Never scheduled kickoff; never Season/Team config re-resolved client-side.
+  const [liveReportingStartedAt, setLiveReportingStartedAt] = useState<Date | null>(null);
+  const [sessionFormat, setSessionFormat] = useState<MatchFormatDefinition | null>(null);
+  // Bundle §03.15: "Continue live reporting" is presentation-only — a dismissed warning stays
+  // dismissed until the severity changes, but nothing persisted ever moves.
+  const [dismissedWarningKind, setDismissedWarningKind] = useState<LiveReportingWarning["kind"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   const [onFieldIds, setOnFieldIds] = useState<Set<string>>(new Set());
@@ -656,6 +687,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         if (result.data.activeSession) {
           setSessionId(result.data.activeSession.id);
           setSessionActive(true);
+          setLiveReportingStartedAt(new Date(result.data.activeSession.startedAt));
+          setSessionFormat(deserializeMatchFormat(result.data.activeSession.format));
           const savedSession = { subjectType, subjectId, id: result.data.activeSession.id, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
           await saveSessionLocally(savedSession);
           // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
@@ -828,8 +861,10 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     if (result.success && result.data) {
       setSessionId(result.data.id);
       setSessionActive(true);
+      setLiveReportingStartedAt(result.data.startedAt ? new Date(result.data.startedAt) : new Date());
+      setSessionFormat(deserializeMatchFormat(result.data.format));
       setError(null);
-      await saveSessionLocally({ subjectType, subjectId, id: result.data.id, coachId: "", startedAt: new Date().toISOString() });
+      await saveSessionLocally({ subjectType, subjectId, id: result.data.id, coachId: "", startedAt: result.data.startedAt ?? new Date().toISOString() });
     } else {
       setError(result.error ?? "Failed to start session");
     }
@@ -1165,6 +1200,46 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     return `Next: ${nextLabel}`;
   }, [clock.period, periodConfig, currentPeriodLabel, isOver]);
 
+  // --- ADR-0146: Live Reporting guardrails warning (bundle §03.5–§03.8, §05.7–§05.11) ---
+  // A wall-clock tick while a session is active — the 180/240/270-minute thresholds anchor to
+  // the SESSION's start, not the period clock, so this ticks even while the clock is paused or
+  // in a break (a forgotten paused session is exactly the stale-session failure mode).
+  const [wallNow, setWallNow] = useState(Date.now());
+  useEffect(() => {
+    if (!sessionActive) return;
+    const id = setInterval(() => setWallNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [sessionActive]);
+
+  const activeGuardrailWarning = useMemo<LiveReportingWarning | null>(() => {
+    if (!sessionActive || !liveReportingStartedAt) return null;
+    // The active period's own elapsed (for the period-overrun warning): only meaningful while
+    // the clock is running inside a playing period with a configured intended duration.
+    const activePeriodConfig = periodConfig.find((p) => p.key === clock.period);
+    const activePeriodElapsedMs =
+      clock.running && activePeriodConfig?.type === "playing" && activePeriodConfig.durationMs != null
+        ? getElapsedMs(clock, wallNow)
+        : null;
+    const warning = resolveLiveReportingWarning({
+      format: sessionFormat,
+      liveReportingStartedAt,
+      nowMs: wallNow,
+      activePeriodElapsedMs,
+      activePeriodDurationMs: activePeriodConfig?.durationMs ?? null,
+    });
+    // Bundle §03.15: a dismissed warning stays dismissed until the severity changes; the
+    // STRONG/EXPIRED tiers are persistent by design (§03.7/§05.10 — visible until the session ends).
+    if (
+      warning &&
+      dismissedWarningKind === warning.kind &&
+      warning.kind !== "STRONG" &&
+      warning.kind !== "EXPIRED"
+    ) {
+      return null;
+    }
+    return warning;
+  }, [sessionActive, liveReportingStartedAt, sessionFormat, clock, periodConfig, wallNow, dismissedWarningKind]);
+
   // --- Render ---
   if (loading) {
     return (
@@ -1235,6 +1310,16 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           void resolveNeedsReviewCommand(clientEventId, resolution);
         }}
       />
+
+      {/* ADR-0146: Live Reporting guardrails warning — non-destructive presentation only
+          (bundle §03.5: no clock stop, no period end, no player-minute change). */}
+      {activeGuardrailWarning && (
+        <LiveReportingWarningBanner
+          warning={activeGuardrailWarning}
+          onContinue={() => setDismissedWarningKind(activeGuardrailWarning.kind)}
+          onFinish={() => setConfirmDialog({ type: "end" })}
+        />
+      )}
 
       {/* Period control */}
       <div className="px-3 py-2 border-b border-[var(--border-soft)]">
@@ -1392,11 +1477,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         )}
       </div>
 
-      {/* Finish button */}
+      {/* Finish button — ADR-0146 bundle §05.6: a visible top-level action (never overflow/
+          settings/hidden), wording kept exactly. Danger-tinted since it ends the live session. */}
       <div className="px-3 py-3 border-t border-[var(--border-soft)]" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
         <button
           onClick={() => setConfirmDialog({ type: "end" })}
-          className="w-full py-3 text-sm text-[var(--text-muted)] hover:text-[var(--text-soft)] bg-[var(--surface-hover)]/50 hover:bg-[var(--surface-hover)] rounded-lg min-h-[48px] transition-colors"
+          className="w-full py-3 text-sm font-semibold text-[var(--danger)] bg-[var(--danger-subtle)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:brightness-105 active:brightness-95 rounded-lg min-h-[48px] transition-[filter]"
         >
           Finish live reporting
         </button>

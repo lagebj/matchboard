@@ -1,4 +1,5 @@
 import type { LiveMatchEventType, LiveSessionStatus, LiveEventCorrectionType, MatchPeriod, FairPlayCategory, FairPlayObservationStatus, FairPlayObservationSource, RotationSource } from "@/generated/prisma/client";
+import type { MatchFormatDefinition } from "./match-format";
 
 export type { LiveMatchEventType, LiveSessionStatus, LiveEventCorrectionType, MatchPeriod, FairPlayCategory, FairPlayObservationStatus, FairPlayObservationSource, RotationSource };
 
@@ -19,6 +20,10 @@ export interface LiveSessionInfo {
   lastHeartbeatAt: Date | null;
   /** Persisted match clock (ADR-0133 H2) — used to rehydrate the client after a reload. */
   clock: MatchClockState;
+  /** ADR-0146: the session's own frozen match-format snapshot, complete-or-null. The live
+   * reporting guardrails' contextual/period thresholds read this — never Season/Team config,
+   * which a later change could silently re-interpret an already-live match with. */
+  format: MatchFormatDefinition | null;
 }
 
 export interface LiveEventInput {

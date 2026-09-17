@@ -320,6 +320,9 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
               id: activeSession.id,
               coachId: activeSession.coachId,
               startedAt: activeSession.startedAt.toISOString(),
+              // ADR-0146: the session's frozen format snapshot, for the guardrails warning
+              // thresholds (contextual vs. legacy-180m) — League parity.
+              format: activeSession.format,
               // Persisted Event match clock (ADR-0140 parity with League's ADR-0133 H2) — the
               // client rehydrates from this on mount instead of starting at "before kickoff".
               clock: {

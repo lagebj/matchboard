@@ -321,6 +321,10 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
               id: activeSession.id,
               coachId: activeSession.coachId,
               startedAt: activeSession.startedAt.toISOString(),
+              // ADR-0146: the session's frozen format snapshot, for the guardrails warning
+              // thresholds (contextual vs. legacy-180m). Complete-or-null, same discipline
+              // the period-config resolution uses.
+              format: activeSession.format,
               // Persisted match clock (ADR-0133 H2) — the client rehydrates from this on mount
               // instead of starting at "before kickoff".
               clock: {
