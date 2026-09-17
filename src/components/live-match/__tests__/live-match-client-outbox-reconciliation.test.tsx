@@ -165,6 +165,25 @@ describe("LiveMatchClient outbox reconciliation against server-canonical events 
     expect(actions.endSession).not.toHaveBeenCalled();
   });
 
+  // 2026-09-17 CI regression (e2e/live-reporting.spec.ts "blocks finishing the session while
+  // events are still unsynced..."): a genuinely offline browser makes `actions.getRecentEvents`
+  // reject outright (a real network-level throw), not resolve `{ success: false }` the way the
+  // other test above simulates. Before this fix, that uncaught rejection propagated out of
+  // `reconcileOutboxWithServer` and aborted `handleEndSession` mid-flight — the function returned
+  // before ever reaching its own "could not sync" error, so nothing was shown at all and the
+  // e2e test's `await expect(page.getByText(/could not sync and would be lost/i))` timed out.
+  it("a rejected (not merely unsuccessful) getRecentEvents call while genuinely offline still surfaces the could-not-sync error, not a silent no-op", async () => {
+    wedgedCommandInStore("evt-offline");
+    const actions = makeActions([]);
+    (actions.getRecentEvents as ReturnType<typeof vi.fn>).mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await renderStarted(actions);
+    await openFinishDialogAndConfirm();
+
+    await waitFor(() => expect(screen.getByText(/1 event could not sync and would be lost/i)).toBeInTheDocument());
+    expect(actions.endSession).not.toHaveBeenCalled();
+  });
+
   it("reconciliation runs on the periodic event poll, healing a wedged command without a finish attempt", async () => {
     wedgedCommandInStore("evt-heal");
     const actions = makeActions([serverEvent("evt-heal")]);

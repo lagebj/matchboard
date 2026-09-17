@@ -668,7 +668,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     );
     if (unresolved.length === 0) return all;
 
-    const result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    // A genuinely offline browser rejects this call outright (a network-level throw, not a
+    // resolved `{ success: false }`) — caught here the same way `attemptSend` already catches
+    // `actions.recordEvent`'s own network failures, so a real offline finish attempt falls
+    // through to "statuses unchanged, retried later" instead of throwing out of this function
+    // entirely and silently aborting whatever called it (e.g. `handleEndSession`, mid-flight,
+    // before it ever reaches its own "could not sync" error).
+    let result: Awaited<ReturnType<typeof actions.getRecentEvents>>;
+    try {
+      result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    } catch {
+      return all;
+    }
     if (!result.success || !result.data) return all; // Offline/unreachable — statuses unchanged; retried later.
 
     const persistedClientEventIds = new Set(result.data.map((e) => e.clientEventId).filter((id): id is string => id != null));
@@ -808,7 +819,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     // true running score to that under-count on every 5s poll and every reconnect broadcast —
     // the coach saw goals "disappear". The recent-events display list is still capped downstream
     // (`mergedEvents` slices to 15).
-    const result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    //
+    // Called fire-and-forget (the 5s poll, mount, and reconnect below never await it) — a
+    // genuinely offline browser makes this reject outright (a network-level throw), and an
+    // uncaught rejection from a fire-and-forget call is still an unhandled promise rejection
+    // every 5 seconds for as long as the coach is offline. Caught the same way `attemptSend`
+    // already catches `actions.recordEvent`'s own network failures.
+    let result: Awaited<ReturnType<typeof actions.getRecentEvents>>;
+    try {
+      result = await actions.getRecentEvents(matchId, LIVE_RECONCILE_EVENT_LIMIT);
+    } catch {
+      return;
+    }
     if (result.success && result.data) {
       setRecentEvents(result.data);
       if (squad.length > 0) {
