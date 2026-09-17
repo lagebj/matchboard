@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   getLeaguePeriodConfig,
+  getLeagueMatchPeriodConfig,
   getEventPeriodConfig,
   buildPeriodConfigFromFormat,
   getCumulativePeriodOffsetsMs,
@@ -146,6 +147,57 @@ describe("buildPeriodConfigFromFormat", () => {
       config,
     );
     expect(next.period).toBe("FULL_TIME");
+  });
+});
+
+/**
+ * ADR-0146: League's period config once a match format is configured/resolved. Legacy/
+ * unconfigured behavior must stay byte-identical (getLeagueMatchPeriodConfig(matchType, null) ===
+ * getLeaguePeriodConfig(matchType)); a configured format must preserve CUP extra time exactly.
+ */
+describe("getLeagueMatchPeriodConfig", () => {
+  it("falls back to getLeaguePeriodConfig unchanged when no format is resolved (null)", () => {
+    expect(getLeagueMatchPeriodConfig("LEAGUE", null)).toBe(getLeaguePeriodConfig("LEAGUE"));
+    expect(getLeagueMatchPeriodConfig("CUP", null)).toBe(getLeaguePeriodConfig("CUP"));
+  });
+
+  it("uses the configured format for a non-CUP match, with no extra time", () => {
+    const config = getLeagueMatchPeriodConfig("LEAGUE", { numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 15 });
+    expect(config.map((p) => p.key)).toEqual(["BEFORE", "FIRST_HALF", "HALF_TIME", "SECOND_HALF", "FULL_TIME"]);
+    expect(config.find((p) => p.key === "FIRST_HALF")?.durationMs).toBe(30 * 60 * 1000);
+    expect(config.find((p) => p.key === "HALF_TIME")?.durationMs).toBe(15 * 60 * 1000);
+  });
+
+  it("inserts the existing fixed-duration extra time before FULL_TIME for a configured CUP match", () => {
+    const config = getLeagueMatchPeriodConfig("CUP", { numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 15 });
+    expect(config.map((p) => p.key)).toEqual([
+      "BEFORE",
+      "FIRST_HALF",
+      "HALF_TIME",
+      "SECOND_HALF",
+      "EXTRA_FIRST_HALF",
+      "EXTRA_HALF_TIME",
+      "EXTRA_SECOND_HALF",
+      "FULL_TIME",
+    ]);
+    // Extra time stays the existing fixed 10-minute halves -- not derived from the configured format.
+    expect(config.find((p) => p.key === "EXTRA_FIRST_HALF")?.durationMs).toBe(10 * 60 * 1000);
+    // Regular periods still use the configured format, not the legacy 25-minute default.
+    expect(config.find((p) => p.key === "FIRST_HALF")?.durationMs).toBe(30 * 60 * 1000);
+  });
+
+  it("a configured single-period (numberOfPeriods=1) CUP match still appends extra time before full time", () => {
+    const config = getLeagueMatchPeriodConfig("CUP", { numberOfPeriods: 1, periodDurationMinutes: 40, breakDurationMinutes: 0 });
+    expect(config.map((p) => p.key)).toEqual(["BEFORE", "FIRST_HALF", "EXTRA_FIRST_HALF", "EXTRA_HALF_TIME", "EXTRA_SECOND_HALF", "FULL_TIME"]);
+  });
+
+  it("ending the second half of a configured CUP match advances to extra time, not full time", () => {
+    const config = getLeagueMatchPeriodConfig("CUP", { numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 15 });
+    const next = advancePeriod(
+      { period: "SECOND_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 },
+      config,
+    );
+    expect(next.period).toBe("EXTRA_FIRST_HALF");
   });
 });
 

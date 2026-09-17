@@ -3,7 +3,7 @@ import { requirePageActorContext, requireGroupAccessFromContext } from "@/lib/au
 import { AuthorizationError } from "@/lib/auth";
 import { FollowLiveClient } from "@/components/live-match/follow-live-client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
-import { getEventPeriodConfig } from "@/lib/live-match/period-config";
+import { getEventPeriodConfig, buildPeriodConfigFromFormat } from "@/lib/live-match/period-config";
 import { getEffectiveEventSquadMatchTiming } from "@/lib/events/event-types";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +75,13 @@ export default async function EventFollowLivePage({ params }: EventFollowLivePag
 
   const session = await db.eventLiveMatchSession.findUnique({
     where: { eventMatchId, ...ctx.orgFilter.filter },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      formatNumberOfPeriods: true,
+      formatPeriodDurationMinutes: true,
+      formatBreakDurationMinutes: true,
+    },
   });
 
   if (!session || session.status !== "ACTIVE") {
@@ -131,7 +137,16 @@ export default async function EventFollowLivePage({ params }: EventFollowLivePag
     match.event,
     match.eventSquad ?? { numberOfHalvesOverride: null, matchDurationMinutesOverride: null, breakDurationMinutesOverride: null },
   );
-  const periodConfig = getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
+  // ADR-0146: the frozen Live Reporting snapshot is authoritative when present, matching the
+  // reporter's own client; otherwise falls back to the existing pre-live effective timing.
+  const periodConfig =
+    session.formatNumberOfPeriods != null && session.formatPeriodDurationMinutes != null && session.formatBreakDurationMinutes != null
+      ? buildPeriodConfigFromFormat({
+          numberOfPeriods: session.formatNumberOfPeriods,
+          periodDurationMinutes: session.formatPeriodDurationMinutes,
+          breakDurationMinutes: session.formatBreakDurationMinutes,
+        })
+      : getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
 
   return (
     <FollowLiveClient

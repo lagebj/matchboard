@@ -37,6 +37,25 @@ export function getLeaguePeriodConfig(matchType: MatchType): PeriodConfig[] {
 }
 
 /**
+ * League's period config once a match format is configured/resolved (ADR-0146) -- the frozen
+ * snapshot's periods/duration/break drive the live clock instead of the hardcoded 25-minute
+ * halves, while CUP extra time (a knockout mechanic outside the match-format domain's three
+ * timing values) is preserved exactly as `getLeaguePeriodConfig` already provides it: the same
+ * fixed 10-minute EXTRA_FIRST_HALF/EXTRA_HALF_TIME/EXTRA_SECOND_HALF periods, inserted before
+ * FULL_TIME. `format: null` (unconfigured legacy season/team/match) returns
+ * `getLeaguePeriodConfig(matchType)` unchanged -- byte-identical to pre-ADR-0146 behavior.
+ */
+export function getLeagueMatchPeriodConfig(matchType: MatchType, format: MatchFormatDefinition | null): PeriodConfig[] {
+  if (!format) return getLeaguePeriodConfig(matchType);
+
+  const base = buildPeriodConfigFromFormat(format);
+  if (matchType !== "CUP") return base;
+
+  const extraTime = LEAGUE_PERIOD_CONFIG.filter((p) => p.key.startsWith("EXTRA_"));
+  return [...base.slice(0, -1), ...extraTime, base[base.length - 1]!];
+}
+
+/**
  * Builds a `PeriodConfig[]` from a resolved `MatchFormatDefinition` (ADR-0146) -- the one shared
  * builder both League and Event use once a format is configured/resolved. `numberOfPeriods` is
  * `1` (single continuous "Match" period) or `2` (First half/Half time/Second half); see

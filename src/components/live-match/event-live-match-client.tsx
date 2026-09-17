@@ -3,7 +3,7 @@
 import { LiveMatchClient } from "@/components/live-match/live-match-client";
 import type { LiveMatchActions, SquadPlayer } from "@/components/live-match/live-match-client";
 import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
-import { getEventPeriodConfig } from "@/lib/live-match/period-config";
+import type { PeriodConfig } from "@/lib/live-match/period-config";
 import {
   startEventLiveSessionAction,
   heartbeatEventAction,
@@ -19,9 +19,9 @@ interface EventLiveMatchClientProps {
   teamName: string;
   opponentName: string;
   eventName: string;
-  matchDurationMinutes: number | null;
-  numberOfHalves: number;
-  breakDurationMinutes?: number | null;
+  // ADR-0146: resolved server-side (resolveEventMatchPeriodConfig) -- the frozen Live Reporting
+  // snapshot when one exists, else the existing pre-live effective timing.
+  periodConfig: PeriodConfig[];
   eventId: string;
 }
 
@@ -123,7 +123,7 @@ export function createEventActions(
   };
 }
 
-export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eventName, matchDurationMinutes, numberOfHalves, breakDurationMinutes, eventId }: EventLiveMatchClientProps) {
+export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eventName, periodConfig, eventId }: EventLiveMatchClientProps) {
   const realtime = useLiveRealtime(eventMatchId, "EVENT");
   const eventActions = createEventActions(eventMatchId, eventId, realtime);
 
@@ -133,7 +133,7 @@ export function EventLiveMatchClient({ eventMatchId, teamName, opponentName, eve
       teamName={teamName}
       opponentName={opponentName}
       contextLabel={eventName}
-      periodConfig={getEventPeriodConfig(matchDurationMinutes, numberOfHalves, breakDurationMinutes ?? null)}
+      periodConfig={periodConfig}
       actions={eventActions}
       markOwnTeam={false}
       subjectType="EVENT"
