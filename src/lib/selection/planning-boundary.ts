@@ -185,6 +185,22 @@ export type ReportStatusForLifecycle = "NONE" | "DRAFT" | "REPORTED" | "LOCKED";
  * ever technically "finalized" (finalizing the plan and completing the report are different
  * facts; a round can be finalized long before its match is played — see AGENTS.md "Fixtures
  * result display rules": "Finalized does not mean the match has been played or reported").
+ *
+ * That priority only applies once the match has actually kicked off, though — a report row's
+ * mere existence is not otherwise evidence the match was played. `markMatchAbsence()`
+ * (`src/lib/reports/report-mutations.ts`) legitimately seeds an empty DRAFT report *before*
+ * kickoff, purely to have somewhere to attach a pre-match absence note; nothing else prevents a
+ * report reaching REPORTED/LOCKED early either. Production incident 2026-09-17: a match still
+ * hours from kickoff displayed "Full time" for exactly this reason — a pre-kickoff absence note
+ * had seeded a DRAFT report, and report status won over the (correct) pre-match state
+ * unconditionally.
+ *
+ * The gate below is a real `startsAt <= now` instant check, deliberately NOT `hasPassed` —
+ * `hasPassed` (`hasLeagueMatchPassed()`) is a coarser Europe/Oslo *display-day* boundary (a same-
+ * day match reads as pre-match until the calendar day rolls over, by design — see
+ * `src/lib/match-date-utils.ts`), so it stays `false` for hours after a match that kicked off and
+ * was fully reported earlier the same day. Gating on it here would misclassify that extremely
+ * common same-day-report case right back to a pre-match state.
  */
 export function deriveMatchLifecycleStatus(params: {
   matchStatus: string;
@@ -198,18 +214,24 @@ export function deriveMatchLifecycleStatus(params: {
 }): MatchLifecycleStatus {
   const { matchStatus, reportStatus, hasPassed, isLive, roundStatus, planningClosedAt, startsAt } = params;
   const now = params.now ?? new Date();
+  const kickoff = toDate(startsAt);
+  const hasKickedOff = kickoff != null && kickoff <= now;
 
   if (matchStatus === "CANCELLED") return "cancelled";
-  if (reportStatus === "LOCKED") return "done";
-  if (reportStatus === "DRAFT" || reportStatus === "REPORTED") return "report_incomplete";
+  // Report status is authoritative only once the match has actually kicked off or started live —
+  // see the doc comment above. Before that, fall through to the ordinary live/played/planning
+  // signals below exactly as if no report existed yet.
+  if (hasKickedOff || isLive) {
+    if (reportStatus === "LOCKED") return "done";
+    if (reportStatus === "DRAFT" || reportStatus === "REPORTED") return "report_incomplete";
+  }
   if (isLive) return "live";
   if (hasPassed) return "played";
 
   if (roundStatus === "FINALIZED") return "planning_closed";
   const closedAt = toDate(planningClosedAt);
   if (closedAt) return "planning_closed";
-  const kickoff = toDate(startsAt);
-  if (kickoff && kickoff <= now) return "planning_closed";
+  if (hasKickedOff) return "planning_closed";
 
   return "planning_open";
 }
