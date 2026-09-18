@@ -42,5 +42,6 @@ Read this file before planning or changing code in a domain area. Then load only
 - `docs/arr/` — verified structural mismatches and implementation residue that still needs explicit handling.
 - `SECURITY.md` — security posture, app controls, and provider guidance.
 - `docs/domain/terminology.md` and adjacent glossary docs — approved product vocabulary.
+- `docs/VERSIONING.md` (ADR-0059) — mandatory application version-bump classification and workflow; see `docs/development/coding-agent-working-session.md`'s "Version management" section.
 
 If a task changes behavior, schema, security posture, or UX semantics, update the relevant files together and keep them aligned before completion.

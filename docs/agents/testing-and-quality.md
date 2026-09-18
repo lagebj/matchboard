@@ -26,9 +26,14 @@ Before completion,
 - confirm there are no generated junk files or untracked artifacts that should not be kept
 - ensure no secrets or sensitive values are committed
 
+## Version management
+
+A change is not complete until it has been classified against `docs/VERSIONING.md` and, if `patch` or `minor`, bumped with `npm run version:patch` / `npm run version:minor`. See `docs/development/coding-agent-working-session.md`'s "Version management" section for the required steps. `npm run version:verify` checks version format only — it does not check whether a bump was warranted.
+
 ## Relevant references
 
 - `docs/development/coding-agent-working-session.md`
+- `docs/VERSIONING.md` (ADR-0059)
 - `README.md`
 - `features/matchboard.feature`
 - `SECURITY.md`
