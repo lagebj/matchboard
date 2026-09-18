@@ -80,11 +80,13 @@ describe("PlayerRosterTable", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("p1");
   });
 
-  it("marks the selected row with aria-pressed and aria-selected", () => {
+  it("marks the selected row with aria-pressed", () => {
     render(<PlayerRosterTable rows={[makeRow()]} selectedPlayerId="p1" onSelectPlayer={vi.fn()} />);
     const row = screen.getByRole("button", { name: /Sander Berg/ });
     expect(row).toHaveAttribute("aria-pressed", "true");
-    expect(row).toHaveAttribute("aria-selected", "true");
+    // `aria-selected` is invalid on `role="button"` (axe `aria-allowed-attr`) — `aria-pressed`
+    // alone is the correct toggle-state signal here.
+    expect(row).not.toHaveAttribute("aria-selected");
   });
 
   it("is keyboard-reachable (tabIndex 0), not a bare unfocusable <tr>", () => {

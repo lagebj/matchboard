@@ -544,6 +544,14 @@ starting with Phase 4.
     "roster" (`PlayerRosterState`, `PlayerRosterFilter`, `?roster=`) per this repo's own convention
     that internal identifiers translate at the product boundary; the one visible/accessible control
     label instead reads "Player status".
+  - **Follow-up (2026-09-18, ADR-0147):** §19's own "top-level identity/header/summary
+    composition only... every existing tab... frozen" scope statement for Match Detail was always
+    deliberately narrow, with the deferred lifecycle-aware information architecture explicitly
+    named as later work. ADR-0147 is that later pass — Match Details' tab set now changes with the
+    match's real lifecycle (`BEFORE`/`AFTER`), replacing the flat `Squad | Tactics | Rotations |
+    After match | Opponent context | Review` set this §19 entry describes. This §19 entry remains
+    the accurate historical record of the Phase 4 pass itself; see ADR-0147 for the current tab
+    set and read model.
 
 ## References
 

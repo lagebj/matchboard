@@ -582,6 +582,14 @@ Verified: full `npm run validate` (14/14), 7 new tests for `buildMatchViewModel(
 against the seeded Fjordvik FK dataset confirming the Squad (10 planned: 8 Core / 2 Support) and
 Preparation (1/3 complete) widgets render correctly above the unchanged Squad tab.
 
+**Follow-up (2026-09-18, ADR-0147):** the deliberately narrow scope above ("every existing tab...
+frozen") was the Phase 4 pass's own boundary, not a final state — ADR-0147 is the deferred
+lifecycle-aware information-architecture pass this entry always implied was still to come. Match
+Details' tab set is now `BEFORE`/`AFTER`-lifecycle-aware (replacing the flat six-tab set this entry
+describes), `match-detail.tsx` itself is deleted (zero remaining consumers after the repoint), and
+Post-Match Report gained real tab navigation for the first time. This §19 entry remains the
+accurate historical record of the Phase 4 pass; see ADR-0147 for the current architecture.
+
 ## 20. Phase 4 — Players production migration (2026-09-12)
 
 Fifth of the eight Phase 4 routes. Unlike the previous four, this pass concludes with a
