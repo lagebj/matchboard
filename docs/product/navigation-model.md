@@ -1,12 +1,14 @@
 # Navigation Model
 
-> **Status:** This document is a historical product framing reference. The canonical navigation
-> model is defined in `AGENTS.md`. Adaptive/compact composition rules are in
+> **Status:** This document is the canonical navigation model. Root `AGENTS.md` is deliberately a
+> compact bootstrap (PR #576) and does not repeat this list — do not restore it there; keep this
+> file (and `scripts/check-docs.mjs`'s `checkPrimaryNavConsistency` check against it) as the one
+> source agents load for navigation specifics. Adaptive/compact composition rules are in
 > `docs/product/adaptive-interaction-design.md` and **ADR-0124**.
 
-## Primary navigation
+## Primary navigation (5 items, in this order)
 
-The canonical primary navigation (from `AGENTS.md`) has five items in this order — the Today/League/Events/Players/More information architecture (UI/UX programme Phase 2.4, `.matchboard-work/ux-branding-language-ui/PROGRAMME.md` §6, gitignored working bundle):
+The primary navigation has five items in this order — the Today/League/Events/Players/More information architecture (UI/UX programme Phase 2.4, `.matchboard-work/ux-branding-language-ui/PROGRAMME.md` §6, gitignored working bundle):
 
 1. **Today** (`/o/{orgSlug}/today`) — next action, setup progress, blockers, urgent reviews and upcoming work. Renders the same command-centre content previously presented as "Assistant" — the underlying data and component are unchanged, only the canonical route and nav label.
 2. **League** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. League teams (`/o/{orgSlug}/teams`) are reachable from a link on this page, not their own sidebar item.

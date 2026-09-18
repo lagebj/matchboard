@@ -148,27 +148,34 @@ function checkADRSupersession() {
 }
 
 // AIP-7 (Architecture Integrity Programme): prevents the exact drift found and fixed during
-// this phase — AGENTS.md's "Primary navigation" list and features/matchboard.feature's
+// this phase — the canonical "Primary navigation" list and features/matchboard.feature's
 // "Primary navigation contains exactly N items" scenario silently fell out of sync after a
 // navigation model change (Phase 2.4), and nothing caught it automatically. Compares only the
-// ordered list of item *labels* (Today, League, Events, ...), not exact route strings — AGENTS.md
-// writes org-scoped routes (`/o/{orgSlug}/today`) while the feature file intentionally uses bare
-// routes (`/today`) as its own established convention, so route-string comparison would be a
-// false-positive trap, not a real consistency signal. Label order/set drifting is the actual
-// failure mode this guards against.
+// ordered list of item *labels* (Today, League, Events, ...), not exact route strings — the
+// canonical doc writes org-scoped routes (`/o/{orgSlug}/today`) while the feature file
+// intentionally uses bare routes (`/today`) as its own established convention, so route-string
+// comparison would be a false-positive trap, not a real consistency signal. Label order/set
+// drifting is the actual failure mode this guards against.
+//
+// The canonical list moved from AGENTS.md to docs/product/navigation-model.md in PR #576 (the
+// "compact agent instruction bootstrap" refactor, 2026-09-14), which gutted AGENTS.md down to a
+// small pointer file and relocated all detailed guidance elsewhere — but this check was not
+// updated at the time, so it spent one full slice (until this comment) unconditionally failing
+// with "could not locate the section", never actually exercising the drift comparison below it.
+// If AGENTS.md is ever compacted again, check for a similar silent check-script staleness.
 function checkPrimaryNavConsistency() {
   const issues = [];
-  const agentsPath = join(REPO_ROOT, "AGENTS.md");
+  const navModelPath = join(REPO_ROOT, "docs/product/navigation-model.md");
   const featurePath = join(REPO_ROOT, "features/matchboard.feature");
-  if (!existsSync(agentsPath) || !existsSync(featurePath)) return issues;
+  if (!existsSync(navModelPath) || !existsSync(featurePath)) return issues;
 
-  const agentsContent = readFileSync(agentsPath, "utf-8");
-  const agentsSection = agentsContent.match(
+  const navModelContent = readFileSync(navModelPath, "utf-8");
+  const navModelSection = navModelContent.match(
     /Primary navigation \(\d+ items?, in this order\)[\s\S]*?(?=\n##)/,
   )?.[0];
-  if (!agentsSection) {
+  if (!navModelSection) {
     issues.push({
-      file: "AGENTS.md",
+      file: "docs/product/navigation-model.md",
       line: 0,
       message: "Could not locate the \"Primary navigation (N items, in this order)\" section — " +
         "check-primary-nav-consistency's extraction pattern may need updating alongside any " +
@@ -176,7 +183,7 @@ function checkPrimaryNavConsistency() {
     });
     return issues;
   }
-  const agentsLabels = [...agentsSection.matchAll(/^\d+\.\s+\*\*(\w+)\*\*/gm)].map((m) => m[1]);
+  const navModelLabels = [...navModelSection.matchAll(/^\d+\.\s+\*\*(\w+)\*\*/gm)].map((m) => m[1]);
 
   const featureContent = readFileSync(featurePath, "utf-8");
   const featureSection = featureContent.match(
@@ -196,14 +203,14 @@ function checkPrimaryNavConsistency() {
     .map((m) => m[1])
     .filter((label) => label !== "item");
 
-  if (JSON.stringify(agentsLabels) !== JSON.stringify(featureRows)) {
+  if (JSON.stringify(navModelLabels) !== JSON.stringify(featureRows)) {
     issues.push({
       file: "features/matchboard.feature",
       line: 0,
       message:
-        `Primary navigation item list does not match AGENTS.md. AGENTS.md: [${agentsLabels.join(", ")}]. ` +
+        `Primary navigation item list does not match docs/product/navigation-model.md: [${navModelLabels.join(", ")}]. ` +
         `features/matchboard.feature: [${featureRows.join(", ")}]. Update whichever is stale — ` +
-        "AGENTS.md is canonical (see docs/product/navigation-model.md).",
+        "docs/product/navigation-model.md is canonical.",
     });
   }
 
