@@ -554,6 +554,41 @@ export async function cancelMatchAction(matchId: string, cancelledReason?: strin
   revalidatePath(`/o/${ctx.organisationSlug}/rounds`);
 }
 
+/**
+ * Match Details "Team notes" (`03_MATCH_DETAILS_BEFORE_MATCH_SPEC.md` "Secondary row"). `Match`
+ * already has a plain `notes` field; there was previously no dedicated editor for it (the old
+ * `match-detail.tsx` only ever rendered it read-only), so the golden's "Add note" action had no
+ * real mutation to call. This is that mutation — same actor/tenant/group-access gate as every
+ * other match action here, not a new authorization pattern.
+ */
+export async function updateMatchNotesAction(
+  matchId: string,
+  notes: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+
+  await requireMatchOrgAccess(matchId, ctx.orgFilter);
+  await requireMatchGroupAccess(ctx, matchId);
+
+  const trimmed = notes.trim();
+  if (trimmed.length > 2000) {
+    return { success: false, error: "Notes must be 2000 characters or fewer." };
+  }
+
+  // Ownership/tenancy is already verified by `requireMatchOrgAccess` above — `update()`'s
+  // `where` only accepts unique fields, so it targets `id` alone here, matching
+  // `updateMatchAction`'s own established pattern in this file.
+  await db.match.update({
+    where: { id: matchId },
+    data: { notes: trimmed.length > 0 ? trimmed : null },
+  });
+
+  revalidatePath(`/o/${ctx.organisationSlug}/matches/${matchId}`);
+  return { success: true };
+}
+
 export async function reopenMatchAction(matchId: string) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);

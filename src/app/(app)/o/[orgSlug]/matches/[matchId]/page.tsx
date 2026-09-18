@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { MatchDetail } from "@/components/matches/match-detail";
+import { MatchDetailShell } from "@/components/matches/match-detail/match-detail-shell";
 import { getActiveCoachingIntentForMatch } from "@/lib/coaching/coaching-intent";
 import { requirePageActorContext, hasGroupAccess } from "@/lib/auth/actor-context";
 import { getOpponentHistory } from "@/lib/audit/opponent-history";
@@ -10,6 +9,12 @@ import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
 import { getMatchFormatOverrideState } from "@/lib/matches/match-format-override";
 import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
+import { canStartLiveReporting } from "@/lib/matches/can-live-report";
+import { deriveMatchDetailSurfaceState } from "@/lib/matches/match-detail-view-model";
+import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
+import { formatKickoffTime } from "@/lib/date-utils";
+import type { BeforeMatchLineupSummary, BeforeMatchSquadRow } from "@/components/matches/match-detail/before-match-planning-area";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +32,7 @@ export default async function MatchDetailPage({
   const match = await db.match.findUnique({
     where: { id: matchId, ...orgWhere },
     include: {
-      team: { select: { id: true, name: true, footballGroupId: true } },
+      team: { select: { id: true, name: true, footballGroupId: true, kitColor: true } },
       matchRound: { select: { id: true, name: true, status: true, leagueSeasonId: true, leagueSeason: { select: { id: true, startDate: true, endDate: true } } } },
       selections: {
         where: { status: { in: ["DRAFT", "FINALIZED"] } },
@@ -76,6 +81,8 @@ export default async function MatchDetailPage({
     planningClosedAt: match.planningClosedAt,
     startsAt: match.startsAt,
   });
+  const surfaceState = deriveMatchDetailSurfaceState(lifecycleStatus);
+
   // "Follow live" is a read-only viewer entry point (ADR-0086 amendment) — gated server-side
   // on the same GroupAccess (GROUP_COACH or GROUP_VIEWER) chain the realtime ticket route
   // itself enforces independently. Hiding the button when false is a UX convenience, not the
@@ -158,12 +165,21 @@ export default async function MatchDetailPage({
     orderBy: [{ severity: "desc" }],
   });
 
-  // Touchline Design Atlas (ADR-0136): a "Preparation" checklist needs to know whether a
-  // lineup exists for this match. No relation is already loaded here, so this is one small,
-  // cheap, indexed existence check (single row by matchId) -- not the unbounded-tree class of
-  // query that caused Today's own performance issue (see docs/domain/touchline-atlas-provenance.md
-  // §17). Lineup content itself is untouched -- Phase 5 scope, not read or rendered here.
-  const lineup = await db.matchLineup.findFirst({ where: { matchId, ...orgWhere }, select: { id: true } });
+  // Lineup existence + formation/assignment summary (Touchline Design Atlas, ADR-0136, widened
+  // for the exact-goldens Match Details programme's "Planned lineup"/"Final lineup" summary
+  // widgets) — one bounded, single-match query, not the unbounded-tree class that caused Today's
+  // own performance issue (docs/domain/touchline-atlas-provenance.md §17). Lineup slot/pitch
+  // detail itself is still only rendered by `MatchTacticsPanel` on the dedicated Lineup/Tactics
+  // tab, not read further here.
+  const lineup = await db.matchLineup.findFirst({
+    where: { matchId, ...orgWhere },
+    select: {
+      id: true,
+      benchPlayerIds: true,
+      formation: { select: { name: true } },
+      assignments: { select: { slotId: true, playerId: true } },
+    },
+  });
 
   const warningData = warnings.map((w) => ({
     id: w.id,
@@ -208,70 +224,126 @@ export default async function MatchDetailPage({
     }
   }
 
+  // Bounded, surface-scoped read model (`08_COMPONENT_AND_ROUTE_ARCHITECTURE.md`: "Do not fetch
+  // the complete post-match graph for an upcoming match.") — only queried once the match has
+  // actually moved into the AFTER composition.
+  const afterData =
+    surfaceState === "AFTER"
+      ? await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, orgFilter: ctx.orgFilter })
+      : undefined;
+
+  const allSelections = [...selectionData, ...helperSelectionData];
+
+  const lineupSummary: BeforeMatchLineupSummary = lineup
+    ? {
+        formationName: lineup.formation?.name ?? "Custom formation",
+        filledCount: lineup.assignments.filter((a) => a.playerId).length,
+        totalSlots: lineup.assignments.length,
+      }
+    : null;
+
+  const startingPlayerIds = new Set(lineup?.assignments.filter((a) => a.playerId).map((a) => a.playerId as string) ?? []);
+  const benchPlayerIds = new Set((lineup?.benchPlayerIds as string[] | undefined) ?? []);
+  const squadRows: BeforeMatchSquadRow[] = allSelections.map((s) => ({
+    playerId: s.playerId,
+    playerName: s.playerName,
+    primaryPosition: s.primaryPosition,
+    secondaryPosition: s.secondaryPosition,
+    absenceReason: s.absenceReason,
+    lineupStatus: !lineup
+      ? null
+      : startingPlayerIds.has(s.playerId)
+        ? "STARTING"
+        : benchPlayerIds.has(s.playerId)
+          ? "BENCH"
+          : "NOT_IN_LINEUP",
+  }));
+
+  // Header/meta presentation — reused, never forked (ADR-0125).
+  const headerIsHome = match.homeAway === "HOME";
+  const headerHasScore = postMatchReport?.homeGoals != null && postMatchReport?.awayGoals != null;
+  const headerOwnGoals = !headerHasScore ? null : headerIsHome ? (postMatchReport?.homeGoals ?? null) : (postMatchReport?.awayGoals ?? null);
+  const headerOpponentGoals = !headerHasScore ? null : headerIsHome ? (postMatchReport?.awayGoals ?? null) : (postMatchReport?.homeGoals ?? null);
+  const headerOutcome =
+    headerOwnGoals == null || headerOpponentGoals == null
+      ? null
+      : headerOwnGoals > headerOpponentGoals
+        ? "WON"
+        : headerOwnGoals < headerOpponentGoals
+          ? "LOST"
+          : "DRAWN";
+
+  const presentation = buildMatchPresentation({
+    id: match.id,
+    teamName: match.team.name,
+    opponentName: match.opponent,
+    isHome: headerIsHome,
+    kickoffAt: match.startsAt,
+    lifecycleStatus,
+    ownGoals: headerOwnGoals,
+    opponentGoals: headerOpponentGoals,
+    outcome: headerOutcome,
+    cancelledReason: match.status === "CANCELLED" ? match.cancelledReason : null,
+  });
+
+  const dateLabel = match.startsAt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  const kickoffTimeLabel = formatKickoffTime(match.startsAt);
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
-        <Link href="/fixtures" className="hover:text-zinc-50 transition-colors">
-          Matches
-        </Link>
-        <span>/</span>
-        <span className="text-zinc-100">
-          {match.team.name} vs {match.opponent}
-        </span>
-      </div>
-      <MatchDetail
-        match={{
-          id: match.id,
-          teamId: match.teamId,
-          teamName: match.team.name,
-          opponent: match.opponent,
-          startsAt: match.startsAt,
-          homeAway: match.homeAway,
-          matchType: match.matchType,
-          gameFormat: match.gameFormat,
-          squadSize: match.squadSize,
-          matchRoundId: match.matchRoundId,
-          matchRoundName: match.matchRound.name,
-          matchRoundStatus: match.matchRound.status,
-          matchFit: match.matchFit,
-          notes: match.notes,
-          matchStatus: match.status,
-          cancelledAt: match.cancelledAt,
-          cancelledReason: match.cancelledReason,
-          postMatchStatus: postMatchReport?.status ?? undefined,
-          homeScore: postMatchReport?.homeGoals ?? null,
-          awayScore: postMatchReport?.awayGoals ?? null,
-          lifecycleStatus,
-          selections: [...selectionData, ...helperSelectionData],
-          warnings: warningData,
-          coachingIntent: activeIntent?.category ?? undefined,
-          coachingIntentId: matchIntent[0]?.id ?? undefined,
-          inheritedIntentScope: activeIntent && activeIntent.scopeType !== "MATCH"
-            ? (activeIntent.scopeType === "MATCH_ROUND" ? "round" : "league season")
-            : undefined,
-          opponentTeamId: match.opponentTeamId ?? null,
-          footballGroupId: match.team.footballGroupId,
-          opponentHistory,
-          opponentConcernCount,
-          opponentLatestConcernDate,
-          currentMatchStyleTags,
-          phaseStartDate: match.matchRound.leagueSeason?.startDate,
-          phaseEndDate: match.matchRound.leagueSeason?.endDate,
-           isLive,
-           canFollowLive,
-           plannedRotation,
-           isCancelled: match.status === "CANCELLED",
-           hasLineup: Boolean(lineup),
-           matchFormatState: matchFormatState
-             ? {
-                 matchOverride: matchFormatState.matchOverride,
-                 inheritedFormat: matchFormatState.inheritedFormat,
-                 liveReportingStarted: matchFormatState.liveReportingStarted,
-                 frozenFormat: matchFormatState.frozenFormat,
-               }
-             : undefined,
-         }}
-      />
-    </div>
+    <MatchDetailShell
+      surfaceState={surfaceState}
+      matchId={match.id}
+      teamId={match.teamId}
+      teamName={match.team.name}
+      opponent={match.opponent}
+      ownKitColor={match.team.kitColor}
+      presentation={presentation}
+      lifecycleStatus={lifecycleStatus}
+      isCancelled={match.status === "CANCELLED"}
+      cancelledReason={match.cancelledReason}
+      isLive={isLive}
+      canLiveReport={canStartLiveReporting({
+        lifecycleStatus,
+        isCancelled: match.status === "CANCELLED",
+        isLive,
+      })}
+      canFollowLive={canFollowLive}
+      venue={match.homeAway}
+      matchType={match.matchType}
+      gameFormat={match.gameFormat}
+      matchFit={match.matchFit}
+      dateLabel={dateLabel}
+      kickoffTimeLabel={kickoffTimeLabel}
+      roundLabel={null}
+      matchRoundId={match.matchRoundId}
+      matchRoundName={match.matchRound.name}
+      notes={match.notes}
+      selections={allSelections}
+      warnings={warningData}
+      lineupSummary={lineupSummary}
+      squadRows={squadRows}
+      plannedRotation={plannedRotation}
+      opponentTeamId={match.opponentTeamId ?? null}
+      opponentHistory={opponentHistory}
+      opponentConcernCount={opponentConcernCount}
+      opponentLatestConcernDate={opponentLatestConcernDate}
+      currentMatchStyleTags={currentMatchStyleTags}
+      coachingIntent={activeIntent?.category ?? undefined}
+      coachingIntentId={matchIntent[0]?.id ?? undefined}
+      matchFormatState={
+        matchFormatState
+          ? {
+              matchOverride: matchFormatState.matchOverride,
+              inheritedFormat: matchFormatState.inheritedFormat,
+              liveReportingStarted: matchFormatState.liveReportingStarted,
+              frozenFormat: matchFormatState.frozenFormat,
+            }
+          : undefined
+      }
+      afterData={afterData}
+      phaseStartDate={match.matchRound.leagueSeason?.startDate}
+      phaseEndDate={match.matchRound.leagueSeason?.endDate}
+      startsAt={match.startsAt}
+    />
   );
 }

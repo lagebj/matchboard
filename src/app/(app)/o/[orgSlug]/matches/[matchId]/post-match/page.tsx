@@ -1,18 +1,16 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { PostMatchPage } from "@/components/assistant/post-match-page";
-import { LegacyMatchFeedbackSection } from "@/components/matches/legacy-match-feedback-section";
-import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
-import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
 import { getMatchCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { computeGoalAttributionGap } from "@/lib/reports/report-mutations";
 import { getMatchTimingReviewItems, getOutOfRangeEventCount } from "@/lib/live-match/timing-review";
 import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
-import { ObservationSection } from "@/components/opponents/observation-section";
-import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { ALL_OBSERVATION_CODES } from "@/lib/evidence/observation-vocabulary";
+import { PostMatchReportPageShell } from "@/components/matches/match-detail/post-match-report-page-shell";
+import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
+import { derivePostMatchReportSurfaceState } from "@/lib/matches/match-detail-tabs";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +35,8 @@ export default async function PostMatchRoute({ params }: PageProps) {
       opponent: true,
       homeAway: true,
       matchFit: true,
-      team: { select: { id: true, name: true } },
+      startsAt: true,
+      team: { select: { id: true, name: true, kitColor: true } },
       selections: {
         where: { status: "FINALIZED" },
         select: {
@@ -300,31 +299,82 @@ export default async function PostMatchRoute({ params }: PageProps) {
     observedAt: o.observedAt.toISOString(),
   }));
 
+  // Header/score orientation — reused, never forked (ADR-0125). Post-Match Report's own surface
+  // state (draft/completed) drives phase display here, not the root Match Details lifecycle
+  // vocabulary — see `02_PRODUCT_MODEL_AND_LIFECYCLE.md` "Surface B".
+  const isHome = match.homeAway === "HOME";
+  const ownGoals = initialReport ? (isHome ? initialReport.homeGoals : initialReport.awayGoals) : null;
+  const opponentGoals = initialReport ? (isHome ? initialReport.awayGoals : initialReport.homeGoals) : null;
+  const outcome =
+    ownGoals == null || opponentGoals == null
+      ? null
+      : ownGoals > opponentGoals
+        ? "WON"
+        : ownGoals < opponentGoals
+          ? "LOST"
+          : "DRAWN";
+
+  const surfaceState = derivePostMatchReportSurfaceState(initialReport?.status);
+  const presentation = buildMatchPresentation({
+    id: match.id,
+    teamName: match.team.name,
+    opponentName: match.opponent,
+    isHome,
+    kickoffAt: match.startsAt,
+    lifecycleStatus: initialReport?.status === "LOCKED" ? "done" : initialReport ? "report_incomplete" : "played",
+    ownGoals,
+    opponentGoals,
+    outcome,
+  });
+
+  // Bounded, surface-scoped read model — shared with Match Details AFTER
+  // (`get-match-detail-after-data.ts`), so Summary/Timeline/attendance/aggregate facts are
+  // identical wherever they appear, never a second interpretation of the same report.
+  const afterData = await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, orgFilter: ctx.orgFilter });
+
+  const completedByLabel =
+    initialReport?.status === "LOCKED" && initialReport.completedBy
+      ? `Completed ${initialReport.completedAt ? new Date(initialReport.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""} by ${initialReport.completedBy}`
+      : null;
+
   return (
-    // Touchline island (theme-aware, no longer dark-pinned — ADR-0134 Phase 7). PostMatchPage
-    // island-wraps its own root too (also rendered from other contexts) — nested `.touchline` is
-    // idempotent. The sibling observation/feedback/reflection/evidence sections below are not
-    // self-wrapped and rely on this page-level island.
-    <div className="touchline flex flex-col gap-4">
-      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} goalAttributionGap={goalAttributionGap} timingReview={timingReview} outOfRangeEventCount={outOfRangeEventCount} />
-      <ObservationSection
-        matchId={matchId}
-        existingObservation={existingObservation}
-        isLocked={initialReport?.status === "LOCKED"}
-        matchFit={match.matchFit}
-      />
-      {/* Touchline Design Atlas (ADR-0136 Phase 5, §H): team reflection before player
-          observations, matching the golden's order (5 → 6) -- Event's own report panel already
-          rendered these in this order; League's had them reversed. */}
-      <TeamReflectionSection matchId={matchId} reflection={reflectionData} />
-      <FootballObservationSection
-        matchId={matchId}
-        players={playerOptions}
-        existingObservations={footballObservationData}
-        isLocked={initialReport?.status === "LOCKED"}
-      />
-      <LegacyMatchFeedbackSection feedback={feedbackData} players={playerOptions} />
-      <MatchCombinationEvidencePanel evidence={combinationEvidence} players={playerOptions} />
-    </div>
+    <PostMatchReportPageShell
+      matchId={matchId}
+      breadcrumbHref={`/o/${orgSlug}/matches/${matchId}`}
+      title={`${match.team.name} vs ${match.opponent}`}
+      surfaceState={surfaceState}
+      completedByLabel={completedByLabel}
+      presentation={presentation}
+      ownKitColor={match.team.kitColor}
+      afterData={afterData}
+      reviewHref={`/o/${orgSlug}/matches/${matchId}/review`}
+      matchDetailHref={`/o/${orgSlug}/matches/${matchId}`}
+      ownTeamName={match.team.name}
+      opponentName={match.opponent}
+      postMatchPageProps={{
+        matchId,
+        initialReport,
+        allPlayers: allPlayerOptions,
+        hasFinalizedSelections: match.selections.length > 0,
+        goalAttributionGap,
+        timingReview,
+        outOfRangeEventCount,
+      }}
+      observationSectionProps={{
+        matchId,
+        existingObservation,
+        isLocked: initialReport?.status === "LOCKED",
+        matchFit: match.matchFit,
+      }}
+      teamReflectionProps={{ matchId, reflection: reflectionData }}
+      footballObservationProps={{
+        matchId,
+        players: playerOptions,
+        existingObservations: footballObservationData,
+        isLocked: initialReport?.status === "LOCKED",
+      }}
+      legacyFeedbackProps={{ feedback: feedbackData, players: playerOptions }}
+      combinationEvidenceProps={{ evidence: combinationEvidence, players: playerOptions }}
+    />
   );
 }
