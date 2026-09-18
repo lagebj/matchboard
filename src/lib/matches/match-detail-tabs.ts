@@ -22,7 +22,6 @@ export type MatchDetailSurfaceState = "BEFORE" | "AFTER";
 
 export type MatchDetailTabKey =
   | "overview"
-  | "lineup"
   | "tactics"
   | "rotations"
   | "opponent-context"
@@ -32,10 +31,16 @@ export type MatchDetailTabKey =
   | "after-match"
   | "history";
 
+/**
+ * Post-launch correction (2026-09-18): "Lineup" and "Tactics" are no longer separate before-match
+ * tabs — a coach reported the Overview "Planned lineup" region as effectively showing no lineup
+ * (a formation-name/filled-count summary, not the real pitch), and asked for the real pitch editor
+ * and the (by then thin — coaching intent + match format only) Tactics content to live directly
+ * on Overview instead of two more tab clicks away. Overview now fully absorbs both — there is no
+ * remaining reason for either as a separate before-match tab.
+ */
 const BEFORE_MATCH_TABS: TabItem<MatchDetailTabKey>[] = [
   { key: "overview", label: "Overview" },
-  { key: "lineup", label: "Lineup" },
-  { key: "tactics", label: "Tactics" },
   { key: "rotations", label: "Rotations" },
   { key: "opponent-context", label: "Opponent context" },
   { key: "notes", label: "Notes" },
@@ -62,6 +67,12 @@ const AFTER_MATCH_DEFAULT_TAB: MatchDetailTabKey = "overview";
 const LEGACY_TAB_ALIASES: Partial<Record<string, MatchDetailTabKey>> = {
   squad: "overview",
   opponent: "opponent-context",
+  // "lineup" (before-match) folded into Overview 2026-09-18 — see BEFORE_MATCH_TABS' own comment.
+  // Left unmapped here deliberately: "tactics" still resolves naturally to Overview via the
+  // "no match in this surface's tab set" fallback below, without an explicit alias, because
+  // "tactics" remains a real, different tab for the AFTER surface and an alias would incorrectly
+  // force it to Overview there too.
+  lineup: "overview",
 };
 
 export function getMatchDetailTabs(surfaceState: MatchDetailSurfaceState): TabItem<MatchDetailTabKey>[] {

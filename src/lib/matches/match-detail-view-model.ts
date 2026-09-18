@@ -232,6 +232,12 @@ export interface MatchCanonicalLiveEventFact {
   id: string;
   eventType: string;
   playerName: string | null;
+  /** The *client-generated* id this event was recorded under — `correctsEventId` on a
+   * `SCORER_SET`/`ASSIST_SET` annotation event references the target goal's `clientEventId`, not
+   * its database `id` (confirmed against real production data: `LiveMatchEvent.id` and
+   * `.clientEventId` are unrelated string formats). Required for correct scorer/assist pairing —
+   * see `buildMatchTimelineFromLiveEvents()`. */
+  clientEventId: string | null;
   correctsEventId: string | null;
   minuteLabel: string | null;
   /** Used only to pair ROTATION_OUT with its ROTATION_IN within the same existing tolerance
@@ -245,13 +251,45 @@ export interface MatchCanonicalLiveEventFact {
 const ROTATION_PAIR_WINDOW_MS = 30_000;
 
 /**
+ * Real per-event chronological position within the match, robust to a missing coordinator
+ * `sequence` (ARR-0045: a row written via the still-partially-active legacy direct-HTTP path has
+ * no coordinator-assigned sequence and sorts unpredictably — confirmed against real production
+ * data: an entire match's `ROTATION_OUT`/`ROTATION_IN` pairs, all missing `sequence`, were pushed
+ * to the very end of the list by a plain `ORDER BY sequence ASC` — Postgres/Prisma default NULLS
+ * LAST — reading as "grouped by type" instead of interleaved by time). Orders by the event's own
+ * period + within-period elapsed time, which every rendered event kind carries, rather than
+ * trusting `sequence` as the primary key. `PERIOD_START` sorts first and `PERIOD_END` sorts last
+ * within its period (neither carries `matchSeconds`); `MATCH_END` sorts after everything.
+ */
+function timelineSortKey(e: MatchCanonicalLiveEventFact): readonly [number, number] {
+  const period = e.period ?? Number.MAX_SAFE_INTEGER;
+  if (e.eventType === "MATCH_END") return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
+  if (e.eventType === "PERIOD_START") return [period, -1];
+  if (e.eventType === "PERIOD_END") return [period, Number.MAX_SAFE_INTEGER];
+  return [period, e.matchSeconds ?? 0];
+}
+
+/**
  * Builds the timeline from persisted canonical `LiveMatchEvent` rows (data-mapping rule 1).
  * Scorer/assist attribution is paired to its goal **only** via `correctsEventId` — the stored
  * annotation-event linkage `SCORER_SET`/`ASSIST_SET` events carry back to their target
- * `GOAL_FOR`/`GOAL_AGAINST` event (confirmed in `live-match-domain.ts`'s `validateLiveEventInput`,
- * 2026-09-17 incident). Never by array index, order, or timestamp proximity (data-mapping rule 5).
+ * `GOAL_FOR`/`GOAL_AGAINST` event's `clientEventId` (confirmed in `live-match-domain.ts`'s
+ * `validateLiveEventInput`, 2026-09-17 incident, and directly against real production data — NOT
+ * the goal event's database `id`, a real bug this fixes: every goal previously rendered
+ * "Unattributed" because the lookup compared `correctsEventId` against the wrong id field).
+ * Never by array index, order, or timestamp proximity (data-mapping rule 5).
+ *
+ * `events` need not already be in chronological order — this function establishes that order
+ * itself via `timelineSortKey()`, stably, so the caller's own (fallback) ordering only breaks
+ * ties.
  */
-export function buildMatchTimelineFromLiveEvents(events: MatchCanonicalLiveEventFact[]): MatchTimelineItem[] {
+export function buildMatchTimelineFromLiveEvents(rawEvents: MatchCanonicalLiveEventFact[]): MatchTimelineItem[] {
+  const events = [...rawEvents].sort((a, b) => {
+    const [ap, at] = timelineSortKey(a);
+    const [bp, bt] = timelineSortKey(b);
+    return ap - bp || at - bt;
+  });
+
   const scorerByGoalId = new Map<string, string | null>();
   const assistByGoalId = new Map<string, string | null>();
   for (const e of events) {
@@ -282,8 +320,8 @@ export function buildMatchTimelineFromLiveEvents(events: MatchCanonicalLiveEvent
         id: e.id,
         kind: e.eventType,
         minuteLabel: e.minuteLabel,
-        playerName: scorerByGoalId.get(e.id) ?? null,
-        assistPlayerName: assistByGoalId.get(e.id) ?? null,
+        playerName: e.clientEventId ? (scorerByGoalId.get(e.clientEventId) ?? null) : null,
+        assistPlayerName: e.clientEventId ? (assistByGoalId.get(e.clientEventId) ?? null) : null,
         secondaryPlayerName: null,
         sourceIsCanonicalLiveEvent: true,
       });

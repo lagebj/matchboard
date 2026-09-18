@@ -14,7 +14,6 @@ import { deriveMatchDetailSurfaceState } from "@/lib/matches/match-detail-view-m
 import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { formatKickoffTime } from "@/lib/date-utils";
-import type { BeforeMatchLineupSummary, BeforeMatchSquadRow } from "@/components/matches/match-detail/before-match-planning-area";
 
 export const dynamic = "force-dynamic";
 
@@ -165,21 +164,13 @@ export default async function MatchDetailPage({
     orderBy: [{ severity: "desc" }],
   });
 
-  // Lineup existence + formation/assignment summary (Touchline Design Atlas, ADR-0136, widened
-  // for the exact-goldens Match Details programme's "Planned lineup"/"Final lineup" summary
-  // widgets) — one bounded, single-match query, not the unbounded-tree class that caused Today's
-  // own performance issue (docs/domain/touchline-atlas-provenance.md §17). Lineup slot/pitch
-  // detail itself is still only rendered by `MatchTacticsPanel` on the dedicated Lineup/Tactics
-  // tab, not read further here.
-  const lineup = await db.matchLineup.findFirst({
-    where: { matchId, ...orgWhere },
-    select: {
-      id: true,
-      benchPlayerIds: true,
-      formation: { select: { name: true } },
-      assignments: { select: { slotId: true, playerId: true } },
-    },
-  });
+  // Lineup existence only (Touchline Design Atlas, ADR-0136) — one bounded, single-row query, not
+  // the unbounded-tree class that caused Today's own performance issue
+  // (docs/domain/touchline-atlas-provenance.md §17). Feeds only the Match preparation checklist's
+  // "Lineup set" item; the real lineup content renders directly via `MatchTacticsPanel` on
+  // Overview (post-launch correction, 2026-09-18 — see match-detail-tabs.ts), which fetches its
+  // own data and is never read further here.
+  const lineup = await db.matchLineup.findFirst({ where: { matchId, ...orgWhere }, select: { id: true } });
 
   const warningData = warnings.map((w) => ({
     id: w.id,
@@ -233,31 +224,6 @@ export default async function MatchDetailPage({
       : undefined;
 
   const allSelections = [...selectionData, ...helperSelectionData];
-
-  const lineupSummary: BeforeMatchLineupSummary = lineup
-    ? {
-        formationName: lineup.formation?.name ?? "Custom formation",
-        filledCount: lineup.assignments.filter((a) => a.playerId).length,
-        totalSlots: lineup.assignments.length,
-      }
-    : null;
-
-  const startingPlayerIds = new Set(lineup?.assignments.filter((a) => a.playerId).map((a) => a.playerId as string) ?? []);
-  const benchPlayerIds = new Set((lineup?.benchPlayerIds as string[] | undefined) ?? []);
-  const squadRows: BeforeMatchSquadRow[] = allSelections.map((s) => ({
-    playerId: s.playerId,
-    playerName: s.playerName,
-    primaryPosition: s.primaryPosition,
-    secondaryPosition: s.secondaryPosition,
-    absenceReason: s.absenceReason,
-    lineupStatus: !lineup
-      ? null
-      : startingPlayerIds.has(s.playerId)
-        ? "STARTING"
-        : benchPlayerIds.has(s.playerId)
-          ? "BENCH"
-          : "NOT_IN_LINEUP",
-  }));
 
   // Header/meta presentation — reused, never forked (ADR-0125).
   const headerIsHome = match.homeAway === "HOME";
@@ -320,8 +286,7 @@ export default async function MatchDetailPage({
       notes={match.notes}
       selections={allSelections}
       warnings={warningData}
-      lineupSummary={lineupSummary}
-      squadRows={squadRows}
+      hasLineup={Boolean(lineup)}
       plannedRotation={plannedRotation}
       opponentTeamId={match.opponentTeamId ?? null}
       opponentHistory={opponentHistory}

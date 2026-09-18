@@ -113,6 +113,11 @@ function liveEvent(overrides: Partial<MatchCanonicalLiveEventFact>): MatchCanoni
     id: "e1",
     eventType: "GOAL_FOR",
     playerName: null,
+    // Deliberately different from `id` by default — matches real production `LiveMatchEvent`
+    // rows, where `id` (database primary key) and `clientEventId` (client-generated) are
+    // unrelated string formats. A regression that matches on `id` instead of `clientEventId`
+    // must fail every test in this block, not just a dedicated one.
+    clientEventId: "client-e1",
     correctsEventId: null,
     minuteLabel: null,
     period: 1,
@@ -122,11 +127,11 @@ function liveEvent(overrides: Partial<MatchCanonicalLiveEventFact>): MatchCanoni
 }
 
 describe("buildMatchTimelineFromLiveEvents (canonical linkage truth rule)", () => {
-  it("pairs scorer and assist only via correctsEventId pointing at the same goal event", () => {
+  it("pairs scorer and assist only via correctsEventId pointing at the goal's clientEventId — never its database id", () => {
     const items = buildMatchTimelineFromLiveEvents([
-      liveEvent({ id: "goal-1", eventType: "GOAL_FOR", minuteLabel: "12'" }),
-      liveEvent({ id: "scorer-1", eventType: "SCORER_SET", correctsEventId: "goal-1", playerName: "Emil" }),
-      liveEvent({ id: "assist-1", eventType: "ASSIST_SET", correctsEventId: "goal-1", playerName: "Noah" }),
+      liveEvent({ id: "goal-1-dbid", clientEventId: "goal-1-client", eventType: "GOAL_FOR", minuteLabel: "12'" }),
+      liveEvent({ id: "scorer-1", eventType: "SCORER_SET", correctsEventId: "goal-1-client", playerName: "Emil" }),
+      liveEvent({ id: "assist-1", eventType: "ASSIST_SET", correctsEventId: "goal-1-client", playerName: "Noah" }),
     ]);
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
@@ -138,10 +143,21 @@ describe("buildMatchTimelineFromLiveEvents (canonical linkage truth rule)", () =
     });
   });
 
+  it("does not pair when correctsEventId matches the goal's database id instead of its clientEventId (the real production bug this fixes)", () => {
+    const items = buildMatchTimelineFromLiveEvents([
+      liveEvent({ id: "goal-1-dbid", clientEventId: "goal-1-client", eventType: "GOAL_FOR" }),
+      // Wrong on purpose: targets the database id, as a real EVENT_REVERSED row would (a
+      // different, unrelated correctsEventId convention) — must never accidentally match here.
+      liveEvent({ id: "scorer-1", eventType: "SCORER_SET", correctsEventId: "goal-1-dbid", playerName: "Emil" }),
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0].playerName).toBeNull();
+  });
+
   it("shows a goal with a scorer but no assist when no ASSIST_SET targets it — never inferred", () => {
     const items = buildMatchTimelineFromLiveEvents([
-      liveEvent({ id: "goal-2", eventType: "GOAL_FOR", minuteLabel: "18'" }),
-      liveEvent({ id: "scorer-2", eventType: "SCORER_SET", correctsEventId: "goal-2", playerName: "Elias" }),
+      liveEvent({ id: "goal-2", clientEventId: "goal-2-client", eventType: "GOAL_FOR", minuteLabel: "18'" }),
+      liveEvent({ id: "scorer-2", eventType: "SCORER_SET", correctsEventId: "goal-2-client", playerName: "Elias" }),
     ]);
     expect(items).toHaveLength(1);
     expect(items[0].playerName).toBe("Elias");
@@ -150,14 +166,38 @@ describe("buildMatchTimelineFromLiveEvents (canonical linkage truth rule)", () =
 
   it("never pairs an assist to the wrong goal merely because both exist in the stream", () => {
     const items = buildMatchTimelineFromLiveEvents([
-      liveEvent({ id: "goal-a", eventType: "GOAL_FOR", minuteLabel: "10'" }),
-      liveEvent({ id: "goal-b", eventType: "GOAL_FOR", minuteLabel: "20'" }),
-      liveEvent({ id: "assist-b", eventType: "ASSIST_SET", correctsEventId: "goal-b", playerName: "Noah" }),
+      liveEvent({ id: "goal-a", clientEventId: "goal-a-client", eventType: "GOAL_FOR", minuteLabel: "10'" }),
+      liveEvent({ id: "goal-b", clientEventId: "goal-b-client", eventType: "GOAL_FOR", minuteLabel: "20'" }),
+      liveEvent({ id: "assist-b", eventType: "ASSIST_SET", correctsEventId: "goal-b-client", playerName: "Noah" }),
     ]);
     const goalA = items.find((i) => i.id === "goal-a")!;
     const goalB = items.find((i) => i.id === "goal-b")!;
     expect(goalA.assistPlayerName).toBeNull();
     expect(goalB.assistPlayerName).toBe("Noah");
+  });
+
+  it("orders strictly by period + within-period elapsed time, ignoring input order — robust to missing coordinator sequence (ARR-0045)", () => {
+    // Input deliberately out of chronological order, as a real mixed sequence/no-sequence
+    // dataset can arrive from the DB query (NULLS LAST on a plain `ORDER BY sequence` clusters
+    // every unsequenced row — predominantly rotations — at the very end regardless of when they
+    // actually happened).
+    const items = buildMatchTimelineFromLiveEvents([
+      liveEvent({ id: "late-goal", eventType: "GOAL_FOR", period: 1, matchSeconds: 2_000_000, minuteLabel: "33'" }),
+      liveEvent({ id: "rotation-out", eventType: "ROTATION_OUT", period: 1, matchSeconds: 500_000, playerName: "Elias" }),
+      liveEvent({ id: "rotation-in", eventType: "ROTATION_IN", period: 1, matchSeconds: 500_500, playerName: "Henrik" }),
+      liveEvent({ id: "early-goal", eventType: "GOAL_FOR", period: 1, matchSeconds: 100_000, minuteLabel: "1'" }),
+    ]);
+    expect(items.map((i) => i.id)).toEqual(["early-goal", "rotation-out", "late-goal"]);
+  });
+
+  it("sorts PERIOD_START first and PERIOD_END last within a period, and MATCH_END after everything", () => {
+    const items = buildMatchTimelineFromLiveEvents([
+      liveEvent({ id: "match-end", eventType: "MATCH_END", period: 3 }),
+      liveEvent({ id: "period-end", eventType: "PERIOD_END", period: 1 }),
+      liveEvent({ id: "goal", eventType: "GOAL_FOR", period: 1, matchSeconds: 100_000 }),
+      liveEvent({ id: "period-start", eventType: "PERIOD_START", period: 1 }),
+    ]);
+    expect(items.map((i) => i.id)).toEqual(["period-start", "goal", "period-end", "match-end"]);
   });
 
   it("pairs rotation out/in within the existing tolerance window", () => {

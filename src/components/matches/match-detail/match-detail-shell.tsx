@@ -6,7 +6,6 @@ import { useState, useTransition } from "react";
 import { Radio, Tv } from "lucide-react";
 import { MatchDetailHeader } from "@/components/matches/match-detail/match-detail-header";
 import { BeforeMatchOverview } from "@/components/matches/match-detail/before-match-overview";
-import { BeforeMatchTacticsTab } from "@/components/matches/match-detail/before-match-tactics-tab";
 import { AfterMatchOverview } from "@/components/matches/match-detail/after-match-overview";
 import { MatchEventsPanel } from "@/components/matches/match-detail/match-events-panel";
 import { MatchStatsPanel } from "@/components/matches/match-detail/match-stats-panel";
@@ -30,7 +29,6 @@ import { formatWarningCode } from "@/lib/match-utils";
 import { buildMatchMetaLine } from "@/lib/matches/match-detail-format";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
-import type { BeforeMatchLineupSummary, BeforeMatchSquadRow } from "@/components/matches/match-detail/before-match-planning-area";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
@@ -79,8 +77,10 @@ export type MatchDetailShellProps = {
   notes: string | null;
   selections: SelectionRow[];
   warnings: WarningRow[];
-  lineupSummary: BeforeMatchLineupSummary;
-  squadRows: BeforeMatchSquadRow[];
+  /** Existence-only — the real lineup content now renders directly via `MatchTacticsPanel` on
+   * Overview, which fetches its own data; this narrow flag only feeds the Match preparation
+   * checklist's "Lineup set" item. */
+  hasLineup: boolean;
   plannedRotation: PlannedRotationWithChanges | null;
   opponentTeamId: string | null;
   opponentHistory: OpponentHistoryData | null;
@@ -137,8 +137,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     notes,
     selections,
     warnings,
-    lineupSummary,
-    squadRows,
+    hasLineup,
     plannedRotation,
     opponentTeamId,
     opponentHistory,
@@ -288,8 +287,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
           matchType={matchType}
           matchFit={matchFit}
           selections={selections}
-          lineupSummary={lineupSummary}
-          squadRows={squadRows}
+          hasLineup={hasLineup}
           notes={notes}
           plannedRotation={plannedRotation}
           opponentTeamId={opponentTeamId}
@@ -328,7 +326,6 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
             opponent={opponent}
             matchFit={matchFit}
             selections={selections}
-            lineupSummary={lineupSummary}
             afterData={afterData}
             opponentTeamId={opponentTeamId}
             opponentHistory={opponentHistory}
@@ -357,8 +354,7 @@ function BeforeMatchTabContent(props: {
   matchType: string;
   matchFit: string;
   selections: SelectionRow[];
-  lineupSummary: BeforeMatchLineupSummary;
-  squadRows: BeforeMatchSquadRow[];
+  hasLineup: boolean;
   notes: string | null;
   plannedRotation: PlannedRotationWithChanges | null;
   opponentTeamId: string | null;
@@ -388,7 +384,7 @@ function BeforeMatchTabContent(props: {
   const preparationInput = {
     squadSelectedCount: props.selections.filter((s) => s.role !== "HELPER").length,
     squadTarget: props.selections.filter((s) => s.role !== "HELPER").length || 1,
-    hasLineup: props.lineupSummary != null,
+    hasLineup: props.hasLineup,
     hasPlannedRotation: Boolean(props.plannedRotation && props.plannedRotation.changes.length > 0),
   };
 
@@ -402,39 +398,19 @@ function BeforeMatchTabContent(props: {
         matchType={props.matchType}
         gameFormat={props.gameFormat}
         matchFit={props.matchFit}
-        lineupSummary={props.lineupSummary}
-        squadRows={props.squadRows}
         matchId={props.matchId}
+        teamId={props.teamId}
+        teamName={props.teamName}
+        selections={props.selections}
+        planningEditable={!props.isCancelled}
+        coachingIntent={props.coachingIntent}
+        coachingIntentId={props.coachingIntentId}
+        matchFormatState={props.matchFormatState}
         notes={props.notes}
         rotationChangeCount={props.plannedRotation?.changes.length ?? 0}
         opponentEncounterCount={props.opponentHistory?.totalPlayed ?? 0}
         opponentHasProfile={props.opponentTeamId != null}
         tabHref={props.tabHref}
-      />
-    );
-  }
-
-  if (activeTab === "lineup") {
-    return (
-      <MatchTacticsPanel
-        matchId={props.matchId}
-        teamId={props.teamId}
-        teamName={props.teamName}
-        gameFormat={props.gameFormat}
-        planningEditable={!props.isCancelled}
-        selections={props.selections}
-      />
-    );
-  }
-
-  if (activeTab === "tactics") {
-    return (
-      <BeforeMatchTacticsTab
-        matchId={props.matchId}
-        coachingIntent={props.coachingIntent}
-        coachingIntentId={props.coachingIntentId}
-        lineupSummary={props.lineupSummary}
-        matchFormatState={props.matchFormatState}
       />
     );
   }
@@ -533,7 +509,6 @@ function AfterMatchTabContent(props: {
   opponent: string;
   matchFit: string;
   selections: SelectionRow[];
-  lineupSummary: BeforeMatchLineupSummary;
   afterData: MatchDetailAfterData;
   opponentTeamId: string | null;
   opponentHistory: OpponentHistoryData | null;
@@ -554,7 +529,10 @@ function AfterMatchTabContent(props: {
         ownTeamName={props.teamName}
         opponentName={props.opponent}
         matchFit={props.matchFit}
-        lineupSummary={props.lineupSummary}
+        matchId={props.matchId}
+        teamId={props.teamId}
+        gameFormat={props.gameFormat}
+        selections={props.selections}
         tabHref={props.tabHref}
         postMatchHref={props.postMatchHref}
       />

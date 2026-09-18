@@ -1,8 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AfterMatchOverview } from "../after-match-overview";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
+
+// Already-working, unchanged, independently-covered component this page only newly mounts
+// directly on Overview (post-launch correction, 2026-09-18) — mocked to isolate
+// AfterMatchOverview's own composition from its internal data-fetching behaviour.
+vi.mock("@/components/matches/match-tactics-panel", () => ({
+  MatchTacticsPanel: (props: { matchId: string; planningEditable: boolean }) => (
+    <div data-testid="match-tactics-panel">
+      Pitch for {props.matchId} — editable: {String(props.planningEditable)}
+    </div>
+  ),
+}));
 
 function makeAfterData(overrides: Partial<MatchDetailAfterData> = {}): MatchDetailAfterData {
   return {
@@ -45,21 +56,33 @@ const presentation = buildMatchPresentation({
   outcome: "WON",
 });
 
+function baseProps(overrides: Partial<Parameters<typeof AfterMatchOverview>[0]> = {}) {
+  return {
+    presentation,
+    ownKitColor: null,
+    data: makeAfterData(),
+    ownTeamName: "Hvit",
+    opponentName: "Graabein City",
+    matchFit: "UNKNOWN",
+    matchId: "m1",
+    teamId: "t1",
+    gameFormat: "SEVEN_A_SIDE",
+    selections: [{ playerId: "p1", playerName: "Sebastian R", role: "CORE", primaryPosition: "ST", secondaryPosition: null, coreTeamName: "Hvit", absenceReason: null }],
+    tabHref: (t: string) => `?tab=${t}`,
+    postMatchHref: "/o/test/matches/m1/post-match",
+    ...overrides,
+  };
+}
+
 describe("AfterMatchOverview", () => {
+  it("renders the real, read-only pitch for the final lineup, not a formation-name summary", () => {
+    render(<AfterMatchOverview {...baseProps()} />);
+    expect(screen.getByTestId("match-tactics-panel")).toBeInTheDocument();
+    expect(screen.getByText(/Pitch for m1 — editable: false/)).toBeInTheDocument();
+  });
+
   it("never renders Player of the Match, MVP, or a rating concept", () => {
-    render(
-      <AfterMatchOverview
-        presentation={presentation}
-        ownKitColor={null}
-        data={makeAfterData()}
-        ownTeamName="Hvit"
-        opponentName="Graabein City"
-        matchFit="UNKNOWN"
-        lineupSummary={null}
-        tabHref={(t) => `?tab=${t}`}
-        postMatchHref="/o/test/matches/m1/post-match"
-      />,
-    );
+    render(<AfterMatchOverview {...baseProps()} />);
     const text = document.body.textContent ?? "";
     expect(text).not.toMatch(/player of the match/i);
     expect(text).not.toMatch(/\bMVP\b/);
@@ -67,19 +90,7 @@ describe("AfterMatchOverview", () => {
   });
 
   it("renders real attendance, goal scorer and report-status facts", () => {
-    render(
-      <AfterMatchOverview
-        presentation={presentation}
-        ownKitColor={null}
-        data={makeAfterData()}
-        ownTeamName="Hvit"
-        opponentName="Graabein City"
-        matchFit="UNKNOWN"
-        lineupSummary={null}
-        tabHref={(t) => `?tab=${t}`}
-        postMatchHref="/o/test/matches/m1/post-match"
-      />,
-    );
+    render(<AfterMatchOverview {...baseProps()} />);
     expect(screen.getByText("11/12")).toBeInTheDocument();
     expect(screen.getByText("Sebastian R")).toBeInTheDocument();
     expect(screen.getByText("Locked")).toBeInTheDocument();
@@ -87,19 +98,7 @@ describe("AfterMatchOverview", () => {
   });
 
   it("shows 'Continue report' rather than 'View full report' while still a draft", () => {
-    render(
-      <AfterMatchOverview
-        presentation={presentation}
-        ownKitColor={null}
-        data={makeAfterData({ reportStatus: "DRAFT" })}
-        ownTeamName="Hvit"
-        opponentName="Graabein City"
-        matchFit="UNKNOWN"
-        lineupSummary={null}
-        tabHref={(t) => `?tab=${t}`}
-        postMatchHref="/o/test/matches/m1/post-match"
-      />,
-    );
+    render(<AfterMatchOverview {...baseProps({ data: makeAfterData({ reportStatus: "DRAFT" }) })} />);
     expect(screen.getByText("Continue report")).toBeInTheDocument();
     expect(screen.queryByText("View full report")).not.toBeInTheDocument();
   });
