@@ -117,14 +117,23 @@ const POST_MATCH_COMPLETED_TABS: TabItem<PostMatchTabKey>[] = [
   { key: "combinations", label: "Combinations" },
 ];
 
-const POST_MATCH_DEFAULT_TAB: PostMatchTabKey = "summary";
-
 export function getPostMatchReportTabs(surfaceState: PostMatchReportSurfaceState): TabItem<PostMatchTabKey>[] {
   return surfaceState === "DRAFT" ? POST_MATCH_DRAFT_TABS : POST_MATCH_COMPLETED_TABS;
 }
 
-export function getPostMatchReportDefaultTab(): PostMatchTabKey {
-  return POST_MATCH_DEFAULT_TAB;
+/**
+ * DRAFT defaults to `players` — not `summary` — even though Summary is listed/rendered first in
+ * the tab rail. ADR-0003 ("Post-match reporting is a direct workflow") is a real, e2e-tested
+ * behavioural contract: finishing live reporting must land the coach on the actual editable
+ * report workspace with its completion action immediately reachable, with no extra required
+ * click (`e2e/post-match-evidence-parity.spec.ts` clicks "Complete report" immediately after
+ * landing on `/post-match`, with zero intermediate navigation). The written exact-goldens spec
+ * only fixes the tab *order*, not which tab is selected by default, so this does not conflict
+ * with it — see ADR-0147. COMPLETED has no equivalent completion-action urgency, so it defaults
+ * to `summary`, matching the golden's own illustrated active tab.
+ */
+export function getPostMatchReportDefaultTab(surfaceState: PostMatchReportSurfaceState): PostMatchTabKey {
+  return surfaceState === "DRAFT" ? "players" : "summary";
 }
 
 export function resolvePostMatchReportTab(
@@ -133,7 +142,7 @@ export function resolvePostMatchReportTab(
 ): PostMatchTabKey {
   const tabs = getPostMatchReportTabs(surfaceState);
   const match = tabs.find((t) => t.key === requestedTab);
-  return match ? match.key : POST_MATCH_DEFAULT_TAB;
+  return match ? match.key : getPostMatchReportDefaultTab(surfaceState);
 }
 
 /** `reportStatus` is the raw `MatchReportStatus` (or `undefined`/`"NOT_STARTED"` when no report

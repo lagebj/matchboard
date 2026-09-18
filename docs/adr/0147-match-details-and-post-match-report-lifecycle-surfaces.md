@@ -43,6 +43,21 @@ with distinct lifecycle vocabularies — they are not merged into one page or on
   `COMPLETED`, everything else (including `REPORTED`, per ADR-0003's "REPORTED is not a routine
   visible state") → `DRAFT`.
 
+### 1a. Post-Match Report DRAFT defaults to the editable workspace, not Summary
+
+`getPostMatchReportDefaultTab()` returns `players` for `DRAFT`, not `summary`, even though
+Summary is listed first in the tab rail and is the golden's own illustrated active tab.
+`e2e/post-match-evidence-parity.spec.ts` (a real-UI proof of ADR-0003 — finishing live reporting
+must land the coach on the actual editable report with its completion action immediately
+reachable, zero extra clicks) failed against an initial implementation that defaulted `DRAFT` to
+`summary`: `Complete report` lives inside the unchanged `PostMatchPage`/`PostMatchReportShell`
+editor, which only mounts on the `Players` tab. The written exact-goldens spec fixes tab *order*,
+not which tab is selected by default, so this is not a conflict with priority 1/2 authority — it
+resolves an underspecified point using priority 3 (ADR-0003, proven by an existing, real,
+already-passing e2e test) over an assumption this implementation had made on its own. `COMPLETED`
+still defaults to `summary` — there is no equivalent immediate-completion-action requirement for a
+locked, read-only report, and it matches that golden's own illustrated tab exactly.
+
 ### 2. Exact tab sets, one owning module
 
 `src/lib/matches/match-detail-tabs.ts` is the single source of truth for every tab array, default

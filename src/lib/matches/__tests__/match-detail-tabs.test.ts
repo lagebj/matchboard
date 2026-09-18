@@ -4,6 +4,7 @@ import {
   getMatchDetailDefaultTab,
   resolveMatchDetailTab,
   getPostMatchReportTabs,
+  getPostMatchReportDefaultTab,
   resolvePostMatchReportTab,
   derivePostMatchReportSurfaceState,
 } from "@/lib/matches/match-detail-tabs";
@@ -90,13 +91,25 @@ describe("Post-Match Report tab sets", () => {
 
   it("resolves review only in DRAFT and combinations only in COMPLETED", () => {
     expect(resolvePostMatchReportTab("DRAFT", "review")).toBe("review");
-    expect(resolvePostMatchReportTab("DRAFT", "combinations")).toBe("summary");
+    expect(resolvePostMatchReportTab("DRAFT", "combinations")).toBe("players");
     expect(resolvePostMatchReportTab("COMPLETED", "combinations")).toBe("combinations");
     expect(resolvePostMatchReportTab("COMPLETED", "review")).toBe("summary");
   });
 
-  it("falls back to summary for an invalid tab", () => {
-    expect(resolvePostMatchReportTab("DRAFT", "nonsense")).toBe("summary");
+  it("falls back to the surface default for an invalid tab", () => {
+    expect(resolvePostMatchReportTab("DRAFT", "nonsense")).toBe("players");
+    expect(resolvePostMatchReportTab("COMPLETED", "nonsense")).toBe("summary");
+  });
+
+  it("defaults DRAFT to the editable Players workspace, not Summary (ADR-0003: direct workflow, e2e-tested)", () => {
+    expect(getPostMatchReportDefaultTab("DRAFT")).toBe("players");
+    expect(resolvePostMatchReportTab("DRAFT", null)).toBe("players");
+    expect(resolvePostMatchReportTab("DRAFT", undefined)).toBe("players");
+  });
+
+  it("defaults COMPLETED to Summary, matching the golden's illustrated active tab", () => {
+    expect(getPostMatchReportDefaultTab("COMPLETED")).toBe("summary");
+    expect(resolvePostMatchReportTab("COMPLETED", null)).toBe("summary");
   });
 });
 
