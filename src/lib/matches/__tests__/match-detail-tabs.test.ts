@@ -10,11 +10,9 @@ import {
 } from "@/lib/matches/match-detail-tabs";
 
 describe("Match Details tab sets", () => {
-  it("returns the exact BEFORE tab order from the canonical golden", () => {
+  it("returns the exact BEFORE tab order (post-launch correction 2026-09-18: Lineup and Tactics folded into Overview)", () => {
     expect(getMatchDetailTabs("BEFORE").map((t) => t.key)).toEqual([
       "overview",
-      "lineup",
-      "tactics",
       "rotations",
       "opponent-context",
       "notes",
@@ -39,8 +37,9 @@ describe("Match Details tab sets", () => {
   });
 
   it("resolves a valid tab as-is", () => {
-    expect(resolveMatchDetailTab("BEFORE", "tactics")).toBe("tactics");
+    expect(resolveMatchDetailTab("BEFORE", "rotations")).toBe("rotations");
     expect(resolveMatchDetailTab("AFTER", "history")).toBe("history");
+    expect(resolveMatchDetailTab("AFTER", "tactics")).toBe("tactics");
   });
 
   it("falls back to the surface default for an invalid tab", () => {
@@ -52,15 +51,19 @@ describe("Match Details tab sets", () => {
   it("falls back to the surface default when a tab only exists in the other surface", () => {
     expect(resolveMatchDetailTab("BEFORE", "history")).toBe("overview");
     expect(resolveMatchDetailTab("BEFORE", "events")).toBe("overview");
+    expect(resolveMatchDetailTab("BEFORE", "tactics")).toBe("overview");
     expect(resolveMatchDetailTab("AFTER", "notes")).toBe("overview");
     expect(resolveMatchDetailTab("AFTER", "rotations")).toBe("overview");
-    expect(resolveMatchDetailTab("AFTER", "lineup")).toBe("overview");
   });
 
   it("maps legacy pre-existing tab keys to their nearest new equivalent", () => {
     expect(resolveMatchDetailTab("BEFORE", "squad")).toBe("overview");
     expect(resolveMatchDetailTab("BEFORE", "opponent")).toBe("opponent-context");
     expect(resolveMatchDetailTab("AFTER", "opponent")).toBe("opponent-context");
+    // "Lineup" folded into Overview (2026-09-18) — an explicit alias, unlike "tactics" which
+    // falls back to Overview naturally for BEFORE (it remains a real, different tab for AFTER).
+    expect(resolveMatchDetailTab("BEFORE", "lineup")).toBe("overview");
+    expect(resolveMatchDetailTab("AFTER", "lineup")).toBe("overview");
   });
 
   it("does not carry the removed pre-existing 'after-match' key as a BEFORE tab", () => {

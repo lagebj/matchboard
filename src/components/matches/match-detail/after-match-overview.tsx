@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
 import { MatchTimelineList } from "@/components/matches/match-detail/match-timeline-list";
+import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
 import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
 import { WidgetHeader } from "@/components/touchline/widget/widget-header";
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
@@ -9,13 +10,29 @@ import { StatusPill } from "@/components/ui/status-pill";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import { formatOpponentEnvironment, formatMatchFit, formatReflectionRating } from "@/lib/matches/match-detail-format";
-import type { BeforeMatchLineupSummary } from "@/components/matches/match-detail/before-match-planning-area";
+
+type SelectionRow = {
+  playerId: string;
+  playerName: string;
+  role: string;
+  primaryPosition: string;
+  secondaryPosition: string | null;
+  coreTeamName: string;
+  absenceReason?: string | null;
+};
 
 /**
  * Match Details AFTER-match Overview tab
  * (`04_MATCH_DETAILS_AFTER_MATCH_SPEC.md`, golden: `references/golden/crops/
  * 04_match_details_after_recorded_desktop.png`). Read-only — no report mutation controls live
  * here; every action routes to `/post-match`.
+ *
+ * Post-launch correction (2026-09-18): "Final lineup" now embeds the real, unchanged
+ * `MatchTacticsPanel` (read-only, `planningEditable={false}`) rather than a formation-name/
+ * filled-count summary — the same fix applied to the before-match Overview, for the same reason.
+ * It is still the *planned/finalised* lineup, clearly a read-only historical view here — actual
+ * per-player position/minutes data is not overlaid on it (ADR-0147 §5: no reliable capability
+ * exists for that yet).
  */
 export function AfterMatchOverview({
   presentation,
@@ -24,7 +41,10 @@ export function AfterMatchOverview({
   ownTeamName,
   opponentName,
   matchFit,
-  lineupSummary,
+  matchId,
+  teamId,
+  gameFormat,
+  selections,
   tabHref,
   postMatchHref,
 }: {
@@ -34,7 +54,10 @@ export function AfterMatchOverview({
   ownTeamName: string;
   opponentName: string;
   matchFit: string;
-  lineupSummary: BeforeMatchLineupSummary;
+  matchId: string;
+  teamId: string;
+  gameFormat: string;
+  selections: SelectionRow[];
   tabHref: (tab: string) => string;
   postMatchHref: string;
 }) {
@@ -70,20 +93,21 @@ export function AfterMatchOverview({
 
       <MetricStrip items={factsItems} className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4" />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <TouchlineWidget>
-          <div className="flex items-center justify-between gap-2">
-            <WidgetHeader
-              eyebrow="Final lineup"
-              title={lineupSummary ? lineupSummary.formationName : "Not set"}
-              description={lineupSummary ? `${lineupSummary.filledCount}/${lineupSummary.totalSlots} slots filled (as planned)` : undefined}
-            />
-          </div>
-          <TouchlineButton as={Link} href={tabHref("tactics")} variant="ghost" size="sm" className="mt-3">
-            View in Tactics
-          </TouchlineButton>
-        </TouchlineWidget>
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          Final lineup (as planned)
+        </p>
+        <MatchTacticsPanel
+          matchId={matchId}
+          teamId={teamId}
+          teamName={ownTeamName}
+          gameFormat={gameFormat}
+          planningEditable={false}
+          selections={selections}
+        />
+      </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
         <TouchlineWidget>
           <WidgetHeader eyebrow="Key events" title={`${data.timeline.length} recorded`} />
           <div className="mt-2">

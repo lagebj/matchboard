@@ -182,3 +182,60 @@ The former monolithic client component (879 lines, zero existing test coverage) 
   statement is historical and accurate for the Phase 4 pass it describes; this ADR is the
   follow-up pass that Phase 4 explicitly deferred). `docs/domain/touchline-atlas-provenance.md`
   gains a short dated follow-up note rather than a rewrite of its historical §19 entry.
+
+## Follow-up (2026-09-18): production feedback — Lineup/Tactics consolidation and two real timeline bugs
+
+Real prod usage immediately after merge surfaced three issues, all fixed in the same follow-up
+pass:
+
+### 11. Before-match Overview's "Planned lineup" never actually showed a lineup
+
+The original Overview embedded only a formation-name/filled-count summary widget
+(`before-match-planning-area.tsx`), not the real pitch — a coach reported it as effectively
+useless. At the same time, the by-then-thin "Tactics" tab (coaching intent + match format only,
+since the pitch editor itself already lived on "Lineup") was judged not to deserve its own tab
+click. Resolution, at the requester's explicit direction: **both "Lineup" and "Tactics" are
+removed as separate before-match tabs; `Overview` now embeds the real, completely unchanged
+`MatchTacticsPanel` (editable pitch/formation/squad) directly, alongside the coaching-intent and
+match-format content that used to live on the Tactics tab.** Before-match tabs are now `Overview |
+Rotations | Opponent context | Notes`. `before-match-planning-area.tsx` and
+`before-match-tactics-tab.tsx` are deleted (fully superseded, zero remaining consumers). The same
+fix was applied to the after-match Overview's "Final lineup" widget (same underlying bug, same
+component, now read-only via `planningEditable={false}` — matching the existing "Tactics" AFTER
+tab's own treatment, which is retained since the golden explicitly names it as a real AFTER tab
+unlike the before-match case).
+
+### 12. Every goal showed "Unattributed" in the completed report — a real, since-launch bug
+
+Root cause, confirmed against real production data (Neon prod branch, a real `LOCKED` match with
+10 goals and 8 assists, every one carrying a real `playerId`): `buildMatchTimelineFromLiveEvents()`
+matched a `SCORER_SET`/`ASSIST_SET` event's `correctsEventId` against its target `GOAL_FOR`/
+`GOAL_AGAINST` event's database `id` — but a real annotation event's `correctsEventId` references
+the goal's **`clientEventId`** (a distinct, client-generated string), never its database id. The
+two never matched, so every goal's scorer/assist lookup silently missed and fell through to the
+honest-but-wrong "Unattributed"/no-assist state. (A second, superficially similar field —
+`EVENT_REVERSED.correctsEventId` — genuinely does reference the target's database `id`; confirmed
+separately against real reversal rows. The two `correctsEventId` conventions differ by event kind,
+which is exactly what made this easy to get wrong once and not clearly wrong from reading the code
+alone.) Fixed by selecting and threading `clientEventId` through
+(`MatchCanonicalLiveEventFact.clientEventId`) and matching on it instead of `id`. New unit tests
+assert both the correct pairing and that matching on `id` (the bug) is rejected.
+
+### 13. Completed-report events read as "sorted by type," not by time
+
+Root cause, confirmed against the same real match: roughly half its `LiveMatchEvent` rows (every
+`ROTATION_OUT`/`ROTATION_IN` pair, all written via the still-partially-active legacy direct-HTTP
+path — ARR-0045) have no coordinator-assigned `sequence`. The query's `ORDER BY sequence ASC,
+createdAt ASC` — Postgres/Prisma default `NULLS LAST` — pushed every unsequenced row to the very
+end of the result set as one cluster, after even `MATCH_END`, regardless of when it actually
+happened; since unsequenced rows were overwhelmingly one event kind (rotations) in this match, the
+visible symptom read as the whole timeline being grouped by event type. Fixed with a new pure
+sort, `timelineSortKey()`, applied inside `buildMatchTimelineFromLiveEvents()` itself rather than
+trusted from the DB query: orders by `(period, within-period matchSeconds)` — fields every rendered
+event kind carries regardless of write path — with `PERIOD_START` sorting first and `PERIOD_END`
+last within its period, and `MATCH_END` after everything. New unit tests cover out-of-order input
+with missing period/boundary fields.
+
+No domain, selection, fairness, evidence, security, tenancy, or schema semantics changed in this
+follow-up. Version bump: patch-and-IA-change classified as minor per `docs/VERSIONING.md`
+("meaningful navigation/information-architecture changes").

@@ -78,12 +78,16 @@ describe("getMatchDetailAfterData", () => {
     expect(data.timeline[0]).toMatchObject({ kind: "GOAL_FOR", minuteLabel: "12'", sourceIsCanonicalLiveEvent: false, assistPlayerName: null });
   });
 
-  it("prefers canonical live events and pairs scorer/assist only via correctsEventId", async () => {
+  it("prefers canonical live events and pairs scorer/assist only via correctsEventId pointing at the goal's clientEventId (not its database id)", async () => {
     const [p1, p2] = fixture.players;
     const session = await db.liveMatchSession.create({
       data: { matchId, coachId: "test-coach", organisationId: fixture.organisationId, status: "ENDED" },
     });
-    const goalEvent = await db.liveMatchEvent.create({
+    // A real GOAL_FOR row's `clientEventId` is a distinct, client-generated string, unrelated to
+    // its database `id` — mirrored here from real production data, where SCORER_SET/ASSIST_SET
+    // annotate their target goal via clientEventId, never the database id.
+    const goalClientEventId = "test-goal-client-event-id";
+    await db.liveMatchEvent.create({
       data: {
         matchId,
         organisationId: fixture.organisationId,
@@ -91,6 +95,7 @@ describe("getMatchDetailAfterData", () => {
         eventType: "GOAL_FOR",
         period: 1,
         matchSeconds: 720_000,
+        clientEventId: goalClientEventId,
       },
     });
     await db.liveMatchEvent.create({
@@ -100,7 +105,7 @@ describe("getMatchDetailAfterData", () => {
         sessionId: session.id,
         eventType: "SCORER_SET",
         playerId: p1.id,
-        correctsEventId: goalEvent.id,
+        correctsEventId: goalClientEventId,
       },
     });
     await db.liveMatchEvent.create({
@@ -110,7 +115,7 @@ describe("getMatchDetailAfterData", () => {
         sessionId: session.id,
         eventType: "ASSIST_SET",
         playerId: p2.id,
-        correctsEventId: goalEvent.id,
+        correctsEventId: goalClientEventId,
       },
     });
 

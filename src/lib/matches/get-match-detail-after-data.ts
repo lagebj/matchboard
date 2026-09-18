@@ -130,6 +130,7 @@ export async function getMatchDetailAfterData(params: {
           period: true,
           matchSeconds: true,
           correctsEventId: true,
+          clientEventId: true,
         },
         orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
       }),
@@ -218,6 +219,10 @@ export async function getMatchDetailAfterData(params: {
     id: e.id,
     eventType: e.eventType,
     playerName: e.playerId ? (nameByPlayerId.get(e.playerId) ?? null) : null,
+    // `correctsEventId` on a SCORER_SET/ASSIST_SET annotation event references the target goal's
+    // clientEventId, not its database id (confirmed against real production data) — see
+    // `MatchCanonicalLiveEventFact.clientEventId`'s own doc comment.
+    clientEventId: e.clientEventId,
     correctsEventId: e.correctsEventId,
     // Minute math intentionally deferred — see the module doc comment: this route does not yet
     // have a period-duration-aware cumulative-minute resolver wired in, so the raw
