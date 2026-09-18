@@ -34,8 +34,11 @@ import {
   removePlannedAbsence,
   updateAttendanceStatus,
   updatePlayerStats,
+  confirmPeriodTiming,
+  correctPeriodTiming,
 } from "@/app/(app)/matches/[matchId]/post-match/actions";
 import type { MatchReportDetail } from "@/app/(app)/matches/[matchId]/post-match/actions";
+import type { PostMatchReportTimingReviewRow } from "@/lib/reports/post-match-report-view-model";
 
 type ReportData = MatchReportDetail;
 
@@ -51,7 +54,11 @@ const ABSENCE_REASON_LABELS: Record<string, string> = {
 
 const CAPABILITIES: PostMatchReportCapabilities = { hasUnplannedReason: true };
 
-function toViewModel(report: ReportData): PostMatchReportViewModel {
+function toViewModel(
+  report: ReportData,
+  timingReview: PostMatchReportTimingReviewRow[] | undefined,
+  outOfRangeEventCount: number | undefined,
+): PostMatchReportViewModel {
   const isHome = report.homeAway === "HOME";
   return {
     id: report.id,
@@ -74,10 +81,28 @@ function toViewModel(report: ReportData): PostMatchReportViewModel {
     assists: report.assists.map((a) => ({ ...a, playerName: a.playerName ?? null })),
     completedBy: report.completedBy,
     completedAt: report.completedAt,
+    timingReview,
+    outOfRangeEventCount,
   };
 }
 
-export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalizedSelections, goalAttributionGap }: { matchId: string; initialReport: ReportData | null; allPlayers: Array<{ id: string; name: string; teamName: string }>; hasFinalizedSelections?: boolean; goalAttributionGap?: GoalAttributionGap | null }) {
+export function PostMatchPage({
+  matchId,
+  initialReport,
+  allPlayers,
+  hasFinalizedSelections,
+  goalAttributionGap,
+  timingReview,
+  outOfRangeEventCount,
+}: {
+  matchId: string;
+  initialReport: ReportData | null;
+  allPlayers: Array<{ id: string; name: string; teamName: string }>;
+  hasFinalizedSelections?: boolean;
+  goalAttributionGap?: GoalAttributionGap | null;
+  timingReview?: PostMatchReportTimingReviewRow[];
+  outOfRangeEventCount?: number;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [teamNote, setTeamNote] = useState(initialReport?.teamNote ?? "");
@@ -182,6 +207,8 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
     removePlayer: (playerReportId) => removeActualPlayer(playerReportId),
     complete: () => completeMatchReport(report.id),
     reopen: (target) => reopenMatchReport(report.id, target),
+    confirmPeriodTiming: (period) => confirmPeriodTiming(matchId, period),
+    correctPeriodTiming: (period, minutes) => correctPeriodTiming(matchId, period, minutes),
   };
 
   return (
@@ -217,7 +244,7 @@ export function PostMatchPage({ matchId, initialReport, allPlayers, hasFinalized
       )}
 
       <PostMatchReportShell
-        report={toViewModel(report)}
+        report={toViewModel(report, timingReview, outOfRangeEventCount)}
         actions={actions}
         capabilities={CAPABILITIES}
         availablePlayers={allPlayers.filter((p) => !report.playerActuals.some((a) => a.playerId === p.id))}

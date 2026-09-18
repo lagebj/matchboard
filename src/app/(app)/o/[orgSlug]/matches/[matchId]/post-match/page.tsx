@@ -6,6 +6,8 @@ import { TeamReflectionSection } from "@/components/matches/team-reflection-sect
 import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
 import { getMatchCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { computeGoalAttributionGap } from "@/lib/reports/report-mutations";
+import { getMatchTimingReviewItems, getOutOfRangeEventCount } from "@/lib/live-match/timing-review";
+import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
@@ -170,7 +172,12 @@ export default async function PostMatchRoute({ params }: PageProps) {
   // reporting outbox's own surfacing, that a match was live-reported but goals are missing
   // scorer attribution (`computeGoalAttributionGap`'s own doc comment). Only meaningful once a
   // report exists to compare against.
-  const [feedbackEntries, teamReflection, existingObservation, footballObservations, goalAttributionGap] = await Promise.all([
+  //
+  // ADR-0146 §8/§13 — recovered-timing review items and out-of-range event count for the
+  // post-match callout/submission gate. Also only meaningful once a report exists; a match that
+  // was never live-reported has no MatchPeriodTimingResolution rows to compare against.
+  const leagueMatchRef = report ? await buildLeagueMatchRef(matchId) : null;
+  const [feedbackEntries, teamReflection, existingObservation, footballObservations, goalAttributionGap, rawTimingReview, outOfRangeEventCount] = await Promise.all([
     db.matchExecutionFeedback.findMany({
       where: { matchId },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
@@ -220,7 +227,16 @@ export default async function PostMatchRoute({ params }: PageProps) {
       },
     }),
     report ? computeGoalAttributionGap(matchId, ctx.organisationId) : Promise.resolve(null),
+    leagueMatchRef ? getMatchTimingReviewItems(leagueMatchRef) : Promise.resolve([]),
+    leagueMatchRef ? getOutOfRangeEventCount(leagueMatchRef) : Promise.resolve(0),
   ]);
+
+  const timingReview = rawTimingReview.map((item) => ({
+    period: item.period,
+    periodLabel: item.periodLabel,
+    resolvedDurationMinutes: Math.round(item.resolvedDurationMs / 60000),
+    needsReview: item.reviewStatus === "NEEDS_REVIEW",
+  }));
 
   const feedbackData = feedbackEntries.map((f) => ({
     id: f.id,
@@ -290,7 +306,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
     // idempotent. The sibling observation/feedback/reflection/evidence sections below are not
     // self-wrapped and rely on this page-level island.
     <div className="touchline flex flex-col gap-4">
-      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} goalAttributionGap={goalAttributionGap} />
+      <PostMatchPage matchId={matchId} initialReport={initialReport} allPlayers={allPlayerOptions} hasFinalizedSelections={match.selections.length > 0} goalAttributionGap={goalAttributionGap} timingReview={timingReview} outOfRangeEventCount={outOfRangeEventCount} />
       <ObservationSection
         matchId={matchId}
         existingObservation={existingObservation}

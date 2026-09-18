@@ -8,7 +8,9 @@ import {
   markMatchAbsence,
   clearMatchAbsence,
   computeGoalAttributionGap,
+  completeReport,
 } from "@/lib/reports/report-mutations";
+import { reviewMatchPeriodTiming } from "@/lib/live-match/timing-review";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 
 /**
@@ -631,5 +633,77 @@ describe("computeGoalAttributionGap (2026-09-17 incident follow-up)", () => {
 
     const gap = await computeGoalAttributionGap(match.id, fixtureIds.organisationId);
     expect(gap).toBeNull();
+  });
+});
+
+// 2026-09-18 ADR-0146 slice 5: completeReport() must refuse the DRAFT/REPORTED -> LOCKED
+// transition while any period for this match has recovered timing awaiting coach review — a
+// full end-to-end proof of the wiring (timing-review.test.ts already proves the underlying
+// getTimingSubmissionBlockers/reviewMatchPeriodTiming functions in isolation).
+describe("completeReport — recovered-timing submission gate (ADR-0146 §8/§15/D14)", () => {
+  let fixtureIds: TestFixtureIds;
+
+  beforeAll(async () => {
+    testDb = await setupTestDb();
+    fixtureIds = await seedTestFixture(testDb, { playersPerTeam: 4 });
+  });
+
+  afterAll(async () => {
+    await teardownTestDb();
+  });
+
+  beforeEach(async () => {
+    await testDb.matchPeriodTimingResolution.deleteMany({});
+    await testDb.postMatchReport.deleteMany({});
+    await testDb.liveMatchSession.deleteMany({});
+  });
+
+  it("blocks completion while a period is NEEDS_REVIEW, then allows it once confirmed", async () => {
+    const match = await testDb.match.findFirstOrThrow({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true },
+    });
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === match.teamId).slice(0, 2);
+    await finalizeMatchSelections(testDb, match.id, fixtureIds.matchRoundId, players.map((p) => p.id), fixtureIds.organisationId);
+
+    const seed = await seedReportFromFinalizedSquad(match.id);
+    expect(seed.success).toBe(true);
+    const report = await testDb.postMatchReport.findUniqueOrThrow({ where: { matchId: match.id }, select: { id: true } });
+    // Not the concern of this test -- get attendance out of the way so only the timing gate is exercised.
+    await testDb.postMatchPlayerActual.updateMany({ where: { reportId: report.id }, data: { attendanceStatus: "PRESENT" } });
+
+    await testDb.matchPeriodTimingResolution.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        matchId: match.id,
+        period: "FIRST_HALF",
+        rawElapsedMs: 4 * 60 * 60 * 1000,
+        resolvedDurationMs: 40 * 60 * 1000,
+        resolutionSource: "RECOVERED_BOUNDED",
+        reviewStatus: "NEEDS_REVIEW",
+      },
+    });
+
+    const blocked = await completeReport(report.id, "coach@example.com");
+    expect(blocked.success).toBe(false);
+    if (blocked.success) return;
+    expect(blocked.error).toMatch(/period.*review/i);
+
+    const stillDraft = await testDb.postMatchReport.findUniqueOrThrow({ where: { id: report.id }, select: { status: true } });
+    expect(stillDraft.status).toBe("DRAFT");
+
+    const reviewResult = await reviewMatchPeriodTiming(
+      { kind: "LEAGUE_MATCH", matchId: match.id, leagueSeasonId: null },
+      "FIRST_HALF",
+      fixtureIds.organisationId,
+      "coach@example.com",
+    );
+    expect(reviewResult.success).toBe(true);
+
+    const unblocked = await completeReport(report.id, "coach@example.com");
+    expect(unblocked.success).toBe(true);
+
+    const locked = await testDb.postMatchReport.findUniqueOrThrow({ where: { id: report.id }, select: { status: true } });
+    expect(locked.status).toBe("LOCKED");
   });
 });

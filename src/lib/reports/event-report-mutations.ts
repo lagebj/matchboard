@@ -4,6 +4,7 @@ import type { MatchReportStatus } from "@/generated/prisma/client";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { canTransitionTo, hasUnknownAttendance } from "./report-domain";
 import { getEventReversedEventIds } from "@/lib/live-match/reversal-resolution";
+import { runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 export type SeedEventReportFromLiveSessionResult =
   | { success: true; eventMatchId: string; reportId: string; status: MatchReportStatus; alreadyExisted: boolean }
@@ -231,6 +232,18 @@ export async function completeEventReport(
       success: false,
       error: "Cannot complete report: some players have unknown attendance. Mark all players as Present, No show, or absent.",
     };
+  }
+
+  // ADR-0146 §8/§15/D14 — see report-mutations.ts's completeReport() for the full rationale
+  // (League/Event parity, D13). Wrapped in runWithTenantOrganisationId -- MatchPeriodTimingResolution
+  // is RLS-scoped and this check runs before any tenant context this function otherwise sets.
+  const timingBlockers = await runWithTenantOrganisationId(orgFilter.organisationId, async () => {
+    const { getTimingSubmissionBlockers } = await import("@/lib/live-match/timing-review");
+    const { buildEventMatchRef } = await import("@/lib/evidence/adapters/event-evidence-adapter");
+    return getTimingSubmissionBlockers(await buildEventMatchRef(report.eventMatchId));
+  });
+  if (timingBlockers.length > 0) {
+    return { success: false, error: `Cannot complete report: ${timingBlockers.join(" ")}` };
   }
 
   await db.eventPostMatchReport.update({
