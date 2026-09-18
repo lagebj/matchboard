@@ -115,13 +115,13 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@cloudflare/workers-types": "^5.20260829.1",
+    "@cloudflare/workers-types": "^5.20260915.1",
     "@cyclonedx/cyclonedx-npm": "^6.0.1",
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.6",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^26",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
@@ -130,7 +130,7 @@
     "@vitejs/plugin-react": "^6.1.0",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^10",
-    "eslint-config-next": "16.3.3",
+    "eslint-config-next": "16.3.5",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
@@ -138,7 +138,7 @@
     "tailwindcss": "^4",
     "typescript": "^6",
     "vitest": "^5.0.0",
-    "wrangler": "^4.127.1",
-    "ws": "^8.21.0"
+    "wrangler": "^4.131.2",
+    "ws": "^8.21.3"
   }
 }
