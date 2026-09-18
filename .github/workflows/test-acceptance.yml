@@ -90,6 +90,22 @@ jobs:
       # directly observed racing against, and corrupting the result of, a deliberate verification
       # run on this same PR. `opened`/`reopened` have no prior push to diff against, so those keep
       # using base...head (the whole PR is genuinely new to this pipeline at that point).
+      #
+      # `gh api` runs under this shell's default `bash -e`: a failed command (non-zero exit)
+      # aborts the step immediately unless it's the condition of an `if`. A `synchronize` event
+      # on a force-pushed branch (a rebase — the normal shape of a Dependabot "@dependabot
+      # rebase") can hand `github.event.before` a commit the compare API can no longer resolve
+      # the way this endpoint expects, which surfaces as a 200 body whose `.files` isn't the
+      # plain array the happy path assumes. The old `.files[].filename` filter then throws
+      # ("cannot iterate over: null") and `-e` kills the step outright, well before reaching the
+      # `-z "$FILES"` fallback below that was already designed to handle exactly this
+      # "couldn't determine the files" case safely. Found 2026-09-18 batch-merging Dependabot
+      # PRs: every rebased Dependabot PR failed this step the same way (harmless in isolation —
+      # this check isn't in the required-status-check list — but it should never crash). Fixed
+      # by (a) `.files[]?` so a missing/null `files` yields no output instead of erroring, folding
+      # this case into the pre-existing empty-`$FILES` "deploying to be safe" branch, and (b)
+      # wrapping the whole call in `if ! FILES=...` so any other outright `gh api` failure (rate
+      # limit, transient network error) is caught the same conservative way instead of aborting.
       - name: Check whether this push only touched docs/tracking files
         id: docs-only
         run: |
@@ -98,8 +114,10 @@ jobs:
           else
             COMPARE_RANGE="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
           fi
-          FILES="$(gh api "repos/${{ github.repository }}/compare/${COMPARE_RANGE}" --paginate --jq '.files[].filename')"
-          if [ -z "$FILES" ]; then
+          if ! FILES="$(gh api "repos/${{ github.repository }}/compare/${COMPARE_RANGE}" --paginate --jq '.files[]?.filename' 2>&1)"; then
+            echo "Could not read the compare API for ${COMPARE_RANGE} — deploying to be safe. Response: $FILES"
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$FILES" ]; then
             echo "No changed files reported by the compare API — deploying to be safe."
             echo "only_docs=false" >> "$GITHUB_OUTPUT"
           elif echo "$FILES" | grep -qvE '^(docs/|\.matchboard-work/|.*\.md$)'; then
