@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { TabRail } from "@/components/ui/tab-rail";
 import { PostMatchReportHeader } from "@/components/matches/match-detail/post-match-report-header";
 import { PostMatchSummaryTab } from "@/components/matches/match-detail/post-match-summary-tab";
@@ -81,7 +82,27 @@ export function PostMatchReportPageShell({
   const searchParams = useSearchParams();
 
   const tabs = getPostMatchReportTabs(surfaceState);
-  const activeTab = resolvePostMatchReportTab(surfaceState, searchParams.get("tab"));
+  const requestedTab = searchParams.get("tab");
+  const activeTab = resolvePostMatchReportTab(surfaceState, requestedTab);
+
+  // Pin the resolved default into the URL the first time it's used (no `?tab=` present yet).
+  // Without this, the default tab is a *live* function of `surfaceState`, which itself changes
+  // mid-session as a direct side effect of an action taken ON the currently-viewed tab —
+  // completing the report (DRAFT -> COMPLETED) would otherwise silently re-derive a different
+  // default (`summary`) after the very `router.refresh()` that completion triggers, yanking the
+  // coach off the Players tab immediately after they just used it
+  // (`e2e/post-match-evidence-parity.spec.ts` proved this against the real UI: the "Locked"
+  // status pill never appeared because the page had already navigated away from it). Once
+  // pinned, `?tab=players` stays valid and selected through the DRAFT -> COMPLETED transition
+  // (`players` is a real tab in both tab sets).
+  useEffect(() => {
+    if (requestedTab) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", activeTab);
+    router.replace(`?${params.toString()}`, { scroll: false });
+    // Intentionally depends only on `requestedTab` — re-running this whenever
+    // `activeTab`/`surfaceState` change is exactly the bug this effect exists to prevent.
+  }, [requestedTab]);
 
   function selectTab(tab: PostMatchTabKey) {
     const params = new URLSearchParams(searchParams.toString());

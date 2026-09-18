@@ -58,6 +58,18 @@ already-passing e2e test) over an assumption this implementation had made on its
 still defaults to `summary` — there is no equivalent immediate-completion-action requirement for a
 locked, read-only report, and it matches that golden's own illustrated tab exactly.
 
+### 1b. The resolved default tab is pinned into the URL, not recomputed live
+
+`PostMatchReportPageShell` pins whichever tab `getPostMatchReportDefaultTab()` resolves into the
+URL (`?tab=...`) the first time there is no explicit `tab` param, rather than leaving the default
+as a value recomputed on every render from the current `surfaceState`. Without this, completing
+the report from the Players tab (DRAFT → COMPLETED, a state change triggered by an action taken
+*on that same tab*) silently recomputed a different default (`summary`) after the `router.refresh()`
+completion triggers, navigating the coach away from Players — and its "Locked" status pill —
+immediately after they used it. The same real e2e test caught this as a second, distinct failure
+mode after 1a's fix landed. Once pinned, `?tab=players` remains valid and selected through the
+DRAFT → COMPLETED transition (`players` is a real tab in both tab sets).
+
 ### 2. Exact tab sets, one owning module
 
 `src/lib/matches/match-detail-tabs.ts` is the single source of truth for every tab array, default
