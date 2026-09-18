@@ -3,6 +3,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtureIds } from "@/test/test-db";
 import { createTestUser } from "@/test/support/factories";
 import { finishLiveReporting } from "../finish-live-reporting";
+import { seedReportFromLiveSession } from "@/lib/reports/report-mutations";
 
 /**
  * ADR-0146 §5/§6/§12 — the one shared `finishLiveReporting` operation. Covers the bundle's
@@ -18,6 +19,15 @@ vi.mock("@/lib/db", () => ({
     return getTestDb();
   },
 }));
+
+// Wraps the REAL implementation by default (TEST-PLAN §24 needs a genuine post-compare-and-set
+// failure, not a fully mocked report pipeline) — a single test overrides it with
+// `mockRejectedValueOnce` to simulate exactly one transient failure, then every other call
+// (including that same test's own retry) falls through to the real seeding logic again.
+vi.mock("@/lib/reports/report-mutations", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/reports/report-mutations")>();
+  return { ...actual, seedReportFromLiveSession: vi.fn(actual.seedReportFromLiveSession) };
+});
 
 const MIN = 60 * 1000;
 
@@ -227,6 +237,78 @@ describe("finishLiveReporting — League (ADR-0146)", () => {
     expect(second.reportId).toBe(first.reportId);
 
     expect(await testDb.postMatchReport.count({ where: { matchId } })).toBe(1);
+    expect(await testDb.matchPeriodTimingResolution.count({ where: { matchId } })).toBe(1);
+  });
+
+  it("TEST-PLAN §6: an already explicitly-ended period is never resolved/clamped by finish, however long it actually ran", async () => {
+    const matchId = await freshMatchId();
+    // FIRST_HALF was already explicitly ended by the coach (the clock advanced past it to
+    // SECOND_HALF, which is now the one still-active period) — however long FIRST_HALF actually
+    // took is nowhere reflected in this session row at all; finishLiveReporting must never
+    // touch/clamp it, because `resolveAndPersistActivePeriod` only ever resolves the *current*
+    // clockPeriod, never a period the clock has already moved past.
+    const periodStartedAt = new Date(Date.now() - 20 * MIN);
+    await activeSession(matchId, {
+      clockPeriod: "SECOND_HALF",
+      clockRunning: true,
+      clockPeriodStartedAt: periodStartedAt,
+      clockElapsedBeforeMs: 0,
+      formatNumberOfPeriods: 2,
+      formatPeriodDurationMinutes: 30,
+      formatBreakDurationMinutes: 5,
+    });
+
+    await finishLiveReporting(
+      { kind: "LEAGUE_MATCH", matchId, leagueSeasonId: null },
+      "MANUAL",
+      { organisationId: fixtureIds.organisationId },
+    );
+
+    // Exactly one resolution row (SECOND_HALF, the period active at finish) — FIRST_HALF, already
+    // explicitly ended, never receives one, regardless of how long it actually ran.
+    expect(await testDb.matchPeriodTimingResolution.count({ where: { matchId } })).toBe(1);
+    expect(await testDb.matchPeriodTimingResolution.count({ where: { matchId, period: "FIRST_HALF" } })).toBe(0);
+    const secondHalfRow = await testDb.matchPeriodTimingResolution.findFirstOrThrow({ where: { matchId, period: "SECOND_HALF" } });
+    expect(secondHalfRow.resolutionSource).toBe("FINISH_LIVE_REPORTING");
+  });
+
+  it("TEST-PLAN §24 (real failure surface): a failure after the compare-and-set reverts the session to ACTIVE, and a retry then succeeds", async () => {
+    const matchId = await freshMatchId();
+    const periodStartedAt = new Date(Date.now() - 4 * 60 * MIN);
+    await activeSession(matchId, {
+      clockPeriod: "FIRST_HALF",
+      clockRunning: true,
+      clockPeriodStartedAt: periodStartedAt,
+      formatNumberOfPeriods: 2,
+      formatPeriodDurationMinutes: 30,
+      formatBreakDurationMinutes: 5,
+    });
+
+    vi.mocked(seedReportFromLiveSession).mockRejectedValueOnce(
+      new Error("simulated transient failure after the compare-and-set"),
+    );
+
+    const ref = { kind: "LEAGUE_MATCH" as const, matchId, leagueSeasonId: null };
+    await expect(finishLiveReporting(ref, "MANUAL", { organisationId: fixtureIds.organisationId })).rejects.toThrow(
+      "simulated transient failure",
+    );
+
+    // The compare-and-set already flipped status to ENDED before the failing step ran — the
+    // acceptance checklist's "failed matches remain eligible for retry" requires this reverted,
+    // not left stranded ENDED with no report (which the reconciliation cron's ACTIVE-only
+    // eligibility query would never pick up again).
+    const revertedSession = await testDb.liveMatchSession.findUniqueOrThrow({ where: { matchId } });
+    expect(revertedSession.status).toBe("ACTIVE");
+    expect(revertedSession.endedAt).toBeNull();
+    expect(await testDb.postMatchReport.count({ where: { matchId } })).toBe(0);
+
+    // A genuine retry (the next manual click, or the next cron tick) now succeeds normally —
+    // every step it repeats is idempotent, including the period resolution row already upserted
+    // by the failed attempt.
+    const retried = await finishLiveReporting(ref, "MANUAL", { organisationId: fixtureIds.organisationId });
+    expect(retried.alreadyCompleted).toBe(false);
+    expect(retried.reportId).not.toBeNull();
+    expect((await testDb.liveMatchSession.findUniqueOrThrow({ where: { matchId } })).status).toBe("ENDED");
     expect(await testDb.matchPeriodTimingResolution.count({ where: { matchId } })).toBe(1);
   });
 

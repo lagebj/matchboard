@@ -81,28 +81,171 @@ League and Event share one guardrails module
   (set once, server-side, at session creation). Scheduled kickoff (`Match.startsAt`/
   `EventMatch.startsAt`) is fixture/calendar context and is never an input to any warning or
   limit — a fixture moved in real life but not updated in Matchboard can neither trigger nor
-  dodge a guardrail.
-- **Configured period duration is an expectation, not an automatic whistle.** No threshold
-  stops a clock, ends a period, or changes player minutes. An explicit coach "End period"
-  always preserves the actual elapsed duration, however long.
+  dodge a guardrail. A match rescheduled four real-world hours later than Matchboard's stored
+  `startsAt`, with Live Reporting only actually started at the new time, still gets a full fresh
+  240/270-minute window from that actual start — the stale scheduled `startsAt` is never read by
+  any guardrail formula.
+- **Configured period duration is an intended duration, not an automatic whistle.** No threshold
+  stops a clock, ends a period, or changes player minutes by itself. An explicit coach "End
+  period" always preserves the actual elapsed duration, however long — even one far longer than
+  the recovery ceiling below, because an explicit end is a referee decision the system never
+  overrides. Warnings exist only to catch forgotten clock state, never to enforce a duration.
 - **Warnings** (all non-destructive, `LiveReportingWarningBanner`):
-  - period overrun: active period past `intended + max(10m, 25%)` (format snapshot required);
-  - contextual whole-match: session past `expected wall-clock + max(30m, 50%)` (format
-    snapshot required);
+  - period overrun: active period past `intended + max(10m, 25% of intended)` (format snapshot
+    required);
+  - contextual whole-match: session past `expected wall-clock + max(30m, 50% of expected)`
+    (format snapshot required);
   - legacy fallback: fixed 180 minutes when NO format snapshot exists — never a guessed format;
   - strong at 240 minutes: persistent, names the automatic finish;
   - expired presentation at 270 minutes: the client shows the expired status; the server-side
-    reconciliation job is the actual finish authority.
+    reconciliation job (below) is the actual finish authority, not the client.
   - "Continue live reporting" is presentation-only — it never moves `startedAt`, the format
-    snapshot, or any deadline.
+    snapshot, or any deadline; dismissing/continuing past any of these warnings changes no
+    persisted timing state at all.
 - **Match format freeze**: the effective format (Match override > Team override > LeagueSeason
-  default, complete-or-inherit) resolves once, at the same server transition that starts Live
-  Reporting, onto `LiveMatchSession`/`EventLiveMatchSession`
-  (`format*` + `formatSource` + `formatSnapshotAt`). A later Season/Team change never
-  reinterprets an already-live or completed match. A Match-level override is editable only
-  before Live Reporting starts; once live, the match detail shows the frozen format instead.
+  default, complete-or-inherit — each level is a complete definition, never a field-by-field
+  merge) resolves once, at the same server transition that starts Live Reporting, onto
+  `LiveMatchSession`/`EventLiveMatchSession` (`format*` + `formatSource` + `formatSnapshotAt`). A
+  later Season/Team format change never reinterprets an already-live or completed match — only a
+  match that has not yet started Live Reporting resolves current configuration, at its own
+  future start. A Match-level override is editable only before Live Reporting starts; once live,
+  the match detail shows the frozen format instead, read-only.
 - **Follow Live** renders the same warning information warning-neutral and read-only — no
   Continue/Finish actions, no mutation controls (bundle §05.16).
+
+### Finish Live Reporting — one shared operation
+
+`finishLiveReporting(ref, trigger, context)` (`src/lib/live-match/finish-live-reporting.ts`) is
+the *only* way a `LiveMatchSession`/`EventLiveMatchSession` completes, for both League and Event,
+built on the `FootballMatchRef` discriminated union (ADR-0104). A manual "Finish Live Reporting"
+click and the 270-minute server-side timeout below call this exact same function with a different
+`trigger` (`"MANUAL"` | `"TIMEOUT"`) — `trigger` is audit/log metadata only. There is no separate
+`AUTO_CLOSED`/`TIMED_OUT` business state anywhere in `LiveSessionStatus` or `MatchReportStatus`;
+a timeout-completed session looks, in every persisted and rendered way, like a manually-completed
+one, just with different audit metadata.
+
+Sequence: atomic compare-and-set on `status: "ACTIVE"` (Prisma-native optimistic concurrency, the
+operation's own concurrency lock — no raw SQL row lock) → the loser of a race observes the
+winner's already-completed result instead of re-running the operation → resolve any still-active
+period (below) → end the session → seed/merge the post-match report exactly once → recompute the
+resolved timeline → return one result shape regardless of trigger. Recorded live data is always
+preserved; the post-match report is never auto-submitted — it is created/ensured in `DRAFT`,
+exactly as manual completion always produced.
+
+### Active-period recovery
+
+If a period is still running when `finishLiveReporting` runs (a coach forgot to end it, or the
+device was lost before they could), the running clock is never trusted as-is and never simply
+truncated at whatever the intended duration was — it is *resolved* against a recovery ceiling and
+the result is written as a `MatchPeriodTimingResolution` row (below):
+
+```text
+recovery ceiling = intended period duration + max(10m, 25% of intended period duration)
+legacy fallback  = 60m maximum trusted active-period duration, when no format snapshot exists
+```
+
+- raw elapsed ≤ ceiling: the raw elapsed time is used as-is, `resolutionSource:
+  FINISH_LIVE_REPORTING`, `reviewStatus: NOT_REQUIRED` — nothing for the coach to review.
+- raw elapsed > ceiling: resolved duration is clamped to the ceiling,
+  `resolutionSource: RECOVERED_BOUNDED`, `reviewStatus: NEEDS_REVIEW`, and the original raw
+  elapsed time is preserved on the row as a diagnostic — never discarded.
+
+These are recovery bounds for a still-*active*, abandoned period at the moment Live Reporting
+completes — not a football duration limit and not a replacement for a coach's own explicit
+judgment, and only that one still-active period is ever examined: an explicitly-ended period (the
+coach pressed "End period" themselves, at any elapsed time) has already moved the clock to a
+break/next-period slot by the time finish runs, so it is no longer "the current period" and is
+never resolved or clamped by this logic at all — its real, uncapped elapsed duration is simply
+what it is, with no resolution row and nothing to review. `TimingResolutionSource` reserves an
+`EXPLICIT_PERIOD_END` value for this case, but nothing writes it today — the one period that can
+actually run away unbounded is structurally always the last, still-active one, so bounding only
+that period already closes the "hours of player minutes" failure mode. Manual and `TIMEOUT`
+triggers hit the identical recovery code path for that one period; there is no timeout-specific
+formula.
+
+### Resolved period timing and player minutes
+
+`MatchPeriodTimingResolution` (one row per period that actually occurred, for either League
+`Match` or Event `EventMatch`, never both on the same row) is the timeline player/position
+minutes are derived from — `rebuildActualTimeline`/`rebuildEventActualTimeline`
+(`src/lib/evidence/actual-timeline.ts`) cap each period's contribution at that period's
+`resolvedDurationMs`, not at the old single static `Match.matchDurationMinutes` end-of-match
+field (which is retained only as a last-resort fallback when no resolution row exists at all,
+e.g. a match reported through a path other than Live Reporting). A period left running because a
+coach forgot to end it can no longer generate hours of credited player minutes — it is bounded by
+the recovery ceiling above the moment Live Reporting completes, regardless of how long the client
+was actually left open.
+
+### Server-side reconciliation (the 270-minute hard fail-safe)
+
+`src/app/api/cron/live-reporting-reconciliation/route.ts`, on a five-minute Vercel Cron schedule
+(`vercel.json`, `*/5 * * * *`), is the actual enforcement of the 270-minute absolute limit — not
+the client. It authenticates the same way `notification-outbox`'s existing cron route does
+(`CRON_SECRET` bearer auth, no new auth mechanism) and requires no browser to be open: eligibility
+is `status = "ACTIVE" AND startedAt <= now() - 270 minutes` for both `LiveMatchSession` and
+`EventLiveMatchSession` — `Match.startsAt`/`EventMatch.startsAt` never appears in this query, only
+the session's own actual start. Each eligible session is completed independently via
+`finishLiveReporting(ref, "TIMEOUT", systemContext)`; one session's failure is caught and logged
+without blocking any other session in the same run. A failed session remains eligible for the
+next run five minutes later — `finishLiveReporting` itself reverts the session back to `ACTIVE`
+if any step after its own compare-and-set throws, since that compare-and-set already flipped the
+row to `ENDED` before doing any of the report-seeding/timeline work; leaving it stranded `ENDED`
+with no report would silently drop it from every future reconciliation run's `ACTIVE`-only
+eligibility query. There is no separate retry queue or backoff — the next cron tick is the retry,
+and every step it repeats (the period-resolution upsert, report-seeding's own duplicate-safe
+handling, the timeline recompute) is already idempotent. An open client whose Live Reporting
+session is finished this way transitions to the post-match view normally on its next interaction,
+the same as after a manual finish.
+
+### Post-match review and submission gate
+
+A `MatchPeriodTimingResolution` row left `NEEDS_REVIEW` by active-period recovery surfaces on the
+post-match report as a visible callout (`RecoveredTimingCallout`,
+`src/components/matches/recovered-timing-callout.tsx`) — the resolved duration, a
+"Confirm duration" action, and an "Edit duration" action that lets the coach supply a corrected
+duration instead. Either action calls `reviewMatchPeriodTiming`
+(`src/lib/live-match/timing-review.ts`), which marks the row `REVIEWED` and re-runs the same
+resolved-timeline recompute `finishLiveReporting` itself uses — corrected timing recomputes
+player/position minutes deterministically, it never patches derived minutes directly. A recorded
+event whose period-relative timestamp now falls outside its period's *current* resolved duration
+is never auto-shifted or deleted; it is counted (`getOutOfRangeEventCount`) and surfaced as its
+own blocking notice, corrected only through the existing live-event editor. Final report
+submission (`completeReport`/`completeEventReport`, the DRAFT/REPORTED → LOCKED transition) is
+blocked — server-side, not just in the UI — while either any period is still `NEEDS_REVIEW` or
+any event is out of range (`getTimingSubmissionBlockers`); normal post-match editing (everything
+short of final submission) is never blocked by an unreviewed period.
+
+### Live Reporting lifecycle
+
+```text
+Pre-match
+   |
+   | Start Live Reporting
+   | - persist actual startedAt (LiveMatchSession/EventLiveMatchSession, unchanged thereafter)
+   | - freeze effective match format (Match > Team > Season, or unconfigured legacy)
+   v
+LIVE_REPORTING
+   |
+   | periods start/end explicitly; intended format duration only drives warnings, never a clock
+   |
+   +-- Manual "Finish Live Reporting" ------+
+   |                                        |
+   +-- 270m reconciliation cron (TIMEOUT) --+
+                                            |
+                                            v
+                             shared finishLiveReporting(ref, trigger, context)
+                             - atomic compare-and-set completion (idempotent, race-safe)
+                             - resolve any still-active period against the recovery ceiling
+                             - recompute the resolved timeline
+                             - preserve all recorded live data
+                             - ensure exactly one post-match DRAFT report
+                                            |
+                                            v
+                                      POST_MATCH (DRAFT)
+                             - review/confirm/correct any NEEDS_REVIEW recovered timing
+                             - correct any flagged out-of-range event through the event editor
+                             - submit (LOCKED) once no timing blocker remains
+```
 
 ## Canonical operation ordering
 
@@ -346,3 +489,6 @@ programme's Production Cutover Runbook completed on **2026-09-14**:
 - ADR-0138 — Canonical live operation stream, persisted sequence, and scoped offline
   continuation (the migration this document primarily describes).
 - ADR-0140 — Event live-reporting mutation is group-role-aware (resolves ARR-0048).
+- ADR-0146 — League match-format domain, Live Reporting guardrails, the shared
+  `finishLiveReporting` completion operation, active-period recovery, server-side reconciliation,
+  and the post-match timing review gate described above.

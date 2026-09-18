@@ -77,6 +77,21 @@ describe("reconcileExpiredLiveReportingSessions — real finishLiveReporting (en
     expect(await testDb.postMatchReport.count({ where: { matchId } })).toBe(1);
   });
 
+  it("TEST-PLAN §10: is eligible at exactly the 270-minute boundary, not yet eligible one second before it", async () => {
+    const matchId = await freshMatchId();
+    const notYetEligible = await session(matchId, new Date(Date.now() - (270 * MIN - 1000)));
+
+    const before = await reconcileExpiredLiveReportingSessions();
+    expect(before.finished.find((f) => f.sessionId === notYetEligible.id)).toBeUndefined();
+    expect((await testDb.liveMatchSession.findUniqueOrThrow({ where: { id: notYetEligible.id } })).status).toBe("ACTIVE");
+
+    // Advance the same session's startedAt to exactly 270 minutes ago (database second-level
+    // precision, not a brittle sub-millisecond assertion) and confirm it is now eligible.
+    await testDb.liveMatchSession.update({ where: { id: notYetEligible.id }, data: { startedAt: new Date(Date.now() - 270 * MIN) } });
+    const atBoundary = await reconcileExpiredLiveReportingSessions();
+    expect(atBoundary.finished).toContainEqual({ subjectType: "LEAGUE", sessionId: notYetEligible.id, matchId });
+  });
+
   it("does not touch a session that has not yet reached the 270-minute threshold", async () => {
     const matchId = await freshMatchId();
     const freshSession = await session(matchId, new Date(Date.now() - 10 * MIN));

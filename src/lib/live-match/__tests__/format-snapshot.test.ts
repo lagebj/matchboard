@@ -87,6 +87,71 @@ describe("Live Reporting start — match-format freeze", () => {
       const session = await testDb.liveMatchSession.findUnique({ where: { matchId } });
       expect(session?.formatPeriodDurationMinutes).toBe(25); // unchanged — frozen at first start
     });
+
+    it("TEST-PLAN §2: changing a Team override after Live Reporting start does not alter the already-frozen snapshot", async () => {
+      const { startLiveSession } = await import("../live-match-session");
+      const matchId = fixture.matches["Rod"];
+      const teamId = fixture.teams["Rod"];
+
+      // "Rod" was already started above with the Team override snapshotted as 1x40/0.
+      await testDb.team.update({
+        where: { id: teamId },
+        data: { periodDurationMinutesOverride: 90 },
+      });
+
+      await startLiveSession(matchId); // idempotent — session is already ACTIVE
+
+      const session = await testDb.liveMatchSession.findUnique({ where: { matchId } });
+      expect(session?.formatPeriodDurationMinutes).toBe(40); // unchanged — frozen at first start
+      expect(session?.formatSource).toBe("TEAM");
+    });
+
+    it("TEST-PLAN §2: a pre-live Match override is what actually snapshots, with source MATCH", async () => {
+      // A fresh, never-started match — the existing three fixture matches are already ACTIVE
+      // from the tests above.
+      const match = await testDb.match.create({
+        data: {
+          matchRoundId: fixture.matchRoundId,
+          teamId: fixture.teams["Bla"],
+          opponent: "Match-override opponent",
+          startsAt: new Date("2025-05-05T10:00:00Z"),
+          homeAway: "HOME",
+          squadSize: 11,
+          matchType: "FRIENDLY",
+          gameFormat: "ELEVEN_A_SIDE",
+          organisationId: fixture.organisationId,
+          // Complete Match-level override (ADR-0146 precedence: Match > Team > Season) — the
+          // Season default is already 2x35/10 (mutated by an earlier test in this file) and the
+          // "Bla" team has no override, so a resolvable Match override is the only way to prove
+          // MATCH wins at the top of precedence in an integration (not unit) test.
+          numberOfPeriodsOverride: 2,
+          periodDurationMinutesOverride: 15,
+          breakDurationMinutesOverride: 3,
+        },
+      });
+
+      const { startLiveSession } = await import("../live-match-session");
+      await startLiveSession(match.id);
+
+      const session = await testDb.liveMatchSession.findUnique({ where: { matchId: match.id } });
+      expect(session?.formatNumberOfPeriods).toBe(2);
+      expect(session?.formatPeriodDurationMinutes).toBe(15);
+      expect(session?.formatBreakDurationMinutes).toBe(3);
+      expect(session?.formatSource).toBe("MATCH");
+    });
+
+    it("TEST-PLAN §5: a repeated start leaves the session's actual startedAt (the TTL anchor) untouched, not just the format snapshot", async () => {
+      const { startLiveSession } = await import("../live-match-session");
+      const matchId = fixture.matches["Hvit"];
+
+      const before = await testDb.liveMatchSession.findUniqueOrThrow({ where: { matchId }, select: { startedAt: true } });
+
+      await startLiveSession(matchId); // idempotent — session is already ACTIVE
+      await startLiveSession(matchId); // and again, for good measure
+
+      const after = await testDb.liveMatchSession.findUniqueOrThrow({ where: { matchId }, select: { startedAt: true } });
+      expect(after.startedAt.getTime()).toBe(before.startedAt.getTime());
+    });
   });
 
   describe("Event", () => {

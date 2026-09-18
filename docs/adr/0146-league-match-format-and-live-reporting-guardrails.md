@@ -166,14 +166,31 @@ enum TimingResolutionSource { EXPLICIT_PERIOD_END FINISH_LIVE_REPORTING RECOVERE
 enum TimingReviewStatus { NOT_REQUIRED NEEDS_REVIEW REVIEWED }
 ```
 
-One row per period that actually occurred, written when that period closes (explicit `End
-Period`, or `finishLiveReporting` resolving a still-active one). This is the "resolved period
-timeline" the rest of the system (player/position minutes, out-of-range event validation) reads —
-never the raw persisted clock state directly, and never a hardcoded total. `rebuildActualTimeline`/
-`rebuildEventActualTimeline` (`actual-timeline.ts`) are changed to cap each period's contribution
-at its `MatchPeriodTimingResolution.resolvedDurationMs` instead of the current single static
-`Match.matchDurationMinutes` end-cap (which is retained only as the final fallback when no
-resolution row exists, e.g. a match reported through means other than Live Reporting).
+**Delivered scope**: `finishLiveReporting` writes exactly one row — for the single period still
+active (`LiveMatchSession.clockPeriod` still a "playing" slot) at the moment Live Reporting
+completes, if any. A period the coach has already explicitly ended before that moment (the clock
+has moved on to a break/next-period slot) never receives a row at all — `EXPLICIT_PERIOD_END`
+exists as a `TimingResolutionSource` enum value for forward compatibility but nothing writes it
+today. This is the deliberately smaller implementation that still closes the actual failure mode
+this ADR exists for: only the *last, still-running* period can ever be the one nobody explicitly
+closed, so bounding that one period is sufficient to make "a forgotten running period cannot
+generate hours of player minutes" hold. `rebuildActualTimeline`/`rebuildEventActualTimeline`
+(`actual-timeline.ts`) cap the match's overall end using whichever period `LiveMatchSession.
+clockPeriod` last reached, corrected by that period's resolution row if one exists — this is the
+"resolved period timeline" the rest of the system (player/position minutes, out-of-range event
+validation) reads for that one boundary, never the raw persisted clock state directly, and never
+a hardcoded total. It is retained only as the final fallback (the pre-existing single static
+`Match.matchDurationMinutes` end-cap) when no session/resolution exists at all, e.g. a match
+reported through means other than Live Reporting.
+
+A known, pre-existing, out-of-scope limitation this narrower delivery does not change: an
+*earlier* period that ran long via an explicit `End Period` (never clamped, exactly as intended)
+still contributes only its configured *intended* duration to later periods' absolute-timeline
+offset arithmetic, since no resolution row exists to correct it. Practically this cannot affect
+the failure mode this ADR targets (an abandoned, unbounded-until-finish period is structurally
+always the last one reached, not an earlier one), but it means an unusually long earlier period's
+own overrun does not retroactively shift later periods' absolute timestamps. Revisit only if a
+real product need for full multi-period timeline correction arises.
 
 ### 5. One shared `finishLiveReporting` operation
 
@@ -186,16 +203,22 @@ football-match-ref.ts`, ADR-0104) rather than inventing a second League/Event sp
 finishLiveReporting(ref: FootballMatchRef, trigger: "MANUAL" | "TIMEOUT", actor: ActorContext | SystemContext)
 ```
 
-Sequence: load+lock session by compare-and-set (`status: "ACTIVE"` guard on the update —
-Prisma-native optimistic concurrency, no raw SQL row lock) → if already non-`ACTIVE`, return the
-existing result idempotently (the race loser observes completion, does not re-run it) → resolve
-any still-active period (§6) → end the session (existing `endLiveSession`/`endEventLiveSession`,
-unchanged) → seed/merge the post-match report (existing `seedReportFromLiveSession`/
+Sequence: load session → if already non-`ACTIVE`, return the existing result idempotently (a
+genuine repeat call, or the race loser observing the winner's completion — with a short bounded
+retry if the winner is still mid-flight) → compare-and-set the session's own `status`/`endedAt`
+directly (`status: "ACTIVE"` guard on the `updateMany` — Prisma-native optimistic concurrency, no
+raw SQL row lock; this is the operation's own lock, *not* a delegation to the existing actor-gated
+`endLiveSession()`/`endEventLiveSession()`, which require a real signed-in browser session and
+structurally cannot run from a server-side cron trigger) → resolve any still-active period (§6) →
+seed/merge the post-match report (existing `seedReportFromLiveSession`/
 `seedEventReportFromLiveSession`, unchanged — already merge-safe per ADR-0133 H1) → recompute the
 resolved timeline (`rebuildActualTimeline`/`rebuildEventActualTimeline`) → return one result
-shape regardless of trigger. `trigger` is retained only as audit/log metadata on the operation
-call, never as a stored business state — no `AUTO_CLOSED`/`TIMED_OUT` value is added to
-`LiveSessionStatus` or `MatchReportStatus`.
+shape regardless of trigger. If any step after the compare-and-set throws, the session is
+reverted back to `ACTIVE` before the error propagates, so a failed attempt remains eligible for
+the next manual click or reconciliation tick rather than being stranded `ENDED` with no report —
+every repeated step is already idempotent, so a retry after a reverted failure is safe. `trigger`
+is retained only as audit/log metadata on the operation call, never as a stored business state —
+no `AUTO_CLOSED`/`TIMED_OUT` value is added to `LiveSessionStatus` or `MatchReportStatus`.
 
 ### 6. Active-period recovery at finish
 
@@ -210,10 +233,14 @@ performs, never client wall-clock state) and resolves it:
   preserved.
 - no format snapshot: same shape against the 60-minute legacy ceiling (§3).
 
-A `MatchPeriodTimingResolution` row is written either way. Manual and `TIMEOUT` triggers hit this
-exact same code path — there is no timeout-specific recovery algorithm. An explicit coach `End
-Period` before finish is unaffected by any of this — it already wrote its own resolution row at
-`EXPLICIT_PERIOD_END` with the raw, uncapped elapsed duration when the period closed.
+A `MatchPeriodTimingResolution` row is written either way, for the currently-active period only.
+Manual and `TIMEOUT` triggers hit this exact same code path — there is no timeout-specific
+recovery algorithm. An explicit coach `End Period` before finish is unaffected by any of this: the
+clock has already moved on to a break/next-period slot by the time finish runs, so that period is
+no longer "the currently active one" and is never examined, resolved, or clamped by this logic at
+all — its real, uncapped elapsed duration (however long) simply is what it is, with no resolution
+row and nothing to review (see §4's "delivered scope" for the one accepted limitation this
+implies).
 
 ### 7. Server-side reconciliation
 
@@ -367,3 +394,40 @@ Record created ahead of implementation, following investigation of the current L
 match-format and Live Reporting completion code (no configurable League format; no absolute
 Live Reporting TTL; League player minutes structurally unbounded for an abandoned running
 period).
+
+Slices 1–2 delivered: schema (expand-only) + `match-format.ts`/`live-reporting-guardrails.ts`
+domain modules + League Season/Team/Match format configuration UI; then freeze-at-start
+snapshotting + format-driven `PeriodConfig` + period-overrun/contextual/legacy/strong-warning UI
+in Live Reporting and Follow Live.
+
+A separate production incident (an already-`ACTIVE` `LiveMatchSession` whose `MATCH_END` event
+had gone missing from the persisted canonical stream, discovered and repaired the same day)
+confirmed empirically the exact failure mode §5/§6 of this ADR closes for future sessions — a
+completed match left without a normal Finish Live Reporting transition. The repair itself used
+the pre-existing manual tooling (`scripts/repair-stuck-live-session.ts`,
+`scripts/backfill-do-staged-events.ts`); it did not depend on any part of this ADR's delivery.
+
+### 2026-09-18
+
+Slices 3–6 delivered, closing out the programme:
+
+- Slice 3: `MatchPeriodTimingResolution` model; centralized `finishLiveReporting` (atomic
+  compare-and-set completion, idempotent/race-safe); active-period recovery against the
+  ceiling formulas in §3/§6; `actual-timeline.ts` resolved-timeline recompute replacing the old
+  static `Match.matchDurationMinutes` cap.
+- Slice 4: server-side reconciliation cron (`*/5 * * * *`, 270-minute eligibility, per-session
+  failure isolation) — the 270-minute limit's actual enforcement authority, independent of any
+  open client.
+- Slice 5: post-match recovered-timing review/correction UI (`RecoveredTimingCallout`), the
+  out-of-range-event validation, and the server-side final-submission gate
+  (`getTimingSubmissionBlockers`) in both `completeReport` and `completeEventReport`.
+- Slice 6: this documentation sweep (`docs/development/live-match-realtime.md`'s ADR-0146
+  section extended to cover the finish operation, active-period recovery, reconciliation, the
+  review gate, and the full lifecycle diagram) and closure of the remaining `07-TEST-PLAN.md`
+  gaps found against the delivered slices.
+
+Every item in `09-ACCEPTANCE-CHECKLIST.md` is satisfied as of this entry; see that checklist
+(bundle, gitignored) and the per-slice PRs (#602–#605 for slices 1–2, #608–#610 for slices 3–5,
+and the PR carrying this entry for slice 6) for the full delivery record. No `AUTO_CLOSED`/
+`TIMED_OUT` state was introduced at any point; `TIMEOUT` remained call-site/audit metadata only,
+exactly as decided in §5.

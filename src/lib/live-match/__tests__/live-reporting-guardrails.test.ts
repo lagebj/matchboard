@@ -155,6 +155,45 @@ describe("resolveLiveReportingWarning", () => {
     // At 92 minutes (contextual) with no active-period overrun, the contextual warning is the signal.
     expect(warningAt(TWO_BY_25, 92, 20)?.kind).toBe("CONTEXTUAL_MATCH");
   });
+
+  /**
+   * TEST-PLAN §10 — the exact 240m/270m absolute boundaries, at second-level precision (matching
+   * real database timestamp precision rather than asserting a brittle sub-millisecond edge).
+   */
+  it("is exactly the 240-minute boundary: 239m59s has no STRONG warning, 240m00s does", () => {
+    function warningAtMsFromStart(elapsedMs: number): LiveReportingWarning | null {
+      return resolveLiveReportingWarning({
+        format: null,
+        liveReportingStartedAt: startedAt,
+        nowMs: startedAt.getTime() + elapsedMs,
+        activePeriodElapsedMs: null,
+        activePeriodDurationMs: null,
+      });
+    }
+    const justBefore = warningAtMsFromStart(LIVE_REPORTING_STRONG_WARNING_MINUTES * 60 * 1000 - 1000);
+    expect(justBefore?.kind).not.toBe("STRONG");
+    expect(justBefore?.kind).not.toBe("EXPIRED");
+
+    const atBoundary = warningAtMsFromStart(LIVE_REPORTING_STRONG_WARNING_MINUTES * 60 * 1000);
+    expect(atBoundary?.kind).toBe("STRONG");
+  });
+
+  it("is exactly the 270-minute boundary: 269m59s is not yet EXPIRED, 270m00s is", () => {
+    function warningAtMsFromStart(elapsedMs: number): LiveReportingWarning | null {
+      return resolveLiveReportingWarning({
+        format: null,
+        liveReportingStartedAt: startedAt,
+        nowMs: startedAt.getTime() + elapsedMs,
+        activePeriodElapsedMs: null,
+        activePeriodDurationMs: null,
+      });
+    }
+    const justBefore = warningAtMsFromStart(LIVE_REPORTING_AUTO_FINISH_MINUTES * 60 * 1000 - 1000);
+    expect(justBefore?.kind).toBe("STRONG");
+
+    const atBoundary = warningAtMsFromStart(LIVE_REPORTING_AUTO_FINISH_MINUTES * 60 * 1000);
+    expect(atBoundary?.kind).toBe("EXPIRED");
+  });
 });
 
 describe("contextualWarningAtMs", () => {
