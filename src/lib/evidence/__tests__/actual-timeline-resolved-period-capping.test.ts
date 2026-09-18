@@ -116,4 +116,83 @@ describe("rebuildActualTimeline — resolved period capping (ADR-0146)", () => {
       expect(interval.endedAtMs).toBeGreaterThan(35 * MIN); // comfortably above the un-clamped ceiling boundary, confirms the cap is the 40m ceiling, not some smaller accident
     }
   });
+
+  it("TEST-PLAN §17: a mid-period substitution during a RECOVERED_BOUNDED period is unaffected — the sub's own timing is exact, and the never-subbed-off replacement is still capped at the resolved duration", async () => {
+    const match = await testDb.match.findFirstOrThrow({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true },
+    });
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === match.teamId).slice(0, 3);
+    const [starterKeptOn, starterSubbedOff, replacementSubbedIn] = players;
+    await buildStartingLineup(match.id, match.teamId, [starterKeptOn!.id, starterSubbedOff!.id]);
+
+    // A real substitution 15 minutes into FIRST_HALF (period-relative matchSeconds, matching the
+    // period-offset convention `LiveMatchEvent`/`MatchRotation` already use) -- comfortably inside
+    // the eventual 40-minute recovery ceiling, so the sub itself is a normal, in-range event, not
+    // part of what needs recovering.
+    await testDb.matchRotation.create({
+      data: {
+        matchId: match.id,
+        outPlayerId: starterSubbedOff!.id,
+        inPlayerId: replacementSubbedIn!.id,
+        period: 1, // FIRST_HALF
+        matchSeconds: 15 * MIN,
+        source: "LIVE",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+
+    const user = await createTestUser(testDb);
+    await testDb.liveMatchSession.create({
+      data: {
+        matchId: match.id,
+        coachId: user.id,
+        status: "ACTIVE",
+        organisationId: fixtureIds.organisationId,
+        clockPeriod: "FIRST_HALF",
+        clockRunning: true,
+        clockPeriodStartedAt: new Date(Date.now() - 4 * 60 * MIN), // abandoned for 4 hours
+        clockElapsedBeforeMs: 0,
+        formatNumberOfPeriods: 2,
+        formatPeriodDurationMinutes: 30,
+        formatBreakDurationMinutes: 5,
+      },
+    });
+
+    const result = await finishLiveReporting(
+      { kind: "LEAGUE_MATCH", matchId: match.id, leagueSeasonId: null },
+      "MANUAL",
+      { organisationId: fixtureIds.organisationId },
+    );
+    expect(result.activePeriodResolution?.resolutionSource).toBe("RECOVERED_BOUNDED");
+    expect(result.activePeriodResolution?.resolvedDurationMs).toBe(40 * MIN);
+
+    await rebuildActualTimeline(match.id);
+
+    // The substituted-off starter's interval ends exactly at their own sub timestamp -- the
+    // recovery clamp never touches a period a real event already bounded.
+    const subbedOff = await testDb.actualPositionInterval.findFirstOrThrow({
+      where: { matchId: match.id, playerId: starterSubbedOff!.id, position: { not: "BENCH" } },
+    });
+    expect(subbedOff.endedAtMs).toBe(15 * MIN);
+
+    // The replacement, never subbed off again, is bounded by the same resolved (clamped)
+    // duration as the starter who played the whole abandoned period -- not left open-ended, and
+    // not (incorrectly) bounded by only the time since they entered.
+    const replacement = await testDb.actualPositionInterval.findFirstOrThrow({
+      where: { matchId: match.id, playerId: replacementSubbedIn!.id },
+    });
+    expect(replacement.startedAtMs).toBe(15 * MIN);
+    expect(replacement.endedAtMs).not.toBeNull();
+    expect(replacement.endedAtMs).toBeLessThanOrEqual(40 * MIN);
+    expect(replacement.endedAtMs).toBeGreaterThan(35 * MIN);
+
+    // The starter kept on the whole time is capped identically to the single-player test above.
+    const keptOn = await testDb.actualPositionInterval.findFirstOrThrow({
+      where: { matchId: match.id, playerId: starterKeptOn!.id },
+    });
+    expect(keptOn.endedAtMs).not.toBeNull();
+    expect(keptOn.endedAtMs).toBeLessThanOrEqual(40 * MIN);
+    expect(keptOn.endedAtMs).toBeGreaterThan(35 * MIN);
+  });
 });

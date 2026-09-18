@@ -177,4 +177,58 @@ describe("timing-review (ADR-0146)", () => {
     const event = await testDb.liveMatchEvent.findFirstOrThrow({ where: { matchId, eventType: "GOAL_FOR" } });
     expect(event.matchSeconds).toBe(38 * MIN);
   });
+
+  it("TEST-PLAN §18: correcting the duration recomputes downstream player-minute evidence, not just the resolution row itself", async () => {
+    const match = await testDb.match.findFirstOrThrow({
+      where: { matchRoundId: fixtureIds.matchRoundId },
+      select: { id: true, teamId: true },
+    });
+    const matchId = match.id;
+    const player = fixtureIds.players.find((p) => p.coreTeamId === match.teamId)!;
+
+    const formation = await testDb.formation.create({
+      data: { name: "Timing Review Test Formation", gameFormat: "ELEVEN_A_SIDE", organisationId: fixtureIds.organisationId },
+    });
+    const lineup = await testDb.matchLineup.create({
+      data: { matchId, teamId: match.teamId, formationId: formation.id, status: "CONFIRMED", organisationId: fixtureIds.organisationId },
+    });
+    const slot = await testDb.formationSlot.create({
+      data: { formationId: formation.id, gridX: 0, gridY: 0, label: "Slot 0", shortLabel: "S0", roleType: "GOALKEEPER", organisationId: fixtureIds.organisationId },
+    });
+    await testDb.matchLineupAssignment.create({
+      data: { matchLineupId: lineup.id, slotId: slot.id, playerId: player.id, organisationId: fixtureIds.organisationId },
+    });
+
+    // Starts as a 40-minute recovered/clamped FIRST_HALF (NEEDS_REVIEW).
+    await recoveredResolution(matchId, 40);
+    const user = await createTestUser(testDb);
+    // clockPeriod stays at the abandoned period itself -- finishLiveReporting never advances it
+    // to FULL_TIME, so `rebuildActualTimeline` reads FIRST_HALF as the match's last-known period
+    // and caps the whole match end exactly at FIRST_HALF's own resolved duration (period offset
+    // 0, since it is the first playing period).
+    await testDb.liveMatchSession.create({
+      data: { matchId, coachId: user.id, status: "ENDED", organisationId: fixtureIds.organisationId, clockPeriod: "FIRST_HALF" },
+    });
+
+    const { rebuildActualTimeline } = await import("@/lib/evidence/actual-timeline");
+    await rebuildActualTimeline(matchId);
+    const beforeCorrection = await testDb.actualPositionInterval.findFirstOrThrow({ where: { matchId, playerId: player.id } });
+    expect(beforeCorrection.endedAtMs).toBeLessThanOrEqual(40 * MIN);
+    expect(beforeCorrection.endedAtMs).toBeGreaterThan(35 * MIN);
+
+    // Correct FIRST_HALF down to 20 minutes -- `reviewMatchPeriodTiming` must itself trigger the
+    // same resolved-timeline recompute `finishLiveReporting` uses, not just persist the new
+    // duration on the resolution row and leave player minutes stale.
+    const result = await reviewMatchPeriodTiming(
+      { kind: "LEAGUE_MATCH", matchId, leagueSeasonId: null },
+      "FIRST_HALF",
+      fixtureIds.organisationId,
+      "coach@example.com",
+      20,
+    );
+    expect(result.success).toBe(true);
+
+    const afterCorrection = await testDb.actualPositionInterval.findFirstOrThrow({ where: { matchId, playerId: player.id } });
+    expect(afterCorrection.endedAtMs).toBe(20 * MIN);
+  });
 });

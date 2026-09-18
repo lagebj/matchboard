@@ -22,6 +22,12 @@ import "server-only";
  * Everything else this calls (`seedReportFromLiveSession`/`seedEventReportFromLiveSession`,
  * `rebuildActualTimelineForRef`) already takes a plain `organisationId`, not an actor context —
  * already safe to call from a system trigger with no changes needed here.
+ *
+ * If any step after the compare-and-set throws, the session is reverted back to `ACTIVE` (see
+ * `revertLeagueSessionToActiveOnFailure`/`revertEventSessionToActiveOnFailure`) so it remains
+ * eligible for the next manual attempt or reconciliation tick, per the acceptance checklist's
+ * "failed matches remain eligible for retry" — the compare-and-set is a lock on *who* gets to
+ * run the operation, not a point of no return.
  */
 
 import { db } from "@/lib/db";
@@ -127,35 +133,40 @@ async function finishLeagueLiveReporting(
     return alreadyCompletedResult(ref, session.id, await awaitLeagueReport(matchId, organisationId));
   }
 
-  const format = snapshotToFormat(session);
-  const periodConfig = getLeagueMatchPeriodConfig(match.matchType, format);
-  const activePeriodResolution = await resolveAndPersistActivePeriod({
-    organisationId,
-    matchId,
-    eventMatchId: null,
-    periodConfig,
-    hasFormatSnapshot: format != null,
-    session,
-    now,
-  });
+  try {
+    const format = snapshotToFormat(session);
+    const periodConfig = getLeagueMatchPeriodConfig(match.matchType, format);
+    const activePeriodResolution = await resolveAndPersistActivePeriod({
+      organisationId,
+      matchId,
+      eventMatchId: null,
+      periodConfig,
+      hasFormatSnapshot: format != null,
+      session,
+      now,
+    });
 
-  const seedResult = await seedReportFromLiveSession(matchId, organisationId);
-  if (!seedResult.success) {
-    throw new Error(`finishLiveReporting: failed to seed report for match ${matchId}: ${seedResult.error}`);
+    const seedResult = await seedReportFromLiveSession(matchId, organisationId);
+    if (!seedResult.success) {
+      throw new Error(`finishLiveReporting: failed to seed report for match ${matchId}: ${seedResult.error}`);
+    }
+
+    await rebuildActualTimelineForRef(ref);
+
+    logFinish({ sourceId: matchId, sessionId: session.id, trigger, liveReportingStartedAt: session.startedAt, finishAttemptAt: now, activePeriodResolution });
+
+    return {
+      ref,
+      sessionId: session.id,
+      reportId: seedResult.reportId,
+      reportStatus: seedResult.status,
+      alreadyCompleted: false,
+      activePeriodResolution,
+    };
+  } catch (error) {
+    await revertLeagueSessionToActiveOnFailure(session.id, organisationId, matchId, error);
+    throw error;
   }
-
-  await rebuildActualTimelineForRef(ref);
-
-  logFinish({ sourceId: matchId, sessionId: session.id, trigger, liveReportingStartedAt: session.startedAt, finishAttemptAt: now, activePeriodResolution });
-
-  return {
-    ref,
-    sessionId: session.id,
-    reportId: seedResult.reportId,
-    reportStatus: seedResult.status,
-    alreadyCompleted: false,
-    activePeriodResolution,
-  };
 }
 
 function findLeagueReport(matchId: string, organisationId: string) {
@@ -229,38 +240,43 @@ async function finishEventLiveReporting(
     return alreadyCompletedResult(ref, session.id, await awaitEventReport(eventMatchId, organisationId));
   }
 
-  const format = snapshotToFormat(session);
-  const timing = getEffectiveEventSquadMatchTiming(eventMatch.eventSquad.event, eventMatch.eventSquad);
-  const periodConfig = format
-    ? buildPeriodConfigFromFormat(format)
-    : getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
-  const activePeriodResolution = await resolveAndPersistActivePeriod({
-    organisationId,
-    matchId: null,
-    eventMatchId,
-    periodConfig,
-    hasFormatSnapshot: format != null,
-    session,
-    now,
-  });
+  try {
+    const format = snapshotToFormat(session);
+    const timing = getEffectiveEventSquadMatchTiming(eventMatch.eventSquad.event, eventMatch.eventSquad);
+    const periodConfig = format
+      ? buildPeriodConfigFromFormat(format)
+      : getEventPeriodConfig(timing.matchDurationMinutes, timing.numberOfHalves, timing.breakDurationMinutes);
+    const activePeriodResolution = await resolveAndPersistActivePeriod({
+      organisationId,
+      matchId: null,
+      eventMatchId,
+      periodConfig,
+      hasFormatSnapshot: format != null,
+      session,
+      now,
+    });
 
-  const seedResult = await seedEventReportFromLiveSession(eventMatchId, organisationId);
-  if (!seedResult.success) {
-    throw new Error(`finishLiveReporting: failed to seed report for event match ${eventMatchId}: ${seedResult.error}`);
+    const seedResult = await seedEventReportFromLiveSession(eventMatchId, organisationId);
+    if (!seedResult.success) {
+      throw new Error(`finishLiveReporting: failed to seed report for event match ${eventMatchId}: ${seedResult.error}`);
+    }
+
+    await rebuildActualTimelineForRef(ref);
+
+    logFinish({ sourceId: eventMatchId, sessionId: session.id, trigger, liveReportingStartedAt: session.startedAt, finishAttemptAt: now, activePeriodResolution });
+
+    return {
+      ref,
+      sessionId: session.id,
+      reportId: seedResult.reportId,
+      reportStatus: seedResult.status,
+      alreadyCompleted: false,
+      activePeriodResolution,
+    };
+  } catch (error) {
+    await revertEventSessionToActiveOnFailure(session.id, organisationId, eventMatchId, error);
+    throw error;
   }
-
-  await rebuildActualTimelineForRef(ref);
-
-  logFinish({ sourceId: eventMatchId, sessionId: session.id, trigger, liveReportingStartedAt: session.startedAt, finishAttemptAt: now, activePeriodResolution });
-
-  return {
-    ref,
-    sessionId: session.id,
-    reportId: seedResult.reportId,
-    reportStatus: seedResult.status,
-    alreadyCompleted: false,
-    activePeriodResolution,
-  };
 }
 
 function findEventReport(eventMatchId: string, organisationId: string) {
@@ -289,6 +305,49 @@ async function awaitReport<T>(lookup: () => Promise<T | null>): Promise<T | null
 // ---------------------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------------------
+
+/**
+ * ADR-0146 §7/§12/acceptance-checklist ("Failed matches remain eligible for retry") — the
+ * compare-and-set above already flipped `status` to `ENDED` before any of the report-seeding or
+ * timeline-recompute work below it runs. If that later work throws (a transient DB error, not a
+ * validation failure — `seedReportFromLiveSession`'s own `success: false` path is the expected,
+ * already-handled outcome and is thrown as a plain `Error` above, same as this), the session must
+ * not be left stranded `ENDED` with no report: the reconciliation cron's eligibility query only
+ * ever matches `status: "ACTIVE"`, so a session stuck `ENDED` here would silently stop being
+ * retried by anything. Best-effort compare-and-set back to `ACTIVE` (only if still `ENDED` — a
+ * concurrent winner may have already produced a real completion by the time this runs) restores
+ * exactly the state finishLiveReporting started from, so the next manual click or cron tick
+ * retries the whole operation from scratch — every step it repeats
+ * (`resolveAndPersistActivePeriod`'s `upsert`, `seedReportFromLiveSession`'s P2002 handling,
+ * `rebuildActualTimelineForRef`'s deterministic recompute) is already idempotent per ADR-0133 H1
+ * and this ADR's own §12 concurrency design, so a retry after a reverted failure is safe.
+ */
+async function revertLeagueSessionToActiveOnFailure(sessionId: string, organisationId: string, matchId: string, error: unknown): Promise<void> {
+  try {
+    await db.liveMatchSession.updateMany({
+      where: { id: sessionId, status: "ENDED", organisationId },
+      data: { status: "ACTIVE", endedAt: null },
+    });
+  } catch (revertError) {
+    logger.error({ matchId, sessionId, error, revertError }, "[finishLiveReporting] failed to revert session to ACTIVE after a finish-step failure");
+    return;
+  }
+  logger.warn({ matchId, sessionId, error }, "[finishLiveReporting] reverted session to ACTIVE after a finish-step failure — eligible for retry");
+}
+
+/** Event equivalent of `revertLeagueSessionToActiveOnFailure` — see its own doc comment. */
+async function revertEventSessionToActiveOnFailure(sessionId: string, organisationId: string, eventMatchId: string, error: unknown): Promise<void> {
+  try {
+    await db.eventLiveMatchSession.updateMany({
+      where: { id: sessionId, status: "ENDED", organisationId },
+      data: { status: "ACTIVE", endedAt: null },
+    });
+  } catch (revertError) {
+    logger.error({ eventMatchId, sessionId, error, revertError }, "[finishLiveReporting] failed to revert session to ACTIVE after a finish-step failure");
+    return;
+  }
+  logger.warn({ eventMatchId, sessionId, error }, "[finishLiveReporting] reverted session to ACTIVE after a finish-step failure — eligible for retry");
+}
 
 function alreadyCompletedResult(
   ref: FootballMatchRef,
