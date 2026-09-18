@@ -14,6 +14,11 @@ import {
 } from '../event-post-match-actions';
 import { getEventFootballObservationsAction } from '../event-football-observation-actions';
 import { getAvailablePlayersForEvent } from '../actions';
+import {
+  getEventMatchTimingReviewAction,
+  confirmEventPeriodTimingAction,
+  correctEventPeriodTimingAction,
+} from '../event-post-match-actions';
 import { Surface } from '@/components/ui/surface';
 import { SectionHeader } from '@/components/ui/section-header';
 import { PostMatchReportShell } from '@/components/matches/post-match-report-shell';
@@ -26,6 +31,7 @@ import type {
   PostMatchReportActions,
   PostMatchReportCapabilities,
   PostMatchAvailablePlayer,
+  PostMatchReportTimingReviewRow,
 } from '@/lib/reports/post-match-report-view-model';
 
 interface PlayerReport {
@@ -85,7 +91,13 @@ interface EventMatchReportPanelProps {
 
 const CAPABILITIES: PostMatchReportCapabilities = { hasUnplannedReason: false };
 
-function toViewModel(report: ReportData, teamLabel: string, opponentLabel: string): PostMatchReportViewModel {
+function toViewModel(
+  report: ReportData,
+  teamLabel: string,
+  opponentLabel: string,
+  timingReview: PostMatchReportTimingReviewRow[],
+  outOfRangeEventCount: number,
+): PostMatchReportViewModel {
   return {
     id: report.id,
     status: report.status as PostMatchReportViewModel['status'],
@@ -102,6 +114,8 @@ function toViewModel(report: ReportData, teamLabel: string, opponentLabel: strin
     })),
     goals: report.goalEvents.map((g) => ({ id: g.id, playerId: g.playerId, playerName: g.playerName, minute: g.minute })),
     assists: report.assistEvents.map((a) => ({ id: a.id, playerId: a.playerId, playerName: a.playerName })),
+    timingReview,
+    outOfRangeEventCount,
   };
 }
 
@@ -112,6 +126,8 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
   const [teamReflection, setTeamReflection] = useState(report.teamReflection ?? '');
   const [opponentObservation, setOpponentObservation] = useState(report.opponentObservation ?? '');
   const [notes, setNotes] = useState(report.notes ?? '');
+  const [timingReview, setTimingReview] = useState<PostMatchReportTimingReviewRow[]>([]);
+  const [outOfRangeEventCount, setOutOfRangeEventCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +137,15 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
     getAvailablePlayersForEvent().then((players) => {
       if (!cancelled) {
         setAvailablePlayers(players.map((p) => ({ id: p.id, name: `${p.firstName}${p.lastName ? ' ' + p.lastName : ''}`, teamName: p.coreTeam?.name })));
+      }
+    });
+    // ADR-0146 §8/§13 -- the recovered-timing callout's data. Re-fetched whenever report.id
+    // changes (a confirm/correct action calls onRefresh, which re-renders with fresh report
+    // data from the parent -- refetching here keeps the callout in sync the same way).
+    getEventMatchTimingReviewAction(eventMatchId).then((result) => {
+      if (!cancelled) {
+        setTimingReview(result.timingReview);
+        setOutOfRangeEventCount(result.outOfRangeEventCount);
       }
     });
     return () => {
@@ -166,6 +191,8 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
     removePlayer: (playerReportId) => wrap(() => removeEventMatchPlayerAction(playerReportId)),
     complete: () => wrap(() => import('../event-post-match-actions').then(({ completeEventMatchReportAction }) => completeEventMatchReportAction(report.id))),
     reopen: (target) => wrap(() => import('../event-post-match-actions').then(({ reopenEventMatchReportAction }) => reopenEventMatchReportAction(report.id, target))),
+    confirmPeriodTiming: (period) => confirmEventPeriodTimingAction(eventMatchId, period),
+    correctPeriodTiming: (period, minutes) => correctEventPeriodTimingAction(eventMatchId, period, minutes),
   };
 
   const playerNameById = Object.fromEntries(report.playerReports.map((p) => [p.playerId, p.playerName]));
@@ -176,7 +203,7 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
           this device still needing review/sync, before the coach relies on the report below. */}
       <PostMatchUnresolvedBanner subjectId={eventMatchId} playerNameById={playerNameById} />
       <PostMatchReportShell
-        report={toViewModel(report, teamLabel, opponentLabel)}
+        report={toViewModel(report, teamLabel, opponentLabel, timingReview, outOfRangeEventCount)}
         actions={actions}
         capabilities={CAPABILITIES}
         availablePlayers={availablePlayers.filter((p) => !report.playerReports.some((r) => r.playerId === p.id))}

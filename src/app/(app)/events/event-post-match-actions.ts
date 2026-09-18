@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requirePageActorContext, requireMutationRole } from '@/lib/auth/actor-context';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
-import { MatchReportStatus, EventPostMatchAttendanceStatus, GoalType, AssistType } from '@/generated/prisma/client';
+import { MatchReportStatus, EventPostMatchAttendanceStatus, GoalType, AssistType, type MatchPeriod } from '@/generated/prisma/client';
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { isReportLocked } from '@/lib/reports/report-domain';
 import { completeEventReport } from '@/lib/reports/event-report-mutations';
@@ -17,13 +17,14 @@ async function requireEventOrgAccess(eventId: string, orgFilter: OrgFilterMode):
   if (!event) throw new Error('Event not found or access denied.');
 }
 
-async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<void> {
+async function requireEventMatchOrgAccess(eventMatchId: string, orgFilter: OrgFilterMode): Promise<{ eventId: string }> {
   const eventMatch = await db.eventMatch.findFirst({
     where: { id: eventMatchId, event: orgFilter.filter },
     select: { eventId: true },
   });
   if (!eventMatch) throw new Error('Event match not found or access denied.');
   await requireEventOrgAccess(eventMatch.eventId, orgFilter);
+  return { eventId: eventMatch.eventId };
 }
 
 async function requireReportOrgAccess(reportId: string, orgFilter: OrgFilterMode): Promise<void> {
@@ -462,4 +463,65 @@ export async function getEventMatchCombinationEvidenceAction(eventMatchId: strin
     eventId: eventMatch.eventId,
     evidenceLeagueSeasonId: null,
   });
+}
+
+// ADR-0146 §8/§14 — Event's own recovered-timing review actions, parallel to
+// `src/app/(app)/matches/[matchId]/post-match/actions.ts`'s `confirmPeriodTiming`/
+// `correctPeriodTiming`.
+
+/** Read-only: the current recovered-timing items for this event match's post-match callout. */
+export async function getEventMatchTimingReviewAction(eventMatchId: string) {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  const { eventId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
+
+  const { getMatchTimingReviewItems, getOutOfRangeEventCount } = await import('@/lib/live-match/timing-review');
+  const ref = { kind: 'EVENT_MATCH' as const, eventMatchId, eventId, evidenceLeagueSeasonId: null };
+  const [items, outOfRangeEventCount] = await Promise.all([
+    getMatchTimingReviewItems(ref),
+    getOutOfRangeEventCount(ref),
+  ]);
+
+  return {
+    timingReview: items.map((item) => ({
+      period: item.period,
+      periodLabel: item.periodLabel,
+      resolvedDurationMinutes: Math.round(item.resolvedDurationMs / 60000),
+      needsReview: item.reviewStatus === 'NEEDS_REVIEW',
+    })),
+    outOfRangeEventCount,
+  };
+}
+
+async function reviewEventTiming(
+  eventMatchId: string,
+  period: string,
+  correctedDurationMinutes?: number,
+): Promise<{ success: boolean; error?: string }> {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  const { eventId } = await requireEventMatchOrgAccess(eventMatchId, ctx.orgFilter);
+
+  try {
+    const { reviewMatchPeriodTiming } = await import('@/lib/live-match/timing-review');
+    const ref = { kind: 'EVENT_MATCH' as const, eventMatchId, eventId, evidenceLeagueSeasonId: null };
+    return await reviewMatchPeriodTiming(ref, period as MatchPeriod, ctx.organisationId, ctx.email || 'unknown', correctedDurationMinutes);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to review timing.' };
+  }
+}
+
+/** ADR-0146 §14 — confirms a NEEDS_REVIEW period's current resolved duration as-is. */
+export async function confirmEventPeriodTimingAction(eventMatchId: string, period: string): Promise<{ success: boolean; error?: string }> {
+  return reviewEventTiming(eventMatchId, period);
+}
+
+/** ADR-0146 §14 — replaces a NEEDS_REVIEW period's resolved duration with a coach-supplied value. */
+export async function correctEventPeriodTimingAction(
+  eventMatchId: string,
+  period: string,
+  correctedDurationMinutes: number,
+): Promise<{ success: boolean; error?: string }> {
+  return reviewEventTiming(eventMatchId, period, correctedDurationMinutes);
 }

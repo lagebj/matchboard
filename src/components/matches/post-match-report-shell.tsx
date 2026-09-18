@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { SectionHeader } from "@/components/ui/section-header";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { MetricTile } from "@/components/ui/metric-tile";
+import { RecoveredTimingCallout } from "@/components/matches/recovered-timing-callout";
 import type {
   PostMatchReportViewModel,
   PostMatchReportActions,
@@ -126,6 +127,32 @@ export function PostMatchReportShell({ report, actions, availablePlayers, onChan
       </Surface>
 
       {error && <DecisionBanner variant="blocked" title={error} />}
+
+      {!isLocked && (
+        <RecoveredTimingCallout
+          items={report.timingReview ?? []}
+          outOfRangeEventCount={report.outOfRangeEventCount}
+          disabled={isPending}
+          onConfirm={
+            actions.confirmPeriodTiming
+              ? async (period) => {
+                  const result = await actions.confirmPeriodTiming!(period);
+                  if (result.success) onChanged();
+                  return result;
+                }
+              : undefined
+          }
+          onCorrect={
+            actions.correctPeriodTiming
+              ? async (period, minutes) => {
+                  const result = await actions.correctPeriodTiming!(period, minutes);
+                  if (result.success) onChanged();
+                  return result;
+                }
+              : undefined
+          }
+        />
+      )}
 
       <div className="flex flex-wrap gap-2">
         <MetricTile label="Present" value={presentPlayers.length} tone="success" />

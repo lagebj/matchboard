@@ -40,6 +40,19 @@ export type PostMatchReportAssistRow = {
   playerName: string | null;
 };
 
+/** ADR-0146 §8/§13 — one `MatchPeriodTimingResolution` row, surfaced for the post-match
+ * recovered-timing callout. Symmetric between League and Event (both go through the same
+ * `finishLiveReporting`/`timing-review.ts`), so — unlike League-only concepts above — this
+ * belongs in the shared contract per ARR-0034's own criterion. */
+export type PostMatchReportTimingReviewRow = {
+  /** `MatchPeriod` enum value (e.g. "FIRST_HALF") -- opaque to the shell, passed back verbatim
+   * to the review/correct actions. */
+  period: string;
+  periodLabel: string;
+  resolvedDurationMinutes: number;
+  needsReview: boolean;
+};
+
 export type PostMatchReportViewModel = {
   id: string;
   status: PostMatchLifecycleStatus;
@@ -53,6 +66,15 @@ export type PostMatchReportViewModel = {
   assists: PostMatchReportAssistRow[];
   completedBy?: string | null;
   completedAt?: string | null;
+  /** Every resolved period for this match (reviewed and not-required rows included, for
+   * diagnostic completeness) -- empty/absent when Live Reporting never had to resolve an
+   * active period. `undefined` (not fetched, e.g. a still-loading async section) is treated
+   * the same as an empty array -- never as "definitely nothing to review". */
+  timingReview?: PostMatchReportTimingReviewRow[];
+  /** Count of recorded events whose period-relative timestamp now falls outside their period's
+   * current resolved duration (ADR-0146 §12/D15) -- shown alongside the timing callout, corrected
+   * through the existing event-editing workflow, not here. */
+  outOfRangeEventCount?: number;
 };
 
 export type ActionResult = { success: boolean; error?: string };
@@ -68,6 +90,12 @@ export type PostMatchReportActions = {
   removePlayer: (playerReportId: string) => Promise<ActionResult>;
   complete: () => Promise<ActionResult>;
   reopen: (target?: "DRAFT" | "REPORTED") => Promise<ActionResult>;
+  /** ADR-0146 §14 — confirms a NEEDS_REVIEW period's current resolved duration as-is. Optional:
+   * absent when `timingReview` is never populated (a source that hasn't wired the feature yet). */
+  confirmPeriodTiming?: (period: string) => Promise<ActionResult>;
+  /** ADR-0146 §14 — replaces a NEEDS_REVIEW period's resolved duration with a coach-supplied
+   * value (minutes) and marks it reviewed. */
+  correctPeriodTiming?: (period: string, correctedDurationMinutes: number) => Promise<ActionResult>;
 };
 
 export type PostMatchAvailablePlayer = { id: string; name: string; teamName?: string };

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
-import type { MatchReportStatus, PlannedAbsenceReason, PostMatchAttendanceStatus, GoalType, AssistType } from "@/generated/prisma/client";
+import type { MatchReportStatus, PlannedAbsenceReason, PostMatchAttendanceStatus, GoalType, AssistType, MatchPeriod } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import {
   seedReportFromFinalizedSquad,
@@ -611,4 +611,48 @@ export async function removeAssistFromReport(assistId: string): Promise<{ succes
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to remove assist." };
   }
+}
+
+async function reviewTiming(
+  matchId: string,
+  period: string,
+  correctedDurationMinutes?: number,
+): Promise<{ success: boolean; error?: string }> {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  await requireMatchGroupAccess(ctx, matchId);
+
+  try {
+    const { buildLeagueMatchRef } = await import("@/lib/evidence/adapters/league-evidence-adapter");
+    const { reviewMatchPeriodTiming } = await import("@/lib/live-match/timing-review");
+    const ref = await buildLeagueMatchRef(matchId);
+    const result = await reviewMatchPeriodTiming(
+      ref,
+      period as MatchPeriod,
+      ctx.organisationId,
+      ctx.email || "unknown",
+      correctedDurationMinutes,
+    );
+    if (!result.success) return { success: false, error: result.error };
+
+    revalidatePath(`/matches/${matchId}/post-match`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to review timing." };
+  }
+}
+
+/** ADR-0146 §14 — confirms a NEEDS_REVIEW period's current resolved duration as-is. */
+export async function confirmPeriodTiming(matchId: string, period: string): Promise<{ success: boolean; error?: string }> {
+  return reviewTiming(matchId, period);
+}
+
+/** ADR-0146 §14 — replaces a NEEDS_REVIEW period's resolved duration with a coach-supplied value. */
+export async function correctPeriodTiming(
+  matchId: string,
+  period: string,
+  correctedDurationMinutes: number,
+): Promise<{ success: boolean; error?: string }> {
+  return reviewTiming(matchId, period, correctedDurationMinutes);
 }

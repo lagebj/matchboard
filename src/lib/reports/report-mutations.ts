@@ -913,6 +913,22 @@ export async function completeReport(
     };
   }
 
+  // ADR-0146 §8/§15/D14 — a period `finishLiveReporting` had to automatically bound (or an
+  // event now outside a corrected period's duration) must be explicitly reviewed by the coach
+  // before the report can reach its final LOCKED state; derived minutes/evidence must never
+  // become final while resting on an unreviewed safety assumption. Wrapped in its own
+  // runWithTenantOrganisationId — same trust rationale as the block below (report.organisationId
+  // is exactly as trustworthy as an actor-resolved one), needed here too since
+  // MatchPeriodTimingResolution is RLS-scoped and this check runs before that later block.
+  const timingBlockers = await runWithTenantOrganisationId(report.organisationId, async () => {
+    const { getTimingSubmissionBlockers } = await import("@/lib/live-match/timing-review");
+    const { buildLeagueMatchRef } = await import("@/lib/evidence/adapters/league-evidence-adapter");
+    return getTimingSubmissionBlockers(await buildLeagueMatchRef(report.matchId));
+  });
+  if (timingBlockers.length > 0) {
+    return { success: false, error: `Cannot complete report: ${timingBlockers.join(" ")}` };
+  }
+
   // Everything from here on is scoped by the report's own already-loaded, trusted
   // organisationId (ADR-0087) — not whatever tenant context the caller happened to establish,
   // and not a re-derived actor context from a live request/cookie session (the previous
