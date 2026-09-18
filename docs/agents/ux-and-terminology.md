@@ -6,7 +6,7 @@ This module captures the interface and vocabulary rules that must hold across Ma
 
 Matchboard is a single adaptive application with context-aware composition. The same canonical state is visible across viewport sizes, but the amount of information, density, and interaction model changes with context. The UI must preserve clarity for compact and large screens without drifting away from the same domain state.
 
-The visual system, navigation patterns, and core surfaces remain subject to the current ADRs and product-surface decisions.
+The visual system, navigation patterns, and core surfaces remain subject to the current ADRs and product-surface decisions. `docs/product/navigation-model.md` is the canonical primary-navigation reference (the exact five items, their routes, and what is deliberately not a primary item) — read it before changing sidebar/nav composition.
 
 ## Product vocabulary
 
