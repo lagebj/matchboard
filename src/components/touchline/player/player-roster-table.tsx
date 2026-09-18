@@ -52,8 +52,12 @@ export function PlayerRosterTable({ rows, selectedPlayerId, onSelectPlayer, clas
                 }}
                 tabIndex={0}
                 role="button"
+                // `role="button"` only supports `aria-pressed` for its toggle state (axe
+                // `aria-allowed-attr`, WCAG 4.1.2) — `aria-selected` is invalid here (it requires
+                // an option/tab/row/gridcell-family role) and was a pre-existing, unrelated defect
+                // caught incidentally while building the Match Details lifecycle-convergence
+                // programme's Test-slot acceptance run.
                 aria-pressed={isSelected}
-                aria-selected={isSelected}
                 className={`cursor-pointer border-b border-[var(--border-soft)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-strong)] focus-visible:-outline-offset-2 ${
                   isSelected ? "bg-[var(--tl-pitch-selected)]" : "hover:bg-[var(--surface-hover)]"
                 }`}
