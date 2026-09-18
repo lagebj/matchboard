@@ -123,6 +123,17 @@ If a command fails, the PR must state:
 - exact failure
 - whether it is caused by this branch or pre-existing
 
+## Version management (mandatory)
+
+Every substantive Matchboard change must include a version-impact assessment before completion, per `docs/VERSIONING.md` (see ADR-0059).
+
+1. Determine the current version from `package.json`.
+2. Classify the overall change set as `none`, `patch`, or `minor` per `docs/VERSIONING.md`.
+3. If `patch` or `minor`, apply exactly one bump: `npm run version:patch` or `npm run version:minor`. Never bump more than once for one logical change set.
+4. Report the previous and new versions (or the `none` classification and reason) in the completion summary and PR description.
+
+Matchboard remains in the `0.x.y` range until the product owner explicitly authorises `1.0.0` — do not infer a major bump. Do not infer any bump from commit count, PR count, branch name, date, or number of changed files. Version bump commands update `package.json`, `src/lib/version/index.ts`, and `package-lock.json` only — they do not create Git commits, tags, GitHub Releases, or publish anything; those are separate release operations requiring explicit instruction.
+
 ## Commit and PR
 
 Use Conventional Commits.
@@ -166,5 +177,5 @@ These rules apply to every change, even when not explicitly requested.
 5. **Report what changed and what was cleaned up.**
 6. **Documentation validation must be run before PR.** A change is incomplete while any documentation, feature file, example, fixture, generated artifact, migration note, or agent instruction presents superseded behaviour as current. Check that docs in `docs/`, `AGENTS.md`, and `features/matchboard.feature` agree with the implementation. Resolve mismatches before pushing.
 7. **A deployable policy change is incomplete until source, tests, Wasm, hashes, and metadata are aligned in one commit.** If Rego source, compiled Wasm, `policy-pack.json` version, or hash metadata are out of sync, the policy change must not be merged until all are aligned.
-8. **Version sync must be run before PR.** If a PR touches schema, domain contracts, selection rules, or vocabulary, verify that AGENTS.md, the feature file, domain docs, ADRs, and terminology docs all reflect the current state. Mismatches must be resolved before pushing.
+8. **Documentation and vocabulary sync must be run before PR.** If a PR touches schema, domain contracts, selection rules, or vocabulary, verify that AGENTS.md, the feature file, domain docs, ADRs, and terminology docs all reflect the current state. Mismatches must be resolved before pushing. (This is distinct from the application version bump — see "Version management" above.)
 9. **Terminology check must be run before PR.** Verify that user-facing terminology in code, UI text, docs, and feature file agrees with `docs/domain/terminology.md` and the vocabulary tables in AGENTS.md. Prohibited terms must not appear in current code or docs.
