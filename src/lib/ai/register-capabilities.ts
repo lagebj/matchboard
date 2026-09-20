@@ -9,3 +9,4 @@ import "server-only";
  */
 import "@/lib/ai/context/post-match-review";
 import "@/lib/ai/context/round-review";
+import "@/lib/ai/context/lineup-review";

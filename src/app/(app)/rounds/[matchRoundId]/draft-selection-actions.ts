@@ -28,6 +28,26 @@ async function reconcileAndRevalidate(matchRoundId: string) {
   revalidatePath("/today");
 }
 
+/**
+ * AI Advisor's lineup_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
+ * "complete line-up/rotation plan saved -> debounced lineup_review"). Debounced 2 minutes
+ * (06_AI_CAPABILITY_CONTRACTS.md "2. lineup_review") so rapid successive edits collapse into one
+ * delayed job rather than one per keystroke. `triggerAiCapability` never throws and never blocks
+ * this mutation on its own.
+ */
+async function triggerLineupReview(organisationId: string, matchId: string) {
+  const { triggerAiCapability } = await import("@/lib/ai/jobs/triggers");
+  const { LINEUP_REVIEW_DEBOUNCE_MS } = await import("@/lib/ai/context/lineup-review");
+  await triggerAiCapability({
+    organisationId,
+    capability: "LINEUP_REVIEW",
+    scopeType: "MATCH",
+    scopeId: matchId,
+    debounceMs: LINEUP_REVIEW_DEBOUNCE_MS,
+  });
+}
+
+
 export async function addPlayerToMatchAction(formData: FormData) {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
@@ -65,6 +85,8 @@ export async function addPlayerToMatchAction(formData: FormData) {
     logManualOverride(ctx.email || "unknown", "selection", `${matchId}:${playerId}`, category);
   }
 
+  if (result.success) await triggerLineupReview(ctx.organisationId, matchId);
+
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
   if (roundId) await reconcileAndRevalidate(roundId);
 
@@ -94,6 +116,8 @@ export async function removePlayerFromMatchAction(formData: FormData) {
   await requirePlayerGroupAccess(ctx, playerId);
 
   const result = await removePlayerFromDraftMatch(matchId, playerId);
+
+  if (result.success) await triggerLineupReview(ctx.organisationId, matchId);
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
   if (roundId) await reconcileAndRevalidate(roundId);
@@ -137,6 +161,8 @@ export async function changePlayerRoleAction(formData: FormData) {
   if (result.success && category) {
     logManualOverride(ctx.email || "unknown", "selection_role", `${matchId}:${playerId}`, category);
   }
+
+  if (result.success) await triggerLineupReview(ctx.organisationId, matchId);
 
   const roundId = typeof matchRoundId === "string" ? matchRoundId : "";
   if (roundId) await reconcileAndRevalidate(roundId);
@@ -190,6 +216,8 @@ export async function movePlayerWithinRoundAction(formData: FormData) {
   });
 
   if (result.success) {
+    await triggerLineupReview(ctx.organisationId, fromMatchId);
+    await triggerLineupReview(ctx.organisationId, toMatchId);
     await reconcileAndRevalidate(matchRoundId);
   }
 

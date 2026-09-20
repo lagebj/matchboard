@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 import { getAiCapabilityHandler } from "@/lib/ai/jobs/capability-handler";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
-import { enqueueAiJob } from "@/lib/ai/jobs/enqueue";
+import { enqueueAiJob, enqueueDebouncedAiJob } from "@/lib/ai/jobs/enqueue";
 
 /**
  * Domain-trigger entry point (07_EXECUTION_PIPELINE.md "Domain triggers"): football-domain
@@ -26,6 +26,11 @@ export async function triggerAiCapability(params: {
   capability: AiAdvisorCapability;
   scopeType: AiAdvisorScopeType;
   scopeId: string;
+  /** When set, uses the debounced/collapsing enqueue path instead of enqueueing immediately —
+   * see `06_AI_CAPABILITY_CONTRACTS.md` "2. lineup_review" ("debounce 2 minutes after the last
+   * relevant plan change ... collapse queued jobs for the same match/capability to the newest
+   * fingerprint"). Omit for capabilities that trigger once at a clean state boundary. */
+  debounceMs?: number;
 }): Promise<void> {
   try {
     const settings = await getOrganisationAiSettings(params.organisationId);
@@ -38,13 +43,24 @@ export async function triggerAiCapability(params: {
     if (!context) return;
 
     const sourceFingerprint = computeSourceFingerprint(context.normalizedContext);
-    await enqueueAiJob({
-      organisationId: params.organisationId,
-      capability: params.capability,
-      scopeType: params.scopeType,
-      scopeId: params.scopeId,
-      sourceFingerprint,
-    });
+    if (params.debounceMs !== undefined) {
+      await enqueueDebouncedAiJob({
+        organisationId: params.organisationId,
+        capability: params.capability,
+        scopeType: params.scopeType,
+        scopeId: params.scopeId,
+        sourceFingerprint,
+        debounceMs: params.debounceMs,
+      });
+    } else {
+      await enqueueAiJob({
+        organisationId: params.organisationId,
+        capability: params.capability,
+        scopeType: params.scopeType,
+        scopeId: params.scopeId,
+        sourceFingerprint,
+      });
+    }
   } catch (error) {
     logger.warn(
       { err: error, organisationId: params.organisationId, capability: params.capability, scopeType: params.scopeType },

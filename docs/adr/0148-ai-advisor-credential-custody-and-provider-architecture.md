@@ -278,3 +278,10 @@ amended or superseded per this repository's ADR governance rules, not silently c
   `MatchRound`, wired as a domain trigger into `ensureMatchPlanningBaselineCaptured()` — the same
   automatic, non-coach-operated boundary-close that already owns round finalization per
   ADR-0109/ARR-0042. No deviation from this ADR's decisions.
+- `lineup_review` (the third capability) landed end-to-end: capability context builder scoped to
+  `Match`, wired as a domain trigger into every draft line-up/rotation-plan mutation (add/remove/
+  change-role/move-player selection edits and planned-rotation create/update), debounced 2 minutes
+  and collapsed to the newest fingerprint per (org, capability, scope) via a new
+  `enqueueDebouncedAiJob()` — no runner change was needed, since `AiAdvisorJob.nextAttemptAt`
+  already gated job claims. Eligibility ("a complete plan is saved") is proxied by CORE-role
+  selection count reaching `Match.squadSize`; no deviation from this ADR's decisions.
