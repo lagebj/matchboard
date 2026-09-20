@@ -13,6 +13,7 @@ import {
   confirmDevelopmentObservationActionSchema,
   EPHEMERAL_REF_PATTERN,
   EVIDENCE_REF_PATTERN,
+  ADVISOR_RESPONSE_JSON_SCHEMA,
 } from "@/lib/ai/contracts";
 
 function validInsight(overrides: Partial<Record<string, unknown>> = {}) {
@@ -174,5 +175,20 @@ describe("ai/contracts: advisorResponseSchema", () => {
   it("rejects a response containing one malformed insight, not just that insight", () => {
     const result = advisorResponseSchema.safeParse(validResponse([validInsight(), validInsight({ kind: "bogus" })]));
     expect(result.success).toBe(false);
+  });
+});
+
+describe("ai/contracts: ADVISOR_RESPONSE_JSON_SCHEMA", () => {
+  it("is a strict object schema — every top-level field required, no additional properties", () => {
+    expect(ADVISOR_RESPONSE_JSON_SCHEMA.type).toBe("object");
+    expect(ADVISOR_RESPONSE_JSON_SCHEMA.additionalProperties).toBe(false);
+    expect(ADVISOR_RESPONSE_JSON_SCHEMA.required).toEqual(
+      expect.arrayContaining(["contractVersion", "summary", "insights"]),
+    );
+  });
+
+  it("caps insights at MAX_INSIGHTS in the generated schema too", () => {
+    const insightsProperty = ADVISOR_RESPONSE_JSON_SCHEMA.properties?.insights as { maxItems?: number } | undefined;
+    expect(insightsProperty?.maxItems).toBe(MAX_INSIGHTS);
   });
 });
