@@ -2626,6 +2626,12 @@ model Organisation {
   eventMatchAvailabilities      EventMatchAvailability[]
   leagueRoundParticipants       LeagueRoundParticipant[]
   leagueMatchGuestAssignments   LeagueMatchGuestAssignment[]
+  // AI Advisor (ADR-0148): organisation-scoped, owner-configured, opt-in AI review capabilities.
+  aiSettings                    OrganisationAiSettings?
+  aiProviderConnections         AiProviderConnection[]
+  aiAdvisorReviews              AiAdvisorReview[]
+  aiAdvisorInsights             AiAdvisorInsight[]
+  aiAdvisorJobs                 AiAdvisorJob[]
 
   @@index([slug])
   @@index([name])
@@ -3417,4 +3423,256 @@ enum LearningRunOutcome {
   APPLIED
   SKIPPED
   FAILED
+}
+
+// ---------------------------------------------------------------------------
+// AI Advisor (ADR-0148)
+//
+// Organisation-scoped, owner-configured, opt-in AI review capabilities. AI never mutates
+// canonical football state directly — it produces persisted advisory interpretation only.
+// Provider credentials are never stored here (custody lives in the separate matchboard-security
+// service); AiProviderConnection holds only non-secret connection metadata. See
+// docs/adr/0148-ai-advisor-credential-custody-and-provider-architecture.md.
+// ---------------------------------------------------------------------------
+
+enum AiProviderId {
+  OPENAI
+  ANTHROPIC
+  GOOGLE_GEMINI
+  MISTRAL
+  OLLAMA_CLOUD
+}
+
+enum AiProviderConnectionStatus {
+  PENDING
+  CONNECTED_NO_MODEL
+  READY
+  ERROR
+  DELETE_PENDING
+  DISCONNECTED
+}
+
+enum AiAdvisorCapability {
+  ROUND_REVIEW
+  LINEUP_REVIEW
+  MATCH_PREP
+  POST_MATCH_REVIEW
+  WEEKLY_TEAM_REVIEW
+}
+
+enum AiAdvisorScopeType {
+  MATCH_ROUND
+  MATCH
+  TEAM_WEEK
+}
+
+enum AiAdvisorReviewStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SUPERSEDED
+}
+
+enum AiInsightKind {
+  OBSERVATION
+  ATTENTION
+  OPPORTUNITY
+  DEVELOPMENT_SUGGESTION
+}
+
+enum AiInsightSubjectType {
+  TEAM
+  MATCH
+  ROUND
+  PLAYER
+  PLAYER_PAIR
+  NONE
+}
+
+enum AiInsightActionType {
+  NONE
+  REVIEW
+  CONFIRM_DEVELOPMENT_OBSERVATION
+}
+
+enum AiInsightState {
+  ACTIVE
+  DISMISSED
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+}
+
+enum AiAdvisorJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// One row per organisation. Master AI enable switch plus one independent enable switch per
+/// capability (all default off — AI is opt-in, disabled by default). `activeConnectionId` is a
+/// denormalized pointer to the org's current READY AiProviderConnection, not a foreign key
+/// (kept loosely coupled so a disconnected/replaced connection never forces a cascading delete
+/// of settings the coach configured).
+model OrganisationAiSettings {
+  id             String        @id @default(cuid())
+  organisationId String        @unique
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  enabled            Boolean @default(false)
+  activeConnectionId String?
+
+  roundReviewEnabled      Boolean @default(false)
+  lineupReviewEnabled     Boolean @default(false)
+  matchPrepEnabled        Boolean @default(false)
+  postMatchReviewEnabled  Boolean @default(false)
+  weeklyTeamReviewEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organisationId])
+}
+
+/// Non-secret provider connection metadata only — never a credential column, never a
+/// base-URL column (the production provider registry is code-owned and fixed; see
+/// 03_PROVIDER_ADAPTERS_AND_MODELS.md). `id` is intentionally NOT a cuid(): it is an
+/// externally-meaningful opaque identifier (`aic_<random>`, >=128-bit CSPRNG, URL-safe) minted
+/// by application code and shared with the matchboard-security enrollment flow, so the DB never
+/// assigns it.
+model AiProviderConnection {
+  id             String        @id
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  provider AiProviderId
+  model    String?
+  status   AiProviderConnectionStatus @default(PENDING)
+
+  createdByUserId String?
+
+  connectedAt     DateTime?
+  readyAt         DateTime?
+  disconnectedAt  DateTime?
+  lastValidatedAt DateTime?
+  lastErrorCode   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews AiAdvisorReview[]
+
+  @@index([organisationId])
+  @@index([organisationId, status])
+}
+
+/// One persisted AI review per (capability, scope, source-state-fingerprint). Superseded reviews
+/// are kept as history, not deleted — `status: SUPERSEDED` marks a row that a newer successful
+/// review for the same capability/scope has replaced. `providerConnectionId` uses `onDelete:
+/// SetNull` (not Cascade): a review's historical text must survive its originating connection
+/// later being disconnected or deleted.
+model AiAdvisorReview {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  capability        AiAdvisorCapability
+  scopeType         AiAdvisorScopeType
+  scopeId           String
+  sourceFingerprint String
+
+  status AiAdvisorReviewStatus @default(QUEUED)
+
+  providerConnectionId String?
+  providerConnection   AiProviderConnection? @relation(fields: [providerConnectionId], references: [id], onDelete: SetNull)
+  provider             AiProviderId?
+  model                String?
+  contractVersion      String
+  terminologyVersion   String
+  summary              String?
+
+  inputTokens               Int?
+  outputTokens              Int?
+  providerRequestDurationMs Int?
+
+  queuedAt    DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  failureCode String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  insights AiAdvisorInsight[]
+
+  @@index([organisationId])
+  @@index([organisationId, capability, scopeType, scopeId, sourceFingerprint], map: "AiAdvisorReview_org_capability_scope_fingerprint_idx")
+  @@index([organisationId, capability, scopeType, scopeId, status], map: "AiAdvisorReview_org_capability_scope_status_idx")
+}
+
+/// Individual persisted insight produced by one AiAdvisorReview. `evidenceRefs` carries only
+/// resolved, structural evidence pointers into Matchboard's own canonical data (never raw
+/// provider request/response bodies). `actionPayload` is populated only when `actionType` is
+/// `CONFIRM_DEVELOPMENT_OBSERVATION`; confirming routes through the existing development/evidence
+/// workflow — this table never becomes canonical football state by itself.
+model AiAdvisorInsight {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  reviewId String
+  review   AiAdvisorReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  kind               AiInsightKind
+  subjectType        AiInsightSubjectType
+  subjectId          String?
+  secondarySubjectId String?
+  title              String
+  body               String
+  evidenceRefs       Json
+
+  actionType    AiInsightActionType @default(NONE)
+  actionPayload Json?
+
+  state AiInsightState @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organisationId])
+  @@index([reviewId])
+  @@index([organisationId, subjectType, subjectId])
+}
+
+/// Prisma-table-backed job queue for AI review execution (mirrors the NotificationOutbox
+/// pattern in src/lib/email/outbox.ts — no external queue infrastructure). The unique
+/// constraint enforces "no duplicate job for the same exact fingerprint" at the DB level, not
+/// just in application logic, closing a duplicate-enqueue race. Retry schedule: +1min / +5min /
+/// +30min, then terminal FAILED at attempts >= 3.
+model AiAdvisorJob {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  capability        AiAdvisorCapability
+  scopeType         AiAdvisorScopeType
+  scopeId           String
+  sourceFingerprint String
+
+  status        AiAdvisorJobStatus @default(QUEUED)
+  attempts      Int                @default(0)
+  nextAttemptAt DateTime           @default(now())
+  lockedAt      DateTime?
+  lockedBy      String?
+  lastErrorCode String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organisationId, capability, scopeType, scopeId, sourceFingerprint])
+  @@index([organisationId])
+  @@index([status, nextAttemptAt])
 }

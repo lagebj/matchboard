@@ -151,6 +151,12 @@ export const RLS_TABLES = new Set([
   "eventMatchAvailability",
   "leagueRoundParticipant",
   "leagueMatchGuestAssignment",
+  // ADR-0148: AI Advisor.
+  "organisationAiSettings",
+  "aiProviderConnection",
+  "aiAdvisorReview",
+  "aiAdvisorInsight",
+  "aiAdvisorJob",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
