@@ -148,6 +148,9 @@ export function validateEnv(): EnvValidationResult {
     if (!process.env.BREVO_WEBHOOK_BEARER_TOKEN) {
       errors.push("BREVO_WEBHOOK_BEARER_TOKEN is required in production to authenticate webhook delivery from Brevo.");
     }
+    if (process.env.AI_OLLAMA_DEV_BASE_URL) {
+      errors.push("AI_OLLAMA_DEV_BASE_URL must not be set in production. Production Ollama support is Ollama Cloud only (ADR-0148).");
+    }
   }
 
   // Non-production APP_BASE_URL warnings

@@ -123,6 +123,7 @@ describe("env: production safety guards", () => {
   const originalTestDbUrl = process.env.TEST_DATABASE_URL;
   const originalCronSecret = process.env.CRON_SECRET;
   const originalBrevoWebhook = process.env.BREVO_WEBHOOK_BEARER_TOKEN;
+  const originalAiOllamaDevBaseUrl = process.env.AI_OLLAMA_DEV_BASE_URL;
 
   afterEach(() => {
     if (originalMatchboardEnv !== undefined) {
@@ -175,6 +176,11 @@ describe("env: production safety guards", () => {
     } else {
       delete process.env.BREVO_WEBHOOK_BEARER_TOKEN;
     }
+    if (originalAiOllamaDevBaseUrl !== undefined) {
+      process.env.AI_OLLAMA_DEV_BASE_URL = originalAiOllamaDevBaseUrl;
+    } else {
+      delete process.env.AI_OLLAMA_DEV_BASE_URL;
+    }
   });
 
   function setValidProductionEnv() {
@@ -191,6 +197,7 @@ describe("env: production safety guards", () => {
     delete process.env.BYPASS_AUTH;
     delete process.env.TEST_AGENT_AUTH_ENABLED;
     delete process.env.TEST_AGENT_AUTH_SECRET;
+    delete process.env.AI_OLLAMA_DEV_BASE_URL;
   }
 
   it("rejects BYPASS_AUTH=true in production", () => {
@@ -249,6 +256,16 @@ describe("env: production safety guards", () => {
     const brevoError = result.errors.find((e) => e.includes("BREVO_WEBHOOK_BEARER_TOKEN"));
     expect(brevoError).toBeDefined();
     expect(brevoError).toContain("required in production");
+  });
+
+  it("rejects AI_OLLAMA_DEV_BASE_URL in production", () => {
+    setValidProductionEnv();
+    process.env.AI_OLLAMA_DEV_BASE_URL = "http://localhost:11434";
+
+    const result = validateEnv();
+    const ollamaDevError = result.errors.find((e) => e.includes("AI_OLLAMA_DEV_BASE_URL"));
+    expect(ollamaDevError).toBeDefined();
+    expect(ollamaDevError).toContain("must not be set in production");
   });
 });
 
