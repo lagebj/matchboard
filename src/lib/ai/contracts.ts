@@ -68,3 +68,8 @@ export const advisorResponseSchema = z.object({
 });
 
 export type AdvisorResponse = z.infer<typeof advisorResponseSchema>;
+
+/** JSON Schema form of `advisorResponseSchema`, for providers that accept a server-enforced
+ * structured-output schema (every adapter except Ollama Cloud — see
+ * 03_PROVIDER_ADAPTERS_AND_MODELS.md). Computed once; the schema is static. */
+export const ADVISOR_RESPONSE_JSON_SCHEMA = z.toJSONSchema(advisorResponseSchema);
