@@ -33,3 +33,31 @@ export function footballMatchRefSourceId(ref: FootballMatchRef): string {
 export function footballMatchRefEvidenceLeagueSeasonId(ref: FootballMatchRef): string | null {
   return ref.kind === "LEAGUE_MATCH" ? ref.leagueSeasonId : ref.evidenceLeagueSeasonId;
 }
+
+/**
+ * Resolves a bare id to its `FootballMatchRef` without the caller having to already know
+ * whether it names a League `Match` or an `EventMatch` -- needed by any consumer (the AI
+ * Advisor's `MATCH`-scoped capabilities, `context/*.ts`) that only has an opaque
+ * `AiAdvisorJob.scopeId`/`AiAdvisorReview.scopeId` string, because `AiAdvisorScopeType.MATCH`
+ * deliberately does not distinguish League from Event (06_AI_CAPABILITY_CONTRACTS.md
+ * "post_match_review": "League and Event matches normalize into the same AI contract"). Tries
+ * League first, then Event; returns `null` if neither table has a row with this id (the scope
+ * no longer exists).
+ */
+export async function resolveFootballMatchRefById(id: string): Promise<FootballMatchRef | null> {
+  const { db } = await import("@/lib/db");
+
+  const leagueMatch = await db.match.findUnique({ where: { id }, select: { id: true } });
+  if (leagueMatch) {
+    const { buildLeagueMatchRef } = await import("./adapters/league-evidence-adapter");
+    return buildLeagueMatchRef(id);
+  }
+
+  const eventMatch = await db.eventMatch.findUnique({ where: { id }, select: { id: true } });
+  if (eventMatch) {
+    const { buildEventMatchRef } = await import("./adapters/event-evidence-adapter");
+    return buildEventMatchRef(id);
+  }
+
+  return null;
+}

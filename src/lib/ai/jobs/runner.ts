@@ -11,7 +11,7 @@ import {
 } from "@/generated/prisma/client";
 import { runWithSystemPrivilege, runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { logger } from "@/lib/logger";
-import { getOrganisationAiSettings } from "@/lib/ai/organisation-ai-settings";
+import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 import { getProviderConnection } from "@/lib/ai/provider-connections";
 import { getAiCapabilityHandler, type AiCapabilityContext } from "@/lib/ai/jobs/capability-handler";
 import { getProviderAdapter } from "@/lib/ai/providers/provider-adapter-registry";
@@ -157,7 +157,7 @@ async function processClaimedJob(job: ClaimedJobRow): Promise<"succeeded" | "fai
     }
 
     const settings = await getOrganisationAiSettings(job.organisationId);
-    const capabilityEnabled = settings ? isCapabilityEnabled(settings, job.capability) : false;
+    const capabilityEnabled = settings ? isAiCapabilityEnabled(settings, job.capability) : false;
     if (!settings?.enabled || !capabilityEnabled || !settings.activeConnectionId) {
       await markJobFailed(job.id, "NOT_ELIGIBLE");
       return "not_eligible";
@@ -257,26 +257,6 @@ async function processClaimedJob(job: ClaimedJobRow): Promise<"succeeded" | "fai
     await markJobSucceeded(job.id);
     return "succeeded";
   });
-}
-
-function isCapabilityEnabled(
-  settings: { roundReviewEnabled: boolean; lineupReviewEnabled: boolean; matchPrepEnabled: boolean; postMatchReviewEnabled: boolean; weeklyTeamReviewEnabled: boolean },
-  capability: AiAdvisorCapability,
-): boolean {
-  switch (capability) {
-    case "ROUND_REVIEW":
-      return settings.roundReviewEnabled;
-    case "LINEUP_REVIEW":
-      return settings.lineupReviewEnabled;
-    case "MATCH_PREP":
-      return settings.matchPrepEnabled;
-    case "POST_MATCH_REVIEW":
-      return settings.postMatchReviewEnabled;
-    case "WEEKLY_TEAM_REVIEW":
-      return settings.weeklyTeamReviewEnabled;
-    default:
-      return false;
-  }
 }
 
 interface PersistSuccessfulReviewParams {
