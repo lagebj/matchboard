@@ -65,3 +65,83 @@ export async function enqueueAiJob(params: EnqueueAiJobParams): Promise<EnqueueA
     throw error;
   }
 }
+
+export interface EnqueueDebouncedAiJobParams extends EnqueueAiJobParams {
+  /** How long to wait, from now, before this job becomes claimable — reset on every call for
+   * the same organisation/capability/scope (06_AI_CAPABILITY_CONTRACTS.md "2. lineup_review":
+   * "debounce 2 minutes after the last relevant plan change"). */
+  debounceMs: number;
+}
+
+/**
+ * Debounced variant of `enqueueAiJob` for capabilities whose trigger fires on every plan edit
+ * rather than once at a clean state boundary (currently only `lineup_review`). Reuses the
+ * runner's existing `WHERE status = 'QUEUED' AND "nextAttemptAt" <= NOW()` claim predicate
+ * unchanged — no runner change was needed, only `nextAttemptAt` needed to be set in the future.
+ *
+ * "Collapse queued jobs for the same match/capability to the newest fingerprint"
+ * (06_AI_CAPABILITY_CONTRACTS.md) is implemented by finding the single still-`QUEUED` job row
+ * for this organisation/capability/scope (there is at most one, by construction below) and
+ * updating it in place — rewriting its fingerprint and pushing `nextAttemptAt` out by another
+ * `debounceMs` — rather than creating a second row. A `RUNNING`/already-claimed job is left
+ * alone; the runner re-fetches the current fingerprint at execution time anyway, so a stale
+ * in-flight job can never produce a wrong result, only a redundant one the runner already
+ * dedupes against `AiAdvisorReview`.
+ */
+export async function enqueueDebouncedAiJob(params: EnqueueDebouncedAiJobParams): Promise<EnqueueAiJobOutcome> {
+  const existingReview = await db.aiAdvisorReview.findFirst({
+    where: {
+      organisationId: params.organisationId,
+      capability: params.capability,
+      scopeType: params.scopeType,
+      scopeId: params.scopeId,
+      sourceFingerprint: params.sourceFingerprint,
+      status: "SUCCEEDED",
+    },
+    select: { id: true },
+  });
+  if (existingReview) {
+    return { enqueued: false, reason: "ALREADY_SUCCEEDED" };
+  }
+
+  const nextAttemptAt = new Date(Date.now() + params.debounceMs);
+
+  try {
+    await db.$transaction(async (tx) => {
+      const existingQueuedJob = await tx.aiAdvisorJob.findFirst({
+        where: {
+          organisationId: params.organisationId,
+          capability: params.capability,
+          scopeType: params.scopeType,
+          scopeId: params.scopeId,
+          status: "QUEUED",
+        },
+        select: { id: true },
+      });
+
+      if (existingQueuedJob) {
+        await tx.aiAdvisorJob.update({
+          where: { id: existingQueuedJob.id },
+          data: { sourceFingerprint: params.sourceFingerprint, nextAttemptAt, attempts: 0, lastErrorCode: null },
+        });
+      } else {
+        await tx.aiAdvisorJob.create({
+          data: {
+            organisationId: params.organisationId,
+            capability: params.capability,
+            scopeType: params.scopeType,
+            scopeId: params.scopeId,
+            sourceFingerprint: params.sourceFingerprint,
+            nextAttemptAt,
+          },
+        });
+      }
+    });
+    return { enqueued: true };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { enqueued: false, reason: "ALREADY_QUEUED_OR_RUNNING" };
+    }
+    throw error;
+  }
+}

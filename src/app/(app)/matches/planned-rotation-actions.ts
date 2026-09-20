@@ -56,6 +56,24 @@ function revalidateMatchPaths(matchId: string): void {
   revalidatePath(`/o/[orgSlug]/matches/${matchId}`);
 }
 
+/**
+ * AI Advisor's lineup_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
+ * "complete line-up/rotation plan saved -> debounced lineup_review"), debounced 2 minutes so
+ * rapid rotation edits collapse into one delayed job (06_AI_CAPABILITY_CONTRACTS.md
+ * "2. lineup_review"). Never throws and never blocks this mutation on its own.
+ */
+async function triggerLineupReview(organisationId: string, matchId: string) {
+  const { triggerAiCapability } = await import("@/lib/ai/jobs/triggers");
+  const { LINEUP_REVIEW_DEBOUNCE_MS } = await import("@/lib/ai/context/lineup-review");
+  await triggerAiCapability({
+    organisationId,
+    capability: "LINEUP_REVIEW",
+    scopeType: "MATCH",
+    scopeId: matchId,
+    debounceMs: LINEUP_REVIEW_DEBOUNCE_MS,
+  });
+}
+
 export async function getPlannedRotationAction(
   matchId: string,
   teamId: string,
@@ -109,6 +127,7 @@ export async function createPlannedRotationAction(
     }
 
     logMutationEvent("planned_rotation_create", ctx.email || "unknown", "planned_rotation", result.rotation.id, "success");
+    await triggerLineupReview(ctx.organisationId, input.matchId);
     revalidateMatchPaths(input.matchId);
 
     return { success: true, rotation: result.rotation };
@@ -152,6 +171,7 @@ export async function updatePlannedRotationAction(
 
     const matchId = result.rotation.matchId;
     logMutationEvent("planned_rotation_update", ctx.email || "unknown", "planned_rotation", rotationId, "success");
+    await triggerLineupReview(ctx.organisationId, matchId);
     revalidateMatchPaths(matchId);
 
     return { success: true, rotation: result.rotation };
