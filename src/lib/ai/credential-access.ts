@@ -1,3 +1,4 @@
+import "server-only";
 import { signCredentialAccessToken } from "@/lib/ai/credential-access-token";
 import { isValidAiProviderConnectionId } from "@/lib/ai/connection-id";
 import { getMatchboardSecurityTransport } from "@/lib/ai/security-client/transport-factory";

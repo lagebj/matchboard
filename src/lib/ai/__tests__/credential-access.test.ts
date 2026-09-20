@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import { generateKeyPair, exportPKCS8, decodeJwt } from "jose";
+
+vi.mock("server-only", () => ({}));
+
 import { generateAiProviderConnectionId } from "@/lib/ai/connection-id";
 import { FakeMatchboardSecurityTransport } from "@/lib/ai/security-client/fake-transport";
 import {

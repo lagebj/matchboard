@@ -1,3 +1,4 @@
+import "server-only";
 import { isProduction } from "@/lib/env";
 
 /**
@@ -11,13 +12,9 @@ import { isProduction } from "@/lib/env";
  * Each getter throws on first actual use instead, matching the existing `getAuthSecret()` /
  * `getLiveMatchRealtimeSecret()` convention. Revisit once a real caller exists (delivery phase 5).
  *
- * Deliberately no `import "server-only"` guard: this module follows the same convention already
- * established by `src/lib/env.ts` and `src/lib/machine-principal/machine-token.ts` for
- * secret-reading/signing utilities in this codebase — never imported by any `"use client"` module
- * (enforced by review + `npm run architecture:check`, which does not itself key off the
- * `server-only` marker), and kept directly unit-testable, which the marker package's throwing
- * `default` export condition otherwise prevents under this repo's Vitest setup. Adaptation
- * documented per the implementation bundle's own change-control rule.
+ * Test files importing this module (directly or transitively) need
+ * `vi.mock("server-only", () => ({}))` — the established pattern already used across
+ * `src/lib/insights/*.ts` and others (see e.g. `src/lib/ownership/__tests__/work-ownership.test.ts`).
  */
 
 function requireAiEnvVar(name: string): string {

@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import { ScalewaySecurityTransport } from "@/lib/ai/security-client/scaleway-transport";
 
 function fakeResponse(init: { type?: string; ok?: boolean; status?: number; json?: () => Promise<unknown> }): Response {

@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import { generateKeyPair, exportPKCS8, exportSPKI, importSPKI, jwtVerify, decodeJwt } from "jose";
+
+vi.mock("server-only", () => ({}));
+
 import { generateAiProviderConnectionId } from "@/lib/ai/connection-id";
 
 let privateKeyB64: string;

@@ -11,6 +11,8 @@ const ENV_KEYS = [
 
 const originalValues: Record<string, string | undefined> = {};
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("@/lib/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/env")>();
   return { ...actual, isProduction: vi.fn(() => false) };

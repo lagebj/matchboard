@@ -1,3 +1,4 @@
+import "server-only";
 import { AiProviderId as PrismaAiProviderId } from "@/generated/prisma/client";
 
 /**
