@@ -22,6 +22,12 @@ const CAPABILITY_FIELD = {
   WEEKLY_TEAM_REVIEW: "weeklyTeamReviewEnabled",
 } as const satisfies Record<AiAdvisorCapability, string>;
 
+/** Shared by the job runner and domain triggers alike -- both need "is this exact capability
+ * switched on for this org" and must never independently reimplement the enum->column mapping. */
+export function isAiCapabilityEnabled(settings: OrganisationAiSettings, capability: AiAdvisorCapability): boolean {
+  return settings[CAPABILITY_FIELD[capability]];
+}
+
 export class AiMasterEnableError extends Error {
   constructor(message: string) {
     super(message);

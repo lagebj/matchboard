@@ -265,5 +265,16 @@ export async function completeEventReport(
     // League's completeReport(). Authoritative outcome is the PostMatchLearningRun row.
   }
 
+  // AI Advisor's post_match_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
+  // "post-match report submitted -> post_match_review"). `triggerAiCapability` never throws
+  // and never blocks report completion on its own.
+  const { triggerAiCapability } = await import("@/lib/ai/jobs/triggers");
+  await triggerAiCapability({
+    organisationId: report.organisationId,
+    capability: "POST_MATCH_REVIEW",
+    scopeType: "MATCH",
+    scopeId: report.eventMatchId,
+  });
+
   return { success: true, eventMatchId: report.eventMatchId, learning };
 }

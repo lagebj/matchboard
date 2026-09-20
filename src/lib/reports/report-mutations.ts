@@ -970,6 +970,17 @@ export async function completeReport(
       // leaves `learning` undefined.
     }
 
+    // AI Advisor's post_match_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
+    // "post-match report submitted -> post_match_review"). `triggerAiCapability` never throws
+    // and never blocks report completion on its own.
+    const { triggerAiCapability } = await import("@/lib/ai/jobs/triggers");
+    await triggerAiCapability({
+      organisationId: report.organisationId,
+      capability: "POST_MATCH_REVIEW",
+      scopeType: "MATCH",
+      scopeId: report.matchId,
+    });
+
     return { success: true, matchId: report.matchId, learning };
   });
 }

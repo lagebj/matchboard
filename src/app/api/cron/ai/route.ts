@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import "@/lib/ai/register-capabilities";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
 import { getCronSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";

@@ -270,3 +270,7 @@ amended or superseded per this repository's ADR governance rules, not silently c
 
 - 2026-09-20: Created and accepted alongside the Prisma schema/migration PR that begins this
   programme's implementation.
+- `post_match_review` (the first of the five capabilities) landed end-to-end: capability context
+  builder, capability-handler registry, domain triggers wired into League and Event report
+  completion, and cron-runner registration. No deviation from what this ADR decided; recorded here
+  per the delivery-tracking convention above, not as an amendment.
