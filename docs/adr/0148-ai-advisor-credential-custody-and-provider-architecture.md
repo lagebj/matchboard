@@ -285,3 +285,14 @@ amended or superseded per this repository's ADR governance rules, not silently c
   `enqueueDebouncedAiJob()` — no runner change was needed, since `AiAdvisorJob.nextAttemptAt`
   already gated job claims. Eligibility ("a complete plan is saved") is proxied by CORE-role
   selection count reaching `Match.squadSize`; no deviation from this ADR's decisions.
+- `match_prep` (the fourth capability) landed end-to-end: capability context builder scoped to
+  `Match`, with a new cron-driven discovery step (`jobs/scheduled-triggers.ts`'s
+  `enqueueDueMatchPrepJobs()`, called from `/api/cron/ai` before the existing job-claim batch)
+  scanning fixtures in the 24-hours-to-kickoff window and reusing `triggerAiCapability()` per
+  match — no separate eligibility/dedup logic was needed there, since `triggerAiCapability`
+  already re-checks capability enablement, domain eligibility, and the fingerprint/dedup rule.
+  "Confirmed opponent sporting evidence" and "structured development focus categories" are
+  sourced only from existing structured/categorical fields (`OpponentSportingEvidence`'s computed
+  estimate, `OpponentEncounterObservation`'s categorical tags, `DevelopmentThread.category`),
+  never their free-text sibling fields, per this ADR's "no arbitrary free-text notes in v1" rule.
+  No deviation from this ADR's decisions.
