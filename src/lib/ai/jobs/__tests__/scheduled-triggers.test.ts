@@ -18,7 +18,7 @@ vi.mock("@/lib/db", () => ({
 // handler is registered per test instead, matching triggers.test.ts's own convention.
 vi.mock("@/lib/ai/register-capabilities", () => ({}));
 
-import { enqueueDueMatchPrepJobs } from "@/lib/ai/jobs/scheduled-triggers";
+import { enqueueDueMatchPrepJobs, enqueueDueWeeklyTeamReviewJobs } from "@/lib/ai/jobs/scheduled-triggers";
 import { registerAiCapabilityHandler, resetAiCapabilityHandlers, type AiCapabilityHandler } from "@/lib/ai/jobs/capability-handler";
 
 beforeAll(async () => {
@@ -42,6 +42,10 @@ const fakeContext = {
 
 function fakeMatchPrepHandler(buildContext: AiCapabilityHandler["buildContext"]): AiCapabilityHandler {
   return { capability: "MATCH_PREP", buildContext };
+}
+
+function fakeWeeklyTeamReviewHandler(buildContext: AiCapabilityHandler["buildContext"]): AiCapabilityHandler {
+  return { capability: "WEEKLY_TEAM_REVIEW", buildContext };
 }
 
 async function seedOrgWithMatch(params: { startsAt: Date; status?: "SCHEDULED" | "CANCELLED" }) {
@@ -125,3 +129,51 @@ describe("ai/jobs/scheduled-triggers: enqueueDueMatchPrepJobs", () => {
     expect(jobs).toHaveLength(0);
   });
 });
+
+describe("ai/jobs/scheduled-triggers: enqueueDueWeeklyTeamReviewJobs", () => {
+  async function seedOrgWithTeam() {
+    const org = await testDb.organisation.create({ data: { name: "Org", slug: `org-${Date.now()}-${Math.random()}` } });
+    await testDb.organisationAiSettings.create({ data: { organisationId: org.id, enabled: true, weeklyTeamReviewEnabled: true } });
+    const group = await testDb.footballGroup.create({ data: { name: "Group", slug: `group-${Date.now()}-${Math.random()}`, type: "AGE_GROUP", organisationId: org.id } });
+    const team = await testDb.team.create({ data: { name: `Team-${org.id}`, organisationId: org.id, footballGroupId: group.id } });
+    return { organisationId: org.id, teamId: team.id };
+  }
+
+  it("enqueues weekly_team_review for every team, keyed by team and the previous ISO week", async () => {
+    registerAiCapabilityHandler(fakeWeeklyTeamReviewHandler(async () => fakeContext));
+    const { organisationId, teamId } = await seedOrgWithTeam();
+
+    const result = await enqueueDueWeeklyTeamReviewJobs();
+    expect(result.scanned).toBeGreaterThanOrEqual(1);
+
+    const jobs = await testDb.aiAdvisorJob.findMany({ where: { organisationId, capability: "WEEKLY_TEAM_REVIEW" } });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ scopeType: "TEAM_WEEK", status: "QUEUED" });
+    expect(jobs[0].scopeId.startsWith(`${teamId}:`)).toBe(true);
+  });
+
+  it("does not enqueue when the handler reports the scope is not eligible", async () => {
+    registerAiCapabilityHandler(fakeWeeklyTeamReviewHandler(async () => null));
+    const { organisationId } = await seedOrgWithTeam();
+
+    await enqueueDueWeeklyTeamReviewJobs();
+
+    const jobs = await testDb.aiAdvisorJob.findMany({ where: { organisationId, capability: "WEEKLY_TEAM_REVIEW" } });
+    expect(jobs).toHaveLength(0);
+  });
+
+  it("never throws even when the handler itself throws for one team among several", async () => {
+    registerAiCapabilityHandler(
+      fakeWeeklyTeamReviewHandler(async () => {
+        throw new Error("boom");
+      }),
+    );
+    const { organisationId } = await seedOrgWithTeam();
+
+    await expect(enqueueDueWeeklyTeamReviewJobs()).resolves.toMatchObject({ scanned: expect.any(Number) });
+
+    const jobs = await testDb.aiAdvisorJob.findMany({ where: { organisationId, capability: "WEEKLY_TEAM_REVIEW" } });
+    expect(jobs).toHaveLength(0);
+  });
+});
+

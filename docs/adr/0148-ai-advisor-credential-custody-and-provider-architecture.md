@@ -296,3 +296,16 @@ amended or superseded per this repository's ADR governance rules, not silently c
   estimate, `OpponentEncounterObservation`'s categorical tags, `DevelopmentThread.category`),
   never their free-text sibling fields, per this ADR's "no arbitrary free-text notes in v1" rule.
   No deviation from this ADR's decisions.
+- `weekly_team_review` (the fifth and final capability) landed end-to-end, completing the
+  programme's five capabilities. Scope is `Team/week` (`AiAdvisorScopeType.TEAM_WEEK`) — this PR
+  defines its `scopeId` convention (`${teamId}:${weekKey}`, `weekKey` in `formatIsoWeekKey()`'s
+  `YYYY-Www` form), since no call site had used this scope type before. A second cron-driven
+  discovery step (`enqueueDueWeeklyTeamReviewJobs()`, called from `/api/cron/ai` alongside
+  `match_prep`'s scan) enumerates every team's previous completed ISO week and reuses
+  `triggerAiCapability()` per team — no new "already ran this week" guard was needed, since the
+  existing SUCCEEDED-review fingerprint check already stops re-enqueueing once a review has
+  succeeded for a week whose underlying facts have stopped changing. The context builder
+  deliberately queries Prisma directly rather than reusing the pre-existing, unrelated
+  org-wide/UI-shaped `src/lib/weekly/` "Weekly Coaching Context" module (ADR-0108) — that module
+  is not team-scoped and includes presentation-only fields this capability has no use for. No
+  deviation from this ADR's decisions.

@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { runWithSystemPrivilege, runWithTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { triggerAiCapability } from "@/lib/ai/jobs/triggers";
+import { formatIsoWeekKey } from "@/lib/date-utils";
+import { buildWeeklyTeamReviewScopeId } from "@/lib/ai/context/weekly-team-review";
 
 /**
  * Cron-scheduled discovery for capabilities with no domain-mutation trigger
@@ -51,4 +53,46 @@ export async function enqueueDueMatchPrepJobs(): Promise<{ scanned: number }> {
   }
 
   return { scanned: dueMatches.length };
+}
+
+/**
+ * "Once for the previous completed ISO week" (06_AI_CAPABILITY_CONTRACTS.md "5.
+ * weekly_team_review") is not a separate guard here: this scan runs every cron cycle and always
+ * targets the same, single previous-week `scopeId` per team until that week ends and the next
+ * one becomes "previous" — `triggerAiCapability`'s existing SUCCEEDED-review fingerprint check
+ * (`enqueue.ts`) already prevents re-enqueueing once a review has succeeded for that exact
+ * scope+fingerprint, and the week's underlying facts (and therefore its fingerprint) stop
+ * changing once the week's matches are in the past. No new per-team "already ran this week" flag
+ * was needed.
+ */
+function previousCompletedIsoWeekKey(now: Date): string {
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  return formatIsoWeekKey(sevenDaysAgo);
+}
+
+export async function enqueueDueWeeklyTeamReviewJobs(): Promise<{ scanned: number }> {
+  const weekKey = previousCompletedIsoWeekKey(new Date());
+
+  const teams = await runWithSystemPrivilege("ai-weekly-team-review-scan", () =>
+    db.team.findMany({ select: { id: true, organisationId: true } }),
+  );
+
+  for (const team of teams) {
+    try {
+      await runWithTenantOrganisationId(team.organisationId, () =>
+        triggerAiCapability({
+          organisationId: team.organisationId,
+          capability: "WEEKLY_TEAM_REVIEW",
+          scopeType: "TEAM_WEEK",
+          scopeId: buildWeeklyTeamReviewScopeId(team.id, weekKey),
+        }),
+      );
+    } catch (error) {
+      // triggerAiCapability itself never throws (it logs and swallows) — this catch is
+      // defensive only, so one team's unexpected failure can never abort the whole scan.
+      logger.warn({ err: error, teamId: team.id, organisationId: team.organisationId }, "[ai/jobs/scheduled-triggers] Failed to enqueue weekly_team_review");
+    }
+  }
+
+  return { scanned: teams.length };
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import "@/lib/ai/register-capabilities";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
-import { enqueueDueMatchPrepJobs } from "@/lib/ai/jobs/scheduled-triggers";
+import { enqueueDueMatchPrepJobs, enqueueDueWeeklyTeamReviewJobs } from "@/lib/ai/jobs/scheduled-triggers";
 import { getCronSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -14,10 +14,8 @@ import { logger } from "@/lib/logger";
  * bundle's own change-control rule ("preserve the architecture and product contract and adapt
  * only the local placement... document any such adaptation").
  *
- * Runs the pipeline's "1. enqueues due match preparation jobs ... 3. claims eligible jobs
- * atomically" worker-run sequence (07_EXECUTION_PIPELINE.md). Step 2, "enqueues previous-week
- * team reviews" (`weekly_team_review`), lands in a later PR alongside that capability's own
- * context builder.
+ * Runs the pipeline's "1. enqueues due match preparation jobs; 2. enqueues previous-week team
+ * reviews; 3. claims eligible jobs atomically" worker-run sequence (07_EXECUTION_PIPELINE.md).
  */
 export async function GET(request: Request) {
   const CRON_SECRET = getCronSecret();
@@ -30,11 +28,13 @@ export async function GET(request: Request) {
 
   try {
     const matchPrepScan = await enqueueDueMatchPrepJobs();
+    const weeklyTeamReviewScan = await enqueueDueWeeklyTeamReviewJobs();
     const result = await processAiJobsBatch();
 
     return NextResponse.json({
       ok: true,
       matchPrepScanned: matchPrepScan.scanned,
+      weeklyTeamReviewScanned: weeklyTeamReviewScan.scanned,
       ...result,
     });
   } catch (err) {
