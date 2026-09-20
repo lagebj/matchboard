@@ -274,3 +274,7 @@ amended or superseded per this repository's ADR governance rules, not silently c
   builder, capability-handler registry, domain triggers wired into League and Event report
   completion, and cron-runner registration. No deviation from what this ADR decided; recorded here
   per the delivery-tracking convention above, not as an amendment.
+- `round_review` (the second capability) landed end-to-end: capability context builder scoped to
+  `MatchRound`, wired as a domain trigger into `ensureMatchPlanningBaselineCaptured()` — the same
+  automatic, non-coach-operated boundary-close that already owns round finalization per
+  ADR-0109/ARR-0042. No deviation from this ADR's decisions.
