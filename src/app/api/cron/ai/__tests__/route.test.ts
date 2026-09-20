@@ -2,15 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { mockProcessAiJobsBatch, mockEnqueueDueMatchPrepJobs } = vi.hoisted(() => ({
+const { mockProcessAiJobsBatch, mockEnqueueDueMatchPrepJobs, mockEnqueueDueWeeklyTeamReviewJobs } = vi.hoisted(() => ({
   mockProcessAiJobsBatch: vi.fn(),
   mockEnqueueDueMatchPrepJobs: vi.fn(),
+  mockEnqueueDueWeeklyTeamReviewJobs: vi.fn(),
 }));
 vi.mock("@/lib/ai/jobs/runner", () => ({
   processAiJobsBatch: mockProcessAiJobsBatch,
 }));
 vi.mock("@/lib/ai/jobs/scheduled-triggers", () => ({
   enqueueDueMatchPrepJobs: mockEnqueueDueMatchPrepJobs,
+  enqueueDueWeeklyTeamReviewJobs: mockEnqueueDueWeeklyTeamReviewJobs,
 }));
 
 import { GET } from "@/app/api/cron/ai/route";
@@ -22,6 +24,8 @@ beforeEach(() => {
   mockProcessAiJobsBatch.mockReset();
   mockEnqueueDueMatchPrepJobs.mockReset();
   mockEnqueueDueMatchPrepJobs.mockResolvedValue({ scanned: 0 });
+  mockEnqueueDueWeeklyTeamReviewJobs.mockReset();
+  mockEnqueueDueWeeklyTeamReviewJobs.mockResolvedValue({ scanned: 0 });
 });
 
 afterEach(() => {
@@ -44,6 +48,7 @@ describe("GET /api/cron/ai", () => {
     expect(response.status).toBe(401);
     expect(mockProcessAiJobsBatch).not.toHaveBeenCalled();
     expect(mockEnqueueDueMatchPrepJobs).not.toHaveBeenCalled();
+    expect(mockEnqueueDueWeeklyTeamReviewJobs).not.toHaveBeenCalled();
   });
 
   it("rejects a request with the wrong bearer token", async () => {
@@ -51,17 +56,20 @@ describe("GET /api/cron/ai", () => {
     expect(response.status).toBe(401);
     expect(mockProcessAiJobsBatch).not.toHaveBeenCalled();
     expect(mockEnqueueDueMatchPrepJobs).not.toHaveBeenCalled();
+    expect(mockEnqueueDueWeeklyTeamReviewJobs).not.toHaveBeenCalled();
   });
 
-  it("scans for due match_prep jobs, then processes a batch and returns its combined summary for a correctly authenticated request", async () => {
+  it("scans for due match_prep jobs and weekly_team_review jobs, then processes a batch and returns its combined summary for a correctly authenticated request", async () => {
     mockEnqueueDueMatchPrepJobs.mockResolvedValue({ scanned: 2 });
+    mockEnqueueDueWeeklyTeamReviewJobs.mockResolvedValue({ scanned: 4 });
     mockProcessAiJobsBatch.mockResolvedValue({ claimed: 3, succeeded: 2, failed: 1, retried: 0, skippedNotEligible: 0 });
 
     const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toMatchObject({ ok: true, matchPrepScanned: 2, claimed: 3, succeeded: 2, failed: 1 });
+    expect(body).toMatchObject({ ok: true, matchPrepScanned: 2, weeklyTeamReviewScanned: 4, claimed: 3, succeeded: 2, failed: 1 });
     expect(mockEnqueueDueMatchPrepJobs).toHaveBeenCalledTimes(1);
+    expect(mockEnqueueDueWeeklyTeamReviewJobs).toHaveBeenCalledTimes(1);
     expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
   });
 
@@ -77,6 +85,17 @@ describe("GET /api/cron/ai", () => {
 
   it("returns 500 without leaking internals when the match_prep scan itself throws", async () => {
     mockEnqueueDueMatchPrepJobs.mockRejectedValue(new Error("db connection lost, internal detail"));
+
+    const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("db connection lost");
+    expect(mockProcessAiJobsBatch).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 without leaking internals when the weekly_team_review scan itself throws", async () => {
+    mockEnqueueDueWeeklyTeamReviewJobs.mockRejectedValue(new Error("db connection lost, internal detail"));
 
     const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
     expect(response.status).toBe(500);
