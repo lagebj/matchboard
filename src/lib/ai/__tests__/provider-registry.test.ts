@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import { AiProviderId as PrismaAiProviderId } from "@/generated/prisma/client";
 import {
   AI_PROVIDER_WIRE_IDS,

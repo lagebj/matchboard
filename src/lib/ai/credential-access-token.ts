@@ -1,3 +1,4 @@
+import "server-only";
 import { signAiSecurityBoundaryToken } from "@/lib/ai/jwt-signing";
 import { getAiCredentialAccessSigningPrivateKeyB64 } from "@/lib/ai/config";
 import { isValidAiProviderConnectionId } from "@/lib/ai/connection-id";

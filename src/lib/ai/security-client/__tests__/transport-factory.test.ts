@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const AI_ENV_KEYS = [
   "AI_ENROLLMENT_SIGNING_PRIVATE_KEY_B64",
   "AI_CREDENTIAL_ACCESS_SIGNING_PRIVATE_KEY_B64",

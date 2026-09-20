@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import { generateAiProviderConnectionId, isValidAiProviderConnectionId } from "@/lib/ai/connection-id";
 
 describe("ai/connection-id", () => {

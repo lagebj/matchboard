@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * AiProviderConnection ID minting and validation (01_LOCKED_DECISIONS.md / ADR-0148).
  *

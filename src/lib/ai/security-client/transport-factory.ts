@@ -1,3 +1,4 @@
+import "server-only";
 import type { MatchboardSecurityTransport } from "@/lib/ai/security-client/transport";
 import { ScalewaySecurityTransport } from "@/lib/ai/security-client/scaleway-transport";
 import { FakeMatchboardSecurityTransport } from "@/lib/ai/security-client/fake-transport";

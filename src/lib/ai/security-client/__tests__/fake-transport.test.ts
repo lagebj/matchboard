@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import { FakeMatchboardSecurityTransport } from "@/lib/ai/security-client/fake-transport";
 
 describe("ai/security-client/fake-transport", () => {
