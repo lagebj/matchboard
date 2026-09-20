@@ -84,6 +84,7 @@ export async function ensureMatchPlanningBaselineCaptured(
   });
   const currentRuleConfigVersion = rules.version;
   const matchRoundId = match.matchRoundId;
+  let roundFinalizedNow = false;
 
   await db.$transaction(async (tx) => {
     // No override reason: this is an automatic, time-driven capture, not a coach decision.
@@ -103,9 +104,23 @@ export async function ensureMatchPlanningBaselineCaptured(
       });
       if (matchRound && matchRound.status !== "FINALIZED") {
         await finalizeRoundRecord(tx, matchRoundId, rules.id, currentRuleConfigVersion);
+        roundFinalizedNow = true;
       }
     }
   });
+
+  if (roundFinalizedNow) {
+    // AI Advisor's round_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
+    // "round finalised -> round_review"). `triggerAiCapability` never throws and never blocks
+    // the planning-boundary capture on its own.
+    const { triggerAiCapability } = await import("@/lib/ai/jobs/triggers");
+    await triggerAiCapability({
+      organisationId: match.organisationId,
+      capability: "ROUND_REVIEW",
+      scopeType: "MATCH_ROUND",
+      scopeId: matchRoundId,
+    });
+  }
 
   return { captured: true, alreadyCaptured: false };
 }

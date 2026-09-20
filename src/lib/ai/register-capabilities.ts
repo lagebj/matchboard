@@ -8,3 +8,4 @@ import "server-only";
  * neither has to be updated when a new capability's context builder lands; only this file does.
  */
 import "@/lib/ai/context/post-match-review";
+import "@/lib/ai/context/round-review";
