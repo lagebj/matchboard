@@ -409,3 +409,29 @@ amended or superseded per this repository's ADR governance rules, not silently c
   one definition of that id shape. This completes 08_UI_UX_SPEC.md's four contextual Advisor
   surfaces (planned match, completed match, Round Board, weekly review). No deviation from this
   ADR's decisions.
+- Completed the connection disconnect/replace-key lifecycle deferred by the earlier
+  connection-finalization PR. Extracted the previously inline "retire a `DELETE_PENDING`
+  connection" step out of `select-model`'s route handler into a shared
+  `attemptRetireConnection()` (`connection-lifecycle.ts`), used by three call sites: the existing
+  replace-key finalization in `select-model`, a new owner-only `POST /api/ai/connections/
+  disconnect` route, and a new `retryPendingConnectionDeletions()` maintenance sweep
+  (`jobs/connection-maintenance.ts`) wired into `/api/cron/ai` alongside the existing job-enqueue
+  scans — closing the "not yet built" gap this ADR's history previously flagged for a transient
+  delete failure's retry path (04_ORG_CONNECTION_FLOW.md "Disconnect" step 5). Disconnect clears
+  `OrganisationAiSettings.activeConnectionId` and marks the connection `DELETE_PENDING` in one
+  transaction before attempting the best-effort delete — this alone blocks all new AI execution,
+  since every capability's job trigger/view-model builder already requires
+  `activeConnectionId` to be set, so the response reflects "disconnected" regardless of whether
+  the downstream delete call itself succeeds immediately or waits for the maintenance sweep. Per
+  this ADR's "connection and enablement are separate" principle, the master `enabled` switch is
+  deliberately left untouched by disconnect, and historical `AiAdvisorReview` rows are untouched
+  (`providerConnectionId` is `onDelete: SetNull`, never cascaded) — reconnecting later resumes
+  whatever capabilities were already enabled, and past review text is never deleted solely
+  because a key was disconnected. On the frontend, `AiAdvisorReadyPanel`
+  (`settings/ai-advisor-section.tsx`) now renders the spec's full `[ Change model ] [ Replace API
+  key ] [ Disconnect ]` button row (08_UI_UX_SPEC.md "State C: ready"): "Replace API key" reuses
+  the existing connect-wizard component with the provider fixed to the connection being replaced
+  (never a provider picker) and the model picker pre-selecting the old model when the refreshed
+  catalogue still offers it; "Disconnect" uses the codebase's existing plain-`window.confirm()`
+  destructive-action convention rather than a new dialog component. No deviation from this ADR's
+  decisions.

@@ -72,7 +72,8 @@ type SecurityEventAction =
   | "keep_quick_observation_as_note"
   | "convert_quick_observation"
   | "confirm_ai_development_suggestion"
-  | "dismiss_ai_insight";
+  | "dismiss_ai_insight"
+  | "disconnect_ai_provider_connection";
 
 interface SecurityEvent {
   category: SecurityEventCategory;
