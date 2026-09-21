@@ -7,7 +7,11 @@ import type { ProviderErrorCode } from "@/lib/ai/providers/provider-adapter";
  * explicit timeout, and cap how much response body an adapter will ever read into memory.
  */
 
-export const PROVIDER_REQUEST_TIMEOUT_MS = 20_000;
+// 45s (raised from 20s): production testing showed very large models (e.g. Ollama Cloud's
+// 397B-parameter models) can take longer than 20s to respond to a single chat completion,
+// which made every model-compatibility probe against them fail with PROVIDER_TIMEOUT even
+// though the provider was healthy and would have answered given a bit more time.
+export const PROVIDER_REQUEST_TIMEOUT_MS = 45_000;
 export const MAX_PROVIDER_RESPONSE_BYTES = 1_000_000;
 
 export type GuardedFetchResult = { ok: true; response: Response } | { ok: false; errorCode: ProviderErrorCode };
