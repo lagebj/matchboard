@@ -355,3 +355,27 @@ amended or superseded per this repository's ADR governance rules, not silently c
   connection is `READY`, the owning capability toggle is on, and at least one `ACTIVE` insight
   exists — otherwise nothing renders at all (08_UI_UX_SPEC.md: "no empty Advisor card"). No
   deviation from this ADR's decisions.
+- Added the second contextual Advisor surface: the completed-match "Post-match review" panel on
+  the AFTER-match Overview tab, rendered right after the canonical result/report facts strip and
+  before the final lineup, per the golden reference. Reuses the planned-match panel's freshness
+  (`sourceFingerprint` comparison against a freshly rebuilt `post_match_review` context) and
+  ephemeral-ref-resolution machinery, but separates each review's `ACTIVE` insights into plain
+  observations and `DEVELOPMENT_SUGGESTION` insights carrying a
+  `CONFIRM_DEVELOPMENT_OBSERVATION` `actionType`/`actionPayload`. Resolved
+  `DIGEST.md`'s explicitly flagged open implementation decision — which existing write path
+  "Confirm as development observation" should route through — by choosing the direct
+  `createThread`/`addObservation` path (`development-thread-actions.ts`'s underlying module),
+  not the "capture first, classify later" quick-observation conversion path: the AI already
+  supplies a specific player + free-text category + evidence triple, so there is nothing left to
+  classify. The AI's unconstrained free-text `category` (`contracts.ts`) is used as the new
+  thread's human-readable `focus` label rather than being force-fit onto the coach-authored
+  `DevelopmentFocusCategory` enum; `observation` is truncated to the development-thread module's
+  1000-character `evidence` cap (the AI contract allows up to 2000) rather than rejected, so a
+  confirm click can never dead-end. `createThread()`'s existing 3-active-threads-per-player cap
+  is surfaced back to the coach as a friendly, non-crashing error. Deliberately placed the new
+  `confirmAiDevelopmentSuggestionAction`/`dismissAiInsightAction` server actions under the
+  org-scoped `(app)/o/[orgSlug]/matches/[matchId]/` tree, colocated with `page.tsx`, rather than
+  following the legacy non-org-scoped `(app)/matches/` action-file convention every other
+  match-related action file still uses — a deliberate, scoped break from that convention for new
+  code only, not a retroactive migration of existing action files. No deviation from this ADR's
+  decisions.

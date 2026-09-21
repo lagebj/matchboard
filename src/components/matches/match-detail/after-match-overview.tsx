@@ -7,6 +7,9 @@ import { WidgetHeader } from "@/components/touchline/widget/widget-header";
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
 import { TouchlineButton } from "@/components/touchline";
 import { StatusPill } from "@/components/ui/status-pill";
+import { CompletedMatchAdvisorPanel } from "@/components/ai/completed-match-advisor-panel";
+import { AdvisorPanelStale } from "@/components/ai/advisor-panel";
+import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import { formatOpponentEnvironment, formatMatchFit, formatReflectionRating } from "@/lib/matches/match-detail-format";
@@ -47,6 +50,7 @@ export function AfterMatchOverview({
   selections,
   tabHref,
   postMatchHref,
+  advisorViewModel,
 }: {
   presentation: MatchPresentation;
   ownKitColor: string | null;
@@ -60,6 +64,9 @@ export function AfterMatchOverview({
   selections: SelectionRow[];
   tabHref: (tab: string) => string;
   postMatchHref: string;
+  /** `null` when there is nothing for the Advisor to show (no connection, AI disabled,
+   * `post_match_review` toggle off, or no useful persisted review). */
+  advisorViewModel: CompletedMatchAdvisorViewModel | null;
 }) {
   const env = formatOpponentEnvironment(data.opponentObservation?.overallEnvironment ?? null);
 
@@ -92,6 +99,9 @@ export function AfterMatchOverview({
       </div>
 
       <MetricStrip items={factsItems} className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4" />
+
+      {advisorViewModel?.status === "fresh" && <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />}
+      {advisorViewModel?.status === "stale" && <AdvisorPanelStale />}
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">

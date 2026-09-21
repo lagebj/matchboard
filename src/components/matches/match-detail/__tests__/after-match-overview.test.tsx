@@ -15,6 +15,16 @@ vi.mock("@/components/matches/match-tactics-panel", () => ({
   ),
 }));
 
+// Independently tested (completed-match-advisor.test.ts / ai-insight-actions.test.ts) and mocked
+// here so this file doesn't drag the "use server" actions module's real auth/db dependencies
+// into a component test.
+vi.mock("@/components/ai/completed-match-advisor-panel", () => ({
+  CompletedMatchAdvisorPanel: () => <div data-testid="completed-match-advisor-panel" />,
+}));
+vi.mock("@/components/ai/advisor-panel", () => ({
+  AdvisorPanelStale: () => <div data-testid="advisor-panel-stale" />,
+}));
+
 function makeAfterData(overrides: Partial<MatchDetailAfterData> = {}): MatchDetailAfterData {
   return {
     reportId: "r1",
@@ -70,6 +80,7 @@ function baseProps(overrides: Partial<Parameters<typeof AfterMatchOverview>[0]> 
     selections: [{ playerId: "p1", playerName: "Sebastian R", role: "CORE", primaryPosition: "ST", secondaryPosition: null, coreTeamName: "Hvit", absenceReason: null }],
     tabHref: (t: string) => `?tab=${t}`,
     postMatchHref: "/o/test/matches/m1/post-match",
+    advisorViewModel: null,
     ...overrides,
   };
 }
