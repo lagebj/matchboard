@@ -230,6 +230,47 @@ ARR-0023 (stale, drifting second lockfile) is resolved as of 2026-08-28 — see 
 | `deepmerge-ts` (via `@prisma/config`, transitively via `prisma`) | GHSA-ggr8-5vv4-36mx | High | Marked accepted risk at the time; a fix was later found — see 2026-08-28 above. |
 | `uuid` (via `exceljs`, used at runtime for season export) | GHSA-w5hq-g745-h8pq | Moderate | Marked accepted risk (verified not reachable) at the time; a fix was later found — see 2026-08-28 above. |
 
+## AI Advisor credential security
+
+AI Advisor (ADR-0148) is an optional, disabled-by-default capability. An organisation's owner
+connects the organisation's own AI provider account (OpenAI, Anthropic, Gemini, Mistral, or
+Ollama Cloud) and independently chooses which Advisor capabilities to enable.
+
+**Credential custody boundary.** Provider API credentials never enter the main Matchboard
+database. Enrollment submits the credential directly from the browser to a separate
+Scaleway-hosted credential-security service (Secret Manager/KMS-backed), never through a
+Matchboard API route. Matchboard's server-side AI execution code retrieves a credential only
+just-in-time, for the duration of a single provider call, using a short-lived signed access
+token; it is never cached, logged, or persisted server-side. Authorized infrastructure
+administrators ultimately control the underlying infrastructure, so this boundary reduces
+routine and accidental access — it is not a technical impossibility claim.
+
+**Operational policy.** Matchboard personnel do not retrieve, inspect, copy, or manually use a
+tenant's provider credential. Troubleshooting that requires provider-account inspection must
+involve the organisation and, when appropriate, credential rotation (disconnect and reconnect).
+
+**Data minimization.** Only the minimum structured football information required for the
+selected capability is sent to the connected provider, using stable temporary references
+instead of player/parent/user names. Player names, parent/user names, emails, the organisation
+name, Matchboard internal IDs, credentials, and arbitrary free-text notes are excluded from
+every provider payload in v1. This data is pseudonymized, not anonymous, and can still be
+personal data.
+
+**Provider-specific settings.** Where the provider offers a stateless/no-store request option,
+Matchboard uses it (for example OpenAI's Responses API `store: false`, and stateless
+chat/completion calls for Anthropic, Gemini, Mistral, and Ollama Cloud — no provider-side
+agents, sessions, or conversation history). Provider retention behaviour still depends on that
+provider's own terms, which differ and can change; Matchboard does not make a universal
+retention guarantee on a provider's behalf.
+
+**Audit trail.** Connection lifecycle changes (model selection, disconnect) and coach responses
+to Advisor suggestions (`confirm_ai_development_suggestion`, `dismiss_ai_insight`,
+`disconnect_ai_provider_connection`) are logged via the structured security-event log
+(`src/lib/security/audit-log.ts`), consistent with every other tenant mutation.
+
+See `docs/adr/0148-ai-advisor-credential-custody-and-provider-architecture.md` for the full
+data-flow architecture and delivery history.
+
 ## Secret policy
 
 Gitleaks configuration (`security/gitleaks.toml`) recognizes:

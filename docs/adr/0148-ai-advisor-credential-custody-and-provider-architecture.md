@@ -77,6 +77,31 @@ fake-provider.ts,provider-factory.ts}` real/fake/factory shape) — this is not 
 the bundle's own required test doctrine ("E2E coverage... using fake security/provider
 transports. Never use a real provider credential in CI").
 
+**Data-flow summary** (11_PRIVACY_AND_DOCUMENTATION.md's required diagram elements, in one
+sequence):
+
+```
+Browser                Matchboard server            matchboard-security          AI provider
+  |                          |                              |                        |
+  |--(1) POST credential---->|                              |                        |
+  |    directly to the       |--(auth only, no credential)->|                        |
+  |    enrollment URL        |                              |                        |
+  |    (never via a          |                              |(2) Secret Manager/KMS  |
+  |    Matchboard route)     |                              |    boundary — stores   |
+  |                          |                              |    the credential      |
+  |                          |                              |                        |
+  |                          |--(3) signed access token----->|                        |
+  |                          |<--(credential, in-memory)-----|                        |
+  |                          |    only, never logged/        |                        |
+  |                          |    persisted                  |                        |
+  |                          |--(4) direct provider call------------------------------->|
+  |                          |<--(5) response----------------------------------------- |
+  |                          |  validate, then persist only
+  |                          |  AiAdvisorReview/Insight —
+  |                          |  (6) the credential itself is
+  |                          |  never persisted in Matchboard
+```
+
 ### 2. Exactly five provider adapters, no arbitrary base URLs, no generic OpenAI-compatible adapter
 
 The production adapter registry is fixed and code-owned:
@@ -435,3 +460,16 @@ amended or superseded per this repository's ADR governance rules, not silently c
   catalogue still offers it; "Disconnect" uses the codebase's existing plain-`window.confirm()`
   destructive-action convention rather than a new dialog component. No deviation from this ADR's
   decisions.
+- Closed the 11_PRIVACY_AND_DOCUMENTATION.md documentation gate: added an "AI Advisor credential
+  security" section to `SECURITY.md` (custody boundary, operational policy against personnel
+  accessing tenant credentials, data minimization, provider-specific no-store settings, audit
+  trail); rewrote README.md's "Privacy and external AI handling" section, which pre-dated this
+  feature, with the actual opt-in/disabled-by-default/per-capability disclosure wording; updated
+  `docs/domain/pii-inventory.md`'s "External AI payloads" bullet to describe the real exclusion
+  list and pseudonymized-not-anonymous framing instead of its earlier generic wording; added a
+  pointer in `docs/agents/security-privacy-and-tenancy.md` so future AI-touching work reads this
+  ADR and `SECURITY.md` first; added the ASCII data-flow diagram above documenting the six
+  required elements (browser-direct enrollment, Secret Manager/KMS boundary, just-in-time
+  credential access, direct provider execution, response validation/persistence, no credential
+  persistence). `.env.example` already documented the AI signing-key/transport variables from an
+  earlier delivery step; no change needed there. No deviation from this ADR's decisions.

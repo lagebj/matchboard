@@ -271,7 +271,9 @@ Adding a player manually recalculates plan integrity signals, round status, matc
 
 Matchboard is a private coaching app. Coach-facing data — readiness signals, execution feedback, internal explanations, coaching intent, matchday responsibilities, support burden — must remain coach-facing by default.
 
-Player names and personal data must not be sent to external AI services. External payloads must use stable player IDs and sanitize personally identifiable information. Hosted deployment on Vercel with Neon PostgreSQL does not weaken privacy boundaries. Coach-facing data remains private by default.
+AI Advisor is optional and disabled by default. An organisation can connect its own supported AI provider account (OpenAI, Anthropic, Gemini, Mistral, or Ollama Cloud) and choose which Advisor capabilities to enable. When enabled, Matchboard sends the minimum structured football information required for the selected capability to that provider. Player names, parent/user names, emails, the organisation name, Matchboard internal IDs, credentials, and arbitrary free-text notes are not sent — stable temporary references are used instead of names. This information can still be personal data even when pseudonymized. The selected provider's own terms, privacy conditions, data handling, and usage charges apply; Matchboard configures each supported provider's stateless/no-store request options where the provider offers them, but does not claim a universal guarantee about how a provider retains data.
+
+Provider API credentials are stored in a separate Matchboard credential-security boundary rather than the main Matchboard database — see `SECURITY.md`'s "AI Advisor credential security" section and `docs/adr/0148-ai-advisor-credential-custody-and-provider-architecture.md` for the full architecture. External payloads must use stable player IDs and sanitize personally identifiable information. Hosted deployment on Vercel with Neon PostgreSQL does not weaken privacy boundaries. Coach-facing data remains private by default.
 
 ## Guardrails against misuse
 
