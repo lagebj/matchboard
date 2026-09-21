@@ -325,3 +325,17 @@ amended or superseded per this repository's ADR governance rules, not silently c
   caller — the new connection is already active and usable — and the old connection is left
   `DELETE_PENDING` for a later maintenance-worker retry sweep (not yet built; tracked for the
   disconnect/replace-key lifecycle PR). No deviation from this ADR's decisions.
+- Added the Organisation Settings "AI Advisor" section (08_UI_UX_SPEC.md), owner-only, placed
+  before Machine Principals/Danger Zone. Not-connected state renders the provider selector,
+  provider-specific credential field, and connect action; the connect flow submits the credential
+  directly to the enrollment URL returned by `/api/ai/connections/bootstrap` from the browser
+  (never through a Matchboard API route), clearing the credential from component state
+  immediately after submission regardless of outcome, then calls `/complete` and `/select-model`
+  to reach `READY`. The ready state shows the connected provider/model, "Refresh models"/"Change
+  model" actions (via `/models` and `/select-model`), the master AI switch (disabled from turning
+  on unless the active connection is `READY`, enforced server-side by
+  `setAiMasterEnabled`/`AiMasterEnableError`), and the five independently-toggleable capability
+  switches (visually disabled while the master switch is off, per spec). "Replace API key" and
+  "Disconnect" are intentionally not rendered yet — their backing routes and maintenance-worker
+  retry sweep are a later PR — so no dead affordance ships ahead of its backend. No deviation
+  from this ADR's decisions.
