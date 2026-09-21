@@ -577,3 +577,22 @@ amended or superseded per this repository's ADR governance rules, not silently c
   notification-outbox and live-reporting-reconciliation crons, which were equally silently
   broken — recorded here because it was discovered and is required for this ADR's own capabilities
   to function end-to-end at all.
+- Immediate follow-on discovery (2026-09-21), found while confirming the proxy fix above actually
+  let the job runner execute: after deploy, `/api/cron/ai` genuinely reached its route handler
+  (confirmed by the response changing from 307 to a real 401/200), but the still-stuck
+  `AiAdvisorJob` remained `QUEUED` across a live tick, and Vercel runtime logs showed
+  `"[cron:ai] Error processing AI job batch"` with a `TenantContextError` on the `Match` model.
+  Root cause: `src/app/api/cron/ai/route.ts`'s `GET` handler ran all four of its steps — the
+  match_prep scan, the weekly_team_review scan, the connection-deletion retry scan, and
+  `processAiJobsBatch()` (the step that actually claims and executes already-queued jobs,
+  including `lineup_review`) — inside one shared `try/catch`. Any single step throwing meant
+  `processAiJobsBatch()` was never even reached for that invocation, so a scan-side failure
+  silently prevented all already-queued job processing too, on every single tick, independent of
+  whatever the scan's own root cause turns out to be. Fixed by isolating each of the four steps
+  in its own try/catch (`runCronStep()` helper in `route.ts`), so a scan failure is logged and
+  reported in the response body but can never block `processAiJobsBatch()` from running; existing
+  tests in `src/app/api/cron/ai/__tests__/route.test.ts` updated to assert already-queued jobs are
+  still claimed and processed when a scan step throws (previously asserted the opposite). The
+  underlying `TenantContextError` root cause in the match_prep/weekly_team_review scan path itself
+  is not yet fully diagnosed and may need further investigation; this fix ensures that whatever it
+  turns out to be, it no longer blocks the rest of the queue.

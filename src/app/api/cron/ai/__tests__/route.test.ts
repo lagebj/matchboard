@@ -100,25 +100,40 @@ describe("GET /api/cron/ai", () => {
     expect(JSON.stringify(body)).not.toContain("db connection lost");
   });
 
-  it("returns 500 without leaking internals when the match_prep scan itself throws", async () => {
+  it("still claims and processes already-queued jobs when the match_prep scan itself throws (isolation fix)", async () => {
     mockEnqueueDueMatchPrepJobs.mockRejectedValue(new Error("db connection lost, internal detail"));
+    mockProcessAiJobsBatch.mockResolvedValue({ claimed: 1, succeeded: 1, failed: 0, retried: 0, skippedNotEligible: 0 });
 
     const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.ok).toBe(false);
+    expect(body).toMatchObject({ ok: true, matchPrepScanError: true, claimed: 1, succeeded: 1 });
     expect(JSON.stringify(body)).not.toContain("db connection lost");
-    expect(mockProcessAiJobsBatch).not.toHaveBeenCalled();
+    // The scan's own failure must never block the runner from claiming already-queued work.
+    expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
   });
 
-  it("returns 500 without leaking internals when the weekly_team_review scan itself throws", async () => {
+  it("still claims and processes already-queued jobs when the weekly_team_review scan itself throws (isolation fix)", async () => {
     mockEnqueueDueWeeklyTeamReviewJobs.mockRejectedValue(new Error("db connection lost, internal detail"));
+    mockProcessAiJobsBatch.mockResolvedValue({ claimed: 1, succeeded: 1, failed: 0, retried: 0, skippedNotEligible: 0 });
 
     const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.ok).toBe(false);
+    expect(body).toMatchObject({ ok: true, weeklyTeamReviewScanError: true, claimed: 1, succeeded: 1 });
     expect(JSON.stringify(body)).not.toContain("db connection lost");
-    expect(mockProcessAiJobsBatch).not.toHaveBeenCalled();
+    expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("still claims and processes already-queued jobs when the connection-deletion retry scan itself throws (isolation fix)", async () => {
+    mockRetryPendingConnectionDeletions.mockRejectedValue(new Error("db connection lost, internal detail"));
+    mockProcessAiJobsBatch.mockResolvedValue({ claimed: 1, succeeded: 1, failed: 0, retried: 0, skippedNotEligible: 0 });
+
+    const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, connectionDeletionRetryScanError: true, claimed: 1, succeeded: 1 });
+    expect(JSON.stringify(body)).not.toContain("db connection lost");
+    expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
   });
 });
