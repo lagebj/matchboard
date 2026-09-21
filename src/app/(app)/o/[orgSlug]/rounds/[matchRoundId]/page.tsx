@@ -16,6 +16,9 @@ import { formatPlayerName } from "@/lib/player-metrics";
 import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 import type { CoachingIntentCategory } from "@/lib/coaching/types";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
+import { getRoundBoardAdvisorViewModel } from "@/lib/ai/presentation/round-board-advisor";
+import { RoundBoardAdvisorBlock } from "@/components/ai/round-board-advisor-block";
+import { AdvisorPanelStale } from "@/components/ai/advisor-panel";
 import { isMatchPlanningEditable, isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 import { WarningSeverity } from "@/generated/prisma/client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -262,6 +265,10 @@ export default async function RoundBoardPage({
   }
 
   const integrity = await computeRoundPlanIntegrity(matchRoundId);
+
+  // Round Board Advisor block (08_UI_UX_SPEC.md "Round Board") — compact, decision-area-only;
+  // never an always-present AI lane.
+  const roundBoardAdvisorViewModel = await getRoundBoardAdvisorViewModel({ organisationId: ctx.organisationId, matchRoundId });
 
   const unresolvedSignals = integrity.signals;
 
@@ -558,6 +565,8 @@ export default async function RoundBoardPage({
         }}
         fairnessMetrics={fairnessMetrics}
       />
+      {roundBoardAdvisorViewModel?.status === "fresh" && <RoundBoardAdvisorBlock viewModel={roundBoardAdvisorViewModel} />}
+      {roundBoardAdvisorViewModel?.status === "stale" && <AdvisorPanelStale />}
       <RoundGuestPlayersPanel matchRoundId={matchRoundId} />
       {roundPlanningBoundary.editable && (
         <div className="flex flex-col gap-3">

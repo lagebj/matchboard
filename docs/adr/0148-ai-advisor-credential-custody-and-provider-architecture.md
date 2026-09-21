@@ -379,3 +379,13 @@ amended or superseded per this repository's ADR governance rules, not silently c
   match-related action file still uses — a deliberate, scoped break from that convention for new
   code only, not a retroactive migration of existing action files. No deviation from this ADR's
   decisions.
+- Added the third contextual Advisor surface: a compact "AI Advisor" block on the Round Board
+  (`goldens/04-round-board-advisor.html`), rendered in the decision/exception area after the
+  deterministic attention list and allocation lanes — never an always-present AI lane, and
+  deterministic allocation exceptions remain visually primary (08_UI_UX_SPEC.md "Round Board").
+  Reuses the same freshness (`sourceFingerprint` rebuild-and-compare against `round_review`'s
+  `MatchRound`-scoped context) and ephemeral-ref-resolution machinery as the match-scoped panels;
+  `round_review` insights carry no `suggestedAction`, so this surface has no confirm/dismiss
+  affordance, only plain observations, with round-specific footer copy
+  ("Advisory only · allocation remains controlled by Matchboard rules and coach decisions"). No
+  deviation from this ADR's decisions.
