@@ -533,3 +533,23 @@ amended or superseded per this repository's ADR governance rules, not silently c
   budget can accommodate the raised adapter timeout plus the route's other calls. No deviation
   from this ADR's decisions; very large models remaining slower than 45s is an accepted, surfaced
   provider limitation, not something this change attempts to eliminate entirely.
+- Post-programme production gap found via live testing (2026-09-21): a coach who fully enabled
+  AI Advisor and then edited a match's line-up reported never seeing any Advisor output anywhere.
+  Direct production Postgres inspection (Neon CLI) proved the coach's edit did persist —
+  `MatchLineup.updatedAt` matched the edit's timestamp exactly — but zero `AiAdvisorJob`/
+  `AiAdvisorReview` rows existed for that match or the whole organisation, and `Selection.updatedAt`
+  never changed. Root cause: `lineup_review`'s domain trigger (recorded above) was only ever wired
+  into the Round Board's `Selection`-role editing surface
+  (`draft-selection-actions.ts`); the match detail page's separate Tactics/formation panel
+  (`match-tactics-panel.tsx`, backed by `MatchLineup`/`MatchLineupAssignment`, actions in
+  `lineup-actions.ts`) had no AI Advisor wiring at all — a coach editing a formation slot there
+  produced no trigger and no job, regardless of settings. Fixed by adding the same
+  `triggerLineupReview()` helper (mirroring `draft-selection-actions.ts`, same debounce) to
+  `assignPlayerToSlot`, `removePlayerFromSlot`, and `changeMatchLineupFormation` in
+  `lineup-actions.ts`; regression test in
+  `src/app/(app)/matches/__tests__/lineup-actions-ai-trigger.test.ts`. The underlying data-model
+  duplication this surfaced — `Selection` and `MatchLineup` are two independent, unsynced
+  representations of "who's playing," and the `lineup_review` context builder still reads only
+  `Selection`, so a formation-only change still won't be reflected in review *content*, only the
+  trigger now fires — is recorded separately as architectural residue (ARR-0051), not resolved by
+  this fix.
