@@ -51,9 +51,13 @@ model — suspension is not deletion). Same gap as above: no self-service or adm
   Brevo (production) or console logging (dev). `BREVO_TEST_RECIPIENTS` restricts non-production
   sends (AGENTS.md/ADR references in the email section).
   This is a required message.
-- **External AI payloads**: player names and personal data are explicitly excluded — stable
-  player IDs are used instead, and payloads are sanitized centrally (AGENTS.md, "Coach-facing
-  vs parent-facing language").
+- **External AI payloads** (AI Advisor, ADR-0148; optional, disabled by default): player
+  names, parent/user names, emails, the organisation name, Matchboard internal IDs,
+  credentials, and arbitrary free-text notes are excluded — stable temporary references are
+  used instead of names, and payloads carry only the minimum structured football information
+  the selected capability needs. This data is pseudonymized, not anonymous, and can still be
+  personal data. Provider API credentials themselves never reach the Matchboard database — see
+  `SECURITY.md`'s "AI Advisor credential security" section.
 - **Exports** (season export, `/api/season/export`): coach-mode export includes player
   names; parent-mode export hides internal planning tags but still includes player names and
   results (this is the intended purpose of a parent-facing roster/results export, not a leak).

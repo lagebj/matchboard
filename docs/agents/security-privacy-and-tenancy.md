@@ -26,6 +26,16 @@ for live reporting, exactly as it is for planning. See ADR-0140 and
 
 The app must keep tenant data isolated, audit logs sanitized, and provider configuration explicit and documented rather than implicit. When a change touches Vercel, Neon, GitHub, or other provider configuration, update the durable repository guidance and avoid pure-implicit production actions.
 
+## AI Advisor credential and data boundary
+
+AI Advisor (ADR-0148) is optional, disabled by default, and org-controlled. Provider API
+credentials never reach the main Matchboard database — enrollment goes browser-direct to a
+separate credential-security service, and server-side AI execution retrieves a credential only
+just-in-time per call. Provider payloads carry only pseudonymized, minimum-necessary structured
+football data (stable temporary references, never names/emails/internal IDs/free-text notes).
+See `SECURITY.md`'s "AI Advisor credential security" section and ADR-0148 for the full
+architecture before touching any `src/lib/ai/` or `/api/ai/` code.
+
 ## Security workflow
 
 Use the repository's existing security review workflow. Treat scanner output as evidence, not proof. Reproduce and regression-test credible findings before closing a fix.
