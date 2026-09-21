@@ -15,6 +15,7 @@ import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-da
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { formatKickoffTime } from "@/lib/date-utils";
 import { getPlannedMatchAdvisorViewModel } from "@/lib/ai/presentation/planned-match-advisor";
+import { getCompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 
 export const dynamic = "force-dynamic";
 
@@ -225,10 +226,16 @@ export default async function MatchDetailPage({
       : undefined;
 
   // Contextual Advisor panel (only meaningful before the match, per 08_UI_UX_SPEC.md) — never
-  // queried for the AFTER surface, which has its own separate contextual panel to build later.
+  // queried for the AFTER surface, which has its own separate contextual panel below.
   const advisorViewModel =
     surfaceState === "BEFORE"
       ? await getPlannedMatchAdvisorViewModel({ organisationId: ctx.organisationId, matchId: match.id })
+      : null;
+
+  // Completed-match Advisor panel (`post_match_review`) — never queried for the BEFORE surface.
+  const completedMatchAdvisorViewModel =
+    surfaceState === "AFTER"
+      ? await getCompletedMatchAdvisorViewModel({ organisationId: ctx.organisationId, matchId: match.id })
       : null;
 
   const allSelections = [...selectionData, ...helperSelectionData];
@@ -318,6 +325,7 @@ export default async function MatchDetailPage({
       phaseEndDate={match.matchRound.leagueSeason?.endDate}
       startsAt={match.startsAt}
       advisorViewModel={advisorViewModel}
+      completedMatchAdvisorViewModel={completedMatchAdvisorViewModel}
     />
   );
 }

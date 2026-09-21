@@ -33,6 +33,7 @@ import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import type { PlannedMatchAdvisorViewModel } from "@/lib/ai/presentation/planned-match-advisor";
+import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 
 type SelectionRow = {
@@ -106,6 +107,10 @@ export type MatchDetailShellProps = {
    * useful persisted `lineup_review`/`match_prep` review); only rendered on the BEFORE-match
    * Overview tab. */
   advisorViewModel: PlannedMatchAdvisorViewModel | null;
+  /** `null` when there is nothing for the Advisor to show (no connection, AI disabled,
+   * `post_match_review` toggle off, or no useful persisted review); only rendered on the
+   * AFTER-match Overview tab. */
+  completedMatchAdvisorViewModel: CompletedMatchAdvisorViewModel | null;
 };
 
 /**
@@ -157,6 +162,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     phaseEndDate,
     startsAt,
     advisorViewModel,
+    completedMatchAdvisorViewModel,
   } = props;
 
   const orgUrl = useOrgUrl();
@@ -341,6 +347,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
             currentMatchStyleTags={currentMatchStyleTags}
             tabHref={tabHref}
             postMatchHref={orgUrl(`/matches/${matchId}/post-match`)}
+            completedMatchAdvisorViewModel={completedMatchAdvisorViewModel}
           />
         )
       )}
@@ -526,6 +533,7 @@ function AfterMatchTabContent(props: {
   currentMatchStyleTags: string[];
   tabHref: (tab: string) => string;
   postMatchHref: string;
+  completedMatchAdvisorViewModel: CompletedMatchAdvisorViewModel | null;
 }) {
   const { activeTab } = props;
 
@@ -544,6 +552,7 @@ function AfterMatchTabContent(props: {
         selections={props.selections}
         tabHref={props.tabHref}
         postMatchHref={props.postMatchHref}
+        advisorViewModel={props.completedMatchAdvisorViewModel}
       />
     );
   }
