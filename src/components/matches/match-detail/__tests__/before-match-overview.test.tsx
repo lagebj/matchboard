@@ -60,6 +60,7 @@ function baseProps(overrides: Partial<Parameters<typeof BeforeMatchOverview>[0]>
     opponentEncounterCount: 0,
     opponentHasProfile: false,
     tabHref: (t: string) => `?tab=${t}`,
+    advisorViewModel: null,
     ...overrides,
   };
 }
