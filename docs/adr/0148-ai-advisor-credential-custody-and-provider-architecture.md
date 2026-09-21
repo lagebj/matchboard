@@ -339,3 +339,19 @@ amended or superseded per this repository's ADR governance rules, not silently c
   "Disconnect" are intentionally not rendered yet — their backing routes and maintenance-worker
   retry sweep are a later PR — so no dead affordance ships ahead of its backend. No deviation
   from this ADR's decisions.
+- Added the first contextual Advisor surface: a compact "AI Advisor" panel on the BEFORE-match
+  Overview tab, rendered after the plan facts (`MatchTacticsPanel`/`BeforeMatchSecondaryRow`),
+  showing up to 5 `lineup_review`/`match_prep` insights for that match. Resolved an open design
+  question from `14_GOLDEN_REFERENCE_GUIDE.md`: a persisted insight's `title`/`body` prose still
+  contains the model's ephemeral, non-persisted refs (`P01`, `M01`, ...), since only the
+  `refMap`'s never-stored ref-assignment happens per-generation, not per-storage. Because ref
+  assignment is a deterministic function of the same underlying context the freshness check
+  (`sourceFingerprint` comparison) already recomputes, a fingerprint-matching (fresh) review's
+  refs can be reconstructed exactly by rebuilding that same context and reading its `refMap` back
+  out — used only to regex-substitute ref tokens with real resolved names (`Player`/`Team`) for
+  display; never persisted. A stale (fingerprint-mismatched) review shows the spec's
+  "Plan changed · Advisor update pending" placeholder instead of any insight content, and no
+  substitution is attempted for it. The panel itself only renders when AI is enabled, the active
+  connection is `READY`, the owning capability toggle is on, and at least one `ACTIVE` insight
+  exists — otherwise nothing renders at all (08_UI_UX_SPEC.md: "no empty Advisor card"). No
+  deviation from this ADR's decisions.

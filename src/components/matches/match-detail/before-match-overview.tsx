@@ -7,6 +7,8 @@ import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchFormatOverrideControls } from "@/components/matches/match-format-override-controls";
+import { AdvisorPanel, AdvisorPanelStale } from "@/components/ai/advisor-panel";
+import type { PlannedMatchAdvisorViewModel } from "@/lib/ai/presentation/planned-match-advisor";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchPreparationInput } from "@/lib/matches/match-detail-view-model";
 import { formatMatchType, formatGameFormat, formatVenue, formatMatchFit } from "@/lib/matches/match-detail-format";
@@ -56,6 +58,7 @@ export function BeforeMatchOverview({
   opponentEncounterCount,
   opponentHasProfile,
   tabHref,
+  advisorViewModel,
 }: {
   presentation: MatchPresentation;
   ownKitColor: string | null;
@@ -82,6 +85,9 @@ export function BeforeMatchOverview({
   opponentEncounterCount: number;
   opponentHasProfile: boolean;
   tabHref: (tab: string) => string;
+  /** `null` when there is nothing for the Advisor to show at all (no connection, AI disabled,
+   * or no useful persisted review) — the panel must not render in that case. */
+  advisorViewModel: PlannedMatchAdvisorViewModel | null;
 }) {
   const factsItems: MetricStripItem[] = [
     { id: "format", label: "Format", value: formatGameFormat(gameFormat) },
@@ -149,6 +155,14 @@ export function BeforeMatchOverview({
         opponentHasProfile={opponentHasProfile}
         opponentTabHref={tabHref("opponent-context")}
       />
+
+      {advisorViewModel?.status === "fresh" && (
+        <AdvisorPanel
+          insights={advisorViewModel.insights}
+          footnote="Based on current plan · AI does not change the line-up or rotations"
+        />
+      )}
+      {advisorViewModel?.status === "stale" && <AdvisorPanelStale />}
     </div>
   );
 }
