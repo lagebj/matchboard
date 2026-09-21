@@ -65,7 +65,9 @@ export async function enqueueDueMatchPrepJobs(): Promise<{ scanned: number }> {
  * changing once the week's matches are in the past. No new per-team "already ran this week" flag
  * was needed.
  */
-function previousCompletedIsoWeekKey(now: Date): string {
+/** Exported so the weekly Advisor presentation layer targets the exact same "previous completed
+ * ISO week" the cron scan enqueues reviews for — a single shared definition of "previous week". */
+export function previousCompletedIsoWeekKey(now: Date): string {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   return formatIsoWeekKey(sevenDaysAgo);
 }

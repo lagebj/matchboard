@@ -9,8 +9,17 @@ import { RuleImpactPanel } from "./rule-impact-panel";
 import { CrossTeamImpactPanel } from "./cross-team-impact-panel";
 import { RecommendationPanel } from "./recommendation-panel";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
+import { WeeklyTeamReviewAdvisorPanel } from "@/components/ai/weekly-team-review-advisor-panel";
+import { AdvisorPanelStale } from "@/components/ai/advisor-panel";
+import type { WeeklyTeamReviewAdvisorViewModel } from "@/lib/ai/presentation/weekly-team-review-advisor";
 
-export function TeamReviewPage({ teamId }: { teamId: string }) {
+export function TeamReviewPage({
+  teamId,
+  advisorViewModel,
+}: {
+  teamId: string;
+  advisorViewModel: WeeklyTeamReviewAdvisorViewModel | null;
+}) {
   const orgUrl = useOrgUrl();
   const [readiness, setReadiness] = useState<TeamReadiness | null>(null);
   const [_explanation, setExplanation] = useState<SelectionExplanation | null>(null);
@@ -61,6 +70,9 @@ export function TeamReviewPage({ teamId }: { teamId: string }) {
       {recommendation && recommendation.crossTeamImpacts.length > 0 && (
         <CrossTeamImpactPanel impacts={recommendation.crossTeamImpacts} />
       )}
+
+      {advisorViewModel?.status === "fresh" && <WeeklyTeamReviewAdvisorPanel viewModel={advisorViewModel} />}
+      {advisorViewModel?.status === "stale" && <AdvisorPanelStale />}
     </div>
   );
 }

@@ -47,7 +47,9 @@ export function buildWeeklyTeamReviewScopeId(teamId: string, weekKey: string): s
   return `${teamId}:${weekKey}`;
 }
 
-function parseScopeId(scopeId: string): { teamId: string; weekKey: string } | null {
+/** Exported so the presentation layer (view-model builder) and the confirm/dismiss actions can
+ * recover `teamId` from a `TEAM_WEEK` review's `scopeId` without duplicating this parsing. */
+export function parseWeeklyTeamReviewScopeId(scopeId: string): { teamId: string; weekKey: string } | null {
   const separatorIndex = scopeId.indexOf(":");
   if (separatorIndex <= 0 || separatorIndex === scopeId.length - 1) return null;
   return { teamId: scopeId.slice(0, separatorIndex), weekKey: scopeId.slice(separatorIndex + 1) };
@@ -67,7 +69,7 @@ export async function buildWeeklyTeamReviewContext(params: {
   organisationId: string;
   scopeId: string;
 }): Promise<AiCapabilityContext | null> {
-  const parsed = parseScopeId(params.scopeId);
+  const parsed = parseWeeklyTeamReviewScopeId(params.scopeId);
   if (!parsed) return null;
   const { teamId, weekKey } = parsed;
 

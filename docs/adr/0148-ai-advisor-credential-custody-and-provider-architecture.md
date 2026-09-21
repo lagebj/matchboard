@@ -389,3 +389,23 @@ amended or superseded per this repository's ADR governance rules, not silently c
   affordance, only plain observations, with round-specific footer copy
   ("Advisory only · allocation remains controlled by Matchboard rules and coach decisions"). No
   deviation from this ADR's decisions.
+- Added the fourth and final contextual Advisor surface: `weekly_team_review` folded into the
+  existing per-team "Team Review" surface (`(app)/o/[orgSlug]/teams/[teamId]/review`), after its
+  deterministic readiness/rule-impact/cross-team-impact panels — no new top-level navigation item
+  was added solely for AI (08_UI_UX_SPEC.md "Weekly review"). The view-model builder always
+  targets `previousCompletedIsoWeekKey(new Date())` (now exported from
+  `jobs/scheduled-triggers.ts`), the exact same "previous completed ISO week" the cron scan
+  (`enqueueDueWeeklyTeamReviewJobs`) enqueues reviews for, so the panel and the job that produced
+  its content can never disagree about which week is "previous". Reuses the same
+  freshness/ephemeral-ref-resolution machinery as the other three panels, and — because
+  `weekly_team_review` may also propose at most one development observation per player
+  (06_AI_CAPABILITY_CONTRACTS.md "5. weekly_team_review") — the same
+  `CONFIRM_DEVELOPMENT_OBSERVATION` Confirm/Dismiss affordance as the completed-match panel, via
+  a new colocated `teams/[teamId]/review/ai-insight-actions.ts` (mirroring, not reusing, the
+  match-scoped actions file, since a `TEAM_WEEK` review's `scopeId` is `teamId:weekKey`, not a
+  match id, and `addObservation()`'s `matchId` is simply omitted — that field was already
+  optional). `weekly-team-review.ts`'s scope-id parser is now exported
+  (`parseWeeklyTeamReviewScopeId`) so both the view-model builder and the new actions file share
+  one definition of that id shape. This completes 08_UI_UX_SPEC.md's four contextual Advisor
+  surfaces (planned match, completed match, Round Board, weekly review). No deviation from this
+  ADR's decisions.
