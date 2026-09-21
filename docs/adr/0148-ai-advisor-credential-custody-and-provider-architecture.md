@@ -309,3 +309,19 @@ amended or superseded per this repository's ADR governance rules, not silently c
   org-wide/UI-shaped `src/lib/weekly/` "Weekly Coaching Context" module (ADR-0108) — that module
   is not team-scoped and includes presentation-only fields this capability has no use for. No
   deviation from this ADR's decisions.
+- Added the three owner-only connection-finalization routes the org-connection flow needed but
+  had not yet built: `POST /api/ai/connections/complete` (validates a `PENDING` connection's
+  just-enrolled credential via `listModels()`, moving it to `CONNECTED_NO_MODEL` or `ERROR`),
+  `POST /api/ai/connections/select-model` (re-validates the requested model against a fresh
+  catalogue, `probeModel()`s it, and only then persists the model and moves the connection to
+  `READY` — a failed probe never changes an existing model choice), and
+  `POST /api/ai/connections/models` (explicit "refresh models" action; never changes `status`,
+  only `lastValidatedAt`/`lastErrorCode`). `select-model`'s success path also finalizes the
+  "replace API key" flow from 04_ORG_CONNECTION_FLOW.md: if this connection was not already the
+  organisation's `activeConnectionId`, it becomes the new active connection in the same
+  transaction that marks any previously-active connection `DELETE_PENDING`, followed by a
+  best-effort immediate delete-and-retire of that old connection via the signed
+  `deleteConnection` transport call. A transient retirement failure is not surfaced to the
+  caller — the new connection is already active and usable — and the old connection is left
+  `DELETE_PENDING` for a later maintenance-worker retry sweep (not yet built; tracked for the
+  disconnect/replace-key lifecycle PR). No deviation from this ADR's decisions.
