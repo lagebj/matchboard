@@ -42,6 +42,10 @@ describe("ai/enrollment-token: signEnrollmentToken", () => {
     const { payload, protectedHeader } = await verify(jwt);
 
     expect(protectedHeader.alg).toBe("EdDSA");
+    // matchboard-security's Go verifier hard-requires header.typ === "JWT" (not just alg) —
+    // jose's SignJWT does not set `typ` unless told to, so omitting this regressed silently
+    // (production 401 on every enrollment attempt, 2026-09-21) until this assertion existed.
+    expect(protectedHeader.typ).toBe("JWT");
     expect(payload.iss).toBe("matchboard");
     expect(payload.aud).toBe("matchboard-ai-enrollment");
     expect(payload.op).toBe("enroll-connection");

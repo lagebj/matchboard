@@ -32,7 +32,7 @@ export async function signAiSecurityBoundaryToken(params: {
   const now = Math.floor(Date.now() / 1000);
 
   return new SignJWT({ ...params.claims, jti })
-    .setProtectedHeader({ alg: "EdDSA" })
+    .setProtectedHeader({ alg: "EdDSA", typ: "JWT" })
     .setIssuer("matchboard")
     .setAudience(params.audience)
     .setIssuedAt(now)
