@@ -12,6 +12,13 @@ import { db } from "@/lib/db";
 
 const SELECTABLE_STATUSES = new Set(["CONNECTED_NO_MODEL", "READY", "ERROR"]);
 
+// Model-compatibility probing against very large models (e.g. Ollama Cloud's 397B-parameter
+// models) can approach the raised PROVIDER_REQUEST_TIMEOUT_MS on its own; give this route
+// enough platform-level budget so a slow-but-healthy provider isn't cut short before it can
+// respond, plus headroom for the credential-access and catalogue-refresh calls this route also
+// makes.
+export const maxDuration = 60;
+
 /**
  * POST /api/ai/connections/select-model (04_ORG_CONNECTION_FLOW.md "Model selection endpoint" /
  * "Change model" / "Replace API key" step 6 — "switch `activeConnectionId` only after new

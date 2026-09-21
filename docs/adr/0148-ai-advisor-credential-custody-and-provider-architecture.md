@@ -520,3 +520,16 @@ amended or superseded per this repository's ADR governance rules, not silently c
   `enrollment-token.test.ts` / `credential-access-token.test.ts` suites only ever asserted `alg`,
   never `typ`, so this slipped through every prior test run. Fixed by adding `typ: "JWT"` to the
   protected header; added a regression assertion for `protectedHeader.typ` to both test files.
+- Same-day follow-on regression (2026-09-21), found while live-testing model selection once
+  enrollment succeeded: selecting an unusually large Ollama Cloud model (`qwen3.5:397b`, 397B
+  parameters) for a new connection consistently failed model-compatibility probing with
+  `PROVIDER_TIMEOUT`. Vercel's function trace showed the probe's chat completion call to Ollama
+  Cloud aborted at exactly the shared `guardedProviderFetch` timeout (`PROVIDER_REQUEST_TIMEOUT_MS`,
+  20s) while the underlying function invocation itself ran over 21s without being cut by the
+  platform — i.e. the provider was healthy and slow, not unreachable, and the platform had
+  headroom the adapter timeout wasn't using. Fixed by raising `PROVIDER_REQUEST_TIMEOUT_MS` to 45s
+  in `http-utils.ts` (applies uniformly to every provider adapter, not just Ollama Cloud) and
+  adding an explicit `maxDuration = 60` to `select-model/route.ts` so the platform's own function
+  budget can accommodate the raised adapter timeout plus the route's other calls. No deviation
+  from this ADR's decisions; very large models remaining slower than 45s is an accepted, surfaced
+  provider limitation, not something this change attempts to eliminate entirely.
