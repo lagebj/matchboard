@@ -19,6 +19,29 @@ async function requirePlanningEditable(matchId: string): Promise<void> {
   }
 }
 
+/**
+ * AI Advisor's lineup_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
+ * "complete line-up/rotation plan saved -> debounced lineup_review"; 06_AI_CAPABILITY_CONTRACTS.md
+ * "2. lineup_review": "Input may include: ... formation; starting positions").
+ *
+ * Mirrors `draft-selection-actions.ts`'s `triggerLineupReview()` exactly (same debounce), but for
+ * the Tactics/formation editing surface (`MatchLineup`/`MatchLineupAssignment`) rather than the
+ * Round Board's `Selection`-role editing surface. Found missing entirely during live production
+ * testing: assigning/removing a player from a formation slot never enqueued a `lineup_review`
+ * job, so the Advisor never reacted to plan changes made through this page at all.
+ */
+async function triggerLineupReview(organisationId: string, matchId: string) {
+  const { triggerAiCapability } = await import("@/lib/ai/jobs/triggers");
+  const { LINEUP_REVIEW_DEBOUNCE_MS } = await import("@/lib/ai/context/lineup-review");
+  await triggerAiCapability({
+    organisationId,
+    capability: "LINEUP_REVIEW",
+    scopeType: "MATCH",
+    scopeId: matchId,
+    debounceMs: LINEUP_REVIEW_DEBOUNCE_MS,
+  });
+}
+
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
   const match = await db.match.findFirst({
     where: { id: matchId, ...orgFilter.filter },
@@ -93,6 +116,8 @@ export async function changeMatchLineupFormation(lineupId: string, formationId: 
 
   const lineup = await changeLineupFormation({ lineupId, newFormationId: formationId, orgFilter });
 
+  await triggerLineupReview(ctx.organisationId, lineupInfo.matchId);
+
   revalidatePath(`/o/${ctx.organisationSlug}/matches/${lineupInfo.matchId}`);
   return lineup;
 }
@@ -147,6 +172,7 @@ export async function assignPlayerToSlot(
   }
 
   revalidatePath(`/o/${ctx.organisationSlug}/matches/${assignment.matchLineup.matchId}`);
+  await triggerLineupReview(ctx.organisationId, assignment.matchLineup.matchId);
   return updated;
 }
 
@@ -167,6 +193,7 @@ export async function removePlayerFromSlot(assignmentId: string) {
   });
 
   revalidatePath(`/o/${ctx.organisationSlug}/matches/${assignment.matchLineup.matchId}`);
+  await triggerLineupReview(ctx.organisationId, assignment.matchLineup.matchId);
   return updated;
 }
 
