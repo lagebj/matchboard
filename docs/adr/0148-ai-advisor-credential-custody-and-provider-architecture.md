@@ -2,9 +2,11 @@
 
 ## Status
 
-Accepted (2026-09-20). Partially implemented: this ADR is written and merged alongside the first
-implementation slice (Prisma schema only — see "Delivery" below); it governs the full multi-PR
-programme, not only what has landed so far.
+Accepted (2026-09-20). Fully implemented: all five capabilities (`post_match_review`,
+`round_review`, `lineup_review`, `match_prep`, `weekly_team_review`), all four contextual
+Advisor UI surfaces, the full connection lifecycle (bootstrap/complete/select-model/disconnect/
+replace-key with maintenance-worker retry), and the 11_PRIVACY_AND_DOCUMENTATION.md
+documentation gate have landed. See "Delivery" and "History" below for the sequential PR record.
 
 ## Context
 
@@ -473,3 +475,22 @@ amended or superseded per this repository's ADR governance rules, not silently c
   credential access, direct provider execution, response validation/persistence, no credential
   persistence). `.env.example` already documented the AI signing-key/transport variables from an
   earlier delivery step; no change needed there. No deviation from this ADR's decisions.
+- Programme complete. Final review against `09_TEST_AND_ACCEPTANCE.md`'s acceptance gates: the
+  credential boundary (browser-direct enrollment, server-only credential access, no browser
+  exposure of signing keys/function tokens), the five-provider registry with no arbitrary base
+  URLs, dynamic model discovery with a required capability probe, AI opt-in defaults (new
+  organisations/connections/capabilities all start disabled), data minimization (no names/
+  emails/organisation name/internal IDs/free-text notes in any provider payload), deterministic
+  authority (AI never writes canonical football state; the one confirm-required suggestion path
+  goes through the existing development/evidence workflow), execution semantics (page load never
+  triggers a review call; fingerprint-gated dedup; atomic job claims), output validation (ref/
+  action/enum/evidence rejection rules), the five provider-specific adapter behaviours, and the
+  UI acceptance items (no empty Advisor card, no credential prefix/suffix shown, model change and
+  key replacement without losing a working connection) are all covered by the capability-by-
+  capability and connection-lifecycle test suites landed across this programme's PRs — no gap
+  was found requiring new code. Full validation
+  (`npm run validate -- --fast`, full `vitest` run across both configs, `docs:check`,
+  `terminology:check`) passes on `main` with the complete programme applied. This closes the
+  multi-PR AI Advisor implementation programme; any future material change to this architecture
+  requires an ADR amendment or supersession per this repository's ADR governance rules, not a
+  silent deviation.
