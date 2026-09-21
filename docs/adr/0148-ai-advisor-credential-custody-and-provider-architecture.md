@@ -553,3 +553,27 @@ amended or superseded per this repository's ADR governance rules, not silently c
   `Selection`, so a formation-only change still won't be reflected in review *content*, only the
   trigger now fires — is recorded separately as architectural residue (ARR-0051), not resolved by
   this fix.
+- Critical follow-on discovery (2026-09-21), found while verifying the fix above actually worked
+  end-to-end in production: the coach retried the same edit, and a `LINEUP_REVIEW`
+  `AiAdvisorJob` was correctly enqueued (`QUEUED`, `nextAttemptAt` in the past) — but it sat
+  untouched (`attempts: 0`, never `lockedAt`) across multiple confirmed Vercel Cron invocations
+  of `/api/cron/ai` (`GET /api/cron/ai` observed firing on schedule in Vercel runtime logs).
+  Root cause: `src/proxy.ts`'s base authenticated-session gate (`if (!email) redirect("/signin")`)
+  applies to every route not explicitly exempted, and `/api/cron/**` had no exemption at all —
+  every Vercel Cron invocation of `/api/cron/ai`, `/api/cron/notification-outbox`, and
+  `/api/cron/live-reporting-reconciliation` was silently redirected to `/signin` with HTTP 307
+  before ever reaching the route handler (and its own `CRON_SECRET` Bearer-token check), since
+  Vercel's cron scheduler has no session cookie. Confirmed live: `curl`-ing all three cron paths
+  directly with the correct `CRON_SECRET` still returned 307. This is the exact same class of
+  defect as the `/api/internal/**` HMAC-route session-gate bug (ADR-0086/ADR-0087, PR #378 and
+  its follow-up) recurring for a different machine-caller route family — meaning **no cron job of
+  any kind (AI, notification outbox, or live-reporting reconciliation) had ever successfully run
+  in production**, not just `lineup_review`. Fixed by adding an `isCronRoute()` exemption
+  (mirroring `isInternalMachineRoute()` exactly) to `src/proxy.ts`, checked before both the
+  preview-allowlist and base session gates; regression tests added to
+  `src/test/security-audit.test.ts` asserting the exemption fires for all three cron paths, does
+  not weaken the gate for ordinary routes, and runs before both session-based gates in source
+  order. This fix's scope is broader than this ADR's AI Advisor programme — it also restores the
+  notification-outbox and live-reporting-reconciliation crons, which were equally silently
+  broken — recorded here because it was discovered and is required for this ADR's own capabilities
+  to function end-to-end at all.
