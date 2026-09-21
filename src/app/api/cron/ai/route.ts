@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import "@/lib/ai/register-capabilities";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
 import { enqueueDueMatchPrepJobs, enqueueDueWeeklyTeamReviewJobs } from "@/lib/ai/jobs/scheduled-triggers";
+import { retryPendingConnectionDeletions } from "@/lib/ai/jobs/connection-maintenance";
 import { getCronSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -15,7 +16,10 @@ import { logger } from "@/lib/logger";
  * only the local placement... document any such adaptation").
  *
  * Runs the pipeline's "1. enqueues due match preparation jobs; 2. enqueues previous-week team
- * reviews; 3. claims eligible jobs atomically" worker-run sequence (07_EXECUTION_PIPELINE.md).
+ * reviews; 3. claims eligible jobs atomically" worker-run sequence (07_EXECUTION_PIPELINE.md),
+ * plus a fourth step this route also owns: retrying any `DELETE_PENDING` provider connections
+ * left over from a transient matchboard-security delete failure (04_ORG_CONNECTION_FLOW.md
+ * "Disconnect" step 5 / "Replace API key" step 8).
  */
 export async function GET(request: Request) {
   const CRON_SECRET = getCronSecret();
@@ -29,12 +33,14 @@ export async function GET(request: Request) {
   try {
     const matchPrepScan = await enqueueDueMatchPrepJobs();
     const weeklyTeamReviewScan = await enqueueDueWeeklyTeamReviewJobs();
+    const connectionDeletionRetryScan = await retryPendingConnectionDeletions();
     const result = await processAiJobsBatch();
 
     return NextResponse.json({
       ok: true,
       matchPrepScanned: matchPrepScan.scanned,
       weeklyTeamReviewScanned: weeklyTeamReviewScan.scanned,
+      connectionDeletionRetriesScanned: connectionDeletionRetryScan.scanned,
       ...result,
     });
   } catch (err) {

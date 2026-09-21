@@ -7,10 +7,8 @@ import { fromPrismaAiProviderId } from "@/lib/ai/provider-registry";
 import { getProviderAdapter } from "@/lib/ai/providers/provider-adapter-registry";
 import { withProviderCredential, ProviderCredentialAccessError } from "@/lib/ai/credential-access";
 import { ensureOrganisationAiSettings } from "@/lib/ai/organisation-ai-settings";
-import { signDeleteConnectionToken } from "@/lib/ai/enrollment-token";
-import { getMatchboardSecurityTransport } from "@/lib/ai/security-client/transport-factory";
+import { attemptRetireConnection } from "@/lib/ai/connection-lifecycle";
 import { db } from "@/lib/db";
-import { logger } from "@/lib/logger";
 
 const SELECTABLE_STATUSES = new Set(["CONNECTED_NO_MODEL", "READY", "ERROR"]);
 
@@ -111,37 +109,12 @@ export async function POST(request: Request) {
     });
 
     if (previousActiveConnectionId) {
-      await retireConnection(ctx.organisationId, previousActiveConnectionId);
+      await attemptRetireConnection(ctx.organisationId, previousActiveConnectionId);
     }
 
     return NextResponse.json({ connectionId, status: "READY", model });
   } catch (error) {
     const { error: message, statusCode } = safeErrorResponse(error);
     return NextResponse.json({ error: message }, { status: statusCode });
-  }
-}
-
-/**
- * Best-effort immediate retirement of a connection just marked `DELETE_PENDING` — a transient
- * failure here is not surfaced to the caller (the new connection is already active and usable);
- * it is left `DELETE_PENDING` for the internal AI maintenance worker's retry sweep
- * (`jobs/connection-maintenance.ts`, a later PR) to finish.
- */
-async function retireConnection(organisationId: string, connectionId: string): Promise<void> {
-  const connection = await db.aiProviderConnection.findFirst({ where: { id: connectionId, organisationId } });
-  if (!connection) return;
-
-  try {
-    const providerWireId = fromPrismaAiProviderId(connection.provider);
-    const deleteToken = await signDeleteConnectionToken({ connectionId, provider: providerWireId });
-    const transport = getMatchboardSecurityTransport();
-    const result = await transport.deleteConnection({ connectionId, provider: providerWireId, deleteToken });
-    if (result.ok) {
-      await db.aiProviderConnection.update({ where: { id: connectionId }, data: { status: "DISCONNECTED", disconnectedAt: new Date() } });
-    } else {
-      logger.warn({ connectionId, errorCode: result.errorCode }, "[ai/connections/select-model] Retiring old connection failed; left DELETE_PENDING for retry");
-    }
-  } catch (error) {
-    logger.warn({ err: error, connectionId }, "[ai/connections/select-model] Retiring old connection threw; left DELETE_PENDING for retry");
   }
 }

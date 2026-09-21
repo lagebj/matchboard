@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AiAdvisorSettingsSummary } from "./ai-advisor-actions";
 import { setAiMasterEnabledAction, setAiCapabilityEnabledAction } from "./ai-advisor-actions";
+import type { AiProviderWireId } from "@/lib/ai/provider-registry";
 
 type ProviderModel = { id: string; displayName?: string; description?: string };
 
@@ -22,9 +23,13 @@ const CAPABILITY_LABELS: { key: keyof AiAdvisorSettingsSummary["capabilities"]; 
  * (02_SECURITY_BOUNDARY.md "Enrollment path"): the credential is held only in local component
  * state while the user is entering/submitting it, is cleared immediately on both success and
  * failure, and is sent directly to the enrollment URL returned by `/api/ai/connections/bootstrap`
- * — never to a Matchboard API route. Replace-key and disconnect are intentionally not built yet
- * (tracked separately, alongside their backing routes) — the golden reference's "Replace API
- * key"/"Disconnect" affordances are deferred until that backend lands.
+ * — never to a Matchboard API route. "Replace API key" reuses this same connect flow, fixing the
+ * provider to the current connection's (04_ORG_CONNECTION_FLOW.md "Replace API key": the new
+ * connection always uses the same provider as the one being replaced — never a provider picker)
+ * and defaulting the model picker to the current model when the refreshed catalogue still offers
+ * it. "Disconnect" (04_ORG_CONNECTION_FLOW.md "Disconnect") clears the active connection
+ * immediately; the old connection remains active and usable if a replace-key attempt is
+ * abandoned or fails at any step before the new one reaches `READY`.
  */
 export function AiAdvisorSection({ orgSlug, initial }: { orgSlug: string; initial: AiAdvisorSettingsSummary }) {
   const [summary, setSummary] = useState(initial);
@@ -45,6 +50,8 @@ export function AiAdvisorSection({ orgSlug, initial }: { orgSlug: string; initia
       onModelChanged={(model) =>
         setSummary((s) => (s.activeConnection ? { ...s, activeConnection: { ...s.activeConnection, model } } : s))
       }
+      onConnectionReplaced={(activeConnection) => setSummary((s) => ({ ...s, activeConnection }))}
+      onDisconnected={() => setSummary((s) => ({ ...s, activeConnection: null }))}
       onMasterToggled={(enabled) => setSummary((s) => ({ ...s, enabled }))}
       onCapabilityToggled={(key, enabled) =>
         setSummary((s) => ({ ...s, capabilities: { ...s.capabilities, [key]: enabled } }))
@@ -55,12 +62,20 @@ export function AiAdvisorSection({ orgSlug, initial }: { orgSlug: string; initia
 
 function AiAdvisorConnectFlow({
   summary,
+  fixedProvider,
+  defaultModel,
   onConnectionReady,
+  onCancel,
 }: {
   summary: AiAdvisorSettingsSummary;
+  /** "Replace API key" fixes the provider to the connection being replaced (never a picker). */
+  fixedProvider?: { id: AiProviderWireId; label: string; credentialLabel: string };
+  /** "Replace API key" pre-selects the old model when the refreshed catalogue still offers it. */
+  defaultModel?: string | null;
   onConnectionReady: (activeConnection: NonNullable<AiAdvisorSettingsSummary["activeConnection"]>) => void;
+  onCancel?: () => void;
 }) {
-  const [provider, setProvider] = useState(summary.providerOptions[0]?.id ?? "openai");
+  const [provider, setProvider] = useState(fixedProvider?.id ?? summary.providerOptions[0]?.id ?? "openai");
   const [credential, setCredential] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +83,7 @@ function AiAdvisorConnectFlow({
   const [models, setModels] = useState<ProviderModel[] | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("");
 
-  const selectedProviderOption = summary.providerOptions.find((p) => p.id === provider);
+  const selectedProviderOption = fixedProvider ?? summary.providerOptions.find((p) => p.id === provider);
 
   async function handleConnect() {
     setBusy(true);
@@ -112,7 +127,10 @@ function AiAdvisorConnectFlow({
 
       setPendingConnectionId(connectionId);
       setModels(completeBody.models ?? []);
-      setSelectedModel(completeBody.models?.[0]?.id ?? "");
+      const preferredModel = defaultModel && completeBody.models?.some((m: ProviderModel) => m.id === defaultModel)
+        ? defaultModel
+        : completeBody.models?.[0]?.id ?? "";
+      setSelectedModel(preferredModel);
     } catch {
       setError("Something went wrong while connecting. Please try again.");
     } finally {
@@ -182,20 +200,27 @@ function AiAdvisorConnectFlow({
 
   return (
     <div className="rounded-md border border-[var(--border-soft)] p-4 space-y-3">
-      <div>
-        <label className="text-xs font-medium text-[var(--text-muted)]">Provider</label>
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value as typeof provider)}
-          className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm"
-        >
-          {summary.providerOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {fixedProvider ? (
+        <div>
+          <p className="text-xs font-medium text-[var(--text-muted)]">Provider</p>
+          <p className="text-sm font-semibold">{fixedProvider.label}</p>
+        </div>
+      ) : (
+        <div>
+          <label className="text-xs font-medium text-[var(--text-muted)]">Provider</label>
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as typeof provider)}
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--tl-c-surface-hover)] px-3 py-2 text-sm"
+          >
+            {summary.providerOptions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
         <label className="text-xs font-medium text-[var(--text-muted)]">{selectedProviderOption?.credentialLabel ?? "API key"}</label>
         <input
@@ -211,13 +236,25 @@ function AiAdvisorConnectFlow({
         The API key is stored in Matchboard&apos;s separate credential-security boundary. Matchboard does not store it in the
         application database.
       </p>
-      <button
-        onClick={handleConnect}
-        disabled={busy || !credential.trim()}
-        className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
-      >
-        {busy ? "Connecting..." : "Connect provider"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={handleConnect}
+          disabled={busy || !credential.trim()}
+          className="rounded-md bg-[var(--surface-muted)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
+        >
+          {busy ? "Connecting..." : fixedProvider ? "Connect new key" : "Connect provider"}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="rounded-md px-4 py-2 text-sm text-[var(--text-muted)] hover:text-foreground disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -226,22 +263,72 @@ function AiAdvisorReadyPanel({
   orgSlug,
   summary,
   onModelChanged,
+  onConnectionReplaced,
+  onDisconnected,
   onMasterToggled,
   onCapabilityToggled,
 }: {
   orgSlug: string;
   summary: AiAdvisorSettingsSummary;
   onModelChanged: (model: string) => void;
+  onConnectionReplaced: (activeConnection: NonNullable<AiAdvisorSettingsSummary["activeConnection"]>) => void;
+  onDisconnected: () => void;
   onMasterToggled: (enabled: boolean) => void;
   onCapabilityToggled: (key: keyof AiAdvisorSettingsSummary["capabilities"], enabled: boolean) => void;
 }) {
   const connection = summary.activeConnection!;
   const [refreshing, setRefreshing] = useState(false);
   const [changingModel, setChangingModel] = useState(false);
+  const [replacingKey, setReplacingKey] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [models, setModels] = useState<ProviderModel[] | null>(null);
   const [selectedModel, setSelectedModel] = useState(connection.model ?? "");
   const [error, setError] = useState<string | null>(null);
   const [masterBusy, setMasterBusy] = useState(false);
+
+  const providerOption = summary.providerOptions.find((p) => p.id === connection.provider);
+
+  async function handleDisconnect() {
+    if (!window.confirm("Disconnect the AI Advisor provider? AI execution will stop until a new key is connected.")) {
+      return;
+    }
+    setDisconnecting(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/ai/connections/disconnect", { method: "POST" });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(body?.error ?? "Could not disconnect. Please try again.");
+        return;
+      }
+      onDisconnected();
+    } catch {
+      setError("Could not disconnect. Please try again.");
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  if (replacingKey) {
+    return (
+      <div className="space-y-4">
+        <AiAdvisorConnectFlow
+          summary={summary}
+          fixedProvider={{
+            id: connection.provider,
+            label: connection.providerLabel,
+            credentialLabel: providerOption?.credentialLabel ?? "API key",
+          }}
+          defaultModel={connection.model}
+          onConnectionReady={(activeConnection) => {
+            onConnectionReplaced(activeConnection);
+            setReplacingKey(false);
+          }}
+          onCancel={() => setReplacingKey(false)}
+        />
+      </div>
+    );
+  }
 
   async function handleRefreshModels() {
     setRefreshing(true);
@@ -349,7 +436,23 @@ function AiAdvisorReadyPanel({
             disabled={refreshing}
             className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
           >
-            {refreshing ? "Refreshing..." : "Refresh models"}
+            {refreshing ? "Refreshing..." : "Change model"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setReplacingKey(true)}
+            disabled={refreshing || disconnecting}
+            className="rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-hover)] disabled:opacity-50"
+          >
+            Replace API key
+          </button>
+          <button
+            type="button"
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-[var(--danger)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+          >
+            {disconnecting ? "Disconnecting..." : "Disconnect"}
           </button>
         </div>
         <p className="text-xs text-[var(--text-muted)]">
