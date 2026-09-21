@@ -759,6 +759,49 @@ describe("Security audit: base session gate never redirects HMAC-authenticated i
   });
 });
 
+describe("Security audit: base session gate never redirects Vercel Cron-triggered routes", () => {
+  // Regression test for a real, confirmed-live PRODUCTION incident: the *base*
+  // authenticated-session gate in proxy.ts (`if (!email) redirect("/signin")`) applies to every
+  // non-public, non-exempted route, and was redirecting every Vercel Cron invocation of
+  // /api/cron/ai, /api/cron/notification-outbox, and /api/cron/live-reporting-reconciliation
+  // with HTTP 307 to /signin since each was introduced -- Vercel's cron scheduler has no
+  // session/cookie identity (each route's own CRON_SECRET Bearer-token check is its only gate,
+  // by design). This meant the route handlers -- and their own CRON_SECRET checks -- were never
+  // reached at all, so no cron job ever actually ran in production. Discovered while verifying
+  // the ADR-0148 lineup_review trigger fix: a LINEUP_REVIEW AiAdvisorJob was correctly enqueued
+  // (QUEUED, nextAttemptAt in the past), but remained untouched (attempts: 0, no lockedAt) across
+  // multiple confirmed Vercel Cron invocations of /api/cron/ai (`GET /api/cron/ai` observed in
+  // Vercel runtime logs at the scheduled tick) -- and curl-ing all three cron paths directly with
+  // the correct CRON_SECRET Bearer header still returned 307 pre-fix, proving the block was in
+  // the proxy, not the route. Fixed by exempting /api/cron/** from both session-based gates in
+  // one place, before either can run -- exactly the same shape of fix as the /api/internal/**
+  // exemption above.
+  it("exempts /api/cron/** from the base authenticated-session gate", async () => {
+    const { isCronRoute } = await import("@/proxy");
+    expect(isCronRoute("/api/cron/ai")).toBe(true);
+    expect(isCronRoute("/api/cron/notification-outbox")).toBe(true);
+    expect(isCronRoute("/api/cron/live-reporting-reconciliation")).toBe(true);
+  });
+
+  it("still requires a session for ordinary non-public routes", async () => {
+    const { isCronRoute } = await import("@/proxy");
+    expect(isCronRoute("/api/season/export")).toBe(false);
+    expect(isCronRoute("/today")).toBe(false);
+  });
+
+  it("checks the cron-route exemption before either session-based gate in source order", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const proxyFile = fs.readFileSync(path.join(process.cwd(), "src/proxy.ts"), "utf-8");
+    const cronCheckIndex = proxyFile.indexOf("isCronRoute(path)");
+    const previewGateIndex = proxyFile.indexOf("isVercelPreview() && requiresPreviewAllowlistCheck(path)");
+    const baseGateIndex = proxyFile.indexOf('redirect(new URL("/signin"');
+    expect(cronCheckIndex).toBeGreaterThan(-1);
+    expect(cronCheckIndex).toBeLessThan(previewGateIndex);
+    expect(cronCheckIndex).toBeLessThan(baseGateIndex);
+  });
+});
+
 describe("Security audit: PWA installation assets are public but tenant-data-free (ADR-0123)", () => {
   // The web app manifest and its icons MUST be fetchable without a session:
   // install-before-sign-in is the normal flow, and on production Next fetches

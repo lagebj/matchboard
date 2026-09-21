@@ -45,6 +45,27 @@ export function isInternalMachineRoute(path: string): boolean {
   return path.startsWith("/api/internal/");
 }
 
+/**
+ * `/api/cron/**` (Vercel Cron-triggered routes: `/api/cron/ai`, `/api/cron/notification-outbox`,
+ * `/api/cron/live-reporting-reconciliation`) has no session/cookie identity by design -- each
+ * route's own `CRON_SECRET` Bearer-token check (`getCronSecret()`) is its only gate, exactly like
+ * `/api/internal/**`'s HMAC check above. That existing exemption's own doc comment describes
+ * precisely the same defect this one fixes for a different route family: the base authenticated-
+ * session gate a few lines below (`if (!email) redirect("/signin")`) applies to every non-public,
+ * non-exempted route, and was redirecting every Vercel Cron invocation of all three cron routes
+ * with HTTP 307 to `/signin` since each was introduced -- Vercel's cron scheduler does not follow
+ * that redirect with credentials, so the route handler (and its own `CRON_SECRET` check) was never
+ * reached at all. Confirmed live: zero `AiAdvisorJob` rows had ever reached any status other than
+ * `QUEUED` in production despite `lineup_review` jobs being correctly enqueued (this ADR-0148
+ * regression's own fix), and `curl`-ing all three cron paths with the correct `CRON_SECRET` Bearer
+ * header still returned 307 pre-fix. This checks the whole path prefix once, before either
+ * session-based gate, so no future gate added here can reintroduce the same defect for this route
+ * family either.
+ */
+export function isCronRoute(path: string): boolean {
+  return path.startsWith("/api/cron/");
+}
+
 function withSecurityHeaders(response: NextResponse, pathname?: string): NextResponse {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     // X-Frame-Options has no per-origin allowance like CSP's frame-ancestors 'self' -- only
@@ -75,6 +96,12 @@ export default proxyAuth((req) => {
   // See isInternalMachineRoute()'s doc comment: this must run before both session-based gates
   // below, not just the preview-allowlist one.
   if (isInternalMachineRoute(path)) {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
+  // See isCronRoute()'s doc comment: this must run before both session-based gates below, not
+  // just the preview-allowlist one -- Vercel's cron scheduler has no session/cookie identity.
+  if (isCronRoute(path)) {
     return withSecurityHeaders(NextResponse.next());
   }
 
