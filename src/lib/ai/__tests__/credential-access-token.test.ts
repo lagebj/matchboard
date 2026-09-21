@@ -38,6 +38,11 @@ describe("ai/credential-access-token: signCredentialAccessToken", () => {
     const { payload, protectedHeader } = await jwtVerify(jwt, publicKey);
 
     expect(protectedHeader.alg).toBe("EdDSA");
+    // matchboard-security's Go runtime verifier hard-requires header.typ === "JWT" (not just
+    // alg) — jose's SignJWT does not set `typ` unless told to, so omitting this regressed
+    // silently (production 401 on every credential-access call, 2026-09-21) until this
+    // assertion existed.
+    expect(protectedHeader.typ).toBe("JWT");
     expect(payload.iss).toBe("matchboard");
     expect(payload.aud).toBe("matchboard-ai-credentials");
     expect(payload.op).toBe("access-credential");

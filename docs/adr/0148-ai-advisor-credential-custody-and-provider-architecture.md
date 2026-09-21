@@ -505,3 +505,18 @@ amended or superseded per this repository's ADR governance rules, not silently c
   `AI_SECURITY_ENROLLMENT_URL` (a public, non-secret base URL) to `connect-src` at request time,
   omitted automatically when unset; added a regression test in `csp.test.ts` covering both the
   present and absent cases.
+- Same-day follow-on regressions (2026-09-21), found while live-testing the first real
+  enrollment after the CSP fix above: (1) `matchboard-security`'s enrollment function had no CORS
+  handling at all (preflight `OPTIONS` returned a bare `404`) and its `allowedProviders` map only
+  listed `openai`/`anthropic`, missing `google_gemini`/`mistral`/`ollama_cloud` — fixed in that
+  separate repository (`lagebj/matchboard-security#38`), not this one. (2) Once CORS was fixed,
+  every enrollment attempt still failed with `401 Unauthorized` for every provider identically.
+  Root cause, this time in this repository: `src/lib/ai/jwt-signing.ts`'s
+  `signAiSecurityBoundaryToken()` called `.setProtectedHeader({ alg: "EdDSA" })` — `jose`'s
+  `SignJWT` does not add `typ: "JWT"` to the header unless told to, but `matchboard-security`'s Go
+  verifier (both the enrollment and runtime brokers) hard-requires `header.typ === "JWT"` as well
+  as `alg`. Every signed-token verification therefore failed unconditionally, for every enrollment
+  and credential-access call, regardless of provider or credential validity — the existing
+  `enrollment-token.test.ts` / `credential-access-token.test.ts` suites only ever asserted `alg`,
+  never `typ`, so this slipped through every prior test run. Fixed by adding `typ: "JWT"` to the
+  protected header; added a regression assertion for `protectedHeader.typ` to both test files.
