@@ -2,6 +2,7 @@ import { getOrgContext } from "../org-context";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { OrgSettingsClient } from "./org-settings-client";
+import { getAiAdvisorSettingsAction } from "./ai-advisor-actions";
 
 export default async function OrgSettingsPage({
   params,
@@ -69,6 +70,7 @@ export default async function OrgSettingsPage({
       isOwner={ctx.role === "OWNER"}
       isSuspended={org.suspendedAt !== null && org.suspendedAt !== undefined}
       suspendedReason={org.suspendedReason}
+      aiAdvisor={ctx.role === "OWNER" ? await getAiAdvisorSettingsAction(orgSlug) : null}
     />
   );
 }

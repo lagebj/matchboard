@@ -14,6 +14,8 @@ import {
   reactivateOrganisationAction,
   deleteOrganisationAction,
 } from "@/app/(app)/organisations/actions";
+import type { AiAdvisorSettingsSummary } from "./ai-advisor-actions";
+import { AiAdvisorSection } from "./ai-advisor-section";
 
 type Org = {
   id: string;
@@ -42,6 +44,7 @@ export function OrgSettingsClient({
   isOwner,
   isSuspended,
   suspendedReason,
+  aiAdvisor,
 }: {
   org: Org;
   principals: Principal[];
@@ -49,6 +52,7 @@ export function OrgSettingsClient({
   isOwner: boolean;
   isSuspended: boolean;
   suspendedReason: string | null;
+  aiAdvisor: AiAdvisorSettingsSummary | null;
 }) {
   const [showCreatePrincipal, setShowCreatePrincipal] = useState(false);
   const [principalName, setPrincipalName] = useState("");
@@ -139,6 +143,24 @@ export function OrgSettingsClient({
           </div>
         </div>
       </section>
+
+      {isOwner && aiAdvisor && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">AI Advisor</h2>
+            {aiAdvisor.activeConnection?.status === "READY" && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[var(--success-subtle)] text-[var(--success)]">
+                Connected
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Advisory interpretation based on recorded Matchboard data. Optional advisory analysis using your
+            organisation&apos;s own AI provider account.
+          </p>
+          <AiAdvisorSection orgSlug={orgSlug} initial={aiAdvisor} />
+        </section>
+      )}
 
       {isOwner && (
         <section className="space-y-4">
