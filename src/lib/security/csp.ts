@@ -36,7 +36,18 @@ export function getContentSecurityPolicy(pathname?: string): { header: string; v
     // "Connection problem" and reporting-coach events getting stuck in "Sync issue" whenever the
     // realtime-first path (Stage 5) was attempted. Both hostnames are allowed unconditionally
     // (harmless in either environment) rather than branching on isDev/isCspEnforceEnabled.
-    "connect-src 'self' https://vercel.live wss://vercel.live wss://realtime.matchboard.football wss://realtime-test.matchboard.football",
+    //
+    // ADR-0148 AI Advisor: the browser submits the provider credential directly to the
+    // matchboard-security enrollment service (ai-advisor-section.tsx's browser-direct enrollment
+    // fetch) so the credential itself never transits our own servers. CSP was never updated when
+    // that shipped, so the browser silently blocked the request with "violates ... connect-src"
+    // even though the server-side wiring (bootstrap route, signed token) was correct — the same
+    // class of regression as the realtime origins above. `AI_SECURITY_ENROLLMENT_URL` is a public,
+    // non-secret base URL (see .env.example), so reading it here to build the directive is safe;
+    // when unset (AI Advisor not configured on this deployment) it is simply omitted.
+    `connect-src 'self' https://vercel.live wss://vercel.live wss://realtime.matchboard.football wss://realtime-test.matchboard.football${
+      process.env.AI_SECURITY_ENROLLMENT_URL ? ` ${process.env.AI_SECURITY_ENROLLMENT_URL}` : ""
+    }`,
     "frame-src 'self' https://vercel.live",
     isDocsRoute ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "base-uri 'self'",

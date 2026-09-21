@@ -494,3 +494,14 @@ amended or superseded per this repository's ADR governance rules, not silently c
   multi-PR AI Advisor implementation programme; any future material change to this architecture
   requires an ADR amendment or supersession per this repository's ADR governance rules, not a
   silent deviation.
+- Post-programme production regression (2026-09-21): the first live enrollment attempt after
+  configuring the production `matchboard-security` credentials failed in the browser with
+  "Something went wrong while connecting." Root cause: `src/lib/security/csp.ts`'s `connect-src`
+  directive was never updated for this ADR's browser-direct enrollment fetch
+  (`ai-advisor-section.tsx`'s call straight to `AI_SECURITY_ENROLLMENT_URL`), so the browser
+  silently blocked the request client-side — the server-side wiring (bootstrap route, signed
+  token) was correct throughout, matching the exact same class of regression already recorded
+  above for the live-match-realtime WebSocket origins. Fixed by adding
+  `AI_SECURITY_ENROLLMENT_URL` (a public, non-secret base URL) to `connect-src` at request time,
+  omitted automatically when unset; added a regression test in `csp.test.ts` covering both the
+  present and absent cases.

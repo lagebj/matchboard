@@ -58,6 +58,29 @@ describe("CSP configuration", () => {
     expect(csp.value).toContain("wss://realtime-test.matchboard.football");
   });
 
+  it("allows the AI Advisor browser-direct enrollment origin when AI_SECURITY_ENROLLMENT_URL is set (2026-09-21 regression — CSP silently blocked the enrollment credential submission)", () => {
+    const original = process.env.AI_SECURITY_ENROLLMENT_URL;
+    process.env.AI_SECURITY_ENROLLMENT_URL = "https://matchboard-ai-enrollment.example.functions.fnc.nl-ams.scw.cloud";
+    try {
+      const csp = getContentSecurityPolicy();
+      expect(csp.value).toContain("connect-src 'self'");
+      expect(csp.value).toContain("https://matchboard-ai-enrollment.example.functions.fnc.nl-ams.scw.cloud");
+    } finally {
+      process.env.AI_SECURITY_ENROLLMENT_URL = original;
+    }
+  });
+
+  it("omits the AI Advisor enrollment origin from connect-src when AI_SECURITY_ENROLLMENT_URL is not set", () => {
+    const original = process.env.AI_SECURITY_ENROLLMENT_URL;
+    delete process.env.AI_SECURITY_ENROLLMENT_URL;
+    try {
+      const csp = getContentSecurityPolicy();
+      expect(csp.value).not.toContain("scw.cloud");
+    } finally {
+      process.env.AI_SECURITY_ENROLLMENT_URL = original;
+    }
+  });
+
   it("includes report-uri in report-only mode", () => {
     delete process.env.CSP_ENFORCE;
     const csp = getContentSecurityPolicy();
