@@ -28,12 +28,15 @@ export async function enqueueDueMatchPrepJobs(): Promise<{ scanned: number }> {
   const now = new Date();
   const windowEnd = new Date(now.getTime() + MATCH_PREP_WINDOW_HOURS * 60 * 60 * 1000);
 
-  const dueMatches = await runWithSystemPrivilege("ai-match-prep-scan", () =>
-    db.match.findMany({
+  // ARR-0029 Bug 2: the callback must `await` the query *inside* itself -- returning the bare
+  // lazy PrismaPromise from a non-async callback exits `run()` before the extension ever
+  // dispatches the query, so `getSystemPrivilegeReason()` reads as unset by the time it matters.
+  const dueMatches = await runWithSystemPrivilege("ai-match-prep-scan", async () => {
+    return await db.match.findMany({
       where: { status: "SCHEDULED", startsAt: { gte: now, lte: windowEnd } },
       select: { id: true, organisationId: true },
-    }),
-  );
+    });
+  });
 
   for (const match of dueMatches) {
     try {
@@ -75,9 +78,10 @@ export function previousCompletedIsoWeekKey(now: Date): string {
 export async function enqueueDueWeeklyTeamReviewJobs(): Promise<{ scanned: number }> {
   const weekKey = previousCompletedIsoWeekKey(new Date());
 
-  const teams = await runWithSystemPrivilege("ai-weekly-team-review-scan", () =>
-    db.team.findMany({ select: { id: true, organisationId: true } }),
-  );
+  // ARR-0029 Bug 2 (see enqueueDueMatchPrepJobs() above) -- await the query inside the callback.
+  const teams = await runWithSystemPrivilege("ai-weekly-team-review-scan", async () => {
+    return await db.team.findMany({ select: { id: true, organisationId: true } });
+  });
 
   for (const team of teams) {
     try {
