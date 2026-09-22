@@ -10,7 +10,8 @@ import {
 import type { JsonValue } from "@/lib/ai/fingerprints";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { buildMatchInsightFacts } from "@/lib/matches/match-insights/build-match-insight-facts";
-import type { CurrentPlanInput, MatchInsightFact } from "@/lib/matches/match-insights/types";
+import { buildCurrentPlanInput } from "@/lib/matches/match-insights/build-current-plan-input";
+import type { MatchInsightFact } from "@/lib/matches/match-insights/types";
 
 /**
  * `match_prep` context builder (06_AI_CAPABILITY_CONTRACTS.md "3. match_prep"; ADR-0149).
@@ -43,74 +44,27 @@ function ref(prefix: string, index: number): string {
   return `${prefix}${String(index + 1).padStart(2, "0")}`;
 }
 
-/** `Selection.role` (`SelectionRole`) has six values; the Match Insight domain layer only
- * distinguishes CORE/SUPPORT/DEVELOPMENT (bundle's "role" concept for adjacency/opportunity
- * facts). `BACKFILL`/`CONFIDENCE_REBUILD`/`CORE_MATCH_DROP` are non-primary-starting,
- * non-development roles -- the closest existing bucket is SUPPORT. */
-function toPlanRole(role: string): "CORE" | "SUPPORT" | "DEVELOPMENT" {
-  if (role === "CORE") return "CORE";
-  if (role === "DEVELOPMENT") return "DEVELOPMENT";
-  return "SUPPORT";
-}
-
 export async function buildMatchPrepContext(params: {
   organisationId: string;
   scopeId: string;
 }): Promise<AiCapabilityContext | null> {
-  const match = await db.match.findFirst({
+  // AI-eligibility gate (status/plan-completeness) is specific to this capability -- the shared
+  // plan-input builder below has no such gate, since deterministic Match Insights must stay
+  // useful for a partial/incomplete plan too.
+  const eligibility = await db.match.findFirst({
     where: { id: params.scopeId, organisationId: params.organisationId },
-    select: {
-      id: true,
-      teamId: true,
-      squadSize: true,
-      formation: true,
-      gameFormat: true,
-      matchDurationMinutes: true,
-      status: true,
-      opponentTeamId: true,
-      startsAt: true,
-      matchRound: { select: { leagueSeasonId: true } },
-    },
+    select: { status: true, squadSize: true, gameFormat: true, matchDurationMinutes: true },
   });
-  if (!match || !match.matchRound) return null;
-  if (match.status === "CANCELLED") return null;
+  if (!eligibility) return null;
+  if (eligibility.status === "CANCELLED") return null;
 
-  const selections = await db.selection.findMany({
-    where: { matchId: match.id, organisationId: params.organisationId, status: { in: ["DRAFT", "FINALIZED"] } },
-    select: { playerId: true, role: true },
+  const coreCount = await db.selection.count({
+    where: { matchId: params.scopeId, organisationId: params.organisationId, status: { in: ["DRAFT", "FINALIZED"] }, role: "CORE" },
   });
+  if (coreCount < eligibility.squadSize) return null; // no complete plan yet -- not eligible
 
-  const coreCount = selections.filter((s) => s.role === "CORE").length;
-  if (coreCount < match.squadSize) return null; // no complete plan yet -- not eligible
-
-  const players = selections.length
-    ? await db.player.findMany({ where: { id: { in: selections.map((s) => s.playerId) } }, select: { id: true, primaryPosition: true } })
-    : [];
-  const positionByPlayer = new Map(players.map((p) => [p.id, p.primaryPosition]));
-
-  const rotation = await db.plannedRotation.findFirst({
-    where: { matchId: match.id, teamId: match.teamId, organisationId: params.organisationId },
-    select: { changes: { select: { sequence: true, outPlayerId: true, inPlayerId: true, outPosition: true, inPosition: true } } },
-  });
-  const rotationChanges = [...(rotation?.changes ?? [])].sort((a, b) => a.sequence - b.sequence);
-
-  const plan: CurrentPlanInput = {
-    matchId: match.id,
-    teamId: match.teamId,
-    organisationId: params.organisationId,
-    leagueSeasonId: match.matchRound.leagueSeasonId,
-    opponentTeamId: match.opponentTeamId,
-    formation: match.formation,
-    matchStartsAt: match.startsAt,
-    squad: selections.map((s) => ({ playerId: s.playerId, role: toPlanRole(s.role), position: positionByPlayer.get(s.playerId) ?? null })),
-    plannedRotations: rotationChanges.map((c) => ({
-      sequence: c.sequence,
-      outPlayerId: c.outPlayerId,
-      inPlayerId: c.inPlayerId,
-      outPosition: c.outPosition,
-      inPosition: c.inPosition,
-    })),
-  };
+  const plan = await buildCurrentPlanInput({ organisationId: params.organisationId, matchId: params.scopeId });
+  if (!plan) return null;
 
   const orgFilter: OrgFilterMode = {
     type: "org",
@@ -126,7 +80,7 @@ export async function buildMatchPrepContext(params: {
   const matchRef = "M01";
 
   const refMap = new Map<string, AiCapabilityRefTarget>();
-  refMap.set(matchRef, { subjectType: AiInsightSubjectType.MATCH, entityId: match.id });
+  refMap.set(matchRef, { subjectType: AiInsightSubjectType.MATCH, entityId: plan.matchId });
   for (const [playerId, playerRef] of playerRefById) {
     refMap.set(playerRef, { subjectType: AiInsightSubjectType.PLAYER, entityId: playerId });
   }
@@ -141,11 +95,11 @@ export async function buildMatchPrepContext(params: {
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
   for (const s of squadFacts) evidenceRefs.add(`${FACT}:squad:${s.playerRef}`);
 
-  const formationFact = match.formation ? { matchRef, formation: match.formation } : null;
+  const formationFact = plan.formation ? { matchRef, formation: plan.formation } : null;
   if (formationFact) evidenceRefs.add(`${FACT}:formation:${matchRef}`);
 
   evidenceRefs.add(`${FACT}:match-format:${matchRef}`);
-  const matchFormatFact = { matchRef, gameFormat: match.gameFormat, matchDurationMinutes: match.matchDurationMinutes };
+  const matchFormatFact = { matchRef, gameFormat: eligibility.gameFormat, matchDurationMinutes: eligibility.matchDurationMinutes };
 
   const rotationFacts = plan.plannedRotations
     .map((r) => ({
