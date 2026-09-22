@@ -8,10 +8,10 @@ import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
-import { PlannedPartnershipEvidenceList } from "@/components/matches/planned-partnership-evidence";
+import { MatchInsights } from "@/components/matches/match-insights/match-insights";
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { GAME_FORMAT_PLAYERS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
-import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
+import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-match-insights";
 import { Copy } from "lucide-react";
 import { TouchlineInspector } from "@/components/touchline/workbench/touchline-inspector";
 import { PositionFitList } from "@/components/touchline/workbench/position-fit-list";
@@ -125,11 +125,28 @@ export function MatchTacticsPanel({
       })
     : [];
 
+  // Match Insights (ADR-0149) -- replaces the former standalone Partnership Evidence list and
+  // AI Advisor panel. Refetched on every plan mutation via `refreshLineup` below (which already
+  // runs after every mutation handler in this component) so deterministic insights stay current
+  // without a page reload; AI enrichment freshness is decided server-side by `getMatchInsights()`.
+  const [matchInsights, setMatchInsights] = useState<MatchInsightsViewModel | null>(null);
+
+  const refreshMatchInsights = useCallback(async () => {
+    const { getMatchInsightsAction } = await import("@/app/(app)/matches/match-insights-actions");
+    const result = await getMatchInsightsAction(matchId);
+    if (result.success) setMatchInsights(result.viewModel);
+  }, [matchId]);
+
   const refreshLineup = useCallback(async () => {
     const { getMatchLineup } = await import("@/app/(app)/matches/lineup-actions");
     const updated = await getMatchLineup(matchId, teamId);
     if (updated) setLineup(updated as unknown as LineupData);
-  }, [matchId, teamId]);
+    refreshMatchInsights();
+  }, [matchId, teamId, refreshMatchInsights]);
+
+  useEffect(() => {
+    refreshMatchInsights();
+  }, [refreshMatchInsights]);
 
   const handleLoad = useCallback(() => {
     startTransition(async () => {
@@ -401,32 +418,6 @@ export function MatchTacticsPanel({
     lineup?.assignments?.filter((a) => a.playerId).map((a) => a.playerId!) ?? []
   );
 
-  const [partnershipEvidence, setPartnershipEvidence] = useState<SeasonCombinationSummary[]>([]);
-  const assignedPlayerIdsKey = [...assignedPlayerIds].sort().join(",");
-
-  useEffect(() => {
-    if (assignedPlayerIds.size < 2) {
-      setPartnershipEvidence([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { getPlannedPartnershipEvidenceAction } = await import(
-        "@/app/(app)/matches/lineup-combination-evidence-actions"
-      );
-      const result = await getPlannedPartnershipEvidenceAction(matchId, [...assignedPlayerIds]);
-      if (!cancelled && result.success) setPartnershipEvidence(result.summaries);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // assignedPlayerIdsKey is the stable dependency; assignedPlayerIds itself is a fresh Set each render.
-  }, [matchId, assignedPlayerIdsKey]);
-
-  const playerNameById = Object.fromEntries(
-    playerPool.map((p) => [p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`]),
-  );
-
   // PlayerPicker classifies exact positional fit and orders candidates itself (ADR-0129 §04).
   const pickerCompatiblePlayers = pickerState ? playerPool : [];
 
@@ -641,48 +632,41 @@ export function MatchTacticsPanel({
       </Surface>
 
       {slots.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-          <Surface padding="md">
-            <SectionHeader title="Pitch" eyebrow={lineup.formation?.name ?? "Formation"} />
-            <div className="mt-3">
-              <TouchlinePlanningPitch
-                slots={planningSlots}
-                assignments={planningAssignments}
-                onSlotClick={
-                  isConfirmed
-                    ? undefined
-                    : (slotId) => {
-                        const assignment = lineup?.assignments.find((a) => a.slotId === slotId) ?? null;
-                        handleSlotClick(assignment?.id ?? null, slotId, assignment?.playerId ?? null);
-                      }
-                }
-                onSlotView={(slotId, assignment) => {
-                  handleSlotView(null, slotId, assignment?.playerId ?? null);
-                }}
-                readOnly={isConfirmed}
-              />
-            </div>
-            {!isConfirmed && (
-              <p className="mt-2 text-[10px] text-[var(--text-muted)]">
-                Tap any slot to assign or manage a player.
-              </p>
-            )}
-            {partnershipEvidence.length > 0 && (
+        // ADR-0149 Decision 6: the pitch/sidebar split (formerly `lg:grid-cols-[1fr_280px]`) is
+        // retargeted so the pitch column stays ~35-40% and Match Insights gets the larger share.
+        // Squad/Empty-slots (pitch/plan management, not decision-support) move under the pitch in
+        // the left column; the right column is Match Insights, temporarily replaced by the
+        // selected-player Inspector (least disruptive per the bundle, and gives the Inspector --
+        // previously 352px wide inside a 280px column -- real room to render).
+        <div className="grid gap-4 lg:grid-cols-[2fr_3fr] lg:items-start">
+          <div className="flex min-w-0 flex-col gap-4 lg:min-w-[360px]">
+            <Surface padding="md">
+              <SectionHeader title="Pitch" eyebrow={lineup.formation?.name ?? "Formation"} />
               <div className="mt-3">
-                <SectionHeader title="Partnership evidence" description="Factual context for the current line-up, not a chemistry score." />
-                <div className="mt-2">
-                  <PlannedPartnershipEvidenceList summaries={partnershipEvidence} playerNameById={playerNameById} />
-                </div>
+                <TouchlinePlanningPitch
+                  slots={planningSlots}
+                  assignments={planningAssignments}
+                  onSlotClick={
+                    isConfirmed
+                      ? undefined
+                      : (slotId) => {
+                          const assignment = lineup?.assignments.find((a) => a.slotId === slotId) ?? null;
+                          handleSlotClick(assignment?.id ?? null, slotId, assignment?.playerId ?? null);
+                        }
+                  }
+                  onSlotView={(slotId, assignment) => {
+                    handleSlotView(null, slotId, assignment?.playerId ?? null);
+                  }}
+                  readOnly={isConfirmed}
+                />
               </div>
-            )}
-          </Surface>
+              {!isConfirmed && (
+                <p className="mt-2 text-[10px] text-[var(--text-muted)]">
+                  Tap any slot to assign or manage a player.
+                </p>
+              )}
+            </Surface>
 
-          <aside className="flex flex-col gap-3">
-            {selectedPlayer && (
-              <TouchlineInspector title={selectedPlayer.playerName} headline={selectedPlayer.primaryPosition}>
-                <PositionFitList entries={selectedPlayerFitEntries} />
-              </TouchlineInspector>
-            )}
             <Surface padding="md">
               <SectionHeader title="Squad" eyebrow={`${selections.length} available`} />
               <div className="mt-2 flex flex-col gap-1">
@@ -735,7 +719,17 @@ export function MatchTacticsPanel({
                 </div>
               </Surface>
             )}
-          </aside>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {selectedPlayer ? (
+              <TouchlineInspector title={selectedPlayer.playerName} headline={selectedPlayer.primaryPosition}>
+                <PositionFitList entries={selectedPlayerFitEntries} />
+              </TouchlineInspector>
+            ) : (
+              <MatchInsights viewModel={matchInsights} />
+            )}
+          </div>
         </div>
       )}
 

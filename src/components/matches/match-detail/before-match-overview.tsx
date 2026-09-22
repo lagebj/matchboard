@@ -7,8 +7,6 @@ import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
 import { MatchFormatOverrideControls } from "@/components/matches/match-format-override-controls";
-import { AdvisorPanel, AdvisorPanelStale } from "@/components/ai/advisor-panel";
-import type { PlannedMatchAdvisorViewModel } from "@/lib/ai/presentation/planned-match-advisor";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchPreparationInput } from "@/lib/matches/match-detail-view-model";
 import { formatMatchType, formatGameFormat, formatVenue, formatMatchFit } from "@/lib/matches/match-detail-format";
@@ -36,6 +34,12 @@ type MatchFormatSnapshot = { numberOfPeriods: number; periodDurationMinutes: num
  * (`MatchTacticsPanel`, unchanged) and the former "Tactics" tab (coaching intent + match format)
  * directly into Overview at the requester's direction, removing both as separate tabs — there is
  * only one lineup/tactics surface now, not the same content reachable two ways.
+ *
+ * ADR-0149 (2026-09-22): the standalone Partnership Evidence list and the standalone "AI Advisor"
+ * panel previously rendered here are both gone — `MatchTacticsPanel` now owns one unified Match
+ * Insights surface (deterministic facts plus optional AI enrichment) inside its own pitch/sidebar
+ * grid, self-fetched client-side rather than threaded down as a page-load-time prop, so it can
+ * refresh live as the plan is edited. No separate Advisor rendering happens at this level anymore.
  */
 export function BeforeMatchOverview({
   presentation,
@@ -58,7 +62,6 @@ export function BeforeMatchOverview({
   opponentEncounterCount,
   opponentHasProfile,
   tabHref,
-  advisorViewModel,
 }: {
   presentation: MatchPresentation;
   ownKitColor: string | null;
@@ -85,9 +88,6 @@ export function BeforeMatchOverview({
   opponentEncounterCount: number;
   opponentHasProfile: boolean;
   tabHref: (tab: string) => string;
-  /** `null` when there is nothing for the Advisor to show at all (no connection, AI disabled,
-   * or no useful persisted review) — the panel must not render in that case. */
-  advisorViewModel: PlannedMatchAdvisorViewModel | null;
 }) {
   const factsItems: MetricStripItem[] = [
     { id: "format", label: "Format", value: formatGameFormat(gameFormat) },
@@ -155,14 +155,6 @@ export function BeforeMatchOverview({
         opponentHasProfile={opponentHasProfile}
         opponentTabHref={tabHref("opponent-context")}
       />
-
-      {advisorViewModel?.status === "fresh" && (
-        <AdvisorPanel
-          insights={advisorViewModel.insights}
-          footnote="Based on current plan · AI does not change the line-up or rotations"
-        />
-      )}
-      {advisorViewModel?.status === "stale" && <AdvisorPanelStale />}
     </div>
   );
 }

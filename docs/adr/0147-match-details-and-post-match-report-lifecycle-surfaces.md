@@ -239,3 +239,20 @@ with missing period/boundary fields.
 No domain, selection, fairness, evidence, security, tenancy, or schema semantics changed in this
 follow-up. Version bump: patch-and-IA-change classified as minor per `docs/VERSIONING.md`
 ("meaningful navigation/information-architecture changes").
+
+## Follow-up (2026-09-22): before-match Overview's pitch/sidebar split rebalanced for Match Insights (ADR-0149)
+
+`MatchTacticsPanel` — reused completely unchanged by this ADR's before-match `Overview`
+composition (§11 above: "embeds the real, completely unchanged `MatchTacticsPanel` directly") —
+now changes internally, under ADR-0149: its own pitch/sidebar grid (formerly
+`lg:grid-cols-[1fr_280px]`, a narrow ~280px utility sidebar) is retargeted to
+`lg:grid-cols-[2fr_3fr]` so the pitch stays roughly 35-40% of the planning workspace and a new
+right-hand **Match Insights** surface receives the larger share. Squad/Empty-slots (pitch/plan
+management) move under the pitch in the left column; the selected-player Inspector temporarily
+replaces Match Insights in the right column when a player is selected, rather than squeezing into
+the old narrow column as before.
+
+This is purely internal to `MatchTacticsPanel` and to the standalone AI Advisor panel this ADR's
+Overview composition previously rendered below it (now removed, folded into Match Insights) — the
+tab set, the pitch renderer itself, and every other Overview composition decision in this ADR are
+unchanged. No new tab, no new route, no schema change.

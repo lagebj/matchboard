@@ -14,7 +14,6 @@ import { deriveMatchDetailSurfaceState } from "@/lib/matches/match-detail-view-m
 import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { formatKickoffTime } from "@/lib/date-utils";
-import { getPlannedMatchAdvisorViewModel } from "@/lib/ai/presentation/planned-match-advisor";
 import { getCompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 
 export const dynamic = "force-dynamic";
@@ -225,12 +224,10 @@ export default async function MatchDetailPage({
       ? await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, orgFilter: ctx.orgFilter })
       : undefined;
 
-  // Contextual Advisor panel (only meaningful before the match, per 08_UI_UX_SPEC.md) — never
-  // queried for the AFTER surface, which has its own separate contextual panel below.
-  const advisorViewModel =
-    surfaceState === "BEFORE"
-      ? await getPlannedMatchAdvisorViewModel({ organisationId: ctx.organisationId, matchId: match.id })
-      : null;
+  // ADR-0149: the BEFORE-match contextual Advisor panel is gone -- Match Insights (self-fetched
+  // client-side by MatchTacticsPanel, see match-insights-actions.ts) supersedes it, including its
+  // AI-enrichment content (via getMatchInsights() -> getPlannedMatchAdvisorViewModel()
+  // internally). No page-load-time Advisor query is needed for the BEFORE surface any more.
 
   // Completed-match Advisor panel (`post_match_review`) — never queried for the BEFORE surface.
   const completedMatchAdvisorViewModel =
@@ -324,7 +321,6 @@ export default async function MatchDetailPage({
       phaseStartDate={match.matchRound.leagueSeason?.startDate}
       phaseEndDate={match.matchRound.leagueSeason?.endDate}
       startsAt={match.startsAt}
-      advisorViewModel={advisorViewModel}
       completedMatchAdvisorViewModel={completedMatchAdvisorViewModel}
     />
   );

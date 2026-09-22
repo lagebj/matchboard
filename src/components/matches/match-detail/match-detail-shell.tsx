@@ -32,7 +32,6 @@ import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
-import type { PlannedMatchAdvisorViewModel } from "@/lib/ai/presentation/planned-match-advisor";
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 
@@ -103,10 +102,6 @@ export type MatchDetailShellProps = {
   phaseStartDate?: Date;
   phaseEndDate?: Date;
   startsAt: Date;
-  /** `null` when there is nothing for the Advisor to show (no connection, AI disabled, or no
-   * useful persisted `lineup_review`/`match_prep` review); only rendered on the BEFORE-match
-   * Overview tab. */
-  advisorViewModel: PlannedMatchAdvisorViewModel | null;
   /** `null` when there is nothing for the Advisor to show (no connection, AI disabled,
    * `post_match_review` toggle off, or no useful persisted review); only rendered on the
    * AFTER-match Overview tab. */
@@ -161,7 +156,6 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     phaseStartDate,
     phaseEndDate,
     startsAt,
-    advisorViewModel,
     completedMatchAdvisorViewModel,
   } = props;
 
@@ -323,7 +317,6 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
           setCancelReason={setCancelReason}
           handleCancel={handleCancel}
           isPending={isPending}
-          advisorViewModel={advisorViewModel}
         />
       ) : (
         afterData && (
@@ -392,7 +385,6 @@ function BeforeMatchTabContent(props: {
   setCancelReason: (v: string) => void;
   handleCancel: () => void;
   isPending: boolean;
-  advisorViewModel: PlannedMatchAdvisorViewModel | null;
 }) {
   const { activeTab } = props;
 
@@ -426,7 +418,6 @@ function BeforeMatchTabContent(props: {
         opponentEncounterCount={props.opponentHistory?.totalPlayed ?? 0}
         opponentHasProfile={props.opponentTeamId != null}
         tabHref={props.tabHref}
-        advisorViewModel={props.advisorViewModel}
       />
     );
   }
