@@ -254,6 +254,21 @@ async function processClaimedJob(job: ClaimedJobRow): Promise<"succeeded" | "fai
       context,
     });
 
+    if (validation.response.insights.length === 0) {
+      // A schema-valid, zero-insight response is a legitimate outcome (advisor instructions
+      // explicitly allow "nothing materially useful to report" rather than padding), and the
+      // presentation layer intentionally renders no Advisor card for it ("no empty Advisor
+      // card"). But from an operator's standpoint this is indistinguishable from "everything is
+      // fine" unless it's logged: the provider call still consumed quota/tokens and the review
+      // still shows SUCCEEDED, yet nothing reaches the UI. Surface it so a model/connection that
+      // is *systematically* returning empty insights (e.g. too weak to reliably produce the
+      // required ephemeral/evidence refs) is visible in logs rather than silently invisible.
+      logger.warn(
+        { jobId: job.id, organisationId: job.organisationId, capability: job.capability, model, provider: connection.provider },
+        "[ai/jobs/runner] Review succeeded with zero insights -- Advisor UI will show nothing for this review",
+      );
+    }
+
     await markJobSucceeded(job.id);
     return "succeeded";
   });
