@@ -58,6 +58,14 @@ model — suspension is not deletion). Same gap as above: no self-service or adm
   the selected capability needs. This data is pseudonymized, not anonymous, and can still be
   personal data. Provider API credentials themselves never reach the Matchboard database — see
   `SECURITY.md`'s "AI Advisor credential security" section.
+  - **`match_prep`'s narrow trusted-text exception** (ADR-0149 Decision 3): for a prior
+    encounter with the *exact same opponent* only, `OpponentEncounterObservation.factualSummary`
+    and the corresponding `PostMatchReport.teamNote` become eligible input — truncated to 400
+    characters and always carried with an explicit attribution label (a coach observation, never
+    an objective fact). `OpponentEncounterObservation.sportingLevelNote` (an in-progress
+    subjective note, not a settled post-encounter summary), `Match.notes`, and every other
+    capability's free-text fields remain excluded exactly as before. The historical match's own
+    database id is never included — only its date/result/formation and the attributed text.
 - **Exports** (season export, `/api/season/export`): coach-mode export includes player
   names; parent-mode export hides internal planning tags but still includes player names and
   results (this is the intended purpose of a parent-facing roster/results export, not a leak).

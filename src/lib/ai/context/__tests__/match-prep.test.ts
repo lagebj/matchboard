@@ -131,8 +131,12 @@ describe("ai/context/match-prep", () => {
         sportingLevel: 6,
         playingStyleTags: ["HIGH_PRESSING"],
         concernCategories: [],
-        factualSummary: "should be excluded",
-        sportingLevelNote: "should be excluded",
+        // ADR-0149 Decision 3's narrow exception: an exact-opponent prior encounter's
+        // factualSummary is now eligible, bounded, attributed input -- sportingLevelNote must
+        // remain excluded exactly as before (it stays an in-progress subjective note, never a
+        // settled post-encounter summary).
+        factualSummary: "Difficult playing centrally against their press.",
+        sportingLevelNote: "must never appear in context",
         organisationId: fixtureIds.organisationId,
       },
     });
@@ -145,12 +149,36 @@ describe("ai/context/match-prep", () => {
     expect(normalized.squad).toHaveLength(3);
     expect(normalized.formation).toEqual({ matchRef: "M01", formation: "4-3-3" });
     expect(normalized.plannedRotations).toHaveLength(1);
-    expect(normalized.developmentFocus).toHaveLength(1);
-    expect(normalized.recentParticipation).toHaveLength(3);
-    expect(normalized.opponentSportingEvidence).toHaveLength(1);
-    expect(normalized.opponentEncounterEvidence).toHaveLength(1);
 
-    expect(JSON.stringify(normalized)).not.toContain("should be excluded");
+    const players = normalized.players as Array<Record<string, unknown>>;
+    expect(players).toHaveLength(3); // core1, core2, support1 -- the union of squad + rotation players.
+
+    const core1Ref = [...context.refMap.entries()].find(([, target]) => target.entityId === core1.id)?.[0];
+    expect(core1Ref).toBeDefined();
+    const core1Profile = players.find((p) => p.ref === core1Ref);
+    expect(core1Profile).toBeDefined();
+    expect(core1Profile?.development).toEqual([{ category: "BALL_CONTROL" }]);
+
+    expect(Array.isArray(normalized.combinations)).toBe(true);
+    expect(normalized.teamHistory).toBeDefined();
+    expect(normalized.rotationContext).toHaveLength(1);
+
+    const opponentContext = normalized.opponentContext as Record<string, unknown>;
+    expect(opponentContext.exactOpponentHistoryAvailable).toBe(true);
+    expect(opponentContext.previousEncounterCount).toBe(1);
+    const previousEncounters = opponentContext.previousEncounters as Array<Record<string, unknown>>;
+    expect(previousEncounters).toHaveLength(1);
+    expect(previousEncounters[0].goalsFor).toBe(2);
+    expect(previousEncounters[0].goalsAgainst).toBe(1);
+    const trustedObservation = previousEncounters[0].trustedObservation as Record<string, unknown>;
+    expect(trustedObservation.text).toBe("Difficult playing centrally against their press.");
+    expect(trustedObservation.source).toBe("OPPONENT_ENCOUNTER_SUMMARY");
+
+    // Never a database id anywhere in the AI-bound context -- every entity is an ephemeral ref,
+    // and a previous encounter's own match id is never included at all (ADR-0148 Decision 5).
+    expect(previousEncounters[0]).not.toHaveProperty("matchId");
+    expect(JSON.stringify(normalized)).not.toContain(otherMatch.id);
+    expect(JSON.stringify(normalized)).not.toContain("must never appear in context");
 
     for (const evidenceRef of context.evidenceRefs) {
       expect(evidenceRef).toMatch(/^fact:[a-z][a-z-]*:[A-Za-z0-9]+(?::[A-Za-z0-9-]+)?$/);
@@ -163,5 +191,36 @@ describe("ai/context/match-prep", () => {
     const contextAgain = await buildMatchPrepContext({ organisationId: fixtureIds.organisationId, scopeId: blaMatchId });
     const fingerprintB = computeSourceFingerprint(contextAgain!.normalizedContext);
     expect(fingerprintA).toBe(fingerprintB);
+  });
+
+  it("keeps the fingerprint unchanged when nothing semantically relevant changes, and changes it when the plan does (acceptance E1/E3)", async () => {
+    const blaMatchId = fixtureIds.matches["Bla"];
+    const [core1, core2] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
+
+    // Explicit baseline -- `formation` is not reset by `beforeEach` and can leak from a prior
+    // test in this file, so pin it rather than assume null.
+    await testDb.match.update({ where: { id: blaMatchId }, data: { formation: "4-3-3" } });
+
+    await testDb.selection.createMany({
+      data: [
+        { matchId: blaMatchId, matchRoundId: fixtureIds.matchRoundId, playerId: core1.id, role: "CORE", status: "FINALIZED", organisationId: fixtureIds.organisationId },
+        { matchId: blaMatchId, matchRoundId: fixtureIds.matchRoundId, playerId: core2.id, role: "CORE", status: "FINALIZED", organisationId: fixtureIds.organisationId },
+      ],
+    });
+
+    const contextA1 = await buildMatchPrepContext({ organisationId: fixtureIds.organisationId, scopeId: blaMatchId });
+    const contextA2 = await buildMatchPrepContext({ organisationId: fixtureIds.organisationId, scopeId: blaMatchId });
+    expect(contextA1).not.toBeNull();
+    expect(computeSourceFingerprint(contextA1!.normalizedContext)).toBe(computeSourceFingerprint(contextA2!.normalizedContext));
+
+    // A meaningful plan change (formation) must change the fingerprint.
+    await testDb.match.update({ where: { id: blaMatchId }, data: { formation: "4-4-2" } });
+    const contextB = await buildMatchPrepContext({ organisationId: fixtureIds.organisationId, scopeId: blaMatchId });
+    expect(computeSourceFingerprint(contextB!.normalizedContext)).not.toBe(computeSourceFingerprint(contextA1!.normalizedContext));
+
+    // Undoing the change reproduces fingerprint A exactly (acceptance E5).
+    await testDb.match.update({ where: { id: blaMatchId }, data: { formation: "4-3-3" } });
+    const contextA3 = await buildMatchPrepContext({ organisationId: fixtureIds.organisationId, scopeId: blaMatchId });
+    expect(computeSourceFingerprint(contextA3!.normalizedContext)).toBe(computeSourceFingerprint(contextA1!.normalizedContext));
   });
 });
