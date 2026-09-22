@@ -7,6 +7,11 @@
 # .matchboard-work/**) — none of those can affect the running app. See
 # docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History: a docs-only wording commit on
 # PR #313 (2026-08-20) exhausted this project's Vercel deploy quota for no functional reason.
+#
+# security/** (the converged Scaleway credential-broker subsystem, see security/README.md) is
+# also skip-eligible here: it is an independently deployed OpenTofu/Go subsystem, never part of
+# the Next.js app bundle, so a security-only change (including Dependabot Go bumps) must not
+# consume a Matchboard Vercel deployment either.
 set -euo pipefail
 
 if [ -z "${VERCEL_GIT_PREVIOUS_SHA:-}" ]; then
@@ -32,13 +37,13 @@ fi
 
 while IFS= read -r file; do
   case "$file" in
-    docs/*|.matchboard-work/*|*.md) ;;
+    docs/*|.matchboard-work/*|*.md|security/*) ;;
     *)
-      echo "Non-doc file changed ($file) — building."
+      echo "Non-doc, non-security file changed ($file) — building."
       exit 1
       ;;
   esac
 done <<< "$CHANGED_FILES"
 
-echo "Only docs/tracking files changed since ${VERCEL_GIT_PREVIOUS_SHA} — skipping build."
+echo "Only docs/tracking/security-subsystem files changed since ${VERCEL_GIT_PREVIOUS_SHA} — skipping build."
 exit 0

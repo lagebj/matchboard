@@ -41,6 +41,8 @@ Read this file before planning or changing code in a domain area. Then load only
 - `docs/adr/` — durable design decisions and active architecture decisions.
 - `docs/arr/` — verified structural mismatches and implementation residue that still needs explicit handling.
 - `SECURITY.md` — security posture, app controls, and provider guidance.
+- `security/README.md` — the AI credential broker subsystem (converged from `matchboard-security`,
+  ADR-0150): components, trust boundaries, credential lifecycle, and deployment model.
 - `docs/domain/terminology.md` and adjacent glossary docs — approved product vocabulary.
 - `docs/VERSIONING.md` (ADR-0059) — mandatory application version-bump classification and workflow; see `docs/development/coding-agent-working-session.md`'s "Version management" section.
 

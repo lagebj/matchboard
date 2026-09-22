@@ -1,0 +1,71 @@
+name: Security Broker / Validate
+
+# Validates the security/ subsystem (Scaleway credential-broker Go modules + OpenTofu
+# configuration) converged from the former lagebj/matchboard-security repository. See
+# security/README.md and docs/adr/0148-ai-advisor-credential-custody-and-provider-architecture.md
+# for the trust-boundary rationale: this workflow never touches production infrastructure or
+# tenant credentials, it only builds/tests the broker source and statically validates OpenTofu.
+
+on:
+  pull_request:
+    paths:
+      - "security/broker/**"
+      - "security/infra/**"
+      - ".github/workflows/security-broker-validate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "security/broker/**"
+      - "security/infra/**"
+      - ".github/workflows/security-broker-validate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enrollment:
+    name: Enrollment module (build + test)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: security/broker/enrollment
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: security/broker/enrollment/go.mod
+      - run: go build ./...
+      - run: go test ./...
+
+  runtime:
+    name: Runtime module (build + test)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: security/broker/runtime
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: security/broker/runtime/go.mod
+      - run: go build ./...
+      - run: go test ./...
+
+  opentofu:
+    name: OpenTofu static validation
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: security/infra/prod
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.6
+      - name: Check formatting
+        run: tofu fmt -check -recursive
+      - name: Initialise without backend
+        run: tofu init -backend=false
+      - name: Validate configuration
+        run: tofu validate

@@ -15,6 +15,7 @@ const ALLOWED_ACTIONS: Record<string, string> = {
   "actions/setup-node": "820762786026740c76f36085b0efc47a31fe5020", // v7.0.0
   "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", // v7.0.1
   "actions/github-script": "3a2844b7e9c422d3c10d287c895573f7108da1b3", // v9.0.0
+  "actions/setup-go": "40f1582b2485089dde7abd97c1529aa768e1baff", // v5.6.0
 };
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
