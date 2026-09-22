@@ -34,7 +34,11 @@ separate credential-security service, and server-side AI execution retrieves a c
 just-in-time per call. Provider payloads carry only pseudonymized, minimum-necessary structured
 football data (stable temporary references, never names/emails/internal IDs/free-text notes).
 See `SECURITY.md`'s "AI Advisor credential security" section and ADR-0148 for the full
-architecture before touching any `src/lib/ai/` or `/api/ai/` code.
+architecture before touching any `src/lib/ai/` or `/api/ai/` code. ADR-0149 records one narrow,
+disclosed exception for `match_prep` only: a prior encounter's bounded, truncated,
+explicitly-attributed opponent-observation text — see `docs/domain/pii-inventory.md`'s "External
+AI payloads" entry before changing `src/lib/ai/context/match-prep.ts` or
+`src/lib/matches/match-insights/opponent-context.ts`.
 
 ## Security workflow
 

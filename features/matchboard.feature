@@ -8083,10 +8083,11 @@ Feature: Matchboard football operations workspace
         And each entry must show minutes together and team outcomes while present
         And no confidence label must be shown for a single match
 
-      Scenario: The Tactics tab shows season partnership evidence for the current line-up
+      Scenario: The before-match Overview tab shows season partnership evidence inside Match Insights
         Given two players with recorded season partnership evidence are both assigned in the current line-up
-        When the coach views the Tactics tab
-        Then the partnership evidence must be shown as factual context
+        When the coach views the before-match Overview tab
+        Then the partnership evidence must be shown as factual context inside Match Insights
+        And it must not be shown as a standalone Partnership Evidence section
         And it must not be shown as a chemistry score
 
       Scenario: The Rotations tab shows season partnership evidence for the current starters
@@ -8099,6 +8100,64 @@ Feature: Matchboard football operations workspace
         When the coach views that opponent's detail page
         Then the combination evidence must be shown as factual context scoped to that opponent
         And it must not change any selection-engine outcome
+
+    Rule: Match Insights is the single pre-match decision-support surface
+
+      Scenario: Match Insights replaces the standalone Partnership Evidence list and AI Advisor panel
+        When the coach views the before-match Overview tab
+        Then there must be exactly one Match Insights surface
+        And there must be no separate standalone Partnership Evidence section
+        And there must be no separate standalone AI Advisor panel
+
+      Scenario: Match Insights works with no AI provider configured
+        Given the organisation has no AI provider connected
+        When the coach views Match Insights for an upcoming match
+        Then factual, deterministic insights must still be shown when they exist
+        And no AI-related error must be shown
+
+      Scenario: Match Insights shows the highest-priority insights first, with more available on request
+        Given nine qualifying insights exist for the current plan
+        When the coach views Match Insights
+        Then at most five insights are shown initially, ranked by relevance
+        And a "Show all" control reveals the remaining insights
+        And collapsing returns to the top five
+
+      Scenario: Match Insights does not invent filler when there are few qualifying insights
+        Given three qualifying insights exist for the current plan
+        When the coach views Match Insights
+        Then exactly three insights are shown
+        And no additional generic observation is added to reach five
+
+      Scenario: Match Insights shows a quiet state when there is no material exception
+        Given no qualifying insight exists for the current plan
+        When the coach views Match Insights
+        Then a quiet state must be shown
+        And no generic coaching advice must be invented to fill the space
+
+      Scenario: A player never gets a comparative ability label in Match Insights
+        Given an insight involves a player's attributes or statistics
+        When the coach views that insight
+        Then the player must not be labelled strong, weak, better, or worse than another player
+
+      Scenario: Match Insights never includes another opponent's history
+        Given the current match is against a specific opponent
+        And a different opponent has recorded encounter history
+        When the coach views Match Insights
+        Then only history recorded against the current match's exact opponent may appear
+
+      Scenario: A stale AI review is never shown as current in Match Insights
+        Given a successful AI review exists for a previous version of the plan
+        And the plan has since changed
+        When the coach views Match Insights
+        Then the stale AI review must not be presented as describing the current plan
+        And the current factual insights must remain visible
+
+      Scenario: AI failure does not remove Match Insights
+        Given AI interpretation is temporarily unavailable
+        When the coach views Match Insights
+        Then the factual, deterministic insights must remain visible
+        And a restrained status message may be shown
+        And lineup editing must remain fully functional
 
     Rule: Combination evidence is a bounded advisory signal in selection
 

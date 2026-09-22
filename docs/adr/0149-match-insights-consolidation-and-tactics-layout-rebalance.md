@@ -2,10 +2,9 @@
 
 ## Status
 
-Accepted (2026-09-22). Delivery steps 1-5 of 6 landed (ADR; deterministic domain layer;
-`match_prep` context rebuild; server view-model; UI + layout rebalance). Step 6
-(documentation/feature-file migration and cleanup) remains. See "History" for the real per-PR
-record.
+Accepted (2026-09-22). Fully implemented: all 6 delivery steps landed (ADR; deterministic domain
+layer; `match_prep` context rebuild; server view-model; UI + layout rebalance; documentation/
+feature-file migration). See "History" for the per-PR record.
 
 ## Context
 
@@ -304,3 +303,12 @@ it, matching ADR-0148's own closing convention.
   before-match Overview tab only — both remain live, unchanged on every other surface they already
   served (Rotations tab; Round Board, post-match, and weekly-review Advisor panels respectively).
   Dated follow-up notes added to ADR-0094 and ADR-0147. No deviation from this ADR's decisions.
+- Delivery step 6 (final) landed: `features/matchboard.feature` rewritten for the retired "Tactics
+  tab" scenario and a new "Match Insights is the single pre-match decision-support surface" Rule
+  (ten scenarios drawn from `06_ACCEPTANCE_TESTS.md`, already covered by shipped code, not
+  aspirational); `docs/agents/ux-and-terminology.md` and `docs/agents/security-privacy-and-
+  tenancy.md` gained pointers; `README.md`'s privacy claim corrected for the Decision 3 trusted-
+  text exception. A repository-wide search found no other stale references —
+  `planned-partnership-evidence.tsx` is confirmed still live (Rotations tab) and was not removed.
+  Programme complete; any future material change to this architecture requires an ADR amendment
+  or supersession per this repository's ADR governance rules, not a silent deviation.
