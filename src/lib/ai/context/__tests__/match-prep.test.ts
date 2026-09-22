@@ -147,7 +147,7 @@ describe("ai/context/match-prep", () => {
 
     const normalized = context.normalizedContext as Record<string, unknown>;
     expect(normalized.squad).toHaveLength(3);
-    expect(normalized.formation).toEqual({ matchRef: "M01", formation: "4-3-3" });
+    expect(normalized.formation).toEqual({ matchRef: "M01", formation: "4-3-3", evidenceRef: "fact:formation:M01" });
     expect(normalized.plannedRotations).toHaveLength(1);
 
     const players = normalized.players as Array<Record<string, unknown>>;

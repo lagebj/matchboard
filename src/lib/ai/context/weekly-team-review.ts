@@ -8,6 +8,7 @@ import {
   type AiCapabilityRefTarget,
 } from "@/lib/ai/jobs/capability-handler";
 import type { JsonValue } from "@/lib/ai/fingerprints";
+import { withEvidenceRef } from "@/lib/ai/context/evidence-ref";
 import { getWeekRangeFromIsoWeekKey } from "@/lib/date-utils";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 
@@ -160,14 +161,19 @@ export async function buildWeeklyTeamReviewContext(params: {
   const evidenceRefs = new Set<string>();
 
   const opportunityFacts = [...selections]
-    .map((s) => ({ playerRef: playerRefById.get(s.playerId)!, matchRef: matchRefById.get(s.matchId)!, role: String(s.role) }))
+    .map((s) => {
+      const playerRef = playerRefById.get(s.playerId)!;
+      const matchRef = matchRefById.get(s.matchId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:opportunity:${playerRef}:${matchRef}`, { playerRef, matchRef, role: String(s.role) });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef) || a.matchRef.localeCompare(b.matchRef));
-  for (const o of opportunityFacts) evidenceRefs.add(`${FACT}:opportunity:${o.playerRef}:${o.matchRef}`);
 
   const withoutOpportunityFacts = [...opportunityGapPlayerIds]
-    .map((playerId) => ({ playerRef: playerRefById.get(playerId)! }))
+    .map((playerId) => {
+      const playerRef = playerRefById.get(playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:without-opportunity:${playerRef}`, { playerRef });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const w of withoutOpportunityFacts) evidenceRefs.add(`${FACT}:without-opportunity:${w.playerRef}`);
 
   const minutesByPlayer = new Map<string, { startedAtMs: number; endedAtMs: number | null }[]>();
   const positionsByPlayer = new Map<string, Set<string>>();
@@ -181,19 +187,26 @@ export async function buildWeeklyTeamReviewContext(params: {
     positionsByPlayer.set(interval.playerId, positions);
   }
   const minutesFacts = [...minutesByPlayer.keys()]
-    .map((playerId) => ({ playerRef: playerRefById.get(playerId)!, minutes: sumClosedMinutes(minutesByPlayer.get(playerId)!) }))
+    .map((playerId) => {
+      const playerRef = playerRefById.get(playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:minutes:${playerRef}`, { playerRef, minutes: sumClosedMinutes(minutesByPlayer.get(playerId)!) });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const m of minutesFacts) evidenceRefs.add(`${FACT}:minutes:${m.playerRef}`);
 
   const positionalExposureFacts = [...positionsByPlayer.keys()]
-    .map((playerId) => ({ playerRef: playerRefById.get(playerId)!, positions: [...positionsByPlayer.get(playerId)!].sort() }))
+    .map((playerId) => {
+      const playerRef = playerRefById.get(playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:positional-exposure:${playerRef}`, { playerRef, positions: [...positionsByPlayer.get(playerId)!].sort() });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const p of positionalExposureFacts) evidenceRefs.add(`${FACT}:positional-exposure:${p.playerRef}`);
 
   const supportMovementFacts = supportMovements
-    .map((m) => ({ playerRef: playerRefById.get(m.playerId)!, matchRef: matchRefById.get(m.matchId)!, fromTeamId: m.fromTeamId }))
+    .map((m) => {
+      const playerRef = playerRefById.get(m.playerId)!;
+      const matchRef = matchRefById.get(m.matchId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:support-movement:${playerRef}:${matchRef}`, { playerRef, matchRef, fromTeamId: m.fromTeamId });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef) || a.matchRef.localeCompare(b.matchRef));
-  for (const s of supportMovementFacts) evidenceRefs.add(`${FACT}:support-movement:${s.playerRef}:${s.matchRef}`);
 
   const ruleOutcomeCounters = new Map<string, number>();
   const ruleOutcomeFacts = warnings
@@ -202,16 +215,17 @@ export async function buildWeeklyTeamReviewContext(params: {
     .map((w) => {
       const n = (ruleOutcomeCounters.get(w.scopeRef) ?? 0) + 1;
       ruleOutcomeCounters.set(w.scopeRef, n);
-      const evidenceRef = `${FACT}:rule-outcome:${w.scopeRef}:${n}`;
-      evidenceRefs.add(evidenceRef);
-      return { ...w, evidenceRef };
+      return withEvidenceRef(evidenceRefs, `${FACT}:rule-outcome:${w.scopeRef}:${n}`, w);
     })
     .sort((a, b) => a.evidenceRef.localeCompare(b.evidenceRef));
 
   const developmentFocusFacts = activeDevelopmentThreads
-    .map((t) => ({ playerRef: playerRefById.get(t.playerId)!, category: t.category }))
+    .map((t) => {
+      const playerRef = playerRefById.get(t.playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:development-focus:${playerRef}`, { playerRef, category: t.category });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const d of developmentFocusFacts) evidenceRefs.add(`${FACT}:development-focus:${d.playerRef}`);
+
 
   const normalizedContext: JsonValue = {
     team: { ref: teamRef, weekKey },
@@ -229,6 +243,7 @@ export async function buildWeeklyTeamReviewContext(params: {
     "Capability: weekly_team_review. Review this team's previous completed week using only the supplied structured facts.",
     "Do not infer ambition, attitude, commitment, character, or family availability reasons for any player.",
     "Do not label any player as strong, weak, better, or worse than another.",
+    "Every fact object carries an evidenceRef field giving you the exact string to cite — copy it verbatim, never construct or guess your own evidence-ref string.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it — every proposal requires explicit coach confirmation before it becomes real.",
   ].join(" ");
 

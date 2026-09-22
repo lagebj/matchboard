@@ -12,6 +12,7 @@ import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { buildMatchInsightFacts } from "@/lib/matches/match-insights/build-match-insight-facts";
 import { buildCurrentPlanInput } from "@/lib/matches/match-insights/build-current-plan-input";
 import type { MatchInsightFact } from "@/lib/matches/match-insights/types";
+import { withEvidenceRef } from "@/lib/ai/context/evidence-ref";
 
 /**
  * `match_prep` context builder (06_AI_CAPABILITY_CONTRACTS.md "3. match_prep"; ADR-0149).
@@ -91,26 +92,33 @@ export async function buildMatchPrepContext(params: {
   // ---- squad / formation / rotations (the current plan itself) ----
 
   const squadFacts = [...plan.squad]
-    .map((s) => ({ playerRef: playerRefById.get(s.playerId)!, role: s.role, position: s.position }))
+    .map((s) => {
+      const playerRef = playerRefById.get(s.playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:squad:${playerRef}`, { playerRef, role: s.role, position: s.position });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const s of squadFacts) evidenceRefs.add(`${FACT}:squad:${s.playerRef}`);
 
-  const formationFact = plan.formation ? { matchRef, formation: plan.formation } : null;
-  if (formationFact) evidenceRefs.add(`${FACT}:formation:${matchRef}`);
+  const formationFact = plan.formation
+    ? withEvidenceRef(evidenceRefs, `${FACT}:formation:${matchRef}`, { matchRef, formation: plan.formation })
+    : null;
 
-  evidenceRefs.add(`${FACT}:match-format:${matchRef}`);
-  const matchFormatFact = { matchRef, gameFormat: eligibility.gameFormat, matchDurationMinutes: eligibility.matchDurationMinutes };
+  const matchFormatFact = withEvidenceRef(evidenceRefs, `${FACT}:match-format:${matchRef}`, {
+    matchRef,
+    gameFormat: eligibility.gameFormat,
+    matchDurationMinutes: eligibility.matchDurationMinutes,
+  });
 
   const rotationFacts = plan.plannedRotations
-    .map((r) => ({
-      sequence: r.sequence,
-      outPlayerRef: r.outPlayerId ? (playerRefById.get(r.outPlayerId) ?? null) : null,
-      inPlayerRef: r.inPlayerId ? (playerRefById.get(r.inPlayerId) ?? null) : null,
-      outPosition: r.outPosition,
-      inPosition: r.inPosition,
-    }))
+    .map((r) =>
+      withEvidenceRef(evidenceRefs, `${FACT}:planned-rotation:${matchRef}:${r.sequence}`, {
+        sequence: r.sequence,
+        outPlayerRef: r.outPlayerId ? (playerRefById.get(r.outPlayerId) ?? null) : null,
+        inPlayerRef: r.inPlayerId ? (playerRefById.get(r.inPlayerId) ?? null) : null,
+        outPosition: r.outPosition,
+        inPosition: r.inPosition,
+      }),
+    )
     .sort((a, b) => a.sequence - b.sequence);
-  for (const r of rotationFacts) evidenceRefs.add(`${FACT}:planned-rotation:${matchRef}:${r.sequence}`);
 
   // ---- per-player preparation summaries (positions, attributes, stats, development) ----
 
@@ -118,7 +126,7 @@ export async function buildMatchPrepContext(params: {
     .map((playerId) => {
       const summary = bundle.playerSummaries.get(playerId)!;
       const playerRef = playerRefById.get(playerId)!;
-      return {
+      const withProfileRef = withEvidenceRef(evidenceRefs, `${FACT}:player-profile:${playerRef}`, {
         ref: playerRef,
         declaredPositions: summary.declaredPositions,
         positionEvidence: summary.positionEvidence,
@@ -126,13 +134,13 @@ export async function buildMatchPrepContext(params: {
         season: summary.season,
         recent: summary.recent,
         development: summary.development,
-      };
+      });
+      if (summary.development.length === 0) return withProfileRef;
+      evidenceRefs.add(`${FACT}:development-context:${playerRef}`);
+      return { ...withProfileRef, developmentEvidenceRef: `${FACT}:development-context:${playerRef}` };
     })
     .sort((a, b) => a.ref.localeCompare(b.ref));
-  for (const p of playerFacts) {
-    evidenceRefs.add(`${FACT}:player-profile:${p.ref}`);
-    if (p.development.length > 0) evidenceRefs.add(`${FACT}:development-context:${p.ref}`);
-  }
+
 
   // ---- combinations (established/new/goal) -- reused directly from the already-gated facts ----
 
@@ -161,18 +169,26 @@ export async function buildMatchPrepContext(params: {
 
   // ---- team history (formation familiarity, lineup continuity) -- no historical match id exposed ----
 
-  const teamHistoryFact: JsonValue = {
-    formationFamiliarity: bundle.teamHistory.formationFamiliarity,
-    lineupContinuity: bundle.teamHistory.lineupContinuity
-      ? {
+  const formationFamiliarityValue = bundle.teamHistory.formationFamiliarity
+    ? withEvidenceRef(evidenceRefs, `${FACT}:formation-pattern:${matchRef}`, bundle.teamHistory.formationFamiliarity)
+    : null;
+  const lineupContinuityValue = bundle.teamHistory.lineupContinuity
+    ? bundle.teamHistory.lineupContinuity.previousMatchId
+      ? withEvidenceRef(evidenceRefs, `${FACT}:lineup-continuity:${matchRef}`, {
+          unchangedPlayerCount: bundle.teamHistory.lineupContinuity.unchangedPlayerCount,
+          changedPlayerCount: bundle.teamHistory.lineupContinuity.changedPlayerCount,
+          previousSquadSize: bundle.teamHistory.lineupContinuity.previousSquadSize,
+        })
+      : {
           unchangedPlayerCount: bundle.teamHistory.lineupContinuity.unchangedPlayerCount,
           changedPlayerCount: bundle.teamHistory.lineupContinuity.changedPlayerCount,
           previousSquadSize: bundle.teamHistory.lineupContinuity.previousSquadSize,
         }
-      : null,
+    : null;
+  const teamHistoryFact: JsonValue = {
+    formationFamiliarity: formationFamiliarityValue,
+    lineupContinuity: lineupContinuityValue,
   };
-  if (bundle.teamHistory.formationFamiliarity) evidenceRefs.add(`${FACT}:formation-pattern:${matchRef}`);
-  if (bundle.teamHistory.lineupContinuity?.previousMatchId) evidenceRefs.add(`${FACT}:lineup-continuity:${matchRef}`);
 
   // ---- rotation context (which inbound player has no recent starts) ----
 
@@ -182,40 +198,40 @@ export async function buildMatchPrepContext(params: {
       const value = f.value as { sequence: number; outPosition: string | null; inPosition: string | null; inboundRecentStarts: number | null };
       const outPlayerId = f.subjectRefs[0];
       const inPlayerId = f.subjectRefs[1];
-      return {
+      return withEvidenceRef(evidenceRefs, `${FACT}:rotation-context:${value.sequence}`, {
         sequence: value.sequence,
         outPlayerRef: outPlayerId ? (playerRefById.get(outPlayerId) ?? null) : null,
         inPlayerRef: inPlayerId ? (playerRefById.get(inPlayerId) ?? null) : null,
         outPosition: value.outPosition,
         inPosition: value.inPosition,
         inboundRecentStarts: value.inboundRecentStarts,
-      };
+      });
     })
     .sort((a, b) => a.sequence - b.sequence);
-  for (const r of rotationContextFacts) evidenceRefs.add(`${FACT}:rotation-context:${r.sequence}`);
 
   // ---- exact-opponent history -- never any real match id; encounters distinguished by index only ----
 
-  const opponentEncounterFacts = bundle.opponentContext.previousEncounters.map((e, index) => ({
-    index: index + 1,
-    occurredAt: e.occurredAt.toISOString().slice(0, 10),
-    goalsFor: e.goalsFor,
-    goalsAgainst: e.goalsAgainst,
-    formation: e.formation,
-    overallEnvironment: e.overallEnvironment,
-    sportingLevel: e.sportingLevel,
-    playingStyleTags: e.playingStyleTags,
-    concernCategories: e.concernCategories,
-    trustedObservation: e.trustedObservation
-      ? { text: e.trustedObservation.text, source: e.trustedObservation.source }
-      : null,
-  }));
-  if (bundle.opponentContext.exactOpponentHistoryAvailable) {
-    evidenceRefs.add(`${FACT}:opponent-encounter:${matchRef}`);
-    for (const e of opponentEncounterFacts) {
-      if (e.overallEnvironment || e.trustedObservation) evidenceRefs.add(`${FACT}:opponent-observation:${matchRef}:${e.index}`);
-    }
-  }
+  const opponentEncounterFacts = bundle.opponentContext.previousEncounters.map((e, index) => {
+    const i = index + 1;
+    const base = {
+      index: i,
+      occurredAt: e.occurredAt.toISOString().slice(0, 10),
+      goalsFor: e.goalsFor,
+      goalsAgainst: e.goalsAgainst,
+      formation: e.formation,
+      overallEnvironment: e.overallEnvironment,
+      sportingLevel: e.sportingLevel,
+      playingStyleTags: e.playingStyleTags,
+      concernCategories: e.concernCategories,
+      trustedObservation: e.trustedObservation
+        ? { text: e.trustedObservation.text, source: e.trustedObservation.source }
+        : null,
+    };
+    return e.overallEnvironment || e.trustedObservation
+      ? withEvidenceRef(evidenceRefs, `${FACT}:opponent-observation:${matchRef}:${i}`, base)
+      : base;
+  });
+  if (bundle.opponentContext.exactOpponentHistoryAvailable) evidenceRefs.add(`${FACT}:opponent-encounter:${matchRef}`);
 
   const opponentTrendFacts = bundle.opponentContext.establishedCombinationsAgainstOpponent
     .map((c) => {
@@ -234,6 +250,10 @@ export async function buildMatchPrepContext(params: {
     previousEncounterCount: bundle.opponentContext.previousEncounterCount,
     previousEncounters: opponentEncounterFacts,
     establishedCombinationsAgainstOpponent: opponentTrendFacts,
+    // Whole-collection facts (no single item to attach an evidenceRef to): cite these fields
+    // verbatim, exactly like every per-item evidenceRef/developmentEvidenceRef field.
+    ...(bundle.opponentContext.exactOpponentHistoryAvailable ? { evidenceRef: `${FACT}:opponent-encounter:${matchRef}` } : {}),
+    ...(opponentTrendFacts.length > 0 ? { combinationTrendEvidenceRef: `${FACT}:opponent-trend:${matchRef}` } : {}),
   };
 
   const normalizedContext: JsonValue = {
@@ -242,7 +262,7 @@ export async function buildMatchPrepContext(params: {
     formation: formationFact,
     plannedRotations: rotationFacts,
     players: playerFacts,
-    combinations: combinationFacts.map((c) => ({ kind: c.kind, playerRefs: c.playerRefs, value: c.value })),
+    combinations: combinationFacts,
     teamHistory: teamHistoryFact,
     rotationContext: rotationContextFacts,
     opponentContext: opponentContextValue,
@@ -255,9 +275,11 @@ export async function buildMatchPrepContext(params: {
     "Do not perform any internet lookup and do not infer anything from the opponent's name, club, or league reputation.",
     "Do not alter the line-up or rotations, and do not invent missing minutes or statistics.",
     "Do not label any player as strong, weak, better, or worse than another, and do not rank players.",
+    "Every fact object carries the exact evidence-ref string to cite for it under a field ending in EvidenceRef (evidenceRef, developmentEvidenceRef, combinationTrendEvidenceRef) -- copy it verbatim, never construct or guess your own evidence-ref string.",
     "A trustedObservation is an attributed coach observation from a previous encounter, not a confirmed objective fact -- treat and describe it accordingly, never as settled truth.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it -- every proposal requires explicit coach confirmation before it becomes real.",
   ].join(" ");
+
 
   return { normalizedContext, instructions, refMap, evidenceRefs };
 }

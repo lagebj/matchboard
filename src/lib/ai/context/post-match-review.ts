@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai/jobs/capability-handler";
 import { resolveFootballMatchRefById } from "@/lib/evidence/football-match-ref";
 import type { JsonValue } from "@/lib/ai/fingerprints";
+import { withEvidenceRef } from "@/lib/ai/context/evidence-ref";
 
 /**
  * `post_match_review` context builder (06_AI_CAPABILITY_CONTRACTS.md "4. post_match_review").
@@ -147,14 +148,19 @@ export async function buildPostMatchReviewContext(params: {
 
   const evidenceRefs = new Set<string>();
 
-  const scoreFact = raw.ourScore !== null && raw.opponentScore !== null ? { ourScore: raw.ourScore, opponentScore: raw.opponentScore } : null;
-  if (scoreFact) evidenceRefs.add(`${FACT}:score:${matchRef}`);
+  const scoreFact =
+    raw.ourScore !== null && raw.opponentScore !== null
+      ? withEvidenceRef(evidenceRefs, `${FACT}:score:${matchRef}`, { ourScore: raw.ourScore, opponentScore: raw.opponentScore })
+      : null;
 
   const attendanceFacts = raw.attendance
-    .map((a) => ({ playerRef: refByPlayerId.get(a.playerId), status: a.status }))
-    .filter((a): a is { playerRef: string; status: string } => a.playerRef !== undefined)
+    .map((a) => {
+      const pr = refByPlayerId.get(a.playerId);
+      return pr ? withEvidenceRef(evidenceRefs, `${FACT}:attendance:${pr}`, { playerRef: pr, status: a.status }) : null;
+    })
+    .filter((a): a is NonNullable<typeof a> => a !== null)
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const a of attendanceFacts) evidenceRefs.add(`${FACT}:attendance:${a.playerRef}`);
+
 
   const goalCounters = new Map<string, number>();
   const goalFacts = raw.goals
@@ -193,9 +199,8 @@ export async function buildPostMatchReviewContext(params: {
     minutesByPlayer.set(pr, list);
   }
   const minutesFacts = [...minutesByPlayer.entries()]
-    .map(([pr, ivs]) => ({ playerRef: pr, minutes: sumClosedMinutes(ivs) }))
+    .map(([pr, ivs]) => withEvidenceRef(evidenceRefs, `${FACT}:minutes:${pr}`, { playerRef: pr, minutes: sumClosedMinutes(ivs) }))
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const m of minutesFacts) evidenceRefs.add(`${FACT}:minutes:${m.playerRef}`);
 
   const focusByPlayer = new Map<string, Set<string>>();
   for (const f of activeFocus) {
@@ -206,9 +211,9 @@ export async function buildPostMatchReviewContext(params: {
     focusByPlayer.set(pr, set);
   }
   const developmentFocusFacts = [...focusByPlayer.entries()]
-    .map(([pr, categories]) => ({ playerRef: pr, categories: [...categories].sort() }))
+    .map(([pr, categories]) => withEvidenceRef(evidenceRefs, `${FACT}:development-focus:${pr}`, { playerRef: pr, categories: [...categories].sort() }))
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const f of developmentFocusFacts) evidenceRefs.add(`${FACT}:development-focus:${f.playerRef}`);
+
 
   const normalizedContext: JsonValue = {
     match: { ref: matchRef, score: scoreFact },
@@ -223,6 +228,7 @@ export async function buildPostMatchReviewContext(params: {
     "Capability: post_match_review. Review this completed match's recorded facts.",
     "Do not restate or correct the score, goals, assists, or minutes — treat every supplied number as final and already correct.",
     "Do not create evidence automatically.",
+    "Every fact object carries an evidenceRef field giving you the exact string to cite — copy it verbatim, never construct or guess your own evidence-ref string.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it — every proposal requires explicit coach confirmation before it becomes real.",
   ].join(" ");
 

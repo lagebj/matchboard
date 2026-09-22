@@ -80,7 +80,7 @@ describe("ai/context/lineup-review", () => {
 
     const normalized = context.normalizedContext as Record<string, unknown>;
     expect(normalized.squad).toHaveLength(3);
-    expect(normalized.formation).toEqual({ matchRef: "M01", formation: "4-4-2" });
+    expect(normalized.formation).toEqual({ matchRef: "M01", formation: "4-4-2", lineup: null, evidenceRef: "fact:formation:M01" });
     expect(normalized.plannedRotations).toHaveLength(1);
     expect(normalized.opportunityHistory).toHaveLength(3);
 
@@ -130,5 +130,46 @@ describe("ai/context/lineup-review", () => {
     const normalized = context!.normalizedContext as { opportunityHistory: { playerRef: string; seasonAppearances: number }[] };
     const core1Ref = normalized.opportunityHistory.find((o) => o.seasonAppearances === 2);
     expect(core1Ref).toBeDefined();
+  });
+
+  // ARR-0051: a Tactics-panel-only edit (MatchLineup/MatchLineupAssignment) must be visible to
+  // the Advisor even when Selection itself is untouched -- this was the actual production bug.
+  it("surfaces the Tactics panel's formation-slot assignment as assignedPosition, distinct from the player's primaryPosition", async () => {
+    const blaMatchId = fixtureIds.matches["Bla"];
+    const blaTeamId = fixtureIds.teams["Bla"];
+    const [core1, core2] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
+
+    await testDb.selection.createMany({
+      data: [
+        { matchId: blaMatchId, matchRoundId: fixtureIds.matchRoundId, playerId: core1.id, role: "CORE", status: "FINALIZED", organisationId: fixtureIds.organisationId },
+        { matchId: blaMatchId, matchRoundId: fixtureIds.matchRoundId, playerId: core2.id, role: "CORE", status: "FINALIZED", organisationId: fixtureIds.organisationId },
+      ],
+    });
+
+    const formation = await testDb.formation.create({
+      data: { name: "4-4-2 Diamond", gameFormat: "SEVEN_A_SIDE", source: "SYSTEM", organisationId: fixtureIds.organisationId },
+    });
+    const slot = await testDb.formationSlot.create({
+      data: { formationId: formation.id, gridX: 2, gridY: 4, label: "Striker", shortLabel: "ST", roleType: "FORWARD", organisationId: fixtureIds.organisationId },
+    });
+    const lineup = await testDb.matchLineup.create({
+      data: { matchId: blaMatchId, teamId: blaTeamId, formationId: formation.id, organisationId: fixtureIds.organisationId },
+    });
+    await testDb.matchLineupAssignment.create({
+      data: { matchLineupId: lineup.id, slotId: slot.id, playerId: core1.id, organisationId: fixtureIds.organisationId },
+    });
+
+    const context = await buildLineupReviewContext({ organisationId: fixtureIds.organisationId, scopeId: blaMatchId });
+    expect(context).not.toBeNull();
+    if (!context) return;
+
+    const normalized = context.normalizedContext as {
+      squad: { playerRef: string; assignedPosition: string | null }[];
+      formation: { lineup: { name: string; assignedPlayerCount: number } | null } | null;
+    };
+    const assignedFacts = normalized.squad.filter((s) => s.assignedPosition !== null);
+    expect(assignedFacts).toHaveLength(1);
+    expect(assignedFacts[0].assignedPosition).toBe("Forward");
+    expect(normalized.formation?.lineup).toEqual({ name: "4-4-2 Diamond", gameFormat: "SEVEN_A_SIDE", assignedPlayerCount: 1 });
   });
 });
