@@ -596,3 +596,32 @@ amended or superseded per this repository's ADR governance rules, not silently c
   underlying `TenantContextError` root cause in the match_prep/weekly_team_review scan path itself
   is not yet fully diagnosed and may need further investigation; this fix ensures that whatever it
   turns out to be, it no longer blocks the rest of the queue.
+- Third follow-on discovery (2026-09-22), found after the fixes above let the stuck job run to
+  completion end-to-end for the first time: it correctly retried against
+  `PROVIDER_TIMEOUT` three times and was marked terminally `FAILED`, per this ADR's retry policy —
+  but the coach then switched to a much smaller/faster model and edited the line-up again, and no
+  new review was ever produced. Root cause, structural to `src/lib/ai/jobs/enqueue.ts` and not
+  specific to `lineup_review`: `AiAdvisorJob`'s unique constraint is
+  `(organisationId, capability, scopeType, scopeId, sourceFingerprint)`, independent of `status`.
+  Both `enqueueAiJob()` and `enqueueDebouncedAiJob()` only ever checked for an existing `QUEUED`
+  row before calling `create()`; neither considered a terminally `FAILED` row occupying the same
+  fingerprint slot. Once a job exhausts its retries, any later domain trigger that reproduces the
+  exact same fingerprint (e.g. an edit that nets out to the same normalized plan content) has its
+  `create()` throw `P2002`, caught and reported as `ALREADY_QUEUED_OR_RUNNING` — indistinguishable
+  from a genuine in-flight duplicate, but in fact a permanent dead end, since nothing ever revives
+  or removes the old `FAILED` row. `FAILED` must not be treated like `SUCCEEDED`: only `SUCCEEDED`
+  means "this exact content has already been reviewed" (correctly short-circuited by the existing
+  `AiAdvisorReview` check, unaffected by this bug); `FAILED` means "exhausted retries against an
+  operational failure" whose cause (e.g. an oversized/slow model) may no longer apply. Fixed by
+  adding a `reviveFailedJobIfPresent()` check (in `enqueueAiJob`) and an equivalent
+  fingerprint-matched `FAILED`-revival branch inside `enqueueDebouncedAiJob`'s existing
+  transaction (in addition to, not instead of, its unrelated QUEUED-collapse-to-newest-fingerprint
+  behaviour, which is unaffected) — both reset the row to `QUEUED`/`attempts: 0`/
+  `lastErrorCode: null` in place rather than attempting a second `create()`; the debounced variant
+  additionally resets `nextAttemptAt` to `now + debounceMs` to preserve debounce semantics. This
+  affects all five capabilities identically, not just `lineup_review` — any capability's job could
+  get permanently stuck the same way the moment it failed all retries while its scope's content
+  stayed byte-for-byte identical. Regression tests added: `enqueue.test.ts` (non-debounced
+  revival) and a new `enqueue-debounced.test.ts` (debounced revival — the debounced variant had no
+  dedicated test file at all before this fix, despite being the only code path `lineup_review`,
+  this repository's one debounced capability, actually uses).
