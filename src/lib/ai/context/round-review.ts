@@ -8,6 +8,7 @@ import {
   type AiCapabilityRefTarget,
 } from "@/lib/ai/jobs/capability-handler";
 import type { JsonValue } from "@/lib/ai/fingerprints";
+import { withEvidenceRef } from "@/lib/ai/context/evidence-ref";
 
 /**
  * `round_review` context builder (06_AI_CAPABILITY_CONTRACTS.md "1. round_review").
@@ -127,21 +128,25 @@ export async function buildRoundReviewContext(params: {
       const team = teamsById.get(teamId);
       const match = matchByTeam.get(teamId);
       const selectedCount = selections.filter((s) => match && s.matchId === match.id).length;
-      return {
+      return withEvidenceRef(evidenceRefs, `${FACT}:squad-size:${teamRef}`, {
         teamRef,
         name: team?.name ?? null,
         targetSquadSize: team?.targetSquadSize ?? null,
         maxSquadSize: team?.maxSquadSize ?? null,
         selectedCount,
-      };
+      });
     })
     .sort((a, b) => a.teamRef.localeCompare(b.teamRef));
-  for (const t of teamFacts) evidenceRefs.add(`${FACT}:squad-size:${t.teamRef}`);
 
   const matchFacts = sortedMatchIds
     .map((matchId) => {
       const match = matchRound.matches.find((m) => m.id === matchId)!;
-      return { matchRef: matchRefById.get(matchId)!, teamRef: teamRefById.get(match.teamId)!, squadSize: match.squadSize };
+      const matchRef = matchRefById.get(matchId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:round-match:${matchRef}`, {
+        matchRef,
+        teamRef: teamRefById.get(match.teamId)!,
+        squadSize: match.squadSize,
+      });
     })
     .sort((a, b) => a.matchRef.localeCompare(b.matchRef));
 
@@ -153,18 +158,23 @@ export async function buildRoundReviewContext(params: {
       if (!playerRef || !matchRef) return null;
       const n = (allocationCounters.get(playerRef) ?? 0) + 1;
       allocationCounters.set(playerRef, n);
-      const evidenceRef = `${FACT}:round-allocation:${playerRef}:${n}`;
-      evidenceRefs.add(evidenceRef);
-      return { playerRef, matchRef, role: s.role, position: positionByPlayer.get(s.playerId) ?? null, evidenceRef };
+      return withEvidenceRef(evidenceRefs, `${FACT}:round-allocation:${playerRef}:${n}`, {
+        playerRef,
+        matchRef,
+        role: s.role,
+        position: positionByPlayer.get(s.playerId) ?? null,
+      });
     })
     .filter((f): f is NonNullable<typeof f> => f !== null)
     .sort((a, b) => a.evidenceRef.localeCompare(b.evidenceRef));
 
   const availabilityFacts = availabilities
-    .map((a) => ({ playerRef: playerRefById.get(a.playerId), status: a.status }))
-    .filter((a): a is { playerRef: string; status: typeof a.status } => a.playerRef !== undefined)
+    .map((a) => {
+      const playerRef = playerRefById.get(a.playerId);
+      return playerRef ? withEvidenceRef(evidenceRefs, `${FACT}:availability:${playerRef}`, { playerRef, status: a.status }) : null;
+    })
+    .filter((a): a is NonNullable<typeof a> => a !== null)
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const a of availabilityFacts) evidenceRefs.add(`${FACT}:availability:${a.playerRef}`);
 
   const supportCounters = new Map<string, number>();
   const supportMovementFacts = helperAssignments
@@ -173,9 +183,7 @@ export async function buildRoundReviewContext(params: {
     .map((h) => {
       const n = (supportCounters.get(h.playerRef) ?? 0) + 1;
       supportCounters.set(h.playerRef, n);
-      const evidenceRef = `${FACT}:support-movement:${h.playerRef}:${n}`;
-      evidenceRefs.add(evidenceRef);
-      return { ...h, evidenceRef };
+      return withEvidenceRef(evidenceRefs, `${FACT}:support-movement:${h.playerRef}:${n}`, h);
     })
     .sort((a, b) => a.evidenceRef.localeCompare(b.evidenceRef));
 
@@ -188,16 +196,20 @@ export async function buildRoundReviewContext(params: {
     .map((w) => {
       const n = (ruleOutcomeCounters.get(w.scopeRef) ?? 0) + 1;
       ruleOutcomeCounters.set(w.scopeRef, n);
-      const evidenceRef = `${FACT}:rule-outcome:${w.scopeRef}:${n}`;
-      evidenceRefs.add(evidenceRef);
-      return { ...w, evidenceRef };
+      return withEvidenceRef(evidenceRefs, `${FACT}:rule-outcome:${w.scopeRef}:${n}`, w);
     })
     .sort((a, b) => a.evidenceRef.localeCompare(b.evidenceRef));
 
   const opportunityHistoryFacts = sortedPlayerIds
-    .map((playerId) => ({ playerRef: playerRefById.get(playerId)!, seasonAppearances: seasonAppearanceCounts.get(playerId) ?? 0 }))
+    .map((playerId) => {
+      const playerRef = playerRefById.get(playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:opportunity:${playerRef}`, {
+        playerRef,
+        seasonAppearances: seasonAppearanceCounts.get(playerId) ?? 0,
+      });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const o of opportunityHistoryFacts) evidenceRefs.add(`${FACT}:opportunity:${o.playerRef}`);
+
 
   const normalizedContext: JsonValue = {
     round: { ref: roundRef, name: matchRound.name },
@@ -215,6 +227,7 @@ export async function buildRoundReviewContext(params: {
     "Do not reselect players or propose an alternative squad allocation.",
     "Do not say a deterministic Matchboard rule outcome is wrong, and do not propose changing any support/helper movement.",
     "Do not infer ambition, commitment, attitude, or character from availability or selection patterns.",
+    "Every fact object carries an evidenceRef field giving you the exact string to cite — copy it verbatim, never construct or guess your own evidence-ref string.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it — every proposal requires explicit coach confirmation before it becomes real.",
   ].join(" ");
 

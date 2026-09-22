@@ -76,20 +76,24 @@ that can silently disagree.
 
 ## Impact
 
-- **AI Advisor blind spot (partially fixed this session):** the missing trigger in
-  `lineup-actions.ts` is fixed (see "Related implementation"), so a Tactics-panel edit now
-  enqueues a `LINEUP_REVIEW` job. However, the job's context still only reflects `Selection`
-  data — a formation-only change (no `Selection` row change) will fire a review, but the
-  reviewed content will not describe the actual formation/shape change, only whatever the
-  `Selection` table already said. This is a real, still-open functional gap distinct from the
-  fixed trigger gap.
-- **Data-integrity risk beyond AI Advisor:** any other current or future feature that assumes
-  "who's playing" lives in one place risks reading the wrong (or a stale) model. No enforcement
-  prevents `MatchLineupAssignment.playerId` from naming a player absent from `Selection`
-  entirely.
-- **Coach-facing confusion risk:** the Round Board and the Tactics panel can show different,
-  unreconciled pictures of the same match's squad, with no visible warning to the coach that
-  they are two different data sources.
+- **AI Advisor blind spot in the trigger (fixed a previous session) and in the reviewed content
+  itself (fixed this session):** `lineup-actions.ts` now enqueues a `LINEUP_REVIEW` job on a
+  Tactics-panel edit, and `buildLineupReviewContext()` (`src/lib/ai/context/lineup-review.ts`)
+  now also reads `MatchLineup`/`MatchLineupAssignment`/`FormationSlot` for this match's own team,
+  embedding each assigned player's formation-slot role as `assignedPosition` on their squad fact
+  (alongside the pre-existing `position`, sourced from `Player.primaryPosition`), plus a richer
+  `formation.lineup` fact (the Tactics panel's actual named formation and assigned-player count)
+  when a lineup exists. Confirmed live in production (Neon CLI): two matches with real,
+  same-day `MatchLineupAssignment` edits and no corresponding `Selection` change ("Hvit vs
+  Huringen 1", "Rød vs Skiold Rød") previously had lineup-review context that could not reflect
+  those edits at all -- it now does.
+- **Data-integrity risk beyond AI Advisor (still open):** any other current or future feature that
+  assumes "who's playing" lives in one place risks reading the wrong (or a stale) model. No
+  enforcement prevents `MatchLineupAssignment.playerId` from naming a player absent from
+  `Selection` entirely.
+- **Coach-facing confusion risk (still open):** the Round Board and the Tactics panel can show
+  different, unreconciled pictures of the same match's squad, with no visible warning to the
+  coach that they are two different data sources.
 - **Not yet investigated:** whether matchday-responsibility, round-finalization, or post-match
   reflection features consume either model in a way that would surface (or hide) this
   divergence; whether an existing production match already has drifted `Selection`/
@@ -99,7 +103,9 @@ that can silently disagree.
 
 - Do not add new AI Advisor (or other) domain-trigger or context-building logic that reads only
   one of `Selection`/`MatchLineup` without explicitly considering the other; new logic should at
-  minimum document which model it intentionally ignores and why.
+  minimum document which model it intentionally ignores and why. `lineup_review` is the one
+  documented exception now that it deliberately reads both: `Selection` for role/eligibility,
+  `MatchLineup` for on-pitch slot/position.
 - Do not introduce a third parallel "who's playing" representation to work around this
   residue.
 - Any new consumer of match squad/lineup data should ask which of the two current models is
@@ -107,18 +113,30 @@ that can silently disagree.
 
 ## Resolution criteria
 
-Not yet decided. A resolution (e.g. sourcing `MatchLineupAssignment.playerId` from `Selection`,
-merging the two models, or formally scoping `Selection` = eligibility/role and `MatchLineup` =
-on-pitch shape as intentionally separate concerns with an explicit link) requires its own ADR;
-this ARR does not prescribe the outcome.
+Not yet decided for the underlying model duplication. Two plausible resolutions: (a) sourcing
+`MatchLineupAssignment.playerId` from `Selection`, merging the two models, or (b) formally
+scoping `Selection` = eligibility/role and `MatchLineup` = on-pitch shape as intentionally
+separate concerns with an explicit link. Choosing between these (and handling any migration of
+historical data) needs its own ADR; this ARR does not prescribe the outcome. The `lineup_review`
+context-builder gap specifically (the concrete, user-facing symptom this ARR was opened for) is
+now closed without prejudging that larger decision, by reading both models for their already-
+distinct, non-conflicting facts (role vs. position) rather than merging or migrating anything.
 
 ## Disposition
 
-Pending — awaiting an ADR decision on whether/how to consolidate `Selection` and `MatchLineup`.
+Partially resolved — the two concrete symptoms (missing trigger; `lineup_review` context blind
+to Tactics-panel position/formation edits) are both fixed. The underlying `Selection`/
+`MatchLineup` model duplication itself remains pending an ADR decision.
 
 ## Resolution
 
-Not yet resolved.
+The `lineup_review` context-builder blind spot is resolved: `buildLineupReviewContext()` now
+reads `MatchLineup`/`MatchLineupAssignment`/`FormationSlot` for the match's own team and embeds
+the coach's actual formation-slot assignment (`assignedPosition`) and formation
+(`formation.lineup`) as facts the Advisor can see and cite, in addition to the pre-existing
+`Selection`-derived role/eligibility facts. The broader model-duplication residue (whether to
+merge, link, or keep `Selection` and `MatchLineup` as two enforced, separate concerns) is not
+resolved and still needs its own ADR.
 
 ## Related decisions
 
@@ -127,11 +145,19 @@ ARR.
 
 ## Related implementation
 
-This session's immediate fix (trigger-gap only, not a resolution of this residue):
+This session's earlier fix (trigger-gap only, not a resolution of this residue):
 `src/app/(app)/matches/lineup-actions.ts` gained a `triggerLineupReview()` helper (mirroring
 `draft-selection-actions.ts`), wired into `changeMatchLineupFormation`, `assignPlayerToSlot`, and
 `removePlayerFromSlot`. Regression test:
 `src/app/(app)/matches/__tests__/lineup-actions-ai-trigger.test.ts`.
+
+This session's follow-up fix (context-builder gap): `src/lib/ai/context/lineup-review.ts` now
+queries `MatchLineup`/`MatchLineupAssignment`/`FormationSlot` for the match's own team and embeds
+`assignedPosition` per squad fact plus a `formation.lineup` fact, alongside the pre-existing
+evidence-ref-embedding fix (see ADR/PR discussing the evidence-ref bug across all five capability
+context builders, shipped in the same change). Regression test added:
+`src/lib/ai/context/__tests__/lineup-review.test.ts`'s "surfaces the Tactics panel's
+formation-slot assignment as assignedPosition, distinct from the player's primaryPosition".
 
 ## Supersedes
 
@@ -146,3 +172,11 @@ None.
 - 2026-09-21: Identified while diagnosing a live production report ("AI Advisor never appears")
   via direct Neon Postgres forensics; the immediate trigger-gap symptom was fixed in the same
   session, this ARR documents the deeper, still-open model duplication that caused it.
+- 2026-09-22: Fixed the `lineup_review` context-builder gap itself (found while investigating a
+  separate, unrelated AI Advisor bug -- capability context builders never embedding literal
+  `evidenceRef` strings for the provider to cite). `buildLineupReviewContext()` now reads
+  `MatchLineup`/`MatchLineupAssignment`/`FormationSlot` and surfaces the coach's actual
+  formation-slot position assignment as a fact, closing the concrete symptom this ARR was opened
+  for while leaving the underlying `Selection`/`MatchLineup` duplication itself open pending an
+  ADR.
+

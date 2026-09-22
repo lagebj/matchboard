@@ -127,24 +127,25 @@ describe("ai/context/post-match-review", () => {
       match: { score: { ourScore: number; opponentScore: number } };
       goals: { playerRef: string; minute: number }[];
       assists: { playerRef: string }[];
-      minutes: { playerRef: string; minutes: number }[];
-      attendance: { playerRef: string; status: string }[];
-      developmentFocus: { playerRef: string; categories: string[] }[];
+      minutes: { playerRef: string; minutes: number; evidenceRef: string }[];
+      attendance: { playerRef: string; status: string; evidenceRef: string }[];
+      developmentFocus: { playerRef: string; categories: string[]; evidenceRef: string }[];
     };
 
-    expect(normalized.match.score).toEqual({ ourScore: 2, opponentScore: 0 });
+    expect(normalized.match.score).toEqual({ ourScore: 2, opponentScore: 0, evidenceRef: "fact:score:M01" });
     expect(normalized.goals).toHaveLength(2);
     expect(normalized.goals.every((g) => g.playerRef === scorerRef)).toBe(true);
     expect(normalized.assists).toEqual([{ playerRef: assisterRef, evidenceRef: expect.any(String) }]);
     expect(normalized.minutes).toEqual(
       expect.arrayContaining([
-        { playerRef: scorerRef, minutes: 60 },
-        { playerRef: assisterRef, minutes: 0 },
+        { playerRef: scorerRef, minutes: 60, evidenceRef: `fact:minutes:${scorerRef}` },
+        { playerRef: assisterRef, minutes: 0, evidenceRef: `fact:minutes:${assisterRef}` },
       ]),
     );
     expect(normalized.minutes).toHaveLength(2);
-    expect(normalized.attendance).toContainEqual({ playerRef: benchRef, status: "NO_SHOW" });
-    expect(normalized.developmentFocus).toEqual([{ playerRef: scorerRef, categories: ["CONFIDENCE_REBUILD"] }]);
+    expect(normalized.attendance).toContainEqual({ playerRef: benchRef, status: "NO_SHOW", evidenceRef: `fact:attendance:${benchRef}` });
+    expect(normalized.developmentFocus).toEqual([{ playerRef: scorerRef, categories: ["CONFIDENCE_REBUILD"], evidenceRef: `fact:development-focus:${scorerRef}` }]);
+
 
     for (const evidenceRef of [`fact:score:M01`, `fact:goal:${scorerRef}:1`, `fact:goal:${scorerRef}:2`, `fact:assist:${assisterRef}:1`, `fact:minutes:${scorerRef}`, `fact:attendance:${benchRef}`, `fact:development-focus:${scorerRef}`]) {
       expect(context.evidenceRefs.has(evidenceRef)).toBe(true);
@@ -196,7 +197,7 @@ describe("ai/context/post-match-review", () => {
     if (!context) return;
 
     const normalized = context.normalizedContext as { match: { score: { ourScore: number; opponentScore: number } } };
-    expect(normalized.match.score).toEqual({ ourScore: 4, opponentScore: 2 });
+    expect(normalized.match.score).toEqual({ ourScore: 4, opponentScore: 2, evidenceRef: "fact:score:M01" });
     expect(context.refMap.get("M01")).toEqual({ subjectType: "MATCH", entityId: eventMatch.id });
   });
 });

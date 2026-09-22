@@ -8,6 +8,8 @@ import {
   type AiCapabilityRefTarget,
 } from "@/lib/ai/jobs/capability-handler";
 import type { JsonValue } from "@/lib/ai/fingerprints";
+import { withEvidenceRef } from "@/lib/ai/context/evidence-ref";
+import { ROLE_TYPE_LABELS, type FormationSlotRoleType } from "@/lib/formations/types";
 
 /**
  * `lineup_review` context builder (06_AI_CAPABILITY_CONTRACTS.md "2. lineup_review"). Scope is
@@ -22,13 +24,21 @@ import type { JsonValue } from "@/lib/ai/fingerprints";
  * at least once, matching the contract's trigger wording ("a complete ... plan is saved") rather
  * than firing on every keystroke of an obviously-unfinished plan.
  *
- * Deliberately narrows the "may include" list: "coach-declared positions" and "evidence-backed
- * positional exposure" are not built as separate facts here — the League `Selection` model has
- * no coach-declared-position field distinct from the player's own `primaryPosition` (unlike the
- * Event side's `EventSquadPlayer.assignedPositionId`), and a dedicated positional-exposure
- * aggregate would duplicate the existing `position-exposure` insight rather than add new
- * capability-specific signal — the same bounded-subset scope adaptation `post_match_review` and
- * `round_review` already documented.
+ * Deliberately narrows the "may include" list: "evidence-backed positional exposure" is not
+ * built as a separate fact here — a dedicated positional-exposure aggregate would duplicate the
+ * existing `position-exposure` insight rather than add new capability-specific signal, the same
+ * bounded-subset scope adaptation `post_match_review` and `round_review` already documented.
+ *
+ * "Coach-declared positions" *is* built (via `assignedPosition` on each squad fact), sourced from
+ * `MatchLineup`/`MatchLineupAssignment` (the Tactics panel's formation-slot assignments) when a
+ * lineup exists for this match's own team, falling back to the player's `primaryPosition`
+ * otherwise. ARR-0051 documents that this builder previously read only `Selection` — never
+ * `MatchLineup` — so a coach moving a player to a different formation slot on the Tactics panel
+ * produced no signal the Advisor could see at all, even though `Selection` (role/eligibility) and
+ * `MatchLineup` (on-pitch shape/position) both legitimately describe different, coexisting facts
+ * about the same match. `Selection` remains authoritative for role (`CORE`/`SUPPORT`/etc.);
+ * `MatchLineup` is authoritative for slot/position, matching how `MatchLineupAssignment.playerId`
+ * is the coach's literal record of where a player is actually placed on the pitch for this match.
  */
 
 /** 06_AI_CAPABILITY_CONTRACTS.md "2. lineup_review": "debounce 2 minutes after the last relevant
@@ -70,6 +80,29 @@ export async function buildLineupReviewContext(params: {
     : [];
   const positionByPlayer = new Map(players.map((p) => [p.id, p.primaryPosition]));
 
+  // ARR-0051: the Tactics panel's formation-slot assignments (`MatchLineup`/
+  // `MatchLineupAssignment`) are the coach's actual on-pitch position record for this match --
+  // distinct from, and not derivable from, `Selection` or `Player.primaryPosition`. Read it here
+  // so a lineup-only edit (no `Selection` change) is actually reflected in what the Advisor sees.
+  const lineup = await db.matchLineup.findFirst({
+    where: { matchId: match.id, teamId: match.teamId, organisationId: params.organisationId },
+    select: {
+      formation: { select: { id: true, name: true, gameFormat: true } },
+      assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true, locked: true } },
+    },
+  });
+  const assignedSlotByPlayer = new Map(lineup?.assignments.map((a) => [a.playerId!, a]) ?? []);
+  const slotIds = [...new Set([...assignedSlotByPlayer.values()].map((a) => a.slotId))];
+  const slots = slotIds.length
+    ? await db.formationSlot.findMany({ where: { id: { in: slotIds } }, select: { id: true, roleType: true, label: true, gridX: true, gridY: true } })
+    : [];
+  const slotById = new Map(slots.map((s) => [s.id, s]));
+  const assignedPositionByPlayer = new Map(
+    [...assignedSlotByPlayer.entries()]
+      .map(([playerId, a]) => [playerId, slotById.get(a.slotId)] as const)
+      .filter((entry): entry is [string, NonNullable<(typeof slots)[number]>] => entry[1] !== undefined),
+  );
+
   const playerIds = new Set<string>();
   for (const s of selections) playerIds.add(s.playerId);
   for (const c of rotationChanges) {
@@ -90,27 +123,47 @@ export async function buildLineupReviewContext(params: {
   const evidenceRefs = new Set<string>();
 
   const squadFacts = [...selections]
-    .map((s) => ({ playerRef: playerRefById.get(s.playerId)!, role: String(s.role), position: positionByPlayer.get(s.playerId) ?? null }))
+    .map((s) => {
+      const playerRef = playerRefById.get(s.playerId)!;
+      const assignedSlot = assignedPositionByPlayer.get(s.playerId);
+      return withEvidenceRef(evidenceRefs, `${FACT}:squad:${playerRef}`, {
+        playerRef,
+        role: String(s.role),
+        position: positionByPlayer.get(s.playerId) ?? null,
+        // ARR-0051: the coach's actual formation-slot assignment for this match, when a Tactics
+        // panel lineup exists -- distinct from (and may differ from) `position` above, which is
+        // just the player's own default `primaryPosition`.
+        assignedPosition: assignedSlot ? (ROLE_TYPE_LABELS[assignedSlot.roleType as FormationSlotRoleType] ?? assignedSlot.roleType) : null,
+      });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const s of squadFacts) evidenceRefs.add(`${FACT}:squad:${s.playerRef}`);
 
-  const formationFact = match.formation ? { matchRef, formation: match.formation } : null;
-  if (formationFact) evidenceRefs.add(`${FACT}:formation:${matchRef}`);
+  const lineupFormationFact = lineup?.formation
+    ? { name: lineup.formation.name, gameFormat: lineup.formation.gameFormat, assignedPlayerCount: assignedSlotByPlayer.size }
+    : null;
+  const formationFact =
+    match.formation || lineupFormationFact
+      ? withEvidenceRef(evidenceRefs, `${FACT}:formation:${matchRef}`, { matchRef, formation: match.formation, lineup: lineupFormationFact })
+      : null;
 
   const rotationFacts = rotationChanges
-    .map((c) => ({
-      sequence: c.sequence,
-      outPlayerRef: c.outPlayerId ? playerRefById.get(c.outPlayerId) ?? null : null,
-      inPlayerRef: c.inPlayerId ? playerRefById.get(c.inPlayerId) ?? null : null,
-      outPosition: c.outPosition,
-      inPosition: c.inPosition,
-      approximateMatchSeconds: c.approximateMatchSeconds,
-    }))
+    .map((c) =>
+      withEvidenceRef(evidenceRefs, `${FACT}:planned-rotation:${matchRef}:${c.sequence}`, {
+        sequence: c.sequence,
+        outPlayerRef: c.outPlayerId ? playerRefById.get(c.outPlayerId) ?? null : null,
+        inPlayerRef: c.inPlayerId ? playerRefById.get(c.inPlayerId) ?? null : null,
+        outPosition: c.outPosition,
+        inPosition: c.inPosition,
+        approximateMatchSeconds: c.approximateMatchSeconds,
+      }),
+    )
     .sort((a, b) => a.sequence - b.sequence);
-  for (const r of rotationFacts) evidenceRefs.add(`${FACT}:planned-rotation:${matchRef}:${r.sequence}`);
 
-  const matchFormatFact = { matchRef, gameFormat: match.gameFormat, matchDurationMinutes: match.matchDurationMinutes };
-  evidenceRefs.add(`${FACT}:match-format:${matchRef}`);
+  const matchFormatFact = withEvidenceRef(evidenceRefs, `${FACT}:match-format:${matchRef}`, {
+    matchRef,
+    gameFormat: match.gameFormat,
+    matchDurationMinutes: match.matchDurationMinutes,
+  });
 
   const seasonRounds = await db.matchRound.findMany({
     where: { leagueSeasonId: match.matchRound.leagueSeasonId, organisationId: params.organisationId },
@@ -132,9 +185,14 @@ export async function buildLineupReviewContext(params: {
     seasonAppearanceCounts.set(s.playerId, (seasonAppearanceCounts.get(s.playerId) ?? 0) + 1);
   }
   const opportunityHistoryFacts = sortedPlayerIds
-    .map((playerId) => ({ playerRef: playerRefById.get(playerId)!, seasonAppearances: seasonAppearanceCounts.get(playerId) ?? 0 }))
+    .map((playerId) => {
+      const playerRef = playerRefById.get(playerId)!;
+      return withEvidenceRef(evidenceRefs, `${FACT}:opportunity:${playerRef}`, {
+        playerRef,
+        seasonAppearances: seasonAppearanceCounts.get(playerId) ?? 0,
+      });
+    })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
-  for (const o of opportunityHistoryFacts) evidenceRefs.add(`${FACT}:opportunity:${o.playerRef}`);
 
   const normalizedContext: JsonValue = {
     match: { ref: matchRef, format: matchFormatFact },
@@ -148,6 +206,7 @@ export async function buildLineupReviewContext(params: {
     "Capability: lineup_review. Review this match's saved starting line-up and rotation plan.",
     "Do not alter the line-up or rotations, and do not invent missing minutes.",
     "Do not label any player as strong, weak, better, or worse than another.",
+    "Every fact object that carries an evidenceRef field gives you the exact string to cite for that fact — copy it verbatim into an insight's evidenceRefs; never construct or guess your own evidence-ref string.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it — every proposal requires explicit coach confirmation before it becomes real.",
   ].join(" ");
 
