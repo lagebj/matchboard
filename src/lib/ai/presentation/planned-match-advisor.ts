@@ -23,7 +23,10 @@ export type PlannedMatchAdvisorViewModel =
   | {
       status: "fresh";
       capabilityLabel: string;
-      insights: { title: string; body: string }[];
+      // `kind`/`evidenceRefs` are additive (ADR-0149, Match Insights PR 4) -- already fetched on
+      // every insight row (no `select` clause below), just not previously surfaced. Existing
+      // consumers (`AdvisorPanel`) only read `title`/`body` and are unaffected.
+      insights: { title: string; body: string; kind: string; evidenceRefs: string[] }[];
     }
   | { status: "stale" };
 
@@ -89,6 +92,8 @@ export async function getPlannedMatchAdvisorViewModel(params: {
     insights: review.insights.map((insight) => ({
       title: resolveInsightText(insight.title, displayNameByRef),
       body: resolveInsightText(insight.body, displayNameByRef),
+      kind: insight.kind,
+      evidenceRefs: Array.isArray(insight.evidenceRefs) ? insight.evidenceRefs.filter((r): r is string => typeof r === "string") : [],
     })),
   };
 }
