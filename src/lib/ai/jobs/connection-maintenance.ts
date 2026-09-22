@@ -17,12 +17,15 @@ import { logger } from "@/lib/logger";
  * doing anything (defence against a concurrent retry already finishing it) and never throws.
  */
 export async function retryPendingConnectionDeletions(): Promise<{ scanned: number }> {
-  const pending = await runWithSystemPrivilege("ai-connection-delete-retry-scan", () =>
-    db.aiProviderConnection.findMany({
+  // ARR-0029 Bug 2: the callback must `await` the query *inside* itself -- returning the bare
+  // lazy PrismaPromise from a non-async callback exits `run()` before the extension ever
+  // dispatches the query, so `getSystemPrivilegeReason()` reads as unset by the time it matters.
+  const pending = await runWithSystemPrivilege("ai-connection-delete-retry-scan", async () => {
+    return await db.aiProviderConnection.findMany({
       where: { status: "DELETE_PENDING" },
       select: { id: true, organisationId: true },
-    }),
-  );
+    });
+  });
 
   for (const connection of pending) {
     try {

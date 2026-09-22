@@ -110,6 +110,26 @@ describe("tenantRLS extension: fail-closed tenant scoping (ADR-0087)", () => {
     it("runWithSystemPrivilege requires a non-empty reason", () => {
       expect(() => runWithSystemPrivilege("", () => db.team.findMany())).toThrow();
     });
+
+    it("ARR-0029 Bug 2 regression: a non-async callback that returns the bare lazy query (never awaited inside run()) still throws TenantContextError, even under runWithSystemPrivilege", async () => {
+      // The exact anti-pattern found live in production (src/lib/ai/jobs/scheduled-triggers.ts,
+      // src/lib/ai/jobs/connection-maintenance.ts): `run()`'s callback returns the un-awaited
+      // lazy PrismaPromise and exits immediately; the extension only dispatches the query later,
+      // once the *caller* awaits the returned value -- by which point the ALS context has
+      // already reverted. This proves the gotcha exists at the primitive level, independent of
+      // any one call site's code.
+      await expect(runWithSystemPrivilege("test: bare callback anti-pattern", () => db.team.findMany())).rejects.toThrow(
+        TenantContextError,
+      );
+    });
+
+    it("the fix: awaiting the query *inside* the callback correctly propagates system privilege", async () => {
+      await expect(
+        runWithSystemPrivilege("test: awaited-inside callback", async () => {
+          return await db.team.findMany();
+        }),
+      ).resolves.toBeDefined();
+    });
   });
 
   describe("real cross-tenant isolation with the extension active", () => {
