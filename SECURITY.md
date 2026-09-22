@@ -237,13 +237,15 @@ connects the organisation's own AI provider account (OpenAI, Anthropic, Gemini, 
 Ollama Cloud) and independently chooses which Advisor capabilities to enable.
 
 **Credential custody boundary.** Provider API credentials never enter the main Matchboard
-database. Enrollment submits the credential directly from the browser to a separate
-Scaleway-hosted credential-security service (Secret Manager/KMS-backed), never through a
-Matchboard API route. Matchboard's server-side AI execution code retrieves a credential only
-just-in-time, for the duration of a single provider call, using a short-lived signed access
-token; it is never cached, logged, or persisted server-side. Authorized infrastructure
-administrators ultimately control the underlying infrastructure, so this boundary reduces
-routine and accidental access — it is not a technical impossibility claim.
+database. Enrollment submits the credential directly from the browser to the `security/`
+credential-broker subsystem (Secret Manager/KMS-backed; converged in-repo from the former
+`matchboard-security` repository per ADR-0150, and still an independently deployed runtime trust
+boundary — see `security/README.md`), never through a Matchboard API route. Matchboard's
+server-side AI execution code retrieves a credential only just-in-time, for the duration of a
+single provider call, using a short-lived signed access token; it is never cached, logged, or
+persisted server-side. Authorized infrastructure administrators ultimately control the underlying
+infrastructure, so this boundary reduces routine and accidental access — it is not a technical
+impossibility claim.
 
 **Operational policy.** Matchboard personnel do not retrieve, inspect, copy, or manually use a
 tenant's provider credential. Troubleshooting that requires provider-account inspection must
@@ -269,7 +271,9 @@ to Advisor suggestions (`confirm_ai_development_suggestion`, `dismiss_ai_insight
 (`src/lib/security/audit-log.ts`), consistent with every other tenant mutation.
 
 See `docs/adr/0148-ai-advisor-credential-custody-and-provider-architecture.md` for the full
-data-flow architecture and delivery history.
+data-flow architecture and delivery history, `docs/adr/0150-converge-matchboard-security-repository-into-matchboard.md`
+for the repository-convergence decision, and `security/README.md` for the current subsystem
+description.
 
 ## Secret policy
 

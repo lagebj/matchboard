@@ -1,0 +1,74 @@
+name: Security Broker / Apply Production
+
+# Manual-only production apply for the converged security/ subsystem's OpenTofu configuration.
+# Requires an explicit "APPLY-PROD" confirmation input — never runs automatically on push/merge.
+# Uses deploy credentials (SCW_DEPLOY_ACCESS_KEY / SCW_DEPLOY_SECRET_KEY) scoped to this job only.
+# See security/README.md for the deployment model and security invariants.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Confirm production apply"
+        required: true
+        type: choice
+        options:
+          - "NO"
+          - "APPLY-PROD"
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    if: ${{ inputs.confirm == 'APPLY-PROD' }}
+    name: OpenTofu apply
+    runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        working-directory: security/infra/prod
+
+    env:
+      # Scaleway provider
+      SCW_ACCESS_KEY: ${{ secrets.SCW_DEPLOY_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
+      SCW_DEFAULT_REGION: ${{ vars.SCW_REGION }}
+
+      # S3-compatible OpenTofu backend
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_DEPLOY_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
+      AWS_REGION: ${{ vars.SCW_REGION }}
+
+      # OpenTofu variables
+      TF_VAR_project_id: ${{ vars.SCW_PROJECT_ID }}
+      TF_VAR_region: ${{ vars.SCW_REGION }}
+      TF_VAR_ai_secret_kms_key_id: ${{ vars.AI_SECRET_KMS_KEY_ID }}
+      TF_VAR_enrollment_token_public_key_b64: ${{ vars.ENROLLMENT_TOKEN_PUBLIC_KEY_B64 }}
+      TF_VAR_runtime_token_public_key_b64: ${{ vars.RUNTIME_TOKEN_PUBLIC_KEY_B64 }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.6
+
+      - name: Initialise remote state
+        run: |
+          tofu init \
+            -reconfigure \
+            -backend-config="bucket=${{ vars.TOFU_STATE_BUCKET }}" \
+            -backend-config="key=${{ vars.TOFU_STATE_KEY }}"
+
+      - name: Check formatting
+        run: tofu fmt -check -recursive
+
+      - name: Validate
+        run: tofu validate
+
+      - name: Create production plan
+        run: tofu plan -input=false -out=tfplan
+
+      - name: Apply production plan
+        run: tofu apply -input=false -auto-approve tfplan

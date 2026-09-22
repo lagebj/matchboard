@@ -120,3 +120,33 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # security/ subsystem (converged from lagebj/matchboard-security, see security/README.md):
+  # two independent Go modules, each with its own go.mod — not a single root module.
+  - package-ecosystem: "gomod"
+    directory: "/security/broker/enrollment"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:45"
+      timezone: "Europe/Oslo"
+
+    open-pull-requests-limit: 3
+
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/security/broker/runtime"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:45"
+      timezone: "Europe/Oslo"
+
+    open-pull-requests-limit: 3
+
+    commit-message:
+      prefix: "chore(deps)"

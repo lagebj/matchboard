@@ -77,6 +77,18 @@ npm-debug.log*
 .vscode/
 .codex
 
+# security/ subsystem — OpenTofu local state/plan artifacts, generated broker function
+# packages, and signing key material must never be committed (see security/README.md).
+security/infra/**/.terraform/
+security/infra/**/*.tfstate
+security/infra/**/*.tfstate.*
+security/infra/**/*.tfplan
+security/infra/**/crash.log
+security/infra/**/crash.*.log
+security/infra/**/*-function.zip
+security/**/*-signing-private.pem
+security/**/*-signing-public.pem
+
 # Claude Code session and personal memory (auto-managed, not committed)
 .claude/settings.local.json
 .claude/todos/

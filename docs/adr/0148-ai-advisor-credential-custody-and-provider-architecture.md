@@ -41,6 +41,15 @@ provider integration in this repository (confirmed by scanning `docs/adr/0000`�
 
 ## Decision
 
+> **Amendment (ADR-0150, 2026-09-22)**: `matchboard-security`'s source, infrastructure-as-code, and
+> CI/CD have been converged into this repository's `security/` directory for shared repository
+> governance. The runtime trust boundary described below — including that the Matchboard
+> application never gains direct Secret Manager/KMS/deployment access — is unchanged; only source
+> ownership moved. Every `matchboard-security` reference below is historical/architectural
+> narrative and remains accurate in substance; read it as "the `security/` subsystem" going
+> forward. See ADR-0150 for the convergence decision and `security/README.md` for the current
+> component/trust-boundary description.
+
 ### 1. Credential custody lives entirely outside Matchboard, in `matchboard-security`
 
 Provider API keys (OpenAI, Anthropic, Google Gemini, Mistral, Ollama Cloud) are **never** stored

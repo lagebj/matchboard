@@ -29,10 +29,12 @@ The app must keep tenant data isolated, audit logs sanitized, and provider confi
 ## AI Advisor credential and data boundary
 
 AI Advisor (ADR-0148) is optional, disabled by default, and org-controlled. Provider API
-credentials never reach the main Matchboard database — enrollment goes browser-direct to a
-separate credential-security service, and server-side AI execution retrieves a credential only
-just-in-time per call. Provider payloads carry only pseudonymized, minimum-necessary structured
-football data (stable temporary references, never names/emails/internal IDs/free-text notes).
+credentials never reach the main Matchboard database — enrollment goes browser-direct to the
+`security/` credential-broker subsystem (converged in-repo from `matchboard-security`, ADR-0150;
+still an independent runtime trust boundary, see `security/README.md`), and server-side AI
+execution retrieves a credential only just-in-time per call. Provider payloads carry only
+pseudonymized, minimum-necessary structured football data (stable temporary references, never
+names/emails/internal IDs/free-text notes).
 See `SECURITY.md`'s "AI Advisor credential security" section and ADR-0148 for the full
 architecture before touching any `src/lib/ai/` or `/api/ai/` code. ADR-0149 records one narrow,
 disclosed exception for `match_prep` only: a prior encounter's bounded, truncated,
