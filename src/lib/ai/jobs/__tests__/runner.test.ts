@@ -33,6 +33,7 @@ import {
 import { enqueueAiJob } from "@/lib/ai/jobs/enqueue";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
 import { generateAiProviderConnectionId } from "@/lib/ai/connection-id";
+import { logger } from "@/lib/logger";
 
 const AI_ENV_KEYS = ["AI_CREDENTIAL_ACCESS_SIGNING_PRIVATE_KEY_B64"] as const;
 const originalEnv: Record<string, string | undefined> = {};
@@ -198,6 +199,27 @@ describe("ai/jobs/runner: happy path", () => {
     const insight = await testDb.aiAdvisorInsight.findFirst({ where: { organisationId } });
     expect(insight?.actionType).toBe("CONFIRM_DEVELOPMENT_OBSERVATION");
     expect(insight?.actionPayload).toEqual({ playerId: "real-player-id-1", category: "technical", observation: "Great first touch." });
+  });
+
+  it("succeeds a job whose provider response has zero insights, but logs a warning so an operator can see it (a schema-valid empty response is otherwise indistinguishable from a fully healthy review)", async () => {
+    const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+    registerFakeHandler();
+    fakeAdapter.setNextExecuteResponse({ contractVersion: "1", summary: "Nothing materially useful to report this week.", insights: [] });
+    await enqueueAndClaim();
+
+    const summary = await processAiJobsBatch();
+    expect(summary).toMatchObject({ claimed: 1, succeeded: 1, failed: 0, retried: 0 });
+
+    const review = await testDb.aiAdvisorReview.findFirst({ where: { organisationId } });
+    expect(review?.status).toBe("SUCCEEDED");
+    const insightCount = await testDb.aiAdvisorInsight.count({ where: { organisationId } });
+    expect(insightCount).toBe(0);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ organisationId, capability: "POST_MATCH_REVIEW", model: "gpt-5", provider: "OPENAI" }),
+      expect.stringContaining("zero insights"),
+    );
+    warnSpy.mockRestore();
   });
 
   it("marks a job SUCCEEDED without calling the provider again if a SUCCEEDED review already exists for the freshly computed fingerprint", async () => {
