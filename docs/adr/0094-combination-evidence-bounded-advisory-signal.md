@@ -52,3 +52,20 @@ The Evidence-Driven Coaching Loop programme introduces structured combination ev
 - **Anti-lock-in is structural, not just documented.** The per-candidate bonus is capped (`MAX_COMBINATION_BONUS = 4`, scaled by intent) regardless of how many rounds confirm a pair, so a frequently-selected pair's evidence cannot compound into a runaway advantage over other viable options.
 - **Scope: league selection only.** The bounded signal is wired into the league round-generation candidate scorer only. Event squad generation (`src/lib/events/event-squad-generation.ts`) is a deliberately separate engine per AGENTS.md ("Event squad generation is separate from league round generation... does not affect league fairness metrics") with no actual-position-timeline evidence source of its own yet — extending combination evidence there is deferred, not silently dropped.
 - **Testing.** Covered at the unit level (`combination-scoring.test.ts`): bounded cap, unknown-is-neutral under every intent, intent-dependent amplification/suppression, and factual (non-scored) explanation text. The wiring into `generate-selection.ts` is covered by the full existing selection test suite passing with no regressions; a dedicated DB-backed integration test for the wiring itself was not added, consistent with this codebase's existing convention of unit-testing scoring/derivation logic directly rather than integration-testing every `generateSelection()` scoring contributor (e.g. consecutive-support-penalty testing following the same convention).
+## Follow-up (2026-09-22): before-match Overview's Partnership Evidence list folded into Match Insights (ADR-0149)
+
+The standalone `PlannedPartnershipEvidenceList` rendering on the before-match Match Details
+Overview tab (inside `MatchTacticsPanel`, under the pitch) is removed and folded into the new
+**Match Insights** surface (ADR-0149) as one input among several — its underlying calculation
+(`getSeasonCombinationEvidence()`/`aggregateSeasonCombinations()`/`selectRelevantPartnerships()`)
+is reused unchanged via `src/lib/matches/match-insights/combination-context.ts`, not reimplemented.
+
+This ADR's decisions are otherwise untouched: `PlannedPartnershipEvidenceList` itself is not
+deleted and remains the live, unchanged component for the **Rotations tab**
+(`planned-rotation-panel.tsx`) — a separate, still-current consumer per
+`features/matchboard.feature`'s "The Rotations tab shows season partnership evidence for the
+current starters" scenario. The Round Board chip explanation, the post-match
+`MatchCombinationEvidencePanel`, and the opponent-detail `OpponentCombinationEvidenceSection` are
+all likewise unaffected. No composite score is introduced anywhere by this change — Match Insights
+inherits this ADR's "no composite chemistry score" rule exactly, including for combination-derived
+insights.

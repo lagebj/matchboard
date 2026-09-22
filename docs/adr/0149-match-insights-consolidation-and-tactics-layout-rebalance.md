@@ -2,9 +2,10 @@
 
 ## Status
 
-Accepted (2026-09-22). Not yet implemented — delivered as a sequential series of PRs (one open at
-a time, per this repository's delivery convention), tracked against the "Delivery" section below.
-See "History" for the real per-PR record as it lands.
+Accepted (2026-09-22). Delivery steps 1-5 of 6 landed (ADR; deterministic domain layer;
+`match_prep` context rebuild; server view-model; UI + layout rebalance). Step 6
+(documentation/feature-file migration and cleanup) remains. See "History" for the real per-PR
+record.
 
 ## Context
 
@@ -263,3 +264,43 @@ it, matching ADR-0148's own closing convention.
 
 - 2026-09-22: Created and accepted. No application code yet — this PR is the ADR only, per
   Delivery step 1.
+- Delivery step 2 landed: the deterministic Match Insight domain layer
+  (`src/lib/matches/match-insights/`) — fact/candidate types, per-player preparation summaries,
+  combination/opponent/team-history context builders, deterministic relevance/category ranking,
+  and gated fact-to-insight promotion. Not yet wired to any route or UI. No deviation from this
+  ADR's decisions.
+- Delivery step 3 landed: `match-prep.ts` rebuilt on the domain layer, with the bounded
+  exact-opponent trusted-text exception (Decision 3) and a fingerprint-input audit (every new
+  array explicitly sorted by ephemeral-ref key before serialization, since
+  `computeSourceFingerprint()` canonicalizes object key order only, never array order).
+  `docs/domain/pii-inventory.md` updated. No deviation from this ADR's decisions.
+- Delivery step 4 landed: `getMatchInsights()` — the server view-model merging deterministic
+  insights with the freshest `LINEUP_REVIEW`/`MATCH_PREP` review's insights (reusing
+  `getPlannedMatchAdvisorViewModel()` unchanged, per Decision 5), plus
+  `CURRENT`/`UPDATING`/`STALE_AI_WITHHELD`/`AI_UNAVAILABLE` status. AI insight category is derived
+  from evidence-ref namespace (the same mechanism deterministic insights use); relevance is
+  derived from `kind` alone (`ATTENTION`→HIGH, `OPPORTUNITY`/`DEVELOPMENT_SUGGESTION`→MEDIUM,
+  `OBSERVATION`→CONTEXTUAL) — a disclosed, deliberate simplification of full fact-priority
+  cross-referencing, not a correctness gap: every AI insight is already grounded via its required
+  `evidenceRefs` regardless of tier. `build-current-plan-input.ts` extracted out of `match-prep.ts`
+  as a shared, no-completeness-gate plan builder (deterministic insights must stay useful for a
+  partial plan; `match-prep.ts` keeps its own AI-eligibility gate as a thin wrapper). No deviation
+  from this ADR's decisions.
+- Delivery step 5 landed: the Match Insights UI (`src/components/matches/match-insights/`) —
+  `MatchInsights` (status line, top-5-by-default with an inline "Show all" expansion, no modal)
+  and `MatchInsightCard` (relevance/category, observation/implication, an expandable evidence
+  disclosure that never prints a raw evidence-ref string or database id). Self-fetched client-side
+  by `MatchTacticsPanel` (`match-insights-actions.ts`, mirroring
+  `getPlannedPartnershipEvidenceAction`'s existing pattern) and refreshed after every plan mutation
+  — a page-load-time server prop would go stale immediately after an in-session lineup edit, so
+  this reuses `MatchTacticsPanel`'s own established self-fetching architecture (already used for
+  lineup/formation/the former partnership-evidence fetch) rather than prop-threading through
+  `page.tsx`/`match-detail-shell.tsx`, which is why the now-superseded `advisorViewModel`
+  prop-threading chain (page.tsx's `getPlannedMatchAdvisorViewModel()` call,
+  `match-detail-shell.tsx`, `before-match-overview.tsx`) was removed outright rather than left
+  dormant. `MatchTacticsPanel`'s pitch/sidebar grid retargeted per Decision 5/6 (Decision 6 above
+  says "roughly `lg:grid-cols-[2fr_3fr]`" as the illustrative form; the shipped value is exactly
+  that). `PlannedPartnershipEvidenceList` and `AdvisorPanel`/`AdvisorPanelStale` removed from the
+  before-match Overview tab only — both remain live, unchanged on every other surface they already
+  served (Rotations tab; Round Board, post-match, and weekly-review Advisor panels respectively).
+  Dated follow-up notes added to ADR-0094 and ADR-0147. No deviation from this ADR's decisions.
