@@ -87,4 +87,40 @@ describe("ai/jobs/enqueue: enqueueAiJob", () => {
     expect(first).toEqual({ enqueued: true });
     expect(second).toEqual({ enqueued: true });
   });
+
+  it("re-enqueues (revives) a terminally FAILED job when a new trigger reproduces the exact same fingerprint", async () => {
+    // Reproduces a real production incident: a job exhausts all retries against a transient
+    // provider failure (e.g. PROVIDER_TIMEOUT from an overloaded/oversized model) and is marked
+    // FAILED. The coach later fixes the underlying cause (switches to a faster model) and makes
+    // another domain-triggering edit that happens to compute the exact same fingerprint (the
+    // plan content itself hasn't changed). Without this fix, the DB's unique constraint on
+    // (organisationId, capability, scopeType, scopeId, sourceFingerprint) makes `enqueueAiJob`'s
+    // blind `create()` call throw P2002, which was misreported as "ALREADY_QUEUED_OR_RUNNING" —
+    // permanently blocking any future retry for that exact content, forever, even though the
+    // prior job is long finished (not actually running or queued at all).
+    const params = { ...baseParams(), scopeId: "match-failed-retry", sourceFingerprint: "fingerprint-failed" };
+    await testDb.aiAdvisorJob.create({
+      data: {
+        organisationId: params.organisationId,
+        capability: params.capability,
+        scopeType: params.scopeType,
+        scopeId: params.scopeId,
+        sourceFingerprint: params.sourceFingerprint,
+        status: "FAILED",
+        attempts: 2,
+        lastErrorCode: "PROVIDER_TIMEOUT",
+      },
+    });
+
+    const result = await enqueueAiJob(params);
+    expect(result).toEqual({ enqueued: true });
+
+    const job = await testDb.aiAdvisorJob.findFirst({ where: { organisationId, sourceFingerprint: "fingerprint-failed" } });
+    expect(job?.status).toBe("QUEUED");
+    expect(job?.attempts).toBe(0);
+    expect(job?.lastErrorCode).toBeNull();
+
+    const jobCount = await testDb.aiAdvisorJob.count({ where: { organisationId, sourceFingerprint: "fingerprint-failed" } });
+    expect(jobCount).toBe(1);
+  });
 });

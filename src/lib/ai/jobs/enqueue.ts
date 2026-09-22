@@ -24,12 +24,51 @@ export interface EnqueueAiJobParams {
 }
 
 /**
+ * Finds an existing job for this exact organisation/capability/scope/fingerprint that is
+ * terminally `FAILED` and, if one exists, revives it in place (back to `QUEUED`, `attempts`
+ * reset to 0, `lastErrorCode` cleared) instead of leaving the caller to `create()` a duplicate
+ * row and collide with the DB's unique constraint. Returns `true` if a row was revived (the
+ * caller should treat this as "enqueued" and skip its own `create()`), `false` if no `FAILED`
+ * row exists for this exact fingerprint (the caller should proceed to `create()` normally, or —
+ * for a genuinely still-`QUEUED`/`RUNNING` duplicate — let that `create()` hit the unique
+ * constraint and report `ALREADY_QUEUED_OR_RUNNING` as before).
+ */
+async function reviveFailedJobIfPresent(params: EnqueueAiJobParams): Promise<boolean> {
+  const { count } = await db.aiAdvisorJob.updateMany({
+    where: {
+      organisationId: params.organisationId,
+      capability: params.capability,
+      scopeType: params.scopeType,
+      scopeId: params.scopeId,
+      sourceFingerprint: params.sourceFingerprint,
+      status: "FAILED",
+    },
+    data: { status: "QUEUED", attempts: 0, lastErrorCode: null, lockedAt: null, lockedBy: null },
+  });
+  return count > 0;
+}
+
+/**
  * Enqueues a job unless either (a) a SUCCEEDED review already exists for this exact
  * organisation/capability/scope/fingerprint (07_EXECUTION_PIPELINE.md: "do not enqueue" in that
  * case — the existing result is simply reused), or (b) a job for this exact fingerprint is
  * already queued or running (enforced by `AiAdvisorJob`'s own DB-level unique constraint, not
  * just this check — closes the duplicate-enqueue race a plain existence check alone would leave
  * open under concurrent callers).
+ *
+ * Revives a terminally `FAILED` job for the same fingerprint back to `QUEUED` (resetting
+ * `attempts`/`lastErrorCode`) rather than trying to `create()` a second row and hitting the
+ * unique constraint. `FAILED` means "exhausted retries against this exact content", not "this
+ * content has been reviewed" (only `SUCCEEDED` — already handled above — means that) — a new
+ * domain trigger reproducing the identical fingerprint is a legitimate reason to try again (the
+ * failure's cause, e.g. a since-fixed provider/model choice, may no longer apply). Without this,
+ * any capability's job would get stuck forever the moment it failed all its retries while its
+ * scope's content stayed byte-for-byte identical: every later trigger's `create()` would throw
+ * `P2002`, indistinguishable here from a genuinely in-flight duplicate, permanently blocking any
+ * future attempt for that scope+fingerprint. Found in production (2026-09-21/22): a
+ * `lineup_review` job exhausted 3 retries against `PROVIDER_TIMEOUT` from an oversized model; the
+ * coach switched to a faster model and edited the line-up again, but no new review was ever
+ * produced because the edit reproduced the same fingerprint as the exhausted job.
  */
 export async function enqueueAiJob(params: EnqueueAiJobParams): Promise<EnqueueAiJobOutcome> {
   const existingReview = await db.aiAdvisorReview.findFirst({
@@ -48,6 +87,11 @@ export async function enqueueAiJob(params: EnqueueAiJobParams): Promise<EnqueueA
   }
 
   try {
+    const revived = await reviveFailedJobIfPresent(params);
+    if (revived) {
+      return { enqueued: true };
+    }
+
     await db.aiAdvisorJob.create({
       data: {
         organisationId: params.organisationId,
@@ -124,18 +168,37 @@ export async function enqueueDebouncedAiJob(params: EnqueueDebouncedAiJobParams)
           where: { id: existingQueuedJob.id },
           data: { sourceFingerprint: params.sourceFingerprint, nextAttemptAt, attempts: 0, lastErrorCode: null },
         });
-      } else {
-        await tx.aiAdvisorJob.create({
-          data: {
-            organisationId: params.organisationId,
-            capability: params.capability,
-            scopeType: params.scopeType,
-            scopeId: params.scopeId,
-            sourceFingerprint: params.sourceFingerprint,
-            nextAttemptAt,
-          },
-        });
+        return;
       }
+
+      // No still-QUEUED row to collapse into — but if the *exact same fingerprint* already
+      // exhausted its retries and is sitting terminally FAILED, revive it in place rather than
+      // trying to `create()` a second row and colliding with the unique constraint. See
+      // `reviveFailedJobIfPresent`'s doc comment for why FAILED must not permanently block a
+      // later identical-content trigger the way SUCCEEDED correctly does.
+      const revived = await tx.aiAdvisorJob.updateMany({
+        where: {
+          organisationId: params.organisationId,
+          capability: params.capability,
+          scopeType: params.scopeType,
+          scopeId: params.scopeId,
+          sourceFingerprint: params.sourceFingerprint,
+          status: "FAILED",
+        },
+        data: { status: "QUEUED", nextAttemptAt, attempts: 0, lastErrorCode: null, lockedAt: null, lockedBy: null },
+      });
+      if (revived.count > 0) return;
+
+      await tx.aiAdvisorJob.create({
+        data: {
+          organisationId: params.organisationId,
+          capability: params.capability,
+          scopeType: params.scopeType,
+          scopeId: params.scopeId,
+          sourceFingerprint: params.sourceFingerprint,
+          nextAttemptAt,
+        },
+      });
     });
     return { enqueued: true };
   } catch (error) {
