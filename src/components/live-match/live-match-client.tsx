@@ -1303,6 +1303,56 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     setSheet(null);
   }, [positionChangePlayerId, getCurrentPosition, getConfirmedPosition, clock, recordEventLocal, squad, onFieldPlayers]);
 
+  /** Direct player-to-player swap — picking a specific on-field teammate to trade positions
+   * with, rather than picking a target position code and hoping the system correctly infers who
+   * else is there (the shape that produced the original incident). Both new positions come
+   * straight from `getConfirmedPosition`, never typed or chosen by the coach, so there is no
+   * position-code entry at all for this path — minimizing in-match cognitive load was the whole
+   * point. Only offered (see `swapCandidates` below) when both players' current positions are
+   * actually confirmed, so this can never silently invent one. */
+  const handleSwapWithPlayer = useCallback((otherPlayerId: string) => {
+    if (!positionChangePlayerId) return;
+    const moverId = positionChangePlayerId;
+    const moverPosition = getConfirmedPosition(moverId);
+    const otherPosition = getConfirmedPosition(otherPlayerId);
+    if (!moverPosition || !otherPosition) return; // defensive — swapCandidates already filters this
+
+    recordEventLocal("POSITIONS_CHANGED", {
+      playerId: moverId,
+      period: clock.period,
+      matchSeconds: getElapsedMs(clock, Date.now()),
+      payload: { fromPosition: moverPosition, toPosition: otherPosition },
+    });
+    recordEventLocal("POSITIONS_CHANGED", {
+      playerId: otherPlayerId,
+      period: clock.period,
+      matchSeconds: getElapsedMs(clock, Date.now()),
+      payload: { fromPosition: otherPosition, toPosition: moverPosition },
+    });
+
+    setPositionOverrides((prev) => ({ ...prev, [moverId]: otherPosition, [otherPlayerId]: moverPosition }));
+
+    const moverName = squad.find((p) => p.playerId === moverId)?.playerName ?? "Player";
+    const otherName = squad.find((p) => p.playerId === otherPlayerId)?.playerName ?? "Player";
+    setLastAction({ label: `${moverName} and ${otherName} swapped positions (${moverPosition} ↔ ${otherPosition})` });
+    if (lastActionTimerRef.current !== null) clearTimeout(lastActionTimerRef.current);
+    lastActionTimerRef.current = setTimeout(() => setLastAction(null), 8000);
+    setPositionChangePlayerId(null);
+    setSheet(null);
+  }, [positionChangePlayerId, getConfirmedPosition, clock, recordEventLocal, squad]);
+
+  /** Swap candidates for the current mover — every other on-field player whose position is
+   * live-confirmed. Requires the mover's own position to be confirmed too (a swap needs both
+   * sides known); empty when it isn't, which simply hides the "Swap with" section in favour of
+   * the plain position grid below it. */
+  const swapCandidates = useMemo(() => {
+    if (!positionChangePlayerId || !getConfirmedPosition(positionChangePlayerId)) return [];
+    return onFieldPlayers
+      .filter((p) => p.playerId !== positionChangePlayerId)
+      .map((p) => ({ playerId: p.playerId, playerName: p.playerName, position: getConfirmedPosition(p.playerId) }))
+      .filter((p): p is { playerId: string; playerName: string; position: string } => p.position !== null);
+  }, [positionChangePlayerId, getConfirmedPosition, onFieldPlayers]);
+
   // Merged events: server events + not-yet-PERSISTED local commands (ADR-0138 Bundle 6's
   // `overlayPendingCommands` — extracted from this exact previous inline logic for testability).
   const mergedEvents = useMemo(() => overlayPendingCommands(recentEvents, localCommands), [recentEvents, localCommands]);
@@ -1684,6 +1734,26 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         onClose={() => { setPositionChangePlayerId(null); setSheet(null); }}
         title={`New position for ${squad.find((p) => p.playerId === positionChangePlayerId)?.playerName ?? "player"}`}
       >
+        {swapCandidates.length > 0 && (
+          <div className="mb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+              Swap with
+            </p>
+            <div className="space-y-1.5">
+              {swapCandidates.map((p) => (
+                <button
+                  key={p.playerId}
+                  onClick={() => handleSwapWithPlayer(p.playerId)}
+                  className="w-full flex items-center justify-between py-2.5 px-3 rounded-lg text-sm font-medium bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] min-h-[44px]"
+                >
+                  <span>{p.playerName}</span>
+                  <span className="text-[var(--text-muted)]">{p.position}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] mt-2.5 mb-1.5">Or move to a specific position:</p>
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-1.5">
           {EXACT_ROLES.map((role) => (
             <button

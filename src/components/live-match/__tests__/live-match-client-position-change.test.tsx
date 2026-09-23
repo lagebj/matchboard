@@ -67,10 +67,10 @@ describe("LiveMatchClient — Position action (manual POSITIONS_CHANGED)", () =>
     vi.clearAllMocks();
   });
 
-  it("swaps both players when the chosen position is already held by another on-field player", async () => {
-    // Regression test: recording only the mover's event would leave the backend state with two
-    // players labelled at the target position and nobody at the vacated one. Bea already holds
-    // "CB" here, so moving Alice there must also move Bea to Alice's old position ("CM").
+  it("offers a direct 'swap with' picker for on-field players with a known position, and swaps both with zero position entry", async () => {
+    // The preferred swap path (coach cognitive-load reduction): pick the other player by name --
+    // never a position code -- and both new positions come straight from what the system already
+    // knows, not from anything the coach typed or chose.
     const recordEvent = vi.fn().mockResolvedValue({ success: true, data: {} });
     const actions = makeActions({ recordEvent });
 
@@ -83,7 +83,43 @@ describe("LiveMatchClient — Position action (manual POSITIONS_CHANGED)", () =>
     const playerSheet = await screen.findByRole("dialog", { name: "Who changed position?" });
     fireEvent.click(within(playerSheet).getByText("Alice"));
     const roleSheet = await screen.findByRole("dialog", { name: /New position for Alice/ });
-    fireEvent.click(within(roleSheet).getByText("CB"));
+    fireEvent.click(within(roleSheet).getByText("Bea"));
+
+    await waitFor(() => expect(recordEvent).toHaveBeenCalledTimes(2));
+    const positionsChangedCalls = recordEvent.mock.calls.filter((c) => c[0].eventType === "POSITIONS_CHANGED");
+    expect(positionsChangedCalls).toHaveLength(2);
+    expect(positionsChangedCalls).toEqual(
+      expect.arrayContaining([
+        [expect.objectContaining({ playerId: "p1", payload: { fromPosition: "CM", toPosition: "CB" } })],
+        [expect.objectContaining({ playerId: "p2", payload: { fromPosition: "CB", toPosition: "CM" } })],
+      ]),
+    );
+
+    const aliceChip = (await screen.findByText("Alice")).closest("span");
+    expect(aliceChip?.textContent).toContain("CB");
+    const beaChip = (await screen.findByText("Bea")).closest("span");
+    expect(beaChip?.textContent).toContain("CM");
+  });
+
+  it("still swaps both players via the position grid when the chosen position is already held by another on-field player", async () => {
+    // Regression test: recording only the mover's event would leave the backend state with two
+    // players labelled at the target position and nobody at the vacated one. Bea already holds
+    // "CB" here, so moving Alice there must also move Bea to Alice's old position ("CM"). The
+    // grid stays available alongside "Swap with" (e.g. when the coach doesn't think of it as a
+    // swap, or the intended position doesn't belong to a specific named teammate).
+    const recordEvent = vi.fn().mockResolvedValue({ success: true, data: {} });
+    const actions = makeActions({ recordEvent });
+
+    render(
+      <LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />,
+    );
+    await waitFor(() => expect(actions.getPreMatchPackage).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByText("Position"));
+    const playerSheet = await screen.findByRole("dialog", { name: "Who changed position?" });
+    fireEvent.click(within(playerSheet).getByText("Alice"));
+    const roleSheet = await screen.findByRole("dialog", { name: /New position for Alice/ });
+    fireEvent.click(within(roleSheet).getByRole("button", { name: "CB" }));
 
     await waitFor(() => expect(recordEvent).toHaveBeenCalledTimes(2));
     const positionsChangedCalls = recordEvent.mock.calls.filter((c) => c[0].eventType === "POSITIONS_CHANGED");
