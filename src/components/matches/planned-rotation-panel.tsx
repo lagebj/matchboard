@@ -22,6 +22,34 @@ import type { PlannedRotationWithChanges, PlannedRotationChangeData, PlannedRota
 import type { SeasonCombinationSummary } from "@/lib/evidence/combination-aggregation";
 import type { PlannedScenarioEvaluation } from "@/lib/planned-rotation/scenario-evaluation";
 
+/**
+ * A player's position per the already-computed plan projection (`scenario.intervals`, from
+ * `checkPlannedRotationCoverageAction` -> `evaluatePlannedScenario`/`projectPlannedLineup`) at a
+ * given planned time -- the position they'd actually be in per the starting formation slot and
+ * every earlier-sequenced change, not their declared `Player.primaryPosition`. Type-only import
+ * of the evaluator keeps this client component free of its `@/lib/db`-importing runtime module;
+ * this function only ever reads the plain, already-serialized `scenario` data passed down from
+ * the parent's own server-action call, never recomputes the projection itself.
+ *
+ * Intervals are sorted ascending by `startSeconds` (`buildPlannedScenarioIntervals`) -- the last
+ * one starting at or before `atSeconds` is "now". `atSeconds: null` (no time entered yet) reads
+ * the latest known interval, i.e. the plan's current state as of its last change so far.
+ */
+export function lookupProjectedPosition(
+  scenario: PlannedScenarioEvaluation | null,
+  playerId: string,
+  atSeconds: number | null,
+): string | null {
+  if (!scenario || scenario.intervals.length === 0) return null;
+  const target = atSeconds ?? Infinity;
+  let current = scenario.intervals[0]!;
+  for (const interval of scenario.intervals) {
+    if (interval.startSeconds > target) break;
+    current = interval;
+  }
+  return current.players.find((p) => p.playerId === playerId)?.position ?? null;
+}
+
 type PlannedRotationPanelProps = {
   matchId: string;
   teamId: string;
@@ -49,6 +77,24 @@ const CHANGE_STATUS_LABELS: Record<string, string> = {
 };
 
 const POSITION_OPTIONS = ["GK", "CB", "RB", "LB", "CDM", "CM", "CAM", "RW", "LW", "FW", "CF"];
+// A starting player's plan-projected position (`lookupProjectedPosition`, sourced from
+// `checkPlannedRotationCoverageAction`'s `starters` mapping) can legitimately be one of these
+// broad categories -- a `FormationSlot.roleType`, not an exact code -- whenever no exact
+// POSITIONS_CHANGED has been planned/recorded for that player yet (`position-code.ts`: broad
+// codes are a deliberate, first-class part of the vocabulary, never silently upgraded to a
+// fabricated exact code). Appended, not merged into `POSITION_OPTIONS` above, so the auto-filled
+// value is always a selectable, visible option in the "current position" dropdowns instead of
+// silently failing to match any <option> and rendering blank.
+const BROAD_POSITION_OPTIONS = [
+  "DEFENDER",
+  "DEFENSIVE_MIDFIELDER",
+  "MIDFIELDER",
+  "ATTACKING_MIDFIELDER",
+  "FORWARD",
+  "FREE",
+  "FLEXIBLE",
+];
+const SWAP_POSITION_OPTIONS = [...POSITION_OPTIONS, ...BROAD_POSITION_OPTIONS];
 
 const COVERAGE_ISSUE_LABELS: Record<PlannedRotationCoverageIssue["type"], string> = {
   no_goalkeeper: "No goalkeeper in the starting line-up or planned changes",
@@ -74,7 +120,12 @@ type ChangeFormData = {
   outPosition: string;
   inPosition: string;
   positionOnly: boolean;
-  approximateMatchSeconds: string;
+  // Whole minutes, as the coach enters/sees it — never the persisted `PlannedRotationChangeData`
+  // unit (seconds). Converted at the two boundaries only: `changeToFormData` (seconds -> minutes,
+  // reading a saved change into the form) and `formDataToChangeData` (minutes -> seconds, saving
+  // the form). Before this, the field held raw seconds and the coach had to hand-compute e.g.
+  // "1500" for the 25th minute -- minutes is what a coach actually thinks in.
+  approximateMatchMinutes: string;
   notes: string;
 };
 
@@ -84,7 +135,7 @@ const EMPTY_CHANGE: ChangeFormData = {
   outPosition: "",
   inPosition: "",
   positionOnly: false,
-  approximateMatchSeconds: "",
+  approximateMatchMinutes: "",
   notes: "",
 };
 
@@ -92,6 +143,7 @@ function ChangeForm({
   squadPlayers,
   initialData,
   isEditing,
+  scenario,
   onSubmit,
   onCancel,
   isPending,
@@ -99,6 +151,12 @@ function ChangeForm({
   squadPlayers: Array<{ id: string; firstName: string; lastName: string | null; primaryPosition: string }>;
   initialData: ChangeFormData;
   isEditing: boolean;
+  /** The plan's already-computed projection (parent's `scenario` state), used to auto-fill a
+   * position-swap's "current position" fields correctly instead of guessing from
+   * `Player.primaryPosition` -- see `lookupProjectedPosition`'s doc comment. `null` when no
+   * lineup exists yet to project from (the field then falls back to the declared position, same
+   * as today, rather than staying empty). */
+  scenario: PlannedScenarioEvaluation | null;
   onSubmit: (data: ChangeFormData) => void;
   onCancel: () => void;
   isPending: boolean;
@@ -121,63 +179,28 @@ function ChangeForm({
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-0.5">
-            {form.positionOnly ? "Player out" : "Player out"}
-          </label>
+          <label className="text-xs text-[var(--text-muted)] block mb-0.5">Player out</label>
           <select
             value={form.outPlayerId}
             onChange={(e) => {
               const playerId = e.target.value;
               const player = squadPlayers.find((p) => p.id === playerId);
-              setForm((f) => ({
-                ...f,
-                outPlayerId: playerId,
-                outPosition: playerId ? (f.outPosition || player?.primaryPosition || "") : "",
-              }));
-            }}
-            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
-          >
-            <option value="">Select player</option>
-            {squadPlayers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {playerDisplayName(p.firstName, p.lastName)} ({p.primaryPosition})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {!form.positionOnly && (
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-0.5">Position out</label>
-            <select
-              value={form.outPosition}
-              onChange={(e) => setForm((f) => ({ ...f, outPosition: e.target.value }))}
-              className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
-            >
-              <option value="">Auto</option>
-              {POSITION_OPTIONS.map((pos) => (
-                <option key={pos} value={pos}>{pos}</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-0.5">
-            {form.positionOnly ? "Player in" : "Player in"}
-          </label>
-          <select
-            value={form.inPlayerId}
-            onChange={(e) => {
-              const playerId = e.target.value;
-              const player = squadPlayers.find((p) => p.id === playerId);
-              setForm((f) => ({
-                ...f,
-                inPlayerId: playerId,
-                inPosition: playerId ? (f.inPosition || player?.primaryPosition || "") : "",
-              }));
+              setForm((f) => {
+                if (!playerId) return { ...f, outPlayerId: "", outPosition: "" };
+                if (f.positionOnly) {
+                  // A position-only swap exchanges each player's *current on-field* position,
+                  // not their declared `primaryPosition` -- pre-filling from `primaryPosition`
+                  // silently produced a wrong value whenever they differed (production
+                  // incident: a player who started at CB, declared ST, had a swap recorded as
+                  // if he were still at ST). Read from the plan's own projection instead; the
+                  // coach can still override via the always-visible field below when the
+                  // projection doesn't apply (e.g. no lineup planned yet).
+                  const atSeconds = f.approximateMatchMinutes ? parseInt(f.approximateMatchMinutes, 10) * 60 : null;
+                  const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
+                  return { ...f, outPlayerId: playerId, outPosition: projected ?? player?.primaryPosition ?? "" };
+                }
+                return { ...f, outPlayerId: playerId, outPosition: f.outPosition || player?.primaryPosition || "" };
+              });
             }}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
@@ -192,15 +215,15 @@ function ChangeForm({
 
         <div>
           <label className="text-xs text-[var(--text-muted)] block mb-0.5">
-            {form.positionOnly ? "Position in" : "Position in"}
+            {form.positionOnly ? "Current position (out player)" : "Position out"}
           </label>
           <select
-            value={form.inPosition}
-            onChange={(e) => setForm((f) => ({ ...f, inPosition: e.target.value }))}
+            value={form.outPosition}
+            onChange={(e) => setForm((f) => ({ ...f, outPosition: e.target.value }))}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
             <option value="">Auto</option>
-            {POSITION_OPTIONS.map((pos) => (
+            {(form.positionOnly ? SWAP_POSITION_OPTIONS : POSITION_OPTIONS).map((pos) => (
               <option key={pos} value={pos}>{pos}</option>
             ))}
           </select>
@@ -209,12 +232,66 @@ function ChangeForm({
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-0.5">Approx. time</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-0.5">Player in</label>
+          <select
+            value={form.inPlayerId}
+            onChange={(e) => {
+              const playerId = e.target.value;
+              const player = squadPlayers.find((p) => p.id === playerId);
+              setForm((f) => {
+                if (!playerId) return { ...f, inPlayerId: "", inPosition: "" };
+                if (f.positionOnly) {
+                  // See the "Player out" handler above -- same reasoning, same fix.
+                  const atSeconds = f.approximateMatchMinutes ? parseInt(f.approximateMatchMinutes, 10) * 60 : null;
+                  const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
+                  return { ...f, inPlayerId: playerId, inPosition: projected ?? player?.primaryPosition ?? "" };
+                }
+                return { ...f, inPlayerId: playerId, inPosition: f.inPosition || player?.primaryPosition || "" };
+              });
+            }}
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+          >
+            <option value="">Select player</option>
+            {squadPlayers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {playerDisplayName(p.firstName, p.lastName)} ({p.primaryPosition})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs text-[var(--text-muted)] block mb-0.5">
+            {form.positionOnly ? "Current position (in player)" : "Position in"}
+          </label>
+          <select
+            value={form.inPosition}
+            onChange={(e) => setForm((f) => ({ ...f, inPosition: e.target.value }))}
+            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
+          >
+            <option value="">Auto</option>
+            {(form.positionOnly ? SWAP_POSITION_OPTIONS : POSITION_OPTIONS).map((pos) => (
+              <option key={pos} value={pos}>{pos}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {form.positionOnly && (
+        <p className="text-[10px] text-[var(--text-muted)] -mt-1">
+          Position swap: each player moves to the position entered for the *other* player above --
+          enter each player's current position, not where they're headed.
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs text-[var(--text-muted)] block mb-0.5">Approx. minute</label>
           <input
             type="text"
-            placeholder="e.g. 1500 (25')"
-            value={form.approximateMatchSeconds}
-            onChange={(e) => setForm((f) => ({ ...f, approximateMatchSeconds: e.target.value.replace(/[^0-9]/g, "") }))}
+            inputMode="numeric"
+            placeholder="e.g. 25"
+            value={form.approximateMatchMinutes}
+            onChange={(e) => setForm((f) => ({ ...f, approximateMatchMinutes: e.target.value.replace(/[^0-9]/g, "") }))}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           />
         </div>
@@ -250,7 +327,8 @@ function changeToFormData(change: PlannedRotationWithChanges["changes"][number])
     outPosition: change.outPosition ?? "",
     inPosition: change.inPosition ?? "",
     positionOnly: change.positionOnly,
-    approximateMatchSeconds: change.approximateMatchSeconds?.toString() ?? "",
+    approximateMatchMinutes:
+      change.approximateMatchSeconds != null ? Math.round(change.approximateMatchSeconds / 60).toString() : "",
     notes: change.notes ?? "",
   };
 }
@@ -262,7 +340,7 @@ function formDataToChangeData(form: ChangeFormData): PlannedRotationChangeData {
     outPosition: form.outPosition || null,
     inPosition: form.inPosition || null,
     positionOnly: form.positionOnly,
-    approximateMatchSeconds: form.approximateMatchSeconds ? parseInt(form.approximateMatchSeconds, 10) : null,
+    approximateMatchSeconds: form.approximateMatchMinutes ? parseInt(form.approximateMatchMinutes, 10) * 60 : null,
     notes: form.notes || null,
   };
 }
@@ -619,6 +697,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
             squadPlayers={squadPlayers}
             initialData={changeToFormData(rotation.changes.find((c) => c.id === editingChangeId)!)}
             isEditing={true}
+            scenario={scenario}
             onSubmit={handleSaveChange}
             onCancel={() => setEditingChangeId(null)}
             isPending={isPending}
@@ -633,6 +712,7 @@ export function PlannedRotationPanel({ matchId, teamId, rotation, squadPlayers, 
               squadPlayers={squadPlayers}
               initialData={EMPTY_CHANGE}
               isEditing={false}
+              scenario={scenario}
               onSubmit={handleSaveChange}
               onCancel={() => setShowAddForm(false)}
               isPending={isPending}
