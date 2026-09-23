@@ -43,6 +43,16 @@ describe("match-insights/build-match-insight-facts", () => {
   });
 
   function planFor(overrides: Partial<CurrentPlanInput> & { squad: CurrentPlanInput["squad"] }): CurrentPlanInput {
+    const operationalRoster = overrides.operationalRoster ?? overrides.squad.map((s) => ({
+      playerId: s.playerId,
+      participantType: "PLAYER" as const,
+      source: "planned" as const,
+      provenance: null,
+      role: s.role,
+      position: s.position,
+      isActiveParticipant: true,
+      absenceReason: null,
+    }));
     return {
       matchId: fixtureIds.matches["Bla"],
       teamId: fixtureIds.teams["Bla"],
@@ -51,6 +61,7 @@ describe("match-insights/build-match-insight-facts", () => {
       opponentTeamId: null,
       formation: "4-3-3",
       matchStartsAt: new Date("2026-10-15T10:00:00Z"),
+      operationalRoster,
       plannedRotations: [],
       ...overrides,
     };

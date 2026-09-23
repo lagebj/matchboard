@@ -25,13 +25,45 @@ export async function buildMatchInsightFacts(
   plan: CurrentPlanInput,
   orgFilter: OrgFilterMode,
 ): Promise<MatchInsightFactBundle> {
+  // ADR-0151: Collect player IDs from the operational roster (active participants only),
+  // not just the planned squad. This ensures match-day additions are included in insight
+  // computation and absent players are excluded from active-participant reasoning.
+  // The planned squad remains available for comparison/historical reasoning via plan.squad.
   const playerIdSet = new Set<string>();
-  for (const entry of plan.squad) playerIdSet.add(entry.playerId);
+  const activePlayerIds = new Set<string>();
+  const absentPlayerIds = new Set<string>();
+  const matchDayAdditionPlayerIds = new Set<string>();
+
+  for (const entry of plan.operationalRoster) {
+    if (entry.participantType === "PLAYER" && entry.playerId) {
+      playerIdSet.add(entry.playerId);
+      if (entry.isActiveParticipant) {
+        activePlayerIds.add(entry.playerId);
+      } else {
+        absentPlayerIds.add(entry.playerId);
+      }
+      if (entry.source === "match_day_addition") {
+        matchDayAdditionPlayerIds.add(entry.playerId);
+      }
+    }
+  }
+  // Also include rotation player IDs
   for (const change of plan.plannedRotations) {
     if (change.outPlayerId) playerIdSet.add(change.outPlayerId);
     if (change.inPlayerId) playerIdSet.add(change.inPlayerId);
   }
   const playerIds = [...playerIdSet].sort();
+
+  // ADR-0151: Use operational roster's active CORE players for combination context
+  // (absent players should not be part of combination reasoning for the upcoming match)
+  const activeCoreSquad = plan.operationalRoster
+    .filter((e) => e.isActiveParticipant && e.participantType === "PLAYER" && e.role === "CORE")
+    .map((e) => e.playerId!)
+    .filter((id): id is string => id !== null);
+
+  const activeSquad = plan.operationalRoster
+    .filter((e) => e.isActiveParticipant && e.participantType === "PLAYER" && e.playerId)
+    .map((e) => ({ playerId: e.playerId!, role: e.role ?? "SUPPORT" as const, position: e.position }));
 
   const [playerSummaries, combinationResult, opponentContext, teamHistory] = await Promise.all([
     buildPlayerPreparationSummaries({
@@ -40,7 +72,7 @@ export async function buildMatchInsightFacts(
       organisationId: plan.organisationId,
       orgFilter,
     }),
-    buildCombinationContext({ leagueSeasonId: plan.leagueSeasonId, currentSquad: plan.squad }),
+    buildCombinationContext({ leagueSeasonId: plan.leagueSeasonId, currentSquad: activeSquad }),
     buildOpponentContext({
       opponentTeamId: plan.opponentTeamId,
       organisationId: plan.organisationId,
@@ -52,7 +84,7 @@ export async function buildMatchInsightFacts(
       excludeMatchId: plan.matchId,
       matchStartsAt: plan.matchStartsAt,
       currentFormation: plan.formation,
-      currentCoreSquad: plan.squad.filter((s) => s.role === "CORE").map((s) => s.playerId),
+      currentCoreSquad: activeCoreSquad,
     }),
   ]);
 
@@ -281,6 +313,53 @@ export async function buildMatchInsightFacts(
       deterministicPriority: inSummary && inSummary.recent.starts === 0 ? 50 : 15,
     });
   }
+
+  // ADR-0151: MATCH_AVAILABILITY facts for absent planned players
+  for (const playerId of absentPlayerIds) {
+    const entry = plan.operationalRoster.find(
+      (e) => e.playerId === playerId && e.source === "planned",
+    );
+    if (!entry) continue;
+    facts.push({
+      id: factRefKey("match-availability", playerId),
+      type: "MATCH_AVAILABILITY",
+      subjectRefs: [playerId],
+      value: {
+        available: false,
+        absenceReason: entry.absenceReason,
+        plannedRole: entry.role,
+      },
+      evidenceRefs: [factRefKey("fact", "match-availability", playerId)],
+      deterministicPriority: 95,
+    });
+  }
+
+  // ADR-0151: MATCH_DAY_ADDITION facts for players added on match day
+  for (const playerId of matchDayAdditionPlayerIds) {
+    const entry = plan.operationalRoster.find(
+      (e) => e.playerId === playerId && e.source === "match_day_addition",
+    );
+    if (!entry) continue;
+    facts.push({
+      id: factRefKey("match-day-addition", playerId),
+      type: "MATCH_DAY_ADDITION",
+      subjectRefs: [playerId],
+      value: {
+        position: entry.position,
+        role: entry.role,
+      },
+      evidenceRefs: [factRefKey("fact", "match-day-addition", playerId)],
+      deterministicPriority: 80,
+    });
+  }
+
+  // ADR-0151: Player preparation summaries must include match-day additions
+  // (already handled: playerIdSet includes all operational roster players)
+
+  // ADR-0151: Active-participant reasoning uses operationalRoster, not squad
+  // The combination and lineup calculations below already use playerIds from the operational
+  // roster, which includes additions and excludes absences from active reasoning.
+  // Historical plan comparisons still use plan.squad where appropriate.
 
   return { facts, playerSummaries, opponentContext, teamHistory, pairCombinations: combinationResult.pairCombinations };
 }

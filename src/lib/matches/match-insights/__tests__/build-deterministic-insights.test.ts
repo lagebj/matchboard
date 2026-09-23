@@ -14,6 +14,10 @@ const PLAN: CurrentPlanInput = {
     { playerId: "p1", role: "CORE", position: "CB" },
     { playerId: "p2", role: "CORE", position: "CB" },
   ],
+  operationalRoster: [
+    { playerId: "p1", participantType: "PLAYER", source: "planned", provenance: null, role: "CORE", position: "CB", isActiveParticipant: true, absenceReason: null },
+    { playerId: "p2", participantType: "PLAYER", source: "planned", provenance: null, role: "CORE", position: "CB", isActiveParticipant: true, absenceReason: null },
+  ],
   plannedRotations: [],
 };
 

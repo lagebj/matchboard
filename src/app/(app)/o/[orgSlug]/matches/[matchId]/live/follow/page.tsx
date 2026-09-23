@@ -4,6 +4,7 @@ import { AuthorizationError } from "@/lib/auth";
 import { FollowLiveClient } from "@/components/live-match/follow-live-client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getLeagueMatchPeriodConfig } from "@/lib/live-match/period-config";
+import { getEffectiveLeagueMatchRoster } from "@/lib/matches/match-helper-eligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,8 @@ interface FollowLivePageProps {
  * accepts GROUP_COACH or GROUP_VIEWER, matching exactly what
  * `/api/live-match/[matchId]/realtime-ticket`'s `mode: "view"` path requires.
  *
- * This page provides the FollowLiveClient with a baseline squad (including
- * startingOnField) so it can project on-field players from events, and the
- * match type so it can show the correct period config.
+ * ADR-0151: Now uses the canonical effective roster resolver, which includes
+ * match-day additions, absences, and guests in addition to selections and helpers.
  */
 export default async function FollowLivePage({ params }: FollowLivePageProps) {
   const { orgSlug, matchId } = await params;
@@ -89,26 +89,10 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
       : null,
   );
 
-  // Build playerId → playerName map and baseline squad with startingOnField.
-  // Uses the effective roster: normal squad + match helpers (ADR-0077) + match
-  // absence tracking, matching the live reporting client's getPreMatchPackage.
-  const [squadPlayers, helperAssignments, lineup, absences] = await Promise.all([
-    db.selection.findMany({
-      where: { matchId, match: { organisationId: ctx.organisationId } },
-      select: {
-        playerId: true,
-        role: true,
-        player: { select: { id: true, firstName: true, lastName: true, shirtNumber: true, primaryPosition: true } },
-      },
-    }),
-    db.matchHelperAssignment.findMany({
-      where: { matchId, match: { organisationId: ctx.organisationId } },
-      select: {
-        playerId: true,
-        sourceTeam: { select: { name: true } },
-        player: { select: { id: true, firstName: true, lastName: true, shirtNumber: true, primaryPosition: true } },
-      },
-    }),
+  // ADR-0151: Use the canonical effective roster resolver, which includes match-day
+  // additions, absences, and guests — not an inline assembly.
+  const [effectiveRoster, lineup] = await Promise.all([
+    getEffectiveLeagueMatchRoster(matchId, ctx.orgFilter),
     db.matchLineup.findFirst({
       where: { matchId, teamId: match.teamId, status: { in: ["CONFIRMED", "DRAFT"] } },
       select: {
@@ -116,10 +100,6 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
         assignments: { select: { slotId: true, playerId: true } },
         formation: { select: { slots: { select: { id: true } } } },
       },
-    }),
-    db.matchReportAbsence.findMany({
-      where: { matchId, organisationId: ctx.organisationId },
-      select: { playerId: true },
     }),
   ]);
 
@@ -133,30 +113,19 @@ export default async function FollowLivePage({ params }: FollowLivePageProps) {
     }
   }
 
-  const absentPlayerIds = new Set(absences.map((a) => a.playerId));
-
   const playerMap: Record<string, string> = {};
   const baselineSquad: { playerId: string; playerName: string; startingOnField: boolean; isActiveParticipant: boolean }[] = [];
 
-  for (const s of squadPlayers) {
-    const name = [s.player.firstName, s.player.lastName].filter(Boolean).join(" ");
-    playerMap[s.player.id] = name;
+  for (const entry of effectiveRoster) {
+    const name = entry.displayName;
+    if (entry.playerId) {
+      playerMap[entry.playerId] = name;
+    }
     baselineSquad.push({
-      playerId: s.player.id,
+      playerId: entry.participantId,
       playerName: name,
-      startingOnField: onFieldPlayerIds.has(s.player.id),
-      isActiveParticipant: !absentPlayerIds.has(s.player.id),
-    });
-  }
-
-  for (const h of helperAssignments) {
-    const name = [h.player.firstName, h.player.lastName].filter(Boolean).join(" ");
-    playerMap[h.player.id] = name;
-    baselineSquad.push({
-      playerId: h.player.id,
-      playerName: name,
-      startingOnField: onFieldPlayerIds.has(h.player.id),
-      isActiveParticipant: !absentPlayerIds.has(h.player.id),
+      startingOnField: entry.playerId ? onFieldPlayerIds.has(entry.playerId) : false,
+      isActiveParticipant: entry.isActiveParticipant,
     });
   }
 

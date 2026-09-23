@@ -2,18 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess } from "@/lib/auth/actor-context";
+import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess, requirePlayerGroupAccess } from "@/lib/auth/actor-context";
 import { logMutationEvent } from "@/lib/security/audit-log";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import type { HelperProvenance } from "@/generated/prisma/client";
 import {
   assertLeagueMatchHelperEligible,
   getLeagueMatchHelperCandidates,
 } from "@/lib/matches/match-helper-eligibility";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
-// League Match helpers (ADR-0077): temporary match-level participation, independent of League
-// Round finalisation. Never touches Selection or MatchRound.status — see the ADR for the full
-// invariant list this file enforces server-side, not just via disabled UI controls.
+// League Match helpers (ADR-0077) and match-day additions (ADR-0151): temporary match-level
+// participation, independent of League Round finalisation. Never touches Selection or
+// MatchRound.status — see the ADRs for the full invariant list.
+//
+// `provenance: HELPER` = traditional support/helper assignment (ADR-0077).
+// `provenance: MATCH_DAY_ADDITION` = a real Player added specifically for this match
+// without being part of the original Selection (ADR-0151).
 
 async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
   if (orgFilter.type !== "org") return;
@@ -31,6 +36,7 @@ export async function addLeagueMatchHelperAction(input: {
   matchId: string;
   playerId: string;
   note?: string;
+  provenance?: HelperProvenance;
 }): Promise<{ success: true; assignmentId: string } | { success: false; error: string }> {
   try {
     return await addLeagueMatchHelperInternal(input);
@@ -43,12 +49,20 @@ async function addLeagueMatchHelperInternal(input: {
   matchId: string;
   playerId: string;
   note?: string;
+  provenance?: HelperProvenance;
 }): Promise<{ success: true; assignmentId: string } | { success: false; error: string }> {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
   requireMutationRole(ctx);
   await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, input.matchId);
+
+  const provenance = input.provenance ?? "HELPER";
+
+  // ADR-0151: match-day additions require group-level player access too
+  if (provenance === "MATCH_DAY_ADDITION") {
+    await requirePlayerGroupAccess(ctx, input.playerId);
+  }
 
   const eligibility = await assertLeagueMatchHelperEligible(input.matchId, input.playerId, ctx.orgFilter);
   if (!eligibility.eligible) {
@@ -76,6 +90,7 @@ async function addLeagueMatchHelperInternal(input: {
         matchId: input.matchId,
         playerId: input.playerId,
         sourceTeamId,
+        provenance,
         note: input.note?.trim() || null,
         addedByUserId: ctx.userId,
         organisationId: ctx.organisationId,
@@ -206,6 +221,7 @@ export async function getLeagueMatchHelpersAction(matchId: string) {
     primaryPosition: h.player.primaryPosition,
     sourceTeamId: h.sourceTeam.id,
     sourceTeamName: h.sourceTeam.name,
+    provenance: h.provenance,
     note: h.note,
     createdAt: h.createdAt.toISOString(),
   }));

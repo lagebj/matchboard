@@ -494,10 +494,7 @@ export function MatchTacticsPanel({
             </TouchlineButton>
           </div>
         )}
-        <div className="mt-4 flex items-center gap-2 border-t border-[var(--border-soft)] pt-3">
-          <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
-            Create formation
-          </TouchlineButton>
+        <div className="mt-4 border-t border-[var(--border-soft)] pt-3">
           <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
             Manage formations
           </TouchlineButton>
@@ -566,37 +563,28 @@ export function MatchTacticsPanel({
           <div className="mt-3 flex flex-col gap-3">
             {formations.length > 0 && (
               <div>
-                <p className="text-xs text-[var(--text-muted)] mb-1.5">Change formation</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="text-xs text-[var(--text-muted)] mb-1 block">
+                  Formation
+                </label>
+                <select
+                  className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                  value={lineup.formationId ?? ""}
+                  onChange={(e) => {
+                    const formationId = e.target.value;
+                    if (formationId && formationId !== lineup.formationId) {
+                      handleChangeFormation(formationId);
+                    }
+                  }}
+                >
                   {formations.map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      disabled={f.id === lineup.formationId}
-                      onClick={() => handleChangeFormation(f.id)}
-                      className={cn(
-                        "rounded-md border px-3 py-2 text-left text-xs transition-colors",
-                        f.id === lineup.formationId
-                          ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--foreground)] cursor-default"
-                          : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--border-strong)] text-[var(--text-soft)]"
-                      )}
-                    >
-                      <span className="font-medium">{f.name}</span>
-                      <span className="ml-1 text-[var(--text-muted)]">{f.source === "CUSTOM" ? "Custom" : "System"}</span>
-                    </button>
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             )}
-            <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-soft)]">
-              <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
-                Create formation
-              </TouchlineButton>
-              {lineup.formationId && (
-                <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?duplicateFrom=${lineup.formationId}&returnTo=/matches/${matchId}?tab=tactics`}>
-                  Duplicate current formation
-                </TouchlineButton>
-              )}
+            <div className="pt-1">
               <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
                 Manage formations
               </TouchlineButton>

@@ -29,6 +29,7 @@ export async function addLeagueMatchGuestAction(input: {
   matchId: string;
   guestPlayerId: string;
   note?: string;
+  skipRoundRegistration?: boolean;
 }): Promise<{ success: true; assignmentId: string } | { success: false; error: string }> {
   try {
     return await addLeagueMatchGuestInternal(input);
@@ -41,6 +42,7 @@ async function addLeagueMatchGuestInternal(input: {
   matchId: string;
   guestPlayerId: string;
   note?: string;
+  skipRoundRegistration?: boolean;
 }): Promise<{ success: true; assignmentId: string } | { success: false; error: string }> {
   const ctx = await requirePageActorContext();
   setTenantOrganisationId(ctx.organisationId);
@@ -48,7 +50,33 @@ async function addLeagueMatchGuestInternal(input: {
   await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, input.matchId);
 
-  const { matchRoundId } = await assertGuestPlayerRegisteredForMatchRound(input.matchId, input.guestPlayerId, ctx.orgFilter);
+  let matchRoundId: string;
+
+  if (input.skipRoundRegistration) {
+    // ADR-0151: Emergency guest from Match Details — auto-register if not already registered
+    const match = await db.match.findFirst({
+      where: { id: input.matchId, ...ctx.orgFilter.filter },
+      select: { matchRoundId: true },
+    });
+    if (!match) return { success: false, error: "Match not found or access denied." };
+    matchRoundId = match.matchRoundId;
+
+    const existing = await db.leagueRoundParticipant.findFirst({
+      where: { matchRoundId, guestPlayerId: input.guestPlayerId },
+    });
+    if (!existing) {
+      await db.leagueRoundParticipant.create({
+        data: {
+          matchRoundId,
+          guestPlayerId: input.guestPlayerId,
+          organisationId: ctx.organisationId,
+        },
+      });
+    }
+  } else {
+    const result = await assertGuestPlayerRegisteredForMatchRound(input.matchId, input.guestPlayerId, ctx.orgFilter);
+    matchRoundId = result.matchRoundId;
+  }
 
   let assignmentId: string;
   try {
@@ -166,6 +194,8 @@ export async function getLeagueMatchGuestsAction(matchId: string) {
 /**
  * Guest players eligible to be added to this specific match: registered as a
  * LeagueRoundParticipant of the match's round, and not already assigned to this match.
+ * Also includes unassigned group GuestPlayers not yet in this match (ADR-0151:
+ * emergency GuestPlayer from Match Details without Round Board mutation).
  */
 export async function getLeagueMatchGuestCandidatesAction(matchId: string) {
   const ctx = await requirePageActorContext();
@@ -174,11 +204,11 @@ export async function getLeagueMatchGuestCandidatesAction(matchId: string) {
 
   const match = await db.match.findFirst({
     where: { id: matchId, ...ctx.orgFilter.filter },
-    select: { matchRoundId: true },
+    select: { matchRoundId: true, team: { select: { footballGroupId: true } } },
   });
   if (!match) return [];
 
-  const [registered, existingAssignments] = await Promise.all([
+  const [registered, existingAssignments, groupGuests] = await Promise.all([
     db.leagueRoundParticipant.findMany({
       where: { matchRoundId: match.matchRoundId, guestPlayerId: { not: null }, ...ctx.orgFilter.filter },
       select: {
@@ -190,13 +220,31 @@ export async function getLeagueMatchGuestCandidatesAction(matchId: string) {
       where: { matchId, ...ctx.orgFilter.filter },
       select: { guestPlayerId: true },
     }),
+    db.guestPlayer.findMany({
+      where: { footballGroupId: match.team.footballGroupId, active: true, ...ctx.orgFilter.filterNullable },
+      select: { id: true, name: true, sourceLabel: true },
+    }),
   ]);
 
   const assignedIds = new Set(existingAssignments.map((a) => a.guestPlayerId));
 
-  return registered
-    .filter((r): r is typeof r & { guestPlayerId: string; guestPlayer: NonNullable<typeof r.guestPlayer> } =>
-      r.guestPlayerId !== null && r.guestPlayer !== null && !assignedIds.has(r.guestPlayerId),
-    )
-    .map((r) => ({ guestPlayerId: r.guestPlayerId, name: r.guestPlayer.name, sourceLabel: r.guestPlayer.sourceLabel }));
+  // Merge registered participants and group guests, deduplicating by guestPlayerId
+  const seenIds = new Set<string>();
+  const candidates: { guestPlayerId: string; name: string; sourceLabel: string | null }[] = [];
+
+  // Registered round participants first (higher priority)
+  for (const r of registered) {
+    if (!r.guestPlayerId || !r.guestPlayer || assignedIds.has(r.guestPlayerId) || seenIds.has(r.guestPlayerId)) continue;
+    seenIds.add(r.guestPlayerId);
+    candidates.push({ guestPlayerId: r.guestPlayerId, name: r.guestPlayer.name, sourceLabel: r.guestPlayer.sourceLabel });
+  }
+
+  // Then other group guests not yet assigned or registered
+  for (const g of groupGuests) {
+    if (assignedIds.has(g.id) || seenIds.has(g.id)) continue;
+    seenIds.add(g.id);
+    candidates.push({ guestPlayerId: g.id, name: g.name, sourceLabel: g.sourceLabel });
+  }
+
+  return candidates;
 }

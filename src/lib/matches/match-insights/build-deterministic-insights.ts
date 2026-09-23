@@ -221,6 +221,33 @@ function buildRotationContextInsight({ fact, playerNameById }: InsightBuilderPar
   });
 }
 
+function buildMatchAvailabilityInsight({ fact, playerNameById }: InsightBuilderParams): MatchInsightCandidate {
+  const value = fact.value as { available: false; absenceReason: string | null; plannedRole: string | null };
+  const [playerId] = fact.subjectRefs;
+  const reasonLabel = value.absenceReason
+    ? value.absenceReason.charAt(0) + value.absenceReason.slice(1).toLowerCase().replace(/_/g, " ")
+    : "unavailable";
+  const roleText = value.plannedRole ? ` as ${value.plannedRole}` : "";
+
+  return candidateFromFact(fact, {
+    title: "Planned player unavailable",
+    observation: `${playerName(playerId, playerNameById)} is ${reasonLabel.toLowerCase()} and will not be available for this match${roleText}.`,
+    implication: "The planned squad needs adjustment.",
+  });
+}
+
+function buildMatchDayAdditionInsight({ fact, playerNameById }: InsightBuilderParams): MatchInsightCandidate {
+  const value = fact.value as { position: string | null; role: string | null };
+  const [playerId] = fact.subjectRefs;
+  const positionText = value.position ? ` at ${value.position}` : "";
+
+  return candidateFromFact(fact, {
+    title: "Match-day addition",
+    observation: `${playerName(playerId, playerNameById)} was added to this match on match day${positionText}.`,
+    implication: "Was not part of the original planned squad.",
+  });
+}
+
 const BUILDERS: Record<MatchInsightFact["type"], (params: InsightBuilderParams) => MatchInsightCandidate | null> = {
   STARTING_PATTERN: buildStartingPatternInsight,
   POSITION_PATTERN: buildPositionPatternInsight,
@@ -237,6 +264,8 @@ const BUILDERS: Record<MatchInsightFact["type"], (params: InsightBuilderParams) 
   OPPONENT_OBSERVATION: buildOpponentObservationInsight,
   OPPONENT_TREND: buildOpponentTrendInsight,
   ROTATION_CONTEXT: buildRotationContextInsight,
+  MATCH_AVAILABILITY: buildMatchAvailabilityInsight,
+  MATCH_DAY_ADDITION: buildMatchDayAdditionInsight,
 };
 
 export function buildDeterministicInsights(params: {
