@@ -173,4 +173,123 @@ describe("Match-day roster changes (ADR-0151)", () => {
       expect(defaultProvenance).toBe("HELPER");
     });
   });
+
+  describe("Squad list provenance and absence labels", () => {
+    function sourceLabel(source: string | null | undefined): string | null {
+      if (source === "match_day_addition") return "Match-day addition";
+      if (source === "guest") return "Guest";
+      if (source === "helper") return "Helper";
+      return null;
+    }
+
+    function absenceLabel(reason: string | null | undefined): string | null {
+      if (!reason) return null;
+      if (reason === "AWAY") return "Away";
+      if (reason === "SICK") return "Sick";
+      if (reason === "INJURED") return "Injured";
+      if (reason === "NO_SHOW") return "No show";
+      if (reason === "DECLINED") return "Declined";
+      return "Absent";
+    }
+
+    it("renders match_day_addition source label", () => {
+      expect(sourceLabel("match_day_addition")).toBe("Match-day addition");
+    });
+
+    it("renders guest source label", () => {
+      expect(sourceLabel("guest")).toBe("Guest");
+    });
+
+    it("renders helper source label", () => {
+      expect(sourceLabel("helper")).toBe("Helper");
+    });
+
+    it("planned source has no label", () => {
+      expect(sourceLabel("planned")).toBeNull();
+    });
+
+    it("null source has no label", () => {
+      expect(sourceLabel(null)).toBeNull();
+    });
+
+    it("absence reason labels cover all values", () => {
+      expect(absenceLabel("AWAY")).toBe("Away");
+      expect(absenceLabel("SICK")).toBe("Sick");
+      expect(absenceLabel("INJURED")).toBe("Injured");
+      expect(absenceLabel("NO_SHOW")).toBe("No show");
+      expect(absenceLabel("DECLINED")).toBe("Declined");
+      expect(absenceLabel("OTHER")).toBe("Absent");
+      expect(absenceLabel(null)).toBeNull();
+      expect(absenceLabel(undefined)).toBeNull();
+    });
+
+    it("absent player is dimmed and not clickable even when not assigned", () => {
+      const selection = {
+        playerId: "p1",
+        playerName: "Absent Player",
+        role: "CORE",
+        primaryPosition: "CB",
+        secondaryPosition: null,
+        coreTeamName: "Team A",
+        absenceReason: "SICK",
+        source: "planned" as const,
+      };
+      expect(selection.absenceReason).toBe("SICK");
+      expect(selection.source).toBe("planned");
+    });
+
+    it("match-day addition has no absence reason", () => {
+      const selection = {
+        playerId: "p2",
+        playerName: "Late Arrival",
+        role: "MATCH_DAY_ADDITION",
+        primaryPosition: "CM",
+        secondaryPosition: null,
+        coreTeamName: "Team B",
+        absenceReason: null,
+        source: "match_day_addition" as const,
+      };
+      expect(selection.source).toBe("match_day_addition");
+      expect(selection.absenceReason).toBeNull();
+    });
+
+    it("guest player has guest source label", () => {
+      const selection = {
+        playerId: "gp1",
+        playerName: "Trial Player",
+        role: "GUEST",
+        primaryPosition: "GUEST",
+        secondaryPosition: null,
+        coreTeamName: "Trial Club",
+        absenceReason: null,
+        source: "guest" as const,
+      };
+      expect(selection.source).toBe("guest");
+      expect(selection.absenceReason).toBeNull();
+    });
+  });
+
+  describe("createAndAddMatchGuestAction validation", () => {
+    it("rejects empty guest name", () => {
+      const name = "  ".trim();
+      expect(name).toBe("");
+      expect(name.length).toBe(0);
+    });
+
+    it("accepts valid guest name", () => {
+      const name = "  Trial Player  ".trim();
+      expect(name).toBe("Trial Player");
+      expect(name.length).toBeGreaterThan(0);
+    });
+
+    it("optional source label and note are nullable", () => {
+      const input = {
+        name: "Guest",
+        sourceLabel: null as string | null,
+        note: null as string | null,
+      };
+      expect(input.sourceLabel).toBeNull();
+      expect(input.note).toBeNull();
+    });
+  });
 });

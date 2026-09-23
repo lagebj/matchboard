@@ -19,6 +19,7 @@ type SelectionRow = {
   secondaryPosition: string | null;
   coreTeamName: string;
   absenceReason?: string | null;
+  source?: "planned" | "helper" | "match_day_addition" | "guest";
 };
 
 type MatchFormatSnapshot = { numberOfPeriods: number; periodDurationMinutes: number; breakDurationMinutes: number };

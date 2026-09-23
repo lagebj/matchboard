@@ -46,6 +46,7 @@ type SelectionRow = {
   primaryPosition: string;
   secondaryPosition: string | null;
   absenceReason?: string | null;
+  source?: "planned" | "helper" | "match_day_addition" | "guest";
 };
 
 type WarningRow = { id: string; code: string; severity: string; message: string };

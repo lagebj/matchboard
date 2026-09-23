@@ -6,6 +6,7 @@ import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess }
 import { logMutationEvent } from "@/lib/security/audit-log";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { assertGuestPlayerRegisteredForMatchRound } from "@/lib/matches/league-round-guest-participant";
+import { createGuestPlayer, GUEST_PLAYER_NAME_MAX_LENGTH, GUEST_PLAYER_SOURCE_LABEL_MAX_LENGTH, GUEST_PLAYER_NOTE_MAX_LENGTH } from "@/lib/guest-players/guest-player";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 
 // ADR-0106: League Match GuestPlayer usage. Kept as a separate action file mirroring
@@ -247,4 +248,99 @@ export async function getLeagueMatchGuestCandidatesAction(matchId: string) {
   }
 
   return candidates;
+}
+
+export async function createAndAddMatchGuestAction(input: {
+  matchId: string;
+  name: string;
+  sourceLabel?: string | null;
+  note?: string | null;
+}): Promise<{ success: true; assignmentId: string; guestPlayerId: string } | { success: false; error: string }> {
+  try {
+    return await createAndAddMatchGuestInternal(input);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create and add guest player." };
+  }
+}
+
+async function createAndAddMatchGuestInternal(input: {
+  matchId: string;
+  name: string;
+  sourceLabel?: string | null;
+  note?: string | null;
+}): Promise<{ success: true; assignmentId: string; guestPlayerId: string } | { success: false; error: string }> {
+  const ctx = await requirePageActorContext();
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+  await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
+  await requireMatchGroupAccess(ctx, input.matchId);
+
+  const trimmedName = input.name.trim();
+  if (!trimmedName) {
+    return { success: false, error: "Name is required." };
+  }
+  if (trimmedName.length > GUEST_PLAYER_NAME_MAX_LENGTH) {
+    return { success: false, error: `Name must be ${GUEST_PLAYER_NAME_MAX_LENGTH} characters or fewer.` };
+  }
+  if (input.sourceLabel && input.sourceLabel.trim().length > GUEST_PLAYER_SOURCE_LABEL_MAX_LENGTH) {
+    return { success: false, error: `Source must be ${GUEST_PLAYER_SOURCE_LABEL_MAX_LENGTH} characters or fewer.` };
+  }
+  if (input.note && input.note.trim().length > GUEST_PLAYER_NOTE_MAX_LENGTH) {
+    return { success: false, error: `Note must be ${GUEST_PLAYER_NOTE_MAX_LENGTH} characters or fewer.` };
+  }
+
+  const match = await db.match.findFirst({
+    where: { id: input.matchId, ...ctx.orgFilter.filter },
+    select: { matchRoundId: true, team: { select: { footballGroupId: true } } },
+  });
+  if (!match) return { success: false, error: "Match not found or access denied." };
+
+  const guestResult = await createGuestPlayer({
+    organisationId: ctx.organisationId,
+    footballGroupId: match.team.footballGroupId,
+    name: trimmedName,
+    sourceLabel: input.sourceLabel?.trim() || null,
+    note: input.note?.trim() || null,
+  });
+  if (!guestResult.success) {
+    return { success: false, error: guestResult.error };
+  }
+
+  const matchRoundId = match.matchRoundId;
+
+  const existing = await db.leagueRoundParticipant.findFirst({
+    where: { matchRoundId, guestPlayerId: guestResult.guestPlayer.id },
+  });
+  if (!existing) {
+    await db.leagueRoundParticipant.create({
+      data: {
+        matchRoundId,
+        guestPlayerId: guestResult.guestPlayer.id,
+        organisationId: ctx.organisationId,
+      },
+    });
+  }
+
+  let assignmentId: string;
+  try {
+    const assignment = await db.leagueMatchGuestAssignment.create({
+      data: {
+        matchId: input.matchId,
+        matchRoundId,
+        guestPlayerId: guestResult.guestPlayer.id,
+        note: input.note?.trim() || null,
+        addedByUserId: ctx.userId,
+        organisationId: ctx.organisationId,
+      },
+    });
+    assignmentId = assignment.id;
+  } catch {
+    return { success: false, error: "Guest player is already assigned to this match." };
+  }
+
+  logMutationEvent("manual_override", ctx.email || "unknown", "league_match_guest_assignment", assignmentId, "success");
+
+  revalidateMatchPaths(input.matchId);
+
+  return { success: true, assignmentId, guestPlayerId: guestResult.guestPlayer.id };
 }
