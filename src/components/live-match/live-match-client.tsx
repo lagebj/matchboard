@@ -1216,6 +1216,28 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     );
   }, [positionOverrides, reconciledPositions, squad]);
 
+  /** Like `getCurrentPosition` above, but never trusts a *substitute's* declared-position
+   * fallback. `squad[].position` is `Player.primaryPosition` (a career-long declared attribute,
+   * `live-actions.ts`), not this match's actual assigned slot — for a true starter that's at
+   * least a stable, self-consistent guess (the existing, intended "swap two starters" behaviour
+   * this function preserves), but for a player who has *just* subbed on it can coincidentally
+   * equal another, uninvolved player's target position with zero relationship to reality:
+   * `ROTATION_IN` carries no position, and `reconcileFromServerEvents` only ever populates a
+   * position from an explicit `POSITIONS_CHANGED` event, so a fresh substitute's true on-field
+   * slot is genuinely unknown to this client until the coach records one. Used only for
+   * occupant-matching below — falling back to a guess there doesn't just mislabel the guessed
+   * player, it silently reassigns a SECOND player's recorded position (production incident: a
+   * coach correcting a starter's broad "Defender" label to the exact "CB" they'd played from
+   * kickoff swapped a player who had subbed on seconds earlier — and had never played a single
+   * minute at CB this match — out to the target's old position, purely because that substitute's
+   * *declared* primary position happened to equal "CB"). */
+  const getConfirmedPosition = useCallback((playerId: string): string | null => {
+    if (positionOverrides[playerId] !== undefined) return positionOverrides[playerId];
+    if (reconciledPositions[playerId]) return reconciledPositions[playerId];
+    const squadPlayer = squad.find((p) => p.playerId === playerId);
+    return squadPlayer?.startingOnField ? (squadPlayer.position ?? null) : null;
+  }, [positionOverrides, reconciledPositions, squad]);
+
   const handleStartPositionChange = useCallback(() => {
     setPositionChangePlayerId(null);
     setSheet("position_change_player");
@@ -1240,8 +1262,12 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     // a one-sided move — recording only the mover's event would leave two players labelled at
     // `newPosition` and nobody at `fromPosition`. Record both sides atomically, mirroring
     // planned-rotation-live-actions.ts's existing positionOnly swap handling.
+    //
+    // Deliberately `getConfirmedPosition`, not `getCurrentPosition` — an occupant match must be
+    // live-confirmed, never a declared/planned-position guess: this is what decides whose data
+    // gets a second, uninvolved POSITIONS_CHANGED event written, not just what a picker displays.
     const occupant = fromPosition
-      ? onFieldPlayers.find((p) => p.playerId !== moverId && getCurrentPosition(p.playerId) === newPosition)
+      ? onFieldPlayers.find((p) => p.playerId !== moverId && getConfirmedPosition(p.playerId) === newPosition)
       : undefined;
 
     recordEventLocal("POSITIONS_CHANGED", {
@@ -1275,7 +1301,7 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     lastActionTimerRef.current = setTimeout(() => setLastAction(null), 8000);
     setPositionChangePlayerId(null);
     setSheet(null);
-  }, [positionChangePlayerId, getCurrentPosition, clock, recordEventLocal, squad, onFieldPlayers]);
+  }, [positionChangePlayerId, getCurrentPosition, getConfirmedPosition, clock, recordEventLocal, squad, onFieldPlayers]);
 
   // Merged events: server events + not-yet-PERSISTED local commands (ADR-0138 Bundle 6's
   // `overlayPendingCommands` — extracted from this exact previous inline logic for testability).
