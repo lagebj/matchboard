@@ -19,6 +19,7 @@ import { PositionFitList } from "@/components/touchline/workbench/position-fit-l
 import { computePlayerPositionFitEntries } from "@/domain/positions/position-fit-entries";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { AddPlayerDialog } from "@/components/matches/add-player-dialog";
+import { AbsenceControl } from "@/components/matches/absence-control";
 
 type LineupData = {
   id: string;
@@ -152,6 +153,16 @@ export function MatchTacticsPanel({
   useEffect(() => {
     refreshMatchInsights();
   }, [refreshMatchInsights]);
+
+  /** After a Squad-row `AbsenceControl` mark/clear resolves: `selections` is a server-provided
+   * prop (this component doesn't own that data), so picking up the new absence state means
+   * re-running the page's server component, same as `AddPlayerDialog`'s `onAdded` below. */
+  const handleAbsenceChanged = useCallback(() => {
+    startTransition(async () => {
+      await refreshLineup();
+      router.refresh();
+    });
+  }, [refreshLineup, router]);
 
   const handleLoad = useCallback(() => {
     startTransition(async () => {
@@ -713,8 +724,26 @@ export function MatchTacticsPanel({
                     >
                       <span className="truncate font-medium">{s.playerName}</span>
                       <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] ml-1 shrink-0">
-                        {absenceLabel && (
-                          <span className="rounded bg-[var(--danger)]/10 px-1 py-0.5 text-[10px] text-[var(--danger)]">{absenceLabel}</span>
+                        {s.source !== "guest" ? (
+                          // Match-specific absence (Away/Sick/No-show/Declined/Injured/Other) —
+                          // only real Players (planned/helper/match-day-addition) can be marked;
+                          // GuestPlayer isn't a valid MatchReportAbsence target (see ADR-0151 §9,
+                          // guests are removed rather than marked absent). Stops propagation so
+                          // interacting with the select doesn't also fire the row's own onClick
+                          // (assign-to-picker-slot) handler above.
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <AbsenceControl
+                              matchId={matchId}
+                              playerId={s.playerId}
+                              currentReason={s.absenceReason}
+                              isLocked={isConfirmed}
+                              onChanged={handleAbsenceChanged}
+                            />
+                          </span>
+                        ) : (
+                          absenceLabel && (
+                            <span className="rounded bg-[var(--danger)]/10 px-1 py-0.5 text-[10px] text-[var(--danger)]">{absenceLabel}</span>
+                          )
                         )}
                         {sourceLabel && !absenceLabel && (
                           <span className="rounded bg-[var(--accent)]/10 px-1 py-0.5 text-[10px] text-[var(--accent-strong)]">{sourceLabel}</span>
