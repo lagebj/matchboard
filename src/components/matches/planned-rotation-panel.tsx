@@ -120,7 +120,12 @@ type ChangeFormData = {
   outPosition: string;
   inPosition: string;
   positionOnly: boolean;
-  approximateMatchSeconds: string;
+  // Whole minutes, as the coach enters/sees it — never the persisted `PlannedRotationChangeData`
+  // unit (seconds). Converted at the two boundaries only: `changeToFormData` (seconds -> minutes,
+  // reading a saved change into the form) and `formDataToChangeData` (minutes -> seconds, saving
+  // the form). Before this, the field held raw seconds and the coach had to hand-compute e.g.
+  // "1500" for the 25th minute -- minutes is what a coach actually thinks in.
+  approximateMatchMinutes: string;
   notes: string;
 };
 
@@ -130,7 +135,7 @@ const EMPTY_CHANGE: ChangeFormData = {
   outPosition: "",
   inPosition: "",
   positionOnly: false,
-  approximateMatchSeconds: "",
+  approximateMatchMinutes: "",
   notes: "",
 };
 
@@ -190,7 +195,7 @@ function ChangeForm({
                   // if he were still at ST). Read from the plan's own projection instead; the
                   // coach can still override via the always-visible field below when the
                   // projection doesn't apply (e.g. no lineup planned yet).
-                  const atSeconds = f.approximateMatchSeconds ? parseInt(f.approximateMatchSeconds, 10) : null;
+                  const atSeconds = f.approximateMatchMinutes ? parseInt(f.approximateMatchMinutes, 10) * 60 : null;
                   const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
                   return { ...f, outPlayerId: playerId, outPosition: projected ?? player?.primaryPosition ?? "" };
                 }
@@ -237,7 +242,7 @@ function ChangeForm({
                 if (!playerId) return { ...f, inPlayerId: "", inPosition: "" };
                 if (f.positionOnly) {
                   // See the "Player out" handler above -- same reasoning, same fix.
-                  const atSeconds = f.approximateMatchSeconds ? parseInt(f.approximateMatchSeconds, 10) : null;
+                  const atSeconds = f.approximateMatchMinutes ? parseInt(f.approximateMatchMinutes, 10) * 60 : null;
                   const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
                   return { ...f, inPlayerId: playerId, inPosition: projected ?? player?.primaryPosition ?? "" };
                 }
@@ -280,12 +285,13 @@ function ChangeForm({
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-0.5">Approx. time</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-0.5">Approx. minute</label>
           <input
             type="text"
-            placeholder="e.g. 1500 (25')"
-            value={form.approximateMatchSeconds}
-            onChange={(e) => setForm((f) => ({ ...f, approximateMatchSeconds: e.target.value.replace(/[^0-9]/g, "") }))}
+            inputMode="numeric"
+            placeholder="e.g. 25"
+            value={form.approximateMatchMinutes}
+            onChange={(e) => setForm((f) => ({ ...f, approximateMatchMinutes: e.target.value.replace(/[^0-9]/g, "") }))}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           />
         </div>
@@ -321,7 +327,8 @@ function changeToFormData(change: PlannedRotationWithChanges["changes"][number])
     outPosition: change.outPosition ?? "",
     inPosition: change.inPosition ?? "",
     positionOnly: change.positionOnly,
-    approximateMatchSeconds: change.approximateMatchSeconds?.toString() ?? "",
+    approximateMatchMinutes:
+      change.approximateMatchSeconds != null ? Math.round(change.approximateMatchSeconds / 60).toString() : "",
     notes: change.notes ?? "",
   };
 }
@@ -333,7 +340,7 @@ function formDataToChangeData(form: ChangeFormData): PlannedRotationChangeData {
     outPosition: form.outPosition || null,
     inPosition: form.inPosition || null,
     positionOnly: form.positionOnly,
-    approximateMatchSeconds: form.approximateMatchSeconds ? parseInt(form.approximateMatchSeconds, 10) : null,
+    approximateMatchSeconds: form.approximateMatchMinutes ? parseInt(form.approximateMatchMinutes, 10) * 60 : null,
     notes: form.notes || null,
   };
 }
