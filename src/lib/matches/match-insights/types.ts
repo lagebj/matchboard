@@ -1,5 +1,6 @@
 import type { RatingAttributeKey } from "@/lib/ratings/player-rating";
 import type { ConfidenceLevel } from "@/lib/evidence/combination-topology";
+import type { HelperProvenance, PlannedAbsenceReason } from "@/generated/prisma/client";
 
 /**
  * Match Insight domain types (ADR-0149). These are the shapes shared by every builder module in
@@ -38,7 +39,9 @@ export type MatchInsightFactType =
   | "OPPONENT_ENCOUNTER"
   | "OPPONENT_OBSERVATION"
   | "OPPONENT_TREND"
-  | "ROTATION_CONTEXT";
+  | "ROTATION_CONTEXT"
+  | "MATCH_AVAILABILITY"
+  | "MATCH_DAY_ADDITION";
 
 /**
  * One deterministic, evidence-backed fact. `id` is stable for the lifetime of one context build
@@ -204,7 +207,22 @@ export type CurrentPlanSquadEntry = {
 };
 
 /** The current plan, as already assembled by the caller (Selection/MatchLineup reads) — this
- * domain layer never re-derives it. */
+ * domain layer never re-derives it. ADR-0151 adds `operationalRoster` and `plannedSquad`:
+ * `squad` remains the original planned squad (Selection rows) for backward compatibility;
+ * `operationalRoster` is the effective match-day roster (selections + additions - absences + guests);
+ * `plannedSquad` is an alias for `squad` made explicit for comparison reasoning. */
+export type OperationalRosterEntry = {
+  playerId: string | null;
+  guestPlayerId?: string | null;
+  participantType: "PLAYER" | "GUEST_PLAYER";
+  source: "planned" | "helper" | "match_day_addition" | "guest";
+  provenance: HelperProvenance | null;
+  role: "CORE" | "SUPPORT" | "DEVELOPMENT" | null;
+  position: string | null;
+  isActiveParticipant: boolean;
+  absenceReason: PlannedAbsenceReason | null;
+};
+
 export type CurrentPlanInput = {
   matchId: string;
   teamId: string;
@@ -213,7 +231,10 @@ export type CurrentPlanInput = {
   opponentTeamId: string | null;
   formation: string | null;
   matchStartsAt: Date;
+  /** @deprecated Use operationalRoster for active-participant reasoning and squad for planned-squad reasoning */
   squad: CurrentPlanSquadEntry[];
+  /** Effective match-day roster: selections + additions - absences + guests (ADR-0151) */
+  operationalRoster: OperationalRosterEntry[];
   plannedRotations: CurrentPlanRotationChange[];
 };
 

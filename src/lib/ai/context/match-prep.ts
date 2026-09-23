@@ -90,6 +90,9 @@ export async function buildMatchPrepContext(params: {
   const FACT = "fact";
 
   // ---- squad / formation / rotations (the current plan itself) ----
+  // ADR-0151: squad now represents the originally planned squad, while operationalRoster
+  // represents the effective match-day roster. The AI receives both: planned squad for historical
+  // context, and availability/additions for current operational reality.
 
   const squadFacts = [...plan.squad]
     .map((s) => {
@@ -97,6 +100,37 @@ export async function buildMatchPrepContext(params: {
       return withEvidenceRef(evidenceRefs, `${FACT}:squad:${playerRef}`, { playerRef, role: s.role, position: s.position });
     })
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
+
+  // ADR-0151: Operational roster availability and additions
+  const availabilityFacts = plan.operationalRoster
+    .filter((e) => e.participantType === "PLAYER" && e.playerId)
+    .map((e) => {
+      const playerRef = playerRefById.get(e.playerId!);
+      if (!playerRef) return null;
+      if (!e.isActiveParticipant) {
+        return withEvidenceRef(evidenceRefs, `${FACT}:match-availability:${playerRef}`, {
+          playerRef,
+          available: false,
+          absenceReason: e.absenceReason,
+          plannedRole: e.role,
+        });
+      }
+      return { playerRef, available: true, source: e.source };
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null);
+
+  const matchDayAdditionFacts = plan.operationalRoster
+    .filter((e) => e.source === "match_day_addition" && e.playerId)
+    .map((e) => {
+      const playerRef = playerRefById.get(e.playerId!);
+      if (!playerRef) return null;
+      return withEvidenceRef(evidenceRefs, `${FACT}:match-day-addition:${playerRef}`, {
+        playerRef,
+        position: e.position,
+        role: e.role,
+      });
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null);
 
   const formationFact = plan.formation
     ? withEvidenceRef(evidenceRefs, `${FACT}:formation:${matchRef}`, { matchRef, formation: plan.formation })
@@ -259,6 +293,8 @@ export async function buildMatchPrepContext(params: {
   const normalizedContext: JsonValue = {
     match: { ref: matchRef, format: matchFormatFact },
     squad: squadFacts,
+    availability: availabilityFacts,
+    matchDayAdditions: matchDayAdditionFacts,
     formation: formationFact,
     plannedRotations: rotationFacts,
     players: playerFacts,
@@ -278,6 +314,7 @@ export async function buildMatchPrepContext(params: {
     "Every fact object carries the exact evidence-ref string to cite for it under a field ending in EvidenceRef (evidenceRef, developmentEvidenceRef, combinationTrendEvidenceRef) -- copy it verbatim, never construct or guess your own evidence-ref string.",
     "A trustedObservation is an attributed coach observation from a previous encounter, not a confirmed objective fact -- treat and describe it accordingly, never as settled truth.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it -- every proposal requires explicit coach confirmation before it becomes real.",
+    "The `squad` field contains the originally planned squad. The `availability` field contains operational availability for this specific match: a player with available: false is not available for selection (sick, injured, away, etc.). The `matchDayAdditions` field lists real Players added for this match who were not part of the original plan. Do not recommend absent players for the current lineup or rotations. Do not ignore match-day additions -- they are real Players with the same attributes and evidence as planned Players.",
   ].join(" ");
 
 

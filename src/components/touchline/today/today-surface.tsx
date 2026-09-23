@@ -182,7 +182,7 @@ export function TodaySurface({
           <TodayLiveNow
             primary={liveNow.primary}
             otherLiveCount={liveNow.otherLiveCount}
-            matchHref={(matchId) => orgUrl(`/matches/${matchId}/live`)}
+            matchHref={(matchId) => orgUrl(`/matches/${matchId}/live/follow`)}
           />
         ) : (
           matchdayContext &&

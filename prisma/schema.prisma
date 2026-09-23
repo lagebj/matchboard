@@ -414,15 +414,16 @@ model Selection {
 // the player's planned round team assignment is untouched. sourceTeamId is informational only
 // (the player's team context in this round at assignment time), not an authority relationship.
 model MatchHelperAssignment {
-  id             String   @id @default(cuid())
+  id             String           @id @default(cuid())
   organisationId String
   matchId        String
   playerId       String
   sourceTeamId   String
+  provenance     HelperProvenance @default(HELPER)
   note           String?
   addedByUserId  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   match        Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
   player       Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
@@ -2011,6 +2012,11 @@ enum AvailabilityStatus {
 enum SelectionStatus {
   DRAFT
   FINALIZED
+}
+
+enum HelperProvenance {
+  HELPER
+  MATCH_DAY_ADDITION
 }
 
 enum SelectionRole {

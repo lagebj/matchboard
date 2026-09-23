@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PlayerPicker } from "@/components/formations/player-picker";
@@ -12,11 +13,12 @@ import { MatchInsights } from "@/components/matches/match-insights/match-insight
 import type { FormationSlotRoleType, BroadPosition } from "@/lib/formations/types";
 import { GAME_FORMAT_PLAYERS, ROLE_TYPE_LABELS, formatGameFormatShort } from "@/lib/formations/types";
 import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-match-insights";
-import { Copy } from "lucide-react";
+import { Copy, UserPlus } from "lucide-react";
 import { TouchlineInspector } from "@/components/touchline/workbench/touchline-inspector";
 import { PositionFitList } from "@/components/touchline/workbench/position-fit-list";
 import { computePlayerPositionFitEntries } from "@/domain/positions/position-fit-entries";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
+import { AddPlayerDialog } from "@/components/matches/add-player-dialog";
 
 type LineupData = {
   id: string;
@@ -69,6 +71,7 @@ type MatchTacticsPanelProps = {
      * Absent/no-show players are excluded from the tactics player pool (they cannot be placed
      * on the field) but remain visible in the squad list for context. */
     absenceReason?: string | null;
+    source?: "planned" | "helper" | "match_day_addition" | "guest";
   }[];
 };
 
@@ -80,6 +83,7 @@ export function MatchTacticsPanel({
   planningEditable,
   selections,
 }: MatchTacticsPanelProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [lineup, setLineup] = useState<LineupData | null>(null);
   const [formations, setFormations] = useState<{ id: string; name: string; source: string; slots: { id: string; gridX: number; gridY: number; label: string; shortLabel: string; roleType: string; acceptedPositionIds: string[]; sortOrder: number }[] }[]>([]);
@@ -97,7 +101,8 @@ export function MatchTacticsPanel({
   /** Atlas Follow-up (05_SHIRT_IDENTITY_AND_TEAM_KIT_COLOR.md): resolved kit-colour hex for
    * `PitchShirtToken`s on the canonical planning pitch. Reuses the existing
    * `fetchTeamConfiguration()` action (Team Settings) rather than a new query. */
-  const [teamKitColor, setTeamKitColor] = useState<string | null>(null);
+   const [teamKitColor, setTeamKitColor] = useState<string | null>(null);
+   const [showAddPlayer, setShowAddPlayer] = useState(false);
 
   /** Eligible players for tactical selection — absent/no-show players are excluded.
    * The tactics board answers "Who is currently eligible to play?", not "Who belongs to this
@@ -494,10 +499,7 @@ export function MatchTacticsPanel({
             </TouchlineButton>
           </div>
         )}
-        <div className="mt-4 flex items-center gap-2 border-t border-[var(--border-soft)] pt-3">
-          <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
-            Create formation
-          </TouchlineButton>
+        <div className="mt-4 border-t border-[var(--border-soft)] pt-3">
           <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
             Manage formations
           </TouchlineButton>
@@ -566,37 +568,28 @@ export function MatchTacticsPanel({
           <div className="mt-3 flex flex-col gap-3">
             {formations.length > 0 && (
               <div>
-                <p className="text-xs text-[var(--text-muted)] mb-1.5">Change formation</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="text-xs text-[var(--text-muted)] mb-1 block">
+                  Formation
+                </label>
+                <select
+                  className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                  value={lineup.formationId ?? ""}
+                  onChange={(e) => {
+                    const formationId = e.target.value;
+                    if (formationId && formationId !== lineup.formationId) {
+                      handleChangeFormation(formationId);
+                    }
+                  }}
+                >
                   {formations.map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      disabled={f.id === lineup.formationId}
-                      onClick={() => handleChangeFormation(f.id)}
-                      className={cn(
-                        "rounded-md border px-3 py-2 text-left text-xs transition-colors",
-                        f.id === lineup.formationId
-                          ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--foreground)] cursor-default"
-                          : "border-[var(--border-soft)] bg-[var(--surface-muted)] hover:border-[var(--border-strong)] text-[var(--text-soft)]"
-                      )}
-                    >
-                      <span className="font-medium">{f.name}</span>
-                      <span className="ml-1 text-[var(--text-muted)]">{f.source === "CUSTOM" ? "Custom" : "System"}</span>
-                    </button>
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             )}
-            <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-soft)]">
-              <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?gameFormat=${gameFormat}&returnTo=/matches/${matchId}?tab=tactics`}>
-                Create formation
-              </TouchlineButton>
-              {lineup.formationId && (
-                <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations/new?duplicateFrom=${lineup.formationId}&returnTo=/matches/${matchId}?tab=tactics`}>
-                  Duplicate current formation
-                </TouchlineButton>
-              )}
+            <div className="pt-1">
               <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
                 Manage formations
               </TouchlineButton>
@@ -668,29 +661,67 @@ export function MatchTacticsPanel({
             </Surface>
 
             <Surface padding="md">
-              <SectionHeader title="Squad" eyebrow={`${selections.length} available`} />
+              <SectionHeader
+                title="Squad"
+                eyebrow={`${selections.length} available`}
+                actions={
+                  !isConfirmed ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPlayer(true)}
+                      className="inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:text-[var(--accent-strong)] transition-colors"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                      Add player
+                    </button>
+                  ) : undefined
+                }
+              />
               <div className="mt-2 flex flex-col gap-1">
                 {selections.map((s) => {
                   const isAssigned = assignedPlayerIds.has(s.playerId);
+                  const sourceLabel =
+                    s.source === "match_day_addition" ? "Match-day addition" :
+                    s.source === "guest" ? "Guest" :
+                    s.source === "helper" ? "Helper" :
+                    null;
+                  const absenceLabel = s.absenceReason
+                    ? s.absenceReason === "AWAY" ? "Away" :
+                      s.absenceReason === "SICK" ? "Sick" :
+                      s.absenceReason === "INJURED" ? "Injured" :
+                      s.absenceReason === "NO_SHOW" ? "No show" :
+                      s.absenceReason === "DECLINED" ? "Declined" :
+                      "Absent"
+                    : null;
                   return (
-                    <button
+                    <div
                       key={s.playerId}
-                      type="button"
+                      className={cn(
+                        "flex items-center justify-between rounded-md px-2 py-1 text-xs w-full transition-colors",
+                        s.absenceReason
+                          ? "bg-[var(--surface-muted)] text-[var(--text-disabled)]"
+                          : isAssigned
+                            ? "bg-[var(--accent)]/10 text-[var(--accent-strong)]"
+                            : "text-[var(--text-soft)] hover:bg-[var(--surface-muted)] cursor-pointer"
+                      )}
                       onClick={() => {
-                        if (!isAssigned && !isConfirmed && pickerState) {
+                        if (!isAssigned && !isConfirmed && !s.absenceReason && pickerState) {
                           handlePlayerSelect(s.playerId);
                         }
                       }}
-                      className={cn(
-                        "flex items-center justify-between rounded-md px-2 py-1 text-xs w-full text-left transition-colors",
-                        isAssigned
-                          ? "bg-[var(--accent)]/10 text-[var(--accent-strong)] cursor-default"
-                          : "text-[var(--text-soft)] hover:bg-[var(--surface-muted)] cursor-pointer"
-                      )}
+                      role={(!isAssigned && !isConfirmed && !s.absenceReason) ? "button" : undefined}
                     >
                       <span className="truncate font-medium">{s.playerName}</span>
-                      <span className="text-[10px] text-[var(--text-muted)] ml-1">{s.role}</span>
-                    </button>
+                      <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] ml-1 shrink-0">
+                        {absenceLabel && (
+                          <span className="rounded bg-[var(--danger)]/10 px-1 py-0.5 text-[10px] text-[var(--danger)]">{absenceLabel}</span>
+                        )}
+                        {sourceLabel && !absenceLabel && (
+                          <span className="rounded bg-[var(--accent)]/10 px-1 py-0.5 text-[10px] text-[var(--accent-strong)]">{sourceLabel}</span>
+                        )}
+                        <span>{s.role}</span>
+                      </span>
+                    </div>
                   );
                 })}
               </div>
@@ -762,6 +793,20 @@ export function MatchTacticsPanel({
           currentAssignedPlayer={currentAssignedPlayerInfo}
           onSelect={handlePlayerSelect}
           onClear={currentAssignedPlayerId && !isConfirmed ? handleRemovePlayer : () => {}}
+        />
+      )}
+
+      {showAddPlayer && (
+        <AddPlayerDialog
+          matchId={matchId}
+          isOpen={showAddPlayer}
+          onClose={() => setShowAddPlayer(false)}
+          onAdded={() => {
+            startTransition(async () => {
+              await refreshLineup();
+              router.refresh();
+            });
+          }}
         />
       )}
     </div>

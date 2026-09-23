@@ -127,6 +127,7 @@ export default async function MatchDetailPage({
     select: {
       id: true,
       playerId: true,
+      provenance: true,
       player: {
         select: {
           id: true,
@@ -147,17 +148,50 @@ export default async function MatchDetailPage({
     playerFirstName: h.player.firstName,
     playerLastName: h.player.lastName,
     coreTeamName: h.player.coreTeam?.name ?? "Unassigned",
-    role: "HELPER" as const,
+    role: (h.provenance === "MATCH_DAY_ADDITION" ? "MATCH_DAY_ADDITION" : "HELPER") as string,
     primaryPosition: h.player.primaryPosition,
     secondaryPosition: h.player.secondaryPosition,
     status: "FINALIZED" as const,
     manualOverride: false,
-    selectionReason: "Helper assignment",
+    selectionReason: h.provenance === "MATCH_DAY_ADDITION" ? "Match-day addition" : "Helper assignment",
     priorityScore: null,
     overrideReason: null,
     controlledDoubleLoad: false,
     matchdayResponsibility: undefined,
     absenceReason: absenceReasonByPlayerId.get(h.playerId) ?? null,
+    source: h.provenance === "MATCH_DAY_ADDITION" ? "match_day_addition" as const : "helper" as const,
+  }));
+
+  const guests = await db.leagueMatchGuestAssignment.findMany({
+    where: { matchId: match.id },
+    select: {
+      id: true,
+      guestPlayerId: true,
+      guestPlayer: {
+        select: { id: true, name: true, sourceLabel: true },
+      },
+    },
+  });
+
+  const guestSelectionData = guests.map((g) => ({
+    id: `guest-${g.id}`,
+    playerId: g.guestPlayerId,
+    playerName: g.guestPlayer.name,
+    playerFirstName: g.guestPlayer.name.split(" ")[0] ?? "",
+    playerLastName: g.guestPlayer.name.split(" ").slice(1).join(" ") || null,
+    coreTeamName: g.guestPlayer.sourceLabel ?? "Guest",
+    role: "GUEST" as const,
+    primaryPosition: "GUEST" as const,
+    secondaryPosition: null as string | null,
+    status: "FINALIZED" as const,
+    manualOverride: false,
+    selectionReason: "Guest player",
+    priorityScore: null,
+    overrideReason: null,
+    controlledDoubleLoad: false,
+    matchdayResponsibility: undefined,
+    absenceReason: null as string | null,
+    source: "guest" as const,
   }));
 
   const warnings = await db.warning.findMany({
@@ -235,7 +269,7 @@ export default async function MatchDetailPage({
       ? await getCompletedMatchAdvisorViewModel({ organisationId: ctx.organisationId, matchId: match.id })
       : null;
 
-  const allSelections = [...selectionData, ...helperSelectionData];
+  const allSelections = [...selectionData, ...helperSelectionData, ...guestSelectionData];
 
   // Header/meta presentation — reused, never forked (ADR-0125).
   const headerIsHome = match.homeAway === "HOME";

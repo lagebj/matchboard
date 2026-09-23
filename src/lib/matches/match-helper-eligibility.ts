@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
-import type { SelectionRole, PlannedAbsenceReason } from "@/generated/prisma/client";
+import type { SelectionRole, PlannedAbsenceReason, HelperProvenance } from "@/generated/prisma/client";
 import { resolveParticipantRef, type ParticipantType } from "@/lib/participants/participant-ref";
 
 // Effective League Match roster and helper eligibility (ADR-0077). Mirrors the pattern in
@@ -8,6 +8,9 @@ import { resolveParticipantRef, type ParticipantType } from "@/lib/participants/
 // (ADR-0106 adds the third source), with a deliberately narrower eligibility check than the Event
 // version — no round-finalisation block, no time/round-conflict block. See the ADR for why both
 // omissions are intentional, not gaps.
+//
+// ADR-0151 extends this with provenance: helpers are HELPER, match-day Player additions are
+// MATCH_DAY_ADDITION. Both are real Players participating in a match without a Selection row.
 
 export type EffectiveLeagueMatchRosterEntry = {
   participantId: string;
@@ -17,7 +20,8 @@ export type EffectiveLeagueMatchRosterEntry = {
   displayName: string;
   primaryPosition: string | null;
   shirtNumber: number | null;
-  source: "planned" | "helper" | "guest";
+  source: "planned" | "helper" | "match_day_addition" | "guest";
+  provenance: HelperProvenance | null;
   role: SelectionRole | null;
   teamId: string;
   teamName: string;
@@ -54,6 +58,7 @@ export async function getEffectiveLeagueMatchRoster(
     db.matchHelperAssignment.findMany({
       where: { matchId },
       select: {
+        provenance: true,
         player: {
           select: { id: true, firstName: true, lastName: true, primaryPosition: true, shirtNumber: true },
         },
@@ -89,7 +94,8 @@ export async function getEffectiveLeagueMatchRoster(
       displayName: ref.displayName,
       primaryPosition: s.player.primaryPosition,
       shirtNumber: s.player.shirtNumber,
-      source: "planned",
+      source: "planned" as const,
+      provenance: null,
       role: s.role,
       teamId: match.teamId,
       teamName: match.team.name,
@@ -105,6 +111,7 @@ export async function getEffectiveLeagueMatchRoster(
       playerLookup: new Map([[h.player.id, h.player]]),
       guestPlayerLookup: new Map(),
     });
+    const source = h.provenance === "MATCH_DAY_ADDITION" ? "match_day_addition" as const : "helper" as const;
     entries.push({
       participantId: ref.participantId,
       participantType: ref.participantType,
@@ -113,7 +120,8 @@ export async function getEffectiveLeagueMatchRoster(
       displayName: ref.displayName,
       primaryPosition: h.player.primaryPosition,
       shirtNumber: h.player.shirtNumber,
-      source: "helper",
+      source,
+      provenance: h.provenance,
       role: null,
       teamId: match.teamId,
       teamName: match.team.name,
@@ -138,6 +146,7 @@ export async function getEffectiveLeagueMatchRoster(
       primaryPosition: null,
       shirtNumber: null,
       source: "guest",
+      provenance: null,
       role: null,
       teamId: match.teamId,
       teamName: match.team.name,
