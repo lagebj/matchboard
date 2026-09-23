@@ -8,6 +8,10 @@ type AbsenceControlProps = {
   playerId: string;
   currentReason?: string | null;
   isLocked: boolean;
+  /** Called after a mark/clear attempt resolves, so a parent holding its own copy of the
+   * selection (e.g. `MatchTacticsPanel`'s server-provided `selections` prop) can refetch and
+   * pick up the new absence state. Optional — standalone/isolated usages don't need it. */
+  onChanged?: () => void;
 };
 
 const ABSENCE_REASON_LABELS: Record<string, string> = {
@@ -27,7 +31,7 @@ const ABSENCE_REASONS: PlannedAbsenceReason[] = ["AWAY", "SICK", "NO_SHOW", "DEC
  * (Selection row) is never touched. Available before or around kick-off, not only after the
  * match. Once the report is locked, use the existing post-match correction mechanism instead.
  */
-export function AbsenceControl({ matchId, playerId, currentReason, isLocked }: AbsenceControlProps) {
+export function AbsenceControl({ matchId, playerId, currentReason, isLocked, onChanged }: AbsenceControlProps) {
   const [isPending, startTransition] = useTransition();
 
   function handleChange(value: string) {
@@ -35,10 +39,12 @@ export function AbsenceControl({ matchId, playerId, currentReason, isLocked }: A
       if (!value) {
         const { clearMatchAbsenceAction } = await import("@/app/(app)/matches/absence-actions");
         await clearMatchAbsenceAction(matchId, playerId);
+        onChanged?.();
         return;
       }
       const { markMatchAbsenceAction } = await import("@/app/(app)/matches/absence-actions");
       await markMatchAbsenceAction(matchId, playerId, value as PlannedAbsenceReason);
+      onChanged?.();
     });
   }
 
