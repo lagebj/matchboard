@@ -321,3 +321,19 @@ not artificially triggered early, since a real close is the same signal either w
   `next build`, but the `prebuild` version-sync script does, and there is no reliable way here to
   tell which changed script is which — building unnecessarily for an unrelated `scripts/` change
   is the deliberate fail-open side of that ambiguity.
+- 2026-09-24 (later still): the "no reliable way to tell which changed script is which" claim two
+  entries above turned out to be wrong — checked directly (`package.json`'s `postinstall`/
+  `prebuild`/`build` scripts, plus `next.config.ts`'s own imports) rather than assumed, prompted
+  by this PR's own Test-slot deploy still running for a change that only touched CI-tooling
+  scripts. Vercel's build executes exactly two npm lifecycle steps against this repo:
+  `postinstall` (`prisma generate` — reads `prisma/schema.prisma`, nothing under `scripts/`) and
+  `build` (npm's own `prebuild` hook, `node scripts/sync-version-module.mjs`, then `next build`;
+  `next.config.ts` imports `APP_VERSION` from the file that script generates). No other file
+  under `scripts/` is ever read by that pipeline — every other script is CI-only, dev-only, or a
+  one-off maintenance/migration tool. `app-deploy` mode now treats `scripts/**` as skip-eligible
+  too, with one hard-coded exception (`scripts/sync-version-module.mjs` itself always forces
+  `build`, in both modes). Default mode is deliberately left exactly as conservative as before —
+  `ci-checks.yml`'s own jobs collectively DO depend on most of `scripts/` (e.g. Policy Verify
+  runs `scripts/policy-verify.mjs` directly, Prisma Query Fields runs `scripts/
+  check-prisma-query-fields.mjs`), just not through `next build`, so there is no equivalent
+  narrowing available there.

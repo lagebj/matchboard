@@ -68,11 +68,19 @@
 # matches ci-checks.yml's own list exactly, so the two never need to be reasoned about separately
 # beyond this one flag).
 #
-# `scripts/**` is deliberately NOT skip-eligible in either mode, even though most files under it
-# (like this one) never run during `next build` — some do (the `prebuild` version-sync script
-# `next build` itself depends on), and this script has no reliable way to tell which changed
-# script is which. Building unnecessarily for an unrelated scripts/ change is the safe, fail-open
-# side of that ambiguity.
+# `scripts/**` also splits by mode, not a blanket "always build" — confirmed by direct inspection
+# of package.json + next.config.ts (2026-09-24), not assumed: Vercel's build runs exactly two
+# npm lifecycle steps against this repo, `postinstall` (`prisma generate` — reads
+# prisma/schema.prisma, nothing under scripts/) and `build` (npm's own `prebuild` hook, `node
+# scripts/sync-version-module.mjs`, then `next build`). `next.config.ts` imports `APP_VERSION`
+# from `src/lib/version/index.ts` — the file that one script generates — so it is genuinely
+# build-critical. No other file under `scripts/` is ever read by that pipeline. Every OTHER
+# script (this one included) is CI-only, dev-only, or a one-off maintenance/migration tool —
+# `ci-checks.yml`'s own jobs are what actually exercise most of them (e.g. `scripts/
+# policy-verify.mjs` via the Policy Verify job, `scripts/check-prisma-query-fields.mjs` via
+# Prisma Query Fields), which is exactly why the default (non-`app-deploy`) mode below stays
+# conservative for the whole directory — unlike Vercel, ci-checks.yml's jobs collectively DO
+# depend on most of `scripts/`, just not through `next build` specifically.
 set -euo pipefail
 
 MODE="${1:-strict}"
@@ -88,6 +96,18 @@ while IFS= read -r file; do
   case "$file" in
     docs/*|.matchboard-work/*|*.md|security/*|models/*|extensions/*|.claude/*|.devcontainer/*) ;;
     .github/*)
+      if [ "$MODE" != "app-deploy" ]; then
+        echo "build"
+        exit 0
+      fi
+      ;;
+    scripts/sync-version-module.mjs)
+      # The one file under scripts/ that `next build` genuinely depends on (see above) — always
+      # build, in both modes, regardless of everything else below.
+      echo "build"
+      exit 0
+      ;;
+    scripts/*)
       if [ "$MODE" != "app-deploy" ]; then
         echo "build"
         exit 0
