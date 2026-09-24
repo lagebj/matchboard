@@ -283,3 +283,57 @@ not artificially triggered early, since a real close is the same signal either w
   were deliberately left unfiltered — Gitleaks in particular must scan every push regardless of
   path (a secret can leak into a doc or config file as easily as into `src/`), and the others
   cost GitHub Actions minutes only, not the Vercel/Neon spend this change targets.
+- 2026-09-24 (later, same day): the above was itself incomplete against the user's own stated
+  rule ("only trigger build/test jobs when actual application code is touched") — `ci-checks.yml`
+  has no path filtering of any kind, so its `Build`/`Tests`/`Lint`/`TypeScript Check`/
+  `Policy Verify`/migration jobs still ran in full for a `models/**`/`.claude/**`/
+  `.devcontainer/**`-only change, the exact case this whole effort started from. Added
+  workflow-level `paths-ignore` to `ci-checks.yml`'s `on: push`/`on: pull_request`, using the
+  identical path list `scripts/is-build-skip-eligible.sh` already classifies as skip-eligible
+  (kept as one YAML anchor shared between both trigger blocks, not two copies). Confirmed safe
+  specifically because `main` has no required status checks configured (`GET
+  repos/.../branches/main/protection` returns 404 "Branch not protected") — a workflow skipped
+  entirely via `paths-ignore` reports no status at all, which would otherwise permanently block
+  a required check on a skip-eligible-only PR; that failure mode does not apply here.
+  `workers/live-match/**` intentionally stays outside this list (and the shared script's) — its
+  own `typecheck-workers`/`test-workers` jobs still need to run for a Worker-only change, and a
+  workflow-level filter can only skip the whole workflow, not select individual jobs by path;
+  a Worker-only PR still runs the full matrix, wastefully but safely. `security.yml` and CodeQL
+  were left exactly as reasoned in the entry above — narrower than `ci-checks.yml`'s "Build"/
+  "Tests" the user asked about by name, and this change does not revisit that. The shared
+  script's own header comment now documents this third, YAML-only caller and the "keep both
+  edits together" obligation it creates, since GitHub Actions path filtering cannot call out to
+  a script the way the other two callers do.
+- 2026-09-24 (later still): caught live by the user watching this exact PR's own checks —
+  `.github/workflows/ci-checks.yml`-only changes (this PR, at the time) still triggered a full
+  Vercel Preview build on both projects, pure waste, since a workflow YAML file has zero
+  relationship to `next build`'s input or output. The `.github/**`-not-skip-eligible decision two
+  entries above was right for `ci-checks.yml` re-verifying itself, but had been applied uniformly
+  to the Vercel/Test-slot side too, where it doesn't belong — those two questions ("should
+  ci-checks.yml itself re-run?" vs. "can this affect the deployed app?") are genuinely different
+  and `.github/**` answers them differently. `scripts/is-build-skip-eligible.sh` now takes an
+  optional `app-deploy` mode argument: passed by `vercel-ignore-build-step.sh` and
+  `test-acceptance.yml`'s Test-slot check (both gating a real `vercel deploy`, so `.github/**`
+  is skip-eligible for them), omitted by `ci-checks.yml`'s own static `paths-ignore` (unaffected
+  by this change — it never could call the script anyway, and its list still deliberately
+  excludes `.github/**` for the self-verification reason already established). `scripts/**`
+  stays non-skip-eligible in both modes: most files under it (like this one) never run during
+  `next build`, but the `prebuild` version-sync script does, and there is no reliable way here to
+  tell which changed script is which — building unnecessarily for an unrelated `scripts/` change
+  is the deliberate fail-open side of that ambiguity.
+- 2026-09-24 (later still): the "no reliable way to tell which changed script is which" claim two
+  entries above turned out to be wrong — checked directly (`package.json`'s `postinstall`/
+  `prebuild`/`build` scripts, plus `next.config.ts`'s own imports) rather than assumed, prompted
+  by this PR's own Test-slot deploy still running for a change that only touched CI-tooling
+  scripts. Vercel's build executes exactly two npm lifecycle steps against this repo:
+  `postinstall` (`prisma generate` — reads `prisma/schema.prisma`, nothing under `scripts/`) and
+  `build` (npm's own `prebuild` hook, `node scripts/sync-version-module.mjs`, then `next build`;
+  `next.config.ts` imports `APP_VERSION` from the file that script generates). No other file
+  under `scripts/` is ever read by that pipeline — every other script is CI-only, dev-only, or a
+  one-off maintenance/migration tool. `app-deploy` mode now treats `scripts/**` as skip-eligible
+  too, with one hard-coded exception (`scripts/sync-version-module.mjs` itself always forces
+  `build`, in both modes). Default mode is deliberately left exactly as conservative as before —
+  `ci-checks.yml`'s own jobs collectively DO depend on most of `scripts/` (e.g. Policy Verify
+  runs `scripts/policy-verify.mjs` directly, Prisma Query Fields runs `scripts/
+  check-prisma-query-fields.mjs`), just not through `next build`, so there is no equivalent
+  narrowing available there.
