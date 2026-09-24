@@ -73,12 +73,21 @@ jobs:
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
-      # A docs/ADR/tracking-only push can't affect the running app, but still cost a full Neon
-      # branch deploy + Vercel deploy + Playwright run — exactly what exhausted this project's
-      # Vercel deploy quota on PR #313's trailing wording-only commit (2026-08-20). Skip the
-      # deploy (not the whole job, so acceptance-cleanup below is never affected by this check)
-      # when this push's own changes are docs/tracking-only. See
+      # A docs/ADR/tracking/agent-tooling-only push can't affect the running app, but still cost
+      # a full Neon branch deploy + Vercel deploy + Playwright run — exactly what exhausted this
+      # project's Vercel deploy quota on PR #313's trailing wording-only commit (2026-08-20).
+      # Skip the deploy (not the whole job, so acceptance-cleanup below is never affected by this
+      # check) when this push's own changes are all skip-eligible. See
       # docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History.
+      #
+      # The path classification itself lives in one place, scripts/is-build-skip-eligible.sh —
+      # shared with vercel-ignore-build-step.sh (the automatic Preview-build skip for both
+      # `matchboard`/`matchboard-test`) rather than a second independently-maintained copy. That
+      # consolidation is itself fixing a confirmed drift: this step's own list never included
+      # `security/**`, even after vercel-ignore-build-step.sh added it for the Scaleway
+      # credential-broker subsystem (ADR-0150) — a security-subsystem-only PR still paid for a
+      # full Test-slot deploy that the OTHER half of this same protection had already started
+      # correctly skipping.
       #
       # Compare range depends on the triggering action, not always base...head: for `synchronize`
       # (a new push to an already-open PR), `github.event.before`...`github.event.after` scopes
@@ -106,6 +115,14 @@ jobs:
       # this case into the pre-existing empty-`$FILES` "deploying to be safe" branch, and (b)
       # wrapping the whole call in `if ! FILES=...` so any other outright `gh api` failure (rate
       # limit, transient network error) is caught the same conservative way instead of aborting.
+      # Lightweight, unconditional, ref-agnostic checkout — this job's real deploy checkout
+      # further down (with the `ref: github.head_ref` fix ARR-0024 required) stays conditional
+      # on NOT skipping, so a genuinely skip-eligible push still avoids that heavier step. This
+      # one exists solely so the next step can read scripts/is-build-skip-eligible.sh — the
+      # question "should we skip?" cannot itself depend on the answer being "yes, skip even the
+      # checkout," or the shared script could never be reached to compute that answer.
+      - name: Checkout (shared skip-path script only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check whether this push only touched docs/tracking files
         id: docs-only
         run: |
@@ -120,11 +137,14 @@ jobs:
           elif [ -z "$FILES" ]; then
             echo "No changed files reported by the compare API — deploying to be safe."
             echo "only_docs=false" >> "$GITHUB_OUTPUT"
-          elif echo "$FILES" | grep -qvE '^(docs/|\.matchboard-work/|.*\.md$)'; then
-            echo "only_docs=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Every changed file in this push (${COMPARE_RANGE}) is docs/tracking-only — skipping the Test slot deploy."
-            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            VERDICT="$(echo "$FILES" | bash scripts/is-build-skip-eligible.sh)"
+            if [ "$VERDICT" = "skip" ]; then
+              echo "Every changed file in this push (${COMPARE_RANGE}) is build-skip-eligible — skipping the Test slot deploy."
+              echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "only_docs=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
       # ref: github.head_ref is required here — without it, actions/checkout's default behavior
       # for a pull_request event checks out the refs/pull/<PR>/merge commit in DETACHED HEAD

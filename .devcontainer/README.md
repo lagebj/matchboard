@@ -27,18 +27,23 @@ This configuration provides:
 | OpenCode | 1.18.8 | Coding agent |
 | Claude Code | latest (via feature) | Coding agent (peer) |
 | GitHub Copilot CLI | latest (`@github/copilot`) | Coding agent (peer) |
-| PostgreSQL client | 15 | `psql`, `pg_dump`, `pg_restore`, `pg_isready`, `createdb`, `dropdb` |
+| PostgreSQL client | 17 | `psql`, `pg_dump`, `pg_restore`, `pg_isready`, `createdb`, `dropdb` — pinned to match Neon's actual running Postgres version exactly (see the Dockerfile's `POSTGRES_VERSION` comment); symlinked ahead of Debian's own version-dispatching `psql` wrapper, which otherwise floats to the newest client package present |
 | Neon CLI | 2.38.5 | `neon` — branch management and operational queries |
 | Vercel CLI | 58.4.4 | `vercel` — deployment inspection and previews |
 | Brevo CLI | 2.0.1 | `brevo` — transactional email and account management |
 | GitHub CLI | latest feature | `gh` — repository operations |
+| Swamp CLI | pinned, see Dockerfile `SWAMP_VERSION` | `swamp` — models/workflows/data/vaults for repeatable ops procedures (ADR-0068) |
+| Semgrep | 1.112.0 | `semgrep` — local SAST scanning, mirrors `security.yml`'s CI job |
+| OSV-Scanner | 1.9.2 | `osv-scanner` — local dependency vulnerability scanning |
+| Gitleaks | 8.22.1 | `gitleaks` — local secret-scanning |
+| OPA (Open Policy Agent) | 1.19.1 | `opa` — required by `npm run policy:*` |
 | curl, jq, dig, openssl | Debian Bookworm | Cloudflare DNS inspection and API queries |
 
 ### Tools deliberately not installed
 
 | Tool | Reason |
 |---|---|
-| Wrangler | Matchboard uses Cloudflare DNS only, not Workers, Pages, R2, KV, D1, Queues, Workflows, or Durable Objects |
+| Wrangler | Stale claim corrected 2026-09-24: Matchboard **does** run a real Cloudflare Worker + Durable Object (`workers/live-match/`, ADR-0086 — the live-match realtime coordinator), deployed automatically via `.github/workflows/deploy-live-match-worker.yml` on every green push to `main`. Not pinned as a global tool anyway: `npx wrangler <command>` inside `workers/live-match/` already covers ad-hoc local use (confirmed working), and the real deploy path is CI-automated, not a manual devcontainer workflow — but this row no longer claims Workers/Durable Objects aren't in use here. |
 | cloudflared | Matchboard has no Cloudflare Tunnel or Access requirement |
 | General-purpose Cloudflare CLI | No official general-purpose CLI exists; `curl` + `jq` + `dig` cover DNS administration |
 

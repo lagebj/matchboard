@@ -32,6 +32,7 @@ RUN apt-get update \
         dnsutils \
         ca-certificates \
         gnupg \
+        python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Native postgresql-${POSTGRES_VERSION} server — this sandboxed devcontainer cannot run Docker
@@ -52,6 +53,22 @@ RUN install -d /usr/share/postgresql-common/pgdg \
     && apt-get install -y --no-install-recommends "postgresql-${POSTGRES_VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
+# Declared-vs-actual drift, confirmed live 2026-09-24: adding the PGDG repo above makes apt's
+# dependency resolver pull in the *generic* `postgresql-client` metapackage's newest PGDG
+# candidate (client 18 at time of writing) as a side effect of installing the pinned
+# `postgresql-${POSTGRES_VERSION}` server package — even though nothing here ever asks for 18
+# explicitly, `dpkg -l` shows `postgresql-client-18` present alongside the intended
+# `postgresql-client-${POSTGRES_VERSION}`. `/usr/bin/psql` is Debian's `pg_wrapper` dispatcher
+# (`postgresql-client-common`), which defaults to the HIGHEST installed client version, not the
+# one this Dockerfile actually pins — so `psql --version` silently reported 18, not 17, directly
+# defeating the whole point of the pin above ("match Neon's actual running version exactly").
+# Force every client tool onto the pinned version explicitly rather than fight apt's dependency
+# resolution: `/usr/local/bin` is earlier on $PATH than `/usr/bin` (where the `pg_wrapper`
+# symlinks live) for every user in this image, so these symlinks win unconditionally.
+RUN for tool in psql pg_dump pg_dumpall pg_restore pg_isready createdb dropdb; do \
+        ln -sf "/usr/lib/postgresql/${POSTGRES_VERSION}/bin/${tool}" "/usr/local/bin/${tool}"; \
+    done
+
 RUN npm install --global \
         "opencode-ai@${OPENCODE_VERSION}" \
         "neonctl@${NEONCLI_VERSION}" \
@@ -60,8 +77,20 @@ RUN npm install --global \
         "@github/copilot@${GITHUB_COPILOT_VERSION}" \
     && npm cache clean --force
 
-# Install Semgrep via pip (official recommended method for Linux)
-RUN pip3 install --no-cache-dir "semgrep==${SEMGREP_VERSION}" 2>/dev/null || true
+# Install Semgrep via pip (official recommended method for Linux).
+#
+# Declared-vs-actual drift, confirmed live 2026-09-24: this line has never actually installed
+# Semgrep in this image. Two compounding reasons, neither surfaced before because of the
+# trailing `|| true`: (1) `pip3` itself was never installed — Debian's `python3` package doesn't
+# bundle pip; that needs the separate `python3-pip` apt package, now added above. (2) even with
+# pip3 present, Debian 12/bookworm marks its system Python as PEP 668 "externally managed"
+# (`/usr/lib/python3.11/EXTERNALLY-MANAGED`), so a plain `pip install` refuses to touch it and
+# exits non-zero — `--break-system-packages` opts back into the pre-PEP-668 behavior, appropriate
+# here since this is a disposable dev image, not a shared/persistent system Python. The `|| true`
+# stays: Semgrep is also installed by security.yml's own CI job independently, so a transient
+# install failure here should degrade to "no local `semgrep` command" rather than fail the whole
+# devcontainer build — but it must no longer be silently guaranteed to fail on a fresh build.
+RUN pip3 install --no-cache-dir --break-system-packages "semgrep==${SEMGREP_VERSION}" || true
 
 # Install OSV-Scanner
 RUN ARCH=$(dpkg --print-architecture) \
