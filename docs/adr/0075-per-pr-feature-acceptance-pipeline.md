@@ -337,3 +337,20 @@ not artificially triggered early, since a real close is the same signal either w
   runs `scripts/policy-verify.mjs` directly, Prisma Query Fields runs `scripts/
   check-prisma-query-fields.mjs`), just not through `next build`, so there is no equivalent
   narrowing available there.
+- 2026-09-24 (later still): caught live on PR #673 — a brand-new branch's *very first* push
+  always built regardless of content, bypassing every skip-eligible classification above.
+  Confirmed via the actual Vercel build log: `"No previous deployed SHA available (first deploy
+  for this branch/project) — building."` `VERCEL_GIT_PREVIOUS_SHA` is only populated once a
+  branch has been deployed at least once — `vercel-ignore-build-step.sh`'s original handling of
+  an unset value ("no previous SHA, build to be safe") was correct in spirit but had no fallback
+  for the extremely common case of a fresh PR branch's first commit. `test-acceptance.yml`'s own
+  docs-only check does not share this gap — it sources its base commit from
+  `github.event.pull_request.base.sha`, always available regardless of deploy history, not from
+  a Vercel-populated env var. Fixed by falling back to this branch's merge-base with `main`
+  (`git fetch --depth=1 origin main` then `git merge-base`) whenever `VERCEL_GIT_PREVIOUS_SHA` is
+  unset, before falling through to the original "build to be safe" default if that fetch itself
+  fails for any reason (network policy, an unreachable `origin`, etc. — the fail-open direction
+  is preserved exactly, just given one more legitimate way to avoid needing it). Verified against
+  four scenarios in an isolated throwaway git repo (no working `origin` → build; first push,
+  docs-only → skip, reproducing PR #673's exact case; first push, app code mixed in → build;
+  normal 2nd-push path → unaffected) before trusting the fix.
