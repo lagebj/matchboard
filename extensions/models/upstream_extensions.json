@@ -14,5 +14,62 @@
     "checksum": "1731cef76aaeeb5e9fcd3298a44a4561a9002c18a76805d2c8407c350232d1f3",
     "filesChecksum": "6aecd8c2e3b0a0648dd861fa9404da3653d48d814298f6a54367b61489f7b2eb",
     "serverUrl": "https://swamp-club.com"
+  },
+  "@swamp/vercel/deployments": {
+    "version": "2026.09.17.1",
+    "pulledAt": "2026-09-24T08:26:25.562Z",
+    "files": [
+      ".swamp/bundles/624a362c/deployments.js",
+      ".swamp/pulled-extensions/@swamp/vercel/deployments/files/LICENSE.txt",
+      ".swamp/pulled-extensions/@swamp/vercel/deployments/files/README.md",
+      ".swamp/pulled-extensions/@swamp/vercel/deployments/manifest.yaml",
+      ".swamp/pulled-extensions/@swamp/vercel/deployments/models/_lib/vercel.ts",
+      ".swamp/pulled-extensions/@swamp/vercel/deployments/models/deployments.ts"
+    ],
+    "checksum": "1267200fd0bd6204d0eb4b401f2fb66731acf81aac7cd6dfbf60588945c25718",
+    "filesChecksum": "c1d06b335dbc49075ff12fc50a397199132ac06d2c9ff5ff1d1c8d1ef636e150",
+    "serverUrl": "https://swamp-club.com"
+  },
+  "@swamp/vercel/projects": {
+    "version": "2026.09.23.1",
+    "pulledAt": "2026-09-24T08:30:34.623Z",
+    "files": [
+      ".swamp/bundles/5dde58f0/domains.js",
+      ".swamp/bundles/5dde58f0/env.js",
+      ".swamp/bundles/5dde58f0/projects.js",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/files/LICENSE.txt",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/files/README.md",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/manifest.yaml",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/models/_lib/vercel.ts",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/models/domains.ts",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/models/env.ts",
+      ".swamp/pulled-extensions/@swamp/vercel/projects/models/projects.ts"
+    ],
+    "checksum": "df62766dd19e520f6f11ed99c034c2897e51767c14c4f9259bfcbe8669fc66cb",
+    "filesChecksum": "60e7acf7beb7576a164eab813cb697bba18ce147c082f052992bd39f1058269c",
+    "serverUrl": "https://swamp-club.com"
+  },
+  "@webframp/cloudflare": {
+    "version": "2026.09.18.1",
+    "pulledAt": "2026-09-24T12:08:58.194Z",
+    "files": [
+      ".swamp/bundles/360873dd/cloudflare/cache.js",
+      ".swamp/bundles/360873dd/cloudflare/dns.js",
+      ".swamp/bundles/360873dd/cloudflare/waf.js",
+      ".swamp/bundles/360873dd/cloudflare/worker.js",
+      ".swamp/bundles/360873dd/cloudflare/zone.js",
+      ".swamp/pulled-extensions/@webframp/cloudflare/files/LICENSE.md",
+      ".swamp/pulled-extensions/@webframp/cloudflare/files/README.md",
+      ".swamp/pulled-extensions/@webframp/cloudflare/manifest.yaml",
+      ".swamp/pulled-extensions/@webframp/cloudflare/models/cloudflare/_lib/api.ts",
+      ".swamp/pulled-extensions/@webframp/cloudflare/models/cloudflare/cache.ts",
+      ".swamp/pulled-extensions/@webframp/cloudflare/models/cloudflare/dns.ts",
+      ".swamp/pulled-extensions/@webframp/cloudflare/models/cloudflare/waf.ts",
+      ".swamp/pulled-extensions/@webframp/cloudflare/models/cloudflare/worker.ts",
+      ".swamp/pulled-extensions/@webframp/cloudflare/models/cloudflare/zone.ts"
+    ],
+    "checksum": "5fb633c6b65c83d72d26087efd7d9a03dffe292b3a1a9b1e31d8e03e57aea2cb",
+    "filesChecksum": "c37d489ffec176d9898ae1396335e15949e43f5cec910714763639b52b500298",
+    "serverUrl": "https://swamp-club.com"
   }
 }
