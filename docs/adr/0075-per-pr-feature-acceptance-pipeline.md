@@ -353,4 +353,44 @@ not artificially triggered early, since a real close is the same signal either w
   is preserved exactly, just given one more legitimate way to avoid needing it). Verified against
   four scenarios in an isolated throwaway git repo (no working `origin` → build; first push,
   docs-only → skip, reproducing PR #673's exact case; first push, app code mixed in → build;
-  normal 2nd-push path → unaffected) before trusting the fix.
+  normal 2nd-push path → unaffected) before trusting the fix. Note (added the same day, see the
+  next entry): the merge-base fetch does not actually succeed inside Vercel's real build sandbox
+  for this repository — confirmed live on PR #675, whose build log read "No previous deployed SHA
+  available, and could not establish a merge-base with main — building to be safe." The fallback
+  logic is correct and the fail-open direction still holds (this repo's build sandbox behaving
+  differently than a throwaway local repo is itself informative, not a bug in the fix), but in
+  practice a branch's very first push to this specific repo still builds for real today; only
+  its second-and-later pushes benefit from `VERCEL_GIT_PREVIOUS_SHA` being populated by then.
+  Root cause not yet identified (plausibly credential scope on the temporary clone, or a
+  shallow/single-branch clone with no fetchable `main` ref) — worth investigating further if the
+  cost of first-push builds specifically becomes worth chasing.
+- 2026-09-24 (later still): **repository rulesets requiring specific status-check names now exist
+  on `main`** (confirmed via `gh api repos/.../rules/branches/main`) — they did not exist earlier
+  the same day, when the `ci-checks.yml` `paths-ignore` entry above explicitly (and, at the time,
+  correctly) reasoned that skipping the whole workflow was safe "because `main` currently has no
+  required status checks configured." That precondition silently stopped holding partway through
+  this same day's work, and the very next PR (#675, a docs-only ARR file, fully skip-eligible)
+  could not be merged even with `--admin`: `"7 of 12 required status checks are expected."` Five
+  of the twelve required names (Forbidden SQL Methods, Supply Chain Integrity, Semgrep SAST, OSV
+  Dependency Scan, Gitleaks Secret Detection) happen to also be produced by `security.yml`, which
+  was never path-filtered — those were satisfied by coincidence. The other seven (TypeScript
+  Check, Lint, Tests, Tests (Workers), Version Verify, Migration from Zero, Build) exist only in
+  `ci-checks.yml`, and a workflow skipped entirely via `paths-ignore` reports no status under
+  those names at all — GitHub then leaves each one permanently "expected," blocking the merge
+  with no path to resolution short of removing the rule or the residue.
+  Fixed by replacing `ci-checks.yml`'s workflow-level `paths-ignore` with a new first job,
+  `changes` (computes the same skip-eligible classification via a real call to
+  `scripts/is-build-skip-eligible.sh`, in default mode), and giving every other job
+  `needs: changes` plus `if: needs.changes.outputs.skip != 'true'`. The workflow itself now
+  always triggers; every required-named job still runs — near-instantly when skip-eligible, since
+  it immediately hits its own `if:` — and reports a real, satisfying status either way. `build`
+  needed an explicit `if:` of its own beyond its existing `needs:` list, since GitHub's default
+  job condition (`success()`) does not treat a *skipped* dependency as blocking, so it would
+  otherwise still attempt to run even when everything it depends on was skipped.
+  General lesson, not just for this workflow: workflow-level `paths-ignore` is only safe to use
+  for a workflow with **zero** required-named jobs on the target branch — that precondition can
+  change at any time, silently, from outside this repository's own commits (a ruleset is
+  configured via the GitHub UI/API, not a file this repo's own CI would ever diff or flag). Any
+  future required-status-check addition must be checked against every path-filtered workflow
+  before or immediately after it's added, not assumed still safe because it was safe when a
+  path-filter was first written.
