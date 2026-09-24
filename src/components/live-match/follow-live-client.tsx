@@ -146,6 +146,52 @@ export function FollowLiveClient({
 
     console.debug(`${LOG_PREFIX} initializing client (matchId=%s, url=%s)`, matchId, url);
 
+    // ADR-0112 hydration flow step 2 ("call getSnapshot() to load authoritative session
+    // state") and step 5 ("on refresh/reconnect, re-derive everything from the fresh
+    // snapshot"). Wired off `onConnectionStateChange` (fired only once the "authenticate" RPC
+    // has actually succeeded) rather than off `client.connect()`'s own promise, which resolves
+    // as soon as the socket is *requested*, not once it's open — a `getSnapshot()` call chained
+    // directly onto `connect()` races the real network handshake and is rejected instantly
+    // ("Not connected"), every time, before any data can load (2026-09-23 incident: Hvit v
+    // Huringen 1 — the viewer's connection churned through several reconnects over the course
+    // of the match, and since the old code only ever attempted this once, no reconnect ever
+    // resynced — the coach watching along saw "Live" the whole time but not a single event).
+    // Firing this on *every* transition into "connected" (the initial connect and every
+    // subsequent reconnect alike) makes the viewer self-heal: whatever happened while it was
+    // briefly offline is always caught up by the next successful snapshot. Mirrors
+    // `use-live-realtime.ts`'s already-correct equivalent for the reporting coach's own client.
+    const syncFromSnapshot = async () => {
+      const activeClient = clientRef.current;
+      if (!activeClient) return;
+      try {
+        const snapshot = (await activeClient.getSnapshot()) as MatchSessionSnapshot;
+        console.debug(`${LOG_PREFIX} snapshot received: version=%d, events=%d, status=%s`, snapshot.version, snapshot.events.length, snapshot.session.status);
+
+        // Reset version tracking to snapshot version
+        lastAppliedVersionRef.current = snapshot.version;
+
+        // Clear realtime buffer — snapshot is authoritative up to this version
+        realtimeEventsRef.current = [];
+
+        // Recompute projection from snapshot
+        if (baseline) {
+          const newProjection = projectCanonicalLiveState(
+            baseline,
+            snapshot.events,
+            snapshot.clock,
+            snapshot.session.status,
+            snapshot.version,
+          );
+          setProjection(newProjection);
+        }
+
+        setConnectedCount(snapshot.presence.connectedCount);
+        if (snapshot.session.status === "ENDED") setSessionEnded(true);
+      } catch (error) {
+        console.warn(`${LOG_PREFIX} snapshot fetch failed (non-fatal): %s`, error instanceof Error ? error.message : String(error));
+      }
+    };
+
     const client = new RealtimeMatchClient({
       url: `${url}/matches/${matchId}`,
       clientId: crypto.randomUUID(),
@@ -153,6 +199,7 @@ export function FollowLiveClient({
       onConnectionStateChange: (state) => {
         console.debug(`${LOG_PREFIX} connection state: %s`, state);
         setConnectionState(state);
+        if (state === "connected") void syncFromSnapshot();
       },
       callbackHandlers: {
         applyEvent: (raw): ClientAck => {
@@ -204,34 +251,8 @@ export function FollowLiveClient({
     });
 
     clientRef.current = client;
-    void client.connect().then(async () => {
-      try {
-        const snapshot = (await client.getSnapshot()) as MatchSessionSnapshot;
-        console.debug(`${LOG_PREFIX} snapshot received: version=%d, events=%d, status=%s`, snapshot.version, snapshot.events.length, snapshot.session.status);
-
-        // Reset version tracking to snapshot version
-        lastAppliedVersionRef.current = snapshot.version;
-
-        // Clear realtime buffer — snapshot is authoritative up to this version
-        realtimeEventsRef.current = [];
-
-        // Recompute projection from snapshot
-        if (baseline) {
-          const newProjection = projectCanonicalLiveState(
-            baseline,
-            snapshot.events,
-            snapshot.clock,
-            snapshot.session.status,
-            snapshot.version,
-          );
-          setProjection(newProjection);
-        }
-
-        setConnectedCount(snapshot.presence.connectedCount);
-        if (snapshot.session.status === "ENDED") setSessionEnded(true);
-      } catch (error) {
-        console.warn(`${LOG_PREFIX} snapshot fetch failed (non-fatal): %s`, error instanceof Error ? error.message : String(error));
-      }
+    void client.connect().catch((error) => {
+      console.error(`${LOG_PREFIX} connect failed: %s`, error instanceof Error ? error.message : String(error));
     });
 
     return () => {
@@ -340,9 +361,15 @@ export function FollowLiveClient({
         </p>
       )}
 
-      {/* Scoreboard — canonical match-header grammar, derived from the projection.
-          Read-only: no mutation controls, matching Live Reporting's header shape. */}
-      {projection && (
+      {/* Scoreboard — canonical match-header grammar, derived from the projection. Read-only:
+          no mutation controls, matching Live Reporting's header shape. Always rendered (not
+          gated on `projection` being loaded yet) and pinned to the top of the scroll area,
+          mirroring Live Reporting's own sticky scoreboard (`LiveClock`/`ScoreboardSide` in
+          live-match-client.tsx): the score and the real match clock — the same
+          `getElapsedMs`/`formatElapsedMs` the reporter's clock uses, ticking from the same
+          canonical projection — stay visible together at all times, not just once the first
+          snapshot/event has loaded. Defaults to 0-0 / "Before match" until then. */}
+      <div className="sticky top-0 z-10 bg-[var(--background)] pb-1 pt-1">
         <MatchScoreHeader
           framed
           presentation={buildMatchPresentation({
@@ -351,12 +378,12 @@ export function FollowLiveClient({
             opponentName,
             isHome: homeAway === "HOME",
             lifecycleStatus: "live",
-            ownGoals: projection.score.goalsFor,
-            opponentGoals: projection.score.goalsAgainst,
+            ownGoals: projection?.score.goalsFor ?? 0,
+            opponentGoals: projection?.score.goalsAgainst ?? 0,
             liveClockLabel: `${periodLabel} · ${formatElapsedMs(elapsedMs)}`,
           })}
         />
-      )}
+      </div>
 
       {/* On-field players — derived from projection */}
       {onFieldPlayers.length > 0 && (
