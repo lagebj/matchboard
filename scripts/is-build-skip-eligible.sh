@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Single source of truth for "can this set of changed files possibly affect the deployed
-# Matchboard app (or the data a Test-slot deploy would exercise)?" — shared by two independent
-# callers that each obtain their own file list a different way:
+# Matchboard app (or the data a Test-slot/CI run would exercise)?" — shared by two independent
+# callers that each obtain their own file list a different way, plus one caller that can't call
+# this script at all and must instead be kept in sync with it by hand:
 #
 #   - scripts/vercel-ignore-build-step.sh (Vercel's ignoreCommand, both `matchboard` and
 #     `matchboard-test` projects) — sources its list via `git diff --name-only` in Vercel's own
@@ -9,14 +10,19 @@
 #   - .github/workflows/test-acceptance.yml's "Check whether this push only touched
 #     docs/tracking files" step — sources its list via the GitHub compare API, because a GitHub
 #     Actions checkout doesn't have every commit's parent readily diffable the same way.
+#   - .github/workflows/ci-checks.yml's `on:` block — GitHub Actions `paths-ignore` is static
+#     YAML glob matching with no way to invoke an external script, so its list is a literal,
+#     manually-synced copy of the `case` patterns below. Keep both edits together.
 #
-# Before this script existed, each caller had its own independently-maintained copy of this
-# path list — confirmed drifted in practice: `vercel-ignore-build-step.sh` already knew
+# Before this script existed, each script-based caller had its own independently-maintained copy
+# of this path list — confirmed drifted in practice: `vercel-ignore-build-step.sh` already knew
 # `security/**` was skip-eligible (ADR-0150's credential-broker subsystem is deployed
 # independently, never part of the Next.js bundle) but test-acceptance.yml's copy was never
 # updated to match, so a security-subsystem-only PR still paid for a full Neon branch + Test-slot
 # Vercel deploy that only the OTHER half of this same protection already correctly skipped. One
-# script, read by both, makes that class of drift structurally impossible going forward.
+# script, read by both, makes that class of drift structurally impossible for those two; the
+# YAML-based third caller has no such guarantee and needs a human (or agent) to keep it matching
+# on every edit here.
 #
 # Contract: reads a newline-separated list of changed file paths on stdin (repo-relative, no
 # leading `./`), prints exactly one of `skip` or `build` on stdout, always exits 0 — callers

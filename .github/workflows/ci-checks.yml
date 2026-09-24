@@ -1,10 +1,38 @@
 name: CI
 
+# `paths-ignore` below must stay in sync with scripts/is-build-skip-eligible.sh's skip-eligible
+# case patterns — GitHub Actions path filtering is static YAML glob matching, so there is no way
+# to have this `on:` block call that script directly the way vercel-ignore-build-step.sh and
+# test-acceptance.yml's docs-only check both do (docs/adr/0075-per-pr-feature-acceptance-pipeline.md's
+# History). Kept identical deliberately, not just similar: a change that's skip-eligible for the
+# Vercel/Neon pipeline is skip-eligible here for the exact same reason (it cannot affect
+# application code), so there is no principled basis for the two lists to differ. Safe to use
+# workflow-level `paths-ignore` here specifically because `main` currently has no required
+# status checks configured (confirmed via the GitHub API, 2026-09-24) — a path-filtered workflow
+# that skips entirely reports no status at all, which would otherwise leave a required check
+# permanently pending on a skip-eligible-only PR.
+#
+# `workers/live-match/**` is deliberately NOT in this list (or the shared script's) — its own
+# `typecheck-workers`/`test-workers` jobs below still need to run for a Worker-only change, and
+# this workflow-level filter can only skip everything or nothing, not select which jobs matter
+# for a given path. A Worker-only PR still runs the full matrix (including jobs irrelevant to it,
+# like `build`/`test`/`e2e`) — wasteful but safe; splitting the Worker jobs into their own
+# separately-triggered workflow would be the next step if that waste is ever worth removing.
 on:
   push:
     branches: [main]
+    paths-ignore: &skip-eligible-paths
+      - "docs/**"
+      - ".matchboard-work/**"
+      - "**/*.md"
+      - "security/**"
+      - "models/**"
+      - "extensions/**"
+      - ".claude/**"
+      - ".devcontainer/**"
   pull_request:
     branches: [main]
+    paths-ignore: *skip-eligible-paths
   workflow_dispatch:
 
 permissions:

@@ -283,3 +283,24 @@ not artificially triggered early, since a real close is the same signal either w
   were deliberately left unfiltered — Gitleaks in particular must scan every push regardless of
   path (a secret can leak into a doc or config file as easily as into `src/`), and the others
   cost GitHub Actions minutes only, not the Vercel/Neon spend this change targets.
+- 2026-09-24 (later, same day): the above was itself incomplete against the user's own stated
+  rule ("only trigger build/test jobs when actual application code is touched") — `ci-checks.yml`
+  has no path filtering of any kind, so its `Build`/`Tests`/`Lint`/`TypeScript Check`/
+  `Policy Verify`/migration jobs still ran in full for a `models/**`/`.claude/**`/
+  `.devcontainer/**`-only change, the exact case this whole effort started from. Added
+  workflow-level `paths-ignore` to `ci-checks.yml`'s `on: push`/`on: pull_request`, using the
+  identical path list `scripts/is-build-skip-eligible.sh` already classifies as skip-eligible
+  (kept as one YAML anchor shared between both trigger blocks, not two copies). Confirmed safe
+  specifically because `main` has no required status checks configured (`GET
+  repos/.../branches/main/protection` returns 404 "Branch not protected") — a workflow skipped
+  entirely via `paths-ignore` reports no status at all, which would otherwise permanently block
+  a required check on a skip-eligible-only PR; that failure mode does not apply here.
+  `workers/live-match/**` intentionally stays outside this list (and the shared script's) — its
+  own `typecheck-workers`/`test-workers` jobs still need to run for a Worker-only change, and a
+  workflow-level filter can only skip the whole workflow, not select individual jobs by path;
+  a Worker-only PR still runs the full matrix, wastefully but safely. `security.yml` and CodeQL
+  were left exactly as reasoned in the entry above — narrower than `ci-checks.yml`'s "Build"/
+  "Tests" the user asked about by name, and this change does not revisit that. The shared
+  script's own header comment now documents this third, YAML-only caller and the "keep both
+  edits together" obligation it creates, since GitHub Actions path filtering cannot call out to
+  a script the way the other two callers do.
