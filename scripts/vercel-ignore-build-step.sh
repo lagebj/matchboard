@@ -3,16 +3,15 @@
 # projects (matchboard, matchboard-test), since both read the same repo-root vercel.json.
 #
 # Exit 0 = skip this deployment. Exit non-zero = build normally. Skips only when every file
-# changed since the last deployed commit is docs/tracking-only (root markdown, docs/**,
-# .matchboard-work/**) — none of those can affect the running app. See
+# changed since the last deployed commit is classified skip-eligible by
+# scripts/is-build-skip-eligible.sh (the shared predicate also used by test-acceptance.yml's own
+# Neon/Test-slot skip check — see that script's own doc comment for the full path list and why
+# it exists as one file rather than two independently-maintained copies). See
 # docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History: a docs-only wording commit on
 # PR #313 (2026-08-20) exhausted this project's Vercel deploy quota for no functional reason.
-#
-# security/** (the converged Scaleway credential-broker subsystem, see security/README.md) is
-# also skip-eligible here: it is an independently deployed OpenTofu/Go subsystem, never part of
-# the Next.js app bundle, so a security-only change (including Dependabot Go bumps) must not
-# consume a Matchboard Vercel deployment either.
 set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
 if [ -z "${VERCEL_GIT_PREVIOUS_SHA:-}" ]; then
   echo "No previous deployed SHA available (first deploy for this branch/project) — building."
@@ -35,15 +34,12 @@ if [ -z "$CHANGED_FILES" ]; then
   exit 1
 fi
 
-while IFS= read -r file; do
-  case "$file" in
-    docs/*|.matchboard-work/*|*.md|security/*) ;;
-    *)
-      echo "Non-doc, non-security file changed ($file) — building."
-      exit 1
-      ;;
-  esac
-done <<< "$CHANGED_FILES"
+VERDICT="$(echo "$CHANGED_FILES" | "$SCRIPT_DIR/is-build-skip-eligible.sh")"
 
-echo "Only docs/tracking/security-subsystem files changed since ${VERCEL_GIT_PREVIOUS_SHA} — skipping build."
-exit 0
+if [ "$VERDICT" = "skip" ]; then
+  echo "Every changed file since ${VERCEL_GIT_PREVIOUS_SHA} is build-skip-eligible (docs/tracking/agent-tooling only) — skipping build."
+  exit 0
+fi
+
+echo "At least one changed file since ${VERCEL_GIT_PREVIOUS_SHA} may affect the running app — building."
+exit 1

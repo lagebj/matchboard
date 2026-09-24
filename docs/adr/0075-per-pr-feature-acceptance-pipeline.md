@@ -255,3 +255,31 @@ not artificially triggered early, since a real close is the same signal either w
   pollution (97 extra `MatchRound` rows, dozens of extra `Match` rows) was cleaned up the same day
   via a user-authorized `restore-test-baseline` run — verified afterward back to the pristine
   4-round, 7-team canonical baseline. See ARR-0024's History for both parts.
+- 2026-09-24: Skip-path list broadened, and its two independently-maintained copies
+  (`scripts/vercel-ignore-build-step.sh`, `test-acceptance.yml`'s own inline `docs-only` check)
+  consolidated into one shared classifier, `scripts/is-build-skip-eligible.sh` — user-requested
+  after PR #669 (a swamp model-registration change touching zero application code) still paid
+  for a full Vercel build on both projects plus a full Neon-branch Test-slot deploy. Confirmed
+  live: the two copies had already drifted (`vercel-ignore-build-step.sh` knew `security/**` was
+  skip-eligible for the ADR-0150 credential-broker subsystem; `test-acceptance.yml`'s own check
+  never learned that). Skip-eligible paths extended to also cover `models/**`, `extensions/**`
+  (swamp tooling config — PR #669's own case), `.claude/**` (agent tooling config), and
+  `.devcontainer/**` (devcontainer config) — none of these can affect the deployed app. The rule
+  is framed as "only build when application code is touched," but implemented as a maintained
+  skip-list with an unconditional fail-open default (an unrecognized path always builds) rather
+  than a literal allow-list that defaults to skipping — preserving the fail-open direction every
+  real incident in this ADR's own History has been about getting wrong (see the 2026-08-21 and
+  2026-08-24 entries above; skipping something that should have built has no equivalent line in
+  this History; over-building has cost quota twice). `test-acceptance.yml`'s docs-only check
+  gained one small unconditional checkout step ahead of the check itself, since it previously ran
+  before any checkout at all (deliberately, to skip that cost too on a docs-only push) — reading
+  the now-shared script needs the repo present, so that one narrow checkout was added back;
+  the heavier deploy checkout further down stays exactly as conditional as before. `.github/**`
+  (this repo's own CI/deploy workflow definitions) was deliberately left OUT of the skip list —
+  a workflow change can be buggy and deserves the same live verification "Rollout safety" above
+  already established for this pipeline's own introduction, not a shortcut around it. CodeQL
+  (GitHub's repo-level "default setup," not a checked-in workflow file) and `security.yml`'s
+  fast, non-Vercel/Neon-costing scanners (Semgrep/OSV/Gitleaks/authz/forbidden-sql/supply-chain)
+  were deliberately left unfiltered — Gitleaks in particular must scan every push regardless of
+  path (a secret can leak into a doc or config file as easily as into `src/`), and the others
+  cost GitHub Actions minutes only, not the Vercel/Neon spend this change targets.
