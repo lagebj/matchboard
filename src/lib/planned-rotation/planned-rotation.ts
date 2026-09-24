@@ -508,6 +508,47 @@ export function projectPlannedMinutes(
   return projections;
 }
 
+/**
+ * `projectPlannedMinutes` above only returns an entry for a player who is actually involved
+ * somewhere in the plan (a starter, or named by some change) -- a squad member never involved at
+ * all (a bench player never brought on, including every non-starter when no rotation plan exists
+ * yet) has no entry at all, not a zero-minute one. The Match Detail Overview's planned-playing-
+ * time display needs every squad player represented -- including an explicit zero for anyone left
+ * out entirely -- so this wraps `projectPlannedMinutes` and fills that gap.
+ *
+ * This also is exactly the "generic" fallback behaviour requested for a match with no rotation
+ * plan configured yet: called with `changes: []`, every starter reads the full match duration
+ * (`projectPlannedMinutes`'s own existing behaviour) and every other squad player reads 0 here.
+ *
+ * Row order follows `squadPlayerIds` -- the caller's own ordering (e.g. squad list order) -- not
+ * `projectPlannedMinutes`'s internal `Map` iteration order, which callers should never rely on.
+ */
+export function projectPlannedMinutesForSquad(
+  starters: Array<{ playerId: string; position: string }>,
+  changes: Array<{
+    outPlayerId: string | null;
+    inPlayerId: string | null;
+    outPosition: string | null;
+    inPosition: string | null;
+    positionOnly: boolean;
+    approximateMatchSeconds: number | null;
+  }>,
+  totalMatchSeconds: number,
+  squadPlayerIds: string[],
+): PlannedMinutesProjection[] {
+  const projections = projectPlannedMinutes(starters, changes, totalMatchSeconds);
+  const byPlayer = new Map(projections.map((p) => [p.playerId, p]));
+  return squadPlayerIds.map(
+    (playerId) =>
+      byPlayer.get(playerId) ?? {
+        playerId,
+        plannedMinutes: 0,
+        startingPosition: null,
+        positions: [],
+      },
+  );
+}
+
 export type PlannedRotationCoverageIssue = {
   type: 'no_goalkeeper' | 'position_gap' | 'below_minimum' | 'untimed_change';
   description: string;

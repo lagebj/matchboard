@@ -3,6 +3,7 @@ import { MatchPreparationWidget } from "@/components/matches/match-detail/match-
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
 import { BeforeMatchSecondaryRow } from "@/components/matches/match-detail/before-match-secondary-row";
 import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
+import { PlannedPlayingTimePanel } from "@/components/matches/match-detail/planned-playing-time-panel";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
@@ -145,6 +146,12 @@ export function BeforeMatchOverview({
         gameFormat={gameFormat}
         planningEditable={planningEditable}
         selections={selections}
+      />
+
+      <PlannedPlayingTimePanel
+        matchId={matchId}
+        teamId={teamId}
+        squadPlayers={selections.map((s) => ({ playerId: s.playerId, playerName: s.playerName }))}
       />
 
       <BeforeMatchSecondaryRow

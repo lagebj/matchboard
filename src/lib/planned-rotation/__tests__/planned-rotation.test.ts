@@ -3,6 +3,7 @@ import {
   validatePlannedChanges,
   projectPlannedLineup,
   projectPlannedMinutes,
+  projectPlannedMinutesForSquad,
   checkPlannedRotationCoverage,
   type PlannedRotationChangeData,
 } from '../planned-rotation';
@@ -210,6 +211,53 @@ describe('projectPlannedMinutes', () => {
     const mf1 = projections.find((p) => p.playerId === 'mf1')!;
     const benchPositions = mf1.positions.filter((p) => p.position === 'BENCH');
     expect(benchPositions).toHaveLength(0);
+  });
+});
+
+describe('projectPlannedMinutesForSquad', () => {
+  const starters = [
+    { playerId: 'gk1', position: 'GK' },
+    { playerId: 'df1', position: 'CB' },
+    { playerId: 'mf1', position: 'CM' },
+    { playerId: 'fw1', position: 'FW' },
+  ];
+  const totalMatchSeconds = 50 * 60;
+  const squadPlayerIds = ['gk1', 'df1', 'mf1', 'fw1', 'sub1', 'sub2'];
+
+  it('gives every starter the full match duration and every non-involved squad player zero, with no rotation plan', () => {
+    const rows = projectPlannedMinutesForSquad(starters, [], totalMatchSeconds, squadPlayerIds);
+
+    expect(rows.map((r) => r.playerId)).toEqual(squadPlayerIds);
+    for (const playerId of ['gk1', 'df1', 'mf1', 'fw1']) {
+      const row = rows.find((r) => r.playerId === playerId)!;
+      expect(row.plannedMinutes).toBe(50);
+      expect(row.startingPosition).not.toBeNull();
+    }
+    for (const playerId of ['sub1', 'sub2']) {
+      const row = rows.find((r) => r.playerId === playerId)!;
+      expect(row.plannedMinutes).toBe(0);
+      expect(row.startingPosition).toBeNull();
+      expect(row.positions).toEqual([]);
+    }
+  });
+
+  it('reflects an actual rotation plan for every involved player, still zero for anyone never brought on', () => {
+    const changes = [
+      { outPlayerId: 'mf1', inPlayerId: 'sub1', outPosition: 'CM', inPosition: 'CM', positionOnly: false, approximateMatchSeconds: 25 * 60 },
+    ];
+    const rows = projectPlannedMinutesForSquad(starters, changes, totalMatchSeconds, squadPlayerIds);
+
+    expect(rows.find((r) => r.playerId === 'mf1')!.plannedMinutes).toBe(25);
+    expect(rows.find((r) => r.playerId === 'sub1')!.plannedMinutes).toBe(25);
+    expect(rows.find((r) => r.playerId === 'sub2')!.plannedMinutes).toBe(0);
+    // Starters not touched by any change still read the full match duration.
+    expect(rows.find((r) => r.playerId === 'gk1')!.plannedMinutes).toBe(50);
+  });
+
+  it('preserves squadPlayerIds order, not projectPlannedMinutes internal Map iteration order', () => {
+    const reordered = ['sub2', 'fw1', 'sub1', 'gk1', 'mf1', 'df1'];
+    const rows = projectPlannedMinutesForSquad(starters, [], totalMatchSeconds, reordered);
+    expect(rows.map((r) => r.playerId)).toEqual(reordered);
   });
 });
 
