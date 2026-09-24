@@ -34,7 +34,7 @@ if [ -z "$CHANGED_FILES" ]; then
   exit 1
 fi
 
-VERDICT="$(echo "$CHANGED_FILES" | "$SCRIPT_DIR/is-build-skip-eligible.sh")"
+VERDICT="$(echo "$CHANGED_FILES" | "$SCRIPT_DIR/is-build-skip-eligible.sh" app-deploy)"
 
 if [ "$VERDICT" = "skip" ]; then
   echo "Every changed file since ${VERCEL_GIT_PREVIOUS_SHA} is build-skip-eligible (docs/tracking/agent-tooling only) — skipping build."

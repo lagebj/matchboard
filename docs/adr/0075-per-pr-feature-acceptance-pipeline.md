@@ -304,3 +304,20 @@ not artificially triggered early, since a real close is the same signal either w
   script's own header comment now documents this third, YAML-only caller and the "keep both
   edits together" obligation it creates, since GitHub Actions path filtering cannot call out to
   a script the way the other two callers do.
+- 2026-09-24 (later still): caught live by the user watching this exact PR's own checks —
+  `.github/workflows/ci-checks.yml`-only changes (this PR, at the time) still triggered a full
+  Vercel Preview build on both projects, pure waste, since a workflow YAML file has zero
+  relationship to `next build`'s input or output. The `.github/**`-not-skip-eligible decision two
+  entries above was right for `ci-checks.yml` re-verifying itself, but had been applied uniformly
+  to the Vercel/Test-slot side too, where it doesn't belong — those two questions ("should
+  ci-checks.yml itself re-run?" vs. "can this affect the deployed app?") are genuinely different
+  and `.github/**` answers them differently. `scripts/is-build-skip-eligible.sh` now takes an
+  optional `app-deploy` mode argument: passed by `vercel-ignore-build-step.sh` and
+  `test-acceptance.yml`'s Test-slot check (both gating a real `vercel deploy`, so `.github/**`
+  is skip-eligible for them), omitted by `ci-checks.yml`'s own static `paths-ignore` (unaffected
+  by this change — it never could call the script anyway, and its list still deliberately
+  excludes `.github/**` for the self-verification reason already established). `scripts/**`
+  stays non-skip-eligible in both modes: most files under it (like this one) never run during
+  `next build`, but the `prebuild` version-sync script does, and there is no reliable way here to
+  tell which changed script is which — building unnecessarily for an unrelated `scripts/` change
+  is the deliberate fail-open side of that ambiguity.

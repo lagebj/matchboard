@@ -138,7 +138,7 @@ jobs:
             echo "No changed files reported by the compare API — deploying to be safe."
             echo "only_docs=false" >> "$GITHUB_OUTPUT"
           else
-            VERDICT="$(echo "$FILES" | bash scripts/is-build-skip-eligible.sh)"
+            VERDICT="$(echo "$FILES" | bash scripts/is-build-skip-eligible.sh app-deploy)"
             if [ "$VERDICT" = "skip" ]; then
               echo "Every changed file in this push (${COMPARE_RANGE}) is build-skip-eligible — skipping the Test slot deploy."
               echo "only_docs=true" >> "$GITHUB_OUTPUT"
