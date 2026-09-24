@@ -394,3 +394,18 @@ not artificially triggered early, since a real close is the same signal either w
   future required-status-check addition must be checked against every path-filtered workflow
   before or immediately after it's added, not assumed still safe because it was safe when a
   path-filter was first written.
+- 2026-09-24: `scripts/vercel-ignore-build-step.sh`'s "no previous deployed SHA" fallback
+  (added the same day the "2026-08-21" entry above describes) was itself still broken, caught
+  live on PR #680 (docs-only, both `matchboard`/`matchboard-test` Preview builds still ran).
+  Root cause: that fallback computed `git merge-base FETCH_HEAD HEAD` against a `--depth=1`
+  fetch of `main` — but Vercel's own initial clone of the branch being built is *also*
+  shallow (depth=1), so `HEAD` has no parent commits reachable in local history at all.
+  `merge-base` can never succeed under those conditions, regardless of what's fetched for
+  `main`, even when the true fork point IS exactly `main`'s current tip — confirmed by
+  reproducing the identical shallow clone locally (`git clone --depth 1 --branch <branch>`) and
+  watching the same failure reproduce exactly. Fixed by dropping `merge-base` entirely: `git
+  diff` between two arbitrary commits needs no shared ancestry, only that both commit objects
+  exist locally (which the `depth=1` fetch of `main` already guarantees) — diff straight against
+  `main`'s fetched tip instead. Verified against the same reproduced shallow clone, and against
+  both untouched code paths (a valid `VERCEL_GIT_PREVIOUS_SHA`; an unreachable one from a
+  rebase/force-push) for regressions — all three now classify correctly.
