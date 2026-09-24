@@ -78,6 +78,24 @@ export function lookupOnFieldPlayerIds(
   return new Set(current.players.map((p) => p.playerId));
 }
 
+/**
+ * "Player out"/"Player in" option label — the player's name plus, in parentheses, their current
+ * on-field position per the plan projection (`lookupProjectedPosition`) at this change's own
+ * planned time, never their declared `Player.primaryPosition`. A bench player (not on the pitch
+ * at all at this time — `lookupProjectedPosition` returns `null`) shows no parenthetical at all,
+ * rather than falling back to a declared position that may not reflect where they'd actually
+ * enter the pitch.
+ */
+export function formatPlayerOptionLabel(
+  player: { id: string; firstName: string; lastName: string | null },
+  scenario: PlannedScenarioEvaluation | null,
+  atSeconds: number | null,
+): string {
+  const name = playerDisplayName(player.firstName, player.lastName);
+  const projected = lookupProjectedPosition(scenario, player.id, atSeconds);
+  return projected ? `${name} (${projected})` : name;
+}
+
 type PlannedRotationPanelProps = {
   matchId: string;
   teamId: string;
@@ -200,6 +218,12 @@ function ChangeForm({
   // removed -- see the issue's own follow-up clarification) purely so downstream readers
   // (display, AI advisor context, insight facts) keep a real value; the coach just never sees or
   // picks it.
+  //
+  // Follow-up (2026-09-24): each "Player out"/"Player in" option's own label still shows a
+  // position, in parentheses -- but it's the player's *current on-field position* from this same
+  // plan projection (`formatPlayerOptionLabel`), not their declared `primaryPosition`, and it's
+  // shown only for a player actually on the pitch at this time. A bench player's option carries
+  // no parenthetical at all -- there is no "current position" to show for someone not playing.
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-3">
@@ -244,7 +268,7 @@ function ChangeForm({
             <option value="">Select player</option>
             {outPlayerOptions.map((p) => (
               <option key={p.id} value={p.id}>
-                {playerDisplayName(p.firstName, p.lastName)} ({p.primaryPosition})
+                {formatPlayerOptionLabel(p, scenario, atSeconds)}
               </option>
             ))}
           </select>
@@ -273,7 +297,7 @@ function ChangeForm({
             <option value="">Select player</option>
             {inPlayerOptions.map((p) => (
               <option key={p.id} value={p.id}>
-                {playerDisplayName(p.firstName, p.lastName)} ({p.primaryPosition})
+                {formatPlayerOptionLabel(p, scenario, atSeconds)}
               </option>
             ))}
           </select>

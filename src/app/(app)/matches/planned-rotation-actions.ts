@@ -12,10 +12,12 @@ import {
   deletePlannedRotation,
   validatePlannedChanges,
   checkPlannedRotationCoverage,
+  projectPlannedMinutesForSquad,
   type PlannedRotationWithChanges,
   type PlannedRotationChangeData,
   type PlannedRotationValidationIssue,
   type PlannedRotationCoverageIssue,
+  type PlannedMinutesProjection,
 } from "@/lib/planned-rotation/planned-rotation";
 import type { CreatePlannedRotationInput, UpdatePlannedRotationInput } from "@/lib/planned-rotation/planned-rotation";
 import { GAME_FORMAT_PLAYERS } from "@/lib/formations/types";
@@ -368,6 +370,81 @@ export async function checkPlannedRotationCoverageAction(
     return { success: false, error: error instanceof Error ? error.message : "Failed to check rotation coverage." };
   }
 }
+
+/**
+ * Planned playing time per squad player (Match Detail Overview) — one row per squad player, the
+ * minutes they're planned to be on the pitch and the position(s) they'd be in, per the team's
+ * current starting line-up plus its saved rotation plan (`projectPlannedMinutesForSquad`, see its
+ * own doc comment for the "every squad player represented, 0 for anyone never involved" and
+ * generic-no-plan-configured behaviour this produces). Unlike `checkPlannedRotationCoverageAction`
+ * above, `changes` is read from the persisted plan here, not accepted from the caller — this is a
+ * self-fetching read for a display surface, not a live in-progress-edit coverage check.
+ *
+ * Starters are read from the team's current match line-up, same as the coverage check above —
+ * `hasLineup: false` when none has been set yet, so the UI can say so honestly rather than
+ * guessing who's starting.
+ */
+export async function getPlannedPlayingTimeAction(
+  matchId: string,
+  teamId: string,
+): Promise<
+  | { success: true; hasLineup: true; totalMatchSeconds: number | null; rows: PlannedMinutesProjection[] }
+  | { success: true; hasLineup: false }
+  | { success: false; error: string }
+> {
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+
+    const match = await db.match.findFirst({
+      where: { id: matchId, ...ctx.orgFilter.filter },
+      select: { id: true, matchType: true },
+    });
+    if (!match) return { success: false, error: "Match not found or access denied." };
+
+    const lineup = await db.matchLineup.findFirst({
+      where: { matchId, teamId, ...ctx.orgFilter.filter },
+      include: {
+        formation: { include: { slots: { select: { id: true, roleType: true } } } },
+        assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
+      },
+    });
+    if (!lineup || lineup.assignments.length === 0) {
+      return { success: true, hasLineup: false };
+    }
+
+    const selections = await db.selection.findMany({
+      where: { matchId, status: { in: ["DRAFT", "FINALIZED"] }, match: { teamId } },
+      select: { playerId: true },
+      orderBy: [{ role: "asc" }],
+    });
+    const squadPlayerIds = selections.map((s) => s.playerId);
+
+    const slotsById = new Map((lineup.formation?.slots ?? []).map((s) => [s.id, s]));
+    const starters = lineup.assignments
+      .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
+      .map((a) => {
+        const roleType = slotsById.get(a.slotId)?.roleType;
+        return { playerId: a.playerId, position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE") };
+      });
+
+    // ARR-0053's format-aware fix — see checkPlannedRotationCoverageAction above for the full
+    // reasoning; this reader needs the same match-actually-configured total duration.
+    const formatState = await getMatchFormatOverrideState(matchId, ctx.organisationId);
+    const resolvedFormat = formatState?.frozenFormat ?? formatState?.effectiveFormat ?? null;
+    const periodConfig = getLeagueMatchPeriodConfig(match.matchType, resolvedFormat);
+    const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
+    const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : null;
+
+    const rotation = await getPlannedRotation(matchId, teamId, ctx.orgFilter);
+    const rows = projectPlannedMinutesForSquad(starters, rotation?.changes ?? [], totalMatchSeconds ?? 0, squadPlayerIds);
+
+    return { success: true, hasLineup: true, totalMatchSeconds, rows };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to compute planned playing time." };
+  }
+}
+
 /**
  * Bounded internal decision-point grid (Evidence-Informed Match Planning, Bundle 7, ADR-0118):
  * 1/3 and 2/3 of each playing period's own duration, plus the absolute start of every playing

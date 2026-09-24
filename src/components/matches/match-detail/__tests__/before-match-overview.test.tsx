@@ -31,6 +31,12 @@ vi.mock("@/components/matches/coaching-intent-selector", () => ({
 vi.mock("@/components/matches/match-format-override-controls", () => ({
   MatchFormatOverrideControls: () => <div data-testid="match-format-controls" />,
 }));
+// PlannedPlayingTimePanel self-fetches via a "use server" action — mocked here for the same
+// reason as MatchTacticsPanel above (isolate BeforeMatchOverview's own composition), covered
+// independently by planned-playing-time-panel.test.tsx.
+vi.mock("@/components/matches/match-detail/planned-playing-time-panel", () => ({
+  PlannedPlayingTimePanel: (props: { matchId: string }) => <div data-testid="planned-playing-time-panel">Playing time for {props.matchId}</div>,
+}));
 
 const presentation = buildMatchPresentation({
   id: "m1",
@@ -91,6 +97,12 @@ describe("BeforeMatchOverview", () => {
     );
     expect(screen.getByTestId("coaching-intent-selector")).toBeInTheDocument();
     expect(screen.getByTestId("match-format-controls")).toBeInTheDocument();
+  });
+
+  it("renders the planned playing time panel", () => {
+    render(<BeforeMatchOverview {...baseProps()} />);
+    expect(screen.getByTestId("planned-playing-time-panel")).toBeInTheDocument();
+    expect(screen.getByText(/Playing time for m1/)).toBeInTheDocument();
   });
 
   it("renders squad readiness facts", () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { PlannedRotationPanel } from "../planned-rotation-panel";
-import { lookupProjectedPosition, lookupOnFieldPlayerIds } from "../planned-rotation-panel";
+import { lookupProjectedPosition, lookupOnFieldPlayerIds, formatPlayerOptionLabel } from "../planned-rotation-panel";
 import type { PlannedScenarioEvaluation } from "@/lib/planned-rotation/scenario-evaluation";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 
@@ -164,6 +164,29 @@ describe("PlannedRotationPanel — position-swap change (production incident reg
     expect(outOptionIds).not.toContain("sindre");
     expect(inOptionIds).toEqual(["", "sindre"]);
   });
+
+  it("labels each on-field option with the player's current projected position, and bench options with no position at all", async () => {
+    render(<PlannedRotationPanel matchId="match-1" teamId="team-1" rotation={ROTATION} squadPlayers={SQUAD_PLAYERS} />);
+    await waitFor(() => expect(checkPlannedRotationCoverageActionMock).toHaveResolvedTimes(1));
+
+    fireEvent.click(screen.getByText("Add change"));
+    // Plain rotation: "Player out" is on-field (anton/ibro, both projected), "Player in" is bench
+    // (sindre, never projected).
+    const outPlayerSelect = screen.getByText("Player out").closest("div")!.querySelector("select") as HTMLSelectElement;
+    const inPlayerSelect = screen.getByText("Player in").closest("div")!.querySelector("select") as HTMLSelectElement;
+
+    const outLabels = Array.from(outPlayerSelect.options).map((o) => o.text);
+    // anton's declared position is ST, but he's projected at DEFENDER -- the option must show
+    // the current on-field position, not the declared one.
+    expect(outLabels).toContain("Anton BB (DEFENDER)");
+    expect(outLabels).not.toContain("Anton BB (ST)");
+    expect(outLabels).toContain("Ibro O (MIDFIELDER)");
+
+    const inLabels = Array.from(inPlayerSelect.options).map((o) => o.text);
+    // sindre is a bench player -- no parenthetical at all, not even his declared GK.
+    expect(inLabels).toContain("Sindre K");
+    expect(inLabels).not.toContain("Sindre K (GK)");
+  });
 });
 
 describe("lookupProjectedPosition", () => {
@@ -218,5 +241,24 @@ describe("lookupOnFieldPlayerIds", () => {
     };
     expect(lookupOnFieldPlayerIds(twoIntervals, 300)).toEqual(new Set(["anton"]));
     expect(lookupOnFieldPlayerIds(twoIntervals, 900)).toEqual(new Set(["anton", "ibro"]));
+  });
+});
+
+describe("formatPlayerOptionLabel", () => {
+  const anton = { id: "anton", firstName: "Anton", lastName: "BB", primaryPosition: "ST" };
+  const sindre = { id: "sindre", firstName: "Sindre", lastName: "K", primaryPosition: "GK" };
+
+  it("shows the player's current on-field position from the plan projection, not their declared position", () => {
+    // anton is on the pitch at DEFENDER in SCENARIO, but declares ST.
+    expect(formatPlayerOptionLabel(anton, SCENARIO, null)).toBe("Anton BB (DEFENDER)");
+  });
+
+  it("shows no parenthetical at all for a player not on the pitch (a sub/bench player)", () => {
+    // sindre never appears in SCENARIO's intervals -- on the bench.
+    expect(formatPlayerOptionLabel(sindre, SCENARIO, null)).toBe("Sindre K");
+  });
+
+  it("shows no parenthetical when there's no plan projection yet at all", () => {
+    expect(formatPlayerOptionLabel(anton, null, null)).toBe("Anton BB");
   });
 });
