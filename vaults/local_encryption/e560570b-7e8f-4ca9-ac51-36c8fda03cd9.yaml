@@ -1,0 +1,7 @@
+id: e560570b-7e8f-4ca9-ac51-36c8fda03cd9
+name: provider-secrets
+type: local_encryption
+config:
+  auto_generate: true
+  base_dir: /workspaces/matchboard
+createdAt: '2026-09-24T12:18:02.215Z'

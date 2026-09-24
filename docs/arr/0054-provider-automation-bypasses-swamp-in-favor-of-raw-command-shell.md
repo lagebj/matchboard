@@ -151,12 +151,13 @@ naming convention (`swamp-procedure` tags) layered on top of independent shell-c
 
 ## Disposition
 
-Pending. This ARR's own investigation resolved two of its smaller symptoms directly (pulling
-`@webframp/cloudflare`, and giving the two pulled-but-unused Vercel extensions a real home — see
-History) but leaves the larger questions open: which of the twelve `command/shell` procedures
-should migrate, whether Neon/Brevo warrant a custom extension build, and whether a real swamp
-workflow should replace the ad-hoc `swamp-procedure` tagging convention. These require scoping
-decisions beyond what this audit alone can responsibly commit to.
+Pending. This ARR's own investigation resolved several of its smaller symptoms directly (pulling
+`@webframp/cloudflare`; creating a `provider-secrets` vault and a first real, vault-backed Vercel
+and Cloudflare model each — see History) but leaves the larger questions open: which of the
+twelve `command/shell` procedures should migrate, whether Neon/Brevo warrant a custom extension
+build, and whether a real swamp workflow should replace the ad-hoc `swamp-procedure` tagging
+convention. These require scoping decisions beyond what this audit alone can responsibly commit
+to.
 
 ## Related decisions
 
@@ -200,3 +201,29 @@ sets up the vault), but building a real Vercel model is left as explicit follow-
 a vault existing first — not silently abandoned, and not resolved either. Neither action resolves
 this ARR's core finding — the twelve-model `command/shell` review, the Neon/Brevo
 extension-vs-vault decision, and the missing-workflow question all remain open.
+
+### 2026-09-24 (continued) — vault created, first Vercel and Cloudflare models wired
+
+Follow-up in the same session: created a `provider-secrets` `local_encryption` vault and seeded
+it with `NEON_API_KEY`, `VERCEL_TOKEN`, `CLOUDFLARE_API_TOKEN`, and `BREVO_API_KEY` (the user
+added the last one to `.env` specifically for this). Seeding used a one-off script the user ran
+themselves (`! node ...` in Claude Code) that pipes each value from `.env` straight into
+`swamp vault put` via stdin, printing only `STORED`/`SKIP`/`FAILED` per key — per the swamp-vault
+skill's own guidance, the agent never read a secret value directly at any point.
+
+Created `vercel-project-matchboard` (`@swamp/vercel/projects/projects`, `token` global argument
+set to `${{ vault.get(provider-secrets, VERCEL_TOKEN) }}`) and ran `lookup` — succeeded,
+importing the real `matchboard` project's live state. Created `cloudflare-zone-matchboard`
+(`@webframp/cloudflare/zone`, same vault-reference pattern for `apiToken`) and ran `get` against
+the real `matchboard.football` zone — also succeeded. Both models' persisted
+`@swamp/method-summary` reports show the credential redacted (`"apiToken": "***"`) rather than
+the plaintext exposure `command/shell` produced — direct, concrete confirmation that the typed
+extension + vault pattern actually closes the gap this ARR documents, not just in theory.
+
+Not yet done: `@swamp/vercel/deployments` (the other pulled-but-unused Vercel extension) still
+backs no model — left that way deliberately rather than building an unneeded deploy-creation
+model just to close the resolution criterion's letter; still open. Neon and Brevo now have their
+credentials sitting in the vault, ready for whenever an extension exists (or a documented
+vault-referenced `command/shell` exception is chosen) — but no model was created for either, since
+no swamp extension exists for either provider. The twelve-model `command/shell` review and the
+missing-workflow question remain untouched.
