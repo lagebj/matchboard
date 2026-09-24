@@ -27,7 +27,8 @@ import {
   type SeasonCombinationSummary,
 } from "@/lib/evidence/combination-aggregation";
 import { getMatchPhaseWindows } from "@/lib/evidence/match-state-timeline";
-import { getLeaguePeriodConfig, getTotalPeriodDurationMs } from "@/lib/live-match/period-config";
+import { getLeagueMatchPeriodConfig, getTotalPeriodDurationMs } from "@/lib/live-match/period-config";
+import { getMatchFormatOverrideState } from "@/lib/matches/match-format-override";
 import { getTeamSeasonMatchPhasePatterns } from "@/lib/evidence/match-phase-pattern-evidence";
 import { getTeamPositionContextEvidenceForPairs } from "@/lib/evidence/position-context-evidence";
 import { getOpponentTacticalTendencies } from "@/lib/opponents/playing-style-query";
@@ -301,7 +302,13 @@ export async function checkPlannedRotationCoverageAction(
     // Total match duration in seconds (Evidence-Informed Match Planning programme, Bundle 4) --
     // previously always 0 ("no per-change duration model exists"); the League period config
     // (Bundle 1) already gives a real answer via its configured half lengths.
-    const periodConfig = getLeaguePeriodConfig(match.matchType);
+    // ARR-0053: was getLeaguePeriodConfig(match.matchType) -- always the hardcoded 25-minute
+    // default, never this match's actually configured format (ADR-0146). getMatchFormatOverrideState
+    // resolves the real override precedence (match > team > season default); frozenFormat wins once
+    // Live Reporting has started and frozen the snapshot, matching every other format-aware reader.
+    const formatState = await getMatchFormatOverrideState(matchId, ctx.organisationId);
+    const resolvedFormat = formatState?.frozenFormat ?? formatState?.effectiveFormat ?? null;
+    const periodConfig = getLeagueMatchPeriodConfig(match.matchType, resolvedFormat);
     const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
     const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : null;
 
@@ -508,7 +515,11 @@ export async function generateRotationPlanAction(
       ]),
     );
 
-    const periodConfig = getLeaguePeriodConfig(match.matchType);
+    // ARR-0053: was getLeaguePeriodConfig(match.matchType) -- see checkPlannedRotationCoverageAction
+    // above for the full reasoning; this generator needs the same format-aware total duration.
+    const formatState = await getMatchFormatOverrideState(matchId, ctx.organisationId);
+    const resolvedFormat = formatState?.frozenFormat ?? formatState?.effectiveFormat ?? null;
+    const periodConfig = getLeagueMatchPeriodConfig(match.matchType, resolvedFormat);
     const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
     const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : 0;
     if (totalMatchSeconds <= 0) {

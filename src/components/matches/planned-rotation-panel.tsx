@@ -50,6 +50,34 @@ export function lookupProjectedPosition(
   return current.players.find((p) => p.playerId === playerId)?.position ?? null;
 }
 
+/**
+ * Which squad players are actually on the pitch per the plan projection (same `scenario.intervals`
+ * source as `lookupProjectedPosition` above, same "last interval starting at or before atSeconds
+ * is now" lookup and `atSeconds: null` -> latest-known-state default) at a given planned time —
+ * used to scope "Player out" to players genuinely on the field then, and "Player in" (the
+ * complement against the full squad) to players genuinely on the bench then, instead of listing
+ * the entire match squad regardless of who's actually playing at that moment. `interval.players`
+ * is already on-pitch-only (`buildPlannedScenarioIntervals` filters to `state.onPitch`), so every
+ * entry here is already exactly the on-field set — no further filtering needed.
+ *
+ * `null` (no lineup projected yet, e.g. no starting line-up set) returns an empty set — callers
+ * should fall back to the full squad in that case, matching the pre-existing "list everyone"
+ * behavior for a match that hasn't been lined up yet rather than showing an empty dropdown.
+ */
+export function lookupOnFieldPlayerIds(
+  scenario: PlannedScenarioEvaluation | null,
+  atSeconds: number | null,
+): Set<string> {
+  if (!scenario || scenario.intervals.length === 0) return new Set();
+  const target = atSeconds ?? Infinity;
+  let current = scenario.intervals[0]!;
+  for (const interval of scenario.intervals) {
+    if (interval.startSeconds > target) break;
+    current = interval;
+  }
+  return new Set(current.players.map((p) => p.playerId));
+}
+
 type PlannedRotationPanelProps = {
   matchId: string;
   teamId: string;
@@ -76,25 +104,6 @@ const CHANGE_STATUS_LABELS: Record<string, string> = {
   MODIFIED: "Modified",
 };
 
-const POSITION_OPTIONS = ["GK", "CB", "RB", "LB", "CDM", "CM", "CAM", "RW", "LW", "FW", "CF"];
-// A starting player's plan-projected position (`lookupProjectedPosition`, sourced from
-// `checkPlannedRotationCoverageAction`'s `starters` mapping) can legitimately be one of these
-// broad categories -- a `FormationSlot.roleType`, not an exact code -- whenever no exact
-// POSITIONS_CHANGED has been planned/recorded for that player yet (`position-code.ts`: broad
-// codes are a deliberate, first-class part of the vocabulary, never silently upgraded to a
-// fabricated exact code). Appended, not merged into `POSITION_OPTIONS` above, so the auto-filled
-// value is always a selectable, visible option in the "current position" dropdowns instead of
-// silently failing to match any <option> and rendering blank.
-const BROAD_POSITION_OPTIONS = [
-  "DEFENDER",
-  "DEFENSIVE_MIDFIELDER",
-  "MIDFIELDER",
-  "ATTACKING_MIDFIELDER",
-  "FORWARD",
-  "FREE",
-  "FLEXIBLE",
-];
-const SWAP_POSITION_OPTIONS = [...POSITION_OPTIONS, ...BROAD_POSITION_OPTIONS];
 
 const COVERAGE_ISSUE_LABELS: Record<PlannedRotationCoverageIssue["type"], string> = {
   no_goalkeeper: "No goalkeeper in the starting line-up or planned changes",
@@ -163,6 +172,35 @@ function ChangeForm({
 }) {
   const [form, setForm] = useState<ChangeFormData>(initialData);
 
+  // Issue #674: scope "Player out"/"Player in" to who is actually on the field/bench at this
+  // change's own planned minute, instead of listing the entire match squad regardless of time --
+  // reuses the same plan projection `lookupProjectedPosition` already reads. No lineup projected
+  // yet (`onFieldIds` empty) falls back to the full squad for both, matching the pre-existing
+  // "list everyone" behavior for a match that hasn't been lined up.
+  //
+  // A position swap (`positionOnly`) exchanges two players who are BOTH already on the pitch --
+  // neither leaves or enters -- so "Player in" must also be scoped to on-field players there, not
+  // the bench (the domain's own precondition already rejects a swap naming a bench player; this
+  // just stops the form from offering one in the first place). A plain rotation is the only case
+  // where "Player in" means the bench.
+  const atSeconds = form.approximateMatchMinutes ? parseInt(form.approximateMatchMinutes, 10) * 60 : null;
+  const onFieldIds = lookupOnFieldPlayerIds(scenario, atSeconds);
+  const outPlayerOptions = onFieldIds.size > 0 ? squadPlayers.filter((p) => onFieldIds.has(p.id)) : squadPlayers;
+  const inPlayerOptions =
+    onFieldIds.size === 0
+      ? squadPlayers
+      : form.positionOnly
+        ? squadPlayers.filter((p) => onFieldIds.has(p.id))
+        : squadPlayers.filter((p) => !onFieldIds.has(p.id));
+
+  // Issue #674: position is never coach-selected, for either a plain rotation or a position
+  // swap -- the system derives it from the plan projection (or, for a plain rotation's incoming
+  // player, from the vacated slot) the same way `projectPlannedLineup`'s own domain default
+  // already does. `outPosition`/`inPosition` stay on `ChangeFormData`/the persisted record (never
+  // removed -- see the issue's own follow-up clarification) purely so downstream readers
+  // (display, AI advisor context, insight facts) keep a real value; the coach just never sees or
+  // picks it.
+
   return (
     <div className="flex flex-col gap-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] p-3">
       <div className="flex items-center gap-3">
@@ -187,25 +225,24 @@ function ChangeForm({
               const player = squadPlayers.find((p) => p.id === playerId);
               setForm((f) => {
                 if (!playerId) return { ...f, outPlayerId: "", outPosition: "" };
-                if (f.positionOnly) {
-                  // A position-only swap exchanges each player's *current on-field* position,
-                  // not their declared `primaryPosition` -- pre-filling from `primaryPosition`
-                  // silently produced a wrong value whenever they differed (production
-                  // incident: a player who started at CB, declared ST, had a swap recorded as
-                  // if he were still at ST). Read from the plan's own projection instead; the
-                  // coach can still override via the always-visible field below when the
-                  // projection doesn't apply (e.g. no lineup planned yet).
-                  const atSeconds = f.approximateMatchMinutes ? parseInt(f.approximateMatchMinutes, 10) * 60 : null;
-                  const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
-                  return { ...f, outPlayerId: playerId, outPosition: projected ?? player?.primaryPosition ?? "" };
-                }
-                return { ...f, outPlayerId: playerId, outPosition: f.outPosition || player?.primaryPosition || "" };
+                // A position-only swap exchanges each player's *current on-field* position, not
+                // their declared `primaryPosition` -- pre-filling from `primaryPosition` silently
+                // produced a wrong value whenever they differed (production incident: a player
+                // who started at CB, declared ST, had a swap recorded as if he were still at
+                // ST). The same fix applies to a plain rotation's outgoing player too -- their
+                // projected on-field position, not their declared one.
+                const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
+                const outPosition = projected ?? player?.primaryPosition ?? "";
+                // Plain rotation: the incoming player (if already picked) takes over the vacated
+                // slot by default, mirroring `projectPlannedLineup`'s own `inPosition ?? vacatedPosition`.
+                const inPosition = f.positionOnly ? f.inPosition : f.inPlayerId ? outPosition : f.inPosition;
+                return { ...f, outPlayerId: playerId, outPosition, inPosition };
               });
             }}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
             <option value="">Select player</option>
-            {squadPlayers.map((p) => (
+            {outPlayerOptions.map((p) => (
               <option key={p.id} value={p.id}>
                 {playerDisplayName(p.firstName, p.lastName)} ({p.primaryPosition})
               </option>
@@ -213,24 +250,6 @@ function ChangeForm({
           </select>
         </div>
 
-        <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-0.5">
-            {form.positionOnly ? "Current position (out player)" : "Position out"}
-          </label>
-          <select
-            value={form.outPosition}
-            onChange={(e) => setForm((f) => ({ ...f, outPosition: e.target.value }))}
-            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
-          >
-            <option value="">Auto</option>
-            {(form.positionOnly ? SWAP_POSITION_OPTIONS : POSITION_OPTIONS).map((pos) => (
-              <option key={pos} value={pos}>{pos}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-xs text-[var(--text-muted)] block mb-0.5">Player in</label>
           <select
@@ -242,44 +261,28 @@ function ChangeForm({
                 if (!playerId) return { ...f, inPlayerId: "", inPosition: "" };
                 if (f.positionOnly) {
                   // See the "Player out" handler above -- same reasoning, same fix.
-                  const atSeconds = f.approximateMatchMinutes ? parseInt(f.approximateMatchMinutes, 10) * 60 : null;
                   const projected = lookupProjectedPosition(scenario, playerId, atSeconds);
                   return { ...f, inPlayerId: playerId, inPosition: projected ?? player?.primaryPosition ?? "" };
                 }
-                return { ...f, inPlayerId: playerId, inPosition: f.inPosition || player?.primaryPosition || "" };
+                // Plain rotation: incoming player takes the outgoing player's (vacated) position.
+                return { ...f, inPlayerId: playerId, inPosition: f.outPosition || player?.primaryPosition || "" };
               });
             }}
             className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
           >
             <option value="">Select player</option>
-            {squadPlayers.map((p) => (
+            {inPlayerOptions.map((p) => (
               <option key={p.id} value={p.id}>
                 {playerDisplayName(p.firstName, p.lastName)} ({p.primaryPosition})
               </option>
             ))}
           </select>
         </div>
-
-        <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-0.5">
-            {form.positionOnly ? "Current position (in player)" : "Position in"}
-          </label>
-          <select
-            value={form.inPosition}
-            onChange={(e) => setForm((f) => ({ ...f, inPosition: e.target.value }))}
-            className="w-full rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 py-1 text-sm"
-          >
-            <option value="">Auto</option>
-            {(form.positionOnly ? SWAP_POSITION_OPTIONS : POSITION_OPTIONS).map((pos) => (
-              <option key={pos} value={pos}>{pos}</option>
-            ))}
-          </select>
-        </div>
       </div>
       {form.positionOnly && (
         <p className="text-[10px] text-[var(--text-muted)] -mt-1">
-          Position swap: each player moves to the position entered for the *other* player above --
-          enter each player's current position, not where they're headed.
+          Position swap: the two players exchange positions with each other. No position entry
+          needed -- the system already knows where each one is playing.
         </p>
       )}
 

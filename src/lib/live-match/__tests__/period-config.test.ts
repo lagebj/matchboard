@@ -6,6 +6,7 @@ import {
   buildPeriodConfigFromFormat,
   getCumulativePeriodOffsetsMs,
   toAbsoluteMatchMs,
+  computeAbsoluteMatchSecondsForPlan,
   getTotalPeriodDurationMs,
   resolvePeriodForAbsoluteMs,
   LEAGUE_PERIOD_CONFIG,
@@ -286,5 +287,40 @@ describe("resolvePeriodForAbsoluteMs", () => {
 
   it("returns null when the config has no playing period at all", () => {
     expect(resolvePeriodForAbsoluteMs(1000, [])).toBeNull();
+  });
+});
+
+describe("computeAbsoluteMatchSecondsForPlan", () => {
+  // ARR-0053's worked example: a 2x30 match, a plan change for "minute 40" (approximateMatchSeconds
+  // = 2400), applied on time 10 real minutes into the second half. Before this fix,
+  // applyPlannedChangeAction persisted the raw period-relative offset (600s) as
+  // actualMatchSeconds directly, so rotation-vs-actual.ts's `actualMatchSeconds -
+  // approximateMatchSeconds` read as `600 - 2400 = -1800` -- "applied 30 min earlier than
+  // planned" -- when it was applied exactly on time.
+  const twoByThirty = buildPeriodConfigFromFormat({ numberOfPeriods: 2, periodDurationMinutes: 30, breakDurationMinutes: 15 });
+
+  it("converts a second-half period-relative offset to the same absolute unit as approximateMatchSeconds", () => {
+    const tenMinutesIntoSecondHalf = 10 * 60 * 1000;
+    const actualMatchSeconds = computeAbsoluteMatchSecondsForPlan(tenMinutesIntoSecondHalf, "SECOND_HALF", twoByThirty);
+
+    // Absolute: 30 minutes (first half) + 10 minutes (into second half) = minute 40 -- matches
+    // the "minute 40" plan exactly, not -1800.
+    expect(actualMatchSeconds).toBe(40 * 60);
+
+    const approximateMatchSeconds = 40 * 60;
+    expect(actualMatchSeconds - approximateMatchSeconds).toBe(0);
+  });
+
+  it("leaves a first-half offset unchanged (period offset is 0, matches pre-fix behavior exactly)", () => {
+    const fiveMinutesIntoFirstHalf = 5 * 60 * 1000;
+    expect(computeAbsoluteMatchSecondsForPlan(fiveMinutesIntoFirstHalf, "FIRST_HALF", twoByThirty)).toBe(5 * 60);
+  });
+
+  it("never returns negative seconds", () => {
+    expect(computeAbsoluteMatchSecondsForPlan(-1000, "FIRST_HALF", twoByThirty)).toBe(0);
+  });
+
+  it("treats a null/undefined period as offset 0, same as toAbsoluteMatchMs", () => {
+    expect(computeAbsoluteMatchSecondsForPlan(5 * 60 * 1000, null, twoByThirty)).toBe(5 * 60);
   });
 });

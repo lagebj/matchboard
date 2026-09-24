@@ -41,7 +41,8 @@ import { computePositionContextBonus, getTeamPositionContextEvidenceForPairs } f
 import { generateRotationPlan, type RotationPlanPlayer, type RotationPlanDecisionPoint } from "@/lib/planned-rotation/generate-rotation-plan";
 import { getTeamSeasonTransitionPatterns } from "@/lib/evidence/transition-structure-evidence";
 import { createPlannedRotation, type PlannedRotationChangeData } from "@/lib/planned-rotation/planned-rotation";
-import { getLeaguePeriodConfig, getTotalPeriodDurationMs, getCumulativePeriodOffsetsMs, type PeriodConfig } from "@/lib/live-match/period-config";
+import { getLeagueMatchPeriodConfig, getTotalPeriodDurationMs, getCumulativePeriodOffsetsMs, type PeriodConfig } from "@/lib/live-match/period-config";
+import { getMatchFormatOverrideState } from "@/lib/matches/match-format-override";
 import { logMutationEvent } from "@/lib/security/audit-log";
 
 const ROLE_FAIRNESS_CAP = 20;
@@ -294,7 +295,12 @@ export async function generateIntegratedMatchPlanAction(
       ]),
     );
 
-    const periodConfig = getLeaguePeriodConfig(match.matchType);
+    // ARR-0053: was getLeaguePeriodConfig(match.matchType) -- always the hardcoded 25-minute
+    // default, never this match's actually configured format. Same fix as
+    // planned-rotation-actions.ts's checkPlannedRotationCoverageAction/generateRotationPlanAction.
+    const formatState = await getMatchFormatOverrideState(matchId, ctx.organisationId);
+    const resolvedFormat = formatState?.frozenFormat ?? formatState?.effectiveFormat ?? null;
+    const periodConfig = getLeagueMatchPeriodConfig(match.matchType, resolvedFormat);
     const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
     const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : 0;
 

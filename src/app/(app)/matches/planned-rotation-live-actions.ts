@@ -19,6 +19,7 @@ import {
 } from "@/lib/planned-rotation/planned-rotation-live-bridge";
 import { getActiveSession } from "@/lib/live-match/live-match-session";
 import { recordEvent, estimateCurrentMatchOffsetMs } from "@/lib/live-match/live-match-event-store";
+import { getLeagueMatchPeriodConfig, computeAbsoluteMatchSecondsForPlan } from "@/lib/live-match/period-config";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 
 function revalidateMatchPaths(matchId: string): void {
@@ -35,9 +36,13 @@ function revalidateMatchPaths(matchId: string): void {
  * events"). The current time is resolved server-side by `estimateCurrentMatchOffsetMs` — from
  * the persisted `LiveMatchSession` clock (ADR-0133 H2) when available, else an event-log
  * estimate — since this runs without the client's own live clock state.
- * The value is milliseconds since period start (ADR-0133 H3) — the same unit as
- * `LiveMatchEvent.matchSeconds`; `applyPlannedChange` receives it converted to whole SECONDS so
- * `PlannedRotationChange.actualMatchSeconds` stays like-for-like with `approximateMatchSeconds`.
+ * The raw value is milliseconds since the *current period* started (ADR-0133 H3) — the same
+ * unit `recordEvent` below needs for `matchSeconds`. `PlannedRotationChange.actualMatchSeconds`
+ * is a *different* value: `computeAbsoluteMatchSecondsForPlan` (ARR-0053) converts it to whole
+ * match-minute seconds, playing-time-only, before persisting — the field this session's own
+ * doc comment previously (incorrectly) called "like-for-like" with `approximateMatchSeconds`
+ * actually needs that conversion to be true, not just the same unit (seconds vs. milliseconds);
+ * see that function's own doc comment for the full history.
  */
 export type ApplyPlannedChangeOverrides = {
   /** Swap which named player goes out and which comes in — the bounded "Change" interaction the
@@ -65,6 +70,7 @@ export async function applyPlannedChangeAction(
       where: { id: rotationId, organisationId: ctx.organisationId },
       select: {
         matchId: true,
+        match: { select: { matchType: true } },
         changes: { where: { id: changeId }, select: { outPlayerId: true, inPlayerId: true, outPosition: true, inPosition: true, positionOnly: true } },
       },
     });
@@ -90,7 +96,11 @@ export async function applyPlannedChangeAction(
 
     const { matchOffsetMs, period } = await estimateCurrentMatchOffsetMs(rotation.matchId, session.id);
     const matchSeconds = matchOffsetMs; // LiveMatchEvent.matchSeconds column is milliseconds (legacy name)
-    const actualMatchSecondsForPlan = Math.max(0, Math.round(matchOffsetMs / 1000));
+    // ARR-0053: convert to one absolute, playing-time-only value BEFORE persisting — the same
+    // unit approximateMatchSeconds is entered in — using this session's own frozen format
+    // (already resolved onto `session.format` by getActiveSession/snapshotToFormat, ADR-0146).
+    const periodConfig = getLeagueMatchPeriodConfig(rotation.match.matchType, session.format);
+    const actualMatchSecondsForPlan = computeAbsoluteMatchSecondsForPlan(matchOffsetMs, period, periodConfig);
 
     let outEventId: string;
     let inEventId: string | null = null;
