@@ -152,10 +152,10 @@ resolution) is not decided here — see "Disposition."
 ## Disposition
 
 Pending. No ADR yet decides which resolution path planning should take (adopt the period model
-directly vs. an explicit conversion layer vs. another approach) — the deviation-note bug and the
-hardcoded-duration bug are independently fixable now without that larger decision (each is a
-local, well-understood defect with existing conversion/config helpers available), but doing so
-does not resolve this ARR, only its two confirmed symptoms.
+directly vs. an explicit conversion layer vs. another approach). The deviation-note bug and the
+hardcoded-duration bug — this ARR's two confirmed symptoms — are fixed as of PR #676 (see
+History); the larger representation decision itself remains undecided, so this ARR stays
+Confirmed/Pending, not Resolved.
 
 ## Related decisions
 
@@ -195,3 +195,23 @@ and the same duality independently causes two confirmed, reproducible defects (t
 `rotation-vs-actual.ts` deviation-note miscalculation for any second-half-or-later applied
 change, and a hardcoded-25-minute-half total-duration computation that never reflects a match's
 actual configured format).
+
+### 2026-09-24 (same day) — two confirmed symptoms fixed
+
+PR [#676](https://github.com/lagebj/matchboard/pull/676) fixes both confirmed symptoms, per the
+scope decision above (fix the two confirmed bugs now, decide the representation question later):
+
+- `applyPlannedChangeAction` (`planned-rotation-live-actions.ts`) now converts
+  `estimateCurrentMatchOffsetMs()`'s period-relative reading into the same absolute,
+  playing-time-only unit `approximateMatchSeconds` uses, via new
+  `computeAbsoluteMatchSecondsForPlan`/`getCumulativePlayingTimeOffsetsMs`
+  (`period-config.ts`) — regression-tested against this ARR's own worked example
+  (`period-config.test.ts`).
+- `checkPlannedRotationCoverageAction`, `generateRotationPlanAction`
+  (`planned-rotation-actions.ts`), and `generateIntegratedMatchPlanAction`
+  (`integrated-match-plan-actions.ts`) switched from `getLeaguePeriodConfig` (hardcoded
+  25-minute halves) to `getLeagueMatchPeriodConfig`, resolved through
+  `getMatchFormatOverrideState`'s match > team > season-default precedence.
+
+The core representation decision (which model planning should adopt long-term) is untouched by
+this PR and remains open — see "Disposition."
