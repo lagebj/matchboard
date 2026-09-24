@@ -21,15 +21,22 @@ if [ -z "$BASE_SHA" ]; then
   # a brand-new PR branch's very first push always built regardless of content (PR #673, a
   # docs-only commit that scripts/is-build-skip-eligible.sh itself classifies as skip-eligible),
   # because this branch fell straight into an unconditional "building" default before the
-  # classifier ever ran. Fall back to this branch's merge-base with main — the same "what did
-  # this branch actually change" question VERCEL_GIT_PREVIOUS_SHA answers for the 2nd-and-later
-  # push case, just computed differently for the 1st. Requires fetching main, which may not
-  # always succeed in Vercel's build sandbox (network policy, shallow-clone limits) — fails open
-  # (build) exactly as before when it doesn't.
-  if git fetch --quiet --depth=1 origin main 2>/dev/null && BASE_SHA="$(git merge-base FETCH_HEAD HEAD 2>/dev/null)" && [ -n "$BASE_SHA" ]; then
-    echo "No previous deployed SHA for this branch — using merge-base with main (${BASE_SHA}) instead."
+  # classifier ever ran.
+  #
+  # An earlier version of this fallback computed `git merge-base FETCH_HEAD HEAD` — wrong, and
+  # confirmed failing live again on 2026-09-24 (PR #680: "could not establish a merge-base with
+  # main — building to be safe", on a docs-only change). Root cause: Vercel's own initial clone
+  # of a branch is shallow (depth=1) — HEAD has no parent commits reachable at all in local
+  # history, so `merge-base` can never find a common ancestor with anything, no matter what's
+  # fetched for main, even when the true fork point IS exactly main's current tip (confirmed by
+  # reproducing the exact same shallow clone locally). `git diff` between two arbitrary commits
+  # needs no shared ancestry, though — only that both commit objects exist locally, which the
+  # depth=1 fetch below already guarantees. Diff straight against origin/main's fetched tip
+  # instead of trying to compute a merge-base at all.
+  if git fetch --quiet --depth=1 origin main 2>/dev/null && BASE_SHA="$(git rev-parse FETCH_HEAD 2>/dev/null)" && [ -n "$BASE_SHA" ]; then
+    echo "No previous deployed SHA for this branch — diffing against origin/main's tip (${BASE_SHA}) instead."
   else
-    echo "No previous deployed SHA available, and could not establish a merge-base with main — building to be safe."
+    echo "No previous deployed SHA available, and could not fetch origin/main — building to be safe."
     exit 1
   fi
 else
