@@ -28,6 +28,37 @@ swamp --no-telemetry model method run <name> execute                  # run one
 swamp --no-telemetry model method run <name> execute --input env.KEY=value  # with parameters
 ```
 
+## Passing secrets (ARR-0054)
+
+Six of the procedures below take a secret-shaped `env` value: `NEON_API_KEY`
+(`verify-migration-upgrade`), `TEST_DATABASE_URL` (`restore-test-baseline`, `verify-security`,
+`verify-database-change`), `TEST_AGENT_AUTH_SECRET` (`verify-browser-acceptance`,
+`verify-invitation-email-flow`), `BREVO_API_KEY` (`verify-invitation-email-flow`).
+`command/shell`'s `run`/`env` arguments are ordinary method inputs, not vault-integrated fields —
+whatever is passed is persisted verbatim, unredacted, in that run's `@swamp/method-summary`
+report for as long as the data exists. A real credential passed as a literal `--input
+env.KEY=<value>` was confirmed sitting in plaintext in this repository's own swamp data for over
+a month (ARR-0054's original finding).
+
+**Always pass these as a vault expression, never a literal value:**
+
+```bash
+swamp --no-telemetry model method run restore-test-baseline execute \
+  --input env.CONFIRM=yes \
+  --input env.MATCHBOARD_ENV=test \
+  --input 'env.TEST_DATABASE_URL=${{ vault.get(provider-secrets, TEST_DATABASE_URL) }}'
+```
+
+This is not theoretical — confirmed working (ARR-0054 History, 2026-09-24): the vault expression
+resolves correctly for a `command/shell` method's `env` input exactly as it does for a typed
+extension's global argument, and the persisted report stores the expression string itself
+(`${{ vault.get(...) }}`), never the resolved value. All four secrets above already live in the
+`provider-secrets` vault (`swamp vault list-keys provider-secrets --json` to confirm) — there is
+no reason left to pass any of them as a literal. `verify-security` and `verify-database-change`
+fall back to an unset/empty `TEST_DATABASE_URL` gracefully (skip or fall back to `DATABASE_URL`)
+rather than requiring it — the same vault pattern applies whenever it's explicitly passed rather
+than left to fall back.
+
 ## Procedures
 
 | Model | What it wraps | Status |
@@ -35,15 +66,15 @@ swamp --no-telemetry model method run <name> execute --input env.KEY=value  # wi
 | `verify-repository` | `npm run validate` (runs every check, does not stop on first failure, prints a summary — `scripts/run-validate.mjs`) | Implemented. On a non-amd64 host `policy:verify`'s rebuild-hash comparison is an expected advisory `DRIFT`, not a failure (ARR-0037) — the run still passes. |
 | `verify-security` | `bash scripts/security-review.sh` | Implemented |
 | `verify-database-change` | `bash scripts/verify-migration-from-zero.sh` — migration chain against an EMPTY database | Implemented |
-| `verify-migration-upgrade` | `bash scripts/verify-migration-upgrade.sh` — pending migrations against a POPULATED database (ARR-0026, ADR-0090) | Implemented, requires `NEON_API_KEY`/`NEON_PROJECT_ID` — takes `--input env.NEON_API_KEY=<key>`, `--input env.NEON_PROJECT_ID=<id>` |
+| `verify-migration-upgrade` | `bash scripts/verify-migration-upgrade.sh` — pending migrations against a POPULATED database (ARR-0026, ADR-0090) | Implemented, requires `NEON_API_KEY`/`NEON_PROJECT_ID` — takes `--input 'env.NEON_API_KEY=${{ vault.get(provider-secrets, NEON_API_KEY) }}'`, `--input env.NEON_PROJECT_ID=<id>` (not secret) |
 | `investigate-ci-failure` | `gh run list`, points at `gh run view --log-failed` | Implemented |
 | `inspect-deployment` | `curl .../api/meta` + `vercel project inspect` | Implemented — takes `--input env.TARGET=test\|production` (defaults to `test`) |
 | `verify-test-candidate` | Compares the deployed Test slot's commit against local `HEAD` | Implemented, read-only |
 | `deploy-test-candidate` | Informational — real automation is `.github/workflows/test-acceptance.yml` (ADR-0075) | See "Test-slot procedures" below |
 | `release-test-candidate` | Informational — real automation is `.github/workflows/test-acceptance.yml` (ADR-0075) | See "Test-slot procedures" below |
 | `restore-test-baseline` | Wipes and re-seeds the Test database from the canonical seed | Implemented, gated (destructive) |
-| `verify-browser-acceptance` | Runs Playwright browser acceptance tests (`npm run test:e2e`) against the live Test slot | Implemented — takes `--input env.TEST_AGENT_AUTH_SECRET=<secret>` |
-| `verify-invitation-email-flow` | Runs `scripts/verify-invitation-email-flow.ts` — live invitation-email round trip against the Test slot (programme §29, ADR-0076) | Implemented, gated (sends a real email) — takes `--input env.CONFIRM=yes`, `--input env.BREVO_API_KEY=<key>`, `--input env.TEST_AGENT_AUTH_SECRET=<secret>` |
+| `verify-browser-acceptance` | Runs Playwright browser acceptance tests (`npm run test:e2e`) against the live Test slot | Implemented — takes `--input 'env.TEST_AGENT_AUTH_SECRET=${{ vault.get(provider-secrets, TEST_AGENT_AUTH_SECRET) }}'` |
+| `verify-invitation-email-flow` | Runs `scripts/verify-invitation-email-flow.ts` — live invitation-email round trip against the Test slot (programme §29, ADR-0076) | Implemented, gated (sends a real email) — takes `--input env.CONFIRM=yes`, `--input 'env.BREVO_API_KEY=${{ vault.get(provider-secrets, BREVO_API_KEY) }}'`, `--input 'env.TEST_AGENT_AUTH_SECRET=${{ vault.get(provider-secrets, TEST_AGENT_AUTH_SECRET) }}'` |
 
 Model definitions live in `models/command/shell/*.yaml`. Each is a `command/shell` model — see
 ADR-0068 for why that's used even for the CLI-wrapping procedures, as a documented deviation from
@@ -77,7 +108,7 @@ secrets to be configured — the workflow skips cleanly (same pattern as
 swamp --no-telemetry model method run restore-test-baseline execute \
   --input env.CONFIRM=yes \
   --input env.MATCHBOARD_ENV=test \
-  --input env.TEST_DATABASE_URL='<test-branch-connection-string>'
+  --input 'env.TEST_DATABASE_URL=${{ vault.get(provider-secrets, TEST_DATABASE_URL) }}'
 ```
 
 It never falls back to `DATABASE_URL` — a destructive operation must never guess which database
@@ -109,6 +140,9 @@ Then hand-edit the generated `models/command/shell/<name>.yaml`:
 - gate any destructive procedure the same way `restore-test-baseline` is gated: require explicit
   `env.CONFIRM=yes` plus an explicit target, never fall back to a guessed/default database or
   environment
+- if the procedure needs a real credential, add it to the `provider-secrets` vault (never as a
+  literal `env` value) and document the `--input 'env.KEY=${{ vault.get(provider-secrets, KEY) }}'`
+  invocation in the table below — see "Passing secrets" above
 
 Validate with `swamp --no-telemetry model validate <name>`, then add a row to the "Procedures"
 table above and update `docs/development/coding-agent-working-session.md`/`AGENTS.md` if the new
