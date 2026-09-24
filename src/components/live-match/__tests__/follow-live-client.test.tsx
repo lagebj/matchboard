@@ -12,7 +12,10 @@ import { FollowLiveClient } from "../follow-live-client";
  * contain no actionable match-management control.
  */
 
-type MockClientOptions = { getTicket: () => Promise<string> };
+type MockClientOptions = {
+  getTicket: () => Promise<string>;
+  onConnectionStateChange?: (state: string) => void;
+};
 
 const {
   connectMock,
@@ -22,7 +25,14 @@ const {
   RealtimeMatchClientMock,
   fetchRealtimeTicketMock,
 } = vi.hoisted(() => {
-  const connectMock = vi.fn(async () => {});
+  // Mirrors the real `RealtimeMatchClient`: `connect()` resolving does NOT itself mean
+  // authenticated — `onConnectionStateChange("connected")` fires separately, once the socket
+  // has actually opened and the "authenticate" RPC has succeeded. FollowLiveClient's snapshot
+  // sync is wired off that callback (see the 2026-09-23 incident regression test below), so the
+  // mock must fire it too, or every test relying on the initial snapshot loading would hang.
+  const connectMock = vi.fn(async function (this: { __options?: MockClientOptions }) {
+    this.__options?.onConnectionStateChange?.("connected");
+  });
   const getSnapshotMock = vi.fn(async () => ({
     version: 1,
     events: [],
@@ -34,8 +44,9 @@ const {
   const syncPendingMock = vi.fn();
   const RealtimeMatchClientMock = vi.fn(function MockRealtimeMatchClient(
     this: Record<string, unknown>,
-    _options: unknown,
+    options: unknown,
   ) {
+    this.__options = options;
     this.connect = connectMock;
     this.getSnapshot = getSnapshotMock;
     this.disconnect = disconnectMock;
@@ -143,6 +154,34 @@ describe("FollowLiveClient (read-only)", () => {
     expect(screen.queryAllByRole("button")).toHaveLength(0);
     expect(screen.queryByText(/Continue live reporting/i)).toBeNull();
     expect(screen.queryByText(/Finish live reporting/i)).toBeNull();
+  });
+
+  // 2026-09-23 incident (Hvit v Huringen 1): the viewer's WebSocket reconnected repeatedly
+  // during the match (network churn — see `RealtimeMatchClient`'s own reconnect/backoff logic),
+  // but the original implementation only ever fetched `getSnapshot()` once, tied to the very
+  // first `connect()` call — a connection that reconnects mid-match never re-syncs, so any
+  // event broadcast while it happened to be offline is permanently invisible to the coach
+  // watching along. The component's own header comment documents the intended contract ("5. On
+  // refresh/reconnect, re-derive everything from the fresh snapshot") — this proves it.
+  it("re-fetches the snapshot on every reconnect, not just the initial connect", async () => {
+    render(
+      <FollowLiveClient
+        matchId="match-1"
+        teamName="Blue"
+        opponentName="Red"
+        homeAway="HOME"
+        playerMap={{}}
+        squad={[]}
+      />,
+    );
+
+    await waitFor(() => expect(getSnapshotMock).toHaveBeenCalledTimes(1));
+
+    const ctorCall = RealtimeMatchClientMock.mock.calls[0]![0] as MockClientOptions;
+    ctorCall.onConnectionStateChange?.("reconnecting");
+    ctorCall.onConnectionStateChange?.("connected");
+
+    await waitFor(() => expect(getSnapshotMock).toHaveBeenCalledTimes(2));
   });
 
   it("shows no guardrails warning without liveReportingStartedAt (legacy caller contract unchanged)", async () => {
