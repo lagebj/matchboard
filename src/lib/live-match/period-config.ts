@@ -187,6 +187,69 @@ export function toAbsoluteMatchMs(
 }
 
 /**
+ * Cumulative offset (ms since kickoff) at the START of each period, counting only *playing*
+ * periods' durations — deliberately excluding break periods (`HALF_TIME`, `EXTRA_HALF_TIME`),
+ * unlike `getCumulativePeriodOffsetsMs` above. This is the standard football convention for
+ * naming a match minute ("the 67th minute", "45+2") — nobody's mental model of "minute 40"
+ * counts the real wall-clock duration of the half-time break that already happened, only playing
+ * time. `getCumulativePeriodOffsetsMs` is deliberately NOT reused for this: it answers a
+ * different question ("what was the real elapsed wall-clock time", used by `actual-timeline.ts`
+ * to order/reconstruct actual events against each other, where the true break duration matters)
+ * — conflating the two would silently redefine that existing, already-shipped semantic. See
+ * `computeAbsoluteMatchSecondsForPlan`'s own doc comment for why this one exists.
+ */
+export function getCumulativePlayingTimeOffsetsMs(config: PeriodConfig[]): Partial<Record<MatchPeriod, number>> {
+  const offsets: Partial<Record<MatchPeriod, number>> = {};
+  let cumulativeMs = 0;
+  for (const period of config) {
+    offsets[period.key] = cumulativeMs;
+    if (period.type === "playing") cumulativeMs += period.durationMs ?? 0;
+  }
+  return offsets;
+}
+
+/**
+ * ARR-0053: `PlannedRotationChange.actualMatchSeconds` is written once, at the moment a coach
+ * applies a planned change live, and must be directly comparable to `approximateMatchSeconds`
+ * (a flat "match minute" value the coach entered while planning — see `planned-rotation.ts`'s
+ * own module doc; the form's own placeholder, "e.g. 25", has no period concept at all).
+ * `estimateCurrentMatchOffsetMs()` (the only source `applyPlannedChangeAction` has for "what
+ * time is it right now") returns milliseconds relative to the *current period* (ADR-0133 H3),
+ * which resets to 0 at the start of `SECOND_HALF` and beyond — directly persisting that
+ * period-relative value as `actualMatchSeconds` (the schema's own doc comment previously
+ * asserted this was already "like-for-like," which was not checked against
+ * `approximateMatchSeconds`'s actual semantics) produces a nonsensical deviation note for any
+ * change applied in the second half or later: a "minute 40" plan applied on time 10 minutes into
+ * the second half would read as `600 - 2400 = -1800` seconds, "applied 30 min earlier than
+ * planned," when it was on time.
+ *
+ * Uses `getCumulativePlayingTimeOffsetsMs` (playing time only, excluding the half-time break),
+ * not `getCumulativePeriodOffsetsMs` (real wall-clock, including the break) — the standard
+ * football convention for a match minute, and the only reading consistent with a coach typing
+ * "minute 40" into a field with zero period awareness or break-duration visibility. Using the
+ * break-inclusive offset instead would still leave a deviation note off by exactly the
+ * half-time break's length for any second-half-or-later comparison — a smaller bug than the
+ * original, but not a fix.
+ *
+ * `PlannedRotationChange` has no persisted `period` column of its own (confirmed: neither
+ * `approximateMatchSeconds` nor `actualMatchSeconds` has a sibling period field) — so the
+ * conversion cannot happen later, at read time in `rotation-vs-actual.ts`; there is no period to
+ * convert *from* once only the raw number has been stored. It must happen here, at write time,
+ * while `estimateCurrentMatchOffsetMs()`'s own `period` result is still available — converting
+ * to one absolute value before persisting means every later reader (including the existing
+ * `rotation-vs-actual.ts` subtraction, unchanged) compares like with like.
+ */
+export function computeAbsoluteMatchSecondsForPlan(
+  matchOffsetMs: number,
+  period: MatchPeriod | null | undefined,
+  periodConfig: PeriodConfig[],
+): number {
+  const offsets = getCumulativePlayingTimeOffsetsMs(periodConfig);
+  const absoluteMs = toAbsoluteMatchMs(period, matchOffsetMs, offsets);
+  return Math.max(0, Math.round(absoluteMs / 1000));
+}
+
+/**
  * Total elapsed match-clock duration (ms) implied by a period config, including any tracked
  * inter-period break (e.g. half-time) — the correct value to cap the final open-ended actual
  * position interval at, in place of a single half's duration alone. Returns null when no
