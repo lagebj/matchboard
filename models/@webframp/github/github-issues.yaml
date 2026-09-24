@@ -1,0 +1,8 @@
+type: '@webframp/github'
+typeVersion: 2026.09.18.1
+id: 537a67b6-c50c-4234-b95c-420cb6ab0eec
+name: github-issues
+version: 1
+tags: {}
+globalArguments: {}
+methods: {}
