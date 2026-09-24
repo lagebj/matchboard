@@ -21,6 +21,7 @@ Read this file before planning or changing code in a domain area. Then load only
 - `security-privacy-and-tenancy.md` — authn/authz boundaries, tenant isolation, provider configuration, secret handling, and security review requirements.
 - `data-architecture-and-operations.md` — persistence, schema constraints, deployment assumptions, provider actions, and architectural boundaries.
 - `testing-and-quality.md` — validation commands, documentation alignment, cleanup, and the quality bar before completion.
+- `issue-and-arr-workflow.md` — deciding between filing a GitHub issue, writing an ARR, or fixing directly, plus how to do each in this repository. Cross-cutting, not domain-gated — applies to any task, in any coding tool.
 
 ## How to use this folder
 
@@ -33,6 +34,7 @@ Read this file before planning or changing code in a domain area. Then load only
   - auth, privacy, tenancy, provider config → `security-privacy-and-tenancy.md`
   - schema, storage, migration, deployment → `data-architecture-and-operations.md`
   - validation and cleanup → `testing-and-quality.md`
+  - found a bug, defect, or architectural mismatch you are not fixing in the current change, in any domain → `issue-and-arr-workflow.md`
 - Keep this index as the canonical entry point; do not reintroduce giant `@` imports of large documents into auto-loaded instruction files.
 
 ## Canonical references

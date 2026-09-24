@@ -73,6 +73,15 @@ Use the relevant skill when the task matches it. Do not eagerly inline full skil
 - `documentation-and-adrs` — docs and durable decisions
 - `test-driven-development` — bugs and new behavior that requires proof
 
+## Recording defects and mismatches
+
+Found something you are not fixing in the current change? Classify it before finishing: an
+architectural mismatch (competing implementations, legacy residue) becomes an ARR
+(`architectural-residue-records` skill); a plain defect becomes a GitHub issue; a small
+same-branch fix is just fixed. This applies uniformly across every coding tool used in this
+repository. See `docs/agents/issue-and-arr-workflow.md` for the full decision guide and exact
+filing mechanics.
+
 ## Core safety constraints
 
 - Preserve the repository license and CLA expectations; do not weaken `LICENSE`, `LICENSING.md`, or contributor requirements.
