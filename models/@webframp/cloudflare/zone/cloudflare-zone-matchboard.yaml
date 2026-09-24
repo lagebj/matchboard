@@ -1,0 +1,9 @@
+type: '@webframp/cloudflare/zone'
+typeVersion: 2026.09.18.1
+id: 8e89f0d6-2779-4015-a5ae-8395040b218e
+name: cloudflare-zone-matchboard
+version: 1
+tags: {}
+globalArguments:
+  apiToken: '${{ vault.get(provider-secrets, CLOUDFLARE_API_TOKEN) }}'
+methods: {}
