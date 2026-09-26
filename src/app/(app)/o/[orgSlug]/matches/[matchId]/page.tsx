@@ -8,6 +8,8 @@ import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getPlannedRotation } from "@/lib/planned-rotation/planned-rotation";
 import { getMatchFormatOverrideState } from "@/lib/matches/match-format-override";
 import { deriveMatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+import { resolveLiveReportingPrimaryAction } from "@/lib/live-match/live-reporting-primary-action";
+import { resolveLeagueMatchPeriodConfig } from "@/lib/live-match/resolve-live-period-config";
 import { hasLeagueMatchPassed } from "@/lib/match-date-utils";
 import { canStartLiveReporting } from "@/lib/matches/can-live-report";
 import { deriveMatchDetailSurfaceState } from "@/lib/matches/match-detail-view-model";
@@ -64,9 +66,19 @@ export default async function MatchDetailPage({
 
   const liveSession = await db.liveMatchSession.findUnique({
     where: { matchId, ...orgWhere },
-    select: { status: true },
+    select: { status: true, clockPeriod: true, clockRunning: true },
   });
   const isLive = liveSession?.status === "ACTIVE";
+
+  // ADR-0152 §2: the same canonical resolver Live Reporting (and Today) consume — Match Details
+  // must not independently infer "what should the coach do next" from just the `isLive` flag.
+  const livePrimaryAction = isLive
+    ? resolveLiveReportingPrimaryAction({
+        sessionStatus: "ACTIVE",
+        clock: liveSession ? { period: liveSession.clockPeriod, running: liveSession.clockRunning } : null,
+        periodConfig: await resolveLeagueMatchPeriodConfig(matchId, match.matchType),
+      })
+    : null;
 
   // ADR-0146 — match-format override state for the Match detail's format control
   // (complete-or-inherit, frozen once Live Reporting has started).
@@ -314,6 +326,7 @@ export default async function MatchDetailPage({
       isCancelled={match.status === "CANCELLED"}
       cancelledReason={match.cancelledReason}
       isLive={isLive}
+      livePrimaryAction={livePrimaryAction}
       canLiveReport={canStartLiveReporting({
         lifecycleStatus,
         isCancelled: match.status === "CANCELLED",

@@ -263,3 +263,19 @@ mid-period and full-time stay hard-disabled — the bundle defines no recovery f
 `derivePeriodTransitionEventType` (`match-clock.ts`) replaces three copies of the same
 period→event-type derivation (the two pre-existing period-advance paths, plus this new one)
 with one.
+
+Slice 1d delivered (closing Slice 1's remaining scope): League Today and League Match Details
+now consume the same canonical resolver instead of independently inferring "what should the
+coach do next" from a bare `isLive` boolean. `getTodayLiveMatchSummaries` resolves the match's
+own period config and clock into a `primaryAction`, which the "Live Now" card renders as a real
+CTA into the editable Live Reporting page (`Continue live reporting`/`Start <period>`/
+`Resume <period>`/`Finish live reporting`) alongside the existing read-only `Follow live`.
+League Match Details resolves the same `livePrimaryAction` and uses it for its own primary
+button's label, replacing the binary `isLive ? "Open live reporting" : "Start live reporting"`.
+`describeLiveReportingEntryPointLabel` (`live-reporting-primary-action.ts`) is the one shared
+entry-point-label mapping both surfaces call, so the same lifecycle state reads identically on
+Today and Match Details. Investigation surfaced that Event has no equivalent of either surface
+at all (Today's live-now loader is League-only; Event's own match-detail surface,
+`event-matches-tab.tsx`, has no active-session-awareness by the author's own existing comment)
+— filed as [#686](https://github.com/lagebj/matchboard/issues/686) rather than built from
+scratch in this slice, since it is a missing-feature gap, not two competing implementations.

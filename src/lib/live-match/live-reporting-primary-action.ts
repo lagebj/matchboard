@@ -97,3 +97,28 @@ export function resolveLiveReportingPrimaryAction(
   }
   return { kind: "START_PERIOD", period: next, label: `Start ${labelFor(next, periodConfig).toLowerCase()}` };
 }
+
+/**
+ * ADR-0152 §11/§12: the one shared entry-point label for a surface (Today, Match Details) that
+ * links *into* Live Reporting rather than rendering its full controls — distinct from Live
+ * Reporting's own in-session period-button label (`resolveLiveReportingPrimaryAction`'s own
+ * `label` field for START_PERIOD/END_PERIOD, used verbatim there). Both surfaces must show the
+ * same wording for the same state.
+ */
+export function describeLiveReportingEntryPointLabel(action: LiveReportingPrimaryAction): string {
+  switch (action.kind) {
+    case "START_LIVE_REPORTING":
+      return "Start live reporting";
+    case "END_PERIOD":
+      return "Continue live reporting";
+    case "RESUME_PERIOD":
+    case "START_PERIOD":
+      return action.label;
+    case "FINISH_LIVE_REPORTING":
+      return "Finish live reporting";
+    case "OPEN_POST_MATCH_REPORT":
+      return "Open post-match report";
+    case "WAIT_FOR_RECONCILIATION":
+      return "Live reporting is being closed";
+  }
+}

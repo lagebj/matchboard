@@ -11,15 +11,20 @@ import { Surface } from "@/components/ui/surface";
 import { StatusPill } from "@/components/ui/status-pill";
 import { TouchlineButton } from "@/components/touchline";
 import type { TodayLiveMatchSummary } from "@/lib/live-match/get-today-live-match-summaries";
+import { describeLiveReportingEntryPointLabel } from "@/lib/live-match/live-reporting-primary-action";
 
 export function TodayLiveNow({
   primary,
   otherLiveCount,
   matchHref,
+  reportHref,
 }: {
   primary: TodayLiveMatchSummary | null;
   otherLiveCount: number;
   matchHref: (matchId: string) => string;
+  /** ADR-0152 §2/§11: the editable Live Reporting page — the resolver-driven primary CTA below
+   * goes here, distinct from `matchHref`'s read-only Follow Live destination. */
+  reportHref: (matchId: string) => string;
 }) {
   if (!primary) return null;
 
@@ -48,7 +53,10 @@ export function TodayLiveNow({
           {!primary.isRunning ? " · paused" : ""}
         </span>
       </div>
-      <div>
+      <div className="flex items-center gap-2">
+        <TouchlineButton as={Link} href={reportHref(primary.matchId)} variant="primary" size="sm">
+          {describeLiveReportingEntryPointLabel(primary.primaryAction)}
+        </TouchlineButton>
         <TouchlineButton as={Link} href={matchHref(primary.matchId)} variant="secondary" size="sm">
           Follow live
         </TouchlineButton>

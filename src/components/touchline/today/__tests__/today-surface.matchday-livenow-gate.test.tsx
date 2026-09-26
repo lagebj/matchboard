@@ -113,6 +113,7 @@ describe("TodaySurface Live Now / Matchday gating", () => {
           periodLabel: "1st half",
           elapsedLabel: "12:00",
           isRunning: true,
+          primaryAction: { kind: "END_PERIOD", period: "FIRST_HALF", label: "End first half" },
         },
         otherLiveCount: 0,
       },

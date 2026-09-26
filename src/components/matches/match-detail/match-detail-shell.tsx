@@ -29,6 +29,7 @@ import { formatWarningCode } from "@/lib/match-utils";
 import { buildMatchMetaLine } from "@/lib/matches/match-detail-format";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchLifecycleStatus } from "@/lib/selection/planning-boundary";
+import { describeLiveReportingEntryPointLabel, type LiveReportingPrimaryAction } from "@/lib/live-match/live-reporting-primary-action";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
@@ -65,6 +66,10 @@ export type MatchDetailShellProps = {
   isCancelled: boolean;
   cancelledReason: string | null;
   isLive: boolean;
+  /** ADR-0152 §2/§12: the canonical resolver's outcome for this match's live session, or `null`
+   * when `!isLive` — the primary-action label below derives from this instead of the bare
+   * `isLive` boolean. */
+  livePrimaryAction?: LiveReportingPrimaryAction | null;
   canLiveReport: boolean;
   canFollowLive: boolean;
   venue: string;
@@ -129,6 +134,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     isCancelled,
     cancelledReason,
     isLive,
+    livePrimaryAction,
     canLiveReport,
     canFollowLive,
     venue,
@@ -213,7 +219,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
         size="sm"
         leadingIcon={<Radio className="h-3.5 w-3.5" aria-hidden="true" />}
       >
-        {isLive ? "Open live reporting" : "Start live reporting"}
+        {livePrimaryAction ? describeLiveReportingEntryPointLabel(livePrimaryAction) : "Start live reporting"}
       </TouchlineButton>
     ) : undefined;
 

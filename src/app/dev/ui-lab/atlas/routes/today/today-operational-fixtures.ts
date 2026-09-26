@@ -172,6 +172,7 @@ const liveNowPrimary: TodayLiveNowResult = {
     periodLabel: "Second half",
     elapsedLabel: "67:42",
     isRunning: true,
+    primaryAction: { kind: "END_PERIOD", period: "SECOND_HALF", label: "End second half" },
   },
   otherLiveCount: 1,
 };
@@ -511,6 +512,7 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
             periodLabel: "First half",
             elapsedLabel: "38:12",
             isRunning: true,
+            primaryAction: { kind: "END_PERIOD", period: "FIRST_HALF", label: "End first half" },
           },
           otherLiveCount: 0,
         },

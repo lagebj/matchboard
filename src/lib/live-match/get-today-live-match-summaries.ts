@@ -12,6 +12,9 @@ import { reduceLiveEvents } from "@/lib/live-match/live-match-projection";
 import { persistedToClockState } from "@/lib/live-match/session-clock";
 import { getElapsedMs, formatElapsedMs } from "@/lib/live-match/match-clock";
 import { getPeriodLabel } from "@/lib/live-match/live-match-domain";
+import { getLeagueMatchPeriodConfig } from "@/lib/live-match/period-config";
+import { snapshotToFormat } from "@/lib/live-match/match-format";
+import { resolveLiveReportingPrimaryAction, type LiveReportingPrimaryAction } from "@/lib/live-match/live-reporting-primary-action";
 
 export type TodayLiveMatchSummary = {
   matchId: string;
@@ -24,6 +27,9 @@ export type TodayLiveMatchSummary = {
   /** `m:ss`, or `null` when a reliable clock cannot be produced — never a fake `0:00`. */
   elapsedLabel: string | null;
   isRunning: boolean;
+  /** ADR-0152 §2: the same canonical resolver Live Reporting and (later) Match Details consume
+   * — Today must not independently infer "what should the coach do next" for this match. */
+  primaryAction: LiveReportingPrimaryAction;
 };
 
 export type TodayLiveNowResult = {
@@ -54,7 +60,10 @@ export async function getTodayLiveMatchSummaries(
       clockRunning: true,
       clockPeriodStartedAt: true,
       clockElapsedBeforeMs: true,
-      match: { select: { startsAt: true, opponent: true, team: { select: { name: true } } } },
+      formatNumberOfPeriods: true,
+      formatPeriodDurationMinutes: true,
+      formatBreakDurationMinutes: true,
+      match: { select: { startsAt: true, opponent: true, matchType: true, team: { select: { name: true } } } },
     },
   });
 
@@ -95,6 +104,12 @@ export async function getTodayLiveMatchSummaries(
 
     const elapsedLabel = clock ? formatElapsedMs(getElapsedMs(clock, now.getTime())) : null;
 
+    // ADR-0146: the session's own frozen format snapshot is authoritative once Live Reporting
+    // has started, same read discipline every other Live Reporting surface uses — never
+    // re-resolved from current Season/Team config.
+    const periodConfig = getLeagueMatchPeriodConfig(session.match.matchType, snapshotToFormat(session));
+    const primaryAction = resolveLiveReportingPrimaryAction({ sessionStatus: "ACTIVE", clock, periodConfig });
+
     const summary: TodayLiveMatchSummary = {
       matchId: session.matchId,
       sessionId: session.id,
@@ -105,6 +120,7 @@ export async function getTodayLiveMatchSummaries(
       periodLabel: clock ? getPeriodLabel(clock.period) : "Live",
       elapsedLabel,
       isRunning: clock?.running ?? false,
+      primaryAction,
     };
 
     return { summary, startsAt: session.match.startsAt };

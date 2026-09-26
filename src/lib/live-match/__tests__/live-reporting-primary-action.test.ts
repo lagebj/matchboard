@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveLiveReportingPrimaryAction } from "../live-reporting-primary-action";
+import { resolveLiveReportingPrimaryAction, describeLiveReportingEntryPointLabel } from "../live-reporting-primary-action";
 import { LEAGUE_PERIOD_CONFIG, buildPeriodConfigFromFormat, type PeriodConfig } from "../period-config";
 import { getEventPeriodConfig } from "../period-config";
 
@@ -128,5 +128,23 @@ describe("resolveLiveReportingPrimaryAction (ADR-0152)", () => {
     expect(
       resolveLiveReportingPrimaryAction({ sessionStatus: "ACTIVE", clock: null, periodConfig: LEAGUE_PERIOD_CONFIG }),
     ).toEqual({ kind: "START_PERIOD", period: "FIRST_HALF", label: "Start first half" });
+  });
+});
+
+describe("describeLiveReportingEntryPointLabel (ADR-0152 §11/§12 — Today/Match Details shared entry-point copy)", () => {
+  it("labels each resolver outcome exactly as the bundle's Today lifecycle table specifies", () => {
+    expect(describeLiveReportingEntryPointLabel({ kind: "START_LIVE_REPORTING" })).toBe("Start live reporting");
+    expect(describeLiveReportingEntryPointLabel({ kind: "END_PERIOD", period: "FIRST_HALF", label: "End first half" })).toBe(
+      "Continue live reporting",
+    );
+    expect(describeLiveReportingEntryPointLabel({ kind: "RESUME_PERIOD", period: "SECOND_HALF", label: "Resume second half" })).toBe(
+      "Resume second half",
+    );
+    expect(describeLiveReportingEntryPointLabel({ kind: "START_PERIOD", period: "SECOND_HALF", label: "Start second half" })).toBe(
+      "Start second half",
+    );
+    expect(describeLiveReportingEntryPointLabel({ kind: "FINISH_LIVE_REPORTING" })).toBe("Finish live reporting");
+    expect(describeLiveReportingEntryPointLabel({ kind: "OPEN_POST_MATCH_REPORT" })).toBe("Open post-match report");
+    expect(describeLiveReportingEntryPointLabel({ kind: "WAIT_FOR_RECONCILIATION" })).toBe("Live reporting is being closed");
   });
 });
