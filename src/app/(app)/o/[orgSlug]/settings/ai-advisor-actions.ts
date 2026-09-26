@@ -82,6 +82,7 @@ export async function getAiAdvisorSettingsAction(organisationSlug: string): Prom
       MATCH_PREP: settings?.matchPrepEnabled ?? false,
       POST_MATCH_REVIEW: settings?.postMatchReviewEnabled ?? false,
       WEEKLY_TEAM_REVIEW: settings?.weeklyTeamReviewEnabled ?? false,
+      DEVELOPMENT_CYCLE_REVIEW: settings?.developmentCycleReviewEnabled ?? false,
     },
     activeConnection,
     providerOptions: (["openai", "anthropic", "google_gemini", "mistral", "ollama_cloud"] as const).map((id) => ({

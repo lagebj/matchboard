@@ -66,6 +66,18 @@ model — suspension is not deletion). Same gap as above: no self-service or adm
     subjective note, not a settled post-encounter summary), `Match.notes`, and every other
     capability's free-text fields remain excluded exactly as before. The historical match's own
     database id is never included — only its date/result/formation and the attributed text.
+  - **Coach learning loop exception** (ADR-0152 Decision 8): one qualitative-extraction call
+    per material source-text revision (debrief answers, `PostMatchReport.teamNote`,
+    `TeamReflection.note`, opponent encounter text) and `post_match_review`'s current-match
+    debrief text may carry coach free text. Every such text first passes a deterministic
+    pseudonymizer replacing known participant player/guest names with that payload's ephemeral
+    refs, is bounded in length, and is attributed as a coach observation. Historical text is
+    sent only as structured observations, never raw.
+- **Stored coach free text** (ADR-0152): `PostMatchDebrief.answers` (debrief comments, max
+  2,000 characters per field), `QualitativeEvidenceObservation.statement` (max 500 characters,
+  coach-reported; may reference a persistent player via `playerId`, never a guest), and
+  `AiInsightClarification.answerText`. Organisation-scoped; cascade-deleted with their report,
+  match, player, or organisation.
 - **Exports** (season export, `/api/season/export`): coach-mode export includes player
   names; parent-mode export hides internal planning tags but still includes player names and
   results (this is the intended purpose of a parent-facing roster/results export, not a leak).
