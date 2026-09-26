@@ -27,6 +27,9 @@ test("a second coach can follow a live match in real time via the Cloudflare rea
   // slower than the default 5s expect timeout, confirmed live against the shared hosted Test slot.
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
   await page.getByRole("button", { name: "Start live reporting" }).click();
+  // ADR-0152 §7: normal events (a goal) require the clock to be running a playable period —
+  // "Start live reporting" alone only creates the session (clock stays at "before kickoff").
+  await page.getByRole("button", { name: "Start first half" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
   // Explicitly end the reporter's own live session on every exit path (pass, fail, or a later

@@ -152,6 +152,10 @@ export async function POST(request: Request) {
       "[internal:live-match:events] Failed to persist event",
     );
     const message = error instanceof Error ? error.message : "Failed to persist event";
-    return NextResponse.json({ error: message }, { status: isDomainError || isSequenceIntegrityError ? 422 : 503 });
+    // ADR-0152 §7 — surface the typed rejection code (e.g. LIVE_PERIOD_NOT_RUNNING) when present
+    // so a caller can distinguish it from an ordinary validation rejection without string-
+    // matching `message`. Undefined for every other LiveMatchDomainError, unchanged from before.
+    const errorCode = isDomainError && error instanceof LiveMatchDomainError ? error.code : undefined;
+    return NextResponse.json({ error: message, errorCode }, { status: isDomainError || isSequenceIntegrityError ? 422 : 503 });
   }
 }

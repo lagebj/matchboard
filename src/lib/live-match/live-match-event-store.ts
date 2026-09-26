@@ -7,7 +7,7 @@ import { runWithTenantOrganisationId, setTenantOrganisationId } from "@/lib/tena
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "./live-match-types";
 import { MATCH_PERIOD_ORDER } from "./live-match-types";
 import type { LiveEventInput, LiveEventSummary } from "./live-match-types";
-import { validateLiveEventInput, derivePositionChangeFromPayload } from "./live-match-domain";
+import { validateLiveEventInput, derivePositionChangeFromPayload, checkNormalLiveEventGuard } from "./live-match-domain";
 import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
 
 /**
@@ -20,7 +20,17 @@ import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
  * this" apart from "this is transient, keep retrying" using nothing more than the HTTP status
  * it already gets back.
  */
-export class LiveMatchDomainError extends Error {}
+export class LiveMatchDomainError extends Error {
+  /** A machine-readable rejection code for the small set of typed rejections callers need to
+   * distinguish (e.g. `LIVE_PERIOD_NOT_RUNNING`, ADR-0152 §7) — undefined for the ordinary,
+   * message-only validation rejections this class already covered. */
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 
 /**
  * ADR-0138 (Bundle 2) — a different `clientEventId` attempted to reuse a `sequence` this
@@ -61,7 +71,7 @@ export async function recordEventForActor(
   return runWithTenantOrganisationId(actor.organisationId, async () => {
     const session = await db.liveMatchSession.findUnique({
       where: { id: input.sessionId },
-      select: { id: true, status: true, matchId: true, organisationId: true },
+      select: { id: true, status: true, matchId: true, organisationId: true, clockPeriod: true, clockRunning: true },
     });
 
     if (!session) {
@@ -83,6 +93,15 @@ export async function recordEventForActor(
     const validationError = validateLiveEventInput(input);
     if (validationError) {
       throw new LiveMatchDomainError(validationError);
+    }
+
+    // ADR-0152 §7 — one shared domain guard: a normal event may not be written unless the
+    // persisted clock is running a playable period. A stale/reloaded client that briefly
+    // disagrees with the server gets rejected exactly the same way; explicit correction/
+    // reversal keeps its own separate path (`requiresRunningPeriod`).
+    const guardRejection = checkNormalLiveEventGuard(input.eventType as LiveMatchEventType, session);
+    if (guardRejection) {
+      throw new LiveMatchDomainError("The live clock is not running a playable period", guardRejection);
     }
 
     if (input.clientEventId) {

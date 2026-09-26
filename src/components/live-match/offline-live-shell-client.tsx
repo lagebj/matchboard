@@ -128,7 +128,18 @@ function withOfflinePackage(actions: LiveMatchActions, pkg: PreparedLiveMatchPac
         success: true,
         data: {
           squad: pkg.squad,
-          activeSession: localSession ? { id: localSession.id, coachId: localSession.coachId, startedAt: localSession.startedAt } : null,
+          activeSession: localSession
+            ? {
+                id: localSession.id,
+                coachId: localSession.coachId,
+                startedAt: localSession.startedAt,
+                // ADR-0152 §7: without this, a fully-offline reload always rehydrated "before
+                // kickoff" regardless of the real clock (LocalSession never carried it before),
+                // permanently disabling normal events after any offline reload following a real
+                // period start.
+                clock: localSession.clock,
+              }
+            : null,
         },
       };
     },

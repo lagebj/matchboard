@@ -56,7 +56,17 @@ function makeActions(overrides: Partial<LiveMatchActions> = {}): LiveMatchAction
     getRecentEvents: vi.fn().mockResolvedValue({ success: true, data: [] }),
     getPreMatchPackage: vi.fn().mockResolvedValue({
       success: true,
-      data: { squad: SQUAD, activeSession: { id: "session-1", coachId: "coach-1", startedAt: new Date().toISOString() } },
+      data: {
+        squad: SQUAD,
+        // ADR-0152 §7: a Position action is a normal event — the clock must be running a
+        // playable period, or the client disables the entry-point button.
+        activeSession: {
+          id: "session-1",
+          coachId: "coach-1",
+          startedAt: new Date().toISOString(),
+          clock: { period: "FIRST_HALF", running: true, startedAt: new Date().toISOString(), elapsedBeforeStartMs: 0 },
+        },
+      },
     }),
     ...overrides,
   };
@@ -188,7 +198,15 @@ describe("LiveMatchClient — Position action (manual POSITIONS_CHANGED)", () =>
       recordEvent,
       getPreMatchPackage: vi.fn().mockResolvedValue({
         success: true,
-        data: { squad: SUB_INCIDENT_SQUAD, activeSession: { id: "session-1", coachId: "coach-1", startedAt: new Date().toISOString() } },
+        data: {
+          squad: SUB_INCIDENT_SQUAD,
+          activeSession: {
+            id: "session-1",
+            coachId: "coach-1",
+            startedAt: new Date().toISOString(),
+            clock: { period: "FIRST_HALF", running: true, startedAt: new Date().toISOString(), elapsedBeforeStartMs: 0 },
+          },
+        },
       }),
     });
 

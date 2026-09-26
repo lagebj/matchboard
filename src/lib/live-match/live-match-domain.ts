@@ -12,6 +12,7 @@ import {
   FAIR_PLAY_POSITIVE_CATEGORIES,
   FAIR_PLAY_CONCERN_CATEGORIES,
 } from "./live-match-types";
+import { isPlayingPeriod } from "./match-clock";
 
 /**
  * Bundle 5 (ADR-0138) — the confirmed real `POSITIONS_CHANGED` payload shape is one event per
@@ -136,6 +137,46 @@ export function fairPlayCategoryIsPositive(category: FairPlayCategory): boolean 
 
 export function fairPlayCategoryIsConcern(category: FairPlayCategory): boolean {
   return FAIR_PLAY_CONCERN_CATEGORIES.includes(category);
+}
+
+/** The typed rejection code a normal live-event mutation fails with when the clock is not
+ * running a playable period (ADR-0152 §2/§7). Never used for the events exempted by
+ * `requiresRunningPeriod` below. */
+export const LIVE_PERIOD_NOT_RUNNING = "LIVE_PERIOD_NOT_RUNNING";
+
+/**
+ * ADR-0152 §7 — a "normal" live-event mutation (a goal, a rotation, a fair-play observation, a
+ * marked moment, an annotation like SCORER_SET/ASSIST_SET, a position change) requires a
+ * running playable period. The clock-transition events themselves (MATCH_START/PERIOD_START/
+ * PERIOD_END/MATCH_END, CLOCK_ADJUSTMENT) and the explicit correction/reversal path
+ * (EVENT_CORRECTED/EVENT_REVERSED) are exempt — they either define the state being checked
+ * against, or follow the separate, already-existing correction rules.
+ */
+export function requiresRunningPeriod(type: LiveMatchEventType): boolean {
+  if (isPeriodTransition(type)) return false;
+  if (isCorrectionOrReversal(type)) return false;
+  if (type === "CLOCK_ADJUSTMENT") return false;
+  return true;
+}
+
+/**
+ * The one shared domain guard (bundle §07.7: "one shared domain guard, not per-button
+ * validation"). Called from both League's and Event's event-store write paths with that
+ * session's own persisted clock — never re-derived per event type by the caller. Returns
+ * `null` when the mutation may proceed, or `LIVE_PERIOD_NOT_RUNNING` when it must be rejected.
+ * A stale client that briefly disagrees with the server's persisted clock gets exactly the same
+ * rejection as a coach who genuinely tapped an action outside a running period — there is no
+ * separate "trust the client" path.
+ */
+export function checkNormalLiveEventGuard(
+  eventType: LiveMatchEventType,
+  clock: { clockPeriod: MatchPeriod; clockRunning: boolean },
+): typeof LIVE_PERIOD_NOT_RUNNING | null {
+  if (!requiresRunningPeriod(eventType)) return null;
+  if (!clock.clockRunning || !isPlayingPeriod(clock.clockPeriod)) {
+    return LIVE_PERIOD_NOT_RUNNING;
+  }
+  return null;
 }
 
 export function getFairPlayCategoryLabel(category: FairPlayCategory): string {

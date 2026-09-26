@@ -23,6 +23,9 @@ test("start live reporting, record a goal, verify the score updates, then finish
   await expect(page.getByText(`vs ${opponentName}`)).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Start live reporting" }).click();
+  // ADR-0152 §7: normal events (a goal) require the clock to be running a playable period —
+  // "Start live reporting" alone only creates the session (clock stays at "before kickoff").
+  await page.getByRole("button", { name: "Start first half" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Goal for us" }).click();
@@ -60,6 +63,9 @@ test("blocks finishing the session while events are still unsynced, then complet
   // slower than the default 5s expect timeout, confirmed live against the shared hosted Test slot.
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
   await page.getByRole("button", { name: "Start live reporting" }).click();
+  // ADR-0152 §7: normal events (a goal) require the clock to be running a playable period —
+  // "Start live reporting" alone only creates the session (clock stays at "before kickoff").
+  await page.getByRole("button", { name: "Start first half" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
   // Regression test for the 2026-08-24 score data-integrity fix (handleEndSession in

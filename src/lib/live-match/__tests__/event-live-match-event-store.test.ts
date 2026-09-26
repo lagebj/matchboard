@@ -56,6 +56,11 @@ async function createActiveSession(overrides: Record<string, unknown> = {}) {
       organisationId: testOrgId,
       coachId: "test-coach",
       status: "ACTIVE",
+      // ADR-0152 §7: normal events require a running playable period — this file's own tests
+      // are almost all normal-event scenarios, so default to a running clock; a test that
+      // specifically exercises the guard passes its own `clockPeriod`/`clockRunning` override.
+      clockPeriod: "FIRST_HALF",
+      clockRunning: true,
       ...overrides,
     },
   });
@@ -169,5 +174,100 @@ describe("recordEventForActorEvent (ADR-0138 Bundle 8, Event coordinator parity)
         { userId: "test-coach", organisationId: testOrgId },
       ),
     ).rejects.toThrow(LiveMatchDomainError);
+  });
+
+  describe("ADR-0152 §7 — normal events require a running playable period (Event parity with League)", () => {
+    it("rejects a normal event before kickoff", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession({ clockPeriod: "BEFORE", clockRunning: false });
+      await expect(
+        recordEventForActorEvent(
+          { eventMatchId: session.eventMatchId, sessionId: session.sessionId, eventType: "GOAL_FOR", clientEventId: `client-${Math.random()}`, sequence: 1, acceptedAtMs: Date.now() },
+          { userId: "test-coach", organisationId: testOrgId },
+        ),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("rejects a normal event during a break", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession({ clockPeriod: "HALF_TIME", clockRunning: false });
+      await expect(
+        recordEventForActorEvent(
+          { eventMatchId: session.eventMatchId, sessionId: session.sessionId, eventType: "GOAL_AGAINST", clientEventId: `client-${Math.random()}`, sequence: 1, acceptedAtMs: Date.now() },
+          { userId: "test-coach", organisationId: testOrgId },
+        ),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("rejects a normal event after full time", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession({ clockPeriod: "FULL_TIME", clockRunning: false });
+      await expect(
+        recordEventForActorEvent(
+          { eventMatchId: session.eventMatchId, sessionId: session.sessionId, eventType: "MOMENT_MARKED", clientEventId: `client-${Math.random()}`, sequence: 1, acceptedAtMs: Date.now() },
+          { userId: "test-coach", organisationId: testOrgId },
+        ),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("rejects a normal event while a playing period is merely paused", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession({ clockPeriod: "SECOND_HALF", clockRunning: false });
+      await expect(
+        recordEventForActorEvent(
+          { eventMatchId: session.eventMatchId, sessionId: session.sessionId, eventType: "GOAL_FOR", clientEventId: `client-${Math.random()}`, sequence: 1, acceptedAtMs: Date.now() },
+          { userId: "test-coach", organisationId: testOrgId },
+        ),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("a stale client cannot bypass the guard by claiming a different period in the request", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession({ clockPeriod: "BEFORE", clockRunning: false });
+      await expect(
+        recordEventForActorEvent(
+          {
+            eventMatchId: session.eventMatchId,
+            sessionId: session.sessionId,
+            eventType: "GOAL_FOR",
+            period: "FIRST_HALF",
+            matchSeconds: 5000,
+            clientEventId: `client-${Math.random()}`,
+            sequence: 1,
+            acceptedAtMs: Date.now(),
+          },
+          { userId: "test-coach", organisationId: testOrgId },
+        ),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("never rejects the explicit correction/reversal path, regardless of clock state", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession({ clockPeriod: "FULL_TIME", clockRunning: false });
+      const result = await recordEventForActorEvent(
+        {
+          eventMatchId: session.eventMatchId,
+          sessionId: session.sessionId,
+          eventType: "EVENT_REVERSED",
+          correctionType: "REVERSAL",
+          correctsEventId: "some-earlier-event",
+          clientEventId: `client-${Math.random()}`,
+          sequence: 1,
+          acceptedAtMs: Date.now(),
+        },
+        { userId: "test-coach", organisationId: testOrgId },
+      );
+      expect(result.eventType).toBeDefined();
+    });
+
+    it("allows the normal event once the clock is running a playable period (the default from createActiveSession)", async () => {
+      const { recordEventForActorEvent } = await import("../event-live-match-event-store");
+      const session = await createActiveSession();
+      const result = await recordEventForActorEvent(
+        { eventMatchId: session.eventMatchId, sessionId: session.sessionId, eventType: "GOAL_FOR", clientEventId: `client-${Math.random()}`, sequence: 1, acceptedAtMs: Date.now() },
+        { userId: "test-coach", organisationId: testOrgId },
+      );
+      expect(result.eventType).toBeDefined();
+    });
   });
 });

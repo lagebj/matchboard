@@ -34,6 +34,7 @@ import {
   recoverInterruptedSends,
   clearPersistedCommands,
   saveSessionLocally,
+  getLocalSession,
   clearLocalSession,
   savePreparedPackage,
   clearPreparedPackage,
@@ -41,6 +42,7 @@ import {
   type SubjectType,
   type CommandStatus,
   type PreparedLiveMatchPackageBase,
+  type LocalSessionClock,
 } from "@/lib/live-match/local/live-local-store";
 import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-match/local/pending-overlay";
 import { registerLiveServiceWorker } from "@/lib/live-match/offline/register-live-service-worker";
@@ -394,6 +396,17 @@ function SyncStatusIndicator({
   return <div className={`text-[var(--text-micro)] ${color} text-center py-0.5`}>{label}</div>;
 }
 
+/** Serializes `MatchClockState` for `LocalSession.clock` (IndexedDB) — see its doc comment for
+ * why a fully-offline reload needs this alongside id/coachId/startedAt. */
+function clockToLocalSessionClock(clock: MatchClockState): LocalSessionClock {
+  return {
+    period: clock.period,
+    running: clock.running,
+    startedAt: clock.startedAt ? clock.startedAt.toISOString() : null,
+    elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
+  };
+}
+
 // --- Main Component ---
 export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true, subjectType = "LEAGUE", eventId }: LiveMatchClientProps) {
   // ADR-0138 Bundle 6 — the local outbox's subject identity. `matchId` already holds the right
@@ -428,7 +441,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       if (isFresh) return;
     }
     void actions.persistClock(sessionId, clock);
-  }, [clock, sessionActive, sessionId, actions]);
+    // ADR-0152 §7 (offline continuation correctness): mirror the clock into this device's own
+    // LocalSession record too — a fully-offline reload has no server round trip available and
+    // would otherwise only ever rehydrate the "before kickoff" state it was saved with at
+    // session creation, permanently disabling normal events after any offline reload following
+    // a real period start. Merges onto the existing record rather than overwriting id/coachId/
+    // startedAt; a missing record (session predates this device, or save hasn't landed yet) is
+    // a no-op, same best-effort discipline as `persistClock` above.
+    void getLocalSession(subjectId).then((existing) => {
+      if (!existing) return;
+      void saveSessionLocally({ ...existing, clock: clockToLocalSessionClock(clock) });
+    });
+  }, [clock, sessionActive, sessionId, actions, subjectId]);
   const [goalsFor, setGoalsFor] = useState(0);
   const [goalsAgainst, setGoalsAgainst] = useState(0);
   const [recentEvents, setRecentEvents] = useState<LiveEventSummary[]>([]);
@@ -765,13 +789,23 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           setSessionActive(true);
           setLiveReportingStartedAt(new Date(result.data.activeSession.startedAt));
           setSessionFormat(deserializeMatchFormat(result.data.activeSession.format));
-          const savedSession = { subjectType, subjectId, id: result.data.activeSession.id, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
-          await saveSessionLocally(savedSession);
           // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
           // device swap does not reset it to "before kickoff". A still-`BEFORE`, not-running,
           // zero-elapsed clock is indistinguishable from the fresh initial state, so leave the
           // initial `useState` value in place for that case.
           const savedClock = result.data.activeSession.clock;
+          // ADR-0152 §7 (offline continuation correctness): carry the same clock into the
+          // LocalSession record this device saves — see clockToLocalSessionClock's caller
+          // above for why a fully-offline reload otherwise loses it entirely.
+          const savedSession = {
+            subjectType,
+            subjectId,
+            id: result.data.activeSession.id,
+            coachId: result.data.activeSession.coachId,
+            startedAt: result.data.activeSession.startedAt,
+            clock: savedClock ?? undefined,
+          };
+          await saveSessionLocally(savedSession);
           if (
             savedClock &&
             !(savedClock.period === "BEFORE" && !savedClock.running && savedClock.elapsedBeforeStartMs === 0)
@@ -1367,6 +1401,13 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   );
   const periodActionLabel = "label" in primaryAction ? primaryAction.label : "Match ended";
 
+  // ADR-0152 §7: the client-side convenience half of the shared server guard — normal Goal/
+  // Assist/Fair play/Rotation/Position/Moment actions are disabled unless the clock is running
+  // a playable period (mirrors `checkNormalLiveEventGuard`'s condition exactly: END_PERIOD is
+  // the resolver's own signal for that state). The server remains the actual authority; a stale
+  // client that briefly disagrees gets the same `LIVE_PERIOD_NOT_RUNNING` rejection either way.
+  const normalEventsBlocked = primaryAction.kind !== "END_PERIOD";
+
   // --- ADR-0146: Live Reporting guardrails warning (bundle §03.5–§03.8, §05.7–§05.11) ---
   // A wall-clock tick while a session is active — the 180/240/270-minute thresholds anchor to
   // the SESSION's start, not the period clock, so this ticks even while the clock is paused or
@@ -1527,13 +1568,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-3 flex gap-2">
         <button
           onClick={handleGoalFor}
-          className="flex-1 py-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 rounded-xl font-bold text-base min-h-[64px] transition-[filter]"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-xl font-bold text-base min-h-[64px] transition-[filter]"
         >
           Goal for us
         </button>
         <button
           onClick={handleGoalAgainst}
-          className="flex-1 py-4 bg-[var(--surface-strong)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-xl font-bold text-base min-h-[64px] transition-colors"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-4 bg-[var(--surface-strong)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)] text-[var(--text-soft)] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-base min-h-[64px] transition-colors"
         >
           Goal for them
         </button>
@@ -1543,7 +1586,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-2 flex gap-2">
         <button
           onClick={handleStartRotation}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors ${
+          disabled={normalEventsBlocked}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             rotationMode ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]" : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)]"
           }`}
         >
@@ -1551,7 +1595,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </button>
         <button
           onClick={handleStartPositionChange}
-          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Position
         </button>
@@ -1559,13 +1604,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-2 flex gap-2">
         <button
           onClick={() => handleFairPlayStart(true)}
-          className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
         >
           Fair play +
         </button>
         <button
           onClick={handleMomentMarked}
-          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Mark moment
         </button>
@@ -1575,7 +1622,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-1">
         <button
           onClick={() => handleFairPlayStart(false)}
-          className="w-full py-2 text-sm text-[var(--danger)] bg-[var(--danger-subtle)] hover:brightness-110 rounded-lg min-h-[44px] transition-[filter]"
+          disabled={normalEventsBlocked}
+          className="w-full py-2 text-sm text-[var(--danger)] bg-[var(--danger-subtle)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-lg min-h-[44px] transition-[filter]"
         >
           Fair play concern
         </button>

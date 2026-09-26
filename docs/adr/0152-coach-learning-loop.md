@@ -207,3 +207,41 @@ the existing component test suite passing unchanged). Remaining Slice 1 work —
 server-enforced `LIVE_PERIOD_NOT_RUNNING` event guard, the forgotten-period-start recovery
 sheet, and Today/Match Details convergence onto the same resolver — follows as Slice
 1b/1c/1d.
+
+Slice 1b delivered: the shared server-side event guard (`checkNormalLiveEventGuard` /
+`requiresRunningPeriod`, `src/lib/live-match/live-match-domain.ts`), wired into both
+`recordEventForActor` (League) and `recordEventForActorEvent` (Event) — the exact chokepoint
+every browser-originated live event already passes through via the internal HMAC-authenticated
+persistence endpoint. A normal event (goal, rotation, fair-play, moment, position, the
+SCORER_SET/ASSIST_SET annotations) is now rejected with the typed `LIVE_PERIOD_NOT_RUNNING`
+code whenever the session's own persisted clock is not running a playable period; the
+period-transition events themselves, `CLOCK_ADJUSTMENT`, and the explicit correction/reversal
+path stay exempt. The client also disables the corresponding buttons (`normalEventsBlocked`,
+derived from the same resolver used in Slice 1a) as the documented convenience layer — the
+server rejection is the actual authority. This closes the bundle's own admission that "events
+are accepted before kick-off, at half-time and at full time" today; several pre-existing tests
+that recorded normal events without ever starting the clock were updated to reflect the
+corrected (and now enforced) invariant. The forgotten-period-start recovery sheet and
+Today/Match Details convergence remain as Slice 1c/1d.
+
+The Test-slot Playwright acceptance run (real browser, real hosted preview) caught what the
+unit/component suites could not: four e2e specs (`live-reporting.spec.ts`,
+`follow-live.spec.ts`, `live-reporting-offline-continuation.spec.ts`,
+`post-match-evidence-parity.spec.ts`) clicked "Goal for us" immediately after "Start live
+reporting" — the exact production sequence this slice's guard now correctly rejects, since
+"Start live reporting" alone only creates the session (clock stays at "before kickoff") and a
+real coach still has to separately start the first period. Fixed by adding the missing "Start
+first half" click to each spec, matching the real required coach flow — not by weakening the
+guard.
+
+That same e2e re-run then caught a second, genuinely pre-existing bug this slice's guard simply
+made visible for the first time: the fully-offline continuation path (ADR-0138 Bundle 7)
+rehydrates its `activeSession` from this device's own `LocalSession` IndexedDB record when no
+server round trip is possible at all — and that record never carried the running clock, only
+`{id, coachId, startedAt}`. A coach who started the first half, went offline, and reloaded
+would have their clock silently revert to "before kickoff" — previously invisible (nothing
+checked the clock before this slice), now correctly surfaced as a disabled "Goal for us"
+button, and, had the guard not existed, would have recorded the offline goal against the wrong
+period. Fixed by adding `LocalSession.clock` (mirrored on every clock transition, alongside the
+existing server write) and threading it through `withOfflinePackage`'s synthesized
+`activeSession` in `offline-live-shell-client.tsx`.
