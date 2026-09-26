@@ -8,10 +8,9 @@ import {
   formatElapsedMs,
   advancePeriod,
   isPlayingPeriod,
-  isMatchOver,
-  isBreakPeriod,
   getPeriodAfter,
 } from "@/lib/live-match/match-clock";
+import { resolveLiveReportingPrimaryAction } from "@/lib/live-match/live-reporting-primary-action";
 import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
 import type { LiveEventSummary, MatchClockState, LiveMatchEventType } from "@/lib/live-match/live-match-types";
 import type { PeriodConfig } from "@/lib/live-match/period-config";
@@ -1357,20 +1356,16 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // `overlayPendingCommands` — extracted from this exact previous inline logic for testability).
   const mergedEvents = useMemo(() => overlayPendingCommands(recentEvents, localCommands), [recentEvents, localCommands]);
 
-  const isOver = isMatchOver(clock.period);
   const currentPeriodLabel = periodConfig.find((p) => p.key === clock.period)?.label ?? clock.period.replace(/_/g, " ");
 
-  // --- Period action label ---
-  const periodActionLabel = useMemo(() => {
-    if (isOver) return "Match ended";
-    const nextPeriod = getPeriodAfter(clock.period, periodConfig);
-    if (!nextPeriod) return "Match ended";
-    const nextLabel = periodConfig.find((p) => p.key === nextPeriod)?.label ?? nextPeriod.replace(/_/g, " ");
-    if (clock.period === "BEFORE") return `Start ${nextLabel.toLowerCase()}`;
-    if (isPlayingPeriod(clock.period, periodConfig)) return `End ${currentPeriodLabel.toLowerCase()}`;
-    if (isBreakPeriod(clock.period, periodConfig)) return `Start ${nextLabel.toLowerCase()}`;
-    return `Next: ${nextLabel}`;
-  }, [clock.period, periodConfig, currentPeriodLabel, isOver]);
+  // --- ADR-0152 §2: the canonical primary-action resolver — this component must not
+  // independently infer "what should the coach do next" from clock/period fields. Today and
+  // Match Details derive the same state from the same function.
+  const primaryAction = useMemo(
+    () => resolveLiveReportingPrimaryAction({ sessionStatus: "ACTIVE", clock, periodConfig }),
+    [clock, periodConfig],
+  );
+  const periodActionLabel = "label" in primaryAction ? primaryAction.label : "Match ended";
 
   // --- ADR-0146: Live Reporting guardrails warning (bundle §03.5–§03.8, §05.7–§05.11) ---
   // A wall-clock tick while a session is active — the 180/240/270-minute thresholds anchor to
@@ -1500,11 +1495,11 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 py-2 border-b border-[var(--border-soft)]">
         <button
           onClick={() => handlePeriodAdvance()}
-          disabled={isOver}
+          disabled={primaryAction.kind === "FINISH_LIVE_REPORTING"}
           className={`w-full py-3 px-4 rounded-lg text-sm font-semibold min-h-[48px] transition-colors ${
-            isOver
+            primaryAction.kind === "FINISH_LIVE_REPORTING"
               ? "bg-[var(--surface-hover)] text-[var(--text-muted)] cursor-not-allowed"
-              : isPlayingPeriod(clock.period, periodConfig)
+              : primaryAction.kind === "END_PERIOD" || primaryAction.kind === "RESUME_PERIOD"
                 ? "bg-[var(--warning-subtle)] text-[var(--warning)] hover:brightness-110 active:brightness-95"
                 : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)]"
           }`}

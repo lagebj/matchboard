@@ -163,6 +163,9 @@ export async function endEventLiveSession(sessionId: string): Promise<EventLiveS
  * `persistLiveSessionClock` (ADR-0133 H2 / ADR-0140 parity). Best-effort: a clock-persist
  * failure must never break event recording. Guarded so a stale/reloaded client cannot move the
  * stored period backwards over a running clock.
+ *
+ * ADR-0152 §2 — same `lastClockTransitionAt` semantics as League: set on every transition this
+ * function persists, never on heartbeat or event recording.
  */
 export async function persistEventLiveSessionClock(sessionId: string, clock: MatchClockState): Promise<void> {
   const ctx = await requireActorContext();
@@ -181,9 +184,10 @@ export async function persistEventLiveSessionClock(sessionId: string, clock: Mat
     return;
   }
 
+  const now = new Date();
   await db.eventLiveMatchSession.update({
     where: { id: sessionId },
-    data: { ...clockStateToPersisted(clock), clockUpdatedAt: new Date() },
+    data: { ...clockStateToPersisted(clock), clockUpdatedAt: now, lastClockTransitionAt: now },
   });
 }
 

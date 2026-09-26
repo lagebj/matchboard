@@ -195,3 +195,15 @@ Delivered incrementally, one branch/PR/merge per slice (sequential-PR policy):
 ### 2026-09-26
 
 Record created with Slice 0 (additive schema baseline).
+
+Slice 1a delivered (of Slice 1's larger scope — split for review, per this repository's
+"keep changes scoped to one reviewable purpose" convention): the canonical
+`resolveLiveReportingPrimaryAction` resolver (`src/lib/live-match/live-reporting-primary-action.ts`)
+and `lastClockTransitionAt` writes on every persisted clock transition (League and Event,
+never on heartbeat). The shared `LiveMatchClient` component (League and Event both render it —
+so this lands with full parity in one change) now derives its period-button label/state from
+the resolver instead of independently inferring it; visible copy is byte-identical (verified by
+the existing component test suite passing unchanged). Remaining Slice 1 work — the
+server-enforced `LIVE_PERIOD_NOT_RUNNING` event guard, the forgotten-period-start recovery
+sheet, and Today/Match Details convergence onto the same resolver — follows as Slice
+1b/1c/1d.

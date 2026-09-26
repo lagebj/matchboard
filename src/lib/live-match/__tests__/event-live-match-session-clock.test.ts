@@ -212,4 +212,28 @@ describe("Event live-match session clock persistence (ADR-0140 parity with Leagu
     const row = await db.eventLiveMatchSession.findUniqueOrThrow({ where: { id: session.id } });
     expect(row.clockPeriod).toBe("BEFORE");
   });
+
+  it("sets lastClockTransitionAt on every persisted clock transition, never on heartbeat (ADR-0152 §2)", async () => {
+    const { startEventLiveSession, persistEventLiveSessionClock, heartbeatEventSession } = await import(
+      "../event-live-match-session"
+    );
+    const eventMatchId = await createEventMatch();
+    const session = await startEventLiveSession(eventMatchId);
+    const created = await db.eventLiveMatchSession.findUniqueOrThrow({ where: { id: session.id } });
+    expect(created.lastClockTransitionAt).toBeNull();
+
+    await persistEventLiveSessionClock(session.id, {
+      period: "FIRST_HALF",
+      running: true,
+      startedAt: new Date(),
+      elapsedBeforeStartMs: 0,
+    });
+    const afterTransition = await db.eventLiveMatchSession.findUniqueOrThrow({ where: { id: session.id } });
+    expect(afterTransition.lastClockTransitionAt).not.toBeNull();
+    const transitionTime = afterTransition.lastClockTransitionAt!.getTime();
+
+    await heartbeatEventSession(session.id);
+    const afterHeartbeat = await db.eventLiveMatchSession.findUniqueOrThrow({ where: { id: session.id } });
+    expect(afterHeartbeat.lastClockTransitionAt?.getTime()).toBe(transitionTime);
+  });
 });
