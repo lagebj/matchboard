@@ -9,25 +9,25 @@ datasource db {
 }
 
 model Team {
-  id                            String                  @id @default(cuid())
+  id                            String                           @id @default(cuid())
   name                          String
   organisationId                String
-  targetSquadSize               Int                     @default(11)
-  minAcceptedSquadSize          Int                     @default(9)
-  maxSquadSize                  Int                     @default(14)
-  minCorePlayers                Int                     @default(8)
-  minSupportCount               Int                     @default(0)
-  targetSupportCount            Int                     @default(0)
-  maxSupportCount               Int                     @default(0)
-  maxPlayerChangesPerRound      Int                     @default(0)
-  supportPriority               Int                     @default(0)
+  targetSquadSize               Int                              @default(11)
+  minAcceptedSquadSize          Int                              @default(9)
+  maxSquadSize                  Int                              @default(14)
+  minCorePlayers                Int                              @default(8)
+  minSupportCount               Int                              @default(0)
+  targetSupportCount            Int                              @default(0)
+  maxSupportCount               Int                              @default(0)
+  maxPlayerChangesPerRound      Int                              @default(0)
+  supportPriority               Int                              @default(0)
   // Atlas Follow-up (05_SHIRT_IDENTITY_AND_TEAM_KIT_COLOR.md): one canonical presentation-only
   // kit colour, validated server-side against a fixed product palette (src/lib/teams/kit-color.ts).
   // Drives TeamKitMark's dynamic fill. Not a design/branding system — no stripes/patterns/home-away
   // kits, one value per team. Unset renders the neutral Touchline shirt.
   kitColor                      String?
-  minSupportPlayers             Int                     @default(0)
-  developmentSlots              Int                     @default(0)
+  minSupportPlayers             Int                              @default(0)
+  developmentSlots              Int                              @default(0)
   archivedAt                    DateTime?
   footballGroupId               String
   // Match-format override (ADR-0146), same complete-override-or-inherit convention as
@@ -38,24 +38,25 @@ model Team {
   numberOfPeriodsOverride       Int?
   periodDurationMinutesOverride Int?
   breakDurationMinutesOverride  Int?
-  createdAt                     DateTime                @default(now())
-  updatedAt                     DateTime                @updatedAt
+  createdAt                     DateTime                         @default(now())
+  updatedAt                     DateTime                         @updatedAt
   formations                    Formation[]
   matches                       Match[]
   lineups                       MatchLineup[]
-  ledgerFromTeam                MovementLedger[]        @relation("LedgerFromTeam")
-  ledgerToTeam                  MovementLedger[]        @relation("LedgerToTeam")
-  corePlayers                   Player[]                @relation("CoreTeam")
-  fromRotationPaths             RotationPath[]          @relation("FromTeam")
-  toRotationPaths               RotationPath[]          @relation("ToTeam")
+  ledgerFromTeam                MovementLedger[]                 @relation("LedgerFromTeam")
+  ledgerToTeam                  MovementLedger[]                 @relation("LedgerToTeam")
+  corePlayers                   Player[]                         @relation("CoreTeam")
+  fromRotationPaths             RotationPath[]                   @relation("FromTeam")
+  toRotationPaths               RotationPath[]                   @relation("ToTeam")
   teamSeasonSnapshots           TeamSeasonSnapshot[]
-  matchHelperAssignments        MatchHelperAssignment[] @relation("HelperSourceTeam")
-  groupPlayers                  FootballGroupPlayer[]   @relation("GroupPlayerCoreTeam")
+  matchHelperAssignments        MatchHelperAssignment[]          @relation("HelperSourceTeam")
+  groupPlayers                  FootballGroupPlayer[]            @relation("GroupPlayerCoreTeam")
   bestLineup                    TeamBestLineup?
   plannedRotations              PlannedRotation[]
   teamFocuses                   TeamFocus[]
-  group                         FootballGroup           @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
-  organisation                  Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  qualitativeObservations       QualitativeEvidenceObservation[]
+  group                         FootballGroup                    @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
+  organisation                  Organisation?                    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@unique([organisationId, name])
   @@index([archivedAt, name])
@@ -64,87 +65,89 @@ model Team {
 }
 
 model Player {
-  id                        String                         @id @default(cuid())
-  organisationId            String
-  playerCode                Int
-  shirtNumber               Int?
-  firstName                 String
-  lastName                  String?
-  active                    Boolean                        @default(true)
-  removedAt                 DateTime?
-  coreTeamId                String?
-  nonRotatable              Boolean                        @default(false)
-  reducedMatchLoadAllowed   Boolean                        @default(false)
-  supportSuitability        String                         @default("neutral")
-  developmentReadiness      String                         @default("neutral")
-  primaryPosition           String
-  secondaryPosition         String?
-  tertiaryPosition          String?
-  preferredFoot             FootPreference
-  secondaryFoot             SecondaryFoot
-  bestSide                  BestSide
-  currentAvailability       AvailabilityStatus             @default(AVAILABLE)
-  supportNoShowCount        Int                            @default(0)
-  ballControl               Int?
-  passing                   Int?
-  firstTouch                Int?
-  oneVOneAttacking          Int?
-  positioning               Int?
-  oneVOneDefending          Int?
-  decisionMaking            Int?
-  effort                    Int?
-  teamplay                  Int?
-  concentration             Int?
-  speed                     Int?
-  strength                  Int?
-  notes                     String?
-  supportInstruction        String?
-  developmentInstruction    String?
-  createdAt                 DateTime                       @default(now())
-  updatedAt                 DateTime                       @updatedAt
-  goalkeeperAbility         GoalkeeperAbility              @default(NO)
-  lastRatedAt               DateTime?
-  evidenceCutoverAt         DateTime?
-  assists                   Assist[]
-  availabilities            Availability[]
-  eventAvailability         EventPlayerAvailability[]
-  eventSquadPlayers         EventSquadPlayer[]
-  goals                     Goal[]
-  executionFeedback         MatchExecutionFeedback[]
-  matchReportAbsences       MatchReportAbsence[]
-  matchReportStats          MatchReportPlayerStat[]
-  movementCandidates        MovementCandidate[]
-  ledgerEntries             MovementLedger[]
-  organisation              Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  coreTeam                  Team?                          @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
-  locks                     PlayerLock[]
-  readinessSignals          PlayerReadinessSignal[]
-  developmentObservations   PlayerDevelopmentObservation[]
-  postMatchActuals          PostMatchPlayerActual[]
-  selections                Selection[]
-  matchHelperAssignments    MatchHelperAssignment[]
-  eventPostMatchPlayers     EventPostMatchPlayer[]
-  eventGoalEvents           EventGoalEvent[]               @relation("EventGoalScorer")
-  eventAssistEvents         EventAssistEvent[]             @relation("EventAssistProvider")
-  eventSupportAssignments   EventMatchSupportAssignment[]
-  eventLineupAssignments    EventMatchLineupAssignment[]
-  bestLineupAssignments     TeamBestLineupAssignment[]
-  playerSeasonSnapshots     TeamSeasonSnapshotPlayer[]
-  liveEventsScorer          LiveMatchEvent[]               @relation("LiveEventScorer")
-  liveEventsSecondary       LiveMatchEvent[]               @relation("LiveEventSecondaryPlayer")
-  eventLiveEventsScorer     EventLiveMatchEvent[]          @relation("EventLiveEventScorer")
-  eventLiveEventsSecondary  EventLiveMatchEvent[]          @relation("EventLiveEventSecondaryPlayer")
-  rotationsOut              MatchRotation[]                @relation("RotationOutPlayer")
-  rotationsIn               MatchRotation[]                @relation("RotationInPlayer")
-  plannedChangesOut         PlannedRotationChange[]        @relation("PlannedChangeOutPlayer")
-  plannedChangesIn          PlannedRotationChange[]        @relation("PlannedChangeInPlayer")
-  developmentThreads        DevelopmentThread[]
-  fairPlayObservations      FairPlayObservation[]
-  groupMemberships          FootballGroupPlayer[]
-  assessmentChanges         AssessmentChange[]
-  actualPositionIntervals   ActualPositionInterval[]
-  eventMatchAvailabilities  EventMatchAvailability[]
-  leagueRoundParticipations LeagueRoundParticipant[]
+  id                                 String                           @id @default(cuid())
+  organisationId                     String
+  playerCode                         Int
+  shirtNumber                        Int?
+  firstName                          String
+  lastName                           String?
+  active                             Boolean                          @default(true)
+  removedAt                          DateTime?
+  coreTeamId                         String?
+  nonRotatable                       Boolean                          @default(false)
+  reducedMatchLoadAllowed            Boolean                          @default(false)
+  supportSuitability                 String                           @default("neutral")
+  developmentReadiness               String                           @default("neutral")
+  primaryPosition                    String
+  secondaryPosition                  String?
+  tertiaryPosition                   String?
+  preferredFoot                      FootPreference
+  secondaryFoot                      SecondaryFoot
+  bestSide                           BestSide
+  currentAvailability                AvailabilityStatus               @default(AVAILABLE)
+  supportNoShowCount                 Int                              @default(0)
+  ballControl                        Int?
+  passing                            Int?
+  firstTouch                         Int?
+  oneVOneAttacking                   Int?
+  positioning                        Int?
+  oneVOneDefending                   Int?
+  decisionMaking                     Int?
+  effort                             Int?
+  teamplay                           Int?
+  concentration                      Int?
+  speed                              Int?
+  strength                           Int?
+  notes                              String?
+  supportInstruction                 String?
+  developmentInstruction             String?
+  createdAt                          DateTime                         @default(now())
+  updatedAt                          DateTime                         @updatedAt
+  goalkeeperAbility                  GoalkeeperAbility                @default(NO)
+  lastRatedAt                        DateTime?
+  evidenceCutoverAt                  DateTime?
+  assists                            Assist[]
+  availabilities                     Availability[]
+  eventAvailability                  EventPlayerAvailability[]
+  eventSquadPlayers                  EventSquadPlayer[]
+  goals                              Goal[]
+  executionFeedback                  MatchExecutionFeedback[]
+  matchReportAbsences                MatchReportAbsence[]
+  matchReportStats                   MatchReportPlayerStat[]
+  movementCandidates                 MovementCandidate[]
+  ledgerEntries                      MovementLedger[]
+  organisation                       Organisation?                    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  coreTeam                           Team?                            @relation("CoreTeam", fields: [coreTeamId], references: [id], onDelete: Restrict)
+  locks                              PlayerLock[]
+  readinessSignals                   PlayerReadinessSignal[]
+  developmentObservations            PlayerDevelopmentObservation[]
+  postMatchActuals                   PostMatchPlayerActual[]
+  selections                         Selection[]
+  matchHelperAssignments             MatchHelperAssignment[]
+  eventPostMatchPlayers              EventPostMatchPlayer[]
+  eventGoalEvents                    EventGoalEvent[]                 @relation("EventGoalScorer")
+  eventAssistEvents                  EventAssistEvent[]               @relation("EventAssistProvider")
+  eventSupportAssignments            EventMatchSupportAssignment[]
+  eventLineupAssignments             EventMatchLineupAssignment[]
+  bestLineupAssignments              TeamBestLineupAssignment[]
+  playerSeasonSnapshots              TeamSeasonSnapshotPlayer[]
+  liveEventsScorer                   LiveMatchEvent[]                 @relation("LiveEventScorer")
+  liveEventsSecondary                LiveMatchEvent[]                 @relation("LiveEventSecondaryPlayer")
+  eventLiveEventsScorer              EventLiveMatchEvent[]            @relation("EventLiveEventScorer")
+  eventLiveEventsSecondary           EventLiveMatchEvent[]            @relation("EventLiveEventSecondaryPlayer")
+  rotationsOut                       MatchRotation[]                  @relation("RotationOutPlayer")
+  rotationsIn                        MatchRotation[]                  @relation("RotationInPlayer")
+  plannedChangesOut                  PlannedRotationChange[]          @relation("PlannedChangeOutPlayer")
+  plannedChangesIn                   PlannedRotationChange[]          @relation("PlannedChangeInPlayer")
+  developmentThreads                 DevelopmentThread[]
+  fairPlayObservations               FairPlayObservation[]
+  groupMemberships                   FootballGroupPlayer[]
+  assessmentChanges                  AssessmentChange[]
+  actualPositionIntervals            ActualPositionInterval[]
+  eventMatchAvailabilities           EventMatchAvailability[]
+  leagueRoundParticipations          LeagueRoundParticipant[]
+  qualitativeObservations            QualitativeEvidenceObservation[] @relation("QualitativeObservationPlayer")
+  qualitativeObservationsAsSecondary QualitativeEvidenceObservation[] @relation("QualitativeObservationSecondaryPlayer")
 
   @@unique([organisationId, playerCode])
   @@index([coreTeamId, active, removedAt])
@@ -153,19 +156,19 @@ model Player {
 }
 
 model Match {
-  id                            String                         @id @default(cuid())
+  id                            String                           @id @default(cuid())
   organisationId                String
   matchRoundId                  String
   teamId                        String
   opponent                      String
   startsAt                      DateTime
   homeAway                      MatchVenue
-  squadSize                     Int                            @default(11)
-  availableForDevelopmentSlot   Boolean                        @default(false)
-  matchType                     MatchType                      @default(FRIENDLY)
-  gameFormat                    GameFormat                     @default(ELEVEN_A_SIDE)
+  squadSize                     Int                              @default(11)
+  availableForDevelopmentSlot   Boolean                          @default(false)
+  matchType                     MatchType                        @default(FRIENDLY)
+  gameFormat                    GameFormat                       @default(ELEVEN_A_SIDE)
   formation                     String?
-  matchFit                      MatchFit                       @default(UNKNOWN)
+  matchFit                      MatchFit                         @default(UNKNOWN)
   // Bug fix (user-documentation-experience Phase 2): src/lib/evidence/actual-timeline.ts and
   // combination-topology.ts have unconditionally queried this field since the
   // evidence-driven-coaching-loop merge, to cap the final actual-position interval at match end
@@ -183,18 +186,18 @@ model Match {
   periodDurationMinutesOverride Int?
   breakDurationMinutesOverride  Int?
   notes                         String?
-  createdAt                     DateTime                       @default(now())
-  updatedAt                     DateTime                       @updatedAt
+  createdAt                     DateTime                         @default(now())
+  updatedAt                     DateTime                         @updatedAt
   opponentTeamId                String?
-  status                        MatchStatus                    @default(SCHEDULED)
+  status                        MatchStatus                      @default(SCHEDULED)
   planningClosedAt              DateTime?
   cancelledAt                   DateTime?
   cancelledReason               String?
-  category                      MatchCategory                  @default(LEAGUE)
-  matchRound                    MatchRound                     @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  opponentTeam                  OpponentTeam?                  @relation(fields: [opponentTeamId], references: [id])
-  team                          Team                           @relation(fields: [teamId], references: [id])
-  organisation                  Organisation?                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  category                      MatchCategory                    @default(LEAGUE)
+  matchRound                    MatchRound                       @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
+  opponentTeam                  OpponentTeam?                    @relation(fields: [opponentTeamId], references: [id])
+  team                          Team                             @relation(fields: [teamId], references: [id])
+  organisation                  Organisation?                    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   executionFeedback             MatchExecutionFeedback[]
   lineups                       MatchLineup[]
   liveSession                   LiveMatchSession?
@@ -214,6 +217,7 @@ model Match {
   matchPeriodTimingResolutions  MatchPeriodTimingResolution[]
   combinationEvidences          CombinationEvidence[]
   postMatchLearningRuns         PostMatchLearningRun[]
+  qualitativeObservations       QualitativeEvidenceObservation[]
   quickObservations             QuickObservation[]
   guestAssignments              LeagueMatchGuestAssignment[]
 
@@ -769,6 +773,7 @@ model PostMatchReport {
   absences       MatchReportAbsence[]
   playerStats    MatchReportPlayerStat[]
   playerActuals  PostMatchPlayerActual[]
+  debrief        PostMatchDebrief?
   organisation   Organisation?           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([status])
@@ -1126,11 +1131,16 @@ model LiveMatchSession {
   // every clock transition (period advance / pause / resume / adjust), never on every tick —
   // `clockElapsedBeforeMs` + `clockPeriodStartedAt` fully determine elapsed time at any later
   // instant.
-  clockPeriod          MatchPeriod @default(BEFORE)
-  clockRunning         Boolean     @default(false)
-  clockPeriodStartedAt DateTime?
-  clockElapsedBeforeMs Int         @default(0)
-  clockUpdatedAt       DateTime?
+  clockPeriod           MatchPeriod @default(BEFORE)
+  clockRunning          Boolean     @default(false)
+  clockPeriodStartedAt  DateTime?
+  clockElapsedBeforeMs  Int         @default(0)
+  clockUpdatedAt        DateTime?
+  // ADR-0152 §2: server time of the last clock transition (period start/end, pause, resume,
+  // manual adjust, forgotten-start recovery). Never written on heartbeat or event creation. Only
+  // drives the forgotten-period-start UX prompt; never an automatic transition. Null for sessions
+  // that predate ADR-0152 (no break-overrun inference).
+  lastClockTransitionAt DateTime?
 
   // Effective match-format snapshot (ADR-0146), frozen once at the same transition that creates
   // this session (Live Reporting start) — never re-resolved afterward, even if the Season/Team
@@ -1598,6 +1608,7 @@ model EventMatch {
 
   actualPositionIntervals      ActualPositionInterval[]
   matchPeriodTimingResolutions MatchPeriodTimingResolution[]
+  qualitativeObservations      QualitativeEvidenceObservation[]
   opponentSportingEvidence     OpponentSportingEvidence?
   combinationEvidence          CombinationEvidence[]
   postMatchLearningRuns        PostMatchLearningRun[]
@@ -1627,11 +1638,13 @@ model EventLiveMatchSession {
 
   // Persisted match clock (ADR-0140 / parity with LiveMatchSession's ADR-0133 H2 contract).
   // Uses the identical fields/semantics/helpers as League's clock — no second clock model.
-  clockPeriod          MatchPeriod @default(BEFORE)
-  clockRunning         Boolean     @default(false)
-  clockPeriodStartedAt DateTime?
-  clockElapsedBeforeMs Int         @default(0)
-  clockUpdatedAt       DateTime?
+  clockPeriod           MatchPeriod @default(BEFORE)
+  clockRunning          Boolean     @default(false)
+  clockPeriodStartedAt  DateTime?
+  clockElapsedBeforeMs  Int         @default(0)
+  clockUpdatedAt        DateTime?
+  // ADR-0152 §2 -- same semantics as LiveMatchSession.lastClockTransitionAt.
+  lastClockTransitionAt DateTime?
 
   // Effective match-format snapshot (ADR-0146) -- same semantics as LiveMatchSession's fields
   // above, no second snapshot model.
@@ -1710,6 +1723,7 @@ model EventPostMatchReport {
   playerReports EventPostMatchPlayer[]
   goalEvents    EventGoalEvent[]
   assistEvents  EventAssistEvent[]
+  debrief       PostMatchDebrief?
   organisation  Organisation?          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
   @@index([status])
@@ -2638,6 +2652,11 @@ model Organisation {
   aiAdvisorReviews              AiAdvisorReview[]
   aiAdvisorInsights             AiAdvisorInsight[]
   aiAdvisorJobs                 AiAdvisorJob[]
+  // Coach learning loop (ADR-0152).
+  postMatchDebriefs             PostMatchDebrief[]
+  qualitativeExtractionRuns     QualitativeEvidenceExtractionRun[]
+  qualitativeObservations       QualitativeEvidenceObservation[]
+  aiInsightClarifications       AiInsightClarification[]
 
   @@index([slug])
   @@index([name])
@@ -3464,12 +3483,26 @@ enum AiAdvisorCapability {
   MATCH_PREP
   POST_MATCH_REVIEW
   WEEKLY_TEAM_REVIEW
+  DEVELOPMENT_CYCLE_REVIEW
 }
 
 enum AiAdvisorScopeType {
   MATCH_ROUND
   MATCH
   TEAM_WEEK
+  TEAM_WINDOW
+}
+
+/// ADR-0152 §5: AI contract v2 per-insight analysis role. Null for capabilities/reviews that do
+/// not use plan-versus-reality roles (every contract v1 row).
+enum AiInsightAnalysisRole {
+  SUPPORTED
+  CONTRADICTED
+  UNRESOLVED
+  SURPRISING
+  RECURRING_PATTERN
+  NEXT_FOCUS
+  EVIDENCE_GAP
 }
 
 enum AiAdvisorReviewStatus {
@@ -3530,11 +3563,13 @@ model OrganisationAiSettings {
   enabled            Boolean @default(false)
   activeConnectionId String?
 
-  roundReviewEnabled      Boolean @default(false)
-  lineupReviewEnabled     Boolean @default(false)
-  matchPrepEnabled        Boolean @default(false)
-  postMatchReviewEnabled  Boolean @default(false)
-  weeklyTeamReviewEnabled Boolean @default(false)
+  roundReviewEnabled            Boolean @default(false)
+  lineupReviewEnabled           Boolean @default(false)
+  matchPrepEnabled              Boolean @default(false)
+  postMatchReviewEnabled        Boolean @default(false)
+  weeklyTeamReviewEnabled       Boolean @default(false)
+  // ADR-0152 §6: disabled by default for every organisation, including already-AI-enabled ones.
+  developmentCycleReviewEnabled Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3645,6 +3680,15 @@ model AiAdvisorInsight {
 
   state AiInsightState @default(ACTIVE)
 
+  // ADR-0152 §5 (contract v2). Nullable/defaulted so v1 rows stay valid.
+  analysisRole          AiInsightAnalysisRole?
+  clarificationQuestion String?
+  clarificationOptions  Json?
+  /// Provider response array index; UI orders ascending. 0 for rows that predate contract v2.
+  displayOrder          Int                    @default(0)
+
+  clarification AiInsightClarification?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3681,4 +3725,203 @@ model AiAdvisorJob {
   @@unique([organisationId, capability, scopeType, scopeId, sourceFingerprint])
   @@index([organisationId])
   @@index([status, nextAttemptAt])
+}
+
+// ---------------------------------------------------------------------------
+// Coach learning loop (ADR-0152): guided post-match debrief, reusable qualitative coach
+// evidence with provenance, and Assistant Coach clarification answers.
+// ---------------------------------------------------------------------------
+
+enum PostMatchDebriefStatus {
+  DRAFT
+  SUBMITTED
+}
+
+/// One guided debrief per post-match report (exactly one of postMatchReportId /
+/// eventPostMatchReportId, enforced by a hand-added CHECK constraint). `answers` is a
+/// Zod-validated, versioned JSON document whose question definitions live in versioned
+/// TypeScript (src/lib/post-match/debrief/), never in the database. The debrief does not own
+/// result, attendance, goals/assists, live events, minutes, or timing corrections.
+model PostMatchDebrief {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  postMatchReportId      String?               @unique
+  postMatchReport        PostMatchReport?      @relation(fields: [postMatchReportId], references: [id], onDelete: Cascade)
+  eventPostMatchReportId String?               @unique
+  eventPostMatchReport   EventPostMatchReport? @relation(fields: [eventPostMatchReportId], references: [id], onDelete: Cascade)
+
+  version Int                    @default(1)
+  status  PostMatchDebriefStatus @default(DRAFT)
+  answers Json
+
+  createdBy   String?
+  submittedBy String?
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([organisationId, status])
+}
+
+enum QualitativeEvidenceDerivationMethod {
+  DETERMINISTIC
+  AI_STRUCTURED
+}
+
+enum QualitativeEvidenceExtractionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SUPERSEDED
+}
+
+enum QualitativeEvidenceSourceType {
+  POST_MATCH_DEBRIEF_WORKED
+  POST_MATCH_DEBRIEF_NEEDS_ATTENTION
+  POST_MATCH_DEBRIEF_CHANGE
+  POST_MATCH_DEBRIEF_OPPONENT
+  POST_MATCH_DEBRIEF_OTHER
+  POST_MATCH_TEAM_NOTE
+  TEAM_REFLECTION_NOTE
+  MATCH_NOTE
+  QUICK_OBSERVATION
+  OPPONENT_ENCOUNTER_TEXT
+  AI_CLARIFICATION
+}
+
+enum QualitativeEvidenceScope {
+  TEAM
+  PLAYER
+  OPPONENT
+  PAIR
+}
+
+enum QualitativeEvidencePhase {
+  GENERAL
+  BUILD_UP
+  PROGRESSION
+  CHANCE_CREATION
+  PRESSING
+  DEFENSIVE_SHAPE
+  DEFENSIVE_TRANSITION
+  ATTACKING_TRANSITION
+  SET_PLAYS
+}
+
+enum QualitativeEvidencePolarity {
+  WORKING
+  PROBLEM
+  NEUTRAL
+  UNCERTAIN
+}
+
+enum QualitativeEvidenceExplicitness {
+  EXPLICIT
+  TENTATIVE
+}
+
+/// One derivation of structured coach evidence from one source-text revision. Every observation
+/// it produces is coach-reported: AI_STRUCTURED is a parsing mechanism, not AI inference (that
+/// stays in AiAdvisorInsight). Keyed by normalized source fingerprint so unchanged source never
+/// re-runs. A successful replacement for the same source sets the prior run's `supersededAt`
+/// (retained for audit); a failed replacement never hides prior successful evidence. Active
+/// queries read only SUCCEEDED runs with `supersededAt` null. Token columns are populated only
+/// when the provider reports them; character counts otherwise.
+model QualitativeEvidenceExtractionRun {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  sourceType        QualitativeEvidenceSourceType
+  sourceId          String
+  sourceFingerprint String
+  derivationMethod  QualitativeEvidenceDerivationMethod
+  status            QualitativeEvidenceExtractionStatus
+
+  promptVersion String?
+
+  providerConnectionId String?
+  provider             AiProviderId?
+  model                String?
+
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  lockedAt      DateTime?
+  lockedBy      String?
+  failureCode   String?
+  supersededAt  DateTime?
+
+  inputChars   Int?
+  outputChars  Int?
+  inputTokens  Int?
+  outputTokens Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  observations QualitativeEvidenceObservation[]
+
+  @@unique([organisationId, sourceType, sourceId, sourceFingerprint], map: "QualEvidenceRun_org_source_fingerprint_key")
+  @@index([organisationId, status, nextAttemptAt])
+  @@index([organisationId, sourceType, sourceId, supersededAt], map: "QualEvidenceRun_org_source_superseded_idx")
+  @@index([status, nextAttemptAt])
+}
+
+/// One structured coach-reported observation. Exactly one of matchId/eventMatchId for
+/// match-derived evidence (hand-added CHECK); PLAYER requires playerId; PAIR requires two
+/// different persistent players (hand-added CHECK). Guest players are never persisted here.
+model QualitativeEvidenceObservation {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  extractionRunId String
+  extractionRun   QualitativeEvidenceExtractionRun @relation(fields: [extractionRunId], references: [id], onDelete: Cascade)
+
+  teamId            String
+  team              Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  matchId           String?
+  match             Match?      @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatchId      String?
+  eventMatch        EventMatch? @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  playerId          String?
+  player            Player?     @relation("QualitativeObservationPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  secondaryPlayerId String?
+  secondaryPlayer   Player?     @relation("QualitativeObservationSecondaryPlayer", fields: [secondaryPlayerId], references: [id], onDelete: Cascade)
+
+  scope        QualitativeEvidenceScope
+  phase        QualitativeEvidencePhase
+  polarity     QualitativeEvidencePolarity
+  explicitness QualitativeEvidenceExplicitness @default(EXPLICIT)
+  period       MatchPeriod?
+  statement    String
+  createdAt    DateTime                        @default(now())
+
+  @@index([extractionRunId])
+  @@index([organisationId, teamId, createdAt])
+  @@index([organisationId, matchId])
+  @@index([organisationId, eventMatchId])
+  @@index([organisationId, playerId, createdAt])
+  @@index([organisationId, phase, createdAt])
+}
+
+/// A coach's answer to the single optional Assistant Coach EVIDENCE_GAP clarification on one
+/// insight. The answer becomes deterministic coach-reported qualitative evidence (source
+/// AI_CLARIFICATION) and changes the post-match fingerprint through normal fingerprinting.
+model AiInsightClarification {
+  id             String           @id @default(cuid())
+  organisationId String
+  organisation   Organisation?    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  insightId      String           @unique
+  insight        AiAdvisorInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  selectedOption String?
+  answerText     String?
+  answeredBy     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organisationId, createdAt])
 }

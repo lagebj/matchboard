@@ -20,6 +20,7 @@ const CAPABILITY_FIELD = {
   MATCH_PREP: "matchPrepEnabled",
   POST_MATCH_REVIEW: "postMatchReviewEnabled",
   WEEKLY_TEAM_REVIEW: "weeklyTeamReviewEnabled",
+  DEVELOPMENT_CYCLE_REVIEW: "developmentCycleReviewEnabled",
 } as const satisfies Record<AiAdvisorCapability, string>;
 
 /** Shared by the job runner and domain triggers alike -- both need "is this exact capability

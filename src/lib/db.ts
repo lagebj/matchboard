@@ -157,6 +157,11 @@ export const RLS_TABLES = new Set([
   "aiAdvisorReview",
   "aiAdvisorInsight",
   "aiAdvisorJob",
+  // ADR-0152: Coach learning loop.
+  "postMatchDebrief",
+  "qualitativeEvidenceExtractionRun",
+  "qualitativeEvidenceObservation",
+  "aiInsightClarification",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
