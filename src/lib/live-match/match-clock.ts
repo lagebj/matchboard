@@ -123,3 +123,15 @@ export function getPeriodNumber(period: MatchPeriod, periodConfig?: PeriodConfig
   }
   return MATCH_PERIOD_ORDER.indexOf(period);
 }
+
+/**
+ * Which `LiveMatchEventType` marks entering `period` — the one shared derivation
+ * `handlePeriodAdvance`/`confirmPeriodAdvance`/the forgotten-start recovery flow all use, so
+ * "which event fires on entering this period" has exactly one definition (ADR-0152 §8).
+ */
+export function derivePeriodTransitionEventType(period: MatchPeriod, periodConfig: PeriodConfig[]): "MATCH_START" | "PERIOD_START" | "PERIOD_END" | "MATCH_END" {
+  if (period === "BEFORE") return "MATCH_START";
+  if (period === "FULL_TIME") return "MATCH_END";
+  const config = periodConfig.find((p) => p.key === period);
+  return config?.type === "playing" ? "PERIOD_START" : "PERIOD_END";
+}

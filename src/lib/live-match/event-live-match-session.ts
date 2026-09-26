@@ -21,6 +21,8 @@ export interface EventLiveSessionInfo {
   clock: MatchClockState;
   /** ADR-0146: the session's own frozen format snapshot, complete-or-null (League parity). */
   format: MatchFormatDefinition | null;
+  /** ADR-0152 §2 — League parity (see LiveSessionInfo's own doc comment). */
+  lastClockTransitionAt: Date | null;
 }
 
 type EventLiveMatchSessionRow = {
@@ -31,6 +33,7 @@ type EventLiveMatchSessionRow = {
   startedAt: Date;
   endedAt: Date | null;
   lastHeartbeatAt: Date | null;
+  lastClockTransitionAt: Date | null;
   clockPeriod: MatchPeriod;
   clockRunning: boolean;
   clockPeriodStartedAt: Date | null;
@@ -51,6 +54,7 @@ function toEventLiveSessionInfo(row: EventLiveMatchSessionRow): EventLiveSession
     startedAt: row.startedAt,
     endedAt: row.endedAt,
     lastHeartbeatAt: row.lastHeartbeatAt,
+    lastClockTransitionAt: row.lastClockTransitionAt,
     format: snapshotToFormat(row),
     clock:
       persistedToClockState({

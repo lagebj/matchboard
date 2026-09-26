@@ -245,3 +245,21 @@ button, and, had the guard not existed, would have recorded the offline goal aga
 period. Fixed by adding `LocalSession.clock` (mirrored on every clock transition, alongside the
 existing server write) and threading it through `withOfflinePackage`'s synthesized
 `activeSession` in `offline-live-shell-client.tsx`.
+
+Slice 1c delivered: the forgotten-period-start recovery sheet (bundle §02.8/§08). Tapping a
+normal event button (Goal/Rotation/Position/Fair play/Moment) while between periods (Trigger A)
+opens `Has <next period> started?` instead of the button staying inertly disabled — `Start now`
+starts the next period at the current server time; `It started earlier` opens a duration step
+(`How long has this period been running?`, 1–30 minutes, pre-filled with a suggestion clamped
+to 1–15 and never auto-submitted) that starts the period with that elapsed time backdated;
+`Still in break` dismisses and suppresses the automatic re-prompt for five minutes in this
+client session only, per the locked decision (no durable dismiss record, never auto-starts a
+period). `lastClockTransitionAt` (persisted server-side since Slice 1a but not yet read by any
+client) is now threaded through `getPreMatchPackage` (League and Event) and
+`LiveSessionInfo`/`EventLiveSessionInfo`, and drives Trigger B: an actual configured break
+(never "before kickoff", which has no configured break duration to compare against) that has
+run breakDuration + 5 minutes past its own last transition prompts automatically. Paused
+mid-period and full-time stay hard-disabled — the bundle defines no recovery flow for either.
+`derivePeriodTransitionEventType` (`match-clock.ts`) replaces three copies of the same
+period→event-type derivation (the two pre-existing period-advance paths, plus this new one)
+with one.

@@ -9,6 +9,7 @@ import {
   advancePeriod,
   isPlayingPeriod,
   getPeriodAfter,
+  derivePeriodTransitionEventType,
 } from "@/lib/live-match/match-clock";
 import { resolveLiveReportingPrimaryAction } from "@/lib/live-match/live-reporting-primary-action";
 import { getEventTypeLabel, getFairPlayCategoryLabel } from "@/lib/live-match/live-match-domain";
@@ -138,6 +139,9 @@ export interface LiveMatchActions {
         format?: SerializedMatchFormat | null;
         /** Persisted match clock (ADR-0133 H2), serialized. */
         clock?: { period: string; running: boolean; startedAt: string | null; elapsedBeforeStartMs: number };
+        /** ADR-0152 §2/§8: drives the forgotten-period-start recovery prompt's break-overrun
+         * threshold. */
+        lastClockTransitionAt?: string | null;
       } | null;
     };
     error?: string;
@@ -423,6 +427,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   // Bundle §03.15: "Continue live reporting" is presentation-only — a dismissed warning stays
   // dismissed until the severity changes, but nothing persisted ever moves.
   const [dismissedWarningKind, setDismissedWarningKind] = useState<LiveReportingWarning["kind"] | null>(null);
+  // ADR-0152 §2/§8: server time of the last clock transition — the forgotten-period-start
+  // recovery prompt's only input for "has the break run long enough to ask". Updated optimistic-
+  // ally (this device's own transitions) as well as rehydrated from the server on mount.
+  const [lastClockTransitionAt, setLastClockTransitionAt] = useState<Date | null>(null);
+  // ADR-0152 §8 — the forgotten-period-start recovery sheet. `null` closed; "prompt" is the
+  // initial "Has <period> started?" step; "duration" is the "It started earlier" follow-up.
+  const [forgottenStartStep, setForgottenStartStep] = useState<"prompt" | "duration" | null>(null);
+  const [recoveredMinutesInput, setRecoveredMinutesInput] = useState(1);
+  // "Still in break": suppress the automatic re-prompt for five minutes in this client session
+  // only — no durable dismiss record (bundle §02.8). A ref, not state: it only ever needs to be
+  // read inside the existing wall-clock tick effect below, never to trigger its own render.
+  const breakOverrunSuppressedUntilRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [squad, setSquad] = useState<SquadPlayer[]>([]);
   const [onFieldIds, setOnFieldIds] = useState<Set<string>>(new Set());
@@ -433,14 +449,21 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   const clockHydratedRef = useRef(false);
   useEffect(() => {
     if (!sessionActive || !sessionId || !actions.persistClock) return;
+    const isFirstRun = !clockHydratedRef.current;
     // Skip the very first render's initial "before kickoff" state — nothing to persist yet,
     // and the pre-match package's own hydration will settle `clock` momentarily.
-    if (!clockHydratedRef.current) {
+    if (isFirstRun) {
       clockHydratedRef.current = true;
       const isFresh = clock.period === "BEFORE" && !clock.running && clock.elapsedBeforeStartMs === 0;
       if (isFresh) return;
     }
     void actions.persistClock(sessionId, clock);
+    // ADR-0152 §2/§8: only a genuine local transition sets "now" — the first run after mount
+    // merely reflects the server-rehydrated clock back to itself and must not clobber the real
+    // `lastClockTransitionAt` this same mount just rehydrated moments earlier from the server.
+    if (!isFirstRun) {
+      setLastClockTransitionAt(new Date());
+    }
     // ADR-0152 §7 (offline continuation correctness): mirror the clock into this device's own
     // LocalSession record too — a fully-offline reload has no server round trip available and
     // would otherwise only ever rehydrate the "before kickoff" state it was saved with at
@@ -789,6 +812,9 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           setSessionActive(true);
           setLiveReportingStartedAt(new Date(result.data.activeSession.startedAt));
           setSessionFormat(deserializeMatchFormat(result.data.activeSession.format));
+          setLastClockTransitionAt(
+            result.data.activeSession.lastClockTransitionAt ? new Date(result.data.activeSession.lastClockTransitionAt) : null,
+          );
           // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
           // device swap does not reset it to "before kickoff". A still-`BEFORE`, not-running,
           // zero-elapsed clock is indistinguishable from the fresh initial state, so leave the
@@ -1063,17 +1089,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
 
     const next = advancePeriod(clock, periodConfig);
     setClock(next);
-    const periodEvents: Record<string, string> = {};
-    for (const p of periodConfig) {
-      if (p.key === "BEFORE") periodEvents[p.key] = "MATCH_START";
-      else if (p.type === "playing") periodEvents[p.key] = "PERIOD_START";
-      else if (p.key === "FULL_TIME") periodEvents[p.key] = "MATCH_END";
-      else periodEvents[p.key] = "PERIOD_END";
-    }
-    periodEvents["FULL_TIME"] = "MATCH_END";
-    const currentPeriodEvent = periodEvents[next.period];
-    if (currentPeriodEvent && sessionId) {
-      recordEventLocal(currentPeriodEvent, { period: next.period });
+    if (sessionId) {
+      recordEventLocal(derivePeriodTransitionEventType(next.period, periodConfig), { period: next.period });
     }
   }, [clock, sessionId, periodConfig, recordEventLocal]);
 
@@ -1081,17 +1098,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     setConfirmDialog(null);
     const next = advancePeriod(clock, periodConfig);
     setClock(next);
-    const periodEvents: Record<string, string> = {};
-    for (const p of periodConfig) {
-      if (p.key === "BEFORE") periodEvents[p.key] = "MATCH_START";
-      else if (p.type === "playing") periodEvents[p.key] = "PERIOD_START";
-      else if (p.key === "FULL_TIME") periodEvents[p.key] = "MATCH_END";
-      else periodEvents[p.key] = "PERIOD_END";
-    }
-    periodEvents["FULL_TIME"] = "MATCH_END";
-    const currentPeriodEvent = periodEvents[next.period];
-    if (currentPeriodEvent && sessionId) {
-      recordEventLocal(currentPeriodEvent, { period: next.period });
+    if (sessionId) {
+      recordEventLocal(derivePeriodTransitionEventType(next.period, periodConfig), { period: next.period });
     }
   }, [clock, sessionId, periodConfig, recordEventLocal]);
 
@@ -1448,6 +1456,92 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
     return warning;
   }, [sessionActive, liveReportingStartedAt, sessionFormat, clock, periodConfig, wallNow, dismissedWarningKind]);
 
+  // --- ADR-0152 §8: forgotten period-start recovery ---
+  // Between periods (including before kickoff) is exactly the resolver's START_PERIOD state —
+  // the one lifecycle point this recovery flow applies to. A paused mid-period clock or a
+  // finished match have no recovery flow defined by the bundle and stay hard-disabled.
+  const recoveryEligible = primaryAction.kind === "START_PERIOD";
+  const forgottenStartNextPeriod = getPeriodAfter(clock.period, periodConfig);
+  const forgottenStartNextLabel = forgottenStartNextPeriod
+    ? periodConfig.find((p) => p.key === forgottenStartNextPeriod)?.label ?? forgottenStartNextPeriod.replace(/_/g, " ")
+    : "";
+  const forgottenStartBreakLabel = periodConfig.find((p) => p.key === clock.period)?.label ?? clock.period.replace(/_/g, " ");
+
+  // Trigger B (bundle §02.8): auto-prompt once an actual configured break has run
+  // breakDuration + 5 minutes past its own last transition. Never for "before kickoff" (no
+  // configured break duration to compare against — the guardrails warnings own that window
+  // instead), never more than once per five suppressed minutes after "Still in break", and
+  // never while some other sheet/dialog already has the coach's attention.
+  useEffect(() => {
+    if (!recoveryEligible || forgottenStartStep || sheet || confirmDialog) return;
+    if (!lastClockTransitionAt) return;
+    const currentPeriodConfig = periodConfig.find((p) => p.key === clock.period);
+    if (!currentPeriodConfig || currentPeriodConfig.type !== "break" || currentPeriodConfig.durationMs == null) return;
+    const suppressedUntil = breakOverrunSuppressedUntilRef.current;
+    if (suppressedUntil && wallNow < suppressedUntil) return;
+    const elapsedSinceTransitionMs = wallNow - lastClockTransitionAt.getTime();
+    if (elapsedSinceTransitionMs >= currentPeriodConfig.durationMs + 5 * 60_000) {
+      setForgottenStartStep("prompt");
+    }
+  }, [recoveryEligible, forgottenStartStep, sheet, confirmDialog, lastClockTransitionAt, periodConfig, clock.period, wallNow]);
+
+  /** A normal-event button tap: opens the recovery sheet instead of the real action while
+   * between periods (bundle §08.8's "Trigger: coach attempts a live event while between
+   * periods"); otherwise runs the action exactly as before. Buttons stay `disabled` (no tap at
+   * all) for the other blocked states — paused mid-period, full time — which have no recovery
+   * flow defined. */
+  const handleNormalActionTap = useCallback(
+    (action: () => void) => {
+      if (recoveryEligible) {
+        setForgottenStartStep("prompt");
+        return;
+      }
+      action();
+    },
+    [recoveryEligible],
+  );
+
+  const startForgottenPeriod = useCallback(
+    (elapsedMinutes: number | null) => {
+      const base = advancePeriod(clock, periodConfig);
+      if (!base.running) {
+        // Defensive: the next period configuration isn't a playing period after all (a
+        // malformed/legacy config) — nothing sensible to recover into.
+        setForgottenStartStep(null);
+        return;
+      }
+      const next = elapsedMinutes != null ? { ...base, elapsedBeforeStartMs: elapsedMinutes * 60_000 } : base;
+      setClock(next);
+      setLastClockTransitionAt(new Date());
+      if (sessionId) {
+        recordEventLocal(derivePeriodTransitionEventType(next.period, periodConfig), { period: next.period });
+      }
+      setForgottenStartStep(null);
+    },
+    [clock, periodConfig, sessionId, recordEventLocal],
+  );
+
+  // Bundle §02.8: "clamp suggestion to 1–15 minutes... never auto-accept it" — an editable
+  // starting point for the duration prompt, not a submitted value.
+  const suggestedRecoveredMinutes = useMemo(() => {
+    if (!lastClockTransitionAt) return 1;
+    const currentPeriodConfig = periodConfig.find((p) => p.key === clock.period);
+    if (!currentPeriodConfig || currentPeriodConfig.durationMs == null) return 1;
+    const overrunMs = wallNow - lastClockTransitionAt.getTime() - currentPeriodConfig.durationMs;
+    const overrunMinutes = Math.round(overrunMs / 60_000);
+    return Math.min(15, Math.max(1, overrunMinutes || 1));
+  }, [lastClockTransitionAt, periodConfig, clock.period, wallNow]);
+
+  const openForgottenStartDurationStep = useCallback(() => {
+    setRecoveredMinutesInput(suggestedRecoveredMinutes);
+    setForgottenStartStep("duration");
+  }, [suggestedRecoveredMinutes]);
+
+  const dismissStillInBreak = useCallback(() => {
+    breakOverrunSuppressedUntilRef.current = Date.now() + 5 * 60_000;
+    setForgottenStartStep(null);
+  }, []);
+
   // --- Render ---
   if (loading) {
     return (
@@ -1567,15 +1661,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Primary goal controls */}
       <div className="px-3 pt-3 flex gap-2">
         <button
-          onClick={handleGoalFor}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(handleGoalFor)}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className="flex-1 py-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-xl font-bold text-base min-h-[64px] transition-[filter]"
         >
           Goal for us
         </button>
         <button
-          onClick={handleGoalAgainst}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(handleGoalAgainst)}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className="flex-1 py-4 bg-[var(--surface-strong)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)] text-[var(--text-soft)] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-base min-h-[64px] transition-colors"
         >
           Goal for them
@@ -1585,8 +1679,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Secondary controls */}
       <div className="px-3 pt-2 flex gap-2">
         <button
-          onClick={handleStartRotation}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(handleStartRotation)}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             rotationMode ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]" : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)]"
           }`}
@@ -1594,8 +1688,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           Rotation
         </button>
         <button
-          onClick={handleStartPositionChange}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(handleStartPositionChange)}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Position
@@ -1603,15 +1697,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       </div>
       <div className="px-3 pt-2 flex gap-2">
         <button
-          onClick={() => handleFairPlayStart(true)}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(() => handleFairPlayStart(true))}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
         >
           Fair play +
         </button>
         <button
-          onClick={handleMomentMarked}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(handleMomentMarked)}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Mark moment
@@ -1621,8 +1715,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       {/* Fair play concern */}
       <div className="px-3 pt-1">
         <button
-          onClick={() => handleFairPlayStart(false)}
-          disabled={normalEventsBlocked}
+          onClick={() => handleNormalActionTap(() => handleFairPlayStart(false))}
+          disabled={normalEventsBlocked && !recoveryEligible}
           className="w-full py-2 text-sm text-[var(--danger)] bg-[var(--danger-subtle)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-lg min-h-[44px] transition-[filter]"
         >
           Fair play concern
@@ -1836,6 +1930,69 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
               {getFairPlayCategoryLabel(cat)}
             </button>
           ))}
+        </div>
+      </BottomSheet>
+
+      {/* ADR-0152 §8: forgotten period-start recovery */}
+      <BottomSheet
+        open={forgottenStartStep === "prompt"}
+        onClose={() => setForgottenStartStep(null)}
+        title={`Has ${forgottenStartNextLabel.toLowerCase()} started?`}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--text-soft)]">
+            The clock is still in {forgottenStartBreakLabel.toLowerCase()}. Start the next period before recording live events.
+          </p>
+          <button
+            onClick={() => startForgottenPeriod(null)}
+            className="w-full py-3 px-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
+          >
+            Start now
+          </button>
+          <button
+            onClick={openForgottenStartDurationStep}
+            className="w-full py-3 px-4 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          >
+            It started earlier
+          </button>
+          <button
+            onClick={dismissStillInBreak}
+            className="w-full py-3 px-4 text-[var(--text-muted)] hover:text-[var(--text-soft)] rounded-lg text-sm font-medium min-h-[48px] transition-colors"
+          >
+            Still in break
+          </button>
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        open={forgottenStartStep === "duration"}
+        onClose={() => setForgottenStartStep(null)}
+        title={`When did ${forgottenStartNextLabel.toLowerCase()} start?`}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--text-soft)]">How long has this period been running?</p>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={30}
+            value={recoveredMinutesInput}
+            onChange={(e) => {
+              const parsed = Number.parseInt(e.target.value, 10);
+              setRecoveredMinutesInput(Number.isFinite(parsed) ? Math.min(30, Math.max(1, parsed)) : 1);
+            }}
+            aria-label="Minutes this period has been running"
+            className="w-full py-3 px-4 bg-[var(--surface-hover)] text-[var(--foreground)] rounded-lg text-sm font-semibold min-h-[48px] text-center"
+          />
+          <button
+            onClick={() => startForgottenPeriod(recoveredMinutesInput)}
+            className="w-full py-3 px-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
+          >
+            Start with this time
+          </button>
+          <p className="text-xs text-[var(--text-muted)]">
+            Matchboard will use this as the current period time. You can still correct events later.
+          </p>
         </div>
       </BottomSheet>
 
