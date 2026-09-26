@@ -157,6 +157,10 @@ export async function endLiveSession(sessionId: string): Promise<LiveSessionInfo
  * failure must never break event recording; the caller swallows errors. The write is guarded
  * so a stale / reloaded client that briefly holds the fresh `BEFORE` state cannot move the
  * stored period backwards over a running clock.
+ *
+ * ADR-0152 §2: this is the single write path for every clock transition the client can produce
+ * today (period advance; pause/resume/adjust once wired) — so it is also the single place
+ * `lastClockTransitionAt` is set. It is never touched by `heartbeatSession` or event recording.
  */
 export async function persistLiveSessionClock(sessionId: string, clock: MatchClockState): Promise<void> {
   const ctx = await requireActorContext();
@@ -175,9 +179,10 @@ export async function persistLiveSessionClock(sessionId: string, clock: MatchClo
     return;
   }
 
+  const now = new Date();
   await db.liveMatchSession.update({
     where: { id: sessionId },
-    data: { ...clockStateToPersisted(clock), clockUpdatedAt: new Date() },
+    data: { ...clockStateToPersisted(clock), clockUpdatedAt: now, lastClockTransitionAt: now },
   });
 }
 

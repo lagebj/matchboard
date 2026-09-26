@@ -131,6 +131,17 @@ describe("Live match session clock persistence (ADR-0133 H2)", () => {
     expect(reloaded!.clock.startedAt?.getTime()).toBe(startedAt.getTime());
   });
 
+  it("sets lastClockTransitionAt on every persisted transition, never on heartbeat (ADR-0152 §2)", async () => {
+    const session = await getActiveSession(clockMatchId);
+    const beforeTransition = await testDb.liveMatchSession.findUniqueOrThrow({ where: { id: session!.id } });
+    expect(beforeTransition.lastClockTransitionAt).not.toBeNull(); // set by the previous test's transition already.
+    const transitionTime = beforeTransition.lastClockTransitionAt!.getTime();
+
+    await heartbeatSession(session!.id);
+    const afterHeartbeat = await testDb.liveMatchSession.findUniqueOrThrow({ where: { id: session!.id } });
+    expect(afterHeartbeat.lastClockTransitionAt?.getTime()).toBe(transitionTime);
+  });
+
   it("round-trips a paused clock with accumulated elapsed time", async () => {
     const session = await getActiveSession(clockMatchId);
     await persistLiveSessionClock(session!.id, {
