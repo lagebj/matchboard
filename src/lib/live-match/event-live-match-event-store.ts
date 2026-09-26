@@ -6,7 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import type { LiveMatchEventType, LiveEventCorrectionType, MatchPeriod } from "@/generated/prisma/client";
 import type { LiveEventSummary } from "./live-match-types";
 import { runWithTenantOrganisationId, setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
-import { derivePositionChangeFromPayload } from "./live-match-domain";
+import { derivePositionChangeFromPayload, checkNormalLiveEventGuard } from "./live-match-domain";
 import type { CanonicalLiveEvent } from "./realtime/realtime-messages";
 import { LiveMatchDomainError, LiveMatchSequenceIntegrityError, uniqueConstraintTarget } from "./live-match-event-store";
 
@@ -50,7 +50,7 @@ export async function recordEventForActorEvent(
   return runWithTenantOrganisationId(actor.organisationId, async () => {
     const session = await db.eventLiveMatchSession.findUnique({
       where: { id: input.sessionId },
-      select: { id: true, status: true, eventMatchId: true, organisationId: true },
+      select: { id: true, status: true, eventMatchId: true, organisationId: true, clockPeriod: true, clockRunning: true },
     });
 
     if (!session) {
@@ -64,6 +64,12 @@ export async function recordEventForActorEvent(
     }
     if (session.organisationId !== actor.organisationId) {
       throw new LiveMatchDomainError("Session not found or access denied");
+    }
+
+    // ADR-0152 §7 — same shared domain guard as League's `recordEventForActor` (parity).
+    const guardRejection = checkNormalLiveEventGuard(input.eventType, session);
+    if (guardRejection) {
+      throw new LiveMatchDomainError("The live clock is not running a playable period", guardRejection);
     }
 
     if (input.clientEventId) {

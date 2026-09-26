@@ -1367,6 +1367,13 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
   );
   const periodActionLabel = "label" in primaryAction ? primaryAction.label : "Match ended";
 
+  // ADR-0152 §7: the client-side convenience half of the shared server guard — normal Goal/
+  // Assist/Fair play/Rotation/Position/Moment actions are disabled unless the clock is running
+  // a playable period (mirrors `checkNormalLiveEventGuard`'s condition exactly: END_PERIOD is
+  // the resolver's own signal for that state). The server remains the actual authority; a stale
+  // client that briefly disagrees gets the same `LIVE_PERIOD_NOT_RUNNING` rejection either way.
+  const normalEventsBlocked = primaryAction.kind !== "END_PERIOD";
+
   // --- ADR-0146: Live Reporting guardrails warning (bundle §03.5–§03.8, §05.7–§05.11) ---
   // A wall-clock tick while a session is active — the 180/240/270-minute thresholds anchor to
   // the SESSION's start, not the period clock, so this ticks even while the clock is paused or
@@ -1527,13 +1534,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-3 flex gap-2">
         <button
           onClick={handleGoalFor}
-          className="flex-1 py-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 rounded-xl font-bold text-base min-h-[64px] transition-[filter]"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-4 bg-[var(--tl-c-accent)] text-[var(--tl-c-accent-on-fill)] hover:brightness-105 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-xl font-bold text-base min-h-[64px] transition-[filter]"
         >
           Goal for us
         </button>
         <button
           onClick={handleGoalAgainst}
-          className="flex-1 py-4 bg-[var(--surface-strong)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)] text-[var(--text-soft)] rounded-xl font-bold text-base min-h-[64px] transition-colors"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-4 bg-[var(--surface-strong)] hover:bg-[var(--surface-strong)] active:bg-[var(--surface-hover)] text-[var(--text-soft)] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-base min-h-[64px] transition-colors"
         >
           Goal for them
         </button>
@@ -1543,7 +1552,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-2 flex gap-2">
         <button
           onClick={handleStartRotation}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors ${
+          disabled={normalEventsBlocked}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             rotationMode ? "bg-[var(--accent-subtle)] text-[var(--accent-strong)]" : "bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)]"
           }`}
         >
@@ -1551,7 +1561,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
         </button>
         <button
           onClick={handleStartPositionChange}
-          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Position
         </button>
@@ -1559,13 +1570,15 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-2 flex gap-2">
         <button
           onClick={() => handleFairPlayStart(true)}
-          className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-2.5 bg-[var(--success-subtle)] text-[var(--success)] hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-lg text-sm font-semibold min-h-[48px] transition-[filter]"
         >
           Fair play +
         </button>
         <button
           onClick={handleMomentMarked}
-          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
+          disabled={normalEventsBlocked}
+          className="flex-1 py-2.5 bg-[var(--surface-hover)] text-[var(--text-soft)] hover:bg-[var(--surface-strong)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-semibold min-h-[48px] transition-colors"
         >
           Mark moment
         </button>
@@ -1575,7 +1588,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       <div className="px-3 pt-1">
         <button
           onClick={() => handleFairPlayStart(false)}
-          className="w-full py-2 text-sm text-[var(--danger)] bg-[var(--danger-subtle)] hover:brightness-110 rounded-lg min-h-[44px] transition-[filter]"
+          disabled={normalEventsBlocked}
+          className="w-full py-2 text-sm text-[var(--danger)] bg-[var(--danger-subtle)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 rounded-lg min-h-[44px] transition-[filter]"
         >
           Fair play concern
         </button>

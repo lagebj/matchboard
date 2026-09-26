@@ -207,3 +207,19 @@ the existing component test suite passing unchanged). Remaining Slice 1 work —
 server-enforced `LIVE_PERIOD_NOT_RUNNING` event guard, the forgotten-period-start recovery
 sheet, and Today/Match Details convergence onto the same resolver — follows as Slice
 1b/1c/1d.
+
+Slice 1b delivered: the shared server-side event guard (`checkNormalLiveEventGuard` /
+`requiresRunningPeriod`, `src/lib/live-match/live-match-domain.ts`), wired into both
+`recordEventForActor` (League) and `recordEventForActorEvent` (Event) — the exact chokepoint
+every browser-originated live event already passes through via the internal HMAC-authenticated
+persistence endpoint. A normal event (goal, rotation, fair-play, moment, position, the
+SCORER_SET/ASSIST_SET annotations) is now rejected with the typed `LIVE_PERIOD_NOT_RUNNING`
+code whenever the session's own persisted clock is not running a playable period; the
+period-transition events themselves, `CLOCK_ADJUSTMENT`, and the explicit correction/reversal
+path stay exempt. The client also disables the corresponding buttons (`normalEventsBlocked`,
+derived from the same resolver used in Slice 1a) as the documented convenience layer — the
+server rejection is the actual authority. This closes the bundle's own admission that "events
+are accepted before kick-off, at half-time and at full time" today; several pre-existing tests
+that recorded normal events without ever starting the clock were updated to reflect the
+corrected (and now enforced) invariant. The forgotten-period-start recovery sheet and
+Today/Match Details convergence remain as Slice 1c/1d.

@@ -13,6 +13,9 @@ import {
   getPeriodLabel,
   getEventTypeLabel,
   getPeriodAfter,
+  requiresRunningPeriod,
+  checkNormalLiveEventGuard,
+  LIVE_PERIOD_NOT_RUNNING,
 } from "../live-match-domain";
 import type { LiveMatchEventType, MatchPeriod, FairPlayCategory } from "../live-match-types";
 
@@ -206,5 +209,68 @@ describe("labels", () => {
     expect(getEventTypeLabel("GOAL_FOR")).toBe("Goal — us");
     expect(getEventTypeLabel("GOAL_AGAINST")).toBe("Goal — them");
     expect(getEventTypeLabel("MOMENT_MARKED")).toBe("Moment marked");
+  });
+});
+
+describe("requiresRunningPeriod (ADR-0152 §7)", () => {
+  it("requires a running period for every normal football event", () => {
+    const normalTypes: LiveMatchEventType[] = [
+      "GOAL_FOR",
+      "GOAL_AGAINST",
+      "SCORER_SET",
+      "ASSIST_SET",
+      "ROTATION_OUT",
+      "ROTATION_IN",
+      "POSITIONS_CHANGED",
+      "FAIR_PLAY_POSITIVE",
+      "FAIR_PLAY_CONCERN",
+      "MOMENT_MARKED",
+    ];
+    for (const type of normalTypes) {
+      expect(requiresRunningPeriod(type)).toBe(true);
+    }
+  });
+
+  it("exempts period-transition events — they define the clock state being checked against", () => {
+    for (const type of ["MATCH_START", "PERIOD_START", "PERIOD_END", "MATCH_END"] as LiveMatchEventType[]) {
+      expect(requiresRunningPeriod(type)).toBe(false);
+    }
+  });
+
+  it("exempts CLOCK_ADJUSTMENT and the explicit correction/reversal types", () => {
+    expect(requiresRunningPeriod("CLOCK_ADJUSTMENT")).toBe(false);
+    expect(requiresRunningPeriod("EVENT_CORRECTED")).toBe(false);
+    expect(requiresRunningPeriod("EVENT_REVERSED")).toBe(false);
+  });
+});
+
+describe("checkNormalLiveEventGuard (ADR-0152 §7 — the shared server-side event guard)", () => {
+  it("allows a normal event while the clock is running a playable period", () => {
+    expect(checkNormalLiveEventGuard("GOAL_FOR", { clockPeriod: "FIRST_HALF", clockRunning: true })).toBeNull();
+  });
+
+  it("rejects a normal event before kickoff", () => {
+    expect(checkNormalLiveEventGuard("GOAL_FOR", { clockPeriod: "BEFORE", clockRunning: false })).toBe(LIVE_PERIOD_NOT_RUNNING);
+  });
+
+  it("rejects a normal event during a break (half time)", () => {
+    expect(checkNormalLiveEventGuard("ROTATION_OUT", { clockPeriod: "HALF_TIME", clockRunning: false })).toBe(LIVE_PERIOD_NOT_RUNNING);
+  });
+
+  it("rejects a normal event after full time", () => {
+    expect(checkNormalLiveEventGuard("MOMENT_MARKED", { clockPeriod: "FULL_TIME", clockRunning: false })).toBe(LIVE_PERIOD_NOT_RUNNING);
+  });
+
+  it("rejects a normal event while a playing period is merely paused (clockRunning: false)", () => {
+    expect(checkNormalLiveEventGuard("FAIR_PLAY_POSITIVE", { clockPeriod: "SECOND_HALF", clockRunning: false })).toBe(
+      LIVE_PERIOD_NOT_RUNNING,
+    );
+  });
+
+  it("never rejects a period-transition/correction/adjustment event, regardless of clock state", () => {
+    const stoppedClock = { clockPeriod: "HALF_TIME" as MatchPeriod, clockRunning: false };
+    for (const type of ["MATCH_START", "PERIOD_START", "PERIOD_END", "MATCH_END", "CLOCK_ADJUSTMENT", "EVENT_CORRECTED", "EVENT_REVERSED"] as LiveMatchEventType[]) {
+      expect(checkNormalLiveEventGuard(type, stoppedClock)).toBeNull();
+    }
   });
 });

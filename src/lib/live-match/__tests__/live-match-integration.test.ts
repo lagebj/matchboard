@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { setupTestDb, teardownTestDb, getTestDb, seedTestFixture } from "@/test/test-db";
 import type { TestFixtureIds } from "@/test/test-db";
+import { createTestMatch } from "@/test/support/factories";
 import { startLiveSession, endLiveSession, getActiveSession, heartbeatSession, persistLiveSessionClock } from "../live-match-session";
 import {
   recordEvent,
@@ -198,6 +199,8 @@ describe("Live match event recording", () => {
     await testDb.liveMatchSession.deleteMany({ where: { matchId } });
     const session = await startLiveSession(matchId);
     sessionId = session.id;
+    // ADR-0152 §7: normal events now require a running playable period.
+    await persistLiveSessionClock(sessionId, { period: "FIRST_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 });
   });
 
   it("records a goal for event", async () => {
@@ -276,6 +279,80 @@ describe("Live match event recording", () => {
     ).rejects.toThrow();
   });
 
+  describe("ADR-0152 §7 — normal events require a running playable period", () => {
+    // A single session's persisted clock can only move forward (isForwardClockTransition), so
+    // each scenario below chains onto the previous one in period order (BEFORE -> HALF_TIME ->
+    // FULL_TIME) except "allows... once running", which needs a fresh match/session since
+    // FULL_TIME -> SECOND_HALF is not a forward transition.
+    let guardMatchId: string;
+    let guardSessionId: string;
+
+    beforeAll(async () => {
+      guardMatchId = Object.values(fixture.matches)[2];
+      const session = await startLiveSession(guardMatchId);
+      guardSessionId = session.id;
+    });
+
+    it("rejects a normal event before kickoff (clock still BEFORE, never started)", async () => {
+      await expect(
+        recordEvent({ matchId: guardMatchId, sessionId: guardSessionId, eventType: "GOAL_FOR", clientEventId: "evt-guard-before" }),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("rejects a normal event during a break, even though the session is ACTIVE", async () => {
+      await persistLiveSessionClock(guardSessionId, { period: "HALF_TIME", running: false, startedAt: null, elapsedBeforeStartMs: 25 * 60 * 1000 });
+      // GOAL_AGAINST (not ROTATION_OUT): the guard runs after field-shape validation, and this
+      // case must isolate the guard rejection, not a "requires a playerId" rejection.
+      await expect(
+        recordEvent({ matchId: guardMatchId, sessionId: guardSessionId, eventType: "GOAL_AGAINST", clientEventId: "evt-guard-break" }),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("rejects a normal event after full time", async () => {
+      await persistLiveSessionClock(guardSessionId, { period: "FULL_TIME", running: false, startedAt: null, elapsedBeforeStartMs: 0 });
+      await expect(
+        recordEvent({ matchId: guardMatchId, sessionId: guardSessionId, eventType: "MOMENT_MARKED", clientEventId: "evt-guard-full-time" }),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("a stale client cannot bypass the guard — the server's persisted clock is authoritative, not whatever the request claims", async () => {
+      // The persisted clock is still FULL_TIME/not running from the previous test. A stale
+      // client that locally believes the period is still running gets exactly the same
+      // rejection; nothing in the input payload can override the server's own clock state.
+      await expect(
+        recordEvent({
+          matchId: guardMatchId,
+          sessionId: guardSessionId,
+          eventType: "GOAL_FOR",
+          period: "SECOND_HALF",
+          matchSeconds: 5000,
+          clientEventId: "evt-guard-stale-client",
+        }),
+      ).rejects.toThrow("clock is not running");
+    });
+
+    it("never rejects the explicit correction/reversal path, regardless of clock state", async () => {
+      // Still FULL_TIME/not running from the previous tests.
+      const result = await recordEvent({
+        matchId: guardMatchId,
+        sessionId: guardSessionId,
+        eventType: "EVENT_REVERSED",
+        correctionType: "REVERSAL",
+        correctsEventId: "evt-guard-before",
+        clientEventId: "evt-guard-reversal",
+      });
+      expect(result.eventId).toBeDefined();
+    });
+
+    it("allows the normal event once the clock is actually running a playable period", async () => {
+      const freshMatch = await createTestMatch(testDb, fixture.organisationId, fixture.matchRoundId, Object.values(fixture.teams)[0], null);
+      const session = await startLiveSession(freshMatch.id);
+      await persistLiveSessionClock(session.id, { period: "SECOND_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 });
+      const result = await recordEvent({ matchId: freshMatch.id, sessionId: session.id, eventType: "GOAL_FOR", clientEventId: "evt-guard-now-running" });
+      expect(result.eventId).toBeDefined();
+    });
+  });
+
   it("retrieves match events", async () => {
     const events = await getMatchEvents(matchId);
     expect(events.length).toBeGreaterThanOrEqual(4);
@@ -295,6 +372,8 @@ describe("recordEventForActor (Stage 4 internal persistence, SPEC.md §19)", () 
     await testDb.liveMatchSession.deleteMany({ where: { matchId } });
     const session = await startLiveSession(matchId);
     sessionId = session.id;
+    // ADR-0152 §7: normal events now require a running playable period.
+    await persistLiveSessionClock(sessionId, { period: "FIRST_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 });
   });
 
   it("persists an event given an explicit actor, with no requireActorContext() call", async () => {
@@ -382,6 +461,8 @@ describe("recordEventForActor sequence persistence (ADR-0138, Bundle 2)", () => 
     await testDb.liveMatchSession.deleteMany({ where: { matchId } });
     const session = await startLiveSession(matchId);
     sessionId = session.id;
+    // ADR-0152 §7: normal events now require a running playable period.
+    await persistLiveSessionClock(sessionId, { period: "FIRST_HALF", running: true, startedAt: new Date(), elapsedBeforeStartMs: 0 });
   });
 
   it("persists the coordinator-assigned sequence and acceptance time", async () => {
