@@ -223,3 +223,13 @@ are accepted before kick-off, at half-time and at full time" today; several pre-
 that recorded normal events without ever starting the clock were updated to reflect the
 corrected (and now enforced) invariant. The forgotten-period-start recovery sheet and
 Today/Match Details convergence remain as Slice 1c/1d.
+
+The Test-slot Playwright acceptance run (real browser, real hosted preview) caught what the
+unit/component suites could not: four e2e specs (`live-reporting.spec.ts`,
+`follow-live.spec.ts`, `live-reporting-offline-continuation.spec.ts`,
+`post-match-evidence-parity.spec.ts`) clicked "Goal for us" immediately after "Start live
+reporting" — the exact production sequence this slice's guard now correctly rejects, since
+"Start live reporting" alone only creates the session (clock stays at "before kickoff") and a
+real coach still has to separately start the first period. Fixed by adding the missing "Start
+first half" click to each spec, matching the real required coach flow — not by weakening the
+guard.

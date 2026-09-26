@@ -17,6 +17,9 @@ test("an established live-reporting session reopens after a reload while genuine
   await page.getByRole("link", { name: "Live reporting" }).click();
   await expect(page).toHaveURL(/\/live$/, { timeout: 15_000 });
   await page.getByRole("button", { name: "Start live reporting" }).click();
+  // ADR-0152 §7: normal events (a goal) require the clock to be running a playable period —
+  // "Start live reporting" alone only creates the session (clock stays at "before kickoff").
+  await page.getByRole("button", { name: "Start first half" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
   // The service worker registers on mount (registerLiveServiceWorker) and, during its own

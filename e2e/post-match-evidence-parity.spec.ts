@@ -23,6 +23,9 @@ test("completing a League post-match report via the real UI runs post-match lear
   await expect(page.getByText(`vs ${opponentName}`)).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Start live reporting" }).click();
+  // ADR-0152 §7: normal events (a goal) require the clock to be running a playable period —
+  // "Start live reporting" alone only creates the session (clock stays at "before kickoff").
+  await page.getByRole("button", { name: "Start first half" }).click();
   await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Goal for us" }).click();
   await expect(page.getByTestId("live-score-us")).toHaveText("1", { timeout: 10_000 });
