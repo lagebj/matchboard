@@ -19,6 +19,7 @@ type LiveMatchSessionRow = {
   startedAt: Date;
   endedAt: Date | null;
   lastHeartbeatAt: Date | null;
+  lastClockTransitionAt: Date | null;
   clockPeriod: LiveSessionInfo["clock"]["period"];
   clockRunning: boolean;
   clockPeriodStartedAt: Date | null;
@@ -37,6 +38,7 @@ function toLiveSessionInfo(row: LiveMatchSessionRow): LiveSessionInfo {
     startedAt: row.startedAt,
     endedAt: row.endedAt,
     lastHeartbeatAt: row.lastHeartbeatAt,
+    lastClockTransitionAt: row.lastClockTransitionAt,
     // ADR-0146: the session's own frozen format snapshot (complete-or-null), for the
     // guardrails warning thresholds — same read discipline as resolveLeagueMatchPeriodConfig.
     format: snapshotToFormat(row),
