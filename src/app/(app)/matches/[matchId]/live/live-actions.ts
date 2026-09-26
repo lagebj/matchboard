@@ -333,6 +333,9 @@ export async function getLiveMatchPreMatchPackageAction(matchId: string) {
                 startedAt: activeSession.clock.startedAt?.toISOString() ?? null,
                 elapsedBeforeStartMs: activeSession.clock.elapsedBeforeStartMs,
               },
+              // ADR-0152 §2/§8: drives the forgotten-period-start recovery prompt's
+              // break-overrun threshold — never a heartbeat/event-write timestamp.
+              lastClockTransitionAt: activeSession.lastClockTransitionAt?.toISOString() ?? null,
             }
           : null,
       },

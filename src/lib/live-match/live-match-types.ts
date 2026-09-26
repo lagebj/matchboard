@@ -20,6 +20,9 @@ export interface LiveSessionInfo {
   lastHeartbeatAt: Date | null;
   /** Persisted match clock (ADR-0133 H2) — used to rehydrate the client after a reload. */
   clock: MatchClockState;
+  /** ADR-0152 §2: server time of the last clock transition — drives the forgotten-period-start
+   * recovery prompt's break-overrun threshold. Never heartbeat/event-write timing. */
+  lastClockTransitionAt: Date | null;
   /** ADR-0146: the session's own frozen match-format snapshot, complete-or-null. The live
    * reporting guardrails' contextual/period thresholds read this — never Season/Team config,
    * which a later change could silently re-interpret an already-live match with. */

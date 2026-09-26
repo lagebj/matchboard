@@ -331,6 +331,8 @@ export async function getEventLiveMatchPreMatchPackageAction(eventMatchId: strin
                 startedAt: activeSession.clock.startedAt?.toISOString() ?? null,
                 elapsedBeforeStartMs: activeSession.clock.elapsedBeforeStartMs,
               },
+              // ADR-0152 §2/§8 — League parity.
+              lastClockTransitionAt: activeSession.lastClockTransitionAt?.toISOString() ?? null,
             }
           : null,
         eventId,
