@@ -101,12 +101,27 @@ export interface LocalCommand {
   resolvedByCoach?: boolean;
 }
 
+/** Serializable mirror of `MatchClockState` for IndexedDB storage — `startedAt` as an ISO
+ * string rather than a `Date`, matching `LocalSession.startedAt`'s own convention. */
+export interface LocalSessionClock {
+  period: string;
+  running: boolean;
+  startedAt: string | null;
+  elapsedBeforeStartMs: number;
+}
+
 export interface LocalSession {
   subjectType: SubjectType;
   subjectId: string;
   id: string;
   coachId: string;
   startedAt: string;
+  /** ADR-0152 §7 (offline continuation correctness): mirrors the server-persisted clock on
+   * every transition, not just at session creation — a fully-offline reload (no server round
+   * trip possible) has only this record to rehydrate from, and normal live events now require
+   * a running playable period. Absent on a session that predates this field, or one still at
+   * its fresh "before kickoff" state. */
+  clock?: LocalSessionClock;
 }
 
 /** Legacy pre-Bundle-6 row shape, read only during migration. */

@@ -34,6 +34,7 @@ import {
   recoverInterruptedSends,
   clearPersistedCommands,
   saveSessionLocally,
+  getLocalSession,
   clearLocalSession,
   savePreparedPackage,
   clearPreparedPackage,
@@ -41,6 +42,7 @@ import {
   type SubjectType,
   type CommandStatus,
   type PreparedLiveMatchPackageBase,
+  type LocalSessionClock,
 } from "@/lib/live-match/local/live-local-store";
 import { summarizePendingCommands, overlayPendingCommands } from "@/lib/live-match/local/pending-overlay";
 import { registerLiveServiceWorker } from "@/lib/live-match/offline/register-live-service-worker";
@@ -394,6 +396,17 @@ function SyncStatusIndicator({
   return <div className={`text-[var(--text-micro)] ${color} text-center py-0.5`}>{label}</div>;
 }
 
+/** Serializes `MatchClockState` for `LocalSession.clock` (IndexedDB) — see its doc comment for
+ * why a fully-offline reload needs this alongside id/coachId/startedAt. */
+function clockToLocalSessionClock(clock: MatchClockState): LocalSessionClock {
+  return {
+    period: clock.period,
+    running: clock.running,
+    startedAt: clock.startedAt ? clock.startedAt.toISOString() : null,
+    elapsedBeforeStartMs: clock.elapsedBeforeStartMs,
+  };
+}
+
 // --- Main Component ---
 export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel, periodConfig, actions, isHome = true, markOwnTeam = true, subjectType = "LEAGUE", eventId }: LiveMatchClientProps) {
   // ADR-0138 Bundle 6 — the local outbox's subject identity. `matchId` already holds the right
@@ -428,7 +441,18 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
       if (isFresh) return;
     }
     void actions.persistClock(sessionId, clock);
-  }, [clock, sessionActive, sessionId, actions]);
+    // ADR-0152 §7 (offline continuation correctness): mirror the clock into this device's own
+    // LocalSession record too — a fully-offline reload has no server round trip available and
+    // would otherwise only ever rehydrate the "before kickoff" state it was saved with at
+    // session creation, permanently disabling normal events after any offline reload following
+    // a real period start. Merges onto the existing record rather than overwriting id/coachId/
+    // startedAt; a missing record (session predates this device, or save hasn't landed yet) is
+    // a no-op, same best-effort discipline as `persistClock` above.
+    void getLocalSession(subjectId).then((existing) => {
+      if (!existing) return;
+      void saveSessionLocally({ ...existing, clock: clockToLocalSessionClock(clock) });
+    });
+  }, [clock, sessionActive, sessionId, actions, subjectId]);
   const [goalsFor, setGoalsFor] = useState(0);
   const [goalsAgainst, setGoalsAgainst] = useState(0);
   const [recentEvents, setRecentEvents] = useState<LiveEventSummary[]>([]);
@@ -765,13 +789,23 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
           setSessionActive(true);
           setLiveReportingStartedAt(new Date(result.data.activeSession.startedAt));
           setSessionFormat(deserializeMatchFormat(result.data.activeSession.format));
-          const savedSession = { subjectType, subjectId, id: result.data.activeSession.id, coachId: result.data.activeSession.coachId, startedAt: result.data.activeSession.startedAt };
-          await saveSessionLocally(savedSession);
           // ADR-0133 H2: rehydrate the clock from the persisted session state so a reload /
           // device swap does not reset it to "before kickoff". A still-`BEFORE`, not-running,
           // zero-elapsed clock is indistinguishable from the fresh initial state, so leave the
           // initial `useState` value in place for that case.
           const savedClock = result.data.activeSession.clock;
+          // ADR-0152 §7 (offline continuation correctness): carry the same clock into the
+          // LocalSession record this device saves — see clockToLocalSessionClock's caller
+          // above for why a fully-offline reload otherwise loses it entirely.
+          const savedSession = {
+            subjectType,
+            subjectId,
+            id: result.data.activeSession.id,
+            coachId: result.data.activeSession.coachId,
+            startedAt: result.data.activeSession.startedAt,
+            clock: savedClock ?? undefined,
+          };
+          await saveSessionLocally(savedSession);
           if (
             savedClock &&
             !(savedClock.period === "BEFORE" && !savedClock.running && savedClock.elapsedBeforeStartMs === 0)

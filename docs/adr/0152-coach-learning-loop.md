@@ -233,3 +233,15 @@ reporting" — the exact production sequence this slice's guard now correctly re
 real coach still has to separately start the first period. Fixed by adding the missing "Start
 first half" click to each spec, matching the real required coach flow — not by weakening the
 guard.
+
+That same e2e re-run then caught a second, genuinely pre-existing bug this slice's guard simply
+made visible for the first time: the fully-offline continuation path (ADR-0138 Bundle 7)
+rehydrates its `activeSession` from this device's own `LocalSession` IndexedDB record when no
+server round trip is possible at all — and that record never carried the running clock, only
+`{id, coachId, startedAt}`. A coach who started the first half, went offline, and reloaded
+would have their clock silently revert to "before kickoff" — previously invisible (nothing
+checked the clock before this slice), now correctly surfaced as a disabled "Goal for us"
+button, and, had the guard not existed, would have recorded the offline goal against the wrong
+period. Fixed by adding `LocalSession.clock` (mirrored on every clock transition, alongside the
+existing server write) and threading it through `withOfflinePackage`'s synthesized
+`activeSession` in `offline-live-shell-client.tsx`.

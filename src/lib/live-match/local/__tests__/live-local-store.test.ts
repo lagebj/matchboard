@@ -268,4 +268,24 @@ describe("session store", () => {
     await clearLocalSession(subjectId);
     expect(await getLocalSession(subjectId)).toBeNull();
   });
+
+  it("round-trips the clock field, and a later save can merge an updated clock onto the existing record (ADR-0152 §7)", async () => {
+    // Regression coverage for a real e2e failure: a fully-offline reload has no server round
+    // trip available, so LocalSession is the only place a running clock can be rehydrated from
+    // after a period start. Absent entirely before this field existed.
+    const subjectId = uniqueSubjectId();
+    await saveSessionLocally({ subjectType: "LEAGUE", subjectId, id: "session-1", coachId: "coach-1", startedAt: "2026-01-01T00:00:00.000Z" });
+    expect((await getLocalSession(subjectId))?.clock).toBeUndefined();
+
+    const existing = await getLocalSession(subjectId);
+    await saveSessionLocally({
+      ...existing!,
+      clock: { period: "FIRST_HALF", running: true, startedAt: "2026-01-01T00:05:00.000Z", elapsedBeforeStartMs: 0 },
+    });
+
+    const updated = await getLocalSession(subjectId);
+    expect(updated?.id).toBe("session-1");
+    expect(updated?.coachId).toBe("coach-1");
+    expect(updated?.clock).toEqual({ period: "FIRST_HALF", running: true, startedAt: "2026-01-01T00:05:00.000Z", elapsedBeforeStartMs: 0 });
+  });
 });
