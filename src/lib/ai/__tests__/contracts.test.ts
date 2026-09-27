@@ -14,6 +14,7 @@ import {
   EPHEMERAL_REF_PATTERN,
   EVIDENCE_REF_PATTERN,
   ADVISOR_RESPONSE_JSON_SCHEMA,
+  ANALYSIS_ROLE_WIRE_VALUES,
 } from "@/lib/ai/contracts";
 
 function validInsight(overrides: Partial<Record<string, unknown>> = {}) {
@@ -25,6 +26,8 @@ function validInsight(overrides: Partial<Record<string, unknown>> = {}) {
     body: "The supplied match data shows a recurring pattern.",
     evidenceRefs: ["fact:position-exposure:P03"],
     suggestedAction: null,
+    analysisRole: null,
+    clarificationPrompt: null,
     ...overrides,
   };
 }
@@ -147,6 +150,32 @@ describe("ai/contracts: advisorInsightSchema", () => {
     );
     expect(result.success).toBe(true);
   });
+
+  it("accepts every locked analysis role (ADR-0152 §5 contract v2)", () => {
+    for (const analysisRole of ANALYSIS_ROLE_WIRE_VALUES) {
+      const clarificationPrompt = analysisRole === "EVIDENCE_GAP" ? { question: "What was the main problem?", options: ["A", "B"] } : null;
+      expect(advisorInsightSchema.safeParse(validInsight({ analysisRole, clarificationPrompt })).success).toBe(true);
+    }
+  });
+
+  it("rejects a clarificationPrompt on a non-EVIDENCE_GAP insight", () => {
+    const result = advisorInsightSchema.safeParse(
+      validInsight({ analysisRole: "SUPPORTED", clarificationPrompt: { question: "x", options: ["a"] } }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an EVIDENCE_GAP insight with no clarificationPrompt", () => {
+    const result = advisorInsightSchema.safeParse(validInsight({ analysisRole: "EVIDENCE_GAP", clarificationPrompt: null }));
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a clarificationPrompt with more than 4 options", () => {
+    const result = advisorInsightSchema.safeParse(
+      validInsight({ analysisRole: "EVIDENCE_GAP", clarificationPrompt: { question: "x", options: ["a", "b", "c", "d", "e"] } }),
+    );
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("ai/contracts: advisorResponseSchema", () => {
@@ -169,12 +198,24 @@ describe("ai/contracts: advisorResponseSchema", () => {
   });
 
   it("rejects a contractVersion other than the locked current version", () => {
-    expect(advisorResponseSchema.safeParse({ ...validResponse(), contractVersion: "2" }).success).toBe(false);
+    expect(advisorResponseSchema.safeParse({ ...validResponse(), contractVersion: "999" }).success).toBe(false);
   });
 
   it("rejects a response containing one malformed insight, not just that insight", () => {
     const result = advisorResponseSchema.safeParse(validResponse([validInsight(), validInsight({ kind: "bogus" })]));
     expect(result.success).toBe(false);
+  });
+
+  it("rejects more than one EVIDENCE_GAP insight per response (bundle §14: at most one active clarification)", () => {
+    const gap = () => validInsight({ analysisRole: "EVIDENCE_GAP", clarificationPrompt: { question: "x", options: ["a"] } });
+    const result = advisorResponseSchema.safeParse(validResponse([gap(), gap()]));
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts exactly one EVIDENCE_GAP insight per response", () => {
+    const gap = validInsight({ analysisRole: "EVIDENCE_GAP", clarificationPrompt: { question: "x", options: ["a"] } });
+    const result = advisorResponseSchema.safeParse(validResponse([validInsight(), gap]));
+    expect(result.success).toBe(true);
   });
 });
 

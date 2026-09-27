@@ -19,7 +19,7 @@ import { fromPrismaAiProviderId } from "@/lib/ai/provider-registry";
 import { withProviderCredential, ProviderCredentialAccessError } from "@/lib/ai/credential-access";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
 import { AI_ADVISOR_STABLE_DOCTRINE, AI_TERMINOLOGY_VERSION } from "@/lib/ai/terminology";
-import { AI_CONTRACT_VERSION, toPrismaAiInsightKind } from "@/lib/ai/contracts";
+import { AI_CONTRACT_VERSION, toPrismaAiInsightKind, toPrismaAnalysisRole, type AnalysisRoleWire } from "@/lib/ai/contracts";
 import { validateAdvisorResponse } from "@/lib/ai/response-validation";
 
 /**
@@ -295,6 +295,8 @@ interface PersistSuccessfulReviewParams {
     body: string;
     evidenceRefs: string[];
     suggestedAction: { type: string; playerRef: string; category: string; observation: string } | null;
+    analysisRole: AnalysisRoleWire | null;
+    clarificationPrompt: { question: string; options: string[] } | null;
   }[];
   context: AiCapabilityContext;
 }
@@ -334,7 +336,7 @@ async function persistSuccessfulReview(params: PersistSuccessfulReviewParams): P
       },
     });
 
-    for (const insight of params.insights) {
+    for (const [displayOrder, insight] of params.insights.entries()) {
       const subject = resolveSubject(insight.subjectRef, params.context);
       const secondary = insight.secondarySubjectRef ? resolveSubject(insight.secondarySubjectRef, params.context) : null;
 
@@ -361,6 +363,12 @@ async function persistSuccessfulReview(params: PersistSuccessfulReviewParams): P
           actionType: insight.suggestedAction === null ? AiInsightActionType.NONE : AiInsightActionType.CONFIRM_DEVELOPMENT_OBSERVATION,
           actionPayload: actionPayload as Prisma.InputJsonValue | undefined,
           state: AiInsightState.ACTIVE,
+          // ADR-0152 §5 contract v2 — null for every capability not yet upgraded to reason
+          // about plan-vs-reality (bundle §3).
+          analysisRole: insight.analysisRole ? toPrismaAnalysisRole(insight.analysisRole) : null,
+          clarificationQuestion: insight.clarificationPrompt?.question ?? null,
+          clarificationOptions: insight.clarificationPrompt ? (insight.clarificationPrompt.options as Prisma.InputJsonValue) : undefined,
+          displayOrder,
         },
       });
     }

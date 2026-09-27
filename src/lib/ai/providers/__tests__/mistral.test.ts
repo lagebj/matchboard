@@ -133,7 +133,7 @@ describe("ai/providers/mistral: executeReview", () => {
 
 describe("ai/providers/mistral: probeModel", () => {
   it("succeeds when executeReview returns a schema-valid response", async () => {
-    vi.mocked(fetch).mockResolvedValue(fakeResponse({ json: { choices: [{ message: { content: '{"contractVersion":"1","summary":"probe","insights":[]}' } }] } }));
+    vi.mocked(fetch).mockResolvedValue(fakeResponse({ json: { choices: [{ message: { content: '{"contractVersion":"2","summary":"probe","insights":[]}' } }] } }));
     const result = await mistralAdapter.probeModel("mk-test", "mistral-large-3");
     expect(result).toEqual({ ok: true });
   });
