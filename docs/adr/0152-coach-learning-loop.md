@@ -692,3 +692,87 @@ show-first-five, evidence-source labels, error states) and 4f is the weekly/roun
 upgrades. No coach-observable behavior changes in this slice on its own (there is still no UI
 that can produce an EVIDENCE_GAP clarification for a coach to answer) — versioned as a PATCH
 bump, matching 4a/4b's own reasoning.
+
+### 2026-09-27 (continued) — Slice 4e: Advisor presentation (ordering, evidence labels, error states)
+
+Bundle §16-17. `getCompletedMatchAdvisorViewModel()` (`completed-match-advisor.ts`) rewritten to
+surface everything 4a-4d built and persisted but never exposed to a coach; the "completed match"
+Advisor panel and its supporting server action are the first real UI/action consumers of
+contract v2's `analysisRole`/`clarificationPrompt` and of `AiInsightClarification`.
+
+- **Two small, contained corrections to 4c's own work, found while implementing this slice's
+  ordering**, both fixed here rather than deferred:
+  - `post-match-review.ts`'s reasoning-sequence instructions told the model to use a
+    `RECURRING_PATTERN` role for a recurrence found via `recentTeamPatterns` — but bundle §16's
+    post-match presentation order has no slot for that role at all, and §18 reserves it for
+    `weekly_team_review` only. Corrected the instruction to route a recurrence finding through
+    SUPPORTED/CONTRADICTED/SURPRISING instead (whichever the evidence actually supports), never
+    a role this capability's own presentation cannot render.
+  - `plan.preMatchExpectations` had no `evidenceRef` at all — every other context section does,
+    but this one was missed — so the model had no way to literally satisfy §16's "Previous
+    Assistant Coach expectation" evidence-source label; nothing could ever be classified into
+    that bucket. Added `fact:pre-match-expectation:MATCH_PREP:{matchRef}` /
+    `..._LINEUP_REVIEW:...` evidence refs (the quoted `summary`/`insights` text itself is
+    unchanged — still opaque foreign prose, never resolved, per 4c's own doctrine).
+- **Presentation order** (§16 steps 1-7, `SECTION_ORDER`): Summary (the review's own `summary`
+  field, persisted since 4a but never previously read by this view model) → Supported →
+  Contradicted → Still unresolved → Unexpected → Next focus → Clarify. A `null` `analysisRole`
+  (every pre-4c/contract-v1 row) or an unexpected value falls back to a catch-all "Observations"
+  bucket at the end rather than being silently dropped — cheap defensive handling for whatever
+  legacy/edge-case data already exists, not a bundle requirement.
+- **Show first five, show all**: the service returns the *full* ordered insight list (no
+  server-side truncation — `MAX_INSIGHTS`'s old DB-level `take: 5` is gone); the client component
+  (`completed-match-advisor-panel.tsx`) slices to `VISIBLE_INSIGHT_COUNT` and reveals the rest on
+  "Show all". Kept client-side deliberately — the model already produced a small, bounded set
+  (contract v2 caps NEXT_FOCUS at two and EVIDENCE_GAP at one; nothing enforces a hard cap on
+  SUPPORTED/CONTRADICTED/UNRESOLVED/SURPRISING today, but real counts stay small in practice) —
+  so no pagination round-trip is needed to reveal the rest.
+- **Evidence source labels**: a small prefix-to-label table
+  (`fact:score:`/`fact:goal:`/... → "Match data", `fact:debrief`/`fact:active-qualitative-
+  evidence:`/... → "Coach observation", `fact:pre-match-expectation:` → "Previous Assistant
+  Coach expectation", `fact:player-context:`/`fact:development-focus:` → "Development
+  evidence") classifies each insight's own persisted `evidenceRefs`, deduplicated and shown in a
+  fixed order under the insight — no new schema, no new persistence, purely a read-time
+  classification of data the response-validation stage already checked at write time.
+- **Error states** (§17), two new tiny presentational components (`AdvisorPanelReviewing`,
+  `AdvisorPanelUnavailable`) alongside the existing `AdvisorPanelStale`: the view-model builder
+  now falls through to an `AiAdvisorJob` lookup keyed to the *current* fingerprint whenever no
+  usable `SUCCEEDED` review exists yet — `QUEUED`/`RUNNING` → "Assistant Coach is reviewing this
+  match.", `FAILED` → "Assistant Coach analysis is unavailable right now. Your match report and
+  evidence are saved." A `stale`-but-successful review's content is always preferred over either
+  banner when both exist (a coach should never see a bare spinner when real, if outdated,
+  content is sitting right there) — confirmed by this slice's own precedence test. AI-disabled
+  still short-circuits to `null` before any of this is reached, so "no error banner when AI is
+  disabled" needed no new code.
+- **`stale` now carries content, not just a label** — a real behavior change from 4c/earlier:
+  previously `{status: "stale"}` discarded the old review's insights entirely; now the same
+  content renders with a "Based on an earlier version of this report" note (§17's literal
+  wording) above it. This required resolving `resolve-insight-text.ts`'s own documented tension
+  directly: that module's doc comment says a stale review "must never reach" ref-token
+  resolution, because ref assignment is deterministic over *current* data and a mismatched
+  fingerprint means the freshly-rebuilt `refMap` may not agree with the stale review's own
+  numbering — resolving anyway risks attaching a *wrong* real name to old text. Resolved by never
+  calling `resolveInsightText` for a stale review's `title`/`body`/`summary`/clarification text
+  (left with any literal ref tokens exposed, a display degradation, not a correctness gap) while
+  still resolving development-suggestion player names unconditionally (`actionPayload.playerId`
+  is a real, stable DB id, independent of ref-token numbering, safe regardless of freshness).
+- **Clarification UI**: a new `answerAiInsightClarificationAction` in `matches/[matchId]/ai-
+  insight-actions.ts` (validates the insight is a live `EVIDENCE_GAP` the coach can access, then
+  delegates to 4d's `answerAiInsightClarification()` for the actual persist/convert/retrigger,
+  matching every other action in that file's own authorization/audit/revalidate-then-delegate
+  shape) and a `ClarifyCard` in the panel (offered options as buttons, free text as a fallback,
+  submit disabled until one is given). This is the first real caller of Slice 4d's service.
+- Test coverage: 12 tests for the rewritten view model (ordering, the `OTHER` fallback bucket,
+  evidence-source classification, clarification separation, show-all-returns-full-list, all three
+  error states, and the stale-vs-in-flight precedence rule), reusing the existing 5 passing
+  fresh/suggestion/disabled tests unchanged to confirm no regression.
+
+This is the first coach-observable behavior change since 4c, and on reflection it is more than a
+UI refinement: showing the richer sections is exposing data that already existed (a PATCH-shaped
+change on its own), but **answering a clarifying question is a genuinely new coach-facing
+interaction** — a new form, a new server action, and a new mutation path (persist the answer,
+derive qualitative evidence from it, retrigger the AI review) that could not be reached by a
+coach at all before this slice. That satisfies `docs/VERSIONING.md`'s "New user-facing feature"
+MINOR criterion on its own merits, independent of 4c's earlier MINOR bump for the underlying
+context/prompt change — so this slice is versioned MINOR (0.148.1 -> 0.149.0), not PATCH. 4f
+(weekly/round review role upgrades) is the only remaining Slice 4 sub-slice.

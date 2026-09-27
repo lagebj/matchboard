@@ -6,6 +6,7 @@ import { requirePageActorContext, requireMutationRole, requireMatchGroupAccess }
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { createThread, addObservation } from "@/lib/planned-rotation/development-thread";
 import { logSecurityEvent } from "@/lib/security/audit-log";
+import { answerAiInsightClarification } from "@/lib/ai/insight-clarification";
 
 export type AiInsightActionResult = { success: true } | { success: false; error: string };
 
@@ -110,6 +111,54 @@ export async function dismissAiInsightAction(orgSlug: string, insightId: string)
   logSecurityEvent({
     category: "mutation",
     action: "dismiss_ai_insight",
+    actor: ctx.userId,
+    tenant: ctx.organisationId,
+    resource: "ai_advisor_insight",
+    resourceId: insightId,
+    result: "success",
+  });
+
+  revalidatePath(`/o/${orgSlug}/matches/${insight.review.scopeId}`);
+  return { success: true };
+}
+
+/**
+ * "Clarify one thing if present" (ADR-0152 §14/§16). Validates the insight is a live EVIDENCE_GAP
+ * belonging to a match this coach can access, then delegates the actual persist/convert/
+ * retrigger work to `answerAiInsightClarification()` (Slice 4d's service) — this action's own job
+ * is exactly the page-level authorization/audit/revalidation that service deliberately leaves out.
+ */
+export async function answerAiInsightClarificationAction(
+  orgSlug: string,
+  insightId: string,
+  answer: { selectedOption?: string; answerText?: string },
+): Promise<AiInsightActionResult> {
+  const ctx = await requirePageActorContext(orgSlug);
+  setTenantOrganisationId(ctx.organisationId);
+  requireMutationRole(ctx);
+
+  const insight = await db.aiAdvisorInsight.findFirst({
+    where: { id: insightId, organisationId: ctx.organisationId, state: "ACTIVE", analysisRole: "EVIDENCE_GAP" },
+    include: { review: { select: { scopeType: true, scopeId: true } } },
+  });
+  if (!insight || insight.review.scopeType !== "MATCH") {
+    return { success: false, error: "This clarification is no longer available." };
+  }
+
+  await requireMatchGroupAccess(ctx, insight.review.scopeId);
+
+  const result = await answerAiInsightClarification({
+    organisationId: ctx.organisationId,
+    insightId,
+    selectedOption: answer.selectedOption,
+    answerText: answer.answerText,
+    answeredBy: ctx.email,
+  });
+  if (!result.success) return result;
+
+  logSecurityEvent({
+    category: "mutation",
+    action: "answer_ai_insight_clarification",
     actor: ctx.userId,
     tenant: ctx.organisationId,
     resource: "ai_advisor_insight",

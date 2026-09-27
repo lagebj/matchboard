@@ -73,6 +73,7 @@ type SecurityEventAction =
   | "convert_quick_observation"
   | "confirm_ai_development_suggestion"
   | "dismiss_ai_insight"
+  | "answer_ai_insight_clarification"
   | "disconnect_ai_provider_connection";
 
 interface SecurityEvent {
