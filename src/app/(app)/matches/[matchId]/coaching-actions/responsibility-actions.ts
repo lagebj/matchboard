@@ -12,7 +12,6 @@ import {
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
 import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
-import { upsertTeamReflection } from "@/lib/coaching/team-reflection";
 
 async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
   const selection = await db.selection.findFirst({
@@ -21,14 +20,6 @@ async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilt
   });
   if (!selection) throw new Error("Selection not found or access denied.");
   return { matchId: selection.matchId };
-}
-
-async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
-  const match = await db.match.findFirst({
-    where: { id: matchId, ...orgFilter.filter },
-    select: { id: true },
-  });
-  if (!match) throw new Error("Match not found or access denied.");
 }
 
 export async function setMatchdayResponsibilityAction(
@@ -104,73 +95,3 @@ export async function removeMatchdayResponsibilityAction(
   return setMatchdayResponsibilityAction(selectionId, null);
 }
 
-export async function setTeamReflectionAction(
-  matchId: string,
-  data: {
-    effort?: string;
-    teamCohesion?: string;
-    positionalShape?: string;
-    recoveryBehavior?: string;
-    note?: string;
-  },
-): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  const orgId = ctx.organisationId;
-  await requireMatchOrgAccess(matchId, ctx.orgFilter);
-
-  try {
-    const match = await db.match.findFirst({
-      where: { id: matchId, ...ctx.orgFilter.filter },
-    });
-    if (!match) return { success: false, error: "Match not found." };
-
-    // ADR-0152 §3.6 — the one canonical TeamReflection writer; the guided debrief's submit
-    // mapping calls the exact same function.
-    await upsertTeamReflection({
-      matchId,
-      organisationId: orgId,
-      effort: data.effort,
-      teamCohesion: data.teamCohesion,
-      positionalShape: data.positionalShape,
-      recoveryBehavior: data.recoveryBehavior,
-      note: data.note,
-    });
-
-    revalidatePath(`/matches/${matchId}`);
-    revalidatePath(`/matches/${matchId}/post-match`);
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to save team reflection." };
-  }
-}
-
-export async function getTeamReflectionAction(
-  matchId: string,
-): Promise<{ success: boolean; reflection?: { id: string; effort: string | null; teamCohesion: string | null; positionalShape: string | null; recoveryBehavior: string | null; note: string | null } | null; error?: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  await requireMatchOrgAccess(matchId, ctx.orgFilter);
-
-  try {
-    const reflection = await db.teamReflection.findFirst({
-      where: { matchId, ...ctx.orgFilter.filter },
-    });
-
-    return {
-      success: true,
-      reflection: reflection ? {
-        id: reflection.id,
-        effort: reflection.effort,
-        teamCohesion: reflection.teamCohesion,
-        positionalShape: reflection.positionalShape,
-        recoveryBehavior: reflection.recoveryBehavior,
-        note: reflection.note,
-      } : null,
-    };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to get team reflection." };
-  }
-}

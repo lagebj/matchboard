@@ -10,7 +10,7 @@ import { PostMatchReviewTab } from "@/components/matches/match-detail/post-match
 import { PostMatchPage } from "@/components/assistant/post-match-page";
 import { PostMatchUnresolvedBanner } from "@/components/live-match/post-match-unresolved-banner";
 import { GoalAttributionGapBanner } from "@/components/matches/goal-attribution-gap-banner";
-import { TeamReflectionSection } from "@/components/matches/team-reflection-section";
+import { PostMatchDebrief } from "@/components/post-match/debrief/post-match-debrief";
 import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { ObservationSection } from "@/components/opponents/observation-section";
 import { LegacyMatchFeedbackSection } from "@/components/matches/legacy-match-feedback-section";
@@ -24,12 +24,13 @@ import type { PostMatchReportTimingReviewRow } from "@/lib/reports/post-match-re
 
 /**
  * PostMatchReportPageShell — the lifecycle-aware Post-Match Report orchestrator
- * (`05_POST_MATCH_DRAFT_SPEC.md` / `06_POST_MATCH_COMPLETED_SPEC.md`). Every existing mutation
- * workflow (`PostMatchPage`/`PostMatchReportShell`, `TeamReflectionSection`,
- * `FootballObservationSection`, `ObservationSection`, `LegacyMatchFeedbackSection`,
- * `MatchCombinationEvidencePanel`) is reused completely unchanged — this shell only decides
- * *where in the tab tree* each already-working component renders, plus adds the new read-only
- * Summary/Timeline reconciliation tabs built from already-loaded facts.
+ * (`05_POST_MATCH_DRAFT_SPEC.md` / `06_POST_MATCH_COMPLETED_SPEC.md`). `PostMatchPage` and
+ * `MatchCombinationEvidencePanel` are reused completely unchanged. The Debrief tab's primary
+ * content is `PostMatchDebrief` (ADR-0152 §3/§12); `FootballObservationSection`,
+ * `ObservationSection`, and `LegacyMatchFeedbackSection` remain underneath it as an optional
+ * "Additional observations" disclosure — they capture fields/history the debrief's own schema
+ * doesn't, so they're not part of the primary required flow but aren't retired either.
+ * `TeamReflectionSection` was fully subsumed by the debrief and is gone.
  */
 export function PostMatchReportPageShell({
   matchId,
@@ -46,7 +47,7 @@ export function PostMatchReportPageShell({
   opponentName,
   postMatchPageProps,
   observationSectionProps,
-  teamReflectionProps,
+  debriefProps,
   footballObservationProps,
   legacyFeedbackProps,
   combinationEvidenceProps,
@@ -73,7 +74,7 @@ export function PostMatchReportPageShell({
     outOfRangeEventCount?: number;
   };
   observationSectionProps: React.ComponentProps<typeof ObservationSection>;
-  teamReflectionProps: React.ComponentProps<typeof TeamReflectionSection>;
+  debriefProps: React.ComponentProps<typeof PostMatchDebrief> | null;
   footballObservationProps: React.ComponentProps<typeof FootballObservationSection>;
   legacyFeedbackProps: React.ComponentProps<typeof LegacyMatchFeedbackSection>;
   combinationEvidenceProps: React.ComponentProps<typeof MatchCombinationEvidencePanel>;
@@ -152,10 +153,19 @@ export function PostMatchReportPageShell({
 
       {activeTab === "reflection" && (
         <div className="flex flex-col gap-4">
-          <TeamReflectionSection {...teamReflectionProps} />
-          <FootballObservationSection {...footballObservationProps} />
-          <ObservationSection {...observationSectionProps} />
-          <LegacyMatchFeedbackSection {...legacyFeedbackProps} />
+          {debriefProps ? (
+            <PostMatchDebrief {...debriefProps} />
+          ) : (
+            <p className="text-[13px] text-[var(--text-muted)]">Start the post-match report on the Players tab before completing the debrief.</p>
+          )}
+          <details className="rounded-[var(--tl-c-radius-object)] border border-[var(--border-soft)] bg-[var(--tl-c-surface)]">
+            <summary className="cursor-pointer select-none p-4 text-sm font-medium text-[var(--foreground)]">Additional observations (optional)</summary>
+            <div className="flex flex-col gap-4 border-t border-[var(--border-soft)] p-4">
+              <FootballObservationSection {...footballObservationProps} />
+              <ObservationSection {...observationSectionProps} />
+              <LegacyMatchFeedbackSection {...legacyFeedbackProps} />
+            </div>
+          </details>
         </div>
       )}
 

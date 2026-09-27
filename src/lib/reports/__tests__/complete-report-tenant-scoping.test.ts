@@ -85,6 +85,12 @@ describe("completeReport: tenant scoping without a live actor context (ADR-0087)
     const report = await testDb.postMatchReport.create({
       data: { matchId: `match-${Date.now()}`, status: "DRAFT", organisationId: orgAId },
     });
+    // ADR-0152 §9 — completeReport() now also requires a SUBMITTED debrief; this test's own
+    // concern is the tenant-scoping fix, so satisfy that gate directly rather than driving the
+    // full debrief flow (already proven in src/lib/post-match/debrief/__tests__/service.test.ts).
+    await testDb.postMatchDebrief.create({
+      data: { organisationId: orgAId, postMatchReportId: report.id, status: "SUBMITTED", answers: {}, submittedBy: "coach@example.com", submittedAt: new Date() },
+    });
 
     const result = await completeReport(report.id, "coach@example.com", {
       type: "org",

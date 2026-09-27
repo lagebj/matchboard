@@ -314,3 +314,44 @@ it. The gate and the UI ship together in the next slice.
 Not yet built: the mobile guided-debrief UI, the report-completion gate, reopen-triggered
 re-fingerprinting, and retirement of the fragmented draft Reflection/Opponent/Football-observation
 capture flow — all Slice 2b.
+
+### 2026-09-27 — Slice 2b: guided debrief UI, League-side (report-completion gate now live)
+
+Delivered the mobile-first guided-debrief wizard and wired it in for League, closing the gap
+Slice 2a deliberately left open. Event's own UI convergence (its report panel still shows three
+plain free-text fields plus Football observations) is Slice 2c — Event's `completeEventReport()`
+is untouched here for the same reason 2a deferred League's gate: wiring it before any Event
+surface creates a debrief would block every Event report completion with no way to clear it.
+
+- `src/components/post-match/debrief/post-match-debrief.tsx` (+ `debrief-steps-ui.tsx`,
+  `debrief-read-only.tsx`): one stepped wizard component for League and Event alike, driven by
+  `DebriefReportRef` exactly like the service layer — dynamically imports the matching
+  League/Event action module per bundle's existing `TeamReflectionSection`-style convention, so
+  no second component fork was needed for Event once its own page wires this in (2c).
+- `src/lib/post-match/debrief/steps.ts`: pure step order/gating helpers (`isStepComplete`,
+  `computeInitialStep`) built directly on `findDebriefReviewGaps` — the wizard's Continue button
+  and the server's submit-time gap check can never disagree, because they're the same predicate.
+- Per-step Continue gating enforces bundle §6's "explicit review" requirement in the UI itself
+  (not just at submit time): the four required steps cannot be advanced past without a choice,
+  including a no-evidence one; optional steps (opponent memory, player observations, anything
+  else) never block progress. 600ms-debounced autosave (bundle §7) preserves unsaved input on a
+  save failure and shows `Saving…`/`Saved automatically`/`Could not save. Retry.`.
+- `completeReport()` (`report-mutations.ts`) now also requires `isDebriefSubmittedForReport`
+  before locking (bundle §9). Safe to enforce unconditionally, not just for new reports, because
+  `/post-match` (`o/[orgSlug]/matches/[matchId]/post-match/page.tsx`) now calls
+  `getOrCreateDebrief` on every page load — the same page "Complete report" lives on — so a
+  coach can never reach that button without a debrief row already existing to submit.
+- `reopenReport()` now also reopens the debrief (bundle §10: SUBMITTED -> DRAFT, answers
+  untouched) — the only place a debrief leaves `SUBMITTED`; there is no separate standalone
+  "reopen debrief" UI action.
+- Retired `TeamReflectionSection` and its actions (`setTeamReflectionAction`/
+  `getTeamReflectionAction`) entirely — fully subsumed by the debrief's team-execution step and
+  `upsertTeamReflection`, which was already the one canonical writer as of Slice 2a. The
+  richer opponent-observation form and the Football-observations list are not subsumed (they
+  capture fields/history the debrief's own schema deliberately doesn't) and remain reachable
+  from the Post-Match Report's Debrief tab (renamed from "Reflection" — the `reflection` URL key
+  is unchanged) behind an "Additional observations (optional)" disclosure, no longer part of the
+  primary required flow.
+
+Deferred to Slice 2c: Event's own UI wiring (`EventMatchReportPanel`) and Event's completion
+gate; qualitative-evidence extraction queueing (Slice 3) is unaffected by this slice.

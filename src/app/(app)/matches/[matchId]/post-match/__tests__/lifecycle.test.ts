@@ -32,12 +32,24 @@ import {
 } from "../actions";
 
 async function cleanup() {
+  await testDb.postMatchDebrief.deleteMany();
   await testDb.matchReportPlayerStat.deleteMany();
   await testDb.matchReportAbsence.deleteMany();
   await testDb.goal.deleteMany();
   await testDb.postMatchPlayerActual.deleteMany();
   await testDb.postMatchReport.deleteMany();
   await testDb.selection.deleteMany();
+}
+
+// ADR-0152 §9 — completeMatchReport() now also requires a SUBMITTED debrief. These lifecycle
+// tests are about the report state machine, not the debrief itself (already proven in
+// src/lib/post-match/debrief/__tests__/service.test.ts), so satisfy that gate directly.
+async function submitDebriefFixture(reportId: string) {
+  await testDb.postMatchDebrief.upsert({
+    where: { postMatchReportId: reportId },
+    create: { organisationId: fixture.organisationId, postMatchReportId: reportId, status: "SUBMITTED", answers: {}, submittedBy: "coach@example.com", submittedAt: new Date() },
+    update: { status: "SUBMITTED", submittedAt: new Date() },
+  });
 }
 
 describe("Post-match report lifecycle", () => {
@@ -114,6 +126,8 @@ describe("Post-match report lifecycle", () => {
       const setResult = await updateMatchResult(reportId, { homeGoals: 3, awayGoals: 1 });
       expect(setResult.success).toBe(true);
 
+      await submitDebriefFixture(reportId);
+
       // One explicit completion action -- no separate coach-visible Submit/Lock steps.
       const completeResult = await completeMatchReport(reportId);
       expect(completeResult.success).toBe(true);
@@ -127,12 +141,18 @@ describe("Post-match report lifecycle", () => {
       });
       expect(addBlocked.success).toBe(false);
 
-      // Deliberate reopen for correction, then complete again.
+      // Deliberate reopen for correction, then complete again. ADR-0152 §10 — reopening the
+      // report also reopens its debrief, so it must be resubmitted before recompleting.
       const reopenResult = await reopenMatchReport(reportId, "DRAFT");
       expect(reopenResult.success).toBe(true);
 
       const reopened = await testDb.postMatchReport.findUnique({ where: { id: reportId } });
       expect(reopened!.status).toBe("DRAFT");
+
+      const debriefAfterReopen = await testDb.postMatchDebrief.findFirst({ where: { postMatchReportId: reportId } });
+      expect(debriefAfterReopen!.status).toBe("DRAFT");
+
+      await submitDebriefFixture(reportId);
 
       const recompleteResult = await completeMatchReport(reportId);
       expect(recompleteResult.success).toBe(true);
@@ -313,6 +333,7 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
+      await submitDebriefFixture(reportId);
       await completeMatchReport(reportId);
 
       const addResult = await addActualPlayer(reportId, {
@@ -359,6 +380,7 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
+      await submitDebriefFixture(reportId);
       const completeResult = await completeMatchReport(reportId);
       expect(completeResult.success).toBe(true);
 
@@ -409,6 +431,7 @@ describe("Post-match report lifecycle", () => {
       // there.
       await testDb.postMatchReport.update({ where: { id: reportId }, data: { status: "REPORTED" } });
 
+      await submitDebriefFixture(reportId);
       const completeResult = await completeMatchReport(reportId);
       expect(completeResult.success).toBe(true);
 
@@ -434,6 +457,7 @@ describe("Post-match report lifecycle", () => {
         data: { attendanceStatus: "PRESENT" },
       });
 
+      await submitDebriefFixture(reportId);
       await completeMatchReport(reportId);
 
       const completeResult = await completeMatchReport(reportId);

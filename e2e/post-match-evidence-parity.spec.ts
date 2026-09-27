@@ -38,6 +38,35 @@ test("completing a League post-match report via the real UI runs post-match lear
   await dialog.getByRole("button", { name: "Confirm" }).click();
   await expect(page).toHaveURL(/post-match/, { timeout: 15_000 });
 
+  // ADR-0152 §9 — completeReport() now also requires a SUBMITTED guided debrief. Drive the
+  // minimum required path through the wizard (one chip per required row/section) before
+  // returning to the Players tab to complete the report, exactly as a real coach would.
+  await page.getByRole("button", { name: "Debrief" }).click();
+  await page.getByRole("button", { name: "Effort: Strong" }).click();
+  await page.getByRole("button", { name: "Team cohesion: OK" }).click();
+  await page.getByRole("button", { name: "Positional shape: OK" }).click();
+  await page.getByRole("button", { name: "Recovery after losing the ball: OK" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await page.getByRole("button", { name: "Pressing" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await page.getByRole("button", { name: "Nothing to add" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await page.getByRole("button", { name: "No meaningful change" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  // Opponent memory / player observations / anything else are all optional.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await page.getByRole("button", { name: "Submit debrief" }).click();
+  await expect(page.getByText(/^submitted$/i)).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("button", { name: "Players" }).click();
+
   // completeMatchReport()'s report-completion confirmation is a native window.confirm(), not
   // an in-app dialog -- must be accepted before the click that triggers it, or Playwright's
   // default auto-dismiss cancels it and the click becomes a no-op.

@@ -34,7 +34,7 @@ vi.mock("@/components/live-match/post-match-unresolved-banner", () => ({
 vi.mock("@/components/matches/goal-attribution-gap-banner", () => ({
   GoalAttributionGapBanner: () => null,
 }));
-vi.mock("@/components/matches/team-reflection-section", () => ({ TeamReflectionSection: () => null }));
+vi.mock("@/components/post-match/debrief/post-match-debrief", () => ({ PostMatchDebrief: () => null }));
 vi.mock("@/components/player-development/football-observation-section", () => ({
   FootballObservationSection: () => null,
 }));
@@ -105,7 +105,7 @@ function baseProps(surfaceState: "DRAFT" | "COMPLETED", reportStatus: "DRAFT" | 
       allPlayers: [],
     },
     observationSectionProps: { matchId: "m1", existingObservation: null, isLocked: reportStatus === "LOCKED", matchFit: "UNKNOWN" } as never,
-    teamReflectionProps: { matchId: "m1", reflection: null } as never,
+    debriefProps: null,
     footballObservationProps: { matchId: "m1", players: [], existingObservations: [], isLocked: reportStatus === "LOCKED" } as never,
     legacyFeedbackProps: { feedback: [], players: [] } as never,
     combinationEvidenceProps: { evidence: [], players: [] } as never,
