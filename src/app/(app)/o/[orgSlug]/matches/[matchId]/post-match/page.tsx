@@ -11,6 +11,7 @@ import { PostMatchReportPageShell } from "@/components/matches/match-detail/post
 import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import { derivePostMatchReportSurfaceState } from "@/lib/matches/match-detail-tabs";
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
+import { getOrCreateDebrief } from "@/lib/post-match/debrief/service";
 
 export const dynamic = "force-dynamic";
 
@@ -176,7 +177,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
   // post-match callout/submission gate. Also only meaningful once a report exists; a match that
   // was never live-reported has no MatchPeriodTimingResolution rows to compare against.
   const leagueMatchRef = report ? await buildLeagueMatchRef(matchId) : null;
-  const [feedbackEntries, teamReflection, existingObservation, footballObservations, goalAttributionGap, rawTimingReview, outOfRangeEventCount] = await Promise.all([
+  const [feedbackEntries, existingObservation, footballObservations, goalAttributionGap, rawTimingReview, outOfRangeEventCount, debrief] = await Promise.all([
     db.matchExecutionFeedback.findMany({
       where: { matchId },
       orderBy: [{ category: "asc" }, { playerId: "asc" }],
@@ -189,10 +190,6 @@ export default async function PostMatchRoute({ params }: PageProps) {
         nextAction: true,
         note: true,
       },
-    }),
-    db.teamReflection.findFirst({
-      where: { matchId, ...ctx.orgFilter.filterNullable },
-      select: { id: true, effort: true, teamCohesion: true, positionalShape: true, recoveryBehavior: true, note: true },
     }),
     db.opponentEncounterObservation.findFirst({
       where: { matchId, ...ctx.orgFilter.filterNullable },
@@ -228,6 +225,10 @@ export default async function PostMatchRoute({ params }: PageProps) {
     report ? computeGoalAttributionGap(matchId, ctx.organisationId) : Promise.resolve(null),
     leagueMatchRef ? getMatchTimingReviewItems(leagueMatchRef) : Promise.resolve([]),
     leagueMatchRef ? getOutOfRangeEventCount(leagueMatchRef) : Promise.resolve(0),
+    // ADR-0152 — created (with legacy prefill) the moment this page is first opened, not lazily
+    // on client fetch, so `completeReport()`'s debrief-submitted gate can never block a report
+    // the coach has never had a chance to see the debrief for.
+    report ? getOrCreateDebrief({ kind: "LEAGUE", matchId }, ctx.organisationId, ctx.email) : Promise.resolve(null),
   ]);
 
   const timingReview = rawTimingReview.map((item) => ({
@@ -278,15 +279,10 @@ export default async function PostMatchRoute({ params }: PageProps) {
     teamName: p.coreTeam?.name ?? "Unassigned",
   }));
 
-  const reflectionData = teamReflection
-    ? {
-        effort: teamReflection.effort,
-        teamCohesion: teamReflection.teamCohesion,
-        positionalShape: teamReflection.positionalShape,
-        recoveryBehavior: teamReflection.recoveryBehavior,
-        note: teamReflection.note,
-      }
-    : null;
+  // ADR-0152 §5 Step 5 — reuse whatever period labels this match's own recovered-timing review
+  // already surfaced (never hard-code "First half"/"Second half"; match formats vary), plus the
+  // two fixed catch-all choices the bundle specifies.
+  const periodOptions = [...new Set(timingReview.map((t) => t.periodLabel))].concat(["Multiple periods", "Not sure"]);
 
   const combinationEvidence = initialReport?.status === "LOCKED" ? await getMatchCombinationEvidence(matchId) : [];
 
@@ -337,6 +333,22 @@ export default async function PostMatchRoute({ params }: PageProps) {
       ? `Completed ${initialReport.completedAt ? new Date(initialReport.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""} by ${initialReport.completedBy}`
       : null;
 
+  const matchupLabel = ownGoals != null && opponentGoals != null ? `${match.team.name} ${ownGoals}–${opponentGoals} ${match.opponent}` : `${match.team.name} vs ${match.opponent}`;
+
+  const debriefProps = debrief
+    ? {
+        reportRef: { kind: "LEAGUE" as const, matchId },
+        debriefId: debrief.id,
+        status: debrief.status,
+        initialAnswers: debrief.answers,
+        opponentName: match.opponent,
+        matchupLabel,
+        playerOptions,
+        periodOptions,
+        readOnly: initialReport?.status === "LOCKED",
+      }
+    : null;
+
   return (
     <PostMatchReportPageShell
       matchId={matchId}
@@ -366,7 +378,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
         isLocked: initialReport?.status === "LOCKED",
         matchFit: match.matchFit,
       }}
-      teamReflectionProps={{ matchId, reflection: reflectionData }}
+      debriefProps={debriefProps}
       footballObservationProps={{
         matchId,
         players: playerOptions,

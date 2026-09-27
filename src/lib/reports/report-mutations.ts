@@ -929,6 +929,17 @@ export async function completeReport(
     return { success: false, error: `Cannot complete report: ${timingBlockers.join(" ")}` };
   }
 
+  // ADR-0152 §9 — the guided debrief is the one required qualitative-capture step; a report
+  // cannot lock until it has been submitted. Safe to enforce unconditionally (not just for
+  // "new" reports) because `/post-match` now creates a DRAFT debrief for every report the moment
+  // the page is opened (`getOrCreateDebrief`), and that page is where "Complete report" itself
+  // lives — a coach cannot reach this call without already having a debrief row to submit.
+  const { isDebriefSubmittedForReport } = await import("@/lib/post-match/debrief/service");
+  const debriefSubmitted = await isDebriefSubmittedForReport({ kind: "LEAGUE", matchId: report.matchId }, report.organisationId);
+  if (!debriefSubmitted) {
+    return { success: false, error: "Cannot complete report: submit the post-match debrief first." };
+  }
+
   // Everything from here on is scoped by the report's own already-loaded, trusted
   // organisationId (ADR-0087) — not whatever tenant context the caller happened to establish,
   // and not a re-derived actor context from a live request/cookie session (the previous
@@ -1007,6 +1018,13 @@ export async function reopenReport(
     where: { id: reportId },
     data: { status: newStatus as MatchReportStatus, completedAt: null },
   });
+
+  // ADR-0152 §10 — reopening the report also reopens its debrief: a SUBMITTED debrief becomes
+  // DRAFT again, answers untouched. There is no separate "reopen debrief" UI action; this is the
+  // only place a debrief transitions back out of SUBMITTED.
+  const { getOrCreateDebrief, reopenDebrief } = await import("@/lib/post-match/debrief/service");
+  const debrief = await getOrCreateDebrief({ kind: "LEAGUE", matchId: report.matchId }, report.organisationId);
+  await reopenDebrief(debrief.id, report.organisationId);
 
   return { success: true, matchId: report.matchId };
 }

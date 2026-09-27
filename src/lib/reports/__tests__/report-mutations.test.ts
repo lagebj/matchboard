@@ -700,6 +700,12 @@ describe("completeReport — recovered-timing submission gate (ADR-0146 §8/§15
     );
     expect(reviewResult.success).toBe(true);
 
+    // ADR-0152 §9 — completeReport() also requires a SUBMITTED debrief; this test's own concern
+    // is the timing gate, so satisfy the debrief gate directly.
+    await testDb.postMatchDebrief.create({
+      data: { organisationId: fixtureIds.organisationId, postMatchReportId: report.id, status: "SUBMITTED", answers: {}, submittedBy: "coach@example.com", submittedAt: new Date() },
+    });
+
     const unblocked = await completeReport(report.id, "coach@example.com");
     expect(unblocked.success).toBe(true);
 

@@ -116,7 +116,7 @@ const POST_MATCH_DRAFT_TABS: TabItem<PostMatchTabKey>[] = [
   { key: "summary", label: "Summary" },
   { key: "timeline", label: "Timeline" },
   { key: "players", label: "Players" },
-  { key: "reflection", label: "Reflection" },
+  { key: "reflection", label: "Debrief" },
   { key: "review", label: "Review" },
 ];
 
@@ -124,7 +124,7 @@ const POST_MATCH_COMPLETED_TABS: TabItem<PostMatchTabKey>[] = [
   { key: "summary", label: "Summary" },
   { key: "timeline", label: "Timeline" },
   { key: "players", label: "Players" },
-  { key: "reflection", label: "Reflection" },
+  { key: "reflection", label: "Debrief" },
   { key: "combinations", label: "Combinations" },
 ];
 
