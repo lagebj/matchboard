@@ -28,12 +28,14 @@ import {
   needsAttentionFingerprint,
   changeFingerprint,
   opponentMemoryFingerprint,
+  anythingElseFingerprint,
 } from "./map-to-qualitative-evidence";
 import { upsertTeamReflection } from "@/lib/coaching/team-reflection";
 import { upsertOpponentEncounterObservation } from "@/lib/opponents/opponent-encounter-observation";
 import { createFootballObservations } from "@/lib/evidence/football-observation-service";
 import { isValidObservationCode, type FootballObservationCode } from "@/lib/evidence/observation-vocabulary";
 import { recordDeterministicExtraction, type TransactionClient as QualitativeEvidenceTransactionClient } from "@/lib/evidence/qualitative-evidence-service";
+import { enqueueQualitativeExtraction } from "@/lib/evidence/qualitative-evidence-enqueue";
 
 export type DebriefReportRef = { kind: "LEAGUE"; matchId: string } | { kind: "EVENT"; eventMatchId: string };
 
@@ -209,6 +211,12 @@ export async function submitDebrief(ref: DebriefReportRef, debriefId: string, or
       });
 
       await writePlayerObservations(answers, { matchId: ref.matchId });
+
+      // Bundle §8 step 7 "queue unstructured AI extraction after commit" — never inside the
+      // transaction above (§8: "Do not call provider inside transaction or request path"), and
+      // this enqueue call itself never calls a provider either, only writes a QUEUED row.
+      // League-only, matching the deterministic writer's own scoping (issue #691).
+      await enqueueChangeAndAnythingElseExtraction(organisationId, debriefId, answers);
     } else {
       const reflectionNote = answers.team_execution.note?.trim() || null;
       const opponentNote = mapOpponentMemory(answers, null);
@@ -259,14 +267,47 @@ async function writeDeterministicQualitativeEvidence(
     { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_NEEDS_ATTENTION", sourceId: debriefId, fingerprintPayload: needsAttentionFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildNeedsAttentionObservations(answers) },
     tx,
   );
-  await recordDeterministicExtraction(
-    { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_CHANGE", sourceId: debriefId, fingerprintPayload: changeFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildChangeObservations(answers) },
-    tx,
-  );
+  // BOTH_CHANGED is deliberately excluded from the deterministic write entirely (not just given
+  // zero observations) — that fingerprint's (sourceType, sourceId) slot belongs to the
+  // AI_STRUCTURED enqueue instead (see `enqueueChangeAndAnythingElseExtraction` below). Writing
+  // even a zero-observation DETERMINISTIC run here would permanently occupy that exact
+  // fingerprint and make the AI enqueue's own idempotency check see it as already tracked,
+  // silently starving BOTH_CHANGED of AI extraction forever.
+  if (answers.match_changes?.option !== "BOTH_CHANGED") {
+    await recordDeterministicExtraction(
+      { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_CHANGE", sourceId: debriefId, fingerprintPayload: changeFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildChangeObservations(answers) },
+      tx,
+    );
+  }
   await recordDeterministicExtraction(
     { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_OPPONENT", sourceId: debriefId, fingerprintPayload: opponentMemoryFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildOpponentMemoryObservations(answers) },
     tx,
   );
+}
+
+/**
+ * Bundle §14 — the two debrief paths that are AI_STRUCTURED, not deterministic: BOTH_CHANGED
+ * ("one answer may need split scopes") and "Anything else" ("scope is open-ended"). Enqueues
+ * only; the AI cron infrastructure (`qualitative-evidence-extraction-runner.ts`) does the actual
+ * provider call and persistence.
+ */
+async function enqueueChangeAndAnythingElseExtraction(organisationId: string, debriefId: string, answers: DebriefAnswersSection): Promise<void> {
+  if (answers.match_changes?.option === "BOTH_CHANGED") {
+    await enqueueQualitativeExtraction({
+      organisationId,
+      sourceType: "POST_MATCH_DEBRIEF_CHANGE",
+      sourceId: debriefId,
+      fingerprintPayload: changeFingerprint(answers, DEBRIEF_SCHEMA_VERSION),
+    });
+  }
+  if (answers.anything_else.note?.trim()) {
+    await enqueueQualitativeExtraction({
+      organisationId,
+      sourceType: "POST_MATCH_DEBRIEF_OTHER",
+      sourceId: debriefId,
+      fingerprintPayload: anythingElseFingerprint(answers, DEBRIEF_SCHEMA_VERSION),
+    });
+  }
 }
 
 async function writePlayerObservations(answers: DebriefAnswers["answers"], target: { matchId: string } | { eventMatchId: string }): Promise<void> {

@@ -3,6 +3,7 @@ import "@/lib/ai/register-capabilities";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
 import { enqueueDueMatchPrepJobs, enqueueDueWeeklyTeamReviewJobs } from "@/lib/ai/jobs/scheduled-triggers";
 import { retryPendingConnectionDeletions } from "@/lib/ai/jobs/connection-maintenance";
+import { processQualitativeExtractionBatch } from "@/lib/evidence/qualitative-evidence-extraction-runner";
 import { getCronSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -44,6 +45,20 @@ export async function GET(request: Request) {
   const weeklyTeamReviewScan = await runCronStep("weekly_team_review scan", enqueueDueWeeklyTeamReviewJobs, { scanned: 0 });
   const connectionDeletionRetryScan = await runCronStep("connection-deletion retry scan", retryPendingConnectionDeletions, { scanned: 0 });
 
+  // ADR-0152 §4 — the qualitative-evidence AI_STRUCTURED extraction queue is a distinct table
+  // from `AiAdvisorJob` (unrelated columns/output contract), but shares this same cron
+  // entrypoint per the bundle's "processed by the existing AI cron infrastructure" instruction.
+  // Isolated in its own try/catch for the exact reason the doc comment above explains: one
+  // step's failure must never prevent another already-queued step from running.
+  let extractionResult: Awaited<ReturnType<typeof processQualitativeExtractionBatch>> | null = null;
+  let extractionError = false;
+  try {
+    extractionResult = await processQualitativeExtractionBatch();
+  } catch (err) {
+    logger.error({ err }, "[cron:ai] Error processing qualitative-evidence extraction batch");
+    extractionError = true;
+  }
+
   try {
     const result = await processAiJobsBatch();
     return NextResponse.json({
@@ -54,6 +69,8 @@ export async function GET(request: Request) {
       weeklyTeamReviewScanError: weeklyTeamReviewScan.error,
       connectionDeletionRetriesScanned: connectionDeletionRetryScan.value.scanned,
       connectionDeletionRetryScanError: connectionDeletionRetryScan.error,
+      qualitativeExtraction: extractionResult,
+      qualitativeExtractionError: extractionError,
       ...result,
     });
   } catch (err) {
