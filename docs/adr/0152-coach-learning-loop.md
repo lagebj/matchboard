@@ -625,10 +625,70 @@ entirely within this one context builder and its handler; no other capability is
 This is the first slice in the programme where a shipped capability's actual AI-facing behavior
 changes for a real coach (`post_match_review` responses will now reason over materially more
 evidence) — versioned as a MINOR bump rather than the PATCH bumps used for 4a/4b, which changed
-only unused persistence columns and an unconsumed selector. Deferred to 4d: wiring this richer
-context's output into `AiInsightClarification` answer capture and evidence-gap retriggering.
-Deferred to 4e/4f: Advisor presentation ordering and the weekly/round review role upgrades. This
-slice does not itself change any provider prompt's *instructions* about the two contract-v2
-fields (`analysisRole`/`clarificationPrompt`) beyond what 4a already always emits as `null` —
-teaching the model to actually populate a plan-vs-reality role is 4d's job, once the
-clarification round-trip it depends on exists end-to-end.
+only unused persistence columns and an unconsumed selector. This slice's `instructions` string
+also already teaches the model the full required reasoning sequence (bundle §8-13: SUPPORTED/
+CONTRADICTED/UNRESOLVED/SURPRISING/RECURRING_PATTERN/NEXT_FOCUS/EVIDENCE_GAP) — so
+`post_match_review` can, from this slice onward, actually populate a non-null `analysisRole`,
+not just always emit `null` as every capability could since 4a. Deferred to 4d: the
+`AiInsightClarification` answer-capture and evidence-gap-retrigger round trip an EVIDENCE_GAP
+insight's clarifying question depends on. Deferred to 4e/4f: Advisor presentation ordering and
+the weekly/round review role upgrades.
+
+### 2026-09-27 (continued) — Slice 4d: clarification / evidence-gap round trip
+
+Bundle §14: "Persist answer in AiInsightClarification. Convert answer into deterministic ...
+qualitative evidence, then trigger [the capability] again through normal fingerprinting."
+`src/lib/ai/insight-clarification.ts`'s `answerAiInsightClarification()`.
+
+- A plain domain service, not a "use server" action — page-level authorization, audit logging,
+  and `revalidatePath` belong to whichever route's own action wrapper eventually calls this
+  (mirroring `runPostMatchLearning`/`recordDeterministicExtraction` themselves being plain
+  services beneath their own page actions), matching how 4a/4b's own persistence/selection layer
+  shipped ahead of any UI consuming it. No UI calls this yet — wiring an EVIDENCE_GAP insight's
+  clarifying question into the Advisor's presentation is 4e's job (bundle §16-17), including
+  showing "Clarify one thing if present" as the surface that would call this service.
+- Validates defensively against a tampered/stale request even though contract v2's own
+  `.refine()` already guarantees analysisRole/clarificationPrompt correlate at persistence time:
+  the insight must be `state: "ACTIVE"`, `analysisRole === "EVIDENCE_GAP"`, and carry a
+  `clarificationQuestion`; a `selectedOption` must be literally one of the insight's own
+  persisted `clarificationOptions` (never trust a caller-supplied option string against the
+  model's own generated set).
+- Deliberately generic over whichever capability produced the EVIDENCE_GAP insight (retriggers
+  via `review.capability`/`review.scopeType`/`review.scopeId`, never a hardcoded
+  `POST_MATCH_REVIEW`) — today only `post_match_review`'s own prompt ever emits a non-null
+  `analysisRole` (4c), but bundle §18 allows `weekly_team_review` the same role once 4f upgrades
+  it, and this service will already work for that without changes.
+- The deterministic evidence conversion (`recordDeterministicExtraction`, `sourceType:
+  "AI_CLARIFICATION"`, `sourceId: insightId` — a stable, unique lineage since
+  `AiInsightClarification.insightId` is itself unique) is League-only, for the same structural
+  reason as every other deterministic writer in this domain (`qualitative-evidence-service.ts`'s
+  own doc comment, issues #691/#696): an Event match has no `teamId` to key the write off. The
+  answer is still persisted and the capability still retriggered regardless — only the
+  evidence-derivation half is skipped for Event.
+- Scope/phase/polarity are assigned structurally, not by asking a provider to classify free
+  text (that would stop this being "deterministic" derivation): `scope` from the originating
+  insight's own `subjectType` (`PLAYER`/`PLAYER_PAIR` → `PLAYER`/`PAIR` with the resolved
+  player id(s), else `TEAM`), `phase: GENERAL` and `polarity: UNCERTAIN` always (a clarification
+  answer resolves an ambiguity the model itself flagged — there is no structural signal for
+  which tactical phase or which direction it points, unlike the debrief's own fixed
+  worked/needs-attention theme selections), and `explicitness: EXPLICIT` when the coach chose
+  one of the offered options versus `TENTATIVE` for open-ended free text.
+- Re-answering the same insight is an upsert (`AiInsightClarification.insightId` is `@unique`) —
+  a changed answer's new `fingerprintPayload` naturally supersedes the prior `AI_CLARIFICATION`
+  extraction run through `recordDeterministicExtraction`'s existing supersession logic; no new
+  supersession mechanism was needed.
+- No new fingerprint-material wiring was needed in `post-match-review.ts` itself: the converted
+  observation lands in the same `QualitativeEvidenceObservation` table, keyed to the same
+  `matchId`, that `currentQualitativeEvidence.activeQualitativeObservations`
+  (`getQualitativeEvidenceForMatch`) already reads with no `sourceType` filter — so answering a
+  clarification automatically changes the next context build's fingerprint (bundle §15's
+  "active qualitative evidence" material) purely as a consequence of 4c's existing read path,
+  confirmed by this slice's own retrigger test.
+
+Slice 4 is now functionally complete end-to-end for `post_match_review` (contract v2 schema,
+pre-match-expectation selection, the full v2 context builder, and the clarification round trip)
+with no UI surface yet — 4e is exclusively presentation (ordering, hide-empty-sections,
+show-first-five, evidence-source labels, error states) and 4f is the weekly/round review role
+upgrades. No coach-observable behavior changes in this slice on its own (there is still no UI
+that can produce an EVIDENCE_GAP clarification for a coach to answer) — versioned as a PATCH
+bump, matching 4a/4b's own reasoning.
