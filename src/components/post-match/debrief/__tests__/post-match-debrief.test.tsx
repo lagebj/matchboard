@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PostMatchDebrief } from "../post-match-debrief";
 import { EMPTY_DEBRIEF_ANSWERS } from "@/lib/post-match/debrief/v1";
@@ -108,6 +108,50 @@ describe("PostMatchDebrief", () => {
     await waitFor(() => expect(submitDebriefAction).toHaveBeenCalledWith("match-1", "debrief-1"));
     await waitFor(() => expect(screen.getByText("Submitted")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Submit debrief" })).not.toBeInTheDocument();
+  });
+
+  it("flushes an unfired autosave debounce before submitting, so the server never validates a stale persisted document (regression: e2e caught this racing the real 600ms debounce)", async () => {
+    // fireEvent, not userEvent — no simulated pointer delay between clicks, so this whole
+    // sequence completes in native microtask time, well under the 600ms debounce. That's exactly
+    // what let the Playwright run against the deployed Test slot outrun the old debounce-only
+    // autosave (userEvent's own per-click delay had been masking the race in this file's other,
+    // slower tests).
+    renderDebrief();
+
+    fireEvent.click(screen.getByRole("button", { name: "Effort: Strong" }));
+    fireEvent.click(screen.getByRole("button", { name: "Team cohesion: OK" }));
+    fireEvent.click(screen.getByRole("button", { name: "Positional shape: OK" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recovery after losing the ball: OK" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Pressing" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Nothing to add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "No meaningful change" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    // Not one 600ms debounce has been allowed to elapse — every prior save is still pending.
+    expect(saveDebriefDraftAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit debrief" }));
+
+    await waitFor(() => expect(submitDebriefAction).toHaveBeenCalledWith("match-1", "debrief-1"));
+    const saveOrder = saveDebriefDraftAction.mock.invocationCallOrder.at(-1);
+    const submitOrder = submitDebriefAction.mock.invocationCallOrder.at(0);
+    expect(saveDebriefDraftAction).toHaveBeenCalled();
+    expect(saveOrder).toBeLessThan(submitOrder!);
+
+    const lastSavePayload = saveDebriefDraftAction.mock.calls.at(-1)![2] as { answers: { match_changes: unknown } };
+    expect(lastSavePayload.answers.match_changes).toEqual({ option: "NO_MEANINGFUL_CHANGE" });
+
+    await waitFor(() => expect(screen.getByText("Submitted")).toBeInTheDocument());
   });
 
   it("resumes on the first still-incomplete required step for a partially-completed draft", () => {

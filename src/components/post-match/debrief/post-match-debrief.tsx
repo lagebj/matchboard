@@ -70,28 +70,40 @@ export function PostMatchDebrief({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refId = reportRef.kind === "LEAGUE" ? reportRef.matchId : reportRef.eventMatchId;
 
+  // Shared by the debounced autosave and `handleSubmit`'s flush — submit reads the *persisted*
+  // answers server-side (bundle §8 step 1), so submitting must never race an unfired debounce
+  // timer, or the server can validate a stale, still-incomplete document even though every
+  // required step shows reviewed on screen. Returns whether the answers are now known-persisted.
+  async function performSave(currentAnswers: DebriefAnswersSection): Promise<boolean> {
+    const serialized = JSON.stringify(currentAnswers);
+    if (serialized === lastSavedRef.current) return true;
+    setSaveState("saving");
+    try {
+      const { save } = await loadActions(reportRef.kind);
+      const result = await save(refId, debriefId, { version: DEBRIEF_SCHEMA_VERSION, answers: currentAnswers });
+      if (result.success) {
+        lastSavedRef.current = serialized;
+        setSaveState("saved");
+        return true;
+      }
+      setSaveState("error");
+      return false;
+    } catch {
+      setSaveState("error");
+      return false;
+    }
+  }
+
   // Bundle §7 auto-save — local state updates immediately; persistence follows 600ms after the
   // coach stops typing/selecting. Preserves unsaved input on a save failure (state is never
   // rolled back here) and never calls a provider on save.
   useEffect(() => {
     if (status !== "DRAFT" || readOnly) return;
-    const serialized = JSON.stringify(answers);
-    if (serialized === lastSavedRef.current) return;
+    if (JSON.stringify(answers) === lastSavedRef.current) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setSaveState("saving");
-      loadActions(reportRef.kind)
-        .then(({ save }) => save(refId, debriefId, { version: DEBRIEF_SCHEMA_VERSION, answers }))
-        .then((result) => {
-          if (result.success) {
-            lastSavedRef.current = serialized;
-            setSaveState("saved");
-          } else {
-            setSaveState("error");
-          }
-        })
-        .catch(() => setSaveState("error"));
+      void performSave(answers);
     }, SAVE_DEBOUNCE_MS);
 
     return () => {
@@ -141,6 +153,14 @@ export function PostMatchDebrief({
       setSubmitError("Review the highlighted debrief questions before submitting.");
       return;
     }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const persisted = await performSave(answers);
+    if (!persisted) {
+      setSubmitError("Could not save your latest answers. Retry.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { submit } = await loadActions(reportRef.kind);
