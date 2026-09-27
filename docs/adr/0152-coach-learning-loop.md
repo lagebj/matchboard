@@ -548,3 +548,87 @@ Each returned review carries its own `sourceFingerprint` — the ingredient Slic
 builder needs to satisfy bundle §15's "selected pre-match review fingerprints" fingerprint-
 material requirement; the full fingerprint-materials checklist is Slice 4c's job once the actual
 `normalizedContext` shape is decided, not separately addressed here. Slices 1-3 are unaffected.
+
+### 2026-09-27 (continued) — Slice 4c: post-match review context builder v2
+
+Bundle §6-13: the `post_match_review` capability's context builder (`src/lib/ai/context/post-
+match-review.ts`) is rewritten to assemble the full plan-vs-reality evidence surface, replacing
+the v1 builder that only reported bare goals/assists/attendance/minutes/development-focus. The
+top-level `normalizedContext` shape changes from a flat object to a nested one (`actual`, `match`,
+`plan`, `playerContext`, `opponentHistory`, `recentTeamPatterns`, `currentQualitativeEvidence`,
+`developmentFocus`) — a breaking shape change for this capability's own consumers, contained
+entirely within this one context builder and its handler; no other capability is touched.
+
+- **`actual`**: goals/assists/attendance/minutes (as v1), plus new bench-interval and
+  substitution facts derived from the same `getActualPositionIntervalsForRef()` read that already
+  powers minutes — no second query. Guest players are excluded "for free" (the same mechanism
+  Slice 2's timeline evidence already relies on): only real playerIds ever get an ephemeral ref,
+  so an interval keyed to an unresolved guest id is silently dropped rather than needing its own
+  guest-detection branch.
+- **`match.recoveredTiming`**: reuses `getMatchTimingReviewItems(ref)` (already League/Event-
+  generic) verbatim — no new query logic, just a new fact built from an existing evidence read.
+- **`plan`/`playerContext`/`opponentHistory`**: League-only. These come from the Match Insights
+  domain layer (`buildCurrentPlanInput`/`buildMatchInsightFacts`, ADR-0149), which is itself
+  League-only today (`buildCurrentPlanInput` queries `db.match` directly, with no Event
+  equivalent). Rather than block this slice on building a parallel Event domain layer or silently
+  shipping a degraded Event experience, this is a deliberate, documented scoping decision: Event
+  matches get every section that genuinely is League/Event-generic (`actual`, recovered timing,
+  `currentQualitativeEvidence`, `preMatchExpectations`) and `null`/`[]` for the three League-only
+  sections. Tracked as issue #696 (this is the same root architectural gap as issue #691's
+  Event-side qualitative-evidence limitation — Event simply has no `teamId`-equivalent concept
+  yet for the domain layer to key off).
+- **`plan.preMatchExpectations`**: calls Slice 4b's `selectPreMatchExpectations(ref,
+  organisationId)` for *both* League and Event (it is already generic and degrades to `null`
+  gracefully). Only `title`/`body`/`summary` are ever copied into `normalizedContext` —
+  `subjectName`/`secondarySubjectName` (the real names `selectPreMatchExpectations` resolves for
+  its own, different, UI-facing use) are deliberately never forwarded to the provider payload.
+  This was a self-caught design check, not a fix: the pre-match review's own stored insight text
+  never contained a real name to begin with (only that capability's own opaque `P01`-style
+  tokens), so the actual risk was only ever "don't newly introduce a real name here" — satisfied
+  by construction, not by redaction. `instructions` gained an explicit warning that ref tokens
+  quoted inside this block belong to a different capability's own numbering and must never be
+  treated as this review's refs.
+- **`recentTeamPatterns`**: new. League-only (keyed off `raw.teamId`, which has no Event
+  equivalent for the same reason as the three sections above). Considers the team's own prior
+  *locked* matches within a rolling 42-day/8-match window (`RECENT_TEAM_PATTERN_WINDOW_DAYS`/
+  `RECENT_TEAM_PATTERN_MAX_MATCHES`), pulls their active qualitative evidence via a new
+  `getQualitativeEvidenceForMatches(matchIds, organisationId)` helper (`qualitative-evidence-
+  service.ts` — the existing helpers either cap by count within a raw date window or take a
+  single opponent; this one takes the caller's own already-decided bounded match set), then
+  ranks per bundle §7's 4-tier priority (same exact opponent > same tactical theme as today's own
+  debrief `worked`/`needs_attention` selections > same participating player > newest), dedupes
+  exact statements case-insensitively keeping the newest, and caps at
+  `RECENT_TEAM_PATTERN_MAX_OBSERVATIONS` (60). `PostMatchReport` has no `match` relation field
+  (only a scalar, unique `matchId`), so "prior matches with a locked report" is necessarily two
+  sequential queries (candidate matches by team+date range, then which of those have a `LOCKED`
+  report), not one relational query — documented inline to save the next reader a Prisma-schema
+  round-trip.
+- **`currentQualitativeEvidence`**: League/Event-generic. Raw debrief answers (read once via a
+  new shared `readCurrentDebriefAnswers()` helper — the original draft duplicated this query
+  across two sections before being consolidated), explicit per-player observations from the
+  debrief's own `player_observations` answer, this match's own active qualitative evidence rows
+  (`getQualitativeEvidenceForMatch`), `TeamReflection`, the opponent-encounter factual summary,
+  and the report's own team note (League: `PostMatchReport.teamNote`; Event:
+  `EventPostMatchReport.notes`, discriminated structurally since the two report types don't share
+  a field name).
+- Two Prisma-shape bugs caught by typecheck before merge, not at runtime: `TrustedOpponentObservation
+  .encounterDate` is a `Date`, not `JsonValue`-compatible, so it is serialized to an ISO string
+  when copied into `opponentHistory.previousEncounters`; and the two-query restructuring above
+  (there is no `PostMatchReport.match` relation to filter/order through directly).
+- Test coverage added for every new section (bench/substitution facts, recovered timing, the
+  full current-qualitative-evidence set, League Plan/PlayerContext/OpponentHistory populated
+  end-to-end, Event parity — confirming the three League-only sections stay `null`/`[]` while the
+  generic sections still populate — recent-team-patterns ranking/window/cap behaviour, and a
+  privacy assertion that no real player name ever appears in the serialized `normalizedContext`
+  even when a referenced pre-match insight's `subjectId` resolves to one internally).
+
+This is the first slice in the programme where a shipped capability's actual AI-facing behavior
+changes for a real coach (`post_match_review` responses will now reason over materially more
+evidence) — versioned as a MINOR bump rather than the PATCH bumps used for 4a/4b, which changed
+only unused persistence columns and an unconsumed selector. Deferred to 4d: wiring this richer
+context's output into `AiInsightClarification` answer capture and evidence-gap retriggering.
+Deferred to 4e/4f: Advisor presentation ordering and the weekly/round review role upgrades. This
+slice does not itself change any provider prompt's *instructions* about the two contract-v2
+fields (`analysisRole`/`clarificationPrompt`) beyond what 4a already always emits as `null` —
+teaching the model to actually populate a plan-vs-reality role is 4d's job, once the
+clarification round-trip it depends on exists end-to-end.
