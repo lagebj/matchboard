@@ -355,3 +355,31 @@ surface creates a debrief would block every Event report completion with no way 
 
 Deferred to Slice 2c: Event's own UI wiring (`EventMatchReportPanel`) and Event's completion
 gate; qualitative-evidence extraction queueing (Slice 3) is unaffected by this slice.
+
+### 2026-09-27 (continued) — Slice 2c: guided debrief UI, Event-side (League/Event parity complete)
+
+Closed the gap 2b deliberately left open, mirroring League's own sequencing exactly (build the
+UI that creates the debrief, then add the completion/reopen gates in the same slice, never
+before).
+
+- `EventMatchReportPanel` (`events/[eventId]/event-match-report-panel.tsx`) fetches/creates the
+  debrief via `getEventDebriefAction` in the same `useEffect` that already loads its other
+  report data, and renders `PostMatchDebrief` in place of the three retired plain
+  Team-reflection/Opponent-observation/Notes textareas. Football observations and (once locked)
+  the combination-evidence panel are unchanged, matching League's "not subsumed, stays
+  reachable" decision from 2b for the fields the debrief's schema doesn't own.
+- `completeEventReport()` and `reopenEventMatchReportAction()` got the identical gate/reopen
+  hook League's `report-mutations.ts` got in 2b (`isDebriefSubmittedForReport` /
+  `getOrCreateDebrief`+`reopenDebrief`).
+- One real difference from League worth recording: Event's "Complete" button
+  (`event-matches-tab.tsx`) lives in the match list row itself, reachable **without** ever
+  expanding that match's report panel — unlike League's `/post-match` page, where the debrief is
+  always on-screen before "Complete report" is reachable. This is still safe (a debrief is
+  always created the first time the panel is opened, and the coach must open it to submit
+  before Complete can succeed — there is no dead end), but it does mean a coach can hit the new
+  "submit the post-match debrief first" rejection without having seen why. Fixed the other real
+  gap this exposed while here: `handleCompleteReport()` previously discarded
+  `completeEventMatchReportAction`'s thrown error entirely (pre-existing, not previously
+  consequential enough to notice) — it now surfaces the message instead of failing silently.
+- League/Event parity for the guided debrief (ADR-0152 §3) is now complete. Slice 3
+  (qualitative-evidence extraction) is unaffected by this slice.

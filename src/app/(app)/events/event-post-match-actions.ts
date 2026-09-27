@@ -433,6 +433,12 @@ export async function reopenEventMatchReportAction(reportId: string, targetStatu
     },
   });
 
+  // ADR-0152 §10 (League/Event parity) — reopening the report also reopens its debrief: a
+  // SUBMITTED debrief becomes DRAFT again, answers untouched.
+  const { getOrCreateDebrief, reopenDebrief } = await import('@/lib/post-match/debrief/service');
+  const debrief = await getOrCreateDebrief({ kind: 'EVENT', eventMatchId: report.eventMatchId }, ctx.organisationId);
+  await reopenDebrief(debrief.id, ctx.organisationId);
+
   const eventMatch = await db.eventMatch.findFirst({ where: { id: report.eventMatchId, event: ctx.orgFilter.filter } });
   if (eventMatch) {
     revalidatePath(`/events/${eventMatch.eventId}`);

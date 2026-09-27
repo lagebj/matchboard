@@ -281,7 +281,14 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
   function handleCompleteReport(reportId: string) {
     if (!confirm('Complete this report? All attendance must be marked.')) return;
     startTransition(async () => {
-      await completeEventMatchReportAction(reportId);
+      try {
+        await completeEventMatchReportAction(reportId);
+      } catch (error) {
+        // ADR-0152 §9 added a routine new failure reason (debrief not yet submitted) to this
+        // path -- it must reach the coach, not disappear as an unhandled rejection.
+        alert(error instanceof Error ? error.message : 'Could not complete report.');
+        return;
+      }
       loadMatches();
       if (expandedMatchId) {
         const report = await getEventMatchReport(expandedMatchId);

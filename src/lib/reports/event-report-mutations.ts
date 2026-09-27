@@ -246,6 +246,17 @@ export async function completeEventReport(
     return { success: false, error: `Cannot complete report: ${timingBlockers.join(" ")}` };
   }
 
+  // ADR-0152 §9 (League/Event parity) — the guided debrief is the one required qualitative-
+  // capture step; a report cannot lock until it has been submitted. Safe now that
+  // EventMatchReportPanel creates a DRAFT debrief the moment its report panel is opened
+  // (`getEventDebriefAction`) — a coach must open that panel to submit the debrief before
+  // "Complete" can succeed, same as League's `/post-match` page.
+  const { isDebriefSubmittedForReport } = await import("@/lib/post-match/debrief/service");
+  const debriefSubmitted = await isDebriefSubmittedForReport({ kind: "EVENT", eventMatchId: report.eventMatchId }, report.organisationId);
+  if (!debriefSubmitted) {
+    return { success: false, error: "Cannot complete report: submit the post-match debrief first." };
+  }
+
   await db.eventPostMatchReport.update({
     where: { id: reportId },
     data: { status: "LOCKED" as MatchReportStatus, completedAt: new Date() },
