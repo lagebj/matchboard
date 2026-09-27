@@ -8,7 +8,7 @@ import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget
 import { TouchlineButton } from "@/components/touchline";
 import { StatusPill } from "@/components/ui/status-pill";
 import { CompletedMatchAdvisorPanel } from "@/components/ai/completed-match-advisor-panel";
-import { AdvisorPanelStale } from "@/components/ai/advisor-panel";
+import { AdvisorPanelReviewing, AdvisorPanelUnavailable } from "@/components/ai/advisor-panel";
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
@@ -101,8 +101,11 @@ export function AfterMatchOverview({
 
       <MetricStrip items={factsItems} className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4" />
 
-      {advisorViewModel?.status === "fresh" && <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />}
-      {advisorViewModel?.status === "stale" && <AdvisorPanelStale />}
+      {(advisorViewModel?.status === "fresh" || advisorViewModel?.status === "stale") && (
+        <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />
+      )}
+      {advisorViewModel?.status === "reviewing" && <AdvisorPanelReviewing />}
+      {advisorViewModel?.status === "unavailable" && <AdvisorPanelUnavailable />}
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">

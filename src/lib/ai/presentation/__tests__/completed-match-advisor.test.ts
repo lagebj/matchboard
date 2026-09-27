@@ -53,6 +53,7 @@ describe("ai/presentation/completed-match-advisor", () => {
   beforeEach(async () => {
     await testDb.aiAdvisorInsight.deleteMany({});
     await testDb.aiAdvisorReview.deleteMany({});
+    await testDb.aiAdvisorJob.deleteMany({});
     await testDb.organisationAiSettings.deleteMany({});
     await testDb.aiProviderConnection.deleteMany({});
     await testDb.goal.deleteMany({});
@@ -145,8 +146,9 @@ describe("ai/presentation/completed-match-advisor", () => {
     expect(result).toBeNull();
   });
 
-  it("returns a stale view model when the report has changed since the review was generated", async () => {
+  it("returns a stale view model with the old content shown unresolved, not hidden (ADR-0152 §17)", async () => {
     const matchId = fixtureIds.matches["Bla"];
+    const [scorer] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
     await lockReport(matchId);
     await enableAi(fixtureIds.organisationId);
 
@@ -158,8 +160,109 @@ describe("ai/presentation/completed-match-advisor", () => {
         scopeId: matchId,
         sourceFingerprint: "stale-fingerprint-does-not-match-current-report",
         status: "SUCCEEDED",
-        contractVersion: "1",
+        contractVersion: "2",
         terminologyVersion: "1",
+        summary: "Earlier summary.",
+        completedAt: new Date(),
+      },
+    });
+    await testDb.aiAdvisorInsight.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        reviewId: review.id,
+        kind: "OBSERVATION",
+        subjectType: "PLAYER",
+        subjectId: scorer.id,
+        title: "P01 stood out",
+        body: "The team dominated possession in the first half.",
+        evidenceRefs: [],
+        analysisRole: "SUPPORTED",
+      },
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result?.status).toBe("stale");
+    if (result?.status !== "stale") return;
+    expect(result.summary).toBe("Earlier summary.");
+    // Never resolved for a stale review — the current refMap may not agree with this review's
+    // own numbering, so an unresolved ref token is safer than a possibly-wrong name.
+    expect(result.insights).toEqual([{ sectionLabel: "Supported", title: "P01 stood out", body: expect.any(String), evidenceSources: [] }]);
+  });
+
+  it("groups insights by analysisRole in ADR-0152 §16's order, with a fallback bucket for a null/legacy role", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+    const context = await buildPostMatchReviewContext({ organisationId: fixtureIds.organisationId, scopeId: matchId });
+    const fingerprint = computeSourceFingerprint(context!.normalizedContext);
+
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: fingerprint,
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        summary: "Solid overall performance.",
+        completedAt: new Date(),
+      },
+    });
+    const makeInsight = (title: string, analysisRole: "SUPPORTED" | "CONTRADICTED" | "UNRESOLVED" | "NEXT_FOCUS" | null, displayOrder: number) =>
+      testDb.aiAdvisorInsight.create({
+        data: {
+          organisationId: fixtureIds.organisationId,
+          reviewId: review.id,
+          kind: "OBSERVATION",
+          subjectType: "MATCH",
+          subjectId: matchId,
+          title,
+          body: "Body text.",
+          evidenceRefs: [`fact:score:M01`],
+          analysisRole,
+          displayOrder,
+        },
+      });
+    await makeInsight("next focus item", "NEXT_FOCUS", 3);
+    await makeInsight("supported item", "SUPPORTED", 0);
+    await makeInsight("legacy item", null, 4);
+    await makeInsight("contradicted item", "CONTRADICTED", 1);
+    await makeInsight("unresolved item", "UNRESOLVED", 2);
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result?.status).toBe("fresh");
+    if (result?.status !== "fresh") return;
+    expect(result.summary).toBe("Solid overall performance.");
+    expect(result.insights.map((i) => [i.sectionLabel, i.title])).toEqual([
+      ["Supported", "supported item"],
+      ["Contradicted", "contradicted item"],
+      ["Still unresolved", "unresolved item"],
+      ["Next focus", "next focus item"],
+      ["Observations", "legacy item"],
+    ]);
+    expect(result.insights[0]!.evidenceSources).toEqual(["Match data"]);
+  });
+
+  it("separates at most one EVIDENCE_GAP insight into its own clarification field", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+    const context = await buildPostMatchReviewContext({ organisationId: fixtureIds.organisationId, scopeId: matchId });
+    const fingerprint = computeSourceFingerprint(context!.normalizedContext);
+
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: fingerprint,
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        summary: "Summary.",
         completedAt: new Date(),
       },
     });
@@ -170,14 +273,65 @@ describe("ai/presentation/completed-match-advisor", () => {
         kind: "OBSERVATION",
         subjectType: "MATCH",
         subjectId: matchId,
-        title: "Strong first half",
-        body: "The team dominated possession in the first half.",
+        title: "Unclear cause",
+        body: "Difficulty progressing from defence.",
         evidenceRefs: [],
+        analysisRole: "EVIDENCE_GAP",
+        clarificationQuestion: "What was the main problem?",
+        clarificationOptions: ["Passing options were not available", "Opponent pressure closed the first pass"],
       },
     });
 
     const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
-    expect(result).toEqual({ status: "stale" });
+    expect(result?.status).toBe("fresh");
+    if (result?.status !== "fresh") return;
+    expect(result.insights).toEqual([]);
+    expect(result.clarification).toMatchObject({
+      question: "What was the main problem?",
+      options: ["Passing options were not available", "Opponent pressure closed the first pass"],
+    });
+  });
+
+  it("shows only the first VISIBLE_INSIGHT_COUNT insights when there are more, ordered across sections", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+    const context = await buildPostMatchReviewContext({ organisationId: fixtureIds.organisationId, scopeId: matchId });
+    const fingerprint = computeSourceFingerprint(context!.normalizedContext);
+
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: fingerprint,
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        summary: "Summary.",
+        completedAt: new Date(),
+      },
+    });
+    await testDb.aiAdvisorInsight.createMany({
+      data: Array.from({ length: 7 }, (_, i) => ({
+        organisationId: fixtureIds.organisationId,
+        reviewId: review.id,
+        kind: "OBSERVATION" as const,
+        subjectType: "MATCH" as const,
+        subjectId: matchId,
+        title: `item ${i}`,
+        body: "Body text.",
+        evidenceRefs: [],
+        analysisRole: "SUPPORTED" as const,
+        displayOrder: i,
+      })),
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result?.status).toBe("fresh");
+    if (result?.status !== "fresh") return;
+    expect(result.insights).toHaveLength(7);
   });
 
   it("returns fresh plain insights, resolving ephemeral refs back to real player names", async () => {
@@ -275,5 +429,75 @@ describe("ai/presentation/completed-match-advisor", () => {
     expect(result.insights).toHaveLength(0);
     expect(result.suggestions).toHaveLength(1);
     expect(result.suggestions[0].title).toBe(`${player.firstName} ${player.lastName ?? ""}`.trim() + " · positional understanding");
+  });
+
+  it("returns status 'reviewing' when a job for the current fingerprint is QUEUED or RUNNING and no review exists yet", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+    const context = await buildPostMatchReviewContext({ organisationId: fixtureIds.organisationId, scopeId: matchId });
+    const fingerprint = computeSourceFingerprint(context!.normalizedContext);
+
+    await testDb.aiAdvisorJob.create({
+      data: { organisationId: fixtureIds.organisationId, capability: "POST_MATCH_REVIEW", scopeType: "MATCH", scopeId: matchId, sourceFingerprint: fingerprint, status: "QUEUED" },
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result).toEqual({ status: "reviewing" });
+  });
+
+  it("returns status 'unavailable' when the job for the current fingerprint has FAILED and no review exists yet", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+    const context = await buildPostMatchReviewContext({ organisationId: fixtureIds.organisationId, scopeId: matchId });
+    const fingerprint = computeSourceFingerprint(context!.normalizedContext);
+
+    await testDb.aiAdvisorJob.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: fingerprint,
+        status: "FAILED",
+        lastErrorCode: "PROVIDER_OUTPUT_INVALID",
+      },
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result).toEqual({ status: "unavailable" });
+  });
+
+  it("prefers a stale-but-successful review's content over a reviewing/failed job for a newer fingerprint", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+    const context = await buildPostMatchReviewContext({ organisationId: fixtureIds.organisationId, scopeId: matchId });
+    const currentFingerprint = computeSourceFingerprint(context!.normalizedContext);
+
+    await testDb.aiAdvisorJob.create({
+      data: { organisationId: fixtureIds.organisationId, capability: "POST_MATCH_REVIEW", scopeType: "MATCH", scopeId: matchId, sourceFingerprint: currentFingerprint, status: "RUNNING" },
+    });
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: "an-older-fingerprint",
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        summary: "Old summary.",
+        completedAt: new Date(),
+      },
+    });
+    await testDb.aiAdvisorInsight.create({
+      data: { organisationId: fixtureIds.organisationId, reviewId: review.id, kind: "OBSERVATION", subjectType: "MATCH", subjectId: matchId, title: "Old title", body: "Old body.", evidenceRefs: [] },
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result?.status).toBe("stale");
   });
 });

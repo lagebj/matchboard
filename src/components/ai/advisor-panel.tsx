@@ -57,3 +57,37 @@ export function AdvisorPanelStale() {
     </Surface>
   );
 }
+
+/** ADR-0152 §17 "Error state" — queued/running: no successful review exists yet for the current
+ * state and a job is actively working on one. Never shown when AI is disabled (the view-model
+ * builder's settings gate returns `null` first, before this state is ever reached). */
+export function AdvisorPanelReviewing() {
+  return (
+    <Surface padding="md">
+      <div className="flex items-center gap-3">
+        <span className="rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
+          AI Advisor
+        </span>
+      </div>
+      <p className="mt-3 text-sm text-[var(--text-muted)]">Assistant Coach is reviewing this match.</p>
+    </Surface>
+  );
+}
+
+/** ADR-0152 §17 "Error state" — provider unavailable/quota/timeout: the job for the current
+ * state exhausted its retries. The match report and evidence are unaffected either way — this
+ * panel only ever concerns the AI's own commentary on them. */
+export function AdvisorPanelUnavailable() {
+  return (
+    <Surface padding="md">
+      <div className="flex items-center gap-3">
+        <span className="rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
+          AI Advisor
+        </span>
+      </div>
+      <p className="mt-3 text-sm text-[var(--text-muted)]">
+        Assistant Coach analysis is unavailable right now. Your match report and evidence are saved.
+      </p>
+    </Surface>
+  );
+}
