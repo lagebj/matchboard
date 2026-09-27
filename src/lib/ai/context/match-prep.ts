@@ -279,11 +279,24 @@ export async function buildMatchPrepContext(params: {
     .sort((a, b) => a.playerRefs[0].localeCompare(b.playerRefs[0]) || a.playerRefs[1].localeCompare(b.playerRefs[1]));
   if (opponentTrendFacts.length > 0) evidenceRefs.add(`${FACT}:opponent-trend:${matchRef}`);
 
+  // ADR-0152 §6 (bundle §5 "Match Insights use") — deterministic opponent-pattern aggregate
+  // over active qualitative evidence against this exact opponent, one per tactical phase.
+  const opponentPatternFacts = bundle.opponentContext.opponentPatterns.map((p, index) =>
+    withEvidenceRef(evidenceRefs, `${FACT}:opponent-pattern:${matchRef}:${index}`, {
+      phase: p.phase,
+      summary: p.summary,
+      encounterCount: p.encounterCount,
+      recency: p.recency,
+      consistency: p.consistency,
+    }),
+  );
+
   const opponentContextValue: JsonValue = {
     exactOpponentHistoryAvailable: bundle.opponentContext.exactOpponentHistoryAvailable,
     previousEncounterCount: bundle.opponentContext.previousEncounterCount,
     previousEncounters: opponentEncounterFacts,
     establishedCombinationsAgainstOpponent: opponentTrendFacts,
+    opponentPatterns: opponentPatternFacts,
     // Whole-collection facts (no single item to attach an evidenceRef to): cite these fields
     // verbatim, exactly like every per-item evidenceRef/developmentEvidenceRef field.
     ...(bundle.opponentContext.exactOpponentHistoryAvailable ? { evidenceRef: `${FACT}:opponent-encounter:${matchRef}` } : {}),
@@ -313,6 +326,7 @@ export async function buildMatchPrepContext(params: {
     "Do not label any player as strong, weak, better, or worse than another, and do not rank players.",
     "Every fact object carries the exact evidence-ref string to cite for it under a field ending in EvidenceRef (evidenceRef, developmentEvidenceRef, combinationTrendEvidenceRef) -- copy it verbatim, never construct or guess your own evidence-ref string.",
     "A trustedObservation is an attributed coach observation from a previous encounter, not a confirmed objective fact -- treat and describe it accordingly, never as settled truth.",
+    "`opponentContext.opponentPatterns` is a deterministic aggregate over recorded evidence against this exact opponent -- institutional memory, not scouting prediction. Use historical language such as 'In the last three recorded meetings...' or 'Previous reports describe...'. A CONSISTENT pattern may be phrased as 'This may be relevant if they use the same approach.' Never state what the opponent 'will' do, and never phrase a MIXED or SINGLE_OBSERVATION pattern as settled.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it -- every proposal requires explicit coach confirmation before it becomes real.",
     "The `squad` field contains the originally planned squad. The `availability` field contains operational availability for this specific match: a player with available: false is not available for selection (sick, injured, away, etc.). The `matchDayAdditions` field lists real Players added for this match who were not part of the original plan. Do not recommend absent players for the current lineup or rotations. Do not ignore match-day additions -- they are real Players with the same attributes and evidence as planned Players.",
   ].join(" ");

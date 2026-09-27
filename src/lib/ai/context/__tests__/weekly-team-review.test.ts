@@ -182,15 +182,70 @@ describe("ai/context/weekly-team-review", () => {
       const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
       expect(context).not.toBeNull();
       if (!context) return;
-      const normalized = context.normalizedContext as { recurringThemes: { phase: string; polarity: string; matchCount: number }[]; activeQualitativeEvidence: { statement: string }[] };
+      const normalized = context.normalizedContext as {
+        recurringThemes: { phase: string; matchesWithWorking: number; matchesWithProblem: number; consecutiveStreak: { direction: string; count: number } | null }[];
+        activeQualitativeEvidence: { statement: string }[];
+      };
 
-      expect(normalized.recurringThemes).toEqual([{ phase: "PRESSING", polarity: "WORKING", matchCount: 2, evidenceRef: expect.any(String) }]);
+      expect(normalized.recurringThemes).toEqual([
+        expect.objectContaining({ phase: "PRESSING", matchesWithWorking: 2, matchesWithProblem: 0, consecutiveStreak: { direction: "WORKING", count: 2 } }),
+      ]);
       expect(normalized.activeQualitativeEvidence.map((o) => o.statement)).toEqual(
         expect.arrayContaining(["Won it back high (this week).", "Won it back high (prior match).", "Struggled to play out (only this week)."]),
       );
       for (const evidenceRef of context.evidenceRefs) {
         expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
       }
+    });
+
+    it("breaks the consecutive streak at the first direction change, newest-first, while still reporting the full working/problem counts", async () => {
+      const blaMatchId = fixtureIds.matches["Bla"]; // newest: 2025-04-28
+      const blaTeamId = fixtureIds.teams["Bla"];
+      await lockReport(blaMatchId);
+
+      const middleMatch = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt: new Date("2025-04-20T10:00:00Z") });
+      await lockReport(middleMatch.id);
+      const oldestMatch = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt: new Date("2025-04-10T10:00:00Z") });
+      await lockReport(oldestMatch.id);
+
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_NEEDS_ATTENTION",
+        sourceId: "newest",
+        fingerprintPayload: { x: "newest" },
+        subject: { matchId: blaMatchId },
+        observations: [{ scope: "TEAM", phase: "DEFENSIVE_TRANSITION", polarity: "PROBLEM", statement: "Slow to recover centrally (newest)." }],
+      });
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "middle",
+        fingerprintPayload: { x: "middle" },
+        subject: { matchId: middleMatch.id },
+        observations: [{ scope: "TEAM", phase: "DEFENSIVE_TRANSITION", polarity: "WORKING", statement: "Recovered well centrally (middle)." }],
+      });
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "oldest",
+        fingerprintPayload: { x: "oldest" },
+        subject: { matchId: oldestMatch.id },
+        observations: [{ scope: "TEAM", phase: "DEFENSIVE_TRANSITION", polarity: "WORKING", statement: "Recovered well centrally (oldest)." }],
+      });
+
+      const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
+      expect(context).not.toBeNull();
+      if (!context) return;
+      const normalized = context.normalizedContext as {
+        recurringThemes: { phase: string; matchesWithWorking: number; matchesWithProblem: number; consecutiveStreak: { direction: string; count: number } | null }[];
+      };
+
+      expect(normalized.recurringThemes).toEqual([
+        expect.objectContaining({ phase: "DEFENSIVE_TRANSITION", matchesWithWorking: 2, matchesWithProblem: 1, consecutiveStreak: { direction: "PROBLEM", count: 1 } }),
+      ]);
     });
 
     it("surfaces an unresolved NEXT_FOCUS insight from this week's own post_match_review, excluding a DISMISSED one and one from a SUPERSEDED review", async () => {

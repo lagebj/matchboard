@@ -866,3 +866,93 @@ capability's AI-facing behavior materially changes for a coach" situation 4c was
 MINOR for. Combined with the two real evidence-ref bugs fixed above (either could have silently
 turned a valid insight into a schema-rejected response the moment a model actually cited them),
 this slice is versioned MINOR (0.149.0 -> 0.150.0), not PATCH.
+
+An independent cloud-hosted acceptance audit ran against the Slice 0-4 body of work after this
+merge (against the bundle's own `12_ACCEPTANCE_CHECKLIST.md`), filed as issue #702. It confirmed
+the large majority of checklist items and surfaced two real, tracked-not-fixed findings worth
+noting for whoever picks them up: (1) "max two NEXT_FOCUS" is prompt-text guidance only —
+nothing in `contracts.ts`/`response-validation.ts` schema-enforces the count, so a
+non-compliant provider response would still validate; (2) `answerAiInsightClarification`
+(Slice 4d) always retriggers the originating capability for an Event match too, but since the
+evidence-conversion half is League-only, the retrigger's fingerprint never actually changes,
+so the job runner's own already-succeeded short-circuit makes it a silent no-op — an Event
+coach sees "success" with no real re-review. Also assessed, as this session's own delegated
+follow-up: whether a coach's free-text clarification answer could be a prompt-injection vector
+once re-surfaced as evidence in a later review — verdict accepted residual risk (structurally
+identical to every other pre-existing coach free-text source feeding these prompts), with one
+recommended cheap hardening (cap `answerText` at the same length every sibling free-text field
+already has; it is currently the only unbounded one). None of these are fixed in this slice —
+see issue #702 for full detail.
+
+### 2026-09-27 (continued) — Slice 5: opponent memory and weekly intelligence
+
+Bundle `06_OPPONENT_MEMORY_AND_LONGITUDINAL.md` §1-8; locked decisions #16-18.
+
+- **Opponent pattern aggregate** (§3-4, new `OpponentPattern` type in
+  `src/lib/matches/match-insights/types.ts`, built by a new `buildOpponentPatterns()` in
+  `opponent-context.ts`): a deterministic aggregate over this exact opponent's active qualitative
+  evidence (`getQualitativeEvidenceForOpponent`, already existing from Slice 3) across the same
+  up-to-five previous encounters `buildOpponentContext` already resolves — no second match query,
+  one row per tactical phase.
+  - **Consistency** (`CONSISTENT`/`MIXED`/`SINGLE_OBSERVATION`) follows bundle §4's rule exactly:
+    CONSISTENT requires the dominant polarity to appear in at least two encounters *and* at least
+    60% of the phase's evidence-bearing encounters; one encounter only is always
+    SINGLE_OBSERVATION; anything else is MIXED.
+  - **Recency** (`RECENT`/`MIXED_AGE`/`OLD`) has no bundle-defined threshold — this codebase's own
+    documented choice: RECENT if the phase's evidence appears in the single most recent encounter
+    (still current as of last meeting); OLD if it doesn't and there's only one, older data point
+    (isolated and stale); MIXED_AGE if it doesn't but there's more than one data point (a
+    longer-running pattern that simply wasn't tested/didn't recur last time). Caught and fixed a
+    wrong first attempt at this rule via a failing test before merge (an oldest/newest-index
+    threshold that misclassified "evidence in every one of 3 total encounters, including the
+    oldest" as MIXED_AGE instead of RECENT).
+  - `summary` is deterministic templated text ("Pressing described as a problem in 3 of 4
+    recorded meetings against this opponent."), never model-generated — a fact for the AI to
+    cite, matching every other domain-layer summary already in this bundle.
+- **Match Insights integration** (§5): `buildOpponentContext` gained a required `teamId`
+  parameter (needed for `getQualitativeEvidenceForOpponent`) and now returns `opponentPatterns`
+  as part of `OpponentPreparationContext` — wired at the single call site
+  (`build-match-insight-facts.ts`), so both `match_prep` (which already surfaces
+  `opponentContext` directly) and `post_match_review` (which reuses the same domain layer for
+  its own `opponentHistoryFact`) get it for free from one change. `match_prep`'s own instructions
+  gained bundle §5's required historical-language guidance ("In the last three recorded
+  meetings...", never "They will...").
+- **Team recurring tactical themes, revised** (§6): `weekly_team_review`'s `recurringThemes`
+  (built in 4f from a terser reading of bundle §18's own summary, before this session had read
+  the full §06 document) is reshaped to match §6's fuller spec exactly: one row per phase (not
+  per phase+polarity pair) carrying `matchesWithWorking`/`matchesWithProblem` side by side,
+  `newestObservationDate`, and `consecutiveStreak` (walking the window's matches newest-first,
+  stopping at the first match that breaks the direction or lacks directional evidence for that
+  phase). The >=2-matches exposure threshold from 4f was already correct (bundle §6: "at least
+  two matches, or current match plus one historical match" — the same threshold stated two
+  ways) and needed no change.
+- **Contradiction detection** (§7, locked decision #18): prompt-only guidance (no new schema or
+  context fields — the necessary counts already exist in `recurringThemes`/`opponentPatterns`),
+  added to both `weekly_team_review` and `post_match_review`'s instructions: distinguish
+  match-specific-so-far (no supporting history), a genuine recurring pattern (cite the exact
+  counts, e.g. "similar observations appear in 3 of the previous 4 reports" — locked decision
+  #18's own preferred phrasing), a possible improvement/regression (the newest observation
+  reverses older history — name it as a recent change, never certainty), and mixed/no-stable-
+  conclusion. Both instructions now explicitly say the AI contextualizes the coach's own
+  narrative and never "corrects" it or presents itself as the authority on what happened.
+- **Match-to-training-focus structure** (§8, locked decision #17): `weekly_team_review`'s
+  existing NEXT_FOCUS guidance (already capped at two, from 4f) now explicitly requires each one
+  to state the focus, the evidence behind it, and exactly one small training constraint, with
+  locked decision #17's own worked example embedded verbatim in the instructions text.
+- No changes to contract v2's schema, persistence, or presentation layer — this slice is purely
+  richer domain-layer facts and prompt guidance for two already-shipped capabilities
+  (`match_prep`, `post_match_review`, `weekly_team_review`), the same category of change 4c/4f
+  were classified MINOR for.
+- Two evidence-ref pitfalls checked explicitly before merge, per this session's own established
+  discipline: every new ref segment embedding a `QualitativeEvidencePhase`/`QualitativeEvidence
+  Polarity` enum value goes through `toRefSegment()`; every new fact object gets its own
+  evidenceRef via `withEvidenceRef()`.
+- Test coverage: a new `opponent-context.test.ts` (6 tests: empty/no-opponent case, all three
+  consistency labels, all three recency labels including a caught-and-fixed classification bug,
+  and the encounter cap), plus 2 new `weekly-team-review.test.ts` tests (the reshaped
+  `recurringThemes` fields, and a dedicated streak-breaking scenario).
+
+Versioned MINOR (0.150.0 -> 0.151.0): `match_prep` and `post_match_review` both gain a new,
+coach-visible opponent-pattern section they didn't have before (not merely richer prose over
+existing facts — a wholly new fact category), and both already have live Advisor presentation
+surfaces.

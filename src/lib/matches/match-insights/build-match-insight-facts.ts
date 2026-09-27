@@ -74,6 +74,7 @@ export async function buildMatchInsightFacts(
     }),
     buildCombinationContext({ leagueSeasonId: plan.leagueSeasonId, currentSquad: activeSquad }),
     buildOpponentContext({
+      teamId: plan.teamId,
       opponentTeamId: plan.opponentTeamId,
       organisationId: plan.organisationId,
       excludeMatchId: plan.matchId,
