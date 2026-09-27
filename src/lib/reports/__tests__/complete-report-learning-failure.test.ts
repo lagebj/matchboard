@@ -84,6 +84,12 @@ describe("report completion survives a forced post-match learning failure (ADR-0
       });
     }
 
+    // ADR-0152 §9 (League/Event parity) — completeEventReport() also requires a SUBMITTED
+    // debrief; this test's own concern is the learning-failure survival path.
+    await testDb.postMatchDebrief.create({
+      data: { organisationId: fixture.organisationId, eventPostMatchReportId: report.id, status: "SUBMITTED", answers: {}, submittedBy: "coach@example.com", submittedAt: new Date() },
+    });
+
     const result = await completeEventReport(report.id, orgFilter);
 
     // Report completion is NOT blocked by the learning failure.

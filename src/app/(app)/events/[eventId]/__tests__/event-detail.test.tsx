@@ -79,6 +79,14 @@ vi.mock('../../event-post-match-actions', () => ({
   getEventMatchReport: vi.fn(),
 }));
 
+// ADR-0152 Slice 2c — EventMatchReportPanel (rendered inside the Matches tab) now imports this
+// real 'use server' module, which chains into next-auth/@/auth; unmocked, that chain fails to
+// resolve `next/server` under Vite's jsdom test environment. Same alias-duplication rationale as
+// the other event-*-actions mocks below.
+vi.mock('../../event-debrief-actions', () => ({
+  getEventDebriefAction: vi.fn().mockResolvedValue({ success: true, data: { id: 'debrief-1', status: 'DRAFT', answers: { version: 1, answers: {} } } }),
+}));
+
 vi.mock('../../event-support-actions', () => ({
   addEventMatchSupportAssignmentAction: vi.fn(),
   removeEventMatchSupportAssignmentAction: vi.fn(),

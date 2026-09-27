@@ -103,6 +103,13 @@ describe("completeEventReport (ARR-0030 resolution)", () => {
   it("completes a report, resolves opponent identity, and records an observable post-match learning run", async () => {
     const { report, eventMatch } = await buildEventMatchWithReport({ attendance: "PRESENT" });
 
+    // ADR-0152 §9 (League/Event parity) — completeEventReport() also requires a SUBMITTED
+    // debrief; this test's own concern is completion/learning, already proven independently in
+    // src/lib/post-match/debrief/__tests__/service.test.ts, so satisfy that gate directly.
+    await testDb.postMatchDebrief.create({
+      data: { organisationId: fixtureIds.organisationId, eventPostMatchReportId: report.id, status: "SUBMITTED", answers: {}, submittedBy: "coach@example.com", submittedAt: new Date() },
+    });
+
     const result = await completeEventReport(report.id, orgFilter);
 
     expect(result.success).toBe(true);

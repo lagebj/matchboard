@@ -19,12 +19,12 @@ import {
   confirmEventPeriodTimingAction,
   correctEventPeriodTimingAction,
 } from '../event-post-match-actions';
-import { Surface } from '@/components/ui/surface';
-import { SectionHeader } from '@/components/ui/section-header';
+import { getEventDebriefAction } from '../event-debrief-actions';
 import { PostMatchReportShell } from '@/components/matches/post-match-report-shell';
 import { PostMatchUnresolvedBanner } from '@/components/live-match/post-match-unresolved-banner';
 import { FootballObservationSection } from '@/components/player-development/football-observation-section';
 import { MatchCombinationEvidencePanel } from '@/components/matches/match-combination-evidence-panel';
+import { PostMatchDebrief } from '@/components/post-match/debrief/post-match-debrief';
 import type { CombinationEvidenceRow } from '@/lib/evidence/combination-topology';
 import type {
   PostMatchReportViewModel,
@@ -123,11 +123,9 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
   const [observations, setObservations] = useState<ObservationEntry[]>([]);
   const [combinationEvidence, setCombinationEvidence] = useState<CombinationEvidenceRow[]>([]);
   const [availablePlayers, setAvailablePlayers] = useState<PostMatchAvailablePlayer[]>([]);
-  const [teamReflection, setTeamReflection] = useState(report.teamReflection ?? '');
-  const [opponentObservation, setOpponentObservation] = useState(report.opponentObservation ?? '');
-  const [notes, setNotes] = useState(report.notes ?? '');
   const [timingReview, setTimingReview] = useState<PostMatchReportTimingReviewRow[]>([]);
   const [outOfRangeEventCount, setOutOfRangeEventCount] = useState(0);
+  const [debrief, setDebrief] = useState<Awaited<ReturnType<typeof getEventDebriefAction>> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +145,12 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
         setTimingReview(result.timingReview);
         setOutOfRangeEventCount(result.outOfRangeEventCount);
       }
+    });
+    // ADR-0152 §9 -- created (with legacy prefill) the moment this report panel is opened, not
+    // lazily, so completeEventReport()'s debrief-submitted gate can never block a report the
+    // coach has never had a chance to see the debrief for.
+    getEventDebriefAction(eventMatchId).then((result) => {
+      if (!cancelled) setDebrief(result);
     });
     return () => {
       cancelled = true;
@@ -196,6 +200,13 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
   };
 
   const playerNameById = Object.fromEntries(report.playerReports.map((p) => [p.playerId, p.playerName]));
+  const presentPlayers = report.playerReports.filter((pr) => pr.attendanceStatus === 'PRESENT').map((pr) => ({ id: pr.playerId, name: pr.playerName }));
+  const matchupLabel =
+    report.ourScore != null && report.opponentScore != null ? `${teamLabel} ${report.ourScore}–${report.opponentScore} ${opponentLabel}` : `${teamLabel} vs ${opponentLabel}`;
+  // ADR-0152 §5 Step 5 — reuse whatever period labels this match's own recovered-timing review
+  // already surfaced, plus the two fixed catch-all choices the bundle specifies (never hard-code
+  // "First half"/"Second half"; Event match formats vary).
+  const periodOptions = [...new Set(timingReview.map((t) => t.periodLabel))].concat(['Multiple periods', 'Not sure']);
 
   return (
     <div className="mt-3">
@@ -210,81 +221,25 @@ export function EventMatchReportPanel({ eventMatchId, teamLabel, opponentLabel, 
         onChanged={onRefresh}
         extraSections={
           <>
-            <Surface variant="default" padding="lg">
-              <SectionHeader title="Team reflection" />
-              {!isLocked ? (
-                <>
-                  <textarea
-                    value={teamReflection}
-                    onChange={(e) => setTeamReflection(e.target.value)}
-                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
-                    rows={2}
-                    maxLength={1000}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => updateEventMatchResultAction(report.id, { teamReflection: teamReflection || undefined }).then(onRefresh)}
-                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                report.teamReflection && <p className="mt-2 text-sm text-[var(--foreground)]">{report.teamReflection}</p>
-              )}
-            </Surface>
-
-            <Surface variant="default" padding="lg">
-              <SectionHeader title="Opponent observation" />
-              {!isLocked ? (
-                <>
-                  <textarea
-                    value={opponentObservation}
-                    onChange={(e) => setOpponentObservation(e.target.value)}
-                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
-                    rows={2}
-                    maxLength={500}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => updateEventMatchResultAction(report.id, { opponentObservation: opponentObservation || undefined }).then(onRefresh)}
-                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                report.opponentObservation && <p className="mt-2 text-sm text-[var(--foreground)]">{report.opponentObservation}</p>
-              )}
-            </Surface>
-
-            <Surface variant="default" padding="lg">
-              <SectionHeader title="Notes" />
-              {!isLocked ? (
-                <>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full mt-2 rounded-md border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--foreground)]"
-                    rows={2}
-                    maxLength={1000}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => updateEventMatchResultAction(report.id, { notes: notes || undefined }).then(onRefresh)}
-                    className="mt-2 rounded-md bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                report.notes && <p className="mt-2 text-sm text-[var(--foreground)]">{report.notes}</p>
-              )}
-            </Surface>
+            {debrief?.success ? (
+              <PostMatchDebrief
+                reportRef={{ kind: 'EVENT', eventMatchId }}
+                debriefId={debrief.data.id}
+                status={debrief.data.status}
+                initialAnswers={debrief.data.answers}
+                opponentName={opponentLabel}
+                matchupLabel={matchupLabel}
+                playerOptions={presentPlayers}
+                periodOptions={periodOptions}
+                readOnly={isLocked}
+              />
+            ) : (
+              <p className="text-[13px] text-[var(--text-muted)]">{debrief?.success === false ? debrief.error : 'Loading debrief…'}</p>
+            )}
 
             <FootballObservationSection
               eventMatchId={eventMatchId}
-              players={report.playerReports.filter((pr) => pr.attendanceStatus === 'PRESENT').map((pr) => ({ id: pr.playerId, name: pr.playerName }))}
+              players={presentPlayers}
               existingObservations={observations}
               isLocked={isLocked}
             />

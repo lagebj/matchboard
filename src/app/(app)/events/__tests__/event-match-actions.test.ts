@@ -449,6 +449,10 @@ describe('Event post-match report actions', () => {
       for (const pr of playerReports) {
         await updateEventPlayerAttendanceAction(pr.id, 'PRESENT');
       }
+      // ADR-0152 §9 (League/Event parity) — completion also requires a SUBMITTED debrief.
+      await testDb.postMatchDebrief.create({
+        data: { organisationId: fixture.organisationId, eventPostMatchReportId: reportId, status: 'SUBMITTED', answers: {}, submittedBy: 'coach@example.com', submittedAt: new Date() },
+      });
       await completeEventMatchReportAction(reportId);
       await expect(updateEventMatchResultAction(reportId, { ourScore: 5 })).rejects.toThrow('locked');
     });
@@ -550,6 +554,11 @@ describe('Event post-match report actions', () => {
       });
       await updateEventPlayerAttendanceAction(playerReport2.id, 'PRESENT');
 
+      // ADR-0152 §9 (League/Event parity) — completion also requires a SUBMITTED debrief.
+      await testDb.postMatchDebrief.create({
+        data: { organisationId: fixture.organisationId, eventPostMatchReportId: attendanceReportId, status: 'SUBMITTED', answers: {}, submittedBy: 'coach@example.com', submittedAt: new Date() },
+      });
+
       const completed = await completeEventMatchReportAction(attendanceReportId);
       expect(completed.status).toBe('LOCKED');
     });
@@ -557,6 +566,10 @@ describe('Event post-match report actions', () => {
     it('reopens a completed report', async () => {
       const reopened = await reopenEventMatchReportAction(attendanceReportId, 'DRAFT');
       expect(reopened.status).toBe('DRAFT');
+
+      // ADR-0152 §10 (League/Event parity) — reopening also flips the debrief back to DRAFT.
+      const debrief = await testDb.postMatchDebrief.findFirst({ where: { eventPostMatchReportId: attendanceReportId } });
+      expect(debrief!.status).toBe('DRAFT');
     });
   });
 });
