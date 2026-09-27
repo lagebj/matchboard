@@ -21,6 +21,14 @@ import { enqueueAiJob, enqueueDebouncedAiJob } from "@/lib/ai/jobs/enqueue";
  * same context again at execution time (state may have moved on by then); this duplication is
  * intentional, not a shortcut to remove.
  */
+export type TriggerAiCapabilityOutcome =
+  /** A job row was enqueued (or a FAILED row for the same fingerprint was revived). */
+  | "ENQUEUED"
+  /** Nothing was enqueued: AI/capability disabled, no handler, scope not eligible, or the
+   * fingerprint already succeeded/queued (the triggerAiCapability never throws, so callers
+   * cannot otherwise distinguish these). */
+  | "NOT_ENQUEUED";
+
 export async function triggerAiCapability(params: {
   organisationId: string;
   capability: AiAdvisorCapability;
@@ -31,20 +39,20 @@ export async function triggerAiCapability(params: {
    * relevant plan change ... collapse queued jobs for the same match/capability to the newest
    * fingerprint"). Omit for capabilities that trigger once at a clean state boundary. */
   debounceMs?: number;
-}): Promise<void> {
+}): Promise<TriggerAiCapabilityOutcome> {
   try {
     const settings = await getOrganisationAiSettings(params.organisationId);
-    if (!settings?.enabled || !isAiCapabilityEnabled(settings, params.capability)) return;
+    if (!settings?.enabled || !isAiCapabilityEnabled(settings, params.capability)) return "NOT_ENQUEUED";
 
     const handler = getAiCapabilityHandler(params.capability);
-    if (!handler) return;
+    if (!handler) return "NOT_ENQUEUED";
 
     const context = await handler.buildContext({ organisationId: params.organisationId, scopeId: params.scopeId });
-    if (!context) return;
+    if (!context) return "NOT_ENQUEUED";
 
     const sourceFingerprint = computeSourceFingerprint(context.normalizedContext);
     if (params.debounceMs !== undefined) {
-      await enqueueDebouncedAiJob({
+      const outcome = await enqueueDebouncedAiJob({
         organisationId: params.organisationId,
         capability: params.capability,
         scopeType: params.scopeType,
@@ -52,19 +60,21 @@ export async function triggerAiCapability(params: {
         sourceFingerprint,
         debounceMs: params.debounceMs,
       });
-    } else {
-      await enqueueAiJob({
-        organisationId: params.organisationId,
-        capability: params.capability,
-        scopeType: params.scopeType,
-        scopeId: params.scopeId,
-        sourceFingerprint,
-      });
+      return outcome.enqueued ? "ENQUEUED" : "NOT_ENQUEUED";
     }
+    const outcome = await enqueueAiJob({
+      organisationId: params.organisationId,
+      capability: params.capability,
+      scopeType: params.scopeType,
+      scopeId: params.scopeId,
+      sourceFingerprint,
+    });
+    return outcome.enqueued ? "ENQUEUED" : "NOT_ENQUEUED";
   } catch (error) {
     logger.warn(
       { err: error, organisationId: params.organisationId, capability: params.capability, scopeType: params.scopeType },
       "[ai/jobs/triggers] Failed to enqueue AI job",
     );
+    return "NOT_ENQUEUED";
   }
 }

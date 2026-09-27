@@ -21,12 +21,12 @@ import { safeParseExtractionResponse, validateExtractionSemantics, EXTRACTION_ST
  * source text fresh at process time — same discipline as `ai/jobs/runner.ts`'s own "context is
  * rebuilt fresh at run time, not read back from the job row" — before calling the provider.
  *
- * Only two source types are actually wired to a real resolver in this slice — the two bundle §14
- * marks AI_STRUCTURED for the guided debrief (BOTH_CHANGED, "Anything else"). The other four
- * (`POST_MATCH_TEAM_NOTE`, `TEAM_REFLECTION_NOTE`, `MATCH_NOTE`, `QUICK_OBSERVATION`,
- * `OPPONENT_ENCOUNTER_TEXT`, `AI_CLARIFICATION`) are legacy/backfill sources (bundle §18) that no
- * current write path enqueues yet — a resolver for them is a later slice's job, not a gap in
- * this one (nothing ever creates a QUEUED row of those types today).
+ * Wired resolvers: the two bundle §14 debrief sources (BOTH_CHANGED, "Anything else") plus the
+ * five legacy free-text sources (bundle §4/§18 — report teamNote, TeamReflection.note,
+ * Match.notes, QuickObservation, opponent-encounter text), the latter enqueued only by the
+ * bounded historical backfill (`qualitative-evidence-backfill.ts`), never by a current write
+ * path. `AI_CLARIFICATION` rows are written directly as DETERMINISTIC evidence by
+ * `answerAiInsightClarification` (Slice 4d) and never enter this AI queue at all.
  */
 
 const BATCH_SIZE = 20;
@@ -106,7 +106,7 @@ type ResolvedDebriefSource = { matchId: string; teamId: string; teamLabel: strin
  * here and the run fails as `SCOPE_NO_LONGER_ELIGIBLE`, the same outcome as any other
  * no-longer-resolvable source; `enqueueQualitativeExtraction` is never actually called from the
  * EVENT submit branch, so this path is defensive, not a normal occurrence. */
-async function resolveSourceText(sourceType: QualitativeEvidenceSourceType, sourceId: string, organisationId: string): Promise<ResolvedDebriefSource | null> {
+async function resolveDebriefSourceText(sourceType: QualitativeEvidenceSourceType, sourceId: string, organisationId: string): Promise<ResolvedDebriefSource | null> {
   if (sourceType !== "POST_MATCH_DEBRIEF_CHANGE" && sourceType !== "POST_MATCH_DEBRIEF_OTHER") {
     return null;
   }
@@ -132,6 +132,78 @@ async function resolveSourceText(sourceType: QualitativeEvidenceSourceType, sour
       : normalizeSourceText(answers.anything_else.note);
 
   return { matchId: report.matchId, teamId: match.teamId, teamLabel: match.team.name, opponentLabel: match.opponent, text };
+}
+
+/**
+ * Legacy free-text sources (bundle §4/§18 — enqueued only by the bounded historical backfill,
+ * never by a current write path). Each resolves to its match's own current text, re-read at
+ * claim time exactly like the debrief sources: the run's fingerprint identifies what it was
+ * enqueued to process, and the text re-resolves so a since-emptied source succeeds with zero
+ * observations rather than extracting stale content. All League-only, matching every other
+ * qualitative-evidence writer (issue #691).
+ *
+ * `sourceId` conventions: the owning match's id for every per-match source
+ * (`POST_MATCH_TEAM_NOTE`, `TEAM_REFLECTION_NOTE`, `MATCH_NOTE`, `OPPONENT_ENCOUNTER_TEXT` —
+ * each is 1:1 with a match by unique constraint) and the QuickObservation row's own id for
+ * `QUICK_OBSERVATION`.
+ */
+async function resolveLegacySourceText(sourceType: QualitativeEvidenceSourceType, sourceId: string, organisationId: string): Promise<ResolvedDebriefSource | null> {
+  switch (sourceType) {
+    case "POST_MATCH_TEAM_NOTE": {
+      // `PostMatchReport` has no `match` relation (only a scalar, unique `matchId`) — the match
+      // is necessarily a second query, the same constraint `findRecentLockedMatches` documents.
+      const report = await db.postMatchReport.findFirst({
+        where: { matchId: sourceId, organisationId, status: "LOCKED" },
+        select: { matchId: true, teamNote: true },
+      });
+      if (!report) return null;
+      const match = await db.match.findFirst({ where: { id: report.matchId, organisationId }, select: { teamId: true, opponent: true, team: { select: { name: true } } } });
+      if (!match) return null;
+      return { matchId: report.matchId, teamId: match.teamId, teamLabel: match.team.name, opponentLabel: match.opponent, text: normalizeSourceText(report.teamNote) };
+    }
+    case "TEAM_REFLECTION_NOTE": {
+      const reflection = await db.teamReflection.findFirst({
+        where: { matchId: sourceId, organisationId, note: { not: null } },
+        select: { match: { select: { teamId: true, opponent: true, team: { select: { name: true } } } }, note: true },
+      });
+      if (!reflection) return null;
+      return { matchId: sourceId, teamId: reflection.match.teamId, teamLabel: reflection.match.team.name, opponentLabel: reflection.match.opponent, text: normalizeSourceText(reflection.note) };
+    }
+    case "MATCH_NOTE": {
+      const match = await db.match.findFirst({
+        where: { id: sourceId, organisationId },
+        select: { teamId: true, opponent: true, notes: true, team: { select: { name: true } } },
+      });
+      if (!match) return null;
+      return { matchId: sourceId, teamId: match.teamId, teamLabel: match.team.name, opponentLabel: match.opponent, text: normalizeSourceText(match.notes) };
+    }
+    case "OPPONENT_ENCOUNTER_TEXT": {
+      const observation = await db.opponentEncounterObservation.findFirst({
+        where: { matchId: sourceId, organisationId, factualSummary: { not: null } },
+        select: { match: { select: { teamId: true, opponent: true, team: { select: { name: true } } } }, factualSummary: true },
+      });
+      if (!observation) return null;
+      return { matchId: sourceId, teamId: observation.match.teamId, teamLabel: observation.match.team.name, opponentLabel: observation.match.opponent, text: normalizeSourceText(observation.factualSummary) };
+    }
+    case "QUICK_OBSERVATION": {
+      const quick = await db.quickObservation.findFirst({
+        where: { id: sourceId, organisationId, matchId: { not: null }, convertedToType: null },
+        select: { matchId: true, note: true },
+      });
+      if (!quick?.matchId) return null;
+      const match = await db.match.findFirst({ where: { id: quick.matchId, organisationId }, select: { teamId: true, opponent: true, team: { select: { name: true } } } });
+      if (!match) return null;
+      return { matchId: quick.matchId, teamId: match.teamId, teamLabel: match.team.name, opponentLabel: match.opponent, text: normalizeSourceText(quick.note) };
+    }
+    default:
+      return null;
+  }
+}
+
+async function resolveSourceText(sourceType: QualitativeEvidenceSourceType, sourceId: string, organisationId: string): Promise<ResolvedDebriefSource | null> {
+  const debriefSource = await resolveDebriefSourceText(sourceType, sourceId, organisationId);
+  if (debriefSource) return debriefSource;
+  return resolveLegacySourceText(sourceType, sourceId, organisationId);
 }
 
 async function persistExtractionSuccess(
