@@ -190,6 +190,20 @@ export async function getQualitativeEvidenceForTeamWindow(
   });
 }
 
+/** ADR-0152 §6 "Recent team patterns" (bundle `05_ASSISTANT_COACH_LEARNING_PIPELINE.md`) — evidence
+ * for a caller-selected bounded set of prior matches (e.g. "the last 8 completed matches in the
+ * last 42 days"), rather than a raw date window alone. Distinct from
+ * `getQualitativeEvidenceForTeamWindow`: that one caps by count within a window; this one takes
+ * the exact match set the caller already decided is in scope. */
+export async function getQualitativeEvidenceForMatches(matchIds: string[], organisationId: string): Promise<ObservationRow[]> {
+  if (matchIds.length === 0) return [];
+  return db.qualitativeEvidenceObservation.findMany({
+    where: { organisationId, matchId: { in: matchIds }, ...ACTIVE_RUN_FILTER },
+    select: ACTIVE_OBSERVATION_SELECT,
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function getQualitativeEvidenceForOpponent(
   teamId: string,
   opponentTeamId: string,
