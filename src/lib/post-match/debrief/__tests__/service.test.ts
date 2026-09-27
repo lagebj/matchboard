@@ -206,6 +206,57 @@ describe("post-match debrief service — League", () => {
   });
 });
 
+describe("post-match debrief service — AI_STRUCTURED enqueue (ADR-0152 §4/§8 step 7)", () => {
+  beforeAll(async () => {
+    const connectionId = `conn-${Date.now()}`;
+    await testDb.aiProviderConnection.create({ data: { id: connectionId, organisationId: fixture.organisationId, provider: "OPENAI", status: "READY", model: "gpt-5" } });
+    await testDb.organisationAiSettings.upsert({
+      where: { organisationId: fixture.organisationId },
+      create: { organisationId: fixture.organisationId, enabled: true, activeConnectionId: connectionId },
+      update: { enabled: true, activeConnectionId: connectionId },
+    });
+  });
+
+  async function seedMatchWithReport(): Promise<string> {
+    const match = await createTestMatch(testDb, fixture.organisationId, fixture.matchRoundId, Object.values(fixture.teams)[0]!, null);
+    await testDb.postMatchReport.create({ data: { organisationId: fixture.organisationId, matchId: match.id } });
+    return match.id;
+  }
+
+  it("queues AI_STRUCTURED extraction for BOTH_CHANGED, with no competing DETERMINISTIC run for the same source", async () => {
+    const matchId = await seedMatchWithReport();
+    const debrief = await getOrCreateDebrief({ kind: "LEAGUE", matchId }, fixture.organisationId);
+    await saveDraftDebrief(debrief.id, fixture.organisationId, fullAnswers({ match_changes: { option: "BOTH_CHANGED", description: "Both sides changed shape." } }));
+    const result = await submitDebrief({ kind: "LEAGUE", matchId }, debrief.id, fixture.organisationId, "coach@test.com");
+    expect(result.success).toBe(true);
+
+    const runs = await testDb.qualitativeEvidenceExtractionRun.findMany({ where: { organisationId: fixture.organisationId, sourceType: "POST_MATCH_DEBRIEF_CHANGE", sourceId: debrief.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ status: "QUEUED", derivationMethod: "AI_STRUCTURED" });
+  });
+
+  it("queues AI_STRUCTURED extraction for a non-empty 'Anything else' note", async () => {
+    const matchId = await seedMatchWithReport();
+    const debrief = await getOrCreateDebrief({ kind: "LEAGUE", matchId }, fixture.organisationId);
+    await saveDraftDebrief(debrief.id, fixture.organisationId, fullAnswers({ anything_else: { note: "Worth remembering the ref's tolerance for physical play." } }));
+    await submitDebrief({ kind: "LEAGUE", matchId }, debrief.id, fixture.organisationId, "coach@test.com");
+
+    const runs = await testDb.qualitativeEvidenceExtractionRun.findMany({ where: { organisationId: fixture.organisationId, sourceType: "POST_MATCH_DEBRIEF_OTHER", sourceId: debrief.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toBe("QUEUED");
+  });
+
+  it("does not queue anything for 'Anything else' when the note is blank", async () => {
+    const matchId = await seedMatchWithReport();
+    const debrief = await getOrCreateDebrief({ kind: "LEAGUE", matchId }, fixture.organisationId);
+    await saveDraftDebrief(debrief.id, fixture.organisationId, fullAnswers({ anything_else: {} }));
+    await submitDebrief({ kind: "LEAGUE", matchId }, debrief.id, fixture.organisationId, "coach@test.com");
+
+    const runs = await testDb.qualitativeEvidenceExtractionRun.findMany({ where: { organisationId: fixture.organisationId, sourceType: "POST_MATCH_DEBRIEF_OTHER", sourceId: debrief.id } });
+    expect(runs).toHaveLength(0);
+  });
+});
+
 describe("post-match debrief service — Event parity", () => {
   let eventMatchId: string;
 

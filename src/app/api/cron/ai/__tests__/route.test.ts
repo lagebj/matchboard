@@ -2,11 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { mockProcessAiJobsBatch, mockEnqueueDueMatchPrepJobs, mockEnqueueDueWeeklyTeamReviewJobs, mockRetryPendingConnectionDeletions } = vi.hoisted(() => ({
+const {
+  mockProcessAiJobsBatch,
+  mockEnqueueDueMatchPrepJobs,
+  mockEnqueueDueWeeklyTeamReviewJobs,
+  mockRetryPendingConnectionDeletions,
+  mockProcessQualitativeExtractionBatch,
+} = vi.hoisted(() => ({
   mockProcessAiJobsBatch: vi.fn(),
   mockEnqueueDueMatchPrepJobs: vi.fn(),
   mockEnqueueDueWeeklyTeamReviewJobs: vi.fn(),
   mockRetryPendingConnectionDeletions: vi.fn(),
+  mockProcessQualitativeExtractionBatch: vi.fn(),
 }));
 vi.mock("@/lib/ai/jobs/runner", () => ({
   processAiJobsBatch: mockProcessAiJobsBatch,
@@ -17,6 +24,9 @@ vi.mock("@/lib/ai/jobs/scheduled-triggers", () => ({
 }));
 vi.mock("@/lib/ai/jobs/connection-maintenance", () => ({
   retryPendingConnectionDeletions: mockRetryPendingConnectionDeletions,
+}));
+vi.mock("@/lib/evidence/qualitative-evidence-extraction-runner", () => ({
+  processQualitativeExtractionBatch: mockProcessQualitativeExtractionBatch,
 }));
 
 import { GET } from "@/app/api/cron/ai/route";
@@ -32,6 +42,8 @@ beforeEach(() => {
   mockEnqueueDueWeeklyTeamReviewJobs.mockResolvedValue({ scanned: 0 });
   mockRetryPendingConnectionDeletions.mockReset();
   mockRetryPendingConnectionDeletions.mockResolvedValue({ scanned: 0 });
+  mockProcessQualitativeExtractionBatch.mockReset();
+  mockProcessQualitativeExtractionBatch.mockResolvedValue({ claimed: 0, succeeded: 0, failed: 0, retried: 0, skippedNotEligible: 0 });
 });
 
 afterEach(() => {
@@ -56,6 +68,7 @@ describe("GET /api/cron/ai", () => {
     expect(mockEnqueueDueMatchPrepJobs).not.toHaveBeenCalled();
     expect(mockEnqueueDueWeeklyTeamReviewJobs).not.toHaveBeenCalled();
     expect(mockRetryPendingConnectionDeletions).not.toHaveBeenCalled();
+    expect(mockProcessQualitativeExtractionBatch).not.toHaveBeenCalled();
   });
 
   it("rejects a request with the wrong bearer token", async () => {
@@ -133,6 +146,30 @@ describe("GET /api/cron/ai", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toMatchObject({ ok: true, connectionDeletionRetryScanError: true, claimed: 1, succeeded: 1 });
+    expect(JSON.stringify(body)).not.toContain("db connection lost");
+    expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("includes the qualitative-evidence extraction batch summary (ADR-0152 §4)", async () => {
+    mockProcessQualitativeExtractionBatch.mockResolvedValue({ claimed: 2, succeeded: 1, failed: 1, retried: 0, skippedNotEligible: 0 });
+    mockProcessAiJobsBatch.mockResolvedValue({ claimed: 0, succeeded: 0, failed: 0, retried: 0, skippedNotEligible: 0 });
+
+    const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.qualitativeExtraction).toEqual({ claimed: 2, succeeded: 1, failed: 1, retried: 0, skippedNotEligible: 0 });
+    expect(body.qualitativeExtractionError).toBe(false);
+  });
+
+  it("still claims and processes already-queued AiAdvisorJob work when the extraction batch itself throws (isolation)", async () => {
+    mockProcessQualitativeExtractionBatch.mockRejectedValue(new Error("db connection lost, internal detail"));
+    mockProcessAiJobsBatch.mockResolvedValue({ claimed: 1, succeeded: 1, failed: 0, retried: 0, skippedNotEligible: 0 });
+
+    const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, qualitativeExtractionError: true, claimed: 1, succeeded: 1 });
+    expect(body.qualitativeExtraction).toBeNull();
     expect(JSON.stringify(body)).not.toContain("db connection lost");
     expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
   });

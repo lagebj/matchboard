@@ -422,3 +422,53 @@ Anything else, and the legacy free-text sources — `POST_MATCH_TEAM_NOTE`, `TEA
 `MATCH_NOTE`, `QUICK_OBSERVATION`, `OPPONENT_ENCOUNTER_TEXT`, `AI_CLARIFICATION`), processed via
 the existing AI cron infrastructure per bundle §9. Slice 4 (Assistant Coach AI contract v2) is
 unaffected by this slice.
+
+### 2026-09-27 (continued) — Slice 3b: AI_STRUCTURED qualitative-evidence extraction (BOTH_CHANGED, Anything else)
+
+Closes the gap 3a deliberately left open. Reuses the existing AI cron infrastructure's building
+blocks (`getOrganisationAiSettings`, `getProviderConnection`, `getProviderAdapter`,
+`withProviderCredential`, `fromPrismaAiProviderId`) exactly as bundle §9 asks, but as a genuinely
+separate queue table and output contract from `AiAdvisorJob`/`AiAdvisorInsight` — the two models
+have unrelated columns and response shapes, so sharing the cron *entrypoint*
+(`/api/cron/ai/route.ts`, now with its own isolated try/catch step, matching this route's own
+established "one step's failure must never block another" discipline) was the right level of
+reuse, not sharing `ai/jobs/runner.ts`'s claim/persist internals.
+
+- `src/lib/evidence/qualitative-evidence-extraction-contract.ts`: the strict Zod output contract
+  (bundle §13) plus the stable prompt instructions (bundle §13's ten numbered rules) and a
+  semantic-validation pass — every source this slice wires supplies zero player refs, so any
+  PLAYER/PAIR-scoped observation is always ungroundable and rejects the whole response, matching
+  `validateAdvisorResponse`'s own all-or-nothing philosophy for an unresolvable ref.
+- `src/lib/evidence/qualitative-evidence-enqueue.ts`: `enqueueQualitativeExtraction` — idempotent
+  per fingerprint (bundle §9), and deliberately does not enqueue at all when AI is disabled or
+  has no active connection (bundle §10 "AI disabled": "Source text is preserved for future
+  backfill" — an abandoned QUEUED row for unchanged text would otherwise block a fresh enqueue
+  once AI is later re-enabled, since the unique index is keyed by fingerprint).
+- `src/lib/evidence/qualitative-evidence-extraction-runner.ts`: claims due `AI_STRUCTURED` runs
+  the same atomic way `ai/jobs/runner.ts` claims `AiAdvisorJob` rows, then rebuilds each run's
+  source text fresh from the *current* debrief at process time (same "never trust the
+  possibly-stale enqueue-time snapshot" discipline `ai/jobs/runner.ts` already established for
+  its own context) before calling the provider. A zero-text source (the coach resubmitted away
+  from BOTH_CHANGED, or cleared "Anything else") succeeds without ever calling the provider.
+  Chunking (bundle "Extraction bounds": required only above 6,000 input chars) is inapplicable
+  to both wired sources — the debrief schema caps free-text fields at 2,000 chars — so this
+  slice does not implement it; revisit once a source that can exceed 6,000 chars is wired (the
+  legacy/backfill sources, Slice 7).
+- **Found and fixed a same-branch bug before it ever shipped**: the deterministic writer (3a)
+  was calling `recordDeterministicExtraction` for `POST_MATCH_DEBRIEF_CHANGE` unconditionally,
+  including for BOTH_CHANGED (with zero observations, since `buildChangeObservations` already
+  excluded it) — which would have permanently occupied that exact `(sourceType, sourceId,
+  sourceFingerprint)` slot with a `DETERMINISTIC` `SUCCEEDED` run, making this slice's own
+  `enqueueQualitativeExtraction` see it as already-tracked and silently starve BOTH_CHANGED of AI
+  extraction forever. Fixed by skipping the deterministic call entirely for BOTH_CHANGED,
+  leaving that fingerprint's slot to the AI_STRUCTURED enqueue exclusively.
+- Wired into `submitDebrief()`'s LEAGUE branch, after the transaction commits and after
+  `writePlayerObservations` (bundle §8 step 7 — enqueueing itself never calls a provider, so it
+  does not need to wait for a request/transaction boundary the way the actual provider call
+  does).
+
+Slice 3 (qualitative evidence) is now functionally complete for League. Event remains blocked on
+issue #691. The remaining four `QualitativeEvidenceSourceType` values (legacy free-text sources)
+have no resolver in `qualitative-evidence-extraction-runner.ts` yet — inert until Slice 7's
+bounded backfill actually enqueues them, not a gap in this slice. Slice 4 (Assistant Coach AI
+contract v2) is unaffected by this slice.

@@ -113,3 +113,10 @@ export function changeFingerprint(answers: DebriefAnswersSection, debriefSchemaV
 export function opponentMemoryFingerprint(answers: DebriefAnswersSection, debriefSchemaVersion: number) {
   return { debriefSchemaVersion, note: normalizeSourceText(answers.opponent_memory.note) };
 }
+
+/** "Anything else" is AI_STRUCTURED only (bundle §14) — no deterministic counterpart, so this
+ * fingerprint's `(sourceType, sourceId)` slot has no collision to guard against, unlike Change's
+ * BOTH_CHANGED case. */
+export function anythingElseFingerprint(answers: DebriefAnswersSection, debriefSchemaVersion: number) {
+  return { debriefSchemaVersion, note: normalizeSourceText(answers.anything_else.note) };
+}
