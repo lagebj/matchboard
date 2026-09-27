@@ -383,3 +383,42 @@ before).
   consequential enough to notice) — it now surfaces the message instead of failing silently.
 - League/Event parity for the guided debrief (ADR-0152 §3) is now complete. Slice 3
   (qualitative-evidence extraction) is unaffected by this slice.
+
+### 2026-09-27 (continued) — Slice 3a: deterministic qualitative-evidence writer (League only)
+
+Bundle `04_QUALITATIVE_EVIDENCE_MODEL.md`. The `QualitativeEvidenceExtractionRun`/
+`QualitativeEvidenceObservation` schema (enums included) was already in place from Slice 0; this
+slice is the first thing that actually writes to it.
+
+- `src/lib/evidence/qualitative-evidence-service.ts`: `recordDeterministicExtraction` — the
+  fingerprint-keyed idempotency/supersession writer (bundle §9/§11). Reuses the existing
+  `computeSourceFingerprint`/`stableSerialize` helper (`src/lib/ai/fingerprints.ts`, built for AI
+  review reuse) rather than inventing a second hashing scheme, per bundle §10's own instruction
+  to "use current stable fingerprint helper where practical." Plus the four tenant-scoped read
+  helpers bundle §16 asks for (`getQualitativeEvidenceForMatch/TeamWindow/Opponent/Player`), all
+  filtering to `SUCCEEDED` + `supersededAt: null` only.
+- `src/lib/post-match/debrief/map-to-qualitative-evidence.ts`: pure mapping for exactly the
+  paths bundle §14 marks genuinely deterministic — Worked, Needs attention, and the
+  WE_CHANGED/OPPONENT_CHANGED/NO_MEANINGFUL_CHANGE/UNSURE branches of What changed, and Opponent
+  memory. BOTH_CHANGED ("one answer may need split scopes") and Anything else ("scope is
+  open-ended") are AI_STRUCTURED per the bundle — deliberately produce nothing here; a later
+  slice queues those through the existing AI cron infrastructure.
+- Wired into `submitDebrief()`'s LEAGUE branch, inside the existing transaction, after the
+  canonical-model writes and before commit (bundle §8 step 5). Verified end-to-end in
+  `service.test.ts`, including that a resubmit-after-reopen with a changed answer supersedes the
+  prior evidence rather than duplicating it.
+- **Event is deliberately out of scope for this slice.** `QualitativeEvidenceObservation.teamId`
+  is required, but Event has no relation to `Team` anywhere in its model tree (`EventMatch` ->
+  `EventSquad` -> `Event` -> `footballGroupId`, never a `Team`), and this app supports
+  multi-team organisations, so there is no safe default to fall back to. Filed as
+  [#691](https://github.com/lagebj/matchboard/issues/691) rather than guessed at — routes
+  through `adr-governance` once a direction is picked, since it changes either the schema's
+  required-field shape or the query-helper contract. `submitDebrief()`'s EVENT branch has a
+  comment pointing at the issue; Event debrief submissions are otherwise fully unaffected
+  (unchanged canonical-model writes, same as Slice 2c).
+
+Deferred to a later Slice 3 sub-slice: the AI_STRUCTURED extraction queue (BOTH_CHANGED,
+Anything else, and the legacy free-text sources — `POST_MATCH_TEAM_NOTE`, `TEAM_REFLECTION_NOTE`,
+`MATCH_NOTE`, `QUICK_OBSERVATION`, `OPPONENT_ENCOUNTER_TEXT`, `AI_CLARIFICATION`), processed via
+the existing AI cron infrastructure per bundle §9. Slice 4 (Assistant Coach AI contract v2) is
+unaffected by this slice.

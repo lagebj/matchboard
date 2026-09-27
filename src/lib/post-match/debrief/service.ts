@@ -14,13 +14,26 @@ import {
   safeParseDebriefAnswers,
   findDebriefReviewGaps,
   EMPTY_DEBRIEF_ANSWERS,
+  DEBRIEF_SCHEMA_VERSION,
   type DebriefAnswers,
+  type DebriefAnswersSection,
 } from "./v1";
 import { mapTeamExecutionToTeamReflection, mapOpponentMemory, mapAnythingElseToReportNote, mapPlayerObservations } from "./map-to-canonical";
+import {
+  buildWorkedObservations,
+  buildNeedsAttentionObservations,
+  buildChangeObservations,
+  buildOpponentMemoryObservations,
+  workedFingerprint,
+  needsAttentionFingerprint,
+  changeFingerprint,
+  opponentMemoryFingerprint,
+} from "./map-to-qualitative-evidence";
 import { upsertTeamReflection } from "@/lib/coaching/team-reflection";
 import { upsertOpponentEncounterObservation } from "@/lib/opponents/opponent-encounter-observation";
 import { createFootballObservations } from "@/lib/evidence/football-observation-service";
 import { isValidObservationCode, type FootballObservationCode } from "@/lib/evidence/observation-vocabulary";
+import { recordDeterministicExtraction, type TransactionClient as QualitativeEvidenceTransactionClient } from "@/lib/evidence/qualitative-evidence-service";
 
 export type DebriefReportRef = { kind: "LEAGUE"; matchId: string } | { kind: "EVENT"; eventMatchId: string };
 
@@ -165,7 +178,7 @@ export async function submitDebrief(ref: DebriefReportRef, debriefId: string, or
       // intentional — no need to read the existing row first.
       const [existingOpponentObservation, match] = await Promise.all([
         db.opponentEncounterObservation.findFirst({ where: { matchId: ref.matchId, organisationId }, select: { factualSummary: true } }),
-        db.match.findFirst({ where: { id: ref.matchId, organisationId }, select: { opponentTeamId: true } }),
+        db.match.findFirst({ where: { id: ref.matchId, organisationId }, select: { opponentTeamId: true, teamId: true } }),
       ]);
 
       const reflection = mapTeamExecutionToTeamReflection(answers);
@@ -186,6 +199,13 @@ export async function submitDebrief(ref: DebriefReportRef, debriefId: string, or
           );
         }
         await tx.postMatchReport.update({ where: { matchId: ref.matchId }, data: { teamNote: reportNote } });
+
+        // Bundle §8 step 5 "write deterministic qualitative-evidence runs/observations" — inside
+        // the same transaction, before commit. League-only for now: EventMatch has no `teamId`
+        // resolution path (see qualitative-evidence-service.ts's own doc comment / issue #691).
+        if (match?.teamId) {
+          await writeDeterministicQualitativeEvidence(tx, organisationId, match.teamId, ref.matchId, debriefId, answers);
+        }
       });
 
       await writePlayerObservations(answers, { matchId: ref.matchId });
@@ -214,6 +234,39 @@ export async function submitDebrief(ref: DebriefReportRef, debriefId: string, or
   }
 
   return { success: true };
+}
+
+/**
+ * Bundle §14 "Deterministic debrief derivation" — one `recordDeterministicExtraction` call per
+ * deterministic source type (each independently fingerprinted/superseded, per bundle §9's
+ * `(sourceType, sourceId)` lineage). BOTH_CHANGED and "Anything else" are AI_STRUCTURED — a
+ * later slice queues those; they produce nothing here.
+ */
+async function writeDeterministicQualitativeEvidence(
+  tx: QualitativeEvidenceTransactionClient,
+  organisationId: string,
+  teamId: string,
+  matchId: string,
+  debriefId: string,
+  answers: DebriefAnswersSection,
+): Promise<void> {
+  const subject = { matchId };
+  await recordDeterministicExtraction(
+    { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_WORKED", sourceId: debriefId, fingerprintPayload: workedFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildWorkedObservations(answers) },
+    tx,
+  );
+  await recordDeterministicExtraction(
+    { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_NEEDS_ATTENTION", sourceId: debriefId, fingerprintPayload: needsAttentionFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildNeedsAttentionObservations(answers) },
+    tx,
+  );
+  await recordDeterministicExtraction(
+    { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_CHANGE", sourceId: debriefId, fingerprintPayload: changeFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildChangeObservations(answers) },
+    tx,
+  );
+  await recordDeterministicExtraction(
+    { organisationId, teamId, sourceType: "POST_MATCH_DEBRIEF_OPPONENT", sourceId: debriefId, fingerprintPayload: opponentMemoryFingerprint(answers, DEBRIEF_SCHEMA_VERSION), subject, observations: buildOpponentMemoryObservations(answers) },
+    tx,
+  );
 }
 
 async function writePlayerObservations(answers: DebriefAnswers["answers"], target: { matchId: string } | { eventMatchId: string }): Promise<void> {
