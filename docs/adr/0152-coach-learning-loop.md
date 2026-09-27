@@ -516,3 +516,35 @@ fingerprint materials (§15), Advisor presentation ordering/error states (§16-1
 weekly/round review role upgrades (§18-19). Nothing in this slice changes behavior a coach can
 observe yet — every capability still produces exactly the insights it always did, just with two
 new always-null (for now) fields persisted alongside them.
+
+### 2026-09-27 (continued) — Slice 4b: pre-match-expectation selection
+
+Bundle §5 "Select the actual pre-match expectation." `src/lib/ai/context/pre-match-expectations.ts`'s
+`selectPreMatchExpectations(ref, organisationId)` — League/Event-generic via the same
+`FootballMatchRef` every other evidence module already uses, not a second League/Event branch
+scheme.
+
+- Cutoff resolution exactly per §5's three-way rule: `LiveMatchSession.startedAt` (or
+  `EventLiveMatchSession.startedAt`) if a live session exists, else `PostMatchReport.createdAt`
+  (or `EventPostMatchReport.createdAt`), else `EMPTY_PRE_MATCH_EXPECTATIONS` — never a
+  retrospectively-generated review.
+- Selects the latest `SUCCEEDED` `MATCH_PREP`/`LINEUP_REVIEW` review for the same match scope
+  (`scopeType: "MATCH"`, the same `scopeId` post_match_review itself uses) completed at or before
+  that cutoff.
+- Resolves each selected insight's subject through its already-persisted `subjectId` (a real,
+  stable database ID `runner.ts` resolves and stores at the time that review succeeds) rather
+  than through the review's ephemeral `P01`-style ref tokens. This is deliberately different
+  from `resolve-insight-text.ts`'s UI-display pattern, which requires rebuilding the same
+  capability's context and checking the fingerprint still matches *today*, falling back to a
+  "stale" placeholder when it doesn't: a historical plan snapshot being stale relative to
+  *today's* plan is expected and correct here (the match was played against whatever the plan
+  was at the time, not today's edited version), so there is no freshness check to perform and no
+  "stale" case to fall back from — `subjectId` alone gives an unambiguous real name regardless of
+  whatever ref token still appears in the stored prose.
+- Only `state: "ACTIVE"` insights are ever selected — a dismissed/superseded insight from the
+  pre-match review is not a "genuine plan the coach was working from" any more.
+
+Each returned review carries its own `sourceFingerprint` — the ingredient Slice 4c's context
+builder needs to satisfy bundle §15's "selected pre-match review fingerprints" fingerprint-
+material requirement; the full fingerprint-materials checklist is Slice 4c's job once the actual
+`normalizedContext` shape is decided, not separately addressed here. Slices 1-3 are unaffected.
