@@ -167,6 +167,27 @@ export type PreviousEncounterSummary = {
   trustedObservation: TrustedOpponentObservation | null;
 };
 
+/** ADR-0152 §6 (bundle `06_OPPONENT_MEMORY_AND_LONGITUDINAL.md` §3-4) — a deterministic
+ * aggregate over this exact opponent's active qualitative evidence across up to five previous
+ * encounters, grouped by tactical phase. `recency`/`consistency` are evidence-shape labels, not
+ * model confidence: see `opponent-context.ts`'s own doc comment for the exact deterministic
+ * rules (bundle §4 states the CONSISTENT/MIXED/SINGLE_OBSERVATION rule precisely, but leaves
+ * RECENT/MIXED_AGE/OLD undefined — that threshold is this codebase's own documented choice). */
+export type OpponentPatternRecency = "RECENT" | "MIXED_AGE" | "OLD";
+export type OpponentPatternConsistency = "CONSISTENT" | "MIXED" | "SINGLE_OBSERVATION";
+
+export type OpponentPattern = {
+  phase: string;
+  /** Deterministic templated text (e.g. "Pressing described as a problem in 3 of 4 recorded
+   * meetings.") — never model-generated; this is a fact for the AI to cite, matching every other
+   * domain-layer summary in this bundle. */
+  summary: string;
+  encounterCount: number;
+  observedInMatchIds: string[];
+  recency: OpponentPatternRecency;
+  consistency: OpponentPatternConsistency;
+};
+
 export type OpponentPreparationContext = {
   opponentTeamId: string | null;
   exactOpponentHistoryAvailable: boolean;
@@ -176,6 +197,7 @@ export type OpponentPreparationContext = {
    * inferred from name/reputation (bundle §8: "Never infer opponent characteristics from name,
    * club, league reputation, or internet knowledge"). */
   establishedCombinationsAgainstOpponent: PairCombinationSummary[];
+  opponentPatterns: OpponentPattern[];
 };
 
 export type TeamHistoryContext = {

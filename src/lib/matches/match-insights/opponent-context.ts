@@ -1,8 +1,17 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getOpponentCombinationEvidence } from "@/lib/evidence/combination-aggregation";
+import { getQualitativeEvidenceForOpponent } from "@/lib/evidence/qualitative-evidence-service";
 import { toPairCombinationSummary } from "./combination-context";
-import type { OpponentPreparationContext, PairCombinationSummary, PreviousEncounterSummary, TrustedOpponentObservation } from "./types";
+import type {
+  OpponentPattern,
+  OpponentPatternConsistency,
+  OpponentPatternRecency,
+  OpponentPreparationContext,
+  PairCombinationSummary,
+  PreviousEncounterSummary,
+  TrustedOpponentObservation,
+} from "./types";
 
 /**
  * Exact-opponent history (ADR-0149 Decision 3/4; bundle §8). "Exact opponent identity is a
@@ -46,9 +55,128 @@ const EMPTY_CONTEXT: OpponentPreparationContext = {
   previousEncounterCount: 0,
   previousEncounters: [],
   establishedCombinationsAgainstOpponent: [],
+  opponentPatterns: [],
 };
 
+/** ADR-0152 §6 (bundle §3-4). `matches` is the same up-to-`MAX_PREVIOUS_ENCOUNTERS`,
+ * newest-first previous-encounter list `buildOpponentContext` already resolved — no second
+ * match query. Only the deterministic RECENT/MIXED_AGE/OLD threshold below is this codebase's
+ * own choice (the bundle leaves it undefined); CONSISTENT/MIXED/SINGLE_OBSERVATION follows
+ * bundle §4's rule exactly.
+ */
+const PHASE_LABELS: Record<string, string> = {
+  GENERAL: "General play",
+  BUILD_UP: "Build-up",
+  PROGRESSION: "Progression",
+  CHANCE_CREATION: "Chance creation",
+  PRESSING: "Pressing",
+  DEFENSIVE_SHAPE: "Defensive shape",
+  DEFENSIVE_TRANSITION: "Defensive transition",
+  ATTACKING_TRANSITION: "Attacking transition",
+  SET_PLAYS: "Set plays",
+};
+
+const POLARITY_WORDS: Record<string, string> = {
+  WORKING: "working well",
+  PROBLEM: "a problem",
+  NEUTRAL: "neutral",
+  UNCERTAIN: "uncertain",
+};
+
+/** RECENT: the phase's evidence appears in the single most recent encounter (index 0) — still
+ * current as of the last meeting, regardless of how far back its history also goes. OLD: it does
+ * not appear in the most recent encounter, and there is only the one (older) data point — an
+ * isolated, stale observation. MIXED_AGE: it does not appear in the most recent encounter, but
+ * there is more than one data point — a longer-running pattern that simply wasn't tested (or
+ * didn't recur) last time. */
+function classifyRecency(encounterIndexesWithEvidence: number[]): OpponentPatternRecency {
+  const newest = Math.min(...encounterIndexesWithEvidence);
+  if (newest === 0) return "RECENT";
+  return encounterIndexesWithEvidence.length > 1 ? "MIXED_AGE" : "OLD";
+}
+
+function classifyConsistency(polarityByMatchId: Map<string, string>): { consistency: OpponentPatternConsistency; dominantPolarity: string; dominantCount: number } {
+  const totalMatches = polarityByMatchId.size;
+  if (totalMatches === 1) {
+    const [dominantPolarity] = polarityByMatchId.values();
+    return { consistency: "SINGLE_OBSERVATION", dominantPolarity, dominantCount: 1 };
+  }
+
+  const matchCountByPolarity = new Map<string, number>();
+  for (const polarity of polarityByMatchId.values()) {
+    matchCountByPolarity.set(polarity, (matchCountByPolarity.get(polarity) ?? 0) + 1);
+  }
+  let dominantPolarity = "";
+  let dominantCount = 0;
+  for (const [polarity, count] of matchCountByPolarity) {
+    if (count > dominantCount) {
+      dominantPolarity = polarity;
+      dominantCount = count;
+    }
+  }
+  // Bundle §4: "CONSISTENT when the same high-level pattern appears in at least two encounters
+  // and at least 60% of encounters with relevant phase evidence."
+  const consistency: OpponentPatternConsistency = dominantCount >= 2 && dominantCount / totalMatches >= 0.6 ? "CONSISTENT" : "MIXED";
+  return { consistency, dominantPolarity, dominantCount };
+}
+
+function buildOpponentPatternSummary(phase: string, consistency: OpponentPatternConsistency, dominantPolarity: string, dominantCount: number, totalMatches: number): string {
+  const phaseLabel = PHASE_LABELS[phase] ?? phase;
+  if (consistency === "SINGLE_OBSERVATION") return `${phaseLabel} has one recorded observation against this opponent.`;
+  if (consistency === "MIXED") return `${phaseLabel} evidence is mixed across recorded meetings against this opponent.`;
+  const polarityWord = POLARITY_WORDS[dominantPolarity] ?? dominantPolarity;
+  return `${phaseLabel} described as ${polarityWord} in ${dominantCount} of ${totalMatches} recorded meetings against this opponent.`;
+}
+
+async function buildOpponentPatterns(
+  teamId: string,
+  opponentTeamId: string,
+  organisationId: string,
+  matches: { id: string }[],
+): Promise<OpponentPattern[]> {
+  const observations = await getQualitativeEvidenceForOpponent(teamId, opponentTeamId, organisationId, MAX_PREVIOUS_ENCOUNTERS);
+  if (observations.length === 0) return [];
+
+  const encounterIndexById = new Map(matches.map((m, index) => [m.id, index]));
+
+  const byPhase = new Map<string, typeof observations>();
+  for (const o of observations) {
+    if (!o.matchId || !encounterIndexById.has(o.matchId)) continue;
+    const list = byPhase.get(o.phase) ?? [];
+    list.push(o);
+    byPhase.set(o.phase, list);
+  }
+
+  const patterns: OpponentPattern[] = [];
+  for (const [phase, phaseObservations] of byPhase) {
+    // Most recent polarity per match wins (a phase's own observations across resubmits/multiple
+    // debrief sources for the same match are collapsed to that match's own newest read).
+    const sortedNewestFirst = [...phaseObservations].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const polarityByMatchId = new Map<string, string>();
+    for (const o of sortedNewestFirst) {
+      if (!o.matchId || polarityByMatchId.has(o.matchId)) continue;
+      polarityByMatchId.set(o.matchId, o.polarity);
+    }
+
+    const observedInMatchIds = [...polarityByMatchId.keys()];
+    const encounterIndexes = observedInMatchIds.map((id) => encounterIndexById.get(id)!);
+    const { consistency, dominantPolarity, dominantCount } = classifyConsistency(polarityByMatchId);
+
+    patterns.push({
+      phase,
+      summary: buildOpponentPatternSummary(phase, consistency, dominantPolarity, dominantCount, observedInMatchIds.length),
+      encounterCount: observedInMatchIds.length,
+      observedInMatchIds,
+      recency: classifyRecency(encounterIndexes),
+      consistency,
+    });
+  }
+
+  return patterns.sort((a, b) => b.encounterCount - a.encounterCount || a.phase.localeCompare(b.phase));
+}
+
 export async function buildOpponentContext(params: {
+  teamId: string;
   opponentTeamId: string | null;
   organisationId: string;
   excludeMatchId: string;
@@ -69,7 +197,7 @@ export async function buildOpponentContext(params: {
 
   const matchIds = matches.map((m) => m.id);
 
-  const [sportingRows, observationRows, reportRows, combinationSummaries] = await Promise.all([
+  const [sportingRows, observationRows, reportRows, combinationSummaries, opponentPatterns] = await Promise.all([
     db.opponentSportingEvidence.findMany({
       where: { matchId: { in: matchIds }, excludedAt: null },
       select: { matchId: true, goalsFor: true, goalsAgainst: true },
@@ -90,6 +218,7 @@ export async function buildOpponentContext(params: {
       select: { matchId: true, teamNote: true },
     }),
     getOpponentCombinationEvidence(opponentTeamId),
+    buildOpponentPatterns(params.teamId, opponentTeamId, params.organisationId, matches),
   ]);
 
   const sportingByMatch = new Map(sportingRows.map((r) => [r.matchId!, r]));
@@ -126,5 +255,6 @@ export async function buildOpponentContext(params: {
     previousEncounterCount: previousEncounters.length,
     previousEncounters,
     establishedCombinationsAgainstOpponent,
+    opponentPatterns,
   };
 }
