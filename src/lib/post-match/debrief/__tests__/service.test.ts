@@ -4,6 +4,7 @@ import { setupTestDb, teardownTestDb, seedTestFixture, getTestDb, type TestFixtu
 import { createTestOpponentTeam, createTestMatch, createTestEvent, createTestEventSquad } from "@/test/support/factories";
 import { getOrCreateDebrief, saveDraftDebrief, submitDebrief, reopenDebrief, isDebriefSubmittedForReport } from "../service";
 import { DEBRIEF_SCHEMA_VERSION } from "../v1";
+import { getQualitativeEvidenceForMatch } from "@/lib/evidence/qualitative-evidence-service";
 
 /**
  * ADR-0152 §3 (bundle §07.9 "Debrief mapping") — the DB-backed half of the debrief service:
@@ -123,6 +124,38 @@ describe("post-match debrief service — League", () => {
     expect(report.teamNote).toBe("Good response after conceding.");
 
     expect(await isDebriefSubmittedForReport({ kind: "LEAGUE", matchId }, fixture.organisationId)).toBe(true);
+
+    // ADR-0152 §4 (bundle §8 step 5) — deterministic qualitative evidence is written inside the
+    // same submit transaction. Worked -> WORKING, opponent memory -> OPPONENT/NEUTRAL;
+    // needs_attention (NOTHING_TO_ADD) and match_changes (NO_MEANINGFUL_CHANGE) produce nothing.
+    const evidence = await getQualitativeEvidenceForMatch({ matchId }, fixture.organisationId);
+    expect(evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ scope: "TEAM", phase: "PRESSING", polarity: "WORKING", statement: "Won it back high twice." }),
+        expect.objectContaining({ scope: "OPPONENT", phase: "GENERAL", polarity: "NEUTRAL", statement: "Pressed high on goal kicks." }),
+      ]),
+    );
+    expect(evidence.filter((o) => o.polarity === "PROBLEM")).toHaveLength(0);
+  });
+
+  it("resubmitting after reopen supersedes the prior deterministic evidence for a changed section", async () => {
+    const match2 = await createTestMatch(testDb, fixture.organisationId, fixture.matchRoundId, Object.values(fixture.teams)[0]!, opponentTeamId);
+    await testDb.postMatchReport.create({ data: { organisationId: fixture.organisationId, matchId: match2.id } });
+    const debrief = await getOrCreateDebrief({ kind: "LEAGUE", matchId: match2.id }, fixture.organisationId);
+
+    await saveDraftDebrief(debrief.id, fixture.organisationId, fullAnswers());
+    await submitDebrief({ kind: "LEAGUE", matchId: match2.id }, debrief.id, fixture.organisationId, "coach@test.com");
+
+    let evidence = await getQualitativeEvidenceForMatch({ matchId: match2.id }, fixture.organisationId);
+    expect(evidence.map((o) => o.statement)).toContain("Won it back high twice.");
+
+    await reopenDebrief(debrief.id, fixture.organisationId);
+    await saveDraftDebrief(debrief.id, fixture.organisationId, fullAnswers({ worked: { selected: ["SET_PLAYS"], comment: "Scored from a corner." } }));
+    await submitDebrief({ kind: "LEAGUE", matchId: match2.id }, debrief.id, fixture.organisationId, "coach@test.com");
+
+    evidence = await getQualitativeEvidenceForMatch({ matchId: match2.id }, fixture.organisationId);
+    const workedStatements = evidence.filter((o) => o.phase === "SET_PLAYS" || o.phase === "PRESSING").map((o) => o.statement);
+    expect(workedStatements).toEqual(["Scored from a corner."]);
   });
 
   it("submit never overwrites an existing distinct opponent factual summary — it appends", async () => {
