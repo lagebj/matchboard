@@ -165,7 +165,7 @@ describe("ai/providers/openai: probeModel", () => {
   it("succeeds when executeReview returns a schema-valid response", async () => {
     vi.mocked(fetch).mockResolvedValue(
       fakeResponse({
-        json: { output: [{ type: "message", content: [{ type: "output_text", text: '{"contractVersion":"1","summary":"probe","insights":[]}' }] }] },
+        json: { output: [{ type: "message", content: [{ type: "output_text", text: '{"contractVersion":"2","summary":"probe","insights":[]}' }] }] },
       }),
     );
     const result = await openaiAdapter.probeModel("sk-test", "gpt-5");

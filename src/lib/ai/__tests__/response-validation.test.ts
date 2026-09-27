@@ -19,6 +19,8 @@ function insight(overrides: Partial<Record<string, unknown>> = {}) {
     body: "The supplied match data shows a recurring pattern.",
     evidenceRefs: ["fact:position-exposure:P03"],
     suggestedAction: null,
+    analysisRole: null,
+    clarificationPrompt: null,
     ...overrides,
   };
 }

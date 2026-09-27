@@ -8,7 +8,7 @@ import { FakeProviderAdapter } from "@/lib/ai/providers/fake-provider-adapter";
 describe("ai/providers/standard-probe: runStandardProbe", () => {
   it("succeeds when executeReview returns a schema-valid response", async () => {
     const adapter = new FakeProviderAdapter({ id: "openai", label: "OpenAI" });
-    adapter.setNextExecuteResponse({ contractVersion: "1", summary: "ok", insights: [] });
+    adapter.setNextExecuteResponse({ contractVersion: "2", summary: "ok", insights: [] });
 
     const result = await runStandardProbe(adapter, "cred", "fake-model-1");
     expect(result).toEqual({ ok: true });

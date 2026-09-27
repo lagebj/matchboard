@@ -13,7 +13,7 @@ function fakeResponse(init: { ok?: boolean; status?: number; json?: unknown }): 
   } as unknown as Response;
 }
 
-const validAdvisorJson = JSON.stringify({ contractVersion: "1", summary: "ok", insights: [] });
+const validAdvisorJson = JSON.stringify({ contractVersion: "2", summary: "ok", insights: [] });
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
@@ -68,7 +68,7 @@ describe("ai/providers/ollama-cloud: executeReview — first attempt succeeds", 
     fetchMock.mockResolvedValue(fakeResponse({ json: { message: { content: validAdvisorJson }, prompt_eval_count: 40, eval_count: 12 } }));
 
     const result = await ollamaCloudAdapter.executeReview(request);
-    expect(result).toMatchObject({ ok: true, raw: { contractVersion: "1", summary: "ok", insights: [] }, inputTokens: 40, outputTokens: 12 });
+    expect(result).toMatchObject({ ok: true, raw: { contractVersion: "2", summary: "ok", insights: [] }, inputTokens: 40, outputTokens: 12 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -98,7 +98,7 @@ describe("ai/providers/ollama-cloud: executeReview — repair retry", () => {
       .mockResolvedValueOnce(fakeResponse({ json: { message: { content: validAdvisorJson } } }));
 
     const result = await ollamaCloudAdapter.executeReview(request);
-    expect(result).toMatchObject({ ok: true, raw: { contractVersion: "1", summary: "ok", insights: [] } });
+    expect(result).toMatchObject({ ok: true, raw: { contractVersion: "2", summary: "ok", insights: [] } });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 

@@ -472,3 +472,47 @@ issue #691. The remaining four `QualitativeEvidenceSourceType` values (legacy fr
 have no resolver in `qualitative-evidence-extraction-runner.ts` yet — inert until Slice 7's
 bounded backfill actually enqueues them, not a gap in this slice. Slice 4 (Assistant Coach AI
 contract v2) is unaffected by this slice.
+
+### 2026-09-27 (continued) — Slice 4a: AI contract v2 foundation (schema, validation, persistence)
+
+Bundle §5 "Contract version 2". The persistence schema (`AiInsightAnalysisRole` enum,
+`AiAdvisorInsight.analysisRole`/`clarificationQuestion`/`clarificationOptions`/`displayOrder`,
+and the whole `AiInsightClarification` model) was already in place from Slice 0, unused until
+now — this slice is the first thing that actually populates it.
+
+- `AI_CONTRACT_VERSION` bumped `"1"` -> `"2"`. `advisorInsightSchema` gains `analysisRole`
+  (nullable, the 7 locked plan-vs-reality roles) and `clarificationPrompt` (nullable, `{question,
+  options}`), each enforced by a `.refine()`: `clarificationPrompt` is non-null if and only if
+  `analysisRole` is `EVIDENCE_GAP` (bundle §3's rule holds in both directions — an EVIDENCE_GAP's
+  whole purpose is asking its one clarifying question). `advisorResponseSchema` gains its own
+  `.refine()` for bundle §14's "at most one active clarification per match review" (at most one
+  EVIDENCE_GAP insight per response). Confirmed `z.toJSONSchema()` still introspects correctly
+  through both `.refine()` wrappers (verified directly against this project's zod version before
+  relying on it) — every provider's structured-output schema and Ollama's embedded-schema prompt
+  text pick up the two new required fields automatically, with no adapter code changes.
+- `ai/jobs/runner.ts`'s `persistSuccessfulReview()` now writes `analysisRole` (mapped through a
+  new `toPrismaAnalysisRole()`, mirroring `toPrismaAiInsightKind()`), `clarificationQuestion`/
+  `clarificationOptions` from `clarificationPrompt`, and `displayOrder` (the provider response
+  array index, per bundle §4).
+- Deliberately did **not** touch any of the 5 existing capability handlers
+  (`context/match-prep.ts`, `lineup-review.ts`, `post-match-review.ts`, `weekly-team-review.ts`,
+  `round-review.ts`) or their prompts. `analysisRole`/`clarificationPrompt` being required-but-
+  nullable is exactly what makes every non-upgraded capability's response continue to validate
+  with `analysisRole: null` — no capability needs new instructions merely to emit `null` for a
+  field it was never told has any other meaning (bundle §3: "non-post-match capabilities may use
+  null unless explicitly upgraded"). Structured-output enforcement (native JSON schema, or
+  Ollama's embedded-schema-plus-repair-retry) makes the two new keys' *presence* automatic
+  regardless; only Slice 4c/4d's post-match-specific prompt work teaches a capability to produce
+  a genuinely non-null role.
+- Updated every existing AI test fixture across 7 files that constructed a raw advisor-response
+  literal (`contracts.test.ts`, `response-validation.test.ts`, `runner.test.ts`, and the 5
+  provider adapters' own `probeModel`/`executeReview` fixtures) to include the two new fields
+  and the new contract version — real, necessary migration work for a shared contract bump, not
+  a weakened test.
+
+Deferred to later Slice 4 sub-slices: pre-match-expectation selection (§5), the richer post-match
+context builder and required reasoning sequence (§6-13), clarification end-to-end wiring (§14),
+fingerprint materials (§15), Advisor presentation ordering/error states (§16-17), and the
+weekly/round review role upgrades (§18-19). Nothing in this slice changes behavior a coach can
+observe yet — every capability still produces exactly the insights it always did, just with two
+new always-null (for now) fields persisted alongside them.

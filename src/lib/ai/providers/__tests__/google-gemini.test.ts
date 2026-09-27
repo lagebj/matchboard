@@ -112,7 +112,7 @@ describe("ai/providers/google-gemini: executeReview", () => {
     const schemaJson = JSON.stringify(body.generationConfig.responseSchema);
     expect(schemaJson).not.toContain("$schema");
     expect(schemaJson).not.toContain('"const"');
-    expect(body.generationConfig.responseSchema.properties.contractVersion.enum).toEqual(["1"]);
+    expect(body.generationConfig.responseSchema.properties.contractVersion.enum).toEqual(["2"]);
   });
 
   it("never enables built-in tools, search/grounding, or files", async () => {
@@ -146,7 +146,7 @@ describe("ai/providers/google-gemini: executeReview", () => {
 
 describe("ai/providers/google-gemini: probeModel", () => {
   it("succeeds when executeReview returns a schema-valid response", async () => {
-    vi.mocked(fetch).mockResolvedValue(fakeResponse({ json: { candidates: [{ content: { parts: [{ text: '{"contractVersion":"1","summary":"probe","insights":[]}' }] } }] } }));
+    vi.mocked(fetch).mockResolvedValue(fakeResponse({ json: { candidates: [{ content: { parts: [{ text: '{"contractVersion":"2","summary":"probe","insights":[]}' }] } }] } }));
     const result = await googleGeminiAdapter.probeModel("gk-test", "gemini-2.5-pro");
     expect(result).toEqual({ ok: true });
   });

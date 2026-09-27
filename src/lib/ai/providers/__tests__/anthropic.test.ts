@@ -128,7 +128,7 @@ describe("ai/providers/anthropic: executeReview", () => {
 
 describe("ai/providers/anthropic: probeModel", () => {
   it("succeeds when executeReview returns a schema-valid response", async () => {
-    vi.mocked(fetch).mockResolvedValue(fakeResponse({ json: { content: [{ type: "text", text: '{"contractVersion":"1","summary":"probe","insights":[]}' }] } }));
+    vi.mocked(fetch).mockResolvedValue(fakeResponse({ json: { content: [{ type: "text", text: '{"contractVersion":"2","summary":"probe","insights":[]}' }] } }));
     const result = await anthropicAdapter.probeModel("sk-ant-test", "claude-sonnet-5");
     expect(result).toEqual({ ok: true });
   });

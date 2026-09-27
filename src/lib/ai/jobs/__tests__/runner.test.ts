@@ -33,6 +33,7 @@ import {
 import { enqueueAiJob } from "@/lib/ai/jobs/enqueue";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
 import { generateAiProviderConnectionId } from "@/lib/ai/connection-id";
+import { AI_CONTRACT_VERSION } from "@/lib/ai/contracts";
 import { logger } from "@/lib/logger";
 
 const AI_ENV_KEYS = ["AI_CREDENTIAL_ACCESS_SIGNING_PRIVATE_KEY_B64"] as const;
@@ -68,7 +69,7 @@ const CONTEXT: AiCapabilityContext = {
 
 function validAdvisorRaw() {
   return {
-    contractVersion: "1",
+    contractVersion: AI_CONTRACT_VERSION,
     summary: "Solid performance overall.",
     insights: [
       {
@@ -79,6 +80,8 @@ function validAdvisorRaw() {
         body: "Played the full match.",
         evidenceRefs: ["fact:minutes:P01"],
         suggestedAction: null,
+        analysisRole: null,
+        clarificationPrompt: null,
       },
     ],
   };
@@ -142,7 +145,7 @@ describe("ai/jobs/runner: happy path", () => {
       scopeId: "match-1",
       provider: "OPENAI",
       model: "gpt-5",
-      contractVersion: "1",
+      contractVersion: AI_CONTRACT_VERSION,
       terminologyVersion: "1",
       summary: "Solid performance overall.",
       providerConnectionId: connectionId,
@@ -179,7 +182,7 @@ describe("ai/jobs/runner: happy path", () => {
   it("persists a resolved development-suggestion action payload", async () => {
     registerFakeHandler();
     fakeAdapter.setNextExecuteResponse({
-      contractVersion: "1",
+      contractVersion: AI_CONTRACT_VERSION,
       summary: "x",
       insights: [
         {
@@ -190,6 +193,8 @@ describe("ai/jobs/runner: happy path", () => {
           body: "x",
           evidenceRefs: ["fact:minutes:P01"],
           suggestedAction: { type: "confirm_development_observation", playerRef: "P01", category: "technical", observation: "Great first touch." },
+          analysisRole: null,
+          clarificationPrompt: null,
         },
       ],
     });
@@ -204,7 +209,7 @@ describe("ai/jobs/runner: happy path", () => {
   it("succeeds a job whose provider response has zero insights, but logs a warning so an operator can see it (a schema-valid empty response is otherwise indistinguishable from a fully healthy review)", async () => {
     const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
     registerFakeHandler();
-    fakeAdapter.setNextExecuteResponse({ contractVersion: "1", summary: "Nothing materially useful to report this week.", insights: [] });
+    fakeAdapter.setNextExecuteResponse({ contractVersion: AI_CONTRACT_VERSION, summary: "Nothing materially useful to report this week.", insights: [] });
     await enqueueAndClaim();
 
     const summary = await processAiJobsBatch();
@@ -382,7 +387,7 @@ describe("ai/jobs/runner: retry policy", () => {
   it("fails without retry, and persists no review, when the provider response fails local validation", async () => {
     registerFakeHandler();
     fakeAdapter.setNextExecuteResponse({
-      contractVersion: "1",
+      contractVersion: AI_CONTRACT_VERSION,
       summary: "x",
       insights: [
         {
@@ -393,6 +398,8 @@ describe("ai/jobs/runner: retry policy", () => {
           body: "x",
           evidenceRefs: ["fact:minutes:P01"],
           suggestedAction: null,
+          analysisRole: null,
+          clarificationPrompt: null,
         },
       ],
     });
