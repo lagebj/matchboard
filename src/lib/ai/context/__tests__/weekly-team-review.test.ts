@@ -11,6 +11,9 @@ vi.mock("@/lib/db", () => ({
 
 import { buildWeeklyTeamReviewContext, buildWeeklyTeamReviewScopeId } from "@/lib/ai/context/weekly-team-review";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
+import { EVIDENCE_REF_PATTERN } from "@/lib/ai/contracts";
+import { createTestMatch } from "@/test/support/factories";
+import { recordDeterministicExtraction } from "@/lib/evidence/qualitative-evidence-service";
 
 let testDb: PrismaClient;
 let fixtureIds: TestFixtureIds;
@@ -34,6 +37,11 @@ describe("ai/context/weekly-team-review", () => {
     await testDb.actualPositionInterval.deleteMany({});
     await testDb.developmentThread.deleteMany({});
     await testDb.selection.deleteMany({});
+    await testDb.aiAdvisorInsight.deleteMany({});
+    await testDb.aiAdvisorReview.deleteMany({});
+    await testDb.qualitativeEvidenceObservation.deleteMany({});
+    await testDb.qualitativeEvidenceExtractionRun.deleteMany({});
+    await testDb.postMatchReport.deleteMany({});
     await testDb.player.updateMany({ data: { currentAvailability: "AVAILABLE" } });
   });
 
@@ -123,7 +131,7 @@ describe("ai/context/weekly-team-review", () => {
     expect(JSON.stringify(normalized)).not.toContain("should be excluded free text");
 
     for (const evidenceRef of context.evidenceRefs) {
-      expect(evidenceRef).toMatch(/^fact:[a-z][a-z-]*:[A-Za-z0-9]+(?::[A-Za-z0-9-]+)?$/);
+      expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
     }
     for (const [externalRef] of context.refMap) {
       expect(externalRef).toMatch(/^[A-Z]\d{2,4}$/);
@@ -133,5 +141,91 @@ describe("ai/context/weekly-team-review", () => {
     const contextAgain = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
     const fingerprintB = computeSourceFingerprint(contextAgain!.normalizedContext);
     expect(fingerprintA).toBe(fingerprintB);
+  });
+
+  /** ADR-0152 §18 "Weekly review upgrade". */
+  describe("recurring-theme aggregate, active qualitative evidence, and unresolved NEXT_FOCUS", () => {
+    async function lockReport(matchId: string) {
+      return testDb.postMatchReport.create({ data: { matchId, status: "LOCKED", organisationId: fixtureIds.organisationId } });
+    }
+
+    it("only surfaces a recurring theme once the same phase+polarity appears in more than one match, while still listing a single-match theme as active qualitative evidence", async () => {
+      const blaMatchId = fixtureIds.matches["Bla"];
+      const blaTeamId = fixtureIds.teams["Bla"];
+      await lockReport(blaMatchId);
+
+      const priorMatch = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt: new Date("2025-04-20T10:00:00Z") });
+      await lockReport(priorMatch.id);
+
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "this-week",
+        fingerprintPayload: { x: "this-week" },
+        subject: { matchId: blaMatchId },
+        observations: [
+          { scope: "TEAM", phase: "PRESSING", polarity: "WORKING", statement: "Won it back high (this week)." },
+          { scope: "TEAM", phase: "BUILD_UP", polarity: "PROBLEM", statement: "Struggled to play out (only this week)." },
+        ],
+      });
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "prior-week",
+        fingerprintPayload: { x: "prior-week" },
+        subject: { matchId: priorMatch.id },
+        observations: [{ scope: "TEAM", phase: "PRESSING", polarity: "WORKING", statement: "Won it back high (prior match)." }],
+      });
+
+      const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
+      expect(context).not.toBeNull();
+      if (!context) return;
+      const normalized = context.normalizedContext as { recurringThemes: { phase: string; polarity: string; matchCount: number }[]; activeQualitativeEvidence: { statement: string }[] };
+
+      expect(normalized.recurringThemes).toEqual([{ phase: "PRESSING", polarity: "WORKING", matchCount: 2, evidenceRef: expect.any(String) }]);
+      expect(normalized.activeQualitativeEvidence.map((o) => o.statement)).toEqual(
+        expect.arrayContaining(["Won it back high (this week).", "Won it back high (prior match).", "Struggled to play out (only this week)."]),
+      );
+      for (const evidenceRef of context.evidenceRefs) {
+        expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+      }
+    });
+
+    it("surfaces an unresolved NEXT_FOCUS insight from this week's own post_match_review, excluding a DISMISSED one and one from a SUPERSEDED review", async () => {
+      const blaMatchId = fixtureIds.matches["Bla"];
+      const blaTeamId = fixtureIds.teams["Bla"];
+      await lockReport(blaMatchId);
+
+      const supersededReview = await testDb.aiAdvisorReview.create({
+        data: { organisationId: fixtureIds.organisationId, capability: "POST_MATCH_REVIEW", scopeType: "MATCH", scopeId: blaMatchId, sourceFingerprint: "fp-old", status: "SUPERSEDED", contractVersion: "2", terminologyVersion: "1", completedAt: new Date() },
+      });
+      await testDb.aiAdvisorInsight.create({
+        data: { organisationId: fixtureIds.organisationId, reviewId: supersededReview.id, kind: "OBSERVATION", subjectType: "NONE", title: "Stale focus", body: "From a superseded review.", evidenceRefs: [], state: "ACTIVE", analysisRole: "NEXT_FOCUS" },
+      });
+
+      const currentReview = await testDb.aiAdvisorReview.create({
+        data: { organisationId: fixtureIds.organisationId, capability: "POST_MATCH_REVIEW", scopeType: "MATCH", scopeId: blaMatchId, sourceFingerprint: "fp-new", status: "SUCCEEDED", contractVersion: "2", terminologyVersion: "1", completedAt: new Date() },
+      });
+      await testDb.aiAdvisorInsight.create({
+        data: { organisationId: fixtureIds.organisationId, reviewId: currentReview.id, kind: "OBSERVATION", subjectType: "NONE", title: "Defensive transition", body: "Recover centrally before engaging the ball.", evidenceRefs: [], state: "ACTIVE", analysisRole: "NEXT_FOCUS" },
+      });
+      await testDb.aiAdvisorInsight.create({
+        data: { organisationId: fixtureIds.organisationId, reviewId: currentReview.id, kind: "OBSERVATION", subjectType: "NONE", title: "Already dismissed", body: "Coach dismissed this one.", evidenceRefs: [], state: "DISMISSED", analysisRole: "NEXT_FOCUS" },
+      });
+
+      const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
+      expect(context).not.toBeNull();
+      if (!context) return;
+      const normalized = context.normalizedContext as { unresolvedNextFocus: { title: string; body: string; matchRef: string | null }[] };
+
+      expect(normalized.unresolvedNextFocus).toEqual([
+        expect.objectContaining({ title: "Defensive transition", body: "Recover centrally before engaging the ball." }),
+      ]);
+      for (const evidenceRef of context.evidenceRefs) {
+        expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+      }
+    });
   });
 });

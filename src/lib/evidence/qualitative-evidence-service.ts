@@ -204,6 +204,52 @@ export async function getQualitativeEvidenceForMatches(matchIds: string[], organ
   });
 }
 
+export type RecentLockedMatch = { id: string; opponentTeamId: string | null };
+
+/** Bundle §6/§18 "42-day/max-eight-match window" — shared between `post_match_review`'s own
+ * recent-team-patterns section and `weekly_team_review`'s recurring-theme aggregate; both need
+ * exactly the same "this team's prior matches with a LOCKED report, within a rolling day window
+ * ending at some anchor" query, just anchored differently (the current match's kickoff vs. the
+ * end of the reviewed week). `PostMatchReport` has no `match` relation field (only a scalar,
+ * unique `matchId`), so this is necessarily two queries — candidate matches by team/date, then
+ * which of those actually reached LOCKED — not one relational query. */
+export async function findRecentLockedMatches(
+  teamId: string,
+  organisationId: string,
+  before: Date,
+  windowDays: number,
+  maxMatches: number,
+): Promise<RecentLockedMatch[]> {
+  const windowStart = new Date(before.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const candidateMatches = await db.match.findMany({
+    where: { organisationId, teamId, startsAt: { gte: windowStart, lt: before } },
+    select: { id: true, opponentTeamId: true },
+    orderBy: { startsAt: "desc" },
+  });
+  if (candidateMatches.length === 0) return [];
+
+  const lockedReports = await db.postMatchReport.findMany({
+    where: { organisationId, matchId: { in: candidateMatches.map((m) => m.id) }, status: "LOCKED" },
+    select: { matchId: true },
+  });
+  const lockedMatchIds = new Set(lockedReports.map((r) => r.matchId));
+  return candidateMatches.filter((m) => lockedMatchIds.has(m.id)).slice(0, maxMatches);
+}
+
+/** Deduplicates exact repeated normalized statements, keeping the newest — the one piece of
+ * bundle §7 "Historical evidence priority" that applies regardless of which capability is doing
+ * the ranking (post_match_review's own 4-tier priority sort and weekly_team_review's simpler
+ * recency-only sort both need this same dedup first). */
+export function dedupeQualitativeObservationsByStatement<T extends { statement: string; createdAt: Date }>(observations: T[]): T[] {
+  const seenStatements = new Map<string, T>();
+  for (const o of observations) {
+    const key = o.statement.trim().toLowerCase();
+    const existing = seenStatements.get(key);
+    if (!existing || o.createdAt > existing.createdAt) seenStatements.set(key, o);
+  }
+  return [...seenStatements.values()];
+}
+
 export async function getQualitativeEvidenceForOpponent(
   teamId: string,
   opponentTeamId: string,

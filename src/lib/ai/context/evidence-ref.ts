@@ -26,3 +26,16 @@ export function withEvidenceRef<T extends object>(evidenceRefs: Set<string>, ref
   evidenceRefs.add(ref);
   return { ...fact, evidenceRef: ref };
 }
+
+/**
+ * `contracts.ts`'s `EVIDENCE_REF_PATTERN` allows only `[A-Za-z0-9-]` in a ref segment — no
+ * underscore. Every enum-shaped value this codebase embeds directly into an evidence-ref
+ * string (`MatchPeriod`'s `FIRST_HALF`, `QualitativeEvidencePhase`'s `BUILD_UP`, ...) uses
+ * `SCREAMING_SNAKE_CASE`, so embedding one unconverted silently produces a ref no model could
+ * ever cite without failing schema validation (found while adding `weekly_team_review`'s
+ * recurring-theme aggregate — `post-match-review.ts`'s own `recovered-timing` ref had the same
+ * latent bug already). Use this whenever a ref segment is built from such a value.
+ */
+export function toRefSegment(value: string): string {
+  return value.toLowerCase().replace(/_/g, "-");
+}
