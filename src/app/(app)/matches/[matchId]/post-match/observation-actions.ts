@@ -11,6 +11,7 @@ import {
   cleanFactualSummary,
   type ObservationFormData,
 } from "@/lib/opponents/validate-observation";
+import { upsertOpponentEncounterObservation } from "@/lib/opponents/opponent-encounter-observation";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { revalidatePath } from "next/cache";
 
@@ -83,39 +84,20 @@ export async function saveObservationAction(
   const cleanedStyleTags = [...new Set(data.playingStyleTags)] as PlayingStyleTag[];
 
   try {
-    if (existingObservation) {
-      await db.opponentEncounterObservation.update({
-        where: { id: existingObservation.id },
-        data: {
-          overallEnvironment: data.overallEnvironment,
-          opponentPlayersContext: data.opponentPlayersContext,
-          opponentStaffContext: data.opponentStaffContext,
-          spectatorSidelineContext: data.spectatorSidelineContext,
-          concernCategories: cleanedCategories,
-          playingStyleTags: cleanedStyleTags,
-          factualSummary: cleanedSummary,
-          followUp: data.followUp,
-          recordedBy: ctx.email,
-        },
-      });
-    } else {
-      await db.opponentEncounterObservation.create({
-        data: {
-          matchId,
-          opponentTeamId: match.opponentTeamId!,
-          overallEnvironment: data.overallEnvironment,
-          opponentPlayersContext: data.opponentPlayersContext,
-          opponentStaffContext: data.opponentStaffContext,
-          spectatorSidelineContext: data.spectatorSidelineContext,
-          concernCategories: cleanedCategories,
-          playingStyleTags: cleanedStyleTags,
-          factualSummary: cleanedSummary,
-          followUp: data.followUp,
-          recordedBy: ctx.email,
-          organisationId: ctx.organisationId,
-        },
-      });
-    }
+    await upsertOpponentEncounterObservation({
+      organisationId: ctx.organisationId,
+      matchId,
+      opponentTeamId: match.opponentTeamId!,
+      overallEnvironment: data.overallEnvironment,
+      opponentPlayersContext: data.opponentPlayersContext,
+      opponentStaffContext: data.opponentStaffContext,
+      spectatorSidelineContext: data.spectatorSidelineContext,
+      concernCategories: cleanedCategories,
+      playingStyleTags: cleanedStyleTags,
+      factualSummary: cleanedSummary,
+      followUp: data.followUp,
+      recordedBy: ctx.email,
+    });
   } catch {
     return { success: false, error: "Could not save observation." };
   }
