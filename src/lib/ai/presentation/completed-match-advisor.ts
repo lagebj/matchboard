@@ -6,8 +6,6 @@ import { buildRefDisplayNameMap, resolveInsightText } from "@/lib/ai/presentatio
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 import type { AiAdvisorInsight } from "@/generated/prisma/client";
 
-export const VISIBLE_INSIGHT_COUNT = 5;
-
 export type DevelopmentSuggestionViewModel = {
   insightId: string;
   /** e.g. "Henrik · positional understanding" (08_UI_UX_SPEC.md: "locally resolved player name"). */

@@ -10,13 +10,16 @@ import {
   dismissAiInsightAction,
   answerAiInsightClarificationAction,
 } from "@/app/(app)/o/[orgSlug]/matches/[matchId]/ai-insight-actions";
-import {
-  VISIBLE_INSIGHT_COUNT,
-  type AdvisorClarificationViewModel,
-  type AdvisorInsightViewModel,
-  type CompletedMatchAdvisorViewModel,
-  type DevelopmentSuggestionViewModel,
+import type {
+  AdvisorClarificationViewModel,
+  AdvisorInsightViewModel,
+  CompletedMatchAdvisorViewModel,
+  DevelopmentSuggestionViewModel,
 } from "@/lib/ai/presentation/completed-match-advisor";
+
+// A plain client-side display constant, not re-exported from the (`"server-only"`) view-model
+// module — a real value import from that module would pull `db`/`pg` into the client bundle.
+const VISIBLE_INSIGHT_COUNT = 5;
 
 /**
  * Completed-match "AI Advisor" panel (ADR-0152 §16, 08_UI_UX_SPEC.md "Completed match"): Summary
