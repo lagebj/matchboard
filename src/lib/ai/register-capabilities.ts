@@ -12,3 +12,4 @@ import "@/lib/ai/context/round-review";
 import "@/lib/ai/context/lineup-review";
 import "@/lib/ai/context/match-prep";
 import "@/lib/ai/context/weekly-team-review";
+import "@/lib/ai/context/development-cycle-review";

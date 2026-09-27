@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import "@/lib/ai/register-capabilities";
 import { processAiJobsBatch } from "@/lib/ai/jobs/runner";
-import { enqueueDueMatchPrepJobs, enqueueDueWeeklyTeamReviewJobs } from "@/lib/ai/jobs/scheduled-triggers";
+import { enqueueDueMatchPrepJobs, enqueueDueWeeklyTeamReviewJobs, enqueueDueDevelopmentCycleReviewJobs } from "@/lib/ai/jobs/scheduled-triggers";
 import { retryPendingConnectionDeletions } from "@/lib/ai/jobs/connection-maintenance";
 import { processQualitativeExtractionBatch } from "@/lib/evidence/qualitative-evidence-extraction-runner";
 import { getCronSecret } from "@/lib/env";
@@ -43,6 +43,7 @@ export async function GET(request: Request) {
   // (ADR-0148 History).
   const matchPrepScan = await runCronStep("match_prep scan", enqueueDueMatchPrepJobs, { scanned: 0 });
   const weeklyTeamReviewScan = await runCronStep("weekly_team_review scan", enqueueDueWeeklyTeamReviewJobs, { scanned: 0 });
+  const developmentCycleReviewScan = await runCronStep("development_cycle_review scan", enqueueDueDevelopmentCycleReviewJobs, { scanned: 0 });
   const connectionDeletionRetryScan = await runCronStep("connection-deletion retry scan", retryPendingConnectionDeletions, { scanned: 0 });
 
   // ADR-0152 §4 — the qualitative-evidence AI_STRUCTURED extraction queue is a distinct table
@@ -67,6 +68,8 @@ export async function GET(request: Request) {
       matchPrepScanError: matchPrepScan.error,
       weeklyTeamReviewScanned: weeklyTeamReviewScan.value.scanned,
       weeklyTeamReviewScanError: weeklyTeamReviewScan.error,
+      developmentCycleReviewScanned: developmentCycleReviewScan.value.scanned,
+      developmentCycleReviewScanError: developmentCycleReviewScan.error,
       connectionDeletionRetriesScanned: connectionDeletionRetryScan.value.scanned,
       connectionDeletionRetryScanError: connectionDeletionRetryScan.error,
       qualitativeExtraction: extractionResult,

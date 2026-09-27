@@ -10,15 +10,19 @@ import { CrossTeamImpactPanel } from "./cross-team-impact-panel";
 import { RecommendationPanel } from "./recommendation-panel";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import { WeeklyTeamReviewAdvisorPanel } from "@/components/ai/weekly-team-review-advisor-panel";
+import { DevelopmentCycleReviewAdvisorPanel } from "@/components/ai/development-cycle-review-advisor-panel";
 import { AdvisorPanelStale } from "@/components/ai/advisor-panel";
 import type { WeeklyTeamReviewAdvisorViewModel } from "@/lib/ai/presentation/weekly-team-review-advisor";
+import type { DevelopmentCycleReviewAdvisorViewModel } from "@/lib/ai/presentation/development-cycle-review-advisor";
 
 export function TeamReviewPage({
   teamId,
   advisorViewModel,
+  cycleViewModel,
 }: {
   teamId: string;
   advisorViewModel: WeeklyTeamReviewAdvisorViewModel | null;
+  cycleViewModel: DevelopmentCycleReviewAdvisorViewModel | null;
 }) {
   const orgUrl = useOrgUrl();
   const [readiness, setReadiness] = useState<TeamReadiness | null>(null);
@@ -73,6 +77,7 @@ export function TeamReviewPage({
 
       {advisorViewModel?.status === "fresh" && <WeeklyTeamReviewAdvisorPanel viewModel={advisorViewModel} />}
       {advisorViewModel?.status === "stale" && <AdvisorPanelStale />}
+      {cycleViewModel && <DevelopmentCycleReviewAdvisorPanel viewModel={cycleViewModel} />}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
@@ -39,6 +40,7 @@ import { PlayerSquadContextPanel } from "@/components/players/player-squad-conte
 import { PlayerOutfieldRoleSuitabilityPanel } from "@/components/players/player-outfield-role-suitability-panel";
 import { updatePlayerFieldAction } from "@/app/(app)/players/[playerId]/inline-actions";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import { getPlayerDevelopmentCycleInsight } from "@/lib/ai/presentation/player-development-cycle-insight";
 
 import { buildPlayerIdentityViewModel } from "@/lib/touchline/presentation/player-identity-view-model";
 import {
@@ -170,7 +172,7 @@ export default async function PlayerPage({ params, searchParams }: PlayerPagePro
 
       {activeTab === "overview" ? <OverviewTab playerId={playerId} orgSlug={orgSlug} orgFilter={orgFilter} profile={profile} /> : null}
       {activeTab === "matches" ? <MatchesTab playerId={playerId} orgSlug={orgSlug} orgFilter={orgFilter} /> : null}
-      {activeTab === "development" ? <DevelopmentTab playerId={playerId} orgFilter={orgFilter} /> : null}
+      {activeTab === "development" ? <DevelopmentTab playerId={playerId} orgSlug={orgSlug} orgFilter={orgFilter} /> : null}
       {activeTab === "evidence" ? <EvidenceTab playerId={playerId} orgSlug={orgSlug} orgFilter={orgFilter} profile={profile} /> : null}
       {activeTab === "manage" ? (
         <ManageTab player={player} orgFilter={orgFilter} updateFieldAction={updatePlayerFieldAction} />
@@ -319,26 +321,31 @@ async function MatchesTab({
 
 async function DevelopmentTab({
   playerId,
+  orgSlug,
   orgFilter,
 }: {
   playerId: string;
+  orgSlug: string;
   orgFilter: OrgFilter;
 }) {
   establishTabTenantContext(orgFilter);
-  const threads = await db.developmentThread.findMany({
-    where: { playerId, ...orgFilter.filter },
-    select: {
-      id: true,
-      focus: true,
-      category: true,
-      rationale: true,
-      status: true,
-      startedAt: true,
-      completedAt: true,
-      observations: { select: { id: true, evidence: true, createdAt: true, matchId: true }, orderBy: { createdAt: "asc" } },
-    },
-    orderBy: { startedAt: "desc" },
-  });
+  const [threads, cycleInsight] = await Promise.all([
+    db.developmentThread.findMany({
+      where: { playerId, ...orgFilter.filter },
+      select: {
+        id: true,
+        focus: true,
+        category: true,
+        rationale: true,
+        status: true,
+        startedAt: true,
+        completedAt: true,
+        observations: { select: { id: true, evidence: true, createdAt: true, matchId: true }, orderBy: { createdAt: "asc" } },
+      },
+      orderBy: { startedAt: "desc" },
+    }),
+    getPlayerDevelopmentCycleInsight({ organisationId: orgFilter.organisationId, playerId }),
+  ]);
 
   const activeThread = threads.find((t) => t.status === "ACTIVE") ?? null;
   const pendingReview = activeThread
@@ -413,6 +420,18 @@ async function DevelopmentTab({
           </div>
         ) : null}
       </TouchlineWidget>
+      {cycleInsight ? (
+        <TouchlineWidget>
+          <WidgetHeader eyebrow="Assistant Coach · Learning cycle" title={cycleInsight.title} />
+          <p className="mt-2 text-[13px] text-[var(--text-soft)]">{cycleInsight.body}</p>
+          <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+            Based on the five-week window {cycleInsight.windowLabel} ·{" "}
+            <Link href={`/o/${orgSlug}/teams/${cycleInsight.teamId}/review`} className="font-medium text-[var(--accent)] no-underline hover:underline">
+              See the team cycle evidence
+            </Link>
+          </p>
+        </TouchlineWidget>
+      ) : null}
       <PlayerDevelopmentTimeline observations={vm.observationTimeline} completedFocusHistory={vm.completedFocusHistory} />
     </div>
   );
