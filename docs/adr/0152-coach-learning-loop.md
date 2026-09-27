@@ -776,3 +776,93 @@ coach at all before this slice. That satisfies `docs/VERSIONING.md`'s "New user-
 MINOR criterion on its own merits, independent of 4c's earlier MINOR bump for the underlying
 context/prompt change — so this slice is versioned MINOR (0.148.1 -> 0.149.0), not PATCH. 4f
 (weekly/round review role upgrades) is the only remaining Slice 4 sub-slice.
+
+### 2026-09-27 (continued) — Slice 4f: weekly review upgrade; round_review scoped out
+
+Bundle §18 "Weekly review upgrade". `weekly_team_review`'s context builder
+(`weekly-team-review.ts`) gains the three inputs bundle §18 lists — "current week facts" were
+already there; this slice adds the other two, reusing rather than reimplementing bundle §6's
+"42-day/max-eight-match window" machinery:
+
+- **Shared window/dedup helpers extracted to `qualitative-evidence-service.ts`**:
+  `findRecentLockedMatches(teamId, organisationId, before, windowDays, maxMatches)` (the
+  "candidate matches by team/date, then which reached LOCKED" two-query pattern
+  `post_match_review`'s own recent-team-patterns section already had inline) and
+  `dedupeQualitativeObservationsByStatement()` (the exact-statement dedup step of bundle §7's
+  historical-evidence-priority rule, needed by both capabilities' own ranking). `post-match-
+  review.ts` itself was refactored to call these instead of its own inline copies — a real
+  duplication removal, not just new-code reuse.
+- **`activeQualitativeEvidence`**: this team's deduped qualitative evidence observations across
+  the window (anchored at the *end of the reviewed week*, not a single match's kickoff — and
+  deliberately not excluding the week's own matches from the window, unlike
+  `post_match_review`'s exclusion of the *current* match: weekly review has no separate
+  per-match qualitative-evidence section elsewhere, so this is the only place the week's own
+  evidence is ever surfaced to this capability at all).
+- **`recurringThemes`**: a deterministic (phase, polarity) frequency count over that same
+  deduped window, keeping only combinations that recur in more than one distinct match — a
+  single match's own observation is already covered by `activeQualitativeEvidence` and is not
+  "recurring" by itself. This is genuinely new logic (not reused from `post_match_review`, which
+  ranks by same-opponent/same-theme/same-player priority tiers that don't translate to a
+  week with no single "current match" to compare against), but shares the same underlying
+  window query and dedup step.
+- **`unresolvedNextFocus`**: `AiAdvisorInsight` rows with `analysisRole: "NEXT_FOCUS"`,
+  `state: "ACTIVE"`, from this week's own matches' `POST_MATCH_REVIEW` reviews — filtered on the
+  *review's* `status: "SUCCEEDED"` (not just the insight's own `state`), since a report
+  reopen-and-relock cycle supersedes the prior review without ever touching its insights'
+  `state`; without this filter a stale NEXT_FOCUS from an already-replaced review could
+  resurface. Quoted verbatim as foreign, opaque text (the exact same discipline as `plan.
+  preMatchExpectations` in `post-match-review.ts` — a different review's own ref-token numbering
+  must never be treated as this review's own).
+- **Instructions**: restricts `analysisRole` to `RECURRING_PATTERN`/`NEXT_FOCUS`/`EVIDENCE_GAP`
+  only (bundle §18's "Allowed roles"), explicitly telling the model SUPPORTED/CONTRADICTED/
+  UNRESOLVED/SURPRISING belong to `post_match_review`'s own plan-vs-reality comparison, not this
+  capability. "At most one gap" (EVIDENCE_GAP) is already enforced generically by contract v2's
+  own `.refine()` (4a) — no new schema work needed here, only prompt guidance.
+- **Two pre-existing evidence-ref bugs found and fixed while adding these**: `contracts.ts`'s
+  `EVIDENCE_REF_PATTERN` allows only `[A-Za-z0-9-]` in a ref segment (no underscore), but
+  `post-match-review.ts`'s own `recovered-timing` ref embedded a raw `MatchPeriod` value
+  (`FIRST_HALF`, `SCREAMING_SNAKE_CASE`) directly, and its `pre-match-expectation` ref (4e)
+  embedded a raw capability name (`MATCH_PREP`) as the *first* ref segment, which additionally
+  may not contain hyphens at all (only the second, optional segment can). Both would have failed
+  schema validation the moment a model actually cited either fact verbatim, as every capability's
+  own instructions tell it to — silently turning that one insight (or the whole response,
+  depending on where in the array it landed) into `PROVIDER_OUTPUT_INVALID`. Neither had shipped
+  test coverage that round-tripped a *real* generated evidenceRef through the actual
+  `EVIDENCE_REF_PATTERN` (existing tests checked field values, or checked format against a
+  hand-copied regex literal that happened to be correct but was never exercised against these two
+  specific refs). Fixed by adding a new `toRefSegment()` helper (`evidence-ref.ts`) that
+  lowercases and hyphenates such a value, applying it everywhere one is embedded, and — the
+  actual regression-prevention fix — replacing every test file's hand-copied regex literal with
+  an import of the real `EVIDENCE_REF_PATTERN` constant, plus adding the missing blanket
+  "every evidenceRef in context.evidenceRefs matches the real pattern" assertion to
+  `post-match-review.test.ts`'s own recovered-timing and pre-match-expectation tests, which had
+  none before.
+- Bundle §18's "at most eight matches" appears twice in this window's own construction
+  (`findRecentLockedMatches`'s `maxMatches` parameter) — reused verbatim from 4c, not
+  reimplemented.
+
+**`round_review` (bundle §19) intentionally left unchanged.** §19's own wording is permissive
+("round_review *may* consume qualitative observations...") paired with a firm boundary ("...but
+remains focused on round/allocation/opportunity consequences rather than duplicating weekly
+match coaching prose") — unlike §18, it grants no "Allowed roles" list at all, meaning
+`round_review` is not part of contract v2's role-upgrade set the way `weekly_team_review` is.
+Since `round_review` already has zero coaching-prose surface (its own existing instructions
+already forbid reselecting players, second-guessing rule outcomes, or inferring
+ambition/commitment/character), adding a new qualitative-evidence hook now would be genuinely
+new scope with no "Allowed roles" mandate behind it, and real risk of drifting toward exactly
+the match-level coaching-prose duplication §19 warns against. No issue/ARR filed — this is a
+documented design read, not a deferred defect.
+
+Slice 4 (Assistant Coach AI contract v2) is now complete: contract v2 schema (4a),
+pre-match-expectation selection (4b), the full post-match context builder (4c), the
+clarification round trip (4d), Advisor presentation (4e), and the weekly review upgrade (4f).
+
+Unlike 4d (backend-only, no reachable UI yet), `weekly_team_review` already has a live,
+wired-up Advisor presentation surface (`weekly-team-review-advisor.ts`/`-panel.tsx`, `teams/
+[teamId]/review`) that renders whatever the model returns today — so this slice's richer
+context/prompt takes effect the next time a real review runs for an organisation with AI and
+`weeklyTeamReviewEnabled` on, with no further UI change needed, exactly the same "a shipped
+capability's AI-facing behavior materially changes for a coach" situation 4c was classified
+MINOR for. Combined with the two real evidence-ref bugs fixed above (either could have silently
+turned a valid insight into a schema-rejected response the moment a model actually cited them),
+this slice is versioned MINOR (0.149.0 -> 0.150.0), not PATCH.

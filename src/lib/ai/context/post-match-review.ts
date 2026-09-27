@@ -9,14 +9,19 @@ import {
 } from "@/lib/ai/jobs/capability-handler";
 import { resolveFootballMatchRefById, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import type { JsonValue } from "@/lib/ai/fingerprints";
-import { withEvidenceRef } from "@/lib/ai/context/evidence-ref";
+import { withEvidenceRef, toRefSegment } from "@/lib/ai/context/evidence-ref";
 import { buildCurrentPlanInput } from "@/lib/matches/match-insights/build-current-plan-input";
 import { buildMatchInsightFacts } from "@/lib/matches/match-insights/build-match-insight-facts";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { getMatchTimingReviewItems } from "@/lib/live-match/timing-review";
 import { getActualPositionIntervalsForRef, type ActualIntervalRow } from "@/lib/evidence/actual-timeline";
 import { selectPreMatchExpectations } from "@/lib/ai/context/pre-match-expectations";
-import { getQualitativeEvidenceForMatch, getQualitativeEvidenceForMatches } from "@/lib/evidence/qualitative-evidence-service";
+import {
+  getQualitativeEvidenceForMatch,
+  getQualitativeEvidenceForMatches,
+  findRecentLockedMatches,
+  dedupeQualitativeObservationsByStatement,
+} from "@/lib/evidence/qualitative-evidence-service";
 import { safeParseDebriefAnswers, type DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
 import { getObservationLabel, type FootballObservationCode } from "@/lib/evidence/observation-vocabulary";
 
@@ -276,13 +281,7 @@ function rankAndCapRecentTeamPatterns(
   currentThemes: Set<string>,
   currentPlayerIds: Set<string>,
 ): typeof observations {
-  const seenStatements = new Map<string, (typeof observations)[number]>();
-  for (const o of observations) {
-    const key = o.statement.trim().toLowerCase();
-    const existing = seenStatements.get(key);
-    if (!existing || o.createdAt > existing.createdAt) seenStatements.set(key, o);
-  }
-  const deduped = [...seenStatements.values()];
+  const deduped = dedupeQualitativeObservationsByStatement(observations);
 
   function priority(o: (typeof observations)[number]): number {
     if (o.matchId && sameOpponentMatchIds.has(o.matchId)) return 0;
@@ -426,7 +425,7 @@ export async function buildPostMatchReviewContext(params: { organisationId: stri
     .sort((a, b) => a.playerRef.localeCompare(b.playerRef));
 
   const recoveredTimingFacts = (await getMatchTimingReviewItems(ref)).map((item) =>
-    withEvidenceRef(evidenceRefs, `${FACT}:recovered-timing:${matchRef}:${item.period}`, {
+    withEvidenceRef(evidenceRefs, `${FACT}:recovered-timing:${matchRef}:${toRefSegment(item.period)}`, {
       period: item.period,
       periodLabel: item.periodLabel,
       resolvedDurationMinutes: Math.round(item.resolvedDurationMs / 60000),
@@ -449,13 +448,13 @@ export async function buildPostMatchReviewContext(params: { organisationId: stri
   // `evidenceRef` only lets *this* review cite "the pre-match review said X", never resolves it.
   const preMatchExpectationsFact = {
     matchPrep: preMatchExpectations.matchPrep
-      ? withEvidenceRef(evidenceRefs, `${FACT}:pre-match-expectation:MATCH_PREP:${matchRef}`, {
+      ? withEvidenceRef(evidenceRefs, `${FACT}:pre-match-expectation:${matchRef}:match-prep`, {
           summary: preMatchExpectations.matchPrep.summary,
           insights: preMatchExpectations.matchPrep.insights.map((i) => ({ title: i.title, body: i.body })),
         })
       : null,
     lineupReview: preMatchExpectations.lineupReview
-      ? withEvidenceRef(evidenceRefs, `${FACT}:pre-match-expectation:LINEUP_REVIEW:${matchRef}`, {
+      ? withEvidenceRef(evidenceRefs, `${FACT}:pre-match-expectation:${matchRef}:lineup-review`, {
           summary: preMatchExpectations.lineupReview.summary,
           insights: preMatchExpectations.lineupReview.insights.map((i) => ({ title: i.title, body: i.body })),
         })
@@ -528,26 +527,11 @@ export async function buildPostMatchReviewContext(params: { organisationId: stri
   const { debriefExists, answers: currentDebriefAnswers } = await readCurrentDebriefAnswers(ref, params.organisationId);
 
   // Bundle §6 "Recent team patterns" — League only (needs `teamId`, issue #696/#691).
-  // `PostMatchReport` has no `match` relation field (only a scalar, unique `matchId`), so this
-  // is necessarily two queries — candidate matches by team/date, then which of those actually
-  // reached LOCKED — not one relational query.
   let recentTeamPatternsFact: JsonValue = null;
   if (raw.teamId) {
     const currentMatch = await db.match.findUnique({ where: { id: params.scopeId }, select: { startsAt: true } });
     const currentStart = currentMatch?.startsAt ?? new Date();
-    const windowStart = new Date(currentStart.getTime() - RECENT_TEAM_PATTERN_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const candidateMatches = await db.match.findMany({
-      where: { organisationId: params.organisationId, teamId: raw.teamId, startsAt: { gte: windowStart, lt: currentStart } },
-      select: { id: true, opponentTeamId: true },
-      orderBy: { startsAt: "desc" },
-    });
-
-    const lockedReports =
-      candidateMatches.length > 0
-        ? await db.postMatchReport.findMany({ where: { organisationId: params.organisationId, matchId: { in: candidateMatches.map((m) => m.id) }, status: "LOCKED" }, select: { matchId: true } })
-        : [];
-    const lockedMatchIds = new Set(lockedReports.map((r) => r.matchId));
-    const priorMatches = candidateMatches.filter((m) => lockedMatchIds.has(m.id)).slice(0, RECENT_TEAM_PATTERN_MAX_MATCHES);
+    const priorMatches = await findRecentLockedMatches(raw.teamId, params.organisationId, currentStart, RECENT_TEAM_PATTERN_WINDOW_DAYS, RECENT_TEAM_PATTERN_MAX_MATCHES);
 
     if (priorMatches.length > 0) {
       const priorMatchIds = priorMatches.map((m) => m.id);

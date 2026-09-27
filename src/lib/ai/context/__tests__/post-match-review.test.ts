@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => ({
 
 import { buildPostMatchReviewContext } from "@/lib/ai/context/post-match-review";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
+import { EVIDENCE_REF_PATTERN } from "@/lib/ai/contracts";
 import { createTestOpponentTeam, createTestMatch } from "@/test/support/factories";
 import { recordDeterministicExtraction } from "@/lib/evidence/qualitative-evidence-service";
 
@@ -272,6 +273,12 @@ describe("ai/context/post-match-review v2", () => {
     if (!context) return;
     const normalized = context.normalizedContext as { match: { recoveredTiming: { period: string; resolvedDurationMinutes: number; reviewStatus: string }[] } };
     expect(normalized.match.recoveredTiming).toEqual([expect.objectContaining({ period: "FIRST_HALF", resolvedDurationMinutes: 22, reviewStatus: "REVIEWED" })]);
+    // MatchPeriod enum values are SCREAMING_SNAKE_CASE; a raw one embedded in an evidenceRef
+    // would fail contracts.ts's own EVIDENCE_REF_PATTERN (no underscores allowed in a ref
+    // segment) — a real bug caught this way once already, see toRefSegment()'s doc comment.
+    for (const evidenceRef of context.evidenceRefs) {
+      expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+    }
   });
 
   it("includes raw debrief text, TeamReflection, opponent encounter, and report teamNote as current qualitative evidence", async () => {
@@ -452,5 +459,8 @@ describe("ai/context/post-match-review v2", () => {
     const serialized = JSON.stringify(context.normalizedContext);
     expect(serialized).not.toContain(player.firstName);
     expect(serialized).toContain("Rotation plan");
+    for (const evidenceRef of context.evidenceRefs) {
+      expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+    }
   });
 });

@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => ({
 
 import { buildRoundReviewContext } from "@/lib/ai/context/round-review";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
+import { EVIDENCE_REF_PATTERN } from "@/lib/ai/contracts";
 
 let testDb: PrismaClient;
 let fixtureIds: TestFixtureIds;
@@ -106,7 +107,7 @@ describe("ai/context/round-review", () => {
     expect(normalized.opportunityHistory).toHaveLength(3); // blaCore, blaSupport, hvitPlayer
 
     for (const evidenceRef of context.evidenceRefs) {
-      expect(evidenceRef).toMatch(/^fact:[a-z][a-z-]*:[A-Za-z0-9]+(?::[A-Za-z0-9-]+)?$/);
+      expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
     }
     for (const [externalRef] of context.refMap) {
       expect(externalRef).toMatch(/^[A-Z]\d{2,4}$/);
