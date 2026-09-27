@@ -279,3 +279,38 @@ at all (Today's live-now loader is League-only; Event's own match-detail surface
 `event-matches-tab.tsx`, has no active-session-awareness by the author's own existing comment)
 — filed as [#686](https://github.com/lagebj/matchboard/issues/686) rather than built from
 scratch in this slice, since it is a missing-feature gap, not two competing implementations.
+
+### 2026-09-26 (continued) — Slice 2a: guided debrief domain and service (no UI yet)
+
+Delivered the debrief's domain and service layer, deliberately without the mobile UI (Slice
+2b) and without wiring the report-completion gate (also deferred to 2b): wiring the gate now,
+before any surface ever calls `getOrCreateDebrief` on a normal report open, would have blocked
+every report completion in the app, League and Event alike, with no way for a coach to clear
+it. The gate and the UI ship together in the next slice.
+
+- `src/lib/post-match/debrief/v1.ts`: the versioned Zod answer schema (bundle §03.3/§03.4),
+  `findDebriefReviewGaps`/`isDebriefReadyToSubmit` (bundle §03.6 — a no-evidence choice on every
+  required row counts as fully reviewed).
+- `src/lib/post-match/debrief/map-to-canonical.ts`: pure deterministic mapping functions
+  (`NOT_OBSERVED` -> `null` on `TeamReflection`; opponent memory appended, never silently
+  overwriting existing distinct text; "anything else" maps straight onto the report's team
+  note).
+- `src/lib/post-match/debrief/service.ts`: `getOrCreateDebrief` (prefills a fresh `DRAFT` from
+  whatever compatible legacy TeamReflection/teamNote/opponent-factual-summary already exists —
+  Event's own free-text fields prefill the debrief's free-text slots, since Event has no
+  structured TeamReflection to prefill ratings from), `saveDraftDebrief`, `submitDebrief`
+  (validates completeness, then one transaction maps onto the canonical models and flips the
+  debrief to `SUBMITTED` — a mapping failure rolls back and the debrief stays `DRAFT`, per the
+  locked decision), `reopenDebrief`. One service, driven by a `DebriefReportRef` union, for both
+  League and Event — not two parallel implementations.
+- Converged two pre-existing duplicate writers onto one each (bundle §03.6's explicit
+  instruction, verified against real code rather than deferred): `upsertOpponentEncounterObservation`
+  (`src/lib/opponents/opponent-encounter-observation.ts`, now the only writer the standalone
+  opponent-observation form and the debrief both call — every field but the three identity
+  fields is optional, so the debrief's `factualSummary`-only write can never clobber fields only
+  the fuller form knows about) and `upsertTeamReflection` (`src/lib/coaching/team-reflection.ts`,
+  now also used by the standalone Team Reflection action instead of its own inline upsert).
+
+Not yet built: the mobile guided-debrief UI, the report-completion gate, reopen-triggered
+re-fingerprinting, and retirement of the fragmented draft Reflection/Opponent/Football-observation
+capture flow — all Slice 2b.

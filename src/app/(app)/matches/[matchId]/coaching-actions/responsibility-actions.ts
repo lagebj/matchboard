@@ -12,6 +12,7 @@ import {
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { enrichExplanation } from "@/lib/selection/explanation-enrichment";
 import { isMatchPlanningEditable } from "@/lib/selection/planning-boundary";
+import { upsertTeamReflection } from "@/lib/coaching/team-reflection";
 
 async function requireSelectionOrgAccess(selectionId: string, orgFilter: OrgFilterMode): Promise<{ matchId: string }> {
   const selection = await db.selection.findFirst({
@@ -125,24 +126,16 @@ export async function setTeamReflectionAction(
     });
     if (!match) return { success: false, error: "Match not found." };
 
-    await db.teamReflection.upsert({
-      where: { matchId },
-      create: {
-        matchId,
-        effort: data.effort ?? null,
-        teamCohesion: data.teamCohesion ?? null,
-        positionalShape: data.positionalShape ?? null,
-        recoveryBehavior: data.recoveryBehavior ?? null,
-        note: data.note ?? null,
-        organisationId: orgId,
-      },
-      update: {
-        ...(data.effort !== undefined && { effort: data.effort }),
-        ...(data.teamCohesion !== undefined && { teamCohesion: data.teamCohesion }),
-        ...(data.positionalShape !== undefined && { positionalShape: data.positionalShape }),
-        ...(data.recoveryBehavior !== undefined && { recoveryBehavior: data.recoveryBehavior }),
-        ...(data.note !== undefined && { note: data.note }),
-      },
+    // ADR-0152 §3.6 — the one canonical TeamReflection writer; the guided debrief's submit
+    // mapping calls the exact same function.
+    await upsertTeamReflection({
+      matchId,
+      organisationId: orgId,
+      effort: data.effort,
+      teamCohesion: data.teamCohesion,
+      positionalShape: data.positionalShape,
+      recoveryBehavior: data.recoveryBehavior,
+      note: data.note,
     });
 
     revalidatePath(`/matches/${matchId}`);
