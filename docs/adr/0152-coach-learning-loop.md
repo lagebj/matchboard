@@ -956,3 +956,67 @@ Versioned MINOR (0.150.0 -> 0.151.0): `match_prep` and `post_match_review` both 
 coach-visible opponent-pattern section they didn't have before (not merely richer prose over
 existing facts — a wholly new fact category), and both already have live Advisor presentation
 surfaces.
+
+### 2026-09-27 (continued) — Slice 6: five-week learning cycle
+
+Bundle `06_OPPONENT_MEMORY_AND_LONGITUDINAL.md` §9-14; locked decision #19.
+
+- **Capability and scope** (§9): `DEVELOPMENT_CYCLE_REVIEW` (scope `TEAM_WINDOW`, both enum
+  values already in place from Slice 0) is now implemented, registered
+  (`register-capabilities.ts`), and owner-toggleable. The settings summary and
+  `CAPABILITY_FIELD` mapping already existed since Slice 0; this slice adds the capability to
+  the owner settings UI's allow-list (`ai-advisor-actions.ts` `CAPABILITIES`) and label list
+  (`ai-advisor-section.tsx`), so the default-disabled toggle (schema default `false`, ADR
+  Migration) is now actually reachable by an organisation owner. Scope-id convention:
+  `${teamId}:${windowStartISO}:${windowEndISO}` — two ISO timestamps, so the parser is a
+  format-anchored regex rather than the weekly scope's `indexOf(":")` split (ISO timestamps
+  themselves contain colons).
+- **Context builder** (`src/lib/ai/context/development-cycle-review.ts`, bundle §10):
+  matches in window (locked-report only, League-only for the same documented reason as
+  `weekly_team_review` — `Team` has no Event equivalent), participation/opportunity facts
+  (minutes, distinct realised positions, matches played), canonical player development
+  observations (max 8 per player, matching bundle §10's per-player bound), active qualitative
+  evidence (deduplicated, capped at 120 for a five-week window vs. the weekly builder's 60),
+  recurring tactical aggregates (the same per-phase working/problem/streak shape Slice 5
+  established, aggregated over this window's own matches), and `playerStates`.
+- **Player evidence threshold** (§12, locked decision #19's safeguard): a player enters
+  `playerStates` only with at least two independent evidence items in window (coach
+  development observations + player-scoped qualitative evidence, counted across distinct
+  sources), or one explicit coach development observation plus recorded match exposure.
+  Below the threshold the player is simply omitted — the model is told never to classify an
+  omitted player and never to mention a player absent from the supplied facts. The prompt
+  embeds §12's own good/bad examples and forbids numeric scores, potential/ability labels,
+  and player rankings.
+- **Scheduled eligibility** (`enqueueDueDevelopmentCycleReviewJobs` in
+  `jobs/scheduled-triggers.ts`, wired as its own isolated step in `/api/cron/ai`): per team,
+  gate 1 checks >=35 days since the previous SUCCEEDED cycle's window end (parsed from that
+  review's own scopeId), gate 2 checks >=3 completed matches since then (or ever, when no
+  previous cycle exists), and the "one successful cycle per 35-day window"/fingerprint rules
+  ride on `triggerAiCapability`'s existing dedup — the same division of labour the weekly scan
+  documents, plus a recorded note on why two scans minutes apart cannot double-run (gate 1
+  itself re-closes eligibility the moment any review SUCCEEDED). AI-disabled and
+  capability-off organisations never enqueue (`triggerAiCapability`'s own gates, unchanged).
+- **Presentation** (§13, no new top-level navigation): the team Review surface
+  (`teams/[teamId]/review`) now also renders a "Learning cycle · <date range>" Advisor panel
+  below the weekly one — always the latest SUCCEEDED review, with its own window's date
+  range; no staleness state, because a cycle review is an immutable per-window snapshot
+  (§14) — matches recorded after its window ended don't invalidate it. Player Detail >
+  Development renders the latest relevant player-specific cycle insight (newest ACTIVE
+  PLAYER-subject insight from a SUCCEEDED cycle review) with its date window and an evidence
+  link to the team's Review surface — the one place the full cycle context is shown, so the
+  card links to the context instead of duplicating it. Guest players can never appear: only
+  real playerIds ever receive ephemeral refs in the context builder.
+- Test coverage: context builder (scope-id round-trip/parse failures, team-not-found, empty
+  window, full section assembly + fingerprint determinism + evidence-ref pattern, the player
+  evidence threshold's include/exclude split, and window-bounded match/evidence selection
+  excluding an out-of-window locked match), scheduled eligibility (no-previous-cycle + >=3
+  matches enqueues; <3 matches doesn't; <35 days doesn't; capability-disabled doesn't;
+  handler-null doesn't; handler-throw never aborts the scan), cron route isolation for the
+  new step, team presentation (disabled null, no-review null, fresh insight with resolved
+  refs + window label + summary, latest-of-two-windows selection), and the player cycle
+  insight (disabled null, latest-of-two reviews with window label, DISMISSED and
+  other-player exclusion).
+
+Versioned MINOR (0.151.0 -> 0.152.0): a new coach-visible surface (the Learning cycle panel
+and the Player Detail > Development cycle-insight card) plus a new AI capability reaching
+production for the first time — not merely richer prose over existing facts.

@@ -13,6 +13,7 @@ const CAPABILITY_LABELS: { key: keyof AiAdvisorSettingsSummary["capabilities"]; 
   { key: "MATCH_PREP", title: "Match preparation", description: "Surface preparation points before kick-off." },
   { key: "POST_MATCH_REVIEW", title: "Post-match review", description: "Connect recorded match facts and evidence." },
   { key: "WEEKLY_TEAM_REVIEW", title: "Weekly team review", description: "Review completed-week opportunity patterns." },
+  { key: "DEVELOPMENT_CYCLE_REVIEW", title: "Five-week learning cycle", description: "Longer development synthesis every five weeks." },
 ];
 
 /**

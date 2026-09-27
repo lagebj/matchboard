@@ -40,6 +40,7 @@ const CAPABILITIES: AiAdvisorCapability[] = [
   "MATCH_PREP",
   "POST_MATCH_REVIEW",
   "WEEKLY_TEAM_REVIEW",
+  "DEVELOPMENT_CYCLE_REVIEW",
 ];
 
 const CREDENTIAL_LABELS: Record<AiProviderWireId, string> = {

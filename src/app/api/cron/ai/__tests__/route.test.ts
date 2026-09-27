@@ -6,12 +6,14 @@ const {
   mockProcessAiJobsBatch,
   mockEnqueueDueMatchPrepJobs,
   mockEnqueueDueWeeklyTeamReviewJobs,
+  mockEnqueueDueDevelopmentCycleReviewJobs,
   mockRetryPendingConnectionDeletions,
   mockProcessQualitativeExtractionBatch,
 } = vi.hoisted(() => ({
   mockProcessAiJobsBatch: vi.fn(),
   mockEnqueueDueMatchPrepJobs: vi.fn(),
   mockEnqueueDueWeeklyTeamReviewJobs: vi.fn(),
+  mockEnqueueDueDevelopmentCycleReviewJobs: vi.fn(),
   mockRetryPendingConnectionDeletions: vi.fn(),
   mockProcessQualitativeExtractionBatch: vi.fn(),
 }));
@@ -21,6 +23,7 @@ vi.mock("@/lib/ai/jobs/runner", () => ({
 vi.mock("@/lib/ai/jobs/scheduled-triggers", () => ({
   enqueueDueMatchPrepJobs: mockEnqueueDueMatchPrepJobs,
   enqueueDueWeeklyTeamReviewJobs: mockEnqueueDueWeeklyTeamReviewJobs,
+  enqueueDueDevelopmentCycleReviewJobs: mockEnqueueDueDevelopmentCycleReviewJobs,
 }));
 vi.mock("@/lib/ai/jobs/connection-maintenance", () => ({
   retryPendingConnectionDeletions: mockRetryPendingConnectionDeletions,
@@ -40,6 +43,8 @@ beforeEach(() => {
   mockEnqueueDueMatchPrepJobs.mockResolvedValue({ scanned: 0 });
   mockEnqueueDueWeeklyTeamReviewJobs.mockReset();
   mockEnqueueDueWeeklyTeamReviewJobs.mockResolvedValue({ scanned: 0 });
+  mockEnqueueDueDevelopmentCycleReviewJobs.mockReset();
+  mockEnqueueDueDevelopmentCycleReviewJobs.mockResolvedValue({ scanned: 0 });
   mockRetryPendingConnectionDeletions.mockReset();
   mockRetryPendingConnectionDeletions.mockResolvedValue({ scanned: 0 });
   mockProcessQualitativeExtractionBatch.mockReset();
@@ -79,9 +84,10 @@ describe("GET /api/cron/ai", () => {
     expect(mockEnqueueDueWeeklyTeamReviewJobs).not.toHaveBeenCalled();
   });
 
-  it("scans for due match_prep jobs, weekly_team_review jobs, and pending connection deletions, then processes a batch and returns its combined summary for a correctly authenticated request", async () => {
+  it("scans for due match_prep jobs, weekly_team_review jobs, development_cycle_review jobs, and pending connection deletions, then processes a batch and returns its combined summary for a correctly authenticated request", async () => {
     mockEnqueueDueMatchPrepJobs.mockResolvedValue({ scanned: 2 });
     mockEnqueueDueWeeklyTeamReviewJobs.mockResolvedValue({ scanned: 4 });
+    mockEnqueueDueDevelopmentCycleReviewJobs.mockResolvedValue({ scanned: 1 });
     mockRetryPendingConnectionDeletions.mockResolvedValue({ scanned: 1 });
     mockProcessAiJobsBatch.mockResolvedValue({ claimed: 3, succeeded: 2, failed: 1, retried: 0, skippedNotEligible: 0 });
 
@@ -92,6 +98,7 @@ describe("GET /api/cron/ai", () => {
       ok: true,
       matchPrepScanned: 2,
       weeklyTeamReviewScanned: 4,
+      developmentCycleReviewScanned: 1,
       connectionDeletionRetriesScanned: 1,
       claimed: 3,
       succeeded: 2,
@@ -99,6 +106,7 @@ describe("GET /api/cron/ai", () => {
     });
     expect(mockEnqueueDueMatchPrepJobs).toHaveBeenCalledTimes(1);
     expect(mockEnqueueDueWeeklyTeamReviewJobs).toHaveBeenCalledTimes(1);
+    expect(mockEnqueueDueDevelopmentCycleReviewJobs).toHaveBeenCalledTimes(1);
     expect(mockRetryPendingConnectionDeletions).toHaveBeenCalledTimes(1);
     expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
   });
@@ -134,6 +142,18 @@ describe("GET /api/cron/ai", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toMatchObject({ ok: true, weeklyTeamReviewScanError: true, claimed: 1, succeeded: 1 });
+    expect(JSON.stringify(body)).not.toContain("db connection lost");
+    expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("still claims and processes already-queued jobs when the development_cycle_review scan itself throws (isolation fix)", async () => {
+    mockEnqueueDueDevelopmentCycleReviewJobs.mockRejectedValue(new Error("db connection lost, internal detail"));
+    mockProcessAiJobsBatch.mockResolvedValue({ claimed: 1, succeeded: 1, failed: 0, retried: 0, skippedNotEligible: 0 });
+
+    const response = await GET(request(`Bearer ${process.env.CRON_SECRET}`));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, developmentCycleReviewScanError: true, claimed: 1, succeeded: 1 });
     expect(JSON.stringify(body)).not.toContain("db connection lost");
     expect(mockProcessAiJobsBatch).toHaveBeenCalledTimes(1);
   });
