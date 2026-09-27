@@ -1020,3 +1020,61 @@ Bundle `06_OPPONENT_MEMORY_AND_LONGITUDINAL.md` §9-14; locked decision #19.
 Versioned MINOR (0.151.0 -> 0.152.0): a new coach-visible surface (the Learning cycle panel
 and the Player Detail > Development cycle-insight card) plus a new AI capability reaching
 production for the first time — not merely richer prose over existing facts.
+
+### 2026-09-27 (continued) — Slice 7: bounded backfill, "Run AI analysis on existing data" admin tool, and cleanup
+
+Bundle `04_QUALITATIVE_EVIDENCE_MODEL.md` §18 "Backfill" + `11_IMPLEMENTATION_SEQUENCE.md` Slice
+7; the Advisor-review widening is the product owner's explicitly requested extension ("run all
+AI functions on all possible scenarios ... as a transient function", 2026-09-27).
+
+- **Legacy-source resolvers** (`qualitative-evidence-extraction-runner.ts`): the five bundle §4
+  free-text source types that had no write path until now — `POST_MATCH_TEAM_NOTE` (locked
+  reports' teamNote), `TEAM_REFLECTION_NOTE`, `MATCH_NOTE`, `OPPONENT_ENCOUNTER_TEXT`
+  (factualSummary), `QUICK_OBSERVATION` (unconverted, match-attached) — each resolves its
+  match's *current* text at claim time, exactly like the debrief sources: a since-emptied note
+  succeeds with zero observations rather than extracting stale content, and a reopened report
+  fails as `SCOPE_NO_LONGER_ELIGIBLE`. League-only, like every other evidence writer (#691).
+  `AI_CLARIFICATION` remains direct-to-deterministic (Slice 4d) and never enters this queue.
+- **Bounded backfill service** (`src/lib/evidence/qualitative-evidence-backfill.ts`): the
+  bundle §18 command — idempotent, org-scoped, optional team filter, default 90-day window,
+  max-sources budget (default 25) shared across all source types, and never run at deployment
+  or by any cron. Two families: (1) legacy extraction runs enqueued through the same
+  idempotent `enqueueQualitativeExtraction` (fingerprint unique index makes reruns no-ops); (2)
+  Advisor reviews for existing data — post-match reviews for every locked report in window,
+  weekly reviews for every ISO week the window touches, and the development-cycle eligibility
+  gates re-evaluated per team — all through the same `triggerAiCapability` the domain/scheduled
+  triggers use. "Stop safely on outage": AI-disabled / no READY connection returns an
+  `aiDisabled` report having enqueued nothing (no abandoned QUEUED rows that would block a
+  later real enqueue).
+- **`triggerAiCapability` widened from `void` to `ENQUEUED | NOT_ENQUEUED`** so the
+  operational result report can state honestly what was actually queued (settings gate, scope
+  eligibility, and the SUCCEEDED/fingerprint dedup all collapse into `NOT_ENQUEUED`, which is
+  exactly what makes rerunning the tool free for unchanged data). All existing callers treat
+  the return as fire-and-forget and were unaffected except one assertion updated to the new
+  contract.
+- **Transient admin tool** ("Run AI analysis on existing data"): owner-admin-only page under
+  Advanced in "More" (`/o/[orgSlug]/ai-backfill`), mirroring the sibling "Populate opponent
+  levels" / "Rebuild historical evidence" tools' authorization/tenancy/audit pattern exactly
+  (`requireActorContext` + `canAdmin` + `setTenantOrganisationId` + `logSecurityEvent`, new
+  `run_ai_backfill` audit action). The action only ever enqueues — no provider call in the
+  request path (bundle §9); the existing `/api/cron/ai` scheduler processes the queue within
+  its normal cadence. The result report (the bundle's "operational result report"
+  requirement) breaks down, per family and per source type: considered / queued / already
+  processed / deferred-by-budget / failed, plus advisor scopes considered vs enqueued.
+- **Cleanup verification**: Slice 2b/2c already delivered this slice's "remove obsolete
+  draft UI entry points" substance — `TeamReflectionSection` and its actions were fully
+  retired, the debrief is the one required draft qualitative surface, and the remaining
+  "Additional observations (optional)" sections are the *deliberately-not-subsumed* read-only
+  or fields-the-debrief-doesn't-own surfaces recorded in Slice 2b's own decision. Verified
+  there is no remaining editable duplicate of the debrief's capture; removing more would
+  contradict that recorded decision, so no further removal was made.
+- Test coverage: backfill service (6: AI-disabled no-op, per-type enqueue + rerun
+  already-tracked, cross-type budget, window exclusion, advisor family end-to-end with real
+  trigger machinery, team filter), legacy runner resolvers (4: teamNote extraction to
+  evidence, all four remaining types round-trip, emptied-note zero-call success,
+  reopened-report ineligibility), admin action (4: non-admin rejection, org scoping, no
+  caller-supplied org id, audit event), plus the widened trigger contract assertion.
+
+Versioned MINOR (0.152.0 -> 0.153.0): a new coach/admin-visible surface (the transient AI
+backfill tool in More) and the first wiring of five previously-inert source types — new
+user-visible capability, not merely internal plumbing.

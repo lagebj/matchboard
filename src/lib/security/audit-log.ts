@@ -74,7 +74,8 @@ type SecurityEventAction =
   | "confirm_ai_development_suggestion"
   | "dismiss_ai_insight"
   | "answer_ai_insight_clarification"
-  | "disconnect_ai_provider_connection";
+  | "disconnect_ai_provider_connection"
+  | "run_ai_backfill";
 
 interface SecurityEvent {
   category: SecurityEventCategory;

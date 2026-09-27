@@ -133,7 +133,9 @@ describe("ai/jobs/triggers: triggerAiCapability", () => {
       }),
     );
 
-    await expect(triggerAiCapability(baseParams())).resolves.toBeUndefined();
+    // Slice 7 widened the return from void to an outcome so the bounded backfill can report
+    // honestly — a throwing handler is swallowed and reported as NOT_ENQUEUED, never thrown.
+    await expect(triggerAiCapability(baseParams())).resolves.toBe("NOT_ENQUEUED");
 
     const jobs = await testDb.aiAdvisorJob.findMany({ where: { organisationId } });
     expect(jobs).toHaveLength(0);

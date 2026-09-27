@@ -239,3 +239,96 @@ describe("processQualitativeExtractionBatch — failure/eligibility handling", (
     expect(run.failureCode).toBe("SCOPE_NO_LONGER_ELIGIBLE");
   });
 });
+
+describe("processQualitativeExtractionBatch — legacy free-text sources (Slice 7 backfill)", () => {
+  async function queueLegacyRun(sourceType: "POST_MATCH_TEAM_NOTE" | "TEAM_REFLECTION_NOTE" | "MATCH_NOTE" | "QUICK_OBSERVATION" | "OPPONENT_ENCOUNTER_TEXT", sourceId: string, fingerprint = `fp-${Math.random()}`) {
+    return testDb.qualitativeEvidenceExtractionRun.create({
+      data: { organisationId, sourceType, sourceId, sourceFingerprint: fingerprint, derivationMethod: "AI_STRUCTURED", status: "QUEUED" },
+    });
+  }
+
+  async function seedLockedMatchWithTexts(params: { teamNote?: string; matchNote?: string; reflectionNote?: string; opponentText?: string; quickNote?: string }) {
+    const match = await createTestMatch(testDb, organisationId, fixture.matchRoundId, teamId, null);
+    if (params.matchNote) await testDb.match.update({ where: { id: match.id }, data: { notes: params.matchNote } });
+    await testDb.postMatchReport.create({ data: { organisationId, matchId: match.id, status: "LOCKED", teamNote: params.teamNote ?? null } });
+    if (params.reflectionNote) {
+      await testDb.teamReflection.create({ data: { organisationId, matchId: match.id, note: params.reflectionNote } });
+    }
+    if (params.opponentText) {
+      const opponentTeam = await testDb.opponentTeam.findFirstOrThrow({ where: { organisationId } });
+      await testDb.opponentEncounterObservation.create({
+        data: { organisationId, matchId: match.id, opponentTeamId: opponentTeam.id, factualSummary: params.opponentText },
+      });
+    }
+    if (params.quickNote) {
+      await testDb.quickObservation.create({ data: { organisationId, matchId: match.id, note: params.quickNote } });
+    }
+    return match;
+  }
+
+  it("extracts a locked report's team note as TEAM-scoped evidence", async () => {
+    const match = await seedLockedMatchWithTexts({ teamNote: "We struggled to play out from the back under their press." });
+    fakeAdapter.setNextExecuteResponse({
+      version: "1",
+      observations: [{ scope: "TEAM", playerRef: null, secondaryPlayerRef: null, phase: "BUILD_UP", polarity: "PROBLEM", period: null, statement: "The team struggled to play out from the back under pressure.", explicitness: "EXPLICIT" }],
+    });
+    await queueLegacyRun("POST_MATCH_TEAM_NOTE", match.id);
+
+    const summary = await processQualitativeExtractionBatch();
+    expect(summary).toMatchObject({ claimed: 1, succeeded: 1 });
+    expect(fakeAdapter.executeReviewCalls[0].input).toMatchObject({ text: "We struggled to play out from the back under their press." });
+
+    const evidence = await getQualitativeEvidenceForMatch({ matchId: match.id }, organisationId);
+    expect(evidence.map((o) => o.statement)).toEqual(["The team struggled to play out from the back under pressure."]);
+  });
+
+  it("extracts a legacy TeamReflection note, an opponent factual summary, a match note, and a QuickObservation", async () => {
+    const match = await seedLockedMatchWithTexts({
+      matchNote: " windy conditions made long passes unreliable. ",
+      reflectionNote: "Second-half effort was much better after the talk.",
+      opponentText: "Their first line pressed high on goal kicks.",
+      quickNote: "Took the extra corner quickly.",
+    });
+    const quick = await testDb.quickObservation.findFirstOrThrow({ where: { matchId: match.id } });
+
+    fakeAdapter.setNextExecuteResponse({ version: "1", observations: [{ scope: "TEAM", playerRef: null, secondaryPlayerRef: null, phase: "GENERAL", polarity: "NEUTRAL", period: null, statement: "s1", explicitness: "EXPLICIT" }] });
+    fakeAdapter.setNextExecuteResponse({ version: "1", observations: [{ scope: "TEAM", playerRef: null, secondaryPlayerRef: null, phase: "GENERAL", polarity: "NEUTRAL", period: null, statement: "s2", explicitness: "EXPLICIT" }] });
+    fakeAdapter.setNextExecuteResponse({ version: "1", observations: [{ scope: "OPPONENT", playerRef: null, secondaryPlayerRef: null, phase: "PRESSING", polarity: "NEUTRAL", period: null, statement: "s3", explicitness: "EXPLICIT" }] });
+    fakeAdapter.setNextExecuteResponse({ version: "1", observations: [{ scope: "TEAM", playerRef: null, secondaryPlayerRef: null, phase: "GENERAL", polarity: "NEUTRAL", period: null, statement: "s4", explicitness: "EXPLICIT" }] });
+
+    await queueLegacyRun("TEAM_REFLECTION_NOTE", match.id);
+    await queueLegacyRun("MATCH_NOTE", match.id);
+    await queueLegacyRun("OPPONENT_ENCOUNTER_TEXT", match.id);
+    await queueLegacyRun("QUICK_OBSERVATION", quick.id);
+
+    const summary = await processQualitativeExtractionBatch();
+    expect(summary).toMatchObject({ claimed: 4, succeeded: 4, failed: 0 });
+
+    const sentTexts = fakeAdapter.executeReviewCalls.map((c) => (c.input as { text: string }).text);
+    expect(sentTexts).toContain("Second-half effort was much better after the talk.");
+    expect(sentTexts).toContain("windy conditions made long passes unreliable.");
+    expect(sentTexts).toContain("Their first line pressed high on goal kicks.");
+    expect(sentTexts).toContain("Took the extra corner quickly.");
+  });
+
+  it("succeeds with zero provider calls when a legacy source's note was cleared since enqueue", async () => {
+    const match = await seedLockedMatchWithTexts({ teamNote: "Since emptied." });
+    await testDb.postMatchReport.update({ where: { matchId: match.id }, data: { teamNote: null } });
+    await queueLegacyRun("POST_MATCH_TEAM_NOTE", match.id);
+
+    const summary = await processQualitativeExtractionBatch();
+    expect(summary).toMatchObject({ claimed: 1, succeeded: 1 });
+    expect(fakeAdapter.executeReviewCalls).toHaveLength(0);
+  });
+
+  it("fails as no-longer-eligible when the report is no longer locked (reopened)", async () => {
+    const match = await seedLockedMatchWithTexts({ teamNote: "Will be reopened." });
+    await testDb.postMatchReport.update({ where: { matchId: match.id }, data: { status: "DRAFT" } });
+    await queueLegacyRun("POST_MATCH_TEAM_NOTE", match.id);
+
+    const summary = await processQualitativeExtractionBatch();
+    expect(summary).toMatchObject({ claimed: 1, failed: 1 });
+    const run = await testDb.qualitativeEvidenceExtractionRun.findFirstOrThrow({ where: { sourceId: match.id, sourceType: "POST_MATCH_TEAM_NOTE" } });
+    expect(run.failureCode).toBe("SCOPE_NO_LONGER_ELIGIBLE");
+  });
+});

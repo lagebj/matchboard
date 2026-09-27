@@ -87,6 +87,7 @@ export default async function MorePage({ params }: { params: Promise<{ orgSlug: 
         { href: `${prefix}/workbench`, label: "Policy workbench", description: "Policy evaluation workbench and fixture comparison.", icon: Wrench },
         { href: `${prefix}/opponent-population`, label: "Populate opponent levels", description: "Populate opponent sporting levels from historical match data (transient).", icon: Database },
         { href: `${prefix}/evidence-rebuild`, label: "Rebuild historical evidence", description: "Reprocess completed matches through the current evidence engine (transient).", icon: Database },
+        { href: `${prefix}/ai-backfill`, label: "Run AI analysis on existing data", description: "Queue Assistant Coach reviews and note structuring for existing data (transient).", icon: Database },
       ],
     });
   }
