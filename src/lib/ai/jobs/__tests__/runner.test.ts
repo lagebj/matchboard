@@ -251,6 +251,9 @@ describe("ai/jobs/runner: happy path", () => {
         status: "SUCCEEDED",
         contractVersion: "1",
         terminologyVersion: "1",
+        // The short-circuit requires a persisted refMap since the ref-token resolution fix —
+        // a no-map review is a pre-fix row the repair path deliberately re-reviews.
+        refMap: { P01: { subjectType: "PLAYER", entityId: "real-player-id-1" } },
       },
     });
 

@@ -69,6 +69,9 @@ describe("ai/jobs/enqueue: enqueueAiJob", () => {
         status: "SUCCEEDED",
         contractVersion: "1",
         terminologyVersion: "1",
+        // Dedup ("complete") requires a persisted refMap since the ref-token resolution fix —
+        // a no-map review is a pre-fix row the repair path deliberately re-reviews.
+        refMap: { P01: { subjectType: "PLAYER", entityId: "p1" } },
       },
     });
 

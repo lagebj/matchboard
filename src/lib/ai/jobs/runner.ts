@@ -19,6 +19,7 @@ import { fromPrismaAiProviderId } from "@/lib/ai/provider-registry";
 import { withProviderCredential, ProviderCredentialAccessError } from "@/lib/ai/credential-access";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
 import { AI_ADVISOR_STABLE_DOCTRINE, AI_TERMINOLOGY_VERSION } from "@/lib/ai/terminology";
+import { REFMAP_PRESENT_FILTER } from "@/lib/ai/jobs/review-refmap";
 import { AI_CONTRACT_VERSION, toPrismaAiInsightKind, toPrismaAnalysisRole, type AnalysisRoleWire } from "@/lib/ai/contracts";
 import { validateAdvisorResponse } from "@/lib/ai/response-validation";
 
@@ -188,6 +189,11 @@ async function processClaimedJob(job: ClaimedJobRow): Promise<"succeeded" | "fai
         scopeId: job.scopeId,
         sourceFingerprint: currentFingerprint,
         status: "SUCCEEDED",
+        // A pre-refMap-column review is not "complete" for the short-circuit either — this job
+        // is the re-review that replaces it (see review-refmap.ts). The supersession inside
+        // persistSuccessfulReview flips the old review to SUPERSEDED atomically with the new
+        // one's creation, so nothing is ever without content.
+        ...REFMAP_PRESENT_FILTER,
       },
       select: { id: true },
     });
