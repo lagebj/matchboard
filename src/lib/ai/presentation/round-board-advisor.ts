@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
 import { buildRoundReviewContext } from "@/lib/ai/context/round-review";
-import { buildRefDisplayNameMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
+import { buildRefDisplayNameMap, parsePersistedRefMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 
 const MAX_INSIGHTS = 5;
@@ -60,7 +60,12 @@ export async function getRoundBoardAdvisorViewModel(params: {
   const currentFingerprint = computeSourceFingerprint(context.normalizedContext);
   if (currentFingerprint !== review.sourceFingerprint) return { status: "stale" };
 
-  const displayNameByRef = await buildRefDisplayNameMap(context.refMap);
+  // Persisted refMap first (exact for any review); rebuild fallback for pre-column reviews —
+  // safe here because the fingerprint check above already proved the rebuild matches.
+  const persistedRefMap = parsePersistedRefMap(review.refMap);
+  const displayNameByRef = persistedRefMap
+    ? await buildRefDisplayNameMap(persistedRefMap)
+    : await buildRefDisplayNameMap(context.refMap);
 
   const insights = review.insights.map((insight) => ({
     title: resolveInsightText(insight.title, displayNameByRef),

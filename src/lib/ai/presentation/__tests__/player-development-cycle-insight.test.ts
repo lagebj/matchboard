@@ -142,4 +142,46 @@ describe("ai/presentation/player-development-cycle-insight", () => {
     const result2 = await getPlayerDevelopmentCycleInsight({ organisationId: fixtureIds.organisationId, playerId: player2.id });
     expect(result2?.body).toBe("Other player's insight.");
   });
+
+  it("resolves the review's ephemeral ref tokens to real names using the persisted refMap (production regression: this card showed raw P01)", async () => {
+    const [player] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
+    const teamId = fixtureIds.teams["Bla"];
+    await enableAi(fixtureIds.organisationId);
+    const windowEnd = new Date(NOW.getTime() - 35 * 24 * 60 * 60 * 1000);
+    const windowStart = new Date(windowEnd.getTime() - 35 * 24 * 60 * 60 * 1000);
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "DEVELOPMENT_CYCLE_REVIEW",
+        scopeType: "TEAM_WINDOW",
+        scopeId: buildDevelopmentCycleScopeId(teamId, windowStart, windowEnd),
+        sourceFingerprint: `fp-${Math.random()}`,
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        completedAt: windowEnd,
+        summary: "Cycle summary.",
+        refMap: { P01: { subjectType: "PLAYER", entityId: player.id } },
+      },
+    });
+    await testDb.aiAdvisorInsight.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        reviewId: review.id,
+        kind: "OBSERVATION",
+        subjectType: "PLAYER",
+        subjectId: player.id,
+        title: "P01 is improving",
+        body: "Improving: two coach observations describe earlier scanning by P01.",
+        evidenceRefs: [],
+        state: "ACTIVE",
+      },
+    });
+
+    const result = await getPlayerDevelopmentCycleInsight({ organisationId: fixtureIds.organisationId, playerId: player.id });
+    expect(result).not.toBeNull();
+    expect(result!.title).toContain(player.firstName);
+    expect(result!.title).not.toContain("P01");
+    expect(result!.body).not.toContain("P01");
+  });
 });

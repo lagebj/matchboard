@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { buildDevelopmentCycleReviewContext, parseDevelopmentCycleScopeId } from "@/lib/ai/context/development-cycle-review";
-import { buildRefDisplayNameMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
+import { parseDevelopmentCycleScopeId } from "@/lib/ai/context/development-cycle-review";
+import { buildRefDisplayNameMap, parsePersistedRefMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 
 /**
@@ -80,8 +80,13 @@ export async function getDevelopmentCycleReviewAdvisorViewModel(params: {
   const parsed = parseDevelopmentCycleScopeId(review.scopeId);
   if (!parsed || parsed.teamId !== params.teamId) return null;
 
-  const context = await buildDevelopmentCycleReviewContext({ organisationId: params.organisationId, scopeId: review.scopeId });
-  const displayNameByRef = context ? await buildRefDisplayNameMap(context.refMap) : new Map<string, string>();
+  // Resolve against the review's own persisted refMap (the exact map this review's ref tokens
+  // were assigned from — correct even though the current date's window differs from the
+  // review's historical one, which is exactly why the context is NOT rebuilt here). A
+  // pre-column review (null refMap) falls back to raw tokens rather than a rebuilt map that
+  // would be built from a *different* window's participant set.
+  const persistedRefMap = parsePersistedRefMap(review.refMap);
+  const displayNameByRef = persistedRefMap ? await buildRefDisplayNameMap(persistedRefMap) : new Map<string, string>();
 
   const insights = review.insights.map((insight) => ({
     title: resolveInsightText(insight.title, displayNameByRef),

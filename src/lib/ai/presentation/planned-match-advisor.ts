@@ -4,7 +4,7 @@ import type { AiAdvisorCapability } from "@/generated/prisma/client";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
 import { buildLineupReviewContext } from "@/lib/ai/context/lineup-review";
 import { buildMatchPrepContext } from "@/lib/ai/context/match-prep";
-import { buildRefDisplayNameMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
+import { buildRefDisplayNameMap, parsePersistedRefMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 
 const MAX_INSIGHTS = 5;
@@ -84,7 +84,12 @@ export async function getPlannedMatchAdvisorViewModel(params: {
   const currentFingerprint = computeSourceFingerprint(context.normalizedContext);
   if (currentFingerprint !== review.sourceFingerprint) return { status: "stale" };
 
-  const displayNameByRef = await buildRefDisplayNameMap(context.refMap);
+  // Persisted refMap first (exact for any review); rebuild fallback for pre-column reviews —
+  // safe here because the fingerprint check above already proved the rebuild matches.
+  const persistedRefMap = parsePersistedRefMap(review.refMap);
+  const displayNameByRef = persistedRefMap
+    ? await buildRefDisplayNameMap(persistedRefMap)
+    : await buildRefDisplayNameMap(context.refMap);
 
   return {
     status: "fresh",

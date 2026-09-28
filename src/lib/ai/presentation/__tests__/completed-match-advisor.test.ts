@@ -189,6 +189,94 @@ describe("ai/presentation/completed-match-advisor", () => {
     expect(result.insights).toEqual([{ sectionLabel: "Supported", title: "P01 stood out", body: expect.any(String), evidenceSources: [] }]);
   });
 
+  it("resolves ref tokens for a STALE review using the review's own persisted refMap (production regression: raw P01/M01 after the Slice-7 backfill flipped reviews stale)", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    const [scorer] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+
+    // A stale review: the fingerprint no longer matches (e.g. the backfill landed new evidence
+    // after this review ran) — but its own refMap was persisted at save time.
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: "stale-fingerprint-persisted-refmap",
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        summary: "Earlier summary.",
+        completedAt: new Date(),
+        refMap: { P01: { subjectType: "PLAYER", entityId: scorer.id } },
+      },
+    });
+    await testDb.aiAdvisorInsight.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        reviewId: review.id,
+        kind: "OBSERVATION",
+        subjectType: "PLAYER",
+        subjectId: scorer.id,
+        title: "P01 stood out",
+        body: "P01 showed strong composure in front of goal.",
+        evidenceRefs: [],
+        analysisRole: "SUPPORTED",
+      },
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result?.status).toBe("stale");
+    if (result?.status !== "stale" && result?.status !== "fresh") return;
+    // The persisted refMap is the exact map this review's tokens were assigned from — it stays
+    // correct regardless of freshness, so the stale review's text resolves to real names.
+    expect(result.insights[0].title).toContain(scorer.firstName);
+    expect(result.insights[0].title).not.toContain("P01");
+    expect(result.insights[0].body).not.toContain("P01");
+  });
+
+  it("ignores a malformed persisted refMap and falls back to the pre-column behaviour", async () => {
+    const matchId = fixtureIds.matches["Bla"];
+    await lockReport(matchId);
+    await enableAi(fixtureIds.organisationId);
+
+    const review = await testDb.aiAdvisorReview.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        capability: "POST_MATCH_REVIEW",
+        scopeType: "MATCH",
+        scopeId: matchId,
+        sourceFingerprint: "stale-fingerprint-malformed-refmap",
+        status: "SUCCEEDED",
+        contractVersion: "2",
+        terminologyVersion: "1",
+        summary: "Earlier summary.",
+        completedAt: new Date(),
+        refMap: { "not-a-ref": { subjectType: "PLAYER", entityId: "x" }, P01: "not-an-object" },
+      },
+    });
+    await testDb.aiAdvisorInsight.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        reviewId: review.id,
+        kind: "OBSERVATION",
+        subjectType: "NONE",
+        title: "P01 stood out",
+        body: "Text.",
+        evidenceRefs: [],
+        analysisRole: "SUPPORTED",
+      },
+    });
+
+    const result = await getCompletedMatchAdvisorViewModel({ organisationId: fixtureIds.organisationId, matchId });
+    expect(result?.status).toBe("stale");
+    // Malformed persisted map -> no resolvable entries -> raw tokens, same as a null column.
+    expect(result).not.toBeNull();
+    if (result === null || (result.status !== "fresh" && result.status !== "stale")) return;
+    expect(result.insights[0].title).toBe("P01 stood out");
+  });
+
   it("groups insights by analysisRole in ADR-0152 §16's order, with a fallback bucket for a null/legacy role", async () => {
     const matchId = fixtureIds.matches["Bla"];
     await lockReport(matchId);

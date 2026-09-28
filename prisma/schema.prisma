@@ -3634,6 +3634,16 @@ model AiAdvisorReview {
   terminologyVersion   String
   summary              String?
 
+  /// The review's own ephemeral-ref map, persisted at save time as `ref -> {subjectType, entityId}`.
+  /// The runner builds a fresh map per execution and it was previously never persisted — display
+  /// layers had to *rebuild* it from a fingerprint-fresh context, which silently degrades to raw
+  /// `P01`/`M01` tokens for any review that is no longer fingerprint-fresh (a "stale" review, or
+  /// one whose underlying data changed after the fact — e.g. a later Slice-7 backfill extraction
+  /// landing new qualitative evidence). Persisting the exact map makes token resolution exact for
+  /// every review, fresh or stale. Nullable: reviews persisted before this column have no map
+  /// and keep the rebuild fallback.
+  refMap               Json?
+
   inputTokens               Int?
   outputTokens              Int?
   providerRequestDurationMs Int?

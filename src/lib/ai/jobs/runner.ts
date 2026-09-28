@@ -301,6 +301,20 @@ interface PersistSuccessfulReviewParams {
   context: AiCapabilityContext;
 }
 
+/** The review's own ephemeral-ref map, serialized for `AiAdvisorReview.refMap`. Persisted so
+ * display layers can resolve `P01`/`M01` tokens against the *exact* map the review was generated
+ * from — a rebuilt-at-display-time map only matches while the source fingerprint is still
+ * fresh, and silently degrades to raw tokens for stale reviews (found in production after the
+ * Slice-7 backfill landed new evidence that flipped every existing review stale). Refs are
+ * opaque tokens by design; the map contains only `{subjectType, entityId}` pairs, never names. */
+function serializeRefMap(context: AiCapabilityContext): Prisma.InputJsonValue {
+  const entries: Record<string, { subjectType: string; entityId: string }> = {};
+  for (const [ref, target] of context.refMap) {
+    entries[ref] = { subjectType: target.subjectType, entityId: target.entityId };
+  }
+  return entries;
+}
+
 async function persistSuccessfulReview(params: PersistSuccessfulReviewParams): Promise<void> {
   await db.$transaction(async (tx) => {
     await tx.aiAdvisorReview.updateMany({
@@ -328,6 +342,7 @@ async function persistSuccessfulReview(params: PersistSuccessfulReviewParams): P
         contractVersion: AI_CONTRACT_VERSION,
         terminologyVersion: AI_TERMINOLOGY_VERSION,
         summary: params.summary,
+        refMap: serializeRefMap(params.context),
         inputTokens: params.inputTokens,
         outputTokens: params.outputTokens,
         providerRequestDurationMs: params.providerRequestDurationMs,
