@@ -73,6 +73,8 @@ describe("ai/jobs/enqueue: enqueueDebouncedAiJob", () => {
         status: "SUCCEEDED",
         contractVersion: "1",
         terminologyVersion: "1",
+        // Dedup ("complete") requires a persisted refMap since the ref-token resolution fix.
+        refMap: { P01: { subjectType: "PLAYER", entityId: "p1" } },
       },
     });
 

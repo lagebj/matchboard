@@ -29,15 +29,25 @@ import type { AiCapabilityRefTarget } from "@/lib/ai/jobs/capability-handler";
 export async function buildRefDisplayNameMap(refMap: Map<string, AiCapabilityRefTarget>): Promise<Map<string, string>> {
   const playerIds = [...refMap.values()].filter((t) => t.subjectType === AiInsightSubjectType.PLAYER).map((t) => t.entityId);
   const teamIds = [...refMap.values()].filter((t) => t.subjectType === AiInsightSubjectType.TEAM).map((t) => t.entityId);
+  const matchIds = [...refMap.values()].filter((t) => t.subjectType === AiInsightSubjectType.MATCH).map((t) => t.entityId);
+  const roundIds = [...refMap.values()].filter((t) => t.subjectType === AiInsightSubjectType.ROUND).map((t) => t.entityId);
 
-  const [players, teams] = await Promise.all([
+  const [players, teams, matches, rounds] = await Promise.all([
     playerIds.length
       ? db.player.findMany({ where: { id: { in: playerIds } }, select: { id: true, firstName: true, lastName: true } })
       : Promise.resolve([]),
     teamIds.length ? db.team.findMany({ where: { id: { in: teamIds } }, select: { id: true, name: true } }) : Promise.resolve([]),
+    matchIds.length
+      ? db.match.findMany({ where: { id: { in: matchIds } }, select: { id: true, opponent: true } })
+      : Promise.resolve([] as { id: string; opponent: string }[]),
+    roundIds.length
+      ? db.matchRound.findMany({ where: { id: { in: roundIds } }, select: { id: true, name: true } })
+      : Promise.resolve([] as { id: string; name: string }[]),
   ]);
   const playerNameById = new Map(players.map((p) => [p.id, `${p.firstName} ${p.lastName ?? ""}`.trim()]));
   const teamNameById = new Map(teams.map((t) => [t.id, t.name]));
+  const opponentByMatchId = new Map(matches.map((m) => [m.id, m.opponent]));
+  const roundNameById = new Map(rounds.map((r) => [r.id, r.name]));
 
   const displayNameByRef = new Map<string, string>();
   for (const [ref, target] of refMap) {
@@ -47,10 +57,20 @@ export async function buildRefDisplayNameMap(refMap: Map<string, AiCapabilityRef
     } else if (target.subjectType === AiInsightSubjectType.TEAM) {
       const name = teamNameById.get(target.entityId);
       if (name) displayNameByRef.set(ref, name);
+    } else if (target.subjectType === AiInsightSubjectType.MATCH) {
+      // A match ref reads naturally as "the match vs <opponent>" wherever the token appears in
+      // prose ("...in M02" -> "...in the match vs Rosenborg"). This matters most for the
+      // multi-match capabilities (weekly/cycle), where M02 is a *different* match from the one
+      // being viewed; for single-match capabilities the label still reads correctly since it is
+      // that same match.
+      const opponent = opponentByMatchId.get(target.entityId);
+      if (opponent) displayNameByRef.set(ref, `the match vs ${opponent}`);
+    } else if (target.subjectType === AiInsightSubjectType.ROUND) {
+      const name = roundNameById.get(target.entityId);
+      if (name) displayNameByRef.set(ref, name);
     }
-    // MATCH/ROUND/PLAYER_PAIR/NONE refs are intentionally left unresolved — the viewer is
-    // already looking at that one match/round, so a bare ref like `M01` carries no useful prose
-    // substitution and prior capability builders never emit player-pair refs.
+    // PLAYER_PAIR/NONE refs are intentionally left unresolved — pair refs are never emitted by
+    // the current builders and NONE has nothing to name.
   }
   return displayNameByRef;
 }

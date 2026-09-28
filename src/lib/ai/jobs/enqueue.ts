@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma, type AiAdvisorCapability, type AiAdvisorScopeType } from "@/generated/prisma/client";
+import { REFMAP_PRESENT_FILTER } from "@/lib/ai/jobs/review-refmap";
 
 /**
  * Job enqueueing (07_EXECUTION_PIPELINE.md "Source fingerprint" / "Domain triggers"). Deliberately
@@ -79,6 +80,10 @@ export async function enqueueAiJob(params: EnqueueAiJobParams): Promise<EnqueueA
       scopeId: params.scopeId,
       sourceFingerprint: params.sourceFingerprint,
       status: "SUCCEEDED",
+      // A pre-refMap-column review (refMap SQL-NULL) is no longer "complete" for dedup
+      // purposes — see review-refmap.ts; letting it pass here means one re-review per scope,
+      // after which the fresh review blocks as usual.
+      ...REFMAP_PRESENT_FILTER,
     },
     select: { id: true },
   });
@@ -141,6 +146,10 @@ export async function enqueueDebouncedAiJob(params: EnqueueDebouncedAiJobParams)
       scopeId: params.scopeId,
       sourceFingerprint: params.sourceFingerprint,
       status: "SUCCEEDED",
+      // A pre-refMap-column review (refMap SQL-NULL) is no longer "complete" for dedup
+      // purposes — see review-refmap.ts; letting it pass here means one re-review per scope,
+      // after which the fresh review blocks as usual.
+      ...REFMAP_PRESENT_FILTER,
     },
     select: { id: true },
   });

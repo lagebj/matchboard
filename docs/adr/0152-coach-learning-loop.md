@@ -1127,3 +1127,31 @@ Test coverage: runner persists the map at save time; completed-match stale revie
 persisted map resolves names (the production regression test) and a malformed map falls back
 to raw tokens; player cycle insight resolves names for the first time; the Slice-6 cycle team
 panel test now seeds the persisted map its review text always implied.
+
+### 2026-09-28 — Fix follow-up: repair pre-fix reviews and resolve MATCH/ROUND refs
+
+Two residual gaps in the ref-token fix surfaced once deployed:
+
+1. **Pre-fix reviews never self-repaired.** Reviews persisted before the `refMap` column have
+   no map, and every dedup point treated a same-fingerprint SUCCEEDED review as complete — so
+   those scopes were never re-reviewed and showed raw `P05`/`P11` tokens indefinitely (re-running
+   the backfill tool changed nothing: the SUCCEEDED-dedup short-circuited it). Fix: "SUCCEEDED"
+   for dedup purposes now means SUCCEEDED *with a persisted refMap* (`REFMAP_PRESENT_FILTER`,
+   `jobs/review-refmap.ts`) at all three dedup points (`enqueue.ts` x2, `runner.ts`'s
+   short-circuit). A no-map review no longer blocks its own replacement — one re-review per
+   scope via any trigger, then the fresh review blocks as usual. The runner's atomic
+   supersession keeps old content visible until the replacement succeeds. Null-comparison
+   subtlety verified against Prisma 7.10: only `not: Prisma.AnyNull` excludes both SQL NULL
+   (true pre-column rows) and JSON-null (rows written since with explicit `null`) —
+   `not: DbNull` and `not: JsonNull` each miss the other.
+2. **`M01`/`R01` were never resolved at all** — by the original design ("the viewer is already
+   looking at that match"), which breaks for the multi-match capabilities (`weekly_team_review`,
+   `development_cycle_review`) where `M02` is a *different* match the prose genuinely refers
+   to, and produces token salad in any insight that quotes a match ref. Fix:
+   `buildRefDisplayNameMap` now also resolves MATCH refs to "the match vs <opponent>" and ROUND
+   refs to the round's name; PLAYER_PAIR/NONE stay unresolved. Unresolvable (deleted-entity)
+   refs stay as tokens rather than guessing.
+
+To repair existing pre-fix reviews after this ships: run the "Run AI analysis on existing data"
+tool once — the widened dedup now lets every no-map scope re-enqueue, and the fingerprints that
+changed since (e.g. from the Slice-7 backfill's evidence) re-review on their own too.
