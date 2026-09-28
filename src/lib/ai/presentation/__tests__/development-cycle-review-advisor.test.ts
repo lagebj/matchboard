@@ -136,6 +136,9 @@ describe("ai/presentation/development-cycle-review-advisor", () => {
         terminologyVersion: "1",
         completedAt: new Date(),
         summary: "The team's pressing has been consistent across the cycle.",
+        // What the runner now persists at save time (ref-token resolution fix) — the test's
+        // review text uses `teamRef`, so the review's own map must know it.
+        refMap: { [teamRef]: { subjectType: "TEAM", entityId: teamId } },
       },
     });
     await testDb.aiAdvisorInsight.create({

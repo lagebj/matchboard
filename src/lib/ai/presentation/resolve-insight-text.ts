@@ -10,11 +10,21 @@ import type { AiCapabilityRefTarget } from "@/lib/ai/jobs/capability-handler";
  * is validated. Names were not sent to the provider."; `terminology.ts`'s stable doctrine tells
  * the model to "use only the entity references supplied in the input ... never use a real name").
  *
- * This only works when the caller has rebuilt the *same* `refMap` the review was originally
- * generated from — which is guaranteed whenever the review's `sourceFingerprint` still matches a
- * freshly-rebuilt context for the same scope (deterministic ref assignment from the same
- * deterministic input). A stale (fingerprint-mismatched) review must never reach this function;
- * callers are expected to show a "Plan changed" placeholder instead of resolved text in that case.
+ * Two map sources, in priority order:
+ *
+ * 1. **The review's own persisted `refMap`** (`AiAdvisorReview.refMap`, serialized at save time
+ *    by the runner). This is the *exact* map the review's ref tokens were assigned from, so
+ *    resolution is correct for every review regardless of freshness — stale reviews included.
+ *    Found in production (2026-09-27, after the Slice-7 backfill landed new qualitative evidence
+ *    and flipped every existing review's rebuilt context stale): the rebuild-only path below
+ *    degraded every stale review to raw `P01`/`M01` tokens, which is exactly what this
+ *    persisted map eliminates.
+ * 2. **A rebuilt map from a fingerprint-fresh context** — the original mechanism, kept as the
+ *    fallback for reviews persisted before the `refMap` column existed (their `refMap` is null).
+ *    Ref assignment is deterministic over the same input, so a fingerprint-fresh rebuild agrees
+ *    with the review's own numbering; a *stale* review's rebuilt map may not (the documented
+ *    reason a stale review must never use the rebuild path — see
+ *    `completed-match-advisor.ts`'s own `presentText` doctrine).
  */
 export async function buildRefDisplayNameMap(refMap: Map<string, AiCapabilityRefTarget>): Promise<Map<string, string>> {
   const playerIds = [...refMap.values()].filter((t) => t.subjectType === AiInsightSubjectType.PLAYER).map((t) => t.entityId);
@@ -43,6 +53,23 @@ export async function buildRefDisplayNameMap(refMap: Map<string, AiCapabilityRef
     // substitution and prior capability builders never emit player-pair refs.
   }
   return displayNameByRef;
+}
+
+/** Deserializes a review's persisted `refMap` JSON (`ref -> {subjectType, entityId}`) back into
+ * a `Map<string, AiCapabilityRefTarget>`. Returns `null` for a null/malformed column — a
+ * pre-column review, or a corrupt row — so callers fall back to the rebuild path. */
+export function parsePersistedRefMap(raw: unknown): Map<string, AiCapabilityRefTarget> | null {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const map = new Map<string, AiCapabilityRefTarget>();
+  for (const [ref, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof ref !== "string" || !/^[A-Z]{1,2}\d{2,4}$/.test(ref)) continue;
+    if (value == null || typeof value !== "object" || Array.isArray(value)) continue;
+    const target = value as { subjectType?: unknown; entityId?: unknown };
+    if (typeof target.subjectType !== "string" || typeof target.entityId !== "string") continue;
+    if (!Object.values(AiInsightSubjectType).includes(target.subjectType as AiInsightSubjectType)) continue;
+    map.set(ref, { subjectType: target.subjectType as AiInsightSubjectType, entityId: target.entityId });
+  }
+  return map.size > 0 ? map : null;
 }
 
 const REF_TOKEN_PATTERN = /\b[A-Z]{1,2}\d{2,3}\b/g;

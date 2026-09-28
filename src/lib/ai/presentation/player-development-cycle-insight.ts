@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { parseDevelopmentCycleScopeId } from "@/lib/ai/context/development-cycle-review";
+import { buildRefDisplayNameMap, parsePersistedRefMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 
 /**
@@ -61,13 +62,20 @@ export async function getPlayerDevelopmentCycleInsight(params: {
       id: true,
       title: true,
       body: true,
-      review: { select: { scopeId: true } },
+      review: { select: { scopeId: true, refMap: true } },
     },
   });
   if (!insight) return null;
 
   const parsed = parseDevelopmentCycleScopeId(insight.review.scopeId);
   if (!parsed) return null;
+
+  // Resolve the review's own ephemeral ref tokens (P01 -> real name) against the review's
+  // persisted refMap — the exact map the review was generated from (resolve-insight-text.ts's
+  // persisted-first doctrine). A pre-column review falls back to raw tokens, same as every
+  // other surface.
+  const persistedRefMap = parsePersistedRefMap(insight.review.refMap);
+  const displayNameByRef = persistedRefMap ? await buildRefDisplayNameMap(persistedRefMap) : new Map<string, string>();
 
   const sameYear = parsed.windowStart.getUTCFullYear() === parsed.windowEnd.getUTCFullYear();
   const startLabel = sameYear
@@ -76,8 +84,8 @@ export async function getPlayerDevelopmentCycleInsight(params: {
   const endLabel = parsed.windowEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
   return {
-    title: insight.title,
-    body: insight.body,
+    title: resolveInsightText(insight.title, displayNameByRef),
+    body: resolveInsightText(insight.body, displayNameByRef),
     windowLabel: `${startLabel} – ${endLabel}`,
     teamId: parsed.teamId,
   };

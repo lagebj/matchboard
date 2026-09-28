@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
 import { buildPostMatchReviewContext } from "@/lib/ai/context/post-match-review";
-import { buildRefDisplayNameMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
+import { buildRefDisplayNameMap, parsePersistedRefMap, resolveInsightText } from "@/lib/ai/presentation/resolve-insight-text";
 import { getOrganisationAiSettings, isAiCapabilityEnabled } from "@/lib/ai/organisation-ai-settings";
 import type { AiAdvisorInsight } from "@/generated/prisma/client";
 
@@ -116,15 +116,28 @@ export type CompletedMatchAdvisorViewModel =
   | { status: "reviewing" }
   | { status: "unavailable" };
 
-/** A stale review's `refMap` cannot be safely rebuilt (`resolve-insight-text.ts`'s own doctrine:
- * ref assignment is deterministic over *current* data, so a mismatched fingerprint means the
- * current refMap may not even agree with the stale review's own numbering) — so stale text is
- * shown with any literal ref tokens (`P01`, ...) left unresolved rather than risk attaching a
- * wrong name. This is a display degradation, not a correctness gap: `AiAdvisorInsight.subjectId`
- * (used for `suggestions`' player-name resolution below) is a real, stable DB id independent of
- * ref-token numbering and is always resolved regardless of freshness. */
+/** Resolution priority for a review's ref tokens: the review's own persisted `refMap` first (the
+ * exact map the review was generated from — correct regardless of freshness), then, only when
+ * the column is null (a review persisted before the column existed) and the review is
+ * fingerprint-fresh, a map rebuilt from the current context. A stale review with no persisted
+ * map keeps the old behavior of showing raw tokens rather than resolving against a rebuilt map
+ * that may not agree with the review's own numbering. */
+async function displayNameMapForReview(
+  review: { refMap: unknown },
+  isFresh: boolean,
+  contextRefMap: Map<string, import("@/lib/ai/jobs/capability-handler").AiCapabilityRefTarget>,
+): Promise<Map<string, string>> {
+  const persisted = parsePersistedRefMap(review.refMap);
+  if (persisted) return buildRefDisplayNameMap(persisted);
+  if (isFresh) return buildRefDisplayNameMap(contextRefMap);
+  return new Map<string, string>();
+}
+
 function presentText(text: string, isFresh: boolean, displayNameByRef: Map<string, string>): string {
-  return isFresh ? resolveInsightText(text, displayNameByRef) : text;
+  // `isFresh` only gates the *rebuild fallback* inside displayNameMapForReview; when a persisted
+  // refMap resolved real names, they are correct for a stale review too, so the map (not a
+  // freshness flag) decides whether text is resolved.
+  return resolveInsightText(text, displayNameByRef);
 }
 
 /**
@@ -160,7 +173,7 @@ export async function getCompletedMatchAdvisorViewModel(params: {
 
   if (review && review.insights.length > 0) {
     const isFresh = review.sourceFingerprint === currentFingerprint;
-    const displayNameByRef = isFresh ? await buildRefDisplayNameMap(context.refMap) : new Map<string, string>();
+    const displayNameByRef = await displayNameMapForReview(review, isFresh, context.refMap);
     return buildViewModel(review.insights, review.summary ?? "", isFresh, displayNameByRef);
   }
 

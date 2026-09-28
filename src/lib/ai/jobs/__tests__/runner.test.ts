@@ -150,6 +150,13 @@ describe("ai/jobs/runner: happy path", () => {
       summary: "Solid performance overall.",
       providerConnectionId: connectionId,
     });
+    // The review's own ephemeral-ref map is persisted at save time (ref-token resolution fix):
+    // display layers resolve P01-style tokens against this exact map instead of rebuilding it
+    // from a fingerprint-fresh context (which silently degrades to raw tokens for stale
+    // reviews).
+    expect(review?.refMap).toEqual({
+      P01: { subjectType: "PLAYER", entityId: "real-player-id-1" },
+    });
 
     const insight = await testDb.aiAdvisorInsight.findFirst({ where: { organisationId } });
     expect(insight).toMatchObject({

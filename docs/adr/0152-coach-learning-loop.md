@@ -1078,3 +1078,52 @@ AI functions on all possible scenarios ... as a transient function", 2026-09-27)
 Versioned MINOR (0.152.0 -> 0.153.0): a new coach/admin-visible surface (the transient AI
 backfill tool in More) and the first wiring of five previously-inert source types — new
 user-visible capability, not merely internal plumbing.
+
+### 2026-09-27 (continued) — Fix: ref tokens (P01/M01) persisted and resolved for every review
+
+Production defect found immediately after the Slice-7 merge: Assistant Coach surfaces began
+showing raw ephemeral ref tokens (`P01`, `P06`, `M01`) instead of real player/match names.
+
+**Root cause 1 (the trigger)**: display-time token resolution depended on *rebuilding* the
+review's `refMap` from a fingerprint-fresh context. The Slice-7 backfill enqueued legacy
+free-text extractions whose success landed *new* `QualitativeEvidenceObservation` rows on
+already-reviewed matches — which is fingerprint material (`currentQualitativeEvidence`), so
+every existing `post_match_review` review's rebuilt fingerprint no longer matched and every
+panel fell into its documented stale-freshness degradation: raw tokens instead of names. The
+degradation was *by design* for safety (a rebuilt map from changed data may not agree with the
+stale review's own ref numbering — resolving against it risks attaching a wrong name), but the
+Slice-7 backfill turned a rare edge case into the common case for all historical reviews at
+once.
+
+**Root cause 2 (pre-existing)**: `getPlayerDevelopmentCycleInsight` (Slice 6) never resolved
+refs at all — the Player Detail > Development cycle-insight card showed raw `P01` by
+construction, fresh or not.
+
+**Fix — persist the map, stop rebuilding it**: `AiAdvisorReview.refMap` (nullable JSON,
+additive migration `20260927120000_persist_ai_review_refmap`) now stores the review's *own*
+`ref -> {subjectType, entityId}` map at save time (`serializeRefMap` in the runner — the exact
+map the provider's tokens were assigned from). `resolve-insight-text.ts` gained
+`parsePersistedRefMap`; every surface resolves persisted-map-first and falls back to the
+rebuild path only for pre-column reviews whose persisted map is null (fresh-only there, per the
+original safety doctrine):
+
+- `completed-match-advisor.ts`: a stale review with a persisted map now resolves real names
+  (the "Based on an earlier version of this report" note still renders — freshness labels are
+  unchanged; only resolution no longer degrades).
+- `weekly-team-review-advisor.ts`, `planned-match-advisor.ts`, `round-board-advisor.ts`:
+  persisted-map-first with rebuild fallback behind their existing fingerprint checks.
+- `development-cycle-review-advisor.ts`: persisted map only — the context is no longer rebuilt
+  at display time at all (a cycle review is an immutable snapshot; the "current" window the
+  rebuild would use is a *different* window from the persisted review's own, so a rebuilt map
+  was never the right map here even when fresh).
+- `player-development-cycle-insight.ts`: resolves for the first time, persisted-map-only.
+
+`buildRefDisplayNameMap` itself is unchanged (PLAYER/TEAM resolve to names; MATCH/ROUND refs
+stay as tokens by the original design). Old reviews without a persisted map keep the exact
+pre-fix behaviour. New reviews (including every re-run through the Slice-7 backfill tool —
+fingerprint dedup means only genuinely-changed scopes re-run) persist the map from now on.
+
+Test coverage: runner persists the map at save time; completed-match stale review with a
+persisted map resolves names (the production regression test) and a malformed map falls back
+to raw tokens; player cycle insight resolves names for the first time; the Slice-6 cycle team
+panel test now seeds the persisted map its review text always implied.
