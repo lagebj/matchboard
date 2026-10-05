@@ -4,8 +4,9 @@
 
 Accepted. Phases A–E implemented (repository changes, Custom Environment + env vars, domain
 cutover, one full real PR acceptance lifecycle observed end-to-end, obsolete GitHub secret
-removed). Phase F is recommend-only by design and awaits explicit user authorization — see
-"Rollout" below.
+removed). Phase F's interim step (disconnecting `matchboard-test`'s Git integration) is done
+with explicit authorization; final deletion/archival of the project remains unauthorized and
+pending — see "Rollout" below.
 
 ## Date
 
@@ -231,15 +232,16 @@ changes. Each later phase required its own explicit go-ahead:
 - **Phase E** (done): removed the `VERCEL_TEST_PROJECT_ID` GitHub secret. Confirmed via
   repo-wide search that it was no longer referenced anywhere outside historical ADR prose
   (ADR-0075, this ADR) before removing it.
-- **Phase F**: recommend — never automatically perform — deletion/archival of the
-  `matchboard-test` project. Final deletion requires explicit user authorization. **Recommended
-  now, with live evidence**: `matchboard-test` is still auto-deploying on every push to `main`
-  via its own Git integration (confirmed live — its `latestDeployment` entered `BUILDING` within
-  one minute of this ADR's own Phase D/E cleanup commits landing on `main`), despite serving no
-  live domain since Phase C moved `test.matchboard.football` off it. It is pure waste: zero
-  traffic, nonzero build cost, every push. Recommend disconnecting its Git integration (or
-  pausing the project) as an immediate, reversible interim step, with full deletion/archival on
-  a timeline of the user's choosing. Not yet done — awaits authorization.
+- **Phase F** (interim step done; final deletion/archival still pending): recommend — never
+  automatically perform without explicit authorization — deletion/archival of the
+  `matchboard-test` project. Live evidence found `matchboard-test` still auto-deploying on every
+  push to `main` via its own Git integration despite serving no live domain since Phase C — pure
+  waste, zero traffic, nonzero build cost, every push. With explicit authorization, disconnected
+  its Git repository link (`DELETE /v9/projects/{id}/link`); this canceled the build already
+  in flight and stops all future auto-deploys, while leaving the project, its deployment
+  history, and its env vars fully intact and reversible (reconnect the same repo in the Vercel
+  dashboard to restore it). Full deletion/archival remains a separate, still-pending decision on
+  the user's own timeline.
 
 ### Rollback
 
@@ -342,8 +344,13 @@ two-call sequence in reverse: remove the domain from `matchboard`, add it back t
   deploy → Playwright (including its failure-recovery path) → close → cleanup, all live.
 - 2026-10-05 (Phase E): confirmed `VERCEL_TEST_PROJECT_ID` had no remaining references outside
   historical ADR prose, then removed the GitHub Actions secret (`gh secret delete`).
-- 2026-10-05 (Phase F, recommendation strengthened): while finalizing this entry, found live
-  that `matchboard-test`'s own Git integration had just started a new `BUILDING` deployment
-  within a minute of the Phase D/E commits landing on `main` — direct, current-day evidence that
-  the project is still auto-deploying on every push with zero live traffic to show for it. See
-  "Rollout" above for the resulting recommendation.
+- 2026-10-05 (Phase F, interim step): while finalizing this entry, found live that
+  `matchboard-test`'s own Git integration had just started a new `BUILDING` deployment within a
+  minute of the Phase D/E commits landing on `main` — direct, current-day evidence that the
+  project was still auto-deploying on every push with zero live traffic to show for it. Surfaced
+  this to the user, who authorized disconnecting the Git integration (short of full deletion).
+  Done via `DELETE /v9/projects/{id}/link` — the in-flight build was immediately canceled
+  (`readyState: CANCELED`) and no `link` is present in the project any more. Project, its
+  deployment history, and its env vars remain fully intact; reconnecting the same repository in
+  the Vercel dashboard would restore auto-deploy if ever needed. Final deletion/archival
+  remains unauthorized and undone.
