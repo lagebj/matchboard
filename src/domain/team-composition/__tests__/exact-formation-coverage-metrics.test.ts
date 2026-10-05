@@ -46,17 +46,17 @@ function assign(playerId: string): ProposedTeamAssignment {
   };
 }
 
-// gridX lanes: 0–1 LEFT, 2 CENTRE, 3–4 RIGHT.
+// Normative grid (ADR-0154 §2): gridY 0=attack, 2=midfield, 4=defence, 5=goalkeeper.
 const EXACT_STRUCTURE: TeamStructuralRequirements = {
   slots: [],
   requireGoalkeeper: true,
   source: "FORMATION",
   exactSlots: [
-    { slotId: "gk", roleType: "GOALKEEPER", gridX: 2 },
-    { slotId: "lb", roleType: "DEFENDER", gridX: 0 },
-    { slotId: "rb", roleType: "DEFENDER", gridX: 4 },
-    { slotId: "cm", roleType: "MIDFIELDER", gridX: 2 },
-    { slotId: "st", roleType: "FORWARD", gridX: 2 },
+    { slotId: "gk", roleType: "GOALKEEPER", gridX: 2, gridY: 5 },
+    { slotId: "lb", roleType: "DEFENDER", gridX: 0, gridY: 4 },
+    { slotId: "rb", roleType: "DEFENDER", gridX: 4, gridY: 4 },
+    { slotId: "cm", roleType: "MIDFIELDER", gridX: 2, gridY: 2 },
+    { slotId: "st", roleType: "FORWARD", gridX: 2, gridY: 0 },
   ],
 };
 

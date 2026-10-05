@@ -203,7 +203,7 @@ export async function autoSelectBestLineup(teamId: string, orgFilter: OrgFilterM
   }));
 
   const slotAssignments = selectBestLineupAssignments(
-    formationSlots.map((s) => ({ slotId: s.id, roleType: s.roleType as FormationSlotRoleType, gridX: s.gridX })),
+    formationSlots.map((s) => ({ slotId: s.id, roleType: s.roleType as FormationSlotRoleType, gridX: s.gridX, gridY: s.gridY })),
     candidates,
     lockedAssignments,
     `${teamId}:${formation.id}`,

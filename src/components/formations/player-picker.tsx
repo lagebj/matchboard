@@ -70,7 +70,7 @@ export function PlayerPicker({
   // When set, a confirmation is shown before assigning a player outside automatic fit (§15).
   const [confirmUnsupported, setConfirmUnsupported] = useState<{ playerId: string; playerName: string } | null>(null);
 
-  const targetRole = useMemo(() => deriveExactTargetRole(slot.roleType, slot.gridX), [slot.roleType, slot.gridX]);
+  const targetRole = useMemo(() => deriveExactTargetRole(slot.roleType, slot.gridX, slot.gridY), [slot.roleType, slot.gridX, slot.gridY]);
 
   const availablePlayers = useMemo(() => {
     return players

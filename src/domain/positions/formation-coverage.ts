@@ -18,13 +18,15 @@
 import type { FormationSlotRoleType } from "@/lib/formations/types";
 import { deriveExactTargetRole } from "./slot-target";
 import { matchSlotsToCandidates } from "./matching";
-import type { ExactRole, SideInput } from "./roles";
+import type { SideInput } from "./roles";
+import type { SuitabilityTargetRole } from "./compatibility-projection";
 
 export interface CoverageSlot {
   /** Stable identifier — a slot id, or an index, unique within the set. */
   slotId: string;
   roleType: FormationSlotRoleType;
   gridX: number;
+  gridY: number;
 }
 
 export interface CoveragePlayer {
@@ -43,7 +45,7 @@ export interface ExactFormationCoverage {
   requiredExactSlots: number;
   filledExactSlots: number;
   /** Exact roles with no automatically eligible player in the given squad. */
-  unfilledRoles: ExactRole[];
+  unfilledRoles: SuitabilityTargetRole[];
   /** FREE slots — excluded from the exact-coverage count (manual-only). */
   freeSlotCount: number;
 }
@@ -54,9 +56,9 @@ export function computeExactFormationCoverage(
 ): ExactFormationCoverage {
   const freeSlotCount = slots.filter((s) => s.roleType === "FREE").length;
 
-  const exactSlots: { slotId: string; targetRole: ExactRole }[] = [];
+  const exactSlots: { slotId: string; targetRole: SuitabilityTargetRole }[] = [];
   for (const slot of slots) {
-    const role = deriveExactTargetRole(slot.roleType, slot.gridX);
+    const role = deriveExactTargetRole(slot.roleType, slot.gridX, slot.gridY);
     if (role) exactSlots.push({ slotId: slot.slotId, targetRole: role });
   }
 

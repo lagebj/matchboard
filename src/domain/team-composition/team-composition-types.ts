@@ -246,7 +246,7 @@ export interface TeamStructuralRequirements {
   formationName?: string;
   /** Individual real formation slots with grid geometry — present only for `source: "FORMATION"`.
    * Enables exact simultaneous-coverage matching (ADR-0129 §12); absent → broad checks only. */
-  exactSlots?: { slotId: string; roleType: string; gridX: number }[];
+  exactSlots?: { slotId: string; roleType: string; gridX: number; gridY: number }[];
 }
 
 // ── Locked assignments ──────────────────────────────────────────

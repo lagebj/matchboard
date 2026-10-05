@@ -30,6 +30,7 @@ export interface BestLineupSlotInput {
   slotId: string;
   roleType: FormationSlotRoleType;
   gridX: number;
+  gridY: number;
 }
 
 /**
@@ -80,7 +81,7 @@ export function selectBestLineupAssignments(
   const matchableSlots: SafeMatchSlot[] = [];
   for (const slot of slots) {
     if (slot.roleType === "GOALKEEPER" || slot.roleType === "FREE" || slotAssignments.has(slot.slotId)) continue;
-    const targetRole = deriveExactTargetRole(slot.roleType, slot.gridX);
+    const targetRole = deriveExactTargetRole(slot.roleType, slot.gridX, slot.gridY);
     if (targetRole) matchableSlots.push({ slotId: slot.slotId, targetRole });
   }
 

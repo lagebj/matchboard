@@ -6,8 +6,8 @@ import {
 } from "../select-best-lineup";
 import type { FormationSlotRoleType } from "@/lib/formations/types";
 
-function slot(slotId: string, roleType: FormationSlotRoleType, gridX: number): BestLineupSlotInput {
-  return { slotId, roleType, gridX };
+function slot(slotId: string, roleType: FormationSlotRoleType, gridX: number, gridY: number): BestLineupSlotInput {
+  return { slotId, roleType, gridX, gridY };
 }
 function cand(
   id: string,
@@ -28,7 +28,7 @@ const NO_LOCKS = new Map<string, string>();
 describe("selectBestLineupAssignments", () => {
   it("prefers a higher fit tier over a higher rating (tier is not a rating tiebreak)", () => {
     const result = selectBestLineupAssignments(
-      [slot("lm", "MIDFIELDER", 0)],
+      [slot("lm", "MIDFIELDER", 0, 2)],
       [cand("naturalLowRated", "LM", { rating: 1 }), cand("plausibleTopRated", "CM", { rating: 10 })],
       NO_LOCKS,
       "seed",
@@ -38,7 +38,7 @@ describe("selectBestLineupAssignments", () => {
 
   it("uses rating to break a tie within the same tier", () => {
     const result = selectBestLineupAssignments(
-      [slot("cb", "DEFENDER", 2)],
+      [slot("cb", "DEFENDER", 2, 4)],
       [cand("lowRated", "CB", { rating: 3 }), cand("highRated", "CB", { rating: 9 })],
       NO_LOCKS,
       "seed",
@@ -48,7 +48,7 @@ describe("selectBestLineupAssignments", () => {
 
   it("never assigns an UNSUPPORTED player — the slot is simply left empty", () => {
     const result = selectBestLineupAssignments(
-      [slot("lw", "FORWARD", 0)],
+      [slot("lw", "FORWARD", 0, 0)],
       [cand("centreBack", "CB", { rating: 10 })],
       NO_LOCKS,
       "seed",
@@ -58,7 +58,7 @@ describe("selectBestLineupAssignments", () => {
 
   it("fills the goalkeeper slot from a declared goalkeeper only, best rating first", () => {
     const result = selectBestLineupAssignments(
-      [slot("gk", "GOALKEEPER", 2), slot("cb", "DEFENDER", 2)],
+      [slot("gk", "GOALKEEPER", 2, 5), slot("cb", "DEFENDER", 2, 4)],
       [cand("gkA", "GK", { rating: 4 }), cand("gkB", "GK", { rating: 8 }), cand("def", "CB", { rating: 9 })],
       NO_LOCKS,
       "seed",
@@ -69,7 +69,7 @@ describe("selectBestLineupAssignments", () => {
 
   it("leaves the goalkeeper slot empty rather than filling it with an outfield player", () => {
     const result = selectBestLineupAssignments(
-      [slot("gk", "GOALKEEPER", 2)],
+      [slot("gk", "GOALKEEPER", 2, 5)],
       [cand("def", "CB", { rating: 10 }), cand("st", "ST", { rating: 10 })],
       NO_LOCKS,
       "seed",
@@ -80,7 +80,7 @@ describe("selectBestLineupAssignments", () => {
   it("honours a locked assignment even when the player is outside automatic fit", () => {
     const locks = new Map([["lw", "centreBack"]]);
     const result = selectBestLineupAssignments(
-      [slot("lw", "FORWARD", 0)],
+      [slot("lw", "FORWARD", 0, 0)],
       [cand("centreBack", "CB", { rating: 6 })],
       locks,
       "seed",
@@ -90,7 +90,7 @@ describe("selectBestLineupAssignments", () => {
 
   it("matches a scarce wide role rather than duplicating one player", () => {
     const result = selectBestLineupAssignments(
-      [slot("lw", "FORWARD", 0), slot("rw", "FORWARD", 4)],
+      [slot("lw", "FORWARD", 0, 0), slot("rw", "FORWARD", 4, 0)],
       [cand("wide", "W"), cand("leftOnly", "LW")],
       NO_LOCKS,
       "seed",
@@ -100,7 +100,7 @@ describe("selectBestLineupAssignments", () => {
 
   it("never auto-fills a FREE slot", () => {
     const result = selectBestLineupAssignments(
-      [slot("free", "FREE", 2)],
+      [slot("free", "FREE", 2, 2)],
       [cand("any", "CM", { rating: 10 })],
       NO_LOCKS,
       "seed",
@@ -109,7 +109,7 @@ describe("selectBestLineupAssignments", () => {
   });
 
   it("is deterministic for identical input", () => {
-    const slots = [slot("lb", "DEFENDER", 0), slot("cb", "DEFENDER", 2), slot("rb", "DEFENDER", 4)];
+    const slots = [slot("lb", "DEFENDER", 0, 4), slot("cb", "DEFENDER", 2, 4), slot("rb", "DEFENDER", 4, 4)];
     const candidates = [cand("a", "CB"), cand("b", "LB"), cand("c", "RB"), cand("d", "CB")];
     const r1 = selectBestLineupAssignments(slots, candidates, NO_LOCKS, "seed");
     const r2 = selectBestLineupAssignments(slots, candidates, NO_LOCKS, "seed");

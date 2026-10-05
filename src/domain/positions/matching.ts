@@ -27,13 +27,13 @@
 
 import type { DeclaredPositions } from "./suitability";
 import { classifyExactSuitability } from "./suitability";
-import type { ExactRole } from "./roles";
+import type { SuitabilityTargetRole } from "./compatibility-projection";
 import { clampScore, type SuitabilityTier } from "./matrix";
 
 export interface SafeMatchSlot {
   slotId: string;
-  /** The exact role this slot requires (from `deriveExactTargetRole`). */
-  targetRole: ExactRole;
+  /** The target role this slot requires (from `deriveExactTargetRole`). */
+  targetRole: SuitabilityTargetRole;
 }
 
 export interface SafeMatchCandidate {
@@ -47,13 +47,13 @@ export interface SafeMatchScoring {
    * candidate is more in need of this opportunity. Clamped to `0..999_999`.
    * Objective 4. Default 0.
    */
-  fairness?: (candidateId: string, slotId: string, role: ExactRole) => number;
+  fairness?: (candidateId: string, slotId: string, role: SuitabilityTargetRole) => number;
   /**
    * Within-tier tactical / coaching-intent / evidence-informed preference for a
    * (candidate, slot) pair. Clamped to `0..999`. Objective 6. Default 0.
    * Can only re-order already-eligible candidates — never widens eligibility.
    */
-  preference?: (candidateId: string, slotId: string, role: ExactRole) => number;
+  preference?: (candidateId: string, slotId: string, role: SuitabilityTargetRole) => number;
   /** Stable seed for the deterministic tie-break (objective 7). */
   seed: string;
 }
@@ -61,7 +61,7 @@ export interface SafeMatchScoring {
 export interface SafeMatchAssignment {
   slotId: string;
   candidateId: string;
-  role: ExactRole;
+  role: SuitabilityTargetRole;
   tier: SuitabilityTier;
   suitabilityScore: number;
 }
@@ -69,7 +69,7 @@ export interface SafeMatchAssignment {
 export interface SafeMatchResult {
   assignments: SafeMatchAssignment[];
   /** Required slots with no automatically eligible candidate — left unresolved. */
-  unfilledSlots: { slotId: string; role: ExactRole }[];
+  unfilledSlots: { slotId: string; role: SuitabilityTargetRole }[];
   /** Candidates not assigned to any slot. */
   benchedCandidateIds: string[];
 }
@@ -192,7 +192,7 @@ export function matchSlotsToCandidates(
 
   const assignments: SafeMatchAssignment[] = [];
   const benched = new Set(candidates.map((c) => c.candidateId));
-  const unfilledSlots: { slotId: string; role: ExactRole }[] = [];
+  const unfilledSlots: { slotId: string; role: SuitabilityTargetRole }[] = [];
 
   for (let si = 0; si < S; si++) {
     const ci = colForRow[si];

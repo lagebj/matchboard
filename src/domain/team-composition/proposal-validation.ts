@@ -266,7 +266,7 @@ export function computeTeamMetrics(
   let formationViability: "viable" | "degraded" | "broken";
   if (structure?.exactSlots && structure.exactSlots.length > 0) {
     const coverage = computeExactFormationCoverage(
-      structure.exactSlots.map((s) => ({ slotId: s.slotId, roleType: s.roleType as FormationSlotRoleType, gridX: s.gridX })),
+      structure.exactSlots.map((s) => ({ slotId: s.slotId, roleType: s.roleType as FormationSlotRoleType, gridX: s.gridX, gridY: s.gridY })),
       teamPlayers
         .filter((p) => p.player)
         .map((p) => ({

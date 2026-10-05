@@ -263,6 +263,7 @@ export async function generateIntegratedMatchPlanAction(
         playerId: a.playerId,
         position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE"),
         gridX: slot?.gridX,
+        gridY: slot?.gridY,
       };
     });
 

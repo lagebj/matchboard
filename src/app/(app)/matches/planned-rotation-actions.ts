@@ -507,7 +507,7 @@ export async function generateRotationPlanAction(
     const lineup = await db.matchLineup.findFirst({
       where: { matchId, teamId, ...ctx.orgFilter.filter },
       include: {
-        formation: { include: { slots: { select: { id: true, roleType: true, gridX: true } } } },
+        formation: { include: { slots: { select: { id: true, roleType: true, gridX: true, gridY: true } } } },
         assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
       },
     });
@@ -525,6 +525,7 @@ export async function generateRotationPlanAction(
           playerId: a.playerId,
           position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE"),
           gridX: slot?.gridX,
+          gridY: slot?.gridY,
         };
       });
 

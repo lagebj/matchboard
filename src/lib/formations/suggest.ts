@@ -283,7 +283,7 @@ export function suggestLineupForFormation(input: SuggestLineupInput): LineupSugg
       warnings.push(`${slot.label} is a Free slot — assign manually`);
       continue;
     }
-    const targetRole = deriveExactTargetRole(slot.roleType, slot.gridX);
+    const targetRole = deriveExactTargetRole(slot.roleType, slot.gridX, slot.gridY);
     if (!targetRole) {
       unfilledSlotIds.push(key);
       assignedSlotIds.add(key);

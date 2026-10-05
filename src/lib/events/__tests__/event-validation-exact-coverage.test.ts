@@ -24,11 +24,11 @@ function makePlayer(overrides: Partial<PlayerAttributeProfile> = {}): PlayerAttr
 
 // gridX lanes: 0–1 LEFT, 2 CENTRE, 3–4 RIGHT. A 5-a-side-ish shape with two wide slots.
 const SLOTS_WITH_GEOMETRY = [
-  { roleType: "GOALKEEPER", acceptedPositions: ["goalkeeper" as const], label: "GK", gridX: 2 },
-  { roleType: "DEFENDER", acceptedPositions: ["defender" as const], label: "LB", gridX: 0 },
-  { roleType: "DEFENDER", acceptedPositions: ["defender" as const], label: "RB", gridX: 4 },
-  { roleType: "MIDFIELDER", acceptedPositions: ["midfielder" as const], label: "CM", gridX: 2 },
-  { roleType: "FORWARD", acceptedPositions: ["forward" as const], label: "ST", gridX: 2 },
+  { roleType: "GOALKEEPER", acceptedPositions: ["goalkeeper" as const], label: "GK", gridX: 2, gridY: 5 },
+  { roleType: "DEFENDER", acceptedPositions: ["defender" as const], label: "LB", gridX: 0, gridY: 4 },
+  { roleType: "DEFENDER", acceptedPositions: ["defender" as const], label: "RB", gridX: 4, gridY: 4 },
+  { roleType: "MIDFIELDER", acceptedPositions: ["midfielder" as const], label: "CM", gridX: 2, gridY: 2 },
+  { roleType: "FORWARD", acceptedPositions: ["forward" as const], label: "ST", gridX: 2, gridY: 0 },
 ];
 
 describe("validateEventPool — exact formation coverage (ADR-0129 §12)", () => {
