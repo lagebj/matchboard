@@ -150,9 +150,10 @@ npm run test:e2e
 ```
 
 Requires `TEST_AGENT_AUTH_SECRET` in your environment, matching the value configured on the
-`https://test.matchboard.football` deployment (find it in Vercel project settings for
-`matchboard-test`, or ask whoever manages that project — it is never committed or documented
-here). By default this targets the hosted Test slot; to run against a local dev server instead:
+`https://test.matchboard.football` deployment (find it in the `matchboard` Vercel project's
+`test` Custom Environment settings — see ADR-0153 — or ask whoever manages that project; it is
+never committed or documented here). By default this targets the hosted Test slot; to run
+against a local dev server instead:
 
 ```bash
 PLAYWRIGHT_BASE_URL=http://localhost:3333 TEST_AGENT_AUTH_SECRET=... npm run test:e2e

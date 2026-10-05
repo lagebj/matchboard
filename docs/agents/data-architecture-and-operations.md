@@ -6,6 +6,8 @@ This module covers persistence, schema, deployment assumptions, and operational 
 
 Matchboard is deployed through Vercel and persists data in Neon PostgreSQL. The project keeps production and archived history separate from local-only development state. Production migrations and schema changes must follow the repository's safety rules and migration workflow.
 
+Deployment topology: one Vercel project (`matchboard`) with a Production environment and a `test` Custom Environment, the latter deployed to only explicitly (never automatically on a push) — see ADR-0153. Normal coding-agent development must not trigger remote Vercel/Neon activity; requesting Test acceptance for a PR is a deliberate action (the `acceptance` label), not a side effect of pushing.
+
 The `security/` directory (AI credential broker subsystem, converged from `matchboard-security`
 per ADR-0150) is an independently deployed exception: it ships as Scaleway serverless functions
 via its own OpenTofu configuration, is never bundled or deployed through Vercel, and is excluded

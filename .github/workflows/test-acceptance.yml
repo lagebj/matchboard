@@ -3,22 +3,31 @@ name: Test Acceptance
 # Per-PR feature acceptance pipeline: deploys the exact PR commit against an isolated Neon
 # child branch, aliases the shared test.matchboard.football slot to it for functional
 # validation, then restores the slot to main + persistent Test on close. See
-# docs/adr/0075-per-pr-feature-acceptance-pipeline.md for the full design and the required
-# repo secrets (NEON_API_KEY, NEON_PROJECT_ID, VERCEL_TOKEN, VERCEL_ORG_ID,
-# VERCEL_TEST_PROJECT_ID) that must be configured by someone with repo admin access before
-# this can run for real — this workflow degrades to a clean skip if they're absent, the same
-# pattern used by the e2e job in ci-checks.yml.
+# docs/adr/0075-per-pr-feature-acceptance-pipeline.md for the original design, and
+# docs/adr/0153-converge-to-single-vercel-project-with-deliberate-acceptance.md for why this now
+# runs against a single Vercel project's `test` Custom Environment, triggered by an explicit
+# `acceptance` PR label rather than on every push. Required repo secrets (NEON_API_KEY,
+# NEON_PROJECT_ID, VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID) must be configured by someone
+# with repo admin access before this can run for real — this workflow degrades to a clean skip
+# if they're absent, the same pattern used by the e2e job in ci-checks.yml.
+#
+# ADR-0153's cost-containment goal requires that an ordinary push to an open PR does NOT
+# provision Neon/Vercel resources. Only two triggers do real work here: applying the
+# `acceptance` label (deploy), and closing the PR (cleanup). A push to an already-labeled PR
+# removes the label instead of redeploying — the prior acceptance is now for a different commit
+# and is no longer valid; re-apply the label to request acceptance again for the new commit.
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [labeled, synchronize, closed]
     branches: [main]
 
 # Only one feature candidate may occupy the shared Test slot at a time (PROGRAMME.md §8).
 # cancel-in-progress: false is deliberate — a run already in flight (deploy or cleanup) must
 # finish before the next one starts, so ownership transitions are always clean, never
 # half-applied. GitHub Actions' own serialization is the entire locking mechanism; no separate
-# lock primitive is needed.
+# lock primitive is needed. test-db-migrate.yml's deploy-test-baseline job shares this same
+# group, so a post-merge baseline redeploy can never race an in-flight acceptance run either.
 concurrency:
   group: test-slot
   cancel-in-progress: false
@@ -28,19 +37,32 @@ permissions:
   pull-requests: write
 
 jobs:
+  acceptance-invalidate:
+    name: Invalidate stale acceptance on new commits
+    if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'acceptance')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Remove acceptance label and explain why
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label acceptance
+          gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body \
+            "New commits were pushed, which invalidates the prior \`acceptance\` approval for this PR. Re-apply the \`acceptance\` label once the branch is ready to request acceptance again."
+
   acceptance-deploy:
     name: Deploy PR to Test slot
-    if: github.event.action != 'closed'
+    if: github.event.action == 'labeled' && github.event.label.name == 'acceptance'
     runs-on: ubuntu-24.04
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      GIT_BRANCH: ${{ github.head_ref }}
       GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_TEST_PROJECT_ID: ${{ secrets.VERCEL_TEST_PROJECT_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TEST_AGENT_AUTH_SECRET: ${{ secrets.TEST_AGENT_AUTH_SECRET }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -55,7 +77,7 @@ jobs:
       - name: Check required secrets are configured
         id: check
         run: |
-          if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_TEST_PROJECT_ID" ] || [ -z "$TEST_AGENT_AUTH_SECRET" ]; then
+          if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ] || [ -z "$TEST_AGENT_AUTH_SECRET" ]; then
             echo "Required secrets not fully configured; skipping per-PR Test acceptance."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
@@ -73,64 +95,33 @@ jobs:
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
-      # A docs/ADR/tracking/agent-tooling-only push can't affect the running app, but still cost
-      # a full Neon branch deploy + Vercel deploy + Playwright run — exactly what exhausted this
-      # project's Vercel deploy quota on PR #313's trailing wording-only commit (2026-08-20).
-      # Skip the deploy (not the whole job, so acceptance-cleanup below is never affected by this
-      # check) when this push's own changes are all skip-eligible. See
-      # docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History.
+      # A docs/ADR/tracking/agent-tooling-only PR can't affect the running app, but acceptance
+      # would still cost a full Neon branch deploy + Vercel deploy + Playwright run for nothing.
+      # Since this job now only ever runs once per explicit `acceptance` labeling (ADR-0153),
+      # not on every push, the right question is simply "is this PR's entire diff docs-only" —
+      # always base...head, the PR's full cumulative diff versus main. (ADR-0075's History has a
+      # per-push version of this same check that deliberately avoided base...head — that bug was
+      # about silently never skipping a later docs-only push once the PR had any real commit;
+      # it doesn't apply here, since there is no "later push" for this job to react to.)
       #
       # The path classification itself lives in one place, scripts/is-build-skip-eligible.sh —
-      # shared with vercel-ignore-build-step.sh (the automatic Preview-build skip for both
-      # `matchboard`/`matchboard-test`) rather than a second independently-maintained copy. That
-      # consolidation is itself fixing a confirmed drift: this step's own list never included
-      # `security/**`, even after vercel-ignore-build-step.sh added it for the Scaleway
-      # credential-broker subsystem (ADR-0150) — a security-subsystem-only PR still paid for a
-      # full Test-slot deploy that the OTHER half of this same protection had already started
-      # correctly skipping.
-      #
-      # Compare range depends on the triggering action, not always base...head: for `synchronize`
-      # (a new push to an already-open PR), `github.event.before`...`github.event.after` scopes
-      # to exactly this push's own diff. Using base...head here — the PR's *entire* cumulative
-      # diff versus main — was a real bug (found 2026-08-24, see ADR-0075's History): once a PR
-      # has any substantive non-docs commit in its history, base...head is never docs-only again
-      # for the rest of that PR's life, so this check silently stopped skipping anything and every
-      # later push (even a pure docs cleanup commit) triggered a full extra deploy+alias-flip —
-      # directly observed racing against, and corrupting the result of, a deliberate verification
-      # run on this same PR. `opened`/`reopened` have no prior push to diff against, so those keep
-      # using base...head (the whole PR is genuinely new to this pipeline at that point).
+      # shared with vercel-ignore-build-step.sh (the automatic main-only Preview-build skip)
+      # rather than a second independently-maintained copy.
       #
       # `gh api` runs under this shell's default `bash -e`: a failed command (non-zero exit)
-      # aborts the step immediately unless it's the condition of an `if`. A `synchronize` event
-      # on a force-pushed branch (a rebase — the normal shape of a Dependabot "@dependabot
-      # rebase") can hand `github.event.before` a commit the compare API can no longer resolve
-      # the way this endpoint expects, which surfaces as a 200 body whose `.files` isn't the
-      # plain array the happy path assumes. The old `.files[].filename` filter then throws
-      # ("cannot iterate over: null") and `-e` kills the step outright, well before reaching the
-      # `-z "$FILES"` fallback below that was already designed to handle exactly this
-      # "couldn't determine the files" case safely. Found 2026-09-18 batch-merging Dependabot
-      # PRs: every rebased Dependabot PR failed this step the same way (harmless in isolation —
-      # this check isn't in the required-status-check list — but it should never crash). Fixed
-      # by (a) `.files[]?` so a missing/null `files` yields no output instead of erroring, folding
-      # this case into the pre-existing empty-`$FILES` "deploying to be safe" branch, and (b)
-      # wrapping the whole call in `if ! FILES=...` so any other outright `gh api` failure (rate
-      # limit, transient network error) is caught the same conservative way instead of aborting.
+      # aborts the step immediately unless it's the condition of an `if`. Wrapping the call in
+      # `if ! FILES=...` catches any `gh api` failure (rate limit, transient network error,
+      # unparseable response) the same conservative way instead of aborting outright.
       # Lightweight, unconditional, ref-agnostic checkout — this job's real deploy checkout
       # further down (with the `ref: github.head_ref` fix ARR-0024 required) stays conditional
       # on NOT skipping, so a genuinely skip-eligible push still avoids that heavier step. This
-      # one exists solely so the next step can read scripts/is-build-skip-eligible.sh — the
-      # question "should we skip?" cannot itself depend on the answer being "yes, skip even the
-      # checkout," or the shared script could never be reached to compute that answer.
+      # one exists solely so the next step can read scripts/is-build-skip-eligible.sh.
       - name: Checkout (shared skip-path script only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check whether this push only touched docs/tracking files
+      - name: Check whether this PR's entire diff only touches docs/tracking files
         id: docs-only
         run: |
-          if [ "${{ github.event.action }}" = "synchronize" ]; then
-            COMPARE_RANGE="${{ github.event.before }}...${{ github.event.after }}"
-          else
-            COMPARE_RANGE="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
-          fi
+          COMPARE_RANGE="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
           if ! FILES="$(gh api "repos/${{ github.repository }}/compare/${COMPARE_RANGE}" --paginate --jq '.files[]?.filename' 2>&1)"; then
             echo "Could not read the compare API for ${COMPARE_RANGE} — deploying to be safe. Response: $FILES"
             echo "only_docs=false" >> "$GITHUB_OUTPUT"
@@ -140,7 +131,7 @@ jobs:
           else
             VERDICT="$(echo "$FILES" | bash scripts/is-build-skip-eligible.sh app-deploy)"
             if [ "$VERDICT" = "skip" ]; then
-              echo "Every changed file in this push (${COMPARE_RANGE}) is build-skip-eligible — skipping the Test slot deploy."
+              echo "Every changed file in this PR (${COMPARE_RANGE}) is build-skip-eligible — skipping the Test slot deploy."
               echo "only_docs=true" >> "$GITHUB_OUTPUT"
             else
               echo "only_docs=false" >> "$GITHUB_OUTPUT"
@@ -148,16 +139,9 @@ jobs:
           fi
       # ref: github.head_ref is required here — without it, actions/checkout's default behavior
       # for a pull_request event checks out the refs/pull/<PR>/merge commit in DETACHED HEAD
-      # state, not a real branch. deploy.sh's `vercel deploy` relies on Vercel's own git-metadata
-      # auto-detection (reading the local .git checkout) to pick the branch-scoped DATABASE_URL/
-      # DIRECT_URL Preview env vars deploy.sh sets further down — a detached HEAD can't match a
-      # named-branch scope, so the build silently fell back to this Vercel project's generic
-      # "Production, Preview" DATABASE_URL instead of the isolated per-PR Neon branch. Confirmed
-      # live, 2026-08-24 (see ADR-0075's History and ARR-0024): every Playwright run against this
-      # PR was actually mutating the shared, persistent `test` Neon branch — the exact data other
-      # PRs, ci-checks.yml's post-merge smoke job, and local `npm run test:e2e` also depend on —
-      # not the intended isolated `pr-<N>` branch, silently defeating the entire point of
-      # ADR-0075's per-PR isolation design.
+      # state, not a real branch. vercel deploy's own git-metadata auto-detection (reading the
+      # local .git checkout) needs the real branch name recorded on the resulting deployment —
+      # see ARR-0024 and ADR-0075's History for the incident this fixed originally.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         with:
@@ -196,7 +180,7 @@ jobs:
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npm run test:e2e
       # Without this, a Playwright failure's only diagnostic evidence is the console summary
-      # (call log + surrounding source lines) — no screenshot, no DOM snapshot, no trace. That
+      # (call log + surrounding source lines) — no screenshot, no DOM snapshot, no trace. This
       # gap materially slowed diagnosing a 2026-08-24 flaky-fixture failure (root cause required
       # guessing from text output alone). Uploads regardless of outcome so a passing run's traces
       # remain available too; short retention since these are debugging aids, not release
@@ -217,7 +201,7 @@ jobs:
       # indefinitely (observed live: PR #306's Playwright step failed and the shared
       # test.matchboard.football slot stayed stuck on its deployment until manually restored).
       # `if: failure()` covers every prior step in the job, not just this one.
-      - name: On any failure, restore Test slot alias to main baseline
+      - name: On any failure, restore Test slot to main baseline
         if: failure() && steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: bash scripts/test-acceptance/restore-baseline-alias.sh
 
@@ -227,17 +211,16 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      GIT_BRANCH: ${{ github.head_ref }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_TEST_PROJECT_ID: ${{ secrets.VERCEL_TEST_PROJECT_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - name: Check required secrets are configured
         id: check
         run: |
-          if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_TEST_PROJECT_ID" ]; then
+          if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
             echo "Required secrets not fully configured; skipping Test slot cleanup."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else

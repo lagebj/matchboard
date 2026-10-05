@@ -13,9 +13,10 @@ methods:
         set -e
         cat <<'EOF'
         Release (post-merge slot restoration) is automated by
-        .github/workflows/test-acceptance.yml (ADR-0075): on PR close, it aliases
-        test.matchboard.football back to main's baseline deployment, removes the PR's
-        branch-scoped Vercel env vars, and deletes its isolated Neon branch. There is no
+        .github/workflows/test-acceptance.yml (ADR-0075, retargeted by ADR-0153): on PR
+        close, it aliases test.matchboard.football back to main's baseline deployment,
+        restores DATABASE_URL/DIRECT_URL on the test Custom Environment to the
+        persistent Neon branch, and deletes the PR's isolated Neon branch. There is no
         separate agent-triggered release step to run here — merging (or closing) the PR
         handles it. Run the verify-test-candidate model to confirm current slot state.
 

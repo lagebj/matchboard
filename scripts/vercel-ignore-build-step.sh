@@ -1,17 +1,37 @@
 #!/usr/bin/env bash
-# Vercel "Ignored Build Step" (wired via vercel.json's ignoreCommand). Applies to both linked
-# projects (matchboard, matchboard-test), since both read the same repo-root vercel.json.
+# Vercel "Ignored Build Step" (wired via vercel.json's ignoreCommand). Applies to the single
+# `matchboard` project, which now also hosts the `test` Custom Environment (ADR-0153 superseded
+# the old two-linked-projects architecture this file's previous header described).
 #
-# Exit 0 = skip this deployment. Exit non-zero = build normally. Skips only when every file
-# changed since the last deployed commit is classified skip-eligible by
-# scripts/is-build-skip-eligible.sh (the shared predicate also used by test-acceptance.yml's own
-# Neon/Test-slot skip check — see that script's own doc comment for the full path list and why
-# it exists as one file rather than two independently-maintained copies). See
-# docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History: a docs-only wording commit on
-# PR #313 (2026-08-20) exhausted this project's Vercel deploy quota for no functional reason.
+# Exit 0 = skip this deployment. Exit non-zero = build normally. Only a Git-triggered deployment
+# (a real push) ever reaches this script — ignoreCommand does not gate explicit `vercel deploy`/
+# REST-API-triggered deployments (confirmed against Vercel's docs), which is exactly what lets
+# the Test-acceptance pipeline's own explicit `vercel deploy --target=test` calls
+# (scripts/test-acceptance/deploy.sh, and the post-merge test-db-migrate.yml baseline job) keep
+# working unconditionally below.
+#
+# First check: skip outright unless this is a push to `main`. A normal push to any other branch
+# (feature/*, fix/*, chore/*, Dependabot branches, arbitrary PR branches) must never trigger an
+# automatic Vercel build — the coding-agent development loop should cost zero remote
+# infrastructure (ADR-0153). This is the one and only place that rule is enforced; it is not
+# equivalent to the docs-only skip-eligibility check below, which only applies once a push to
+# `main` has already passed this gate.
+#
+# Second check (main only): skip only when every file changed since the last deployed commit is
+# classified skip-eligible by scripts/is-build-skip-eligible.sh (the shared predicate also used
+# by test-acceptance.yml's own Neon/Test-slot skip check — see that script's own doc comment for
+# the full path list and why it exists as one file rather than two independently-maintained
+# copies). See docs/adr/0075-per-pr-feature-acceptance-pipeline.md's History: a docs-only wording
+# commit on PR #313 (2026-08-20) exhausted this project's Vercel deploy quota for no functional
+# reason.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+if [ "${VERCEL_GIT_COMMIT_REF:-}" != "main" ]; then
+  echo "Branch '${VERCEL_GIT_COMMIT_REF:-<unknown>}' is not main — skipping automatic build (ADR-0153: only main auto-deploys)."
+  exit 0
+fi
 
 BASE_SHA="${VERCEL_GIT_PREVIOUS_SHA:-}"
 
