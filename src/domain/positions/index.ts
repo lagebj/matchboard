@@ -1,11 +1,13 @@
 // ─────────────────────────────────────────────────────────────────
-// Exact positional-semantics domain owner (ADR-0129).
+// Positional-semantics domain owner (ADR-0129, extended by ADR-0154).
 //
-// The single owner of exact football-role semantics for AUTOMATIC
-// PLANNING: canonical roles, alias normalization, the directed
-// suitability matrix, tiers + automatic-eligibility threshold, the
-// best-side modifier, formation-slot → exact target-role derivation,
-// player → target-role suitability, and neutral fit labels.
+// The single owner of tactical-position semantics: the canonical 24-code
+// vocabulary and 5x6 grid (ADR-0154), exact football-role semantics for
+// AUTOMATIC PLANNING (ADR-0129, now projected from the 24-code vocabulary
+// via a compatibility projection — the suitability matrix itself is never
+// regenerated), alias normalization, tiers + automatic-eligibility
+// threshold, the best-side modifier, formation-slot → canonical-position
+// derivation, player → target-role suitability, and neutral fit labels.
 //
 // Exact-planning callers (starting-lineup generation, rotation
 // generation, emergency repair, exact formation coverage) must import
@@ -21,11 +23,44 @@ export {
   isExactRole,
   isSourceRole,
   normalizeSideInput,
+  CANONICAL_TACTICAL_POSITIONS,
+  BROAD_TACTICAL_POSITIONS,
+  UNSIDED_CENTRE_LINE_POSITIONS,
+  CENTRE_LINE_TRIPLES,
+  isCanonicalTacticalPosition,
+  isBroadTacticalPosition,
+  isUnsidedCentreLinePosition,
   type ExactRole,
   type SourceRole,
   type Lane,
   type SideInput,
+  type CanonicalTacticalPosition,
+  type BroadTacticalPosition,
+  type UnsidedCentreLinePosition,
 } from "./roles";
+
+export {
+  canonicalPositionForCell,
+  validFormationCellsFor,
+  primaryDisplayCellFor,
+  type GridCell,
+} from "./grid";
+
+export {
+  normalizeCanonicalPosition,
+} from "./canonical-aliases";
+
+export {
+  canonicalFullLabel,
+  canonicalCompactLabel,
+} from "./canonical-labels";
+
+export {
+  projectToBaseRole,
+  type BaseRoleProjection,
+  type SuitabilityTargetRole,
+  type LegacyTargetAlias,
+} from "./compatibility-projection";
 
 export {
   normalizeSourceRole,

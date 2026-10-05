@@ -5,8 +5,9 @@ import {
   type DeclaredPositions,
 } from "../suitability";
 import type { ExactRole, SideInput } from "../roles";
+import type { SuitabilityTargetRole } from "../compatibility-projection";
 
-function suit(primary: string, target: ExactRole, bestSide: SideInput = "CENTER") {
+function suit(primary: string, target: SuitabilityTargetRole, bestSide: SideInput = "CENTER") {
   return classifyExactSuitability({ primaryPosition: primary, bestSide }, target);
 }
 
@@ -170,6 +171,88 @@ describe("isAutomaticallyEligibleForRole", () => {
     expect(isAutomaticallyEligibleForRole(lb, "LW")).toBe(true);
     expect(isAutomaticallyEligibleForRole({ primaryPosition: "CM", bestSide: "CENTER" }, "LW")).toBe(false);
     expect(isAutomaticallyEligibleForRole({ primaryPosition: "CB", bestSide: "CENTER" }, "LW")).toBe(false);
+  });
+});
+
+describe("canonical sided targets (ADR-0154 §5 compatibility projection)", () => {
+  it("LCB / RCB target projects through the CB base role, same tier shape as CB", () => {
+    expect(suit("CB", "LCB").tier).toBe("NATURAL");
+    expect(suit("CB", "RCB").tier).toBe("NATURAL");
+    expect(suit("LB", "LCB").tier).toBe(suit("LB", "CB").tier);
+  });
+
+  it("new sided targets (LDM/RDM/LCM/RCM/LAM/RAM/LCF/RCF) score through their base role", () => {
+    expect(suit("DM", "LDM").tier).toBe("NATURAL");
+    expect(suit("DM", "RDM").tier).toBe("NATURAL");
+    expect(suit("CM", "LCM").tier).toBe("NATURAL");
+    expect(suit("AM", "RAM").tier).toBe("NATURAL");
+    expect(suit("ST", "LCF").tier).toBe("NATURAL"); // unsided centre-line declaration spreads to its sided siblings
+  });
+
+  it("legacy DM/AM/ST targets and their canonical replacements CDM/CAM/CF score identically", () => {
+    expect(suit("CM", "DM").score).toBeCloseTo(suit("CM", "CDM").score, 5);
+    expect(suit("CM", "AM").score).toBeCloseTo(suit("CM", "CAM").score, 5);
+    expect(suit("AM", "ST").score).toBeCloseTo(suit("AM", "CF").score, 5);
+  });
+});
+
+describe("unsided centre-line declaration spreads across its left/centre/right triple (user-clarified nuance)", () => {
+  it("a declared CM is NATURAL for LCM, CM, and RCM alike", () => {
+    const player: DeclaredPositions = { primaryPosition: "CM", bestSide: "CENTER" };
+    expect(classifyExactSuitability(player, "LCM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "CM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RCM").tier).toBe("NATURAL");
+  });
+
+  it("a declared CB is NATURAL for LCB, CB, and RCB alike", () => {
+    const player: DeclaredPositions = { primaryPosition: "CB", bestSide: "CENTER" };
+    expect(classifyExactSuitability(player, "LCB").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "CB").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RCB").tier).toBe("NATURAL");
+  });
+
+  it("a declared CDM is NATURAL for LDM, CDM, and RDM alike", () => {
+    const player: DeclaredPositions = { primaryPosition: "CDM", bestSide: "CENTER" };
+    expect(classifyExactSuitability(player, "LDM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "CDM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RDM").tier).toBe("NATURAL");
+  });
+
+  it("a declared CAM is NATURAL for LAM, CAM, and RAM alike", () => {
+    const player: DeclaredPositions = { primaryPosition: "CAM", bestSide: "CENTER" };
+    expect(classifyExactSuitability(player, "LAM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "CAM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RAM").tier).toBe("NATURAL");
+  });
+
+  it("a declared CF is NATURAL for LCF, CF, and RCF alike", () => {
+    const player: DeclaredPositions = { primaryPosition: "CF", bestSide: "CENTER" };
+    expect(classifyExactSuitability(player, "LCF").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "CF").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RCF").tier).toBe("NATURAL");
+  });
+});
+
+describe("wide sided declarations do NOT spread to their opposite side (user-clarified boundary)", () => {
+  it("a declared LB is meaningfully weaker for RB than for LB — not an equivalent spread", () => {
+    const player: DeclaredPositions = { primaryPosition: "LB" };
+    const lb = classifyExactSuitability(player, "LB");
+    const rb = classifyExactSuitability(player, "RB");
+    expect(lb.tier).toBe("NATURAL");
+    expect(rb.tier).not.toBe("NATURAL");
+    expect(rb.score).toBeLessThan(lb.score - 10); // real cross-score gap, not a ±4 nudge
+  });
+
+  it("a declared LM is meaningfully weaker for RM than for LM", () => {
+    const player: DeclaredPositions = { primaryPosition: "LM" };
+    expect(classifyExactSuitability(player, "LM").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RM").tier).not.toBe("NATURAL");
+  });
+
+  it("a declared LW is meaningfully weaker for RW than for LW", () => {
+    const player: DeclaredPositions = { primaryPosition: "LW" };
+    expect(classifyExactSuitability(player, "LW").tier).toBe("NATURAL");
+    expect(classifyExactSuitability(player, "RW").tier).not.toBe("NATURAL");
   });
 });
 
