@@ -207,6 +207,10 @@ describe("generateRotationPlan — exact positional safety (ADR-0129 §11, super
     const defenceChange = result.changes.find((c) => c.outPlayerId === "def1");
     expect(defenceChange).toBeDefined();
     expect(defenceChange!.inPlayerId).toBe("bench-defender");
+    // ADR-0154 §8/§12: records the canonical exact code the grid cell resolves to (CB at
+    // gridX 2 on the defence row), not null/the broad roleLabel these used to be discarded for.
+    expect(defenceChange!.outPosition).toBe("CB");
+    expect(defenceChange!.inPosition).toBe("CB");
   });
 
   it("keeps a due player on when their slot role cannot be resolved (no gridX)", () => {

@@ -101,6 +101,52 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     expect(rows.some((r) => r.startedAtMs === 0)).toBe(true);
   });
 
+  it("rebuildActualTimeline records the canonical sided exact code from the slot's real grid cell (ADR-0154 §8/§12)", async () => {
+    const teamId = fixtureIds.teams["Hvit"];
+    const players = fixtureIds.players.filter((p) => p.coreTeamId === teamId).slice(0, 2);
+    const match = await testDb.match.create({
+      data: {
+        matchRoundId: fixtureIds.matchRoundId,
+        teamId,
+        opponent: "ADR-0154 A6 Regression Opponent",
+        startsAt: new Date("2025-06-02T10:00:00Z"),
+        homeAway: "HOME",
+        squadSize: 11,
+        matchType: "LEAGUE",
+        gameFormat: "ELEVEN_A_SIDE",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const formation = await testDb.formation.create({
+      data: { name: "ADR-0154 A6 formation", gameFormat: "ELEVEN_A_SIDE", organisationId: fixtureIds.organisationId },
+    });
+    // (gridX 1, gridY 4) is the normative grid's LCB cell -- a real, depth-consistent DEFENDER
+    // slot, unlike buildLeagueLineup()'s own deliberately-arbitrary gridY: 0 fixture slots.
+    const slot = await testDb.formationSlot.create({
+      data: {
+        formationId: formation.id,
+        gridX: 1,
+        gridY: 4,
+        label: "Left Centre Back",
+        shortLabel: "LCB",
+        roleType: "DEFENDER",
+        organisationId: fixtureIds.organisationId,
+      },
+    });
+    const lineup = await testDb.matchLineup.create({
+      data: { matchId: match.id, teamId, formationId: formation.id, status: "CONFIRMED", organisationId: fixtureIds.organisationId },
+    });
+    await testDb.matchLineupAssignment.create({
+      data: { matchLineupId: lineup.id, slotId: slot.id, playerId: players[0]!.id, organisationId: fixtureIds.organisationId },
+    });
+
+    await rebuildActualTimeline(match.id);
+
+    const rows = await testDb.actualPositionInterval.findMany({ where: { matchId: match.id, playerId: players[0]!.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.position).toBe("LCB");
+  });
+
   it("rebuildActualTimelineForRef dispatches League refs to rebuildActualTimeline", async () => {
     const matchId = fixtureIds.matches["Hvit"];
     const teamId = fixtureIds.teams["Hvit"];
