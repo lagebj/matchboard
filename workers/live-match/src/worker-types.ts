@@ -16,4 +16,15 @@ export interface Env {
   LIVE_MATCH_INTERNAL_SECRET: string;
   /** Base URL of the Vercel app this Worker signs persistence requests to (SPEC.md §17). */
   MATCHBOARD_API_BASE_URL: string;
+  /**
+   * Vercel's "Protection Bypass for Automation" secret for the `matchboard` project
+   * (ADR-0153). Only set on the `test` Worker environment — `test.matchboard.football` sits on
+   * a non-Production Custom Environment, which Vercel's SSO Deployment Protection does NOT
+   * exempt the way it exempts a project's Production domain (confirmed live), so a server-to-
+   * server call from this Worker to `MATCHBOARD_API_BASE_URL` gets rejected by Vercel's own
+   * edge (401) before ever reaching the app's HMAC verification, unless this header is sent.
+   * `app.matchboard.football` (production) IS exempted, so the production Worker environment
+   * deliberately has no such secret and `internal-client.ts` sends no header when it's unset.
+   */
+  VERCEL_AUTOMATION_BYPASS_SECRET?: string;
 }

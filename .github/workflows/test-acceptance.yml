@@ -179,6 +179,12 @@ jobs:
       - name: Sync test Worker internal secret
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true' && steps.check-cf.outputs.configured == 'true' && env.LIVE_MATCH_INTERNAL_SECRET_TEST != ''
         run: printf '%s' "$LIVE_MATCH_INTERNAL_SECRET_TEST" | npx wrangler secret put LIVE_MATCH_INTERNAL_SECRET --config workers/live-match/wrangler.jsonc --env test
+      # ADR-0153: the test Worker's server-to-server calls to test.matchboard.football need
+      # this header too (see deploy-live-match-worker.yml's own comment) — kept in sync here
+      # the same way, since this job also deploys the Worker's test environment.
+      - name: Sync test Worker Vercel protection bypass secret
+        if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true' && steps.check-cf.outputs.configured == 'true' && env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
+        run: printf '%s' "$VERCEL_AUTOMATION_BYPASS_SECRET" | npx wrangler secret put VERCEL_AUTOMATION_BYPASS_SECRET --config workers/live-match/wrangler.jsonc --env test
       - name: Install Playwright browser
         if: steps.check.outputs.configured == 'true' && steps.docs-only.outputs.only_docs != 'true'
         run: npx playwright install --with-deps chromium webkit

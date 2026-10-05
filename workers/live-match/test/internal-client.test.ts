@@ -18,6 +18,7 @@ describe("buildSignedRequest", () => {
     expect(signed.headers["x-matchboard-timestamp"]).toBe("1700000000000");
     expect(signed.headers["x-matchboard-request-id"]).toBe("req-abc");
     expect(signed.headers["content-type"]).toBe("application/json");
+    expect(signed.headers["x-vercel-protection-bypass"]).toBeUndefined();
 
     const verification = await verifyInternalSignature({
       timestamp: 1_700_000_000_000,
@@ -27,6 +28,23 @@ describe("buildSignedRequest", () => {
       now: 1_700_000_000_000,
     });
     expect(verification).toEqual({ ok: true });
+  });
+
+  // ADR-0153: test.matchboard.football sits on a non-Production Custom Environment, which
+  // Vercel's SSO Deployment Protection does not exempt — a server-to-server call without this
+  // header gets a 401 from Vercel's own edge before ever reaching the app's HMAC check.
+  it("adds the Vercel protection bypass header when bypassSecret is provided", async () => {
+    const signed = await buildSignedRequest({
+      url: "https://test.matchboard.football/api/internal/live-match/events",
+      method: "POST",
+      rawBody: JSON.stringify({ hello: "world" }),
+      secret: SECRET,
+      timestamp: 1_700_000_000_000,
+      requestId: "req-abc",
+      bypassSecret: "vercel-bypass-test-secret",
+    });
+
+    expect(signed.headers["x-vercel-protection-bypass"]).toBe("vercel-bypass-test-secret");
   });
 });
 
@@ -65,6 +83,36 @@ describe("persistEvent", () => {
     expect(result).toEqual({ id: "canonical-1", clientEventId: "evt-1", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" });
     expect(captured[0]?.url).toBe("https://app.matchboard.football/api/internal/live-match/events");
     expect((captured[0]?.init.headers as Record<string, string>)["x-matchboard-signature"]).toBeDefined();
+    expect((captured[0]?.init.headers as Record<string, string>)["x-vercel-protection-bypass"]).toBeUndefined();
+  });
+
+  it("forwards bypassSecret through to the x-vercel-protection-bypass header on the actual request", async () => {
+    const captured: { url: string; init: RequestInit }[] = [];
+    globalThis.fetch = vi.fn(async (url: string, init: RequestInit) => {
+      captured.push({ url, init });
+      return new Response(JSON.stringify({ id: "canonical-1", clientEventId: "evt-1", eventType: "GOAL_FOR", createdAt: "2026-08-23T00:00:00.000Z" }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
+
+    await persistEvent({
+      baseUrl: "https://test.matchboard.football",
+      secret: SECRET,
+      bypassSecret: "vercel-bypass-test-secret",
+      body: {
+        matchId: "match-1",
+        sessionId: "session-1",
+        organisationId: "org-1",
+        userId: "user-1",
+        clientEventId: "evt-1",
+        eventType: "GOAL_FOR",
+        sequence: 1,
+        acceptedAtMs: 1_756_000_000_000,
+        rpcId: "rpc-1",
+      },
+    });
+
+    expect((captured[0]?.init.headers as Record<string, string>)["x-vercel-protection-bypass"]).toBe("vercel-bypass-test-secret");
   });
 
   it("throws PersistEventError with the response status on a non-2xx response", async () => {

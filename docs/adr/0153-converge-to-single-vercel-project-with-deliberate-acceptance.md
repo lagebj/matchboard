@@ -270,3 +270,28 @@ two-call sequence in reverse: remove the domain from `matchboard`, add it back t
   (rather than a single irreversible big-bang cutover) was specifically designed to surface
   safely, and it worked as intended: caught immediately after Phase C via live verification,
   fixed forward the same day, nothing left silently broken.
+- 2026-10-05 (later still): a second, independent consequence of the same Deployment Protection
+  behavior surfaced once the AUTH_URL fix above let CI actually reach the live-match specs:
+  the Cloudflare Worker's server-to-server calls to `MATCHBOARD_API_BASE_URL`
+  (`workers/live-match/src/internal-client.ts`) were also being rejected (401) by Vercel's edge
+  before ever reaching the app's own HMAC verification — confirmed live via `wrangler tail`
+  (`PERSISTENCE_UNAVAILABLE`/`lastErrorStatus: 401` on every retry, with fresh timestamps
+  ruling out stale backlog). Unlike the browser/Playwright case, this had nothing to do with
+  `LIVE_MATCH_INTERNAL_SECRET`'s value — a prior same-day rotation of that secret (and of
+  `LIVE_MATCH_REALTIME_SECRET`, done out of caution after the earlier migration bug corrupted
+  both to the literal placeholder `"[SENSITIVE]"`) was necessary cleanup but not the fix for
+  this specific symptom. Fixed by adding an optional `bypassSecret` parameter through
+  `buildSignedRequest`/`persistEvent`/`fetchSnapshot`, sent as `x-vercel-protection-bypass`
+  whenever present, sourced from a new optional `VERCEL_AUTOMATION_BYPASS_SECRET` Worker
+  binding — set only on the `test` Worker environment (Production's domain is already exempt,
+  so the production Worker has no such secret and sends no header). Wired into
+  `deploy-live-match-worker.yml` and `test-acceptance.yml`'s existing Worker-secret-sync steps,
+  reusing the same GitHub secret the Vercel-side env var is upserted from, so a future rotation
+  stays in sync automatically on both sides. Also found during this investigation: the
+  persistent Neon `test` branch had independently accumulated enough live-match test data over
+  time that round planning had closed for at least one round (`"Planning is closed for one or
+  more matches in this round"` from the `seed-finalized-match` test fixture) — a pre-existing,
+  unrelated data-staleness issue (documented precedent in this ADR's own History and ADR-0152's)
+  fixed via the `restore-test-baseline` swamp procedure, run against the real persistent branch
+  after a local `.env` file's own `TEST_DATABASE_URL` was caught silently shadowing the intended
+  target on the first attempt (corrected before any real branch was touched incorrectly).
