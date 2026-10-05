@@ -69,6 +69,7 @@ import {
   CONFIDENCE_APPEARANCE_THRESHOLDS,
   POSITION_EVOLUTION_CONFIG,
 } from "./position-evolution-config";
+import { CENTRE_LINE_TRIPLES, isUnsidedCentreLinePosition } from "@/domain/positions/roles";
 
 type RawPositionScore = {
   positionId: string;
@@ -111,22 +112,28 @@ function computeRawScores(
     return entry;
   }
 
+  /**
+   * Applies a declaration's support bonus. An unsided centre-line declaration (CB/CDM/CM/CAM/CF,
+   * ADR-0154 follow-up) spreads its full support independently to all three cells of its line
+   * (e.g. a declared CM credits LCM, CM, and RCM each) — the same equivalence the suitability
+   * matrix's best-side modifier already gives these three for automatic planning. A wide sided
+   * declaration (LB/RB, LM/RM, LW/RW, or an already-sided centre-line code like LCB) never
+   * spreads — it credits only its own exact position. Actual-usage minutes/observations are
+   * deliberately NOT routed through this function — they stay exact (contract §13).
+   */
+  function applyDeclaredSupport(positionCode: string, amount: number): void {
+    const targets = isUnsidedCentreLinePosition(positionCode) ? CENTRE_LINE_TRIPLES[positionCode] : [positionCode];
+    for (const target of targets) {
+      const entry = get(target);
+      entry.rawScore += amount;
+      entry.coachDeclared = true;
+    }
+  }
+
   // Coach declaration — counts immediately, establishes initial support (contract §5).
-  if (declared.primary) {
-    const entry = get(declared.primary);
-    entry.rawScore += DECLARED_POSITION_SUPPORT.primary;
-    entry.coachDeclared = true;
-  }
-  if (declared.secondary) {
-    const entry = get(declared.secondary);
-    entry.rawScore += DECLARED_POSITION_SUPPORT.secondary;
-    entry.coachDeclared = true;
-  }
-  if (declared.tertiary) {
-    const entry = get(declared.tertiary);
-    entry.rawScore += DECLARED_POSITION_SUPPORT.tertiary;
-    entry.coachDeclared = true;
-  }
+  if (declared.primary) applyDeclaredSupport(declared.primary, DECLARED_POSITION_SUPPORT.primary);
+  if (declared.secondary) applyDeclaredSupport(declared.secondary, DECLARED_POSITION_SUPPORT.secondary);
+  if (declared.tertiary) applyDeclaredSupport(declared.tertiary, DECLARED_POSITION_SUPPORT.tertiary);
 
   // Actual completed-match usage, recency-weighted within the window, normalized to a share of
   // total windowed weighted minutes, then scaled to the actual-usage support budget.

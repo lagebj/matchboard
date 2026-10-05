@@ -3,7 +3,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { evaluatePositionEvidence } from "./position-experience";
-import { normalizePlayerPositionCode } from "./position-code";
+import { normalizeCanonicalPosition } from "@/domain/positions/canonical-aliases";
 import type { PositionObservationSignal } from "./effective-position-profile";
 
 type ObservationRow = {
@@ -56,7 +56,9 @@ export async function getObservationSignalsForPlayers(
 
   for (const obs of observations) {
     if (!obs.playerId || !obs.positionId) continue;
-    const normalizedPosition = normalizePlayerPositionCode(obs.positionId);
+    // Normalized, not spread -- an observation explicitly tagged to a sided code (LCM) stays its
+    // own distinct evidence bucket, same discipline as actual-usage minutes (ADR-0154 §13).
+    const normalizedPosition = normalizeCanonicalPosition(obs.positionId);
     if (!normalizedPosition) continue;
 
     let byPosition = byPlayerAndPosition.get(obs.playerId);

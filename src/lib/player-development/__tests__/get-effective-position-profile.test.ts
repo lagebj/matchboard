@@ -44,7 +44,7 @@ describe("getEffectivePlayerPositionProfilesForPlayers", () => {
     expect(result.size).toBe(0);
   });
 
-  it("a legacy-declared DEFENSIVE_MIDFIELDER plus actual DM usage produces one DM entry, not two", async () => {
+  it("a legacy-declared DEFENSIVE_MIDFIELDER plus actual DM usage produces one CDM entry, not two", async () => {
     const player = fixture.players[8];
     const matchId = Object.values(fixture.matches)[0];
 
@@ -63,10 +63,12 @@ describe("getEffectivePlayerPositionProfilesForPlayers", () => {
 
     const result = await getEffectivePlayerPositionProfilesForPlayers([player.id], orgFilter);
     const profile = result.get(player.id)!;
-    const dmEntries = profile.positions.filter((p) => p.positionId === "DM");
+    // ADR-0154 §6: DEFENSIVE_MIDFIELDER and DM are both legacy aliases now, collapsing onto the
+    // canonical CDM.
+    const dmEntries = profile.positions.filter((p) => p.positionId === "CDM");
 
     expect(dmEntries).toHaveLength(1);
-    expect(profile.primary).toBe("DM");
+    expect(profile.primary).toBe("CDM");
   });
 
   it("a broad declared FORWARD produces a legitimate profile entry (broad, not upgraded)", async () => {

@@ -3,14 +3,21 @@ import { exactPositionLabel, compactPositionLabel } from "../exact-position-labe
 
 describe("exactPositionLabel", () => {
   it("labels canonical exact codes with their full human name", () => {
-    expect(exactPositionLabel("DM")).toBe("Defensive Midfield");
-    expect(exactPositionLabel("ST")).toBe("Striker");
+    expect(exactPositionLabel("CDM")).toBe("Centre Defensive Midfield");
+    expect(exactPositionLabel("CF")).toBe("Central Forward");
     expect(exactPositionLabel("GK")).toBe("Goalkeeper");
   });
 
-  it("normalizes a legacy alias before labeling", () => {
-    expect(exactPositionLabel("DEFENSIVE_MIDFIELDER")).toBe("Defensive Midfield");
+  it("normalizes a legacy alias before labeling (ADR-0154 §6: DM/ST are legacy aliases now)", () => {
+    expect(exactPositionLabel("DM")).toBe("Centre Defensive Midfield");
+    expect(exactPositionLabel("ST")).toBe("Central Forward");
+    expect(exactPositionLabel("DEFENSIVE_MIDFIELDER")).toBe("Centre Defensive Midfield");
     expect(exactPositionLabel("GOALKEEPER")).toBe("Goalkeeper");
+  });
+
+  it("keeps sided exact codes first-class, never collapsed onto their unsided sibling", () => {
+    expect(exactPositionLabel("LCB")).toBe("Left Centre Back");
+    expect(exactPositionLabel("RCB")).toBe("Right Centre Back");
   });
 
   it("labels broad historical codes broadly, not with a specific tactical label", () => {
@@ -30,12 +37,14 @@ describe("exactPositionLabel", () => {
 
 describe("compactPositionLabel", () => {
   it("keeps exact codes compact", () => {
-    expect(compactPositionLabel("DM")).toBe("DM");
-    expect(compactPositionLabel("ST")).toBe("ST");
+    expect(compactPositionLabel("CDM")).toBe("CDM");
+    expect(compactPositionLabel("CF")).toBe("CF");
   });
 
-  it("normalizes a legacy alias to its compact exact code", () => {
-    expect(compactPositionLabel("DEFENSIVE_MIDFIELDER")).toBe("DM");
+  it("normalizes a legacy alias to its canonical compact code (ADR-0154 §6)", () => {
+    expect(compactPositionLabel("DM")).toBe("CDM");
+    expect(compactPositionLabel("ST")).toBe("CF");
+    expect(compactPositionLabel("DEFENSIVE_MIDFIELDER")).toBe("CDM");
     expect(compactPositionLabel("GOALKEEPER")).toBe("GK");
   });
 

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { getPlayersActualPositionHistory } from "./position-usage-history";
 import { getObservationSignalsForPlayers } from "./position-experience-signals";
-import { normalizePlayerPositionCode } from "./position-code";
+import { normalizeCanonicalPosition } from "@/domain/positions/canonical-aliases";
 import {
   computeEffectivePlayerPositionProfile,
   type EffectivePlayerPositionProfile,
@@ -15,9 +15,10 @@ import {
  * loader (Matchboard Players Operating Surface bundle, `04_DATA_AND_BATCH_LOADING_CONTRACT.md
  * §4`). One declared-position query, one batched actual-position-history read and one batched
  * observation-signal read for every requested player — never a per-player query loop. Declared
- * primary/secondary/tertiary are normalized (`normalizePlayerPositionCode()`) before the pure
- * `computeEffectivePlayerPositionProfile()` engine runs, so a legacy alias and its exact code
- * never become two separate effective positions for the same player.
+ * primary/secondary/tertiary are normalized (`normalizeCanonicalPosition()`, ADR-0154) before
+ * the pure `computeEffectivePlayerPositionProfile()` engine runs, so a legacy alias and its
+ * canonical code never become two separate effective positions for the same player, and a sided
+ * exact code (`LCB`) is never collapsed onto its unsided sibling (`CB`).
  *
  * Purely read-only: it *consumes* the current declared triple and each player's evidence, it
  * never mutates anything. Automatic evolution writes happen only at committed-evidence time in
@@ -52,9 +53,9 @@ export async function getEffectivePlayerPositionProfilesForPlayers(
   for (const playerId of playerIds) {
     const player = playerById.get(playerId);
     const declared = {
-      primary: normalizePlayerPositionCode(player?.primaryPosition) ?? "",
-      secondary: normalizePlayerPositionCode(player?.secondaryPosition),
-      tertiary: normalizePlayerPositionCode(player?.tertiaryPosition),
+      primary: normalizeCanonicalPosition(player?.primaryPosition) ?? "",
+      secondary: normalizeCanonicalPosition(player?.secondaryPosition),
+      tertiary: normalizeCanonicalPosition(player?.tertiaryPosition),
     };
     const matchHistory = matchHistoryByPlayer.get(playerId) ?? [];
     const observationSignals = observationSignalsByPlayer.get(playerId) ?? [];
