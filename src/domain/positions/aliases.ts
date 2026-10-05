@@ -11,6 +11,8 @@
 
 import type { Lane, SourceRole } from "./roles";
 import { isExactRole } from "./roles";
+import { normalizeCanonicalPosition } from "./canonical-aliases";
+import { projectToBaseRole } from "./compatibility-projection";
 
 export type NormalizedSource =
   | { known: true; role: SourceRole; sourceSide: Lane | null }
@@ -19,34 +21,57 @@ export type NormalizedSource =
 const UNKNOWN: NormalizedSource = { known: false, role: "UNKNOWN", sourceSide: null };
 
 /**
- * Exact alias table (§2). Keys are already upper-cased. Canonical exact roles
- * are handled by {@link isExactRole} and are not repeated here.
+ * Special unsided source profiles the suitability matrix carries rows for,
+ * outside the canonical 24-code vocabulary (§2/ADR-0154). Not repeated in
+ * the canonical-alias table — these are matrix-scoring concepts only, never
+ * a declared/displayed tactical identity.
  */
-const ALIAS_TABLE: Record<string, { role: SourceRole; sourceSide: Lane | null }> = {
-  CDM: { role: "DM", sourceSide: null },
-  CAM: { role: "AM", sourceSide: null },
-  CF: { role: "ST", sourceSide: null },
-  LCB: { role: "CB", sourceSide: "LEFT" },
-  RCB: { role: "CB", sourceSide: "RIGHT" },
-  SS: { role: "SS", sourceSide: null },
-  W: { role: "W", sourceSide: null },
-};
+const SPECIAL_SOURCE_ROLES: ReadonlySet<string> = new Set(["SS", "W"]);
 
 /** Strings that explicitly mean "no declared position", treated as absent. */
 const EMPTY_DECLARATIONS: ReadonlySet<string> = new Set(["", "NONE", "N/A", "-", "FLEX", "FLEXIBLE"]);
 
+/**
+ * Normalizes a raw declared/recorded position string into a suitability-
+ * matrix row (`SourceRole`) + optional source side, for scoring purposes
+ * only (ADR-0129 §2/§3, extended by ADR-0154 §4/§5).
+ *
+ * Pipeline: canonicalize the raw string onto the 24-code vocabulary (or a
+ * broad/unrecognized passthrough, via {@link normalizeCanonicalPosition} —
+ * the single canonical-identity authority, ADR-0154), then project the
+ * canonical result onto the matrix's base-role/side vocabulary (via
+ * {@link projectToBaseRole}). A sided canonical code (e.g. `LCB`) still
+ * projects to its base-role row (`CB`) + side (`LEFT`) for scoring — this is
+ * matrix-lookup machinery only and does not change what gets stored,
+ * displayed, or evidenced as the player's canonical position elsewhere.
+ *
+ * Unknown strings are never substring-fuzzy-matched and produce `UNKNOWN`
+ * (no automatic exact-role eligibility for any target) — unchanged from
+ * ADR-0129.
+ */
 export function normalizeSourceRole(raw: string | null | undefined): NormalizedSource {
   if (raw == null) return UNKNOWN;
   const key = raw.trim().toUpperCase();
   if (EMPTY_DECLARATIONS.has(key)) return UNKNOWN;
 
+  if (SPECIAL_SOURCE_ROLES.has(key)) {
+    return { known: true, role: key as SourceRole, sourceSide: null };
+  }
+
+  // Canonical exact roles already in the old 12-code vocabulary pass straight
+  // through without a projection round-trip (micro-optimization; behaviorally
+  // identical to projecting them, since each is its own base role with the
+  // matrix's own fixed side).
   if (isExactRole(key)) {
     return { known: true, role: key, sourceSide: null };
   }
 
-  const alias = ALIAS_TABLE[key];
-  if (alias) {
-    return { known: true, role: alias.role, sourceSide: alias.sourceSide };
+  const canonical = normalizeCanonicalPosition(key);
+  if (canonical) {
+    const projection = projectToBaseRole(canonical);
+    if (projection) {
+      return { known: true, role: projection.baseRole, sourceSide: projection.side };
+    }
   }
 
   return UNKNOWN;

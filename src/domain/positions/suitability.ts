@@ -16,9 +16,10 @@
 // create or upgrade positional eligibility (§5).
 // ─────────────────────────────────────────────────────────────────
 
-import type { ExactRole, Lane, SideInput } from "./roles";
-import { TARGET_ROLE_SIDE, UNSIDED_SOURCE_ROLES, normalizeSideInput } from "./roles";
+import type { Lane, SideInput } from "./roles";
+import { UNSIDED_SOURCE_ROLES, normalizeSideInput } from "./roles";
 import { normalizeSourceRole, type NormalizedSource } from "./aliases";
+import { projectToBaseRole, type SuitabilityTargetRole } from "./compatibility-projection";
 import {
   BEST_SIDE_MODIFIER,
   DECLARATION_MULTIPLIERS,
@@ -55,7 +56,7 @@ export interface SourceContribution {
 }
 
 export interface ExactSuitability {
-  target: ExactRole;
+  target: SuitabilityTargetRole;
   /** Effective suitability = max finalScore across declarations (0 when none known). */
   score: number;
   tier: SuitabilityTier;
@@ -93,14 +94,20 @@ function declaredValue(player: DeclaredPositions, slot: DeclarationSlot): string
 }
 
 /**
- * Effective suitability of a player's declared positions for one exact target role.
- * Pure and deterministic.
+ * Effective suitability of a player's declared positions for one target role.
+ * `target` accepts the full canonical 24-code vocabulary plus the three
+ * legacy aliases (`DM`/`AM`/`ST`) existing callers may still pass
+ * (ADR-0154 §5) — projected onto the suitability matrix's own base-role/side
+ * vocabulary via {@link projectToBaseRole}; the matrix itself is never
+ * regenerated. Pure and deterministic.
  */
 export function classifyExactSuitability(
   player: DeclaredPositions,
-  target: ExactRole,
+  target: SuitabilityTargetRole,
 ): ExactSuitability {
-  const targetSide = TARGET_ROLE_SIDE[target];
+  const projection = projectToBaseRole(target);
+  const baseRole = projection?.baseRole ?? null;
+  const targetSide: Lane = projection?.side ?? "CENTRE";
   const bySource: SourceContribution[] = [];
 
   for (const declaration of DECLARATION_ORDER) {
@@ -108,7 +115,7 @@ export function classifyExactSuitability(
     if (raw == null || raw.trim() === "") continue;
 
     const normalized = normalizeSourceRole(raw);
-    if (!normalized.known) {
+    if (!normalized.known || baseRole === null) {
       bySource.push({
         declaration,
         rawInput: raw,
@@ -121,7 +128,7 @@ export function classifyExactSuitability(
       continue;
     }
 
-    const baseScore = directedMatrixScore(normalized.role, target);
+    const baseScore = directedMatrixScore(normalized.role, baseRole);
     const weightedScore = baseScore * DECLARATION_MULTIPLIERS[declaration];
     const sideModifier = sideModifierFor(normalized, targetSide, player.bestSide);
     const finalScore = clampScore(weightedScore + sideModifier);
@@ -137,10 +144,10 @@ export function classifyExactSuitability(
 
 /**
  * Whether a player is automatically eligible (NATURAL / STRONG / PLAUSIBLE) for a
- * required exact role. This is the single gate exact automatic planning consults —
+ * required target role. This is the single gate exact automatic planning consults —
  * fairness, evidence and tactical fit are applied only to already-eligible
  * candidates, never to widen this.
  */
-export function isAutomaticallyEligibleForRole(player: DeclaredPositions, target: ExactRole): boolean {
+export function isAutomaticallyEligibleForRole(player: DeclaredPositions, target: SuitabilityTargetRole): boolean {
   return classifyExactSuitability(player, target).automaticallyEligible;
 }

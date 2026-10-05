@@ -104,3 +104,97 @@ export function normalizeSideInput(value: SideInput): Lane | null {
       return null;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Canonical 24-code tactical-position vocabulary (ADR-0154).
+//
+// Extends, does not replace, the 12-code `ExactRole` above — ExactRole
+// remains the automatic-planning suitability matrix's own base-role/column
+// vocabulary (ADR-0129) and is projected onto from here (see
+// compatibility-projection.ts). `CanonicalTacticalPosition` is the single
+// tactical-identity vocabulary for declaration, formation geometry, actual-
+// position evidence, reporting, and AI context (ADR-0154 §1).
+// ─────────────────────────────────────────────────────────────────
+
+export const CANONICAL_TACTICAL_POSITIONS = [
+  "GK",
+  "LB",
+  "LCB",
+  "CB",
+  "RCB",
+  "RB",
+  "LWB",
+  "LDM",
+  "CDM",
+  "RDM",
+  "RWB",
+  "LM",
+  "LCM",
+  "CM",
+  "RCM",
+  "RM",
+  "LW",
+  "LAM",
+  "CAM",
+  "RAM",
+  "RW",
+  "LCF",
+  "CF",
+  "RCF",
+] as const;
+
+export type CanonicalTacticalPosition = (typeof CANONICAL_TACTICAL_POSITIONS)[number];
+
+const CANONICAL_TACTICAL_POSITION_SET: ReadonlySet<string> = new Set(CANONICAL_TACTICAL_POSITIONS);
+
+export function isCanonicalTacticalPosition(value: string): value is CanonicalTacticalPosition {
+  return CANONICAL_TACTICAL_POSITION_SET.has(value);
+}
+
+/**
+ * Historical/broad composition concepts (ADR-0154 §7): `DEFENDER`/`MIDFIELDER`/
+ * `FORWARD` plus the unsided-wing/flexible legacy concepts `W`/`WM`/`FLEXIBLE`.
+ * Never canonical tactical positions — must not be fabricated into exact
+ * precision they don't carry, and must not appear in a coach-facing exact-
+ * position selector. (`W` remains a separate special *source* role for
+ * suitability-matrix scoring, see `SOURCE_ROLES` above — that is a distinct,
+ * unaffected concern from this broad/canonical-identity classification.)
+ */
+export const BROAD_TACTICAL_POSITIONS = ["DEFENDER", "MIDFIELDER", "FORWARD", "W", "WM", "FLEXIBLE"] as const;
+
+export type BroadTacticalPosition = (typeof BROAD_TACTICAL_POSITIONS)[number];
+
+const BROAD_TACTICAL_POSITION_SET: ReadonlySet<string> = new Set(BROAD_TACTICAL_POSITIONS);
+
+export function isBroadTacticalPosition(value: string): value is BroadTacticalPosition {
+  return BROAD_TACTICAL_POSITION_SET.has(value);
+}
+
+/**
+ * The five lines whose centre code (`CB`/`CDM`/`CM`/`CAM`/`CF`) is an unsided
+ * declaration spanning left/centre/right (ADR-0154 follow-up: evidence/suitability
+ * spread across `L{code}`/`{code}`/`R{code}`). Wide, inherently-sided codes
+ * (`LB`/`RB`, `LM`/`RM`, `LW`/`RW`) are deliberately excluded — they have no
+ * unsided sibling and must never spread to their opposite side.
+ */
+export const UNSIDED_CENTRE_LINE_POSITIONS = ["CB", "CDM", "CM", "CAM", "CF"] as const;
+
+export type UnsidedCentreLinePosition = (typeof UNSIDED_CENTRE_LINE_POSITIONS)[number];
+
+/**
+ * The left/centre/right triple for each unsided centre-line position, e.g.
+ * `CM` → `["LCM", "CM", "RCM"]`. Used by evidence-blending (ADR-0139 effective-
+ * position profile) to spread a declared unsided centre-line position's support
+ * across all three cells of its line — never applied to wide sided positions.
+ */
+export const CENTRE_LINE_TRIPLES: Readonly<Record<UnsidedCentreLinePosition, readonly CanonicalTacticalPosition[]>> = {
+  CB: ["LCB", "CB", "RCB"],
+  CDM: ["LDM", "CDM", "RDM"],
+  CM: ["LCM", "CM", "RCM"],
+  CAM: ["LAM", "CAM", "RAM"],
+  CF: ["LCF", "CF", "RCF"],
+};
+
+export function isUnsidedCentreLinePosition(value: string): value is UnsidedCentreLinePosition {
+  return (UNSIDED_CENTRE_LINE_POSITIONS as readonly string[]).includes(value);
+}

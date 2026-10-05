@@ -42,6 +42,28 @@ describe("normalizeSourceRole — exact aliases (ADR-0129 §2)", () => {
   });
 });
 
+describe("normalizeSourceRole — new canonical sided codes resolve (ADR-0154, previously UNKNOWN)", () => {
+  it("resolves the new sided midfield/defence/forward codes to their base role + side", () => {
+    expect(normalizeSourceRole("LDM")).toEqual({ known: true, role: "DM", sourceSide: "LEFT" });
+    expect(normalizeSourceRole("RDM")).toEqual({ known: true, role: "DM", sourceSide: "RIGHT" });
+    expect(normalizeSourceRole("LWB")).toEqual({ known: true, role: "LB", sourceSide: "LEFT" });
+    expect(normalizeSourceRole("RWB")).toEqual({ known: true, role: "RB", sourceSide: "RIGHT" });
+    expect(normalizeSourceRole("LCM")).toEqual({ known: true, role: "CM", sourceSide: "LEFT" });
+    expect(normalizeSourceRole("RCM")).toEqual({ known: true, role: "CM", sourceSide: "RIGHT" });
+    expect(normalizeSourceRole("LAM")).toEqual({ known: true, role: "AM", sourceSide: "LEFT" });
+    expect(normalizeSourceRole("RAM")).toEqual({ known: true, role: "AM", sourceSide: "RIGHT" });
+    expect(normalizeSourceRole("LCF")).toEqual({ known: true, role: "ST", sourceSide: "LEFT" });
+    expect(normalizeSourceRole("RCF")).toEqual({ known: true, role: "ST", sourceSide: "RIGHT" });
+  });
+
+  it("resolves verbose legacy aliases to the same base role as before", () => {
+    expect(normalizeSourceRole("GOALKEEPER")).toEqual({ known: true, role: "GK", sourceSide: null });
+    expect(normalizeSourceRole("DEFENSIVE_MIDFIELDER")).toEqual({ known: true, role: "DM", sourceSide: null });
+    expect(normalizeSourceRole("ATTACKING_MIDFIELDER")).toEqual({ known: true, role: "AM", sourceSide: null });
+    expect(normalizeSourceRole("STRIKER")).toEqual({ known: true, role: "ST", sourceSide: null });
+  });
+});
+
 describe("isEmptyDeclaration", () => {
   it("is true for null, blank and placeholder strings", () => {
     expect(isEmptyDeclaration(null)).toBe(true);
