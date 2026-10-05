@@ -2,7 +2,7 @@
 
 ## State
 
-Identified
+Dispositioned
 
 ## Identified
 
@@ -114,25 +114,32 @@ some consumers read and others deliberately avoid.
 
 ## Resolution criteria
 
-Not yet decided. Two plausible resolutions: (a) stop writing/reading
-`PostMatchPlayerActual.actualPositions` entirely, migrating `position-exposure.ts` and
-`sporting-level-recording.ts` onto the same interval-based helper the rest of the codebase uses,
-or (b) formally document `actualPositions` as an intentional, League-only convenience cache with
-one enforced reconciliation point and update its remaining two consumers' comments to say so
-explicitly. Choosing between these (and handling any migration of historical data) needs its own
-ADR; this ARR does not prescribe the outcome.
+Decided by ADR-0154 §4: option (a) — `position-exposure.ts` and `sporting-level-recording.ts`
+migrate onto the same interval-derived helper the rest of the codebase already uses
+(`position-usage-history.ts` / `getPlayerActualPositionHistory()`), and
+`get-player-match-history.ts`'s independent third derivation folds onto that same shared helper.
+Resolved when all three divergent reads are gone and every consumer reads through the one shared
+helper, with `PostMatchPlayerActual.actualPositions` either removed outright or left write-only
+pending a dedicated follow-up cleanup (decided at implementation time), and the full Event/League
+test suites for position-exposure, sporting-level recording, and player match history pass
+unchanged in substance (allowing for the source change itself).
 
 ## Disposition
 
-Pending.
+Dispositioned by ADR-0154 (2026-10-05): resolve by removal of the two stray read paths and the
+third independent derivation, as part of the development-context-and-evidence programme's
+Stage 2 (match derivation), since that stage's `role_seconds` metric is defined on the same
+canonical `ActualPositionInterval` source this ARR already names as correct. Not yet implemented.
 
 ## Resolution
 
-Not yet resolved.
+Not yet resolved — implementation lands with Stage 2 of the development-context-and-evidence
+programme (ADR-0154).
 
 ## Related decisions
 
-None yet.
+ADR-0154 (development context and evidence layer) — chooses this ARR's resolution direction as
+part of its own Stage 2.
 
 ## Related implementation
 
@@ -154,3 +161,7 @@ None.
   prompted by the `Selection`/`MatchLineup` finding (ARR-0051). Verified independently: writer
   (`actual-timeline.ts`), the three distinct consumer code paths, and the League-only Event
   coverage gap for `actualPositions`.
+- 2026-10-05: Dispositioned by ADR-0154 (development-context-and-evidence programme). The
+  programme's own Stage-0 attachment-point review re-surfaced this exact mismatch while locating
+  the canonical producer/readers for a new `role_seconds` metric — resolution folded into that
+  programme's Stage 2 rather than left as separate unscheduled work. See ADR-0154 §4.
