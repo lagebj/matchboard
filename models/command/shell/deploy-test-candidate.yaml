@@ -13,11 +13,15 @@ methods:
         set -e
         cat <<'EOF'
         Per-PR candidate deploys are automated by .github/workflows/test-acceptance.yml
-        (ADR-0075): it fires on pull_request events, deploys the exact PR commit against
-        an isolated Neon child branch, and aliases test.matchboard.football to it for
-        acceptance. There is no separate agent-triggered deploy step to run here — open
-        or push to a PR and the workflow handles it. After merge, Test deploys from main
-        automatically (Vercel Git integration) and the slot is restored to that baseline.
+        (ADR-0075, retargeted by ADR-0153): applying the "acceptance" label to a PR
+        deploys the exact PR commit against an isolated Neon child branch and aliases
+        test.matchboard.football to it. A plain push/open does NOT deploy by itself
+        (ADR-0153 cost containment) — apply the label when the candidate is ready for
+        acceptance; a later push removes the label again (prior acceptance is now
+        stale) until it is re-applied. There is no separate agent-triggered deploy step
+        to run here. After merge, test-db-migrate.yml's deploy-test-baseline job
+        explicitly redeploys main into the test Custom Environment once the persistent
+        Test branch's schema is migrated, and the slot is restored to that baseline.
         Run the verify-test-candidate model to confirm current slot state.
 
         Current Test slot state:

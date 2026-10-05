@@ -19,6 +19,9 @@ methods:
         case "$TARGET" in
           test)
             url_meta="https://test.matchboard.football/api/meta"
+            # Still the separate `matchboard-test` project until ADR-0153 Phase C moves
+            # test.matchboard.football to the `matchboard` project's `test` Custom
+            # Environment — update this to "matchboard" at that point, not before.
             vercel_project="matchboard-test"
             ;;
           production)

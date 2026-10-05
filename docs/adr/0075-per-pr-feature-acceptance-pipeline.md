@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted. **Partially superseded by ADR-0153** (2026-10-05): the two-Vercel-project
+architecture and the git-branch-scoped Preview env var mechanism described below no longer
+reflect the live architecture — see ADR-0153 for the single-project/Custom-Environment
+replacement. The per-PR Neon branch isolation guarantee, the single shared-slot concurrency
+design, and every incident recorded in this ADR's History remain accurate and unchanged.
 
 ## Date
 
@@ -409,3 +413,14 @@ not artificially triggered early, since a real close is the same signal either w
   `main`'s fetched tip instead. Verified against the same reproduced shallow clone, and against
   both untouched code paths (a valid `VERCEL_GIT_PREVIOUS_SHA`; an unreachable one from a
   rebase/force-push) for regressions — all three now classify correctly.
+- 2026-10-05: **Partially superseded by ADR-0153.** The account moved to Vercel Pro, removing
+  the Hobby-plan/`PROGRAMME.md` §5 constraint that ruled out Vercel Custom Environments when
+  this ADR was written. Live recon found the two-project architecture was by then the primary
+  driver of avoidable Vercel/Neon spend during ordinary development (every push building both
+  projects; the persistent Test branch absorbing ~30x production's data transfer from
+  every-push acceptance runs). ADR-0153 converges to one Vercel project with a `test` Custom
+  Environment and makes acceptance explicit (an `acceptance` PR label) instead of automatic on
+  every push, replacing the git-branch-scoped Preview env var mechanism and the hardcoded
+  `matchboard-test-git-main-matchboard-app.vercel.app` baseline alias described above. This
+  ADR's per-PR Neon isolation guarantee and shared-slot concurrency design carry forward
+  unchanged; see ADR-0153 for the new architecture and its own rollout phases.

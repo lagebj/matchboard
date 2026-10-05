@@ -1,31 +1,38 @@
 #!/usr/bin/env bash
 # Per-PR feature acceptance deploy: create/reuse an isolated Neon child branch, migrate it,
-# scope this PR's Vercel Preview build to that branch, deploy the exact PR commit, and alias
-# test.matchboard.football to it. See docs/adr/0075-per-pr-feature-acceptance-pipeline.md.
+# temporarily point the `test` Custom Environment's DATABASE_URL/DIRECT_URL at it, deploy the
+# exact PR commit into that environment, and alias test.matchboard.football to it. See
+# docs/adr/0075-per-pr-feature-acceptance-pipeline.md and
+# docs/adr/0153-converge-to-single-vercel-project-with-deliberate-acceptance.md.
 #
-# Required env: PR_NUMBER, GIT_BRANCH, NEON_API_KEY, NEON_PROJECT_ID, VERCEL_TOKEN,
-#               VERCEL_ORG_ID, VERCEL_TEST_PROJECT_ID, GH_TOKEN
+# Required env: PR_NUMBER, NEON_API_KEY, NEON_PROJECT_ID, VERCEL_TOKEN,
+#               VERCEL_ORG_ID, VERCEL_PROJECT_ID, GH_TOKEN
 # Optional env: NEON_PARENT_BRANCH (default "test"), NEON_DATABASE_NAME (default "neondb")
+#
+# GIT_BRANCH is intentionally not required here (ADR-0075 needed it to scope a Preview env var
+# to this PR's branch; ADR-0153's Custom-Environment deploy has no such per-branch scoping — see
+# vercel-api.sh's upsert_test_env_var comment). The checkout step that runs before this script
+# still needs `ref: github.head_ref` so `vercel deploy`'s own git-metadata auto-detection records
+# the correct branch/commit on the resulting deployment.
 
 set -euo pipefail
 
 : "${PR_NUMBER:?PR_NUMBER is required}"
-: "${GIT_BRANCH:?GIT_BRANCH is required}"
 : "${NEON_API_KEY:?NEON_API_KEY is required}"
 : "${NEON_PROJECT_ID:?NEON_PROJECT_ID is required}"
-: "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
-: "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
-: "${VERCEL_TEST_PROJECT_ID:?VERCEL_TEST_PROJECT_ID is required}"
 : "${GH_TOKEN:?GH_TOKEN is required}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./vercel-api.sh
+source "$SCRIPT_DIR/vercel-api.sh"
 
-# Rollout safety (ADR-0075): if anything below fails after the deploy step could plausibly have
-# left the alias mid-transition, restore it to the main baseline rather than leaving the shared
-# slot pointed at a broken/partial deployment. A failure before any alias change is a no-op here
-# (the alias was never touched), which is safe either way.
+# Rollout safety (ADR-0075/ADR-0153): if anything below fails after the env-var/deploy steps
+# could plausibly have left the shared Test environment mid-transition, restore it (both the
+# DATABASE_URL/DIRECT_URL override and the alias) to the persistent-branch baseline rather than
+# leaving the shared slot pointed at a broken/partial deployment or a soon-to-be-deleted Neon
+# branch. A failure before any of that happened is a no-op here either way.
 on_failure() {
-  echo "Deploy failed — restoring test.matchboard.football to the main baseline." >&2
+  echo "Deploy failed — restoring the Test environment to the main baseline." >&2
   "$SCRIPT_DIR/restore-baseline-alias.sh" || echo "Baseline restore also failed — manual intervention needed." >&2
 }
 trap on_failure ERR
@@ -53,20 +60,21 @@ DATABASE_URL="$(neonctl_ connection-string "$BRANCH_NAME" --pooled \
 echo "== Applying migrations to ${BRANCH_NAME} =="
 DIRECT_URL="$DIRECT_URL" npx prisma migrate deploy
 
-echo "== Scoping Preview env vars to git branch ${GIT_BRANCH} =="
-printf '%s' "$DATABASE_URL" | vercel_ env add DATABASE_URL preview "$GIT_BRANCH" \
-  --force --yes --project "$VERCEL_TEST_PROJECT_ID"
-printf '%s' "$DIRECT_URL" | vercel_ env add DIRECT_URL preview "$GIT_BRANCH" \
-  --force --yes --project "$VERCEL_TEST_PROJECT_ID"
+echo "== Pointing the test Custom Environment at ${BRANCH_NAME} =="
+# Environment-wide, not per-branch (Custom Environments don't support git-branch-scoped env
+# vars — see vercel-api.sh's upsert_test_env_var comment) — safe only because the shared Test
+# slot is itself serialized one-PR-at-a-time, and restore-baseline-alias.sh always restores the
+# persistent-branch default before the test-slot concurrency lock is released (cleanup.sh, and
+# this script's own failure trap above).
+upsert_test_env_var DATABASE_URL "$DATABASE_URL"
+upsert_test_env_var DIRECT_URL "$DIRECT_URL"
 
 echo "== Deploying exact PR commit =="
-# vercel deploy auto-detects Git metadata (branch, commit) from the local checkout, which is
-# what makes the branch-scoped env vars above apply to this specific build rather than the
-# general Preview values. No --skip-domain: that flag is production-only ("can only be used with
-# production deployments" — confirmed against the real CLI, not assumed from --help text) and
-# unnecessary here regardless — a Preview deployment never auto-promotes to a custom domain like
-# test.matchboard.football in the first place; we alias it explicitly below either way.
-DEPLOY_URL="$(vercel_ deploy --project "$VERCEL_TEST_PROJECT_ID" --yes | tail -1)"
+# vercel deploy auto-detects Git metadata (branch, commit) from the local checkout. The
+# deployment's recorded branch is this PR's own branch, never "main" — which is what lets
+# resolve_test_baseline_deployment_url's branch=main filter correctly ignore PR deployments when
+# looking for the real Test baseline.
+DEPLOY_URL="$(vercel_ deploy --target=test --project "$VERCEL_PROJECT_ID" --yes | tail -1)"
 echo "Deployment: ${DEPLOY_URL}"
 
 echo "== Aliasing test.matchboard.football -> this deployment =="
@@ -78,7 +86,9 @@ COMMENT_BODY="Test slot now serves this PR: **https://test.matchboard.football**
 - Deployment: ${DEPLOY_URL}
 - Neon branch: \`${BRANCH_NAME}\` (isolated, disposable — deleted on close)
 
-Slot returns to \`main\` + persistent Test automatically when this PR closes."
+Slot returns to \`main\` + persistent Test automatically when this PR closes, or if new commits
+are pushed (the \`acceptance\` label is removed automatically on the next push — re-apply it to
+request acceptance again)."
 
 gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY" --edit-last 2>/dev/null \
   || gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"

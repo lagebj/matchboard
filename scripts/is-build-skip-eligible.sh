@@ -3,10 +3,12 @@
 # Matchboard app (or the data a Test-slot/CI run would exercise)?" — shared by three independent
 # callers, each obtaining their own file list a different way:
 #
-#   - scripts/vercel-ignore-build-step.sh (Vercel's ignoreCommand, both `matchboard` and
-#     `matchboard-test` projects) — sources its list via `git diff --name-only` in Vercel's own
-#     build environment. Calls in `app-deploy` mode.
-#   - .github/workflows/test-acceptance.yml's "Check whether this push only touched
+#   - scripts/vercel-ignore-build-step.sh (Vercel's ignoreCommand, the single `matchboard`
+#     project — ADR-0153 retired the separate `matchboard-test` project this comment used to
+#     also name here) — sources its list via `git diff --name-only` in Vercel's own build
+#     environment, only ever reached for a push to `main` (every other branch is skipped before
+#     this classifier even runs — see that script). Calls in `app-deploy` mode.
+#   - .github/workflows/test-acceptance.yml's "Check whether this PR's entire diff only touches
 #     docs/tracking files" step — sources its list via the GitHub compare API, because a GitHub
 #     Actions checkout doesn't have every commit's parent readily diffable the same way. Calls in
 #     `app-deploy` mode.

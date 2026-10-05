@@ -1,34 +1,29 @@
 #!/usr/bin/env bash
-# Per-PR feature acceptance cleanup: restore test.matchboard.football to the main baseline,
-# remove this PR's branch-scoped Vercel env vars, and delete its Neon child branch. Runs on
-# every PR close (merged or not) — see docs/adr/0075-per-pr-feature-acceptance-pipeline.md.
+# Per-PR feature acceptance cleanup: restore the test Custom Environment to the main baseline
+# (alias + DATABASE_URL/DIRECT_URL back to the persistent Neon branch), then delete this PR's
+# isolated Neon child branch. Runs on every PR close (merged or not) — see
+# docs/adr/0075-per-pr-feature-acceptance-pipeline.md and
+# docs/adr/0153-converge-to-single-vercel-project-with-deliberate-acceptance.md.
 #
-# Required env: PR_NUMBER, GIT_BRANCH, NEON_API_KEY, NEON_PROJECT_ID, VERCEL_TOKEN,
-#               VERCEL_ORG_ID, VERCEL_TEST_PROJECT_ID
+# Required env: PR_NUMBER, NEON_API_KEY, NEON_PROJECT_ID, VERCEL_TOKEN, VERCEL_ORG_ID,
+#               VERCEL_PROJECT_ID
 
 set -euo pipefail
 
 : "${PR_NUMBER:?PR_NUMBER is required}"
-: "${GIT_BRANCH:?GIT_BRANCH is required}"
 : "${NEON_API_KEY:?NEON_API_KEY is required}"
 : "${NEON_PROJECT_ID:?NEON_PROJECT_ID is required}"
-: "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
-: "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
-: "${VERCEL_TEST_PROJECT_ID:?VERCEL_TEST_PROJECT_ID is required}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BRANCH_NAME="pr-${PR_NUMBER}"
 
 neonctl_() { neonctl "$@" --api-key "$NEON_API_KEY" --project-id "$NEON_PROJECT_ID"; }
-vercel_() { vercel "$@" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID"; }
 
+# Restores DATABASE_URL/DIRECT_URL to the persistent branch and the alias to main's baseline —
+# must happen before the branch below is deleted, since a failure partway through deploy.sh
+# could otherwise leave the test Custom Environment still pointed at a branch this step is about
+# to remove.
 "$SCRIPT_DIR/restore-baseline-alias.sh"
-
-echo "== Removing branch-scoped Preview env vars for ${GIT_BRANCH} =="
-vercel_ env rm DATABASE_URL preview "$GIT_BRANCH" --yes --project "$VERCEL_TEST_PROJECT_ID" \
-  || echo "DATABASE_URL override for ${GIT_BRANCH} already absent."
-vercel_ env rm DIRECT_URL preview "$GIT_BRANCH" --yes --project "$VERCEL_TEST_PROJECT_ID" \
-  || echo "DIRECT_URL override for ${GIT_BRANCH} already absent."
 
 echo "== Deleting Neon branch ${BRANCH_NAME} =="
 if neonctl_ branches get "$BRANCH_NAME" -o json >/dev/null 2>&1; then

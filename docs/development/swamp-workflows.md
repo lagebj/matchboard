@@ -82,25 +82,30 @@ Swamp's usual guidance to prefer typed extensions.
 
 ## Test-slot procedures
 
-A persistent Test environment exists and is verified live: the Vercel project `matchboard-test`
-deployed at `https://test.matchboard.football`, backed by a dedicated Neon `test` branch. `main`
-deploys there automatically via Vercel's Git integration, same as Production.
+A persistent Test environment exists and is verified live: the `matchboard` Vercel project's
+`test` Custom Environment, deployed at `https://test.matchboard.football`, backed by a dedicated
+Neon `test` branch (see ADR-0153 — this superseded the earlier separate `matchboard-test`
+project). Unlike Production, `main` does **not** deploy there automatically on every push —
+`test-db-migrate.yml`'s `deploy-test-baseline` job explicitly redeploys `main` into it after the
+persistent branch's schema is migrated.
 
-Per-PR candidate deploys are now real, but event-triggered rather than agent-invoked:
-`.github/workflows/test-acceptance.yml` (ADR-0075) creates an isolated Neon child branch per PR,
-deploys the exact PR commit, and aliases the shared `test.matchboard.football` slot to it for
-functional acceptance (Playwright), then restores the slot to `main` + persistent Test and
-deletes the child branch when the PR closes. This fires automatically on `pull_request` events —
-there is still no ad-hoc "deploy this PR right now" command to wrap, because the workflow already
-owns the full lifecycle (including the shared-slot concurrency lock) end-to-end.
+Per-PR candidate deploys are real, and now deliberately requested rather than automatic on every
+push: `.github/workflows/test-acceptance.yml` (ADR-0075, retargeted by ADR-0153) creates an
+isolated Neon child branch per PR, deploys the exact PR commit, and aliases the shared
+`test.matchboard.football` slot to it for functional acceptance (Playwright), then restores the
+slot to `main` + persistent Test and deletes the child branch when the PR closes. This fires when
+the `acceptance` label is applied to a PR (not on every push — a plain push removes the label
+instead, invalidating any prior acceptance) and on PR close — there is still no ad-hoc "deploy
+this PR right now" command to wrap, because the workflow already owns the full lifecycle
+(including the shared-slot concurrency lock) end-to-end; applying the label is that command.
 
 `deploy-test-candidate` and `release-test-candidate` therefore stay **informational**: they still
-just explain that Test updates automatically (now: on `pull_request` events during acceptance, on
-merge afterward) and print the current Test slot state, rather than exposing a redundant manual
+just explain that Test updates on the `acceptance` label (not automatically on every push) and on
+merge afterward, and print the current Test slot state, rather than exposing a redundant manual
 trigger for something GitHub Actions already drives declaratively. Requires the
-`NEON_API_KEY`/`NEON_PROJECT_ID`/`VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_TEST_PROJECT_ID` repo
-secrets to be configured — the workflow skips cleanly (same pattern as
-`verify-browser-acceptance`'s `TEST_AGENT_AUTH_SECRET` gate) if they're absent.
+`NEON_API_KEY`/`NEON_PROJECT_ID`/`VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID` repo secrets
+to be configured — the workflow skips cleanly (same pattern as `verify-browser-acceptance`'s
+`TEST_AGENT_AUTH_SECRET` gate) if they're absent.
 
 `restore-test-baseline` genuinely mutates the shared Test database. It refuses to run without:
 

@@ -38,6 +38,15 @@ run-name: >-
 # (schema, additive) — it never reseeds data; reseeding remains a deliberate, separate,
 # human-invoked action (`restore-test-baseline`), not something that happens automatically on
 # every push to main.
+#
+# ADR-0153 added the `deploy-test-baseline` job below: once the persistent Test branch's schema
+# is current, redeploy `main`'s app code into the `test` Custom Environment and re-point
+# test.matchboard.football at it. This is the single-project architecture's replacement for the
+# old `matchboard-test` project's own automatic Git-integration deploy of `main` — the `test`
+# Custom Environment deliberately never auto-deploys from a push (see
+# scripts/vercel-ignore-build-step.sh), so something must deploy `main` to it explicitly, and
+# this is the one place that does, always after (never before) the schema it depends on is
+# migrated.
 
 on:
   push:
@@ -55,6 +64,8 @@ jobs:
   migrate:
     name: Migrate persistent test branch
     runs-on: ubuntu-24.04
+    outputs:
+      ref: ${{ steps.resolve-ref.outputs.ref }}
     env:
       NODE_ENV: test
       TEST_DATABASE_DIRECT_URL: ${{ secrets.TEST_DATABASE_DIRECT_URL }}
@@ -88,3 +99,40 @@ jobs:
 
       - name: Verify all migrations are applied
         run: npx prisma migrate status
+
+  deploy-test-baseline:
+    name: Deploy main to Test baseline
+    needs: migrate
+    runs-on: ubuntu-24.04
+    # Overrides the workflow-level `test-database` group for this job only — this job touches
+    # Vercel, not the Neon branch migrate just finished with, and must instead serialize against
+    # test-acceptance.yml's own use of the shared Test slot (same group name there).
+    concurrency:
+      group: test-slot
+      cancel-in-progress: false
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check required secrets are configured
+        id: check
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Required secrets not fully configured; skipping Test baseline redeploy."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout
+        if: steps.check.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.migrate.outputs.ref }}
+          persist-credentials: false
+      - name: Install Vercel CLI
+        if: steps.check.outputs.configured == 'true'
+        run: npm install -g vercel
+      - name: Deploy main to Test and update the baseline alias
+        if: steps.check.outputs.configured == 'true'
+        run: bash scripts/test-acceptance/deploy-test-baseline.sh

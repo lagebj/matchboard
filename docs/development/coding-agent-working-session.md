@@ -123,6 +123,36 @@ If a command fails, the PR must state:
 - exact failure
 - whether it is caused by this branch or pre-existing
 
+## Remote infrastructure discipline (ADR-0153)
+
+Normal implementation workflow is local-first. Remote Vercel/Neon infrastructure validates a
+finished candidate; it is not the normal development feedback loop.
+
+1. Checkout/update `main`, create a branch.
+2. Implement locally, using Docker Postgres 17 (`docker-compose.yml`) as the development
+   database — never Neon.
+3. Run `npm run validate` (or the individual lint/typecheck/test/build commands) locally.
+4. Run Playwright locally against a local dev server when relevant.
+5. Iterate locally until stable; push coherent chunks rather than every intermediate attempt.
+6. Open/update the PR and let `ci-checks.yml` validate — it runs against GitHub's own
+   disposable Postgres service container, not Neon, so this step alone costs no remote
+   infrastructure.
+7. Request Test acceptance (apply the `acceptance` PR label) only once the candidate is
+   actually ready — CI green and locally verified, not "let's see if this compiles."
+
+Do not:
+- push merely to check whether something compiles — a local `npm run build`/`npm test` answers
+  that without touching CI;
+- apply the `acceptance` label as the normal browser-debugging loop — it provisions a real
+  isolated Neon branch and a real Vercel deployment into the shared Test slot;
+- use Neon as the normal local development database;
+- request another acceptance run immediately after a failed one without first reproducing and
+  fixing the failure locally where practical.
+
+A push to an already-labeled PR removes the `acceptance` label automatically — the prior
+acceptance no longer covers the new commit. Re-apply the label deliberately when the new commit
+is actually ready, not reflexively.
+
 ## Version management (mandatory)
 
 Every substantive Matchboard change must include a version-impact assessment before completion, per `docs/VERSIONING.md` (see ADR-0059).
