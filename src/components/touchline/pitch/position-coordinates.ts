@@ -1,48 +1,40 @@
+import { normalizeCanonicalPosition } from "@/domain/positions/canonical-aliases";
+import { isCanonicalTacticalPosition } from "@/domain/positions/roles";
+import { primaryDisplayCellFor, type GridCell } from "@/domain/positions/grid";
 import { gridToNormalizedPoint } from "./projection";
 import type { NormalizedPitchPoint } from "./types";
 
 /**
- * Position-code → pitch-coordinate lookup for `TouchlinePositionMap`. Deliberately a fresh,
- * standalone copy of the same real-world mapping the old pre-Atlas-Followup
- * `src/components/ui/position-map.tsx`'s `POSITION_GRID` encoded (both tables describe the same
- * formation grid, `src/lib/formations/types.ts`'s `GRID_X_PERCENT`/`GRID_Y_PERCENT`) — now the
- * canonical owner of that mapping since the old horizontal renderer was deleted (Phase F8).
+ * Display cell for the broad historical concepts that can still flow through a position-code
+ * string (`DEFENDER`/`MIDFIELDER`/`FORWARD`/`W`/`WM`, ADR-0154 §7) — they carry no left/right
+ * precision to place more specifically, so they share the same central column the legacy table
+ * used (DEFENDER/MIDFIELDER/FORWARD on the centre column at their depth; `W`/`WM` keep their
+ * original placement). Not canonical tactical positions, never exact-eligibility authority.
  */
-const POSITION_GRID: Record<string, { gridX: number; gridY: number }> = {
-  GK: { gridX: 2, gridY: 5 },
-  CB: { gridX: 2, gridY: 4 },
-  LB: { gridX: 0, gridY: 4 },
-  RB: { gridX: 4, gridY: 4 },
-  CM: { gridX: 2, gridY: 2 },
-  DM: { gridX: 2, gridY: 3 },
-  AM: { gridX: 2, gridY: 1 },
-  LM: { gridX: 0, gridY: 2 },
-  WM: { gridX: 1, gridY: 1 },
-  LW: { gridX: 0, gridY: 0 },
-  RW: { gridX: 4, gridY: 0 },
-  RM: { gridX: 4, gridY: 2 },
-  W: { gridX: 1, gridY: 0 },
-  ST: { gridX: 2, gridY: 0 },
-  CF: { gridX: 2, gridY: 0 },
-  // Broad historical positions (Matchboard Players Operating Surface bundle,
-  // `03_POSITION_MODEL_AND_LABEL_CONTRACT.md §5`) — placed on the same central column as their
-  // exact-code counterparts (CB/CM/ST) since a broad declaration carries no left/right precision
-  // to place more specifically. Labels stay broad; only the coordinate is shared.
+const BROAD_DISPLAY_CELL: Readonly<Record<string, GridCell>> = {
   DEFENDER: { gridX: 2, gridY: 4 },
   MIDFIELDER: { gridX: 2, gridY: 2 },
   FORWARD: { gridX: 2, gridY: 0 },
+  W: { gridX: 1, gridY: 0 },
+  WM: { gridX: 1, gridY: 1 },
 };
 
+/**
+ * Position-code -> pitch grid cell, for `TouchlinePositionMap`/`PitchExposure`. A thin adapter
+ * over the single domain position authority (ADR-0154 §4) — no independent lookup table
+ * maintained here. Canonical codes (including legacy aliases like `DM`/`CDM`) resolve through
+ * `normalizeCanonicalPosition` + `primaryDisplayCellFor`; broad codes use the fallback above;
+ * anything else (unrecognized) returns `null` — never a placeholder/guessed cell.
+ */
+export function positionCodeToGridCell(code: string): GridCell | null {
+  const canonical = normalizeCanonicalPosition(code);
+  if (!canonical) return null;
+  if (isCanonicalTacticalPosition(canonical)) return primaryDisplayCellFor(canonical);
+  return BROAD_DISPLAY_CELL[canonical] ?? null;
+}
+
 export function positionCodeToPoint(code: string): NormalizedPitchPoint | null {
-  const cell = POSITION_GRID[code];
+  const cell = positionCodeToGridCell(code);
   if (!cell) return null;
   return gridToNormalizedPoint(cell.gridX, cell.gridY);
 }
-
-/**
- * The raw grid table, exported for genuinely broad position-exposure consumers that need the
- * grid cell itself (e.g. `PitchExposure`'s share-percent rendering, which projects through
- * `getBoardPositionPercent` rather than this module's perspective projection). Not exact
- * automatic-eligibility authority — pure coordinates only.
- */
-export const POSITION_COORDINATE_GRID: Record<string, { gridX: number; gridY: number }> = POSITION_GRID;
