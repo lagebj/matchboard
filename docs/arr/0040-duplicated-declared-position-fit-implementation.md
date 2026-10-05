@@ -118,3 +118,29 @@ None.
 Recorded during the Evidence-Informed Match Planning programme's Bundle 5 implementation, while
 auditing "team-composition `RoleSuitabilityProfile` and position-suitability logic" as instructed
 by the programme's own operating rule.
+
+### 2026-10-05
+
+New exposure found while implementing ADR-0154 (canonical 24-code tactical-position model), not
+fixed here — out of that ADR's own scope for the same reason this ARR gives for not consolidating
+(a non-trivial, separately-testable change to the production-critical Event pipeline).
+
+Both of this ARR's two independent broad-bucket mappers have real blind spots for sided exact
+codes, worsened by ADR-0154 step A7 widening the coach-facing declared-position selector from 5
+codes to the full 24-code canonical vocabulary (more of these codes are now actually reachable as
+`Player.primaryPosition`/`secondaryPosition`/`tertiaryPosition` input):
+
+- `src/lib/players/player-position-resolver.ts`'s `mapAnyPositionToBroad()`/`POSITION_TO_BROAD`
+  recognises only the 5 literal strings `GK`/`CB`/`CM`/`W`/`ST` — every other canonical code
+  (including pre-existing ADR-0129 codes like `LB`/`RB`/`DM`/`AM`/`LW`/`RW`, not just the ten new
+  ADR-0154 sided codes) silently falls through to `'flexible'`, not a correct broad bucket.
+- `src/domain/team-composition/position-suitability.ts`'s `mapPositionCodeToBroad()` fares
+  better via a substring-fallback (`.includes("cb")`, `.includes("dm")`, etc. — this happens to
+  correctly bucket most new sided codes, e.g. `LCB`/`RCB`/`LDM`/`RDM`/`LCM`/`RCM`/`LAM`/`RAM`/
+  `LCF`/`RCF` all match), but `LW`/`RW` still fall through to `'flexible'` (no `"wing"` substring
+  in the code itself) — a pre-existing gap, not newly introduced.
+
+Not fixed as part of ADR-0154: this ARR's own resolution is explicitly a broad-bucket-mapper
+consolidation (a different, larger change than exact-position-vocabulary work), and ADR-0154
+itself explicitly preserves broad-role helpers unchanged. Recorded so whoever resolves this ARR
+knows the input surface reaching these mappers is now wider than when this ARR was first filed.
