@@ -6,6 +6,7 @@ import {
   type StarterAssignment,
 } from "@/lib/evidence/lineup-state";
 import { ROLE_TYPE_TO_LINE, laneFromGridX, type FormationSlotRoleType } from "@/lib/formations/types";
+import { deriveExactTargetRole } from "@/domain/positions/slot-target";
 import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import { MATCH_PERIOD_ORDER } from "@/lib/live-match/live-match-types";
 import {
@@ -379,7 +380,7 @@ async function getEventStartingLineup(eventMatchId: string): Promise<StarterAssi
   const slots = slotIds.length > 0
     ? await db.formationSlot.findMany({
         where: { id: { in: slotIds } },
-        select: { id: true, roleType: true, label: true, gridX: true },
+        select: { id: true, roleType: true, label: true, gridX: true, gridY: true },
       })
     : [];
   const slotMap = new Map(slots.map((s) => [s.id, s]));
@@ -389,9 +390,15 @@ async function getEventStartingLineup(eventMatchId: string): Promise<StarterAssi
     .map((a) => {
       const slot = a.slotId ? slotMap.get(a.slotId) : undefined;
       const roleType = (slot?.roleType ?? a.roleType) as FormationSlotRoleType | undefined;
+      // Canonical grid-cell position (ADR-0154 §8/§12), not the broad roleType/free-form label
+      // this used to fall back to first. Validated for roleType/cell depth consistency, same as
+      // formation-slot derivation (deriveExactTargetRole) -- a contradiction (e.g. a test/legacy
+      // fixture with mismatched roleType and grid geometry) falls back to the roleType/label
+      // chain below rather than trusting an inconsistent cell.
+      const exactPosition = slot ? deriveExactTargetRole(slot.roleType, slot.gridX, slot.gridY) : null;
       return {
         playerId: a.playerId!,
-        position: slot?.roleType || slot?.label || a.roleType || "unknown",
+        position: exactPosition ?? slot?.roleType ?? slot?.label ?? a.roleType ?? "unknown",
         line: roleType ? (ROLE_TYPE_TO_LINE[roleType] ?? null) : null,
         // lane needs FormationSlot.gridX (a grid coordinate) -- EventMatchLineupAssignment's
         // own x/y are free-form pitch coordinates in a different space, not interchangeable.
@@ -538,7 +545,7 @@ async function getStartingLineup(matchId: string): Promise<StarterAssignment[]> 
   const slotIds = assignments.map((a) => a.slotId);
   const slots = await db.formationSlot.findMany({
     where: { id: { in: slotIds } },
-    select: { id: true, roleType: true, label: true, gridX: true },
+    select: { id: true, roleType: true, label: true, gridX: true, gridY: true },
   });
 
   const slotMap = new Map(slots.map((s) => [s.id, s]));
@@ -548,9 +555,13 @@ async function getStartingLineup(matchId: string): Promise<StarterAssignment[]> 
     .map((a) => {
       const slot = slotMap.get(a.slotId);
       const roleType = slot?.roleType as FormationSlotRoleType | undefined;
+      // Canonical grid-cell position (ADR-0154 §8/§12) -- see getEventStartingLineup's own
+      // comment above for why this is the normal path, not the broad roleType/label fallback,
+      // and why it's validated for roleType/cell depth consistency.
+      const exactPosition = slot ? deriveExactTargetRole(slot.roleType, slot.gridX, slot.gridY) : null;
       return {
         playerId: a.playerId!,
-        position: slot?.roleType || slot?.label || "unknown",
+        position: exactPosition ?? slot?.roleType ?? slot?.label ?? "unknown",
         line: roleType ? (ROLE_TYPE_TO_LINE[roleType] ?? null) : null,
         lane: slot ? laneFromGridX(slot.gridX) : null,
       };

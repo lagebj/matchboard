@@ -198,7 +198,7 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
     // Build the due-slot list. A due player whose slot has no resolvable exact role cannot be
     // safely rotated — they stay on, with a diagnostic.
     const dueSlots: { slotId: string; targetRole: SuitabilityTargetRole }[] = [];
-    const dueBySlotId = new Map<string, { playerId: string; roleLabel: string }>();
+    const dueBySlotId = new Map<string, { playerId: string; roleLabel: string; exactRole: SuitabilityTargetRole }>();
     for (const due of dueOut) {
       const occupancy = onPitchSlot.get(due.playerId);
       if (!occupancy || occupancy.exactRole == null) {
@@ -207,7 +207,7 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
       }
       const slotId = `slot:${due.playerId}`;
       dueSlots.push({ slotId, targetRole: occupancy.exactRole });
-      dueBySlotId.set(slotId, { playerId: due.playerId, roleLabel: occupancy.roleLabel });
+      dueBySlotId.set(slotId, { playerId: due.playerId, roleLabel: occupancy.roleLabel, exactRole: occupancy.exactRole });
     }
     if (dueSlots.length === 0) continue;
 
@@ -269,8 +269,13 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
       changes.push({
         outPlayerId: due.playerId,
         inPlayerId: inId,
-        outPosition: null,
-        inPosition: due.roleLabel,
+        // Canonical grid-derived exact roles (ADR-0154 §8), not the broad roleLabel these used
+        // to be null/broad-labelled with -- `assignment.role` is the exact target the incoming
+        // player now occupies; `due.exactRole` is the exact role the outgoing player just
+        // vacated, already resolved above (`resolveExactRole`), previously computed only for
+        // matching and then discarded.
+        outPosition: due.exactRole,
+        inPosition: assignment.role,
         positionOnly: false,
         approximateMatchSeconds: point.atSeconds,
         notes: null,

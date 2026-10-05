@@ -162,15 +162,32 @@ describe("LiveMatchClient — Position action (manual POSITIONS_CHANGED)", () =>
     const playerSheet = await screen.findByRole("dialog", { name: "Who changed position?" });
     fireEvent.click(within(playerSheet).getByText("Carl"));
     const roleSheet = await screen.findByRole("dialog", { name: /New position for Carl/ });
-    fireEvent.click(within(roleSheet).getByText("ST"));
+    fireEvent.click(within(roleSheet).getByText("CF"));
 
     await waitFor(() => expect(recordEvent).toHaveBeenCalledTimes(1));
     const positionsChangedCalls = recordEvent.mock.calls.filter((c) => c[0].eventType === "POSITIONS_CHANGED");
     expect(positionsChangedCalls).toHaveLength(1);
     expect(positionsChangedCalls[0][0]).toMatchObject({
       playerId: "p3",
-      payload: { fromPosition: null, toPosition: "ST" },
+      payload: { fromPosition: null, toPosition: "CF" },
     });
+  });
+
+  it("offers the full canonical 24-code vocabulary, including sided codes the old 12-code list never had (ADR-0154 step A6)", async () => {
+    const actions = makeActions({});
+    render(
+      <LiveMatchClient matchId="match-1" teamName="Home" opponentName="Away" contextLabel={null} periodConfig={LEAGUE_PERIOD_CONFIG} actions={actions} />,
+    );
+    await waitFor(() => expect(actions.getPreMatchPackage).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByText("Position"));
+    const playerSheet = await screen.findByRole("dialog", { name: "Who changed position?" });
+    fireEvent.click(within(playerSheet).getByText("Carl"));
+    const roleSheet = await screen.findByRole("dialog", { name: /New position for Carl/ });
+
+    for (const code of ["LCB", "RCB", "LDM", "RDM", "LCM", "RCM", "LAM", "RAM", "LCF", "RCF"]) {
+      expect(within(roleSheet).getByText(code)).toBeInTheDocument();
+    }
   });
 
   it("does not record an event when the chosen position matches the player's current position", async () => {

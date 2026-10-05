@@ -21,7 +21,7 @@ import { LiveReportingWarningBanner } from "@/components/live-match/live-reporti
 // The one canonical exact-position vocabulary (ADR-0129) — reused here, not re-implemented, for
 // the "Position" live-reporting action (recording a POSITIONS_CHANGED event for an on-field
 // player who moves without a substitution).
-import { EXACT_ROLES } from "@/domain/positions";
+import { CANONICAL_TACTICAL_POSITIONS } from "@/domain/positions";
 import {
   reconcileFromServerEvents,
 } from "@/lib/live-match/live-match-reconciliation";
@@ -1891,8 +1891,8 @@ export function LiveMatchClient({ matchId, teamName, opponentName, contextLabel,
             <p className="text-[10px] text-[var(--text-muted)] mt-2.5 mb-1.5">Or move to a specific position:</p>
           </div>
         )}
-        <div className="grid grid-cols-4 gap-1.5">
-          {EXACT_ROLES.map((role) => (
+        <div className="grid grid-cols-5 gap-1.5">
+          {CANONICAL_TACTICAL_POSITIONS.map((role) => (
             <button
               key={role}
               onClick={() => handlePositionChangeSelectRole(role)}
