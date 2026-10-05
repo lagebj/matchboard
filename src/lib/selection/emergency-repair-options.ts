@@ -77,10 +77,13 @@ export async function generateEmergencyRepairOptions(
   const vacatedPosition = vacatedSelection.player.primaryPosition;
   const vacatedPlayerName = `${vacatedSelection.player.firstName}${vacatedSelection.player.lastName ? ` ${vacatedSelection.player.lastName}` : ""}`;
 
-  // Exact target role for the positional-eligibility gate (ADR-0129 §13). When the vacated
-  // player's declared primary position does not normalise to one of the twelve exact roles
-  // (e.g. a broad legacy string), no positional gate is applied and candidates rank purely on
-  // the secondary consequences below.
+  // Exact target role for the positional-eligibility gate (ADR-0129 §13). `normalizeSourceRole`
+  // now recognises the full canonical 24-code vocabulary (ADR-0154) and projects it onto the
+  // suitability matrix's own base-role space; `isExactRole` here filters that base-role space
+  // down to a real matrix row, excluding the SS/W special source profiles. When the vacated
+  // player's declared primary position doesn't normalise to a known row at all (e.g. a broad
+  // legacy string), no positional gate is applied and candidates rank purely on the secondary
+  // consequences below.
   const vacatedNorm = normalizeSourceRole(vacatedPosition);
   const targetExactRole = vacatedNorm.known && isExactRole(vacatedNorm.role) ? vacatedNorm.role : null;
 

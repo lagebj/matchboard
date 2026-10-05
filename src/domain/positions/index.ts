@@ -15,12 +15,15 @@
 // elsewhere remain valid ONLY for genuinely broad questions.
 // ─────────────────────────────────────────────────────────────────
 
+// The old 12-code `EXACT_ROLES`/`ExactRole`/`isExactRole`/`TARGET_ROLE_SIDE` (ADR-0129) are no
+// longer part of this module's public surface (ADR-0154 step A9) -- every external caller has
+// migrated to the canonical 24-code vocabulary below. They remain available only via a direct
+// `./roles` import for the matrix/projection internals and one still-correct deep import
+// (`src/lib/selection/emergency-repair-options.ts`, which filters the suitability matrix's own
+// base-role space -- unaffected by the canonical-vocabulary widening, see that file's comment).
 export {
-  EXACT_ROLES,
   SOURCE_ROLES,
-  TARGET_ROLE_SIDE,
   UNSIDED_SOURCE_ROLES,
-  isExactRole,
   isSourceRole,
   normalizeSideInput,
   CANONICAL_TACTICAL_POSITIONS,
@@ -30,7 +33,6 @@ export {
   isCanonicalTacticalPosition,
   isBroadTacticalPosition,
   isUnsidedCentreLinePosition,
-  type ExactRole,
   type SourceRole,
   type Lane,
   type SideInput,
