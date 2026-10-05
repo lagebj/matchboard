@@ -40,6 +40,14 @@ run-name: >-
 # human to ever run it by hand for this specific secret. The two GitHub secrets themselves must
 # still be set by hand once (same as any repository secret) and must match the corresponding
 # Vercel LIVE_MATCH_INTERNAL_SECRET env var exactly, per environment.
+#
+# VERCEL_AUTOMATION_BYPASS_SECRET (test only, ADR-0153): test.matchboard.football sits on a
+# non-Production Custom Environment, which Vercel's SSO Deployment Protection does not exempt —
+# the test Worker's server-to-server calls to it need this header or they get a 401 from
+# Vercel's own edge before ever reaching the app's HMAC check. Synced the same way as
+# LIVE_MATCH_INTERNAL_SECRET_TEST, reusing the same GitHub secret the Vercel-side env var is
+# upserted from. No production equivalent — app.matchboard.football's Production domain is
+# already exempt.
 
 on:
   workflow_run:
@@ -69,6 +77,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       LIVE_MATCH_INTERNAL_SECRET_PRODUCTION: ${{ secrets.LIVE_MATCH_INTERNAL_SECRET_PRODUCTION }}
       LIVE_MATCH_INTERNAL_SECRET_TEST: ${{ secrets.LIVE_MATCH_INTERNAL_SECRET_TEST }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Resolve ref to deploy
         id: resolve-ref
@@ -107,3 +116,7 @@ jobs:
       - name: Sync test Worker internal secret
         if: env.LIVE_MATCH_INTERNAL_SECRET_TEST != ''
         run: printf '%s' "$LIVE_MATCH_INTERNAL_SECRET_TEST" | npx wrangler secret put LIVE_MATCH_INTERNAL_SECRET --config workers/live-match/wrangler.jsonc --env test
+
+      - name: Sync test Worker Vercel protection bypass secret
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
+        run: printf '%s' "$VERCEL_AUTOMATION_BYPASS_SECRET" | npx wrangler secret put VERCEL_AUTOMATION_BYPASS_SECRET --config workers/live-match/wrangler.jsonc --env test

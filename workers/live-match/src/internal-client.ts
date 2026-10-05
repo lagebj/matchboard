@@ -21,7 +21,11 @@ export interface SignedRequestInit {
 
 /** Builds the exact request the internal endpoint expects — headers per SPEC.md §18, body
  * unmodified from what the caller supplied. `timestamp`/`requestId` are caller-supplied (not
- * generated internally) so tests can assert on exact values instead of freezing global clocks. */
+ * generated internally) so tests can assert on exact values instead of freezing global clocks.
+ * `bypassSecret`, when provided, adds Vercel's Protection Bypass for Automation header
+ * (ADR-0153) — required against a Vercel Custom Environment target (e.g. the `test` Worker
+ * calling `test.matchboard.football`), never set when targeting Production, whose domain is
+ * already exempt from Vercel's deployment protection. */
 export async function buildSignedRequest(params: {
   url: string;
   method: "GET" | "POST";
@@ -29,6 +33,7 @@ export async function buildSignedRequest(params: {
   secret: string;
   timestamp: number;
   requestId: string;
+  bypassSecret?: string;
 }): Promise<SignedRequestInit> {
   const signature = await signInternalRequest({
     timestamp: params.timestamp,
@@ -45,6 +50,7 @@ export async function buildSignedRequest(params: {
       "x-matchboard-timestamp": String(params.timestamp),
       "x-matchboard-request-id": params.requestId,
       "x-matchboard-signature": signature,
+      ...(params.bypassSecret ? { "x-vercel-protection-bypass": params.bypassSecret } : {}),
     },
   };
 }
@@ -63,6 +69,7 @@ export async function persistEvent(params: {
   baseUrl: string;
   secret: string;
   body: InternalPersistEventRequest;
+  bypassSecret?: string;
 }): Promise<InternalPersistEventResponse> {
   const rawBody = JSON.stringify(params.body);
   const signed = await buildSignedRequest({
@@ -72,6 +79,7 @@ export async function persistEvent(params: {
     secret: params.secret,
     timestamp: Date.now(),
     requestId: crypto.randomUUID(),
+    bypassSecret: params.bypassSecret,
   });
 
   const response = await fetch(signed.url, { method: signed.method, headers: signed.headers, body: signed.rawBody });
@@ -91,6 +99,7 @@ export async function fetchSnapshot(params: {
   /** ADR-0138 Bundle 8 — which persistence adapter to read from. Omitted/undefined means
    * League, matching every pre-Bundle-8 caller's only behavior. */
   subjectType?: "LEAGUE" | "EVENT";
+  bypassSecret?: string;
 }): Promise<InternalSnapshotResponse> {
   const url = new URL(`${params.baseUrl}/api/internal/live-match/snapshot`);
   url.searchParams.set("matchId", params.matchId);
@@ -110,6 +119,7 @@ export async function fetchSnapshot(params: {
     secret: params.secret,
     timestamp: Date.now(),
     requestId: crypto.randomUUID(),
+    bypassSecret: params.bypassSecret,
   });
 
   const response = await fetch(signed.url, { method: signed.method, headers: signed.headers });

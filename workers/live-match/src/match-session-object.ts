@@ -558,6 +558,7 @@ export class MatchSessionObject extends DurableObject<Env> {
           canonicalEvent = await persistEvent({
             baseUrl: this.env.MATCHBOARD_API_BASE_URL,
             secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+            bypassSecret: this.env.VERCEL_AUTOMATION_BYPASS_SECRET,
             body: persistRequest,
           });
           persistenceStatus = "persisted";
@@ -841,6 +842,7 @@ export class MatchSessionObject extends DurableObject<Env> {
         const canonical = await persistEvent({
           baseUrl: this.env.MATCHBOARD_API_BASE_URL,
           secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+          bypassSecret: this.env.VERCEL_AUTOMATION_BYPASS_SECRET,
           body: {
             matchId: meta.matchId,
             sessionId: meta.sessionId,
@@ -918,6 +920,7 @@ export class MatchSessionObject extends DurableObject<Env> {
       snapshot = await fetchSnapshot({
         baseUrl: this.env.MATCHBOARD_API_BASE_URL,
         secret: this.env.LIVE_MATCH_INTERNAL_SECRET,
+        bypassSecret: this.env.VERCEL_AUTOMATION_BYPASS_SECRET,
         matchId: meta.matchId,
         sessionId: meta.sessionId,
         subjectType: subjectTypeFor(meta),
