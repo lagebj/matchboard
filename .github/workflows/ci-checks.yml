@@ -309,6 +309,20 @@ jobs:
     # minutes comfortably covers npm ci + browser install + the full smoke suite (~4 minutes
     # observed) with headroom, while failing fast on a genuine hang instead of blocking the PR.
     timeout-minutes: 15
+    # Shares the test-slot group with test-db-migrate.yml's deploy-test-baseline job (and
+    # test-acceptance.yml). Both this job and deploy-test-baseline trigger on the same `push` to
+    # main and act on the same test.matchboard.football alias -- without this, deploy-test-
+    # baseline's re-alias to a new deployment can land mid-run, underneath an in-flight Playwright
+    # session. Confirmed live 2026-10-05: a rapid run of 9 back-to-back merges produced 403s
+    # ("Preview deployment access restricted") and one full-timeout hang, both traced via Vercel
+    # runtime logs to requests landing on short-lived intermediate deployments that
+    # test.matchboard.football was only briefly aliased to mid-swap, not the deployment the alias
+    # ultimately settled on (which served the rest of each run's traffic with clean 200s).
+    # ADR-0153's "a baseline redeploy can never race an in-flight acceptance run" guarantee only
+    # covered test-acceptance.yml -- this job was never added to the same group.
+    concurrency:
+      group: test-slot
+      cancel-in-progress: false
     # Requires the TEST_AGENT_AUTH_SECRET repo secret to match the deployed Test environment's
     # secret (docs/development/browser-acceptance-testing.md). Skips cleanly if not yet
     # configured rather than failing every run. The `secrets` context is not a valid named-value
