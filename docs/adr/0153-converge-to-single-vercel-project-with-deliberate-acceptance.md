@@ -2,9 +2,10 @@
 
 ## Status
 
-Accepted. Phases A–C implemented (repository changes, Custom Environment + env vars, domain
-cutover). Phase D (observe one full real PR acceptance lifecycle) is being exercised via this
-PR. Phases E–F pending — see "Rollout" below.
+Accepted. Phases A–E implemented (repository changes, Custom Environment + env vars, domain
+cutover, one full real PR acceptance lifecycle observed end-to-end, obsolete GitHub secret
+removed). Phase F is recommend-only by design and awaits explicit user authorization — see
+"Rollout" below.
 
 ## Date
 
@@ -226,14 +227,19 @@ changes. Each later phase required its own explicit go-ahead:
   `test-acceptance.yml`'s `acceptance-deploy` job both now requiring it alongside
   `TEST_AGENT_AUTH_SECRET`) and from the swamp diagnostic models that curl `/api/meta` directly.
   See the follow-up fix PR for the exact diff.
-- **Phase D** (in progress): observe one full real PR acceptance lifecycle end-to-end on the new
-  architecture (label → deploy → Playwright → close → cleanup) before relying on it for real
-  work. Being exercised via this PR — see History for the observed result once available.
-- **Phase E**: remove the `VERCEL_TEST_PROJECT_ID` GitHub secret. Confirmed via repo-wide search
-  that it is no longer referenced anywhere outside historical ADR prose (ADR-0075, this ADR) —
-  safe to remove once Phase D confirms the replacement pipeline works end-to-end. Not yet done.
+- **Phase D** (done): observed one full real PR acceptance lifecycle end-to-end — see History.
+- **Phase E** (done): removed the `VERCEL_TEST_PROJECT_ID` GitHub secret. Confirmed via
+  repo-wide search that it was no longer referenced anywhere outside historical ADR prose
+  (ADR-0075, this ADR) before removing it.
 - **Phase F**: recommend — never automatically perform — deletion/archival of the
-  `matchboard-test` project. Final deletion requires explicit user authorization. Not yet done.
+  `matchboard-test` project. Final deletion requires explicit user authorization. **Recommended
+  now, with live evidence**: `matchboard-test` is still auto-deploying on every push to `main`
+  via its own Git integration (confirmed live — its `latestDeployment` entered `BUILDING` within
+  one minute of this ADR's own Phase D/E cleanup commits landing on `main`), despite serving no
+  live domain since Phase C moved `test.matchboard.football` off it. It is pure waste: zero
+  traffic, nonzero build cost, every push. Recommend disconnecting its Git integration (or
+  pausing the project) as an immediate, reversible interim step, with full deletion/archival on
+  a timeline of the user's choosing. Not yet done — awaits authorization.
 
 ### Rollback
 
@@ -310,6 +316,34 @@ two-call sequence in reverse: remove the domain from `matchboard`, add it back t
   references it. The env var migration matrix above still lists it under the old
   ADR-0075-era grouping; left as historical record of what Phase B copied, not a statement that
   it is still set.
-- 2026-10-05 (Phase D): this PR itself is the real PR used to exercise Phase D — applying the
-  `acceptance` label and observing `acceptance-deploy`, then merging and observing
-  `acceptance-cleanup`, on the live single-project/Custom-Environment architecture end to end.
+- 2026-10-05 (Phase D, part one — docs-only skip-path): the PR that added the History entry
+  above (#722) was itself labeled `acceptance` to begin Phase D. Found immediately: the
+  `acceptance` label did not exist in the repository at all — a genuine Phase A gap (the
+  workflow referenced a label nobody had ever created). Created it
+  (`gh label create acceptance`). `acceptance-deploy` then ran and correctly took the
+  build-skip path (a docs-only diff can't affect the deployed app — confirms that cost-saving
+  path works), but this did not exercise the real deploy. PR #722 merged.
+- 2026-10-05 (Phase D, part two — full path): opened PR #723, a deliberate no-op one-line
+  comment touch to `src/lib/cn.ts` (real `src/**` app code, not skip-eligible), specifically to
+  force the full path. Labeled `acceptance`: `acceptance-deploy` ran completely — isolated Neon
+  branch `pr-723` created, PR commit deployed to the `test` Custom Environment, the Worker
+  redeployed to `--env test` (including the new `VERCEL_AUTOMATION_BYPASS_SECRET` sync step from
+  the earlier fix), Playwright ran against the aliased `test.matchboard.football`, and a PR
+  comment recorded the exact accepted deployment. First attempt hit the same pre-existing flaky
+  test tracked in issue #701 (`e2e/live-reporting.spec.ts:57`, all 3 Playwright retries,
+  identical `waitForEventsToSync` timeout) — confirmed unrelated to this ADR's own fixes (the
+  touched file has zero runtime behavior); the job's own `restore Test slot to main baseline`
+  failure-path step ran correctly regardless. Rerun (`gh run rerun --failed`) passed clean (45
+  passed). Merged PR #723, which correctly triggered `acceptance-cleanup` on `closed`: Neon
+  branch `pr-723` deleted, `test.matchboard.football` re-aliased to a freshly-built `main`
+  baseline deployment (itself confirming `test-db-migrate.yml`'s post-merge baseline job ran
+  correctly in between). Reverted the touch in an immediate follow-up PR (#724, plain revert,
+  not labeled — no re-validation needed). Phase D is now considered fully observed: label →
+  deploy → Playwright (including its failure-recovery path) → close → cleanup, all live.
+- 2026-10-05 (Phase E): confirmed `VERCEL_TEST_PROJECT_ID` had no remaining references outside
+  historical ADR prose, then removed the GitHub Actions secret (`gh secret delete`).
+- 2026-10-05 (Phase F, recommendation strengthened): while finalizing this entry, found live
+  that `matchboard-test`'s own Git integration had just started a new `BUILDING` deployment
+  within a minute of the Phase D/E commits landing on `main` — direct, current-day evidence that
+  the project is still auto-deploying on every push with zero live traffic to show for it. See
+  "Rollout" above for the resulting recommendation.
