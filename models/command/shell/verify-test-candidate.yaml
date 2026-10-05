@@ -7,11 +7,17 @@ tags:
   swamp-procedure: verify-test-candidate
 globalArguments: {}
 methods:
+  # ADR-0153: the test Custom Environment is behind Vercel's SSO Deployment Protection
+  # ("all_except_custom_domains" only exempts a project's Production domain, confirmed live) —
+  # pass env.VERCEL_AUTOMATION_BYPASS_SECRET or every request here gets a 302 login page instead
+  # of JSON. Optional so this model still runs (and fails informatively) without it configured.
   execute:
     arguments:
+      env:
+        VERCEL_AUTOMATION_BYPASS_SECRET: ""
       run: |
         set -e
-        body="$(curl -fsS --max-time 10 https://test.matchboard.football/api/meta)"
+        body="$(curl -fsS --max-time 10 -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" https://test.matchboard.football/api/meta)"
         echo "$body"
         echo
 

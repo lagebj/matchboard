@@ -7,22 +7,27 @@ tags:
   swamp-procedure: inspect-deployment
 globalArguments: {}
 methods:
+  # ADR-0153 Phase C completed: test.matchboard.football now lives on the `matchboard` project's
+  # `test` Custom Environment, which Vercel's SSO Deployment Protection does NOT exempt the way
+  # it exempts a project's Production domain (confirmed live) — pass
+  # env.VERCEL_AUTOMATION_BYPASS_SECRET for TARGET=test or the curl below gets a 302 login page
+  # instead of JSON. Not needed for TARGET=production (app.matchboard.football is exempted).
   execute:
     arguments:
       env:
         TARGET: test
+        VERCEL_AUTOMATION_BYPASS_SECRET: ""
       run: |
         set -e
         if [ -z "$TARGET" ]; then
           TARGET=test
         fi
+        bypass_header="x-vercel-protection-bypass: "
         case "$TARGET" in
           test)
             url_meta="https://test.matchboard.football/api/meta"
-            # Still the separate `matchboard-test` project until ADR-0153 Phase C moves
-            # test.matchboard.football to the `matchboard` project's `test` Custom
-            # Environment — update this to "matchboard" at that point, not before.
-            vercel_project="matchboard-test"
+            vercel_project="matchboard"
+            bypass_header="x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET"
             ;;
           production)
             url_meta="https://app.matchboard.football/api/meta"
@@ -35,7 +40,7 @@ methods:
         esac
 
         echo "-- $TARGET: $url_meta --"
-        if body="$(curl -fsS --max-time 10 "$url_meta" 2>/dev/null)"; then
+        if body="$(curl -fsS --max-time 10 -H "$bypass_header" "$url_meta" 2>/dev/null)"; then
           echo "$body"
         else
           echo "[FAIL] Could not reach $url_meta" >&2

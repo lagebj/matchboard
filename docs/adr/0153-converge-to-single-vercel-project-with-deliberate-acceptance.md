@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (Phase A implemented; Phases B–F pending operator-authorized live infrastructure work — see "Rollout" below)
+Accepted. Phases A–C implemented (repository changes, Custom Environment + env vars, domain
+cutover). Phases D–F pending — see "Rollout" below.
 
 ## Date
 
@@ -189,38 +190,54 @@ the per-iteration cost this ADR targets. Not changed here.
 - GitHub secrets no longer required once Phase E (below) completes: `VERCEL_TEST_PROJECT_ID`.
   Secrets still required: `NEON_API_KEY`, `NEON_PROJECT_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
   `GH_TOKEN` (implicit `GITHUB_TOKEN`), `TEST_AGENT_AUTH_SECRET`, Cloudflare Worker secrets
-  (unchanged), and the new `VERCEL_PROJECT_ID`.
+  (unchanged), the new `VERCEL_PROJECT_ID`, and the new `VERCEL_AUTOMATION_BYPASS_SECRET`
+  (required only because of the Deployment Protection behavior found during Phase C — see
+  "Rollout" below).
 
 ## Rollout
 
-This ADR's Phase A (repository changes: this PR) is implemented. Live infrastructure changes
-are deliberately **not** bundled with it — ADR-0075's own "Rollout safety" lesson (a failure
-partway through a live-infra change must not leave shared state broken) argues against combining
-a repository change with simultaneous irreversible live changes. Phases B–F require their own
-explicit go-ahead:
+Live infrastructure changes were deliberately **not** bundled with Phase A's PR — ADR-0075's own
+"Rollout safety" lesson (a failure partway through a live-infra change must not leave shared
+state broken) argues against combining a repository change with simultaneous irreversible live
+changes. Each later phase required its own explicit go-ahead:
 
-- **Phase B**: create the `test` Custom Environment (no branch matcher) on `matchboard`; add the
-  `VERCEL_PROJECT_ID` GitHub secret; migrate the Test-only env vars into it
-  (`customEnvironmentIds`); smoke-test `vercel deploy --target=test` end-to-end before touching
-  any domain.
-- **Phase C**: move `test.matchboard.football` from `matchboard-test` to `matchboard`'s `test`
-  environment — a deliberate, brief cutover window (removing a domain from one project and
-  adding it to another cannot be instantaneous across two separate projects). Update
-  `models/command/shell/inspect-deployment.yaml`'s hardcoded `vercel_project="matchboard-test"`
-  to `"matchboard"` at the same time (left unchanged in Phase A deliberately, since it must
-  stay correct against whichever project is actually live until this exact point).
+- **Phase B** (done): created the `test` Custom Environment (no branch matcher) on `matchboard`;
+  added the `VERCEL_PROJECT_ID` GitHub secret; migrated the Test-only env vars into it
+  (`customEnvironmentIds`); smoke-tested `vercel deploy --target=test` end-to-end (build, `/api/
+  meta`, `/api/health`, `/signin` all verified against a real deployment) before touching any
+  domain.
+- **Phase C** (done): moved `test.matchboard.football` from `matchboard-test` to `matchboard`'s
+  `test` environment (`DELETE` then `POST .../domains` with `customEnvironmentId` — not the
+  dedicated move endpoint, since it cannot set `customEnvironmentId` atomically and would have
+  left the domain briefly bound to `matchboard`'s Production target by default). Updated
+  `models/command/shell/inspect-deployment.yaml`'s `vercel_project` to `"matchboard"` for both
+  targets at the same time.
+
+  **Found during Phase C verification, not anticipated in the original plan**: Vercel's SSO
+  Deployment Protection `all_except_custom_domains` exemption, confirmed live, only exempts a
+  project's **Production** custom domain — a domain scoped to a non-Production Custom
+  Environment (the `test` environment's `type` is `preview` under the hood) is NOT exempted and
+  gets redirected to Vercel's own login page (302) for any unauthenticated caller, including
+  Playwright in CI and local `curl`/dev. Fixed by generating a Protection Bypass for Automation
+  secret for the `matchboard` project, storing it as the `VERCEL_AUTOMATION_BYPASS_SECRET`
+  GitHub secret, and sending it as the `x-vercel-protection-bypass` header
+  (`playwright.config.ts`, gated behind `ci-checks.yml`'s `e2e` job and
+  `test-acceptance.yml`'s `acceptance-deploy` job both now requiring it alongside
+  `TEST_AGENT_AUTH_SECRET`) and from the swamp diagnostic models that curl `/api/meta` directly.
+  See the follow-up fix PR for the exact diff.
 - **Phase D**: observe one full real PR acceptance lifecycle end-to-end on the new architecture
-  (label → deploy → Playwright → close → cleanup) before relying on it for real work.
-- **Phase E**: remove the `VERCEL_TEST_PROJECT_ID` GitHub secret.
+  (label → deploy → Playwright → close → cleanup) before relying on it for real work. Not yet
+  exercised.
+- **Phase E**: remove the `VERCEL_TEST_PROJECT_ID` GitHub secret. Not yet done.
 - **Phase F**: recommend — never automatically perform — deletion/archival of the
-  `matchboard-test` project. Final deletion requires explicit user authorization.
+  `matchboard-test` project. Final deletion requires explicit user authorization. Not yet done.
 
 ### Rollback
 
-`matchboard-test` stays fully intact and undeleted through Phase E. Reverting Phase A is
-`git revert` of this PR's commits; reverting a Phase B–D live change is re-pointing
-`test.matchboard.football` back to `matchboard-test`'s still-live deployment — a single alias
-change, not a rebuild.
+`matchboard-test` stays fully intact and undeleted through Phase E — it still has its own working
+deployment, so reverting Phase C is re-pointing `test.matchboard.football` back to it (the same
+two-call sequence in reverse: remove the domain from `matchboard`, add it back to
+`matchboard-test`). Reverting Phase A is `git revert` of its PR's commits.
 
 ## Related decisions
 
@@ -240,3 +257,16 @@ change, not a rebuild.
   Live recon (team/project IDs, domain ownership, env var names, deployment patterns, Neon
   branch state) performed read-only before writing this decision down, not assumed from the
   prior architecture's documentation alone. Phases B–F pending explicit operator authorization.
+- 2026-10-05 (later, same day): Phase B executed and verified live (Custom Environment created,
+  env vars set, smoke-test deploy's build/`/api/meta`/`/api/health`/`/signin` all confirmed
+  working). Phase C executed: domain moved from `matchboard-test` to `matchboard`'s `test`
+  environment. Found live immediately afterward: the moved domain was blocked by Vercel's own
+  SSO Deployment Protection (302, not an app-level issue) — `all_except_custom_domains` exempts
+  only a project's Production domain, not a Custom Environment's. Fixed the same day with a
+  Protection Bypass for Automation secret (`VERCEL_AUTOMATION_BYPASS_SECRET`), wired into
+  `playwright.config.ts`, `ci-checks.yml`'s `e2e` job, `test-acceptance.yml`'s
+  `acceptance-deploy` job, and the four swamp diagnostic models that curl `/api/meta` directly
+  — see that fix's own PR. This is the kind of platform-behavior discovery the phased rollout
+  (rather than a single irreversible big-bang cutover) was specifically designed to surface
+  safely, and it worked as intended: caught immediately after Phase C via live verification,
+  fixed forward the same day, nothing left silently broken.
