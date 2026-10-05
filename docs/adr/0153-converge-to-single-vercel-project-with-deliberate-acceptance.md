@@ -3,7 +3,8 @@
 ## Status
 
 Accepted. Phases A–C implemented (repository changes, Custom Environment + env vars, domain
-cutover). Phases D–F pending — see "Rollout" below.
+cutover). Phase D (observe one full real PR acceptance lifecycle) is being exercised via this
+PR. Phases E–F pending — see "Rollout" below.
 
 ## Date
 
@@ -225,10 +226,12 @@ changes. Each later phase required its own explicit go-ahead:
   `test-acceptance.yml`'s `acceptance-deploy` job both now requiring it alongside
   `TEST_AGENT_AUTH_SECRET`) and from the swamp diagnostic models that curl `/api/meta` directly.
   See the follow-up fix PR for the exact diff.
-- **Phase D**: observe one full real PR acceptance lifecycle end-to-end on the new architecture
-  (label → deploy → Playwright → close → cleanup) before relying on it for real work. Not yet
-  exercised.
-- **Phase E**: remove the `VERCEL_TEST_PROJECT_ID` GitHub secret. Not yet done.
+- **Phase D** (in progress): observe one full real PR acceptance lifecycle end-to-end on the new
+  architecture (label → deploy → Playwright → close → cleanup) before relying on it for real
+  work. Being exercised via this PR — see History for the observed result once available.
+- **Phase E**: remove the `VERCEL_TEST_PROJECT_ID` GitHub secret. Confirmed via repo-wide search
+  that it is no longer referenced anywhere outside historical ADR prose (ADR-0075, this ADR) —
+  safe to remove once Phase D confirms the replacement pipeline works end-to-end. Not yet done.
 - **Phase F**: recommend — never automatically perform — deletion/archival of the
   `matchboard-test` project. Final deletion requires explicit user authorization. Not yet done.
 
@@ -295,3 +298,18 @@ two-call sequence in reverse: remove the domain from `matchboard`, add it back t
   fixed via the `restore-test-baseline` swamp procedure, run against the real persistent branch
   after a local `.env` file's own `TEST_DATABASE_URL` was caught silently shadowing the intended
   target on the first attempt (corrected before any real branch was touched incorrectly).
+- 2026-10-05 (later still): the Worker protection-bypass fix above shipped (PR #721, merged),
+  the test Worker was redeployed with `VERCEL_AUTOMATION_BYPASS_SECRET` synced, and a fresh
+  `main` CI run confirmed `Browser Acceptance Tests` passing end-to-end (45 passed, no timeout)
+  — closing out the incident. Separately, the remaining env vars corrupted to the literal
+  placeholder `"[SENSITIVE]"` during Phase B's `vercel env pull` mistake were resolved:
+  `AUTH_SECRET`/`CRON_SECRET` rotated to fresh values; `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`,
+  `BREVO_API_KEY`, `BREVO_TEST_RECIPIENTS`, `BREVO_WEBHOOK_BEARER_TOKEN` set to real values.
+  `ALLOWED_COACH_EMAILS` was deleted rather than restored — confirmed dead: ADR-0061 removed the
+  email-allowlist auth mechanism entirely, and `security-audit.test.ts` asserts no code
+  references it. The env var migration matrix above still lists it under the old
+  ADR-0075-era grouping; left as historical record of what Phase B copied, not a statement that
+  it is still set.
+- 2026-10-05 (Phase D): this PR itself is the real PR used to exercise Phase D — applying the
+  `acceptance` label and observing `acceptance-deploy`, then merging and observing
+  `acceptance-cleanup`, on the live single-project/Custom-Environment architecture end to end.
