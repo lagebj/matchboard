@@ -15,7 +15,7 @@ const baseSlot: {
 } = {
   id: "slot-1",
   gridX: 2, // CENTRE lane
-  gridY: 1,
+  gridY: 4, // defence row — matches roleType: "DEFENDER" below (ADR-0154 §8 depth validation)
   label: "Centre Back",
   shortLabel: "CB",
   roleType: "DEFENDER",

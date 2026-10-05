@@ -434,7 +434,7 @@ async function resolveFormationStructure(
     formationId: formation.id,
     formationName: formation.name,
     // Individual real slots with grid geometry for exact coverage matching (ADR-0129 §12).
-    exactSlots: formation.slots.map((slot) => ({ slotId: slot.id, roleType: slot.roleType, gridX: slot.gridX })),
+    exactSlots: formation.slots.map((slot) => ({ slotId: slot.id, roleType: slot.roleType, gridX: slot.gridX, gridY: slot.gridY })),
   };
 }
 

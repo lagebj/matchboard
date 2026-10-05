@@ -42,9 +42,11 @@ function player(
   ];
 }
 
-// gridX lanes: 0–1 LEFT, 2 CENTRE, 3–4 RIGHT.
+// gridX lanes: 0–1 LEFT, 2 CENTRE, 3–4 RIGHT. gridY derived from roleType's depth row
+// (ADR-0154 §8 — deriveExactTargetRole validates roleType against the real grid cell).
+const ROLE_TYPE_GRID_Y: Record<string, number> = { DEFENDER: 4, MIDFIELDER: 2, FORWARD: 0 };
 function starter(id: string, roleType: string, gridX = 2): RotationPlanStarter {
-  return { playerId: id, position: roleType, gridX };
+  return { playerId: id, position: roleType, gridX, gridY: ROLE_TYPE_GRID_Y[roleType] };
 }
 
 describe("generateRotationPlan — basics", () => {

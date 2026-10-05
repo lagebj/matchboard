@@ -184,15 +184,16 @@ export function validateEventPool(
   // `targetSquadCount` copies of the formation at once, via maximum matching — so one versatile
   // player is never counted as the sole solution for two different required roles.
   let exactFormationCoverage: EventPoolValidation['exactFormationCoverage'] = null;
-  const geometricSlots = formationSlots.filter((s) => typeof s.gridX === 'number');
+  const geometricSlots = formationSlots.filter((s) => typeof s.gridX === 'number' && typeof s.gridY === 'number');
   if (geometricSlots.length > 0 && targetSquadCount > 0) {
-    const coverageSlots: { slotId: string; roleType: FormationSlotRoleType; gridX: number }[] = [];
+    const coverageSlots: { slotId: string; roleType: FormationSlotRoleType; gridX: number; gridY: number }[] = [];
     for (let squad = 0; squad < targetSquadCount; squad++) {
       geometricSlots.forEach((slot, i) => {
         coverageSlots.push({
           slotId: `s${squad}-${i}`,
           roleType: slot.roleType as FormationSlotRoleType,
           gridX: slot.gridX as number,
+          gridY: slot.gridY as number,
         });
       });
     }

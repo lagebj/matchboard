@@ -205,10 +205,11 @@ export interface FormationSlotRequirement {
   roleType: string;
   acceptedPositions: BroadPosition[];
   label: string;
-  /** Grid column of the real formation slot, present only when a real `Formation` was resolved
-   * (absent for the hard-coded per-format fallbacks). Enables exact target-role derivation and
-   * exact simultaneous-coverage matching (ADR-0129 §12). */
+  /** Grid column/row of the real formation slot, present only when a real `Formation` was
+   * resolved (absent for the hard-coded per-format fallbacks). Enables exact target-role
+   * derivation and exact simultaneous-coverage matching (ADR-0129 §12, ADR-0154 §8). */
   gridX?: number;
+  gridY?: number;
 }
 
 export interface EventPoolValidation {

@@ -126,7 +126,7 @@ export function SlotEditDialog({ isOpen, onClose, slot, gameFormat: _gameFormat,
               follow) — previously collapsed into one sentence that omitted the eligibility-tier
               requirement entirely. */}
           {(() => {
-            const exact = deriveExactTargetRole(roleType as FormationSlotRoleType, slot.gridX);
+            const exact = deriveExactTargetRole(roleType as FormationSlotRoleType, slot.gridX, slot.gridY);
             if (!exact) {
               return (
                 <p className="text-[var(--text-micro)] text-[var(--text-muted)]">Manual-only for automatic planning</p>

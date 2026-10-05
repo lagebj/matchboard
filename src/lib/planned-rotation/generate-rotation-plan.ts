@@ -43,7 +43,7 @@ import { mapPositionCodeToBroad } from "@/domain/team-composition/position-suita
 import { deriveExactTargetRole } from "@/domain/positions/slot-target";
 import { matchSlotsToCandidates } from "@/domain/positions/matching";
 import type { DeclaredPositions } from "@/domain/positions/suitability";
-import type { ExactRole } from "@/domain/positions/roles";
+import type { SuitabilityTargetRole } from "@/domain/positions/compatibility-projection";
 import type { FormationSlotRoleType } from "@/lib/formations/types";
 
 export type { OpponentFunctionTendency };
@@ -62,8 +62,9 @@ export interface RotationPlanStarter {
   playerId: string;
   /** The slot's `FormationSlotRoleType` (or "GK" for the goalkeeper). */
   position: string;
-  /** The slot's grid column, used to resolve an exact target role. Absent → role unresolved. */
+  /** The slot's grid column/row, used to resolve a target role. Either absent → role unresolved. */
   gridX?: number;
+  gridY?: number;
 }
 
 export interface RotationPlanDecisionPoint {
@@ -117,9 +118,9 @@ function broadDeclared(d: DeclaredPositions) {
   };
 }
 
-function resolveExactRole(roleLabel: string, gridX: number | undefined): ExactRole | null {
-  if (roleLabel === "GK" || gridX == null) return null;
-  return deriveExactTargetRole(roleLabel as FormationSlotRoleType, gridX);
+function resolveExactRole(roleLabel: string, gridX: number | undefined, gridY: number | undefined): SuitabilityTargetRole | null {
+  if (roleLabel === "GK" || gridX == null || gridY == null) return null;
+  return deriveExactTargetRole(roleLabel as FormationSlotRoleType, gridX, gridY);
 }
 
 /**
@@ -150,10 +151,13 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
   for (const starter of outfieldStarters) lastEntrySeconds.set(starter.playerId, 0);
 
   // Exact slot occupancy over time: playerId → the role label + resolved exact role they hold.
-  type SlotOccupancy = { roleLabel: string; exactRole: ExactRole | null };
+  type SlotOccupancy = { roleLabel: string; exactRole: SuitabilityTargetRole | null };
   const onPitchSlot = new Map<string, SlotOccupancy>();
   for (const starter of outfieldStarters) {
-    onPitchSlot.set(starter.playerId, { roleLabel: starter.position, exactRole: resolveExactRole(starter.position, starter.gridX) });
+    onPitchSlot.set(starter.playerId, {
+      roleLabel: starter.position,
+      exactRole: resolveExactRole(starter.position, starter.gridX, starter.gridY),
+    });
   }
 
   const onPitchOutfieldIds = new Set(outfieldStarters.map((s) => s.playerId));
@@ -193,7 +197,7 @@ export function generateRotationPlan(input: GenerateRotationPlanInput): Generate
 
     // Build the due-slot list. A due player whose slot has no resolvable exact role cannot be
     // safely rotated — they stay on, with a diagnostic.
-    const dueSlots: { slotId: string; targetRole: ExactRole }[] = [];
+    const dueSlots: { slotId: string; targetRole: SuitabilityTargetRole }[] = [];
     const dueBySlotId = new Map<string, { playerId: string; roleLabel: string }>();
     for (const due of dueOut) {
       const occupancy = onPitchSlot.get(due.playerId);
@@ -294,7 +298,7 @@ function opponentAndContextPreference(
   input: GenerateRotationPlanInput,
   preferred: ReturnType<typeof preferredFunctionFor>,
   candidateId: string,
-  role: ExactRole,
+  role: SuitabilityTargetRole,
 ): number {
   const opponentBonus = opponentFunctionBonusFor(input, preferred, candidateId);
   // The tracked slot's role label drives position-context lookup; for the matcher we only have
