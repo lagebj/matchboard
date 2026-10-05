@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
-import { normalizePlayerPositionCode } from "./position-code";
+import { normalizeCanonicalPosition } from "@/domain/positions/canonical-aliases";
 
 /**
  * One match's actual positional usage for one player — "actual completed-match positional
@@ -31,9 +31,10 @@ export type PlayerMatchPositionUsage = {
  * one round-trip (Matchboard Players Operating Surface bundle, `04_DATA_AND_BATCH_LOADING_CONTRACT.md
  * §2`) — one `ActualPositionInterval.findMany` for every requested player, one League match-date
  * query and one Event match-date query for the gathered match IDs, rather than one query set per
- * player. Position codes are normalized (`normalizePlayerPositionCode()`) before minutes are
- * aggregated, so a legacy alias (e.g. `DEFENSIVE_MIDFIELDER`) and its exact code (`DM`) accumulate
- * into the same bucket instead of two separate ones.
+ * player. Position codes are normalized (`normalizeCanonicalPosition()`, ADR-0154) before minutes
+ * are aggregated, so a legacy alias (e.g. `DEFENSIVE_MIDFIELDER`) and its canonical code (`CDM`)
+ * accumulate into the same bucket instead of two separate ones -- but a sided exact code (`LCM`)
+ * never collapses into its unsided sibling (`CM`); each stays its own distinct bucket.
  *
  * Excludes `BENCH`/`"unknown"` positions (not real on-field positional evidence) and any
  * interval attributed to a `guestPlayerId` instead of `playerId` — a guest player never
@@ -100,7 +101,9 @@ export async function getPlayersActualPositionHistory(
     const playedAt = isLeague ? leagueDateById.get(key) : eventDateById.get(key);
     if (!playedAt) continue; // match not found under this org filter — skip defensively, never throw.
 
-    const normalizedPosition = normalizePlayerPositionCode(interval.position);
+    // ADR-0154 §13: normalized, but NEVER spread -- a sided exact code (LCM minutes) stays its
+    // own distinct evidence, never aggregated into its unsided sibling (CM).
+    const normalizedPosition = normalizeCanonicalPosition(interval.position);
     if (!normalizedPosition) continue;
 
     const durationMs = Math.max(0, (interval.endedAtMs ?? interval.startedAtMs) - interval.startedAtMs);

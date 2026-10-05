@@ -1,6 +1,6 @@
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { availabilityLabel } from "@/lib/players/availability-label";
-import { normalizePlayerPositionCode } from "@/lib/player-development/position-code";
+import { normalizeCanonicalPosition } from "@/domain/positions/canonical-aliases";
 import type { PlayerRosterState } from "@/lib/players/roster-state";
 import { compactPositionLabel, exactPositionLabel } from "./exact-position-labels";
 import type { PlayerSeasonOverviewRow, PlayerCurrentRoundAttentionRow, PlayerDevelopmentOverviewRow, IntegrityAttentionState } from "@/lib/players/get-players-overview";
@@ -97,7 +97,7 @@ function effectivePrimaryCode(
 ): string | null {
   const primaryEntry = positionEntries?.find((e) => e.rank === 1);
   if (primaryEntry) return primaryEntry.positionCode;
-  return normalizePlayerPositionCode(declaredPrimaryPosition);
+  return normalizeCanonicalPosition(declaredPrimaryPosition);
 }
 
 export function buildPlayersOverviewRows(

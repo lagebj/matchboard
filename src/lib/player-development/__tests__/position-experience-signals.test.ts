@@ -63,8 +63,10 @@ describe("getObservationSignalsForPlayers", () => {
     const signals = result.get(player.id)!;
     const positionCodes = signals.map((s) => s.positionCode);
 
-    expect(positionCodes).toEqual(["ST"]);
+    // ADR-0154 §6: STRIKER and ST are both legacy aliases now, collapsing onto canonical CF.
+    expect(positionCodes).toEqual(["CF"]);
     expect(positionCodes).not.toContain("STRIKER");
+    expect(positionCodes).not.toContain("ST");
   });
 
   it("batches multiple players in one map", async () => {
@@ -128,6 +130,6 @@ describe("getObservationSignalsForPlayers", () => {
     const batch = await getObservationSignalsForPlayers([player.id], orgFilter);
 
     expect(single).toEqual(batch.get(player.id));
-    expect(single.map((s) => s.positionCode)).toEqual(["DM"]);
+    expect(single.map((s) => s.positionCode)).toEqual(["CDM"]);
   });
 });

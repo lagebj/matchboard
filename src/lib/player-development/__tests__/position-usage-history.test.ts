@@ -70,8 +70,10 @@ describe("getPlayersActualPositionHistory", () => {
     const result = await getPlayersActualPositionHistory([player.id], orgFilter);
     const usage = result.get(player.id)!.find((u) => u.matchKey === matchId)!;
 
-    expect(Object.keys(usage.minutesByPosition)).toEqual(["DM"]);
-    expect(usage.minutesByPosition.DM).toBe(40);
+    // ADR-0154 §6: DEFENSIVE_MIDFIELDER and DM are both legacy aliases now, collapsing onto the
+    // canonical CDM -- not two separate buckets, and not the old (also legacy) "DM" spelling.
+    expect(Object.keys(usage.minutesByPosition)).toEqual(["CDM"]);
+    expect(usage.minutesByPosition.CDM).toBe(40);
   });
 
   it("batches multiple players in one map, each keyed by their own playerId", async () => {
@@ -104,7 +106,8 @@ describe("getPlayersActualPositionHistory", () => {
 
     const result = await getPlayersActualPositionHistory([playerA.id, playerB.id], orgFilter);
 
-    expect(result.get(playerA.id)!.some((u) => u.matchKey === matchId && u.minutesByPosition.ST === 30)).toBe(true);
+    // "ST" is a legacy alias (ADR-0154 §6) normalizing to canonical "CF".
+    expect(result.get(playerA.id)!.some((u) => u.matchKey === matchId && u.minutesByPosition.CF === 30)).toBe(true);
     expect(result.get(playerB.id)!.some((u) => u.matchKey === matchId && u.minutesByPosition.CB === 30)).toBe(true);
   });
 

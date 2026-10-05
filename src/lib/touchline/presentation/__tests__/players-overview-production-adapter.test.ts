@@ -97,9 +97,10 @@ describe("buildPlayersOverviewRows", () => {
   });
 
   it("falls back to the normalized declared position when no effective profile entry exists", () => {
+    // ADR-0154 §6: DEFENSIVE_MIDFIELDER normalizes onto the canonical CDM, not the (also legacy) "DM".
     const [row] = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "DEFENSIVE_MIDFIELDER" })], [makeSeasonRow()], []);
-    expect(row.currentPrimaryPositionCode).toBe("DM");
-    expect(row.currentPrimaryPosition).toBe("DM");
+    expect(row.currentPrimaryPositionCode).toBe("CDM");
+    expect(row.currentPrimaryPosition).toBe("CDM");
   });
 
   it("never renders a raw legacy identifier as the display label", () => {
@@ -254,7 +255,8 @@ describe("buildPlayersOverviewInspectorData", () => {
     const row = buildPlayersOverviewRows([makeIdentity({ primaryPosition: "CM" })], [makeSeasonRow()], [])[0];
     const data = buildPlayersOverviewInspectorData(row, [], null, (p) => p);
     expect(data.currentPrimaryPosition).toBe("CM");
-    expect(data.currentPrimaryPositionFull).toBe("Centre Midfield");
+    // ADR-0154 §1: the canonical full label for CM is "Central Midfield".
+    expect(data.currentPrimaryPositionFull).toBe("Central Midfield");
   });
 
   it("is null when there is no primary position at all", () => {

@@ -74,6 +74,64 @@ describe("computeEffectivePlayerPositionProfile — repeated usage can overtake 
   });
 });
 
+describe("computeEffectivePlayerPositionProfile — unsided centre-line declaration spreads across its triple (ADR-0154 follow-up)", () => {
+  it("a declared CM credits LCM, CM, and RCM all at rank 1 (NATURAL-equivalent support), with zero match history", () => {
+    const declared: DeclaredPositions = { primary: "CM", secondary: null, tertiary: null };
+    const profile = computeEffectivePlayerPositionProfile(declared, []);
+    const byCode = new Map(profile.positions.map((p) => [p.positionId, p]));
+    expect(byCode.get("LCM")?.sources.coachDeclared).toBe(true);
+    expect(byCode.get("CM")?.sources.coachDeclared).toBe(true);
+    expect(byCode.get("RCM")?.sources.coachDeclared).toBe(true);
+    // Same support amount applied independently to each -- not divided three ways.
+    expect(byCode.get("LCM")?.supportBand).toBe(byCode.get("CM")?.supportBand);
+    expect(byCode.get("RCM")?.supportBand).toBe(byCode.get("CM")?.supportBand);
+  });
+
+  it("spreads for all five unsided centre-line codes (CB/CDM/CM/CAM/CF)", () => {
+    const pairs: Array<[string, [string, string, string]]> = [
+      ["CB", ["LCB", "CB", "RCB"]],
+      ["CDM", ["LDM", "CDM", "RDM"]],
+      ["CM", ["LCM", "CM", "RCM"]],
+      ["CAM", ["LAM", "CAM", "RAM"]],
+      ["CF", ["LCF", "CF", "RCF"]],
+    ];
+    for (const [declaredCode, triple] of pairs) {
+      const profile = computeEffectivePlayerPositionProfile({ primary: declaredCode, secondary: null, tertiary: null }, []);
+      const byCode = new Map(profile.positions.map((p) => [p.positionId, p]));
+      for (const code of triple) {
+        expect(byCode.get(code)?.sources.coachDeclared).toBe(true);
+      }
+    }
+  });
+
+  it("does NOT spread a wide sided declaration (LB/RB, LM/RM, LW/RW) to its opposite side", () => {
+    const declared: DeclaredPositions = { primary: "LB", secondary: null, tertiary: null };
+    const profile = computeEffectivePlayerPositionProfile(declared, []);
+    const byCode = new Map(profile.positions.map((p) => [p.positionId, p]));
+    expect(byCode.get("LB")?.sources.coachDeclared).toBe(true);
+    expect(byCode.has("RB")).toBe(false);
+  });
+
+  it("does NOT spread an already-sided centre-line declaration (LCB) onto its siblings", () => {
+    const declared: DeclaredPositions = { primary: "LCB", secondary: null, tertiary: null };
+    const profile = computeEffectivePlayerPositionProfile(declared, []);
+    const byCode = new Map(profile.positions.map((p) => [p.positionId, p]));
+    expect(byCode.get("LCB")?.sources.coachDeclared).toBe(true);
+    expect(byCode.has("CB")).toBe(false);
+    expect(byCode.has("RCB")).toBe(false);
+  });
+
+  it("does NOT spread actual-usage minutes, even for an unsided centre-line position (contract §13)", () => {
+    const declared: DeclaredPositions = { primary: "", secondary: null, tertiary: null };
+    const history = [match({ CM: 40 }, 1)];
+    const profile = computeEffectivePlayerPositionProfile(declared, history);
+    const byCode = new Map(profile.positions.map((p) => [p.positionId, p]));
+    expect(byCode.get("CM")?.sources.minutes).toBe(40);
+    expect(byCode.has("LCM")).toBe(false);
+    expect(byCode.has("RCM")).toBe(false);
+  });
+});
+
 describe("determineAutomaticPositionUpdate — hysteresis and stability", () => {
   function buildRepeatedCbHistory(matchCount: number): MatchPositionEvidence[] {
     return Array.from({ length: matchCount }, (_, i) => match({ CB: 70 }, i * 7 + 1, `m${i}`));

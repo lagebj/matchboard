@@ -35,15 +35,21 @@ export const availabilityOptions = [
   { label: "Unknown", value: AvailabilityStatus.UNKNOWN },
 ] as const;
 
-export const playerPositionValues = ["GK", "CB", "CM", "W", "ST"] as const;
+import { CANONICAL_TACTICAL_POSITIONS } from "@/domain/positions/roles";
+import { canonicalFullLabel } from "@/domain/positions/canonical-labels";
 
-export const playerPositionOptions = [
-  { label: "Goalkeeper (GK)", value: "GK" },
-  { label: "Center Back (CB)", value: "CB" },
-  { label: "Center Midfield (CM)", value: "CM" },
-  { label: "Wing (W)", value: "W" },
-  { label: "Striker (ST)", value: "ST" },
-] as const satisfies ReadonlyArray<{
+/**
+ * The canonical 24-code tactical-position vocabulary (ADR-0154 §1/§11) -- the single coach-facing
+ * selector authority for `Player.primaryPosition`/`secondaryPosition`/`tertiaryPosition`. Legacy
+ * aliases (`DM`/`AM`/`ST`/...) stay readable via `normalizeCanonicalPosition` at read time; they
+ * are never offered as a new selectable value here.
+ */
+export const playerPositionValues = CANONICAL_TACTICAL_POSITIONS;
+
+export const playerPositionOptions = playerPositionValues.map((value) => ({
+  label: `${canonicalFullLabel(value)} (${value})`,
+  value,
+})) as ReadonlyArray<{
   label: string;
   value: (typeof playerPositionValues)[number];
 }>;
