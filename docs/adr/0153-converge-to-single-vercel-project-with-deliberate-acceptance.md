@@ -354,3 +354,24 @@ two-call sequence in reverse: remove the domain from `matchboard`, add it back t
   deployment history, and its env vars remain fully intact; reconnecting the same repository in
   the Vercel dashboard would restore auto-deploy if ever needed. Final deletion/archival
   remains unauthorized and undone.
+- 2026-10-05 (new-architecture gap found under load, unrelated to Phases A–F above): a separate,
+  unrelated 9-PR sequence (ADR-0154) merged back-to-back over a couple of hours the same day,
+  and `ci-checks.yml`'s `Browser Acceptance Tests` job started failing/timing out on nearly every
+  resulting push to `main` — some runs failing cleanly with `403: "Preview deployment access
+  restricted"` from `seed-finalized-match`, one timing out with zero app-level traffic logged at
+  all. Root-caused via Vercel runtime logs grouped by `deploymentId`: the 403s landed on
+  short-lived intermediate Test deployments that `test.matchboard.football` was only briefly
+  aliased to mid-run, not the deployment the alias ultimately settled on (which served the rest
+  of each run's traffic with clean 200s) — the signature of a mid-test alias swap, not a broken
+  gate. Confirmed by reproducing the exact authenticated flow (test-agent login →
+  `seed-finalized-match`) by hand against the settled deployment, which succeeded immediately.
+  Cause: `test-db-migrate.yml`'s `deploy-test-baseline` job (migrate + redeploy + re-alias
+  `test.matchboard.football`) and `ci-checks.yml`'s `e2e` job both trigger on the same `push` to
+  `main` and act on the same alias, but only `deploy-test-baseline` was ever added to the
+  `test-slot` concurrency group. This ADR's own "Baseline resolution" and "Main → Test baseline
+  redeploy" sections, and Phase D's verification above, only ever exercised one merge at a time —
+  the race was latent from Phase A onward and only became reachable once merges landed faster
+  than one `e2e` run + one baseline redeploy could complete. Fixed by adding
+  `concurrency: { group: test-slot, cancel-in-progress: false }` to the `e2e` job itself, so a
+  baseline redeploy can no longer land underneath an in-flight post-merge smoke run (see that
+  job's own comment in `ci-checks.yml` and the fix's own PR).
