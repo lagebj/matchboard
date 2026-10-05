@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { POSITION_COORDINATE_GRID as POSITION_GRID } from "@/components/touchline/pitch/position-coordinates";
+import { positionCodeToGridCell } from "@/components/touchline/pitch/position-coordinates";
 import { getBoardPositionPercent } from "@/lib/formations/board-projection";
 import { PitchMarkings } from "@/components/formations/tactics-board";
 
@@ -9,8 +9,8 @@ import { PitchMarkings } from "@/components/formations/tactics-board";
  *
  * Football pitch mini-map showing recorded positional exposure — dot size/opacity reflects real
  * recorded share, never an inferred ability. Reuses the canonical position-grid lookup
- * (`POSITION_COORDINATE_GRID`, `src/components/touchline/pitch/position-coordinates.ts` — the
- * same table `TouchlinePositionMap` projects from)/`getBoardPositionPercent`
+ * (`positionCodeToGridCell`, `src/components/touchline/pitch/position-coordinates.ts` — the
+ * same domain authority `TouchlinePositionMap` projects from)/`getBoardPositionPercent`
  * coordinate lookup already used by `TouchlinePositionMap` — this is
  * NOT a second hard-coded position map, only a second *rendering* of the same canonical grid.
  * Pitch-line markings (touchlines, halfway line, centre circle, penalty/goal areas) reuse
@@ -28,20 +28,21 @@ export type PitchExposureProps = {
 };
 
 export function PitchExposure({ question, entries, className }: PitchExposureProps) {
-  const known = entries.filter((e) => POSITION_GRID[e.code] != null);
-  const maxShare = Math.max(1, ...known.map((e) => e.sharePercent));
+  const known = entries
+    .map((e) => ({ entry: e, cell: positionCodeToGridCell(e.code) }))
+    .filter((v): v is { entry: PitchExposureEntry; cell: NonNullable<ReturnType<typeof positionCodeToGridCell>> } => v.cell != null);
+  const maxShare = Math.max(1, ...known.map(({ entry }) => entry.sharePercent));
 
   const textEquivalent =
     known.length > 0
-      ? known.map((e) => `${e.code} ${e.sharePercent}%`).join(", ")
+      ? known.map(({ entry }) => `${entry.code} ${entry.sharePercent}%`).join(", ")
       : "No recorded position exposure yet";
 
   return (
     <figure className={cn("flex flex-col gap-2", className)} aria-label={question}>
       <div className="tl-pitch-surface relative aspect-[105/68] w-full overflow-hidden" aria-hidden="true">
         <PitchMarkings orientation="horizontal" />
-        {known.map((e) => {
-          const { gridX, gridY } = POSITION_GRID[e.code];
+        {known.map(({ entry: e, cell: { gridX, gridY } }) => {
           const { x, y } = getBoardPositionPercent(gridX, gridY, {
             orientation: "horizontal",
             attackingDirection: "left-to-right",
@@ -63,7 +64,7 @@ export function PitchExposure({ question, entries, className }: PitchExposurePro
       </div>
       <figcaption className="sr-only">{textEquivalent}</figcaption>
       <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-hidden="true">
-        {known.map((e) => (
+        {known.map(({ entry: e }) => (
           <li key={e.code} className="text-[12px] text-[var(--text-soft)]">
             <span className="font-[600] text-[var(--foreground)]">{e.code}</span> {e.sharePercent}%
           </li>
