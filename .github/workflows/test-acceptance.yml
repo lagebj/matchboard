@@ -65,6 +65,12 @@ jobs:
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TEST_AGENT_AUTH_SECRET: ${{ secrets.TEST_AGENT_AUTH_SECRET }}
+      # ADR-0153: the test Custom Environment is not exempted by Vercel's "all_except_custom_
+      # domains" SSO protection setting (that exemption applies to a project's Production custom
+      # domain only, confirmed live) — Playwright needs the Protection Bypass for Automation
+      # header to reach test.matchboard.football at all. playwright.config.ts sends it
+      # automatically when this var is set.
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       LIVE_MATCH_INTERNAL_SECRET_TEST: ${{ secrets.LIVE_MATCH_INTERNAL_SECRET_TEST }}
@@ -77,7 +83,7 @@ jobs:
       - name: Check required secrets are configured
         id: check
         run: |
-          if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ] || [ -z "$TEST_AGENT_AUTH_SECRET" ]; then
+          if [ -z "$NEON_API_KEY" ] || [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ] || [ -z "$TEST_AGENT_AUTH_SECRET" ] || [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
             echo "Required secrets not fully configured; skipping per-PR Test acceptance."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else

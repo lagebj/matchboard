@@ -316,14 +316,21 @@ jobs:
     # file at parse time if it appears there, which silently prevented every job in this file
     # from ever dispatching. The check runs inside a shell step instead, using a `steps.*.outputs`
     # value (not `secrets` directly) to gate the remaining steps.
+    #
+    # ADR-0153 moved test.matchboard.football onto a non-Production Custom Environment, which
+    # (confirmed live) Vercel's SSO Deployment Protection does NOT exempt the way it exempts a
+    # project's Production custom domain — every request now needs the Protection Bypass for
+    # Automation header or gets redirected to Vercel's own auth page (302) instead of reaching
+    # the app. playwright.config.ts sends it automatically when this var is set.
     env:
       TEST_AGENT_AUTH_SECRET: ${{ secrets.TEST_AGENT_AUTH_SECRET }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
-      - name: Check TEST_AGENT_AUTH_SECRET is configured
+      - name: Check required secrets are configured
         id: check
         run: |
-          if [ -z "$TEST_AGENT_AUTH_SECRET" ]; then
-            echo "TEST_AGENT_AUTH_SECRET not configured; skipping browser acceptance tests."
+          if [ -z "$TEST_AGENT_AUTH_SECRET" ] || [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "Required secrets not fully configured; skipping browser acceptance tests."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"

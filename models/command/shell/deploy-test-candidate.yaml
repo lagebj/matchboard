@@ -7,8 +7,12 @@ tags:
   swamp-procedure: deploy-test-candidate
 globalArguments: {}
 methods:
+  # ADR-0153: pass env.VERCEL_AUTOMATION_BYPASS_SECRET or the status check below gets a 302
+  # login page instead of JSON (the test Custom Environment is behind Vercel's SSO protection).
   execute:
     arguments:
+      env:
+        VERCEL_AUTOMATION_BYPASS_SECRET: ""
       run: |
         set -e
         cat <<'EOF'
@@ -26,7 +30,7 @@ methods:
 
         Current Test slot state:
         EOF
-        curl -fsS --max-time 10 https://test.matchboard.football/api/meta || {
+        curl -fsS --max-time 10 -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" https://test.matchboard.football/api/meta || {
           echo "[FAIL] Could not reach https://test.matchboard.football/api/meta" >&2
           exit 1
         }

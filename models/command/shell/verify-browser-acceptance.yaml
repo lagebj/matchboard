@@ -7,12 +7,17 @@ tags:
   swamp-procedure: verify-browser-acceptance
 globalArguments: {}
 methods:
-  # Requires env.TEST_AGENT_AUTH_SECRET matching the target environment's secret. Runs against
+  # Requires env.TEST_AGENT_AUTH_SECRET matching the target environment's secret, and (ADR-0153)
+  # env.VERCEL_AUTOMATION_BYPASS_SECRET — the test Custom Environment is behind Vercel's SSO
+  # Deployment Protection (confirmed live: the "all_except_custom_domains" exemption only covers
+  # a project's Production domain), so playwright.config.ts needs this to reach
+  # test.matchboard.football at all, not just to authenticate within the app. Runs against
   # https://test.matchboard.football by default — see docs/development/browser-acceptance-testing.md.
   #
   # Invoke with:
   #   swamp model method run verify-browser-acceptance execute \
-  #     --input env.TEST_AGENT_AUTH_SECRET='<secret>'
+  #     --input env.TEST_AGENT_AUTH_SECRET='<secret>' \
+  #     --input env.VERCEL_AUTOMATION_BYPASS_SECRET='<bypass-secret>'
   execute:
     arguments:
       run: npm run test:e2e

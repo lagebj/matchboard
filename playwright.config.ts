@@ -10,6 +10,19 @@ if (baseURL.includes("app.matchboard.football")) {
   );
 }
 
+// ADR-0153: test.matchboard.football now lives on the `matchboard` project's `test` Custom
+// Environment, which Vercel's SSO Deployment Protection does not exempt the way it exempts a
+// project's Production custom domain (confirmed live) — every request gets redirected to
+// Vercel's own login page (302) without this header. Not required against a local dev server,
+// which has no Vercel deployment protection at all.
+const vercelAutomationBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+const extraHTTPHeaders = vercelAutomationBypassSecret
+  ? {
+      "x-vercel-protection-bypass": vercelAutomationBypassSecret,
+      "x-vercel-set-bypass-cookie": "true",
+    }
+  : undefined;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -34,6 +47,7 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    ...(extraHTTPHeaders ? { extraHTTPHeaders } : {}),
   },
   projects: [
     {

@@ -152,8 +152,14 @@ npm run test:e2e
 Requires `TEST_AGENT_AUTH_SECRET` in your environment, matching the value configured on the
 `https://test.matchboard.football` deployment (find it in the `matchboard` Vercel project's
 `test` Custom Environment settings — see ADR-0153 — or ask whoever manages that project; it is
-never committed or documented here). By default this targets the hosted Test slot; to run
-against a local dev server instead:
+never committed or documented here). Against the hosted Test slot, also requires
+`VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel's "Protection Bypass for Automation" value for the
+`matchboard` project) — the `test` Custom Environment is behind Vercel's SSO Deployment
+Protection, which (confirmed live) does not exempt a non-Production Custom Environment's domain
+the way it exempts a project's Production domain, so every request gets redirected to Vercel's
+own login page without it. By default this targets the hosted Test slot; to run against a local
+dev server instead (where neither secret is needed, since a local server has no Vercel
+deployment protection at all):
 
 ```bash
 PLAYWRIGHT_BASE_URL=http://localhost:3333 TEST_AGENT_AUTH_SECRET=... npm run test:e2e
@@ -169,7 +175,8 @@ Via Swamp (see `docs/development/swamp-workflows.md`):
 
 ```bash
 swamp --no-telemetry model method run verify-browser-acceptance execute \
-  --input env.TEST_AGENT_AUTH_SECRET='<secret>'
+  --input env.TEST_AGENT_AUTH_SECRET='<secret>' \
+  --input env.VERCEL_AUTOMATION_BYPASS_SECRET='<bypass-secret>'
 ```
 
 First run downloads the browser binaries if not already cached (WebKit is needed only for
@@ -213,14 +220,18 @@ on CI again:
 
 ```bash
 PLAYWRIGHT_BASE_URL=https://test.matchboard.football TEST_AGENT_AUTH_SECRET=<secret> \
+  VERCEL_AUTOMATION_BYPASS_SECRET=<bypass-secret> \
   npx playwright test e2e/live-reporting.spec.ts -g "start live reporting" \
   --project=chromium --retries=0 --reporter=list --workers=1
 ```
 
-This turns a ~2-minute local loop instead of a ~20-minute CI round trip. Two caveats: (1) hitting
-a raw `*.vercel.app` preview URL directly (rather than the aliased custom domain) fails with an
+This turns a ~2-minute local loop instead of a ~20-minute CI round trip. Caveats: (1) hitting a
+raw `*.vercel.app` preview URL directly (rather than the aliased custom domain) fails with an
 HTML deployment-protection page instead of a JSON auth response — always go through the alias;
-(2) this shares the same isolated per-PR Neon branch as any CI run currently using it, so avoid
+(2) `VERCEL_AUTOMATION_BYPASS_SECRET` is required even against the aliased custom domain
+(ADR-0153) — unlike before that ADR, the domain's own Deployment Protection exemption no longer
+applies now that it sits on a Custom Environment rather than a project's Production target; (3)
+this shares the same isolated per-PR Neon branch as any CI run currently using it, so avoid
 running both at once (the transaction contention this section already describes applies here too).
 For genuinely opaque failures, add a temporary `page.on("response", ...)` listener to log response
 bodies (Next.js Server Action responses are RSC-stream-encoded, but the actual `{"success":
