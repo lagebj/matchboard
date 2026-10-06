@@ -54,7 +54,7 @@ export type PostMatchLearningReplaySummary = {
  * through the same canonical adapters (`buildLeagueMatchRef`/`buildEventMatchRef`) every other
  * caller uses — never a duplicated leagueSeasonId/evidenceLeagueSeasonId resolver.
  */
-async function getEligibleCompletedMatchRefs(
+export async function getEligibleCompletedMatchRefs(
   organisationId: string,
   options?: { from?: Date; to?: Date },
 ): Promise<FootballMatchRef[]> {

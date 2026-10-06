@@ -1,5 +1,3 @@
-import "server-only";
-
 import { db } from "@/lib/db";
 import { footballMatchRefSourceId, type FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import { getActualPositionIntervalsForRef } from "@/lib/evidence/actual-timeline";
@@ -23,9 +21,16 @@ import {
  *
  * Deliberately reuses `buildMatchStateTimeline()` (ADR-0113) as the one on-pitch-composition/
  * game-state reconstruction; this module is the thin DB-fetching orchestrator only — the actual
- * metric-shaping logic lives in `metric-derivation.ts` (not `server-only`, directly unit-tested
- * without a database), the same split `actual-timeline.ts` already uses elsewhere in this
- * evidence engine.
+ * metric-shaping logic lives in `metric-derivation.ts` (directly unit-tested without a
+ * database), the same split `actual-timeline.ts` already uses elsewhere in this evidence engine.
+ *
+ * Deliberately no `import "server-only"` here, matching every other DB-backed file in this
+ * evidence engine (actual-timeline.ts, match-state-timeline.ts, post-match-learning.ts) — none
+ * of them carry it. `server-only`'s guard throws under plain Node/tsx execution too (it only
+ * resolves to a no-op via the "react-server" export condition Next.js's own bundler sets), which
+ * would break this module's real callers in scripts/recompute-development-context.ts and
+ * scripts/verify-development-context.ts. `index.ts`'s own barrel already keeps this module out
+ * of reach of any client component without needing the extra guard.
  */
 
 export type { MeasurementDraft };

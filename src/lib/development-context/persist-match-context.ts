@@ -1,5 +1,3 @@
-import "server-only";
-
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
@@ -12,6 +10,10 @@ import { buildMatchContextPack } from "./context-pack";
  * set inside one transaction, the same pattern `rebuildActualTimeline` itself already uses for
  * `ActualPositionInterval`. Idempotent: identical inputs at an unchanged algorithm version
  * produce rows with the same `inputRevision` every time.
+ *
+ * No `import "server-only"` -- see context-pack.ts's own comment on why: this module is called
+ * from plain-Node CLI scripts (scripts/recompute-development-context.ts), where that guard
+ * throws outright, and the barrel exclusion already keeps it out of client-component reach.
  */
 
 async function resolveOrganisationId(ref: FootballMatchRef): Promise<string | null> {
