@@ -100,6 +100,9 @@ export type MatchDetailShellProps = {
   opponentMemory: OpponentMemoryViewModel | null;
   coachingIntent?: string;
   coachingIntentId?: string;
+  /** The active intent's free-text note (ADR-0157 C6 "Coaching intent review" — the AFTER surface
+   * shows the match's stated intent next to the post-match review, never only the review). */
+  coachingIntentNote?: string | null;
   matchFormatState?: {
     matchOverride: MatchFormatSnapshot | null;
     inheritedFormat: MatchFormatSnapshot | null;
@@ -163,6 +166,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     opponentMemory,
     coachingIntent,
     coachingIntentId,
+    coachingIntentNote,
     matchFormatState,
     afterData,
     phaseStartDate,
@@ -354,6 +358,8 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
             tabHref={tabHref}
             postMatchHref={orgUrl(`/matches/${matchId}/post-match`)}
             completedMatchAdvisorViewModel={completedMatchAdvisorViewModel}
+            coachingIntent={coachingIntent}
+            coachingIntentNote={coachingIntentNote}
           />
         )
       )}
@@ -540,6 +546,8 @@ function AfterMatchTabContent(props: {
   tabHref: (tab: string) => string;
   postMatchHref: string;
   completedMatchAdvisorViewModel: CompletedMatchAdvisorViewModel | null;
+  coachingIntent?: string;
+  coachingIntentNote?: string | null;
 }) {
   const { activeTab } = props;
 
@@ -559,6 +567,8 @@ function AfterMatchTabContent(props: {
         tabHref={props.tabHref}
         postMatchHref={props.postMatchHref}
         advisorViewModel={props.completedMatchAdvisorViewModel}
+        coachingIntentCategory={props.coachingIntent}
+        coachingIntentNote={props.coachingIntentNote}
       />
     );
   }

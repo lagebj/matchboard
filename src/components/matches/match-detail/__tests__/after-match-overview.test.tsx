@@ -23,6 +23,19 @@ vi.mock("@/components/ai/completed-match-advisor-panel", () => ({
 }));
 vi.mock("@/components/ai/advisor-panel", () => ({
   AdvisorPanelStale: () => <div data-testid="advisor-panel-stale" />,
+  AdvisorPanelReviewing: () => <div data-testid="advisor-panel-reviewing" />,
+  AdvisorPanelUnavailable: () => <div data-testid="advisor-panel-unavailable" />,
+}));
+
+// Self-fetches via a "use server" action (getRotationVsActualAction) — mocked for the same
+// reason as MatchTacticsPanel/CompletedMatchAdvisorPanel above, isolating composition from
+// real auth/db dependencies in a component test.
+vi.mock("@/components/matches/match-detail/plan-vs-reality-panel", () => ({
+  PlanVsRealityPanel: (props: { matchId: string; teamId: string }) => (
+    <div data-testid="plan-vs-reality-panel">
+      Plan vs reality for {props.matchId}/{props.teamId}
+    </div>
+  ),
 }));
 
 function makeAfterData(overrides: Partial<MatchDetailAfterData> = {}): MatchDetailAfterData {
@@ -50,6 +63,8 @@ function makeAfterData(overrides: Partial<MatchDetailAfterData> = {}): MatchDeta
     goalAttributionGap: null,
     timingNeedsReviewCount: 0,
     outOfRangeEventCount: 0,
+    shapeChangeRows: [],
+    firstTimeCanonicalPositions: [],
     ...overrides,
   };
 }
@@ -112,5 +127,57 @@ describe("AfterMatchOverview", () => {
     render(<AfterMatchOverview {...baseProps({ data: makeAfterData({ reportStatus: "DRAFT" }) })} />);
     expect(screen.getByText("Continue report")).toBeInTheDocument();
     expect(screen.queryByText("View full report")).not.toBeInTheDocument();
+  });
+
+  it("leaves the full factual story intact when AI is unavailable (ADR-0157 C6 required test)", () => {
+    render(<AfterMatchOverview {...baseProps({ advisorViewModel: { status: "unavailable" } })} />);
+    // Deterministic sections render regardless of AI state.
+    expect(screen.getByTestId("match-tactics-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("plan-vs-reality-panel")).toBeInTheDocument();
+    expect(screen.getByText("Match flow")).toBeInTheDocument();
+    expect(screen.getByText("Match story")).toBeInTheDocument();
+    expect(screen.getByTestId("advisor-panel-unavailable")).toBeInTheDocument();
+  });
+
+  it("never fabricates a 'Partially met' or similar synthesized score in the coaching intent section", () => {
+    render(<AfterMatchOverview {...baseProps({ coachingIntentCategory: "TEAM_FIRST", coachingIntentNote: "Keep it simple." })} />);
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/partially met/i);
+    expect(screen.getByText("Keep it simple.")).toBeInTheDocument();
+    expect(screen.getByText("Team first")).toBeInTheDocument();
+  });
+
+  it("renders shape-change rows as concrete position changes, never a formation label", () => {
+    render(
+      <AfterMatchOverview
+        {...baseProps({
+          data: makeAfterData({
+            shapeChangeRows: [
+              { id: "shape-1", minuteLabel: "20'", changes: [{ playerId: "p1", playerName: "Anna A", fromPosition: "CM", toPosition: "FW" }] },
+            ],
+          }),
+        })}
+      />,
+    );
+    expect(screen.getByText(/Anna A: CM → FW/)).toBeInTheDocument();
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/\d-\d-\d/); // no invented formation signature like "4-3-3"
+  });
+
+  it("omits the 'What this match added' panel entirely when nothing material happened", () => {
+    render(<AfterMatchOverview {...baseProps()} />);
+    expect(screen.queryByText("What this match added")).not.toBeInTheDocument();
+  });
+
+  it("shows a 'What this match added' row only for a real computed change", () => {
+    render(
+      <AfterMatchOverview
+        {...baseProps({
+          data: makeAfterData({ firstTimeCanonicalPositions: [{ playerId: "p1", playerName: "Anna A", position: "CB" }] }),
+        })}
+      />,
+    );
+    expect(screen.getByText("What this match added")).toBeInTheDocument();
+    expect(screen.getByText(/Anna A recorded their first minutes at CB this season\./)).toBeInTheDocument();
   });
 });

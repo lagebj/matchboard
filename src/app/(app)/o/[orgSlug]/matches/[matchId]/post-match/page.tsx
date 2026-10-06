@@ -326,7 +326,7 @@ export default async function PostMatchRoute({ params }: PageProps) {
   // Bounded, surface-scoped read model — shared with Match Details AFTER
   // (`get-match-detail-after-data.ts`), so Summary/Timeline/attendance/aggregate facts are
   // identical wherever they appear, never a second interpretation of the same report.
-  const afterData = await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, orgFilter: ctx.orgFilter });
+  const afterData = await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, teamId: match.teamId, matchStartsAt: match.startsAt, orgFilter: ctx.orgFilter });
 
   const completedByLabel =
     initialReport?.status === "LOCKED" && initialReport.completedBy

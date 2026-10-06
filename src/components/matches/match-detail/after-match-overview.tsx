@@ -2,6 +2,9 @@ import Link from "next/link";
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
 import { MatchTimelineList } from "@/components/matches/match-detail/match-timeline-list";
 import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
+import { PlanVsRealityPanel } from "@/components/matches/match-detail/plan-vs-reality-panel";
+import { MatchFlowPanel } from "@/components/matches/match-detail/match-flow-panel";
+import { WhatThisMatchAddedPanel } from "@/components/matches/match-detail/what-this-match-added-panel";
 import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
 import { WidgetHeader } from "@/components/touchline/widget/widget-header";
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
@@ -13,6 +16,8 @@ import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/compl
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import { formatOpponentEnvironment, formatMatchFit, formatReflectionRating } from "@/lib/matches/match-detail-format";
+import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
+import type { CoachingIntentCategory } from "@/generated/prisma/client";
 
 type SelectionRow = {
   playerId: string;
@@ -52,6 +57,8 @@ export function AfterMatchOverview({
   tabHref,
   postMatchHref,
   advisorViewModel,
+  coachingIntentCategory,
+  coachingIntentNote,
 }: {
   presentation: MatchPresentation;
   ownKitColor: string | null;
@@ -68,25 +75,41 @@ export function AfterMatchOverview({
   /** `null` when there is nothing for the Advisor to show (no connection, AI disabled,
    * `post_match_review` toggle off, or no useful persisted review). */
   advisorViewModel: CompletedMatchAdvisorViewModel | null;
+  /** The match's own stated coaching intent (ADR-0157 C6 "Coaching intent review") — shown
+   * alongside the AI review, never synthesized from it. */
+  coachingIntentCategory?: string;
+  coachingIntentNote?: string | null;
 }) {
   const env = formatOpponentEnvironment(data.opponentObservation?.overallEnvironment ?? null);
+  const substitutionCount = data.timeline.filter((i) => i.kind === "ROTATION").length;
+  const positionChangeCount = data.shapeChangeRows.reduce((sum, row) => sum + row.changes.length, 0);
 
+  // Key figures (`08_COMPLETED_MATCH.md`): players used, goals, assists, position changes,
+  // substitutions, recorded observations only — never possession/xG/momentum/performance
+  // score/Player of the Match.
   const factsItems: MetricStripItem[] = [
     {
       id: "goals",
       label: "Goals",
       value: presentation.score ? `${presentation.score.home}-${presentation.score.away}` : "—",
     },
-    { id: "present", label: "Present", value: `${data.attendanceSummary.presentCount}/${data.attendanceSummary.totalCount}` },
-    { id: "no-show", label: "No-show", value: String(data.attendanceSummary.noShowCount), tone: data.attendanceSummary.noShowCount > 0 ? "attention" : "neutral" },
+    { id: "players-used", label: "Players used", value: `${data.attendanceSummary.presentCount}/${data.attendanceSummary.totalCount}` },
     { id: "assists", label: "Assists", value: String(data.assistProviders.scorers.reduce((n, s) => n + s.count, 0)) },
+    { id: "substitutions", label: "Substitutions", value: String(substitutionCount) },
+    { id: "position-changes", label: "Position changes", value: String(positionChangeCount) },
     { id: "observations", label: "Observations", value: String(data.footballObservations.length) },
   ];
   if (env) factsItems.push({ id: "environment", label: "Environment", value: env });
   if (matchFit !== "UNKNOWN") factsItems.push({ id: "fit", label: "Match fit", value: formatMatchFit(matchFit) });
 
+  const hasAdvisorContent = advisorViewModel !== null;
+  const intentLabel = coachingIntentCategory
+    ? COACHING_INTENT_LABELS[coachingIntentCategory as CoachingIntentCategory] ?? coachingIntentCategory
+    : null;
+
   return (
     <div className="flex flex-col gap-4">
+      {/* 1. Result/header */}
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="flex items-center justify-center rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-6">
           <MatchIdentityCard presentation={presentation} ownKitColor={ownKitColor} />
@@ -99,13 +122,56 @@ export function AfterMatchOverview({
         </TouchlineWidget>
       </div>
 
+      {/* 2. Match story */}
+      <TouchlineWidget>
+        <WidgetHeader eyebrow="Match story" title={`${data.timeline.length} recorded events`} />
+        <div className="mt-2">
+          <MatchTimelineList items={data.timeline} ownTeamName={ownTeamName} opponentName={opponentName} limit={10} />
+        </div>
+        {data.timeline.length > 10 && (
+          <TouchlineButton as={Link} href={tabHref("events")} variant="ghost" size="sm" className="mt-2">
+            Show all {data.timeline.length} events →
+          </TouchlineButton>
+        )}
+        {data.shapeChangeRows.length > 0 && (
+          <div className="mt-3 border-t border-[var(--border-soft)] pt-3">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+              Shape changes
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              {data.shapeChangeRows.map((row) => (
+                <li key={row.id} className="text-[13px]">
+                  <span className="mr-2 tabular-nums text-[var(--text-muted)]">{row.minuteLabel}</span>
+                  {row.changes.map((c) => (
+                    <span key={c.playerId} className="text-[var(--foreground)]">
+                      {c.playerName}: {c.fromPosition} → {c.toPosition}
+                    </span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </TouchlineWidget>
+
+      {/* 3. Key figures */}
       <MetricStrip items={factsItems} className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4" />
 
-      {(advisorViewModel?.status === "fresh" || advisorViewModel?.status === "stale") && (
-        <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />
-      )}
-      {advisorViewModel?.status === "reviewing" && <AdvisorPanelReviewing />}
-      {advisorViewModel?.status === "unavailable" && <AdvisorPanelUnavailable />}
+      <TouchlineWidget>
+        <WidgetHeader eyebrow="Player involvement" title={`${data.playerInvolvement.length} players`} />
+        <ul className="mt-2 flex flex-col divide-y divide-[var(--border-soft)]">
+          {data.playerInvolvement.slice(0, 8).map((row) => (
+            <li key={row.participantKey} className="flex items-center justify-between gap-2 py-1.5 text-[13px]">
+              <span className="min-w-0 truncate text-[var(--foreground)]">{row.playerName}</span>
+              <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
+                {row.minutes != null ? `${row.minutes}′` : "—"}
+                {row.goals > 0 ? ` · ${row.goals}G` : ""}
+                {row.assists > 0 ? ` · ${row.assists}A` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </TouchlineWidget>
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
@@ -121,36 +187,41 @@ export function AfterMatchOverview({
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TouchlineWidget>
-          <WidgetHeader eyebrow="Key events" title={`${data.timeline.length} recorded`} />
-          <div className="mt-2">
-            <MatchTimelineList items={data.timeline} ownTeamName={ownTeamName} opponentName={opponentName} limit={6} />
-          </div>
-          {data.timeline.length > 6 && (
-            <TouchlineButton as={Link} href={tabHref("events")} variant="ghost" size="sm" className="mt-2">
-              Show all {data.timeline.length} events →
-            </TouchlineButton>
-          )}
-        </TouchlineWidget>
+      {/* 4. Plan vs reality */}
+      <PlanVsRealityPanel matchId={matchId} teamId={teamId} />
 
-        <TouchlineWidget>
-          <WidgetHeader eyebrow="Player involvement" title={`${data.playerInvolvement.length} players`} />
-          <ul className="mt-2 flex flex-col divide-y divide-[var(--border-soft)]">
-            {data.playerInvolvement.slice(0, 8).map((row) => (
-              <li key={row.participantKey} className="flex items-center justify-between gap-2 py-1.5 text-[13px]">
-                <span className="min-w-0 truncate text-[var(--foreground)]">{row.playerName}</span>
-                <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
-                  {row.minutes != null ? `${row.minutes}′` : "—"}
-                  {row.goals > 0 ? ` · ${row.goals}G` : ""}
-                  {row.assists > 0 ? ` · ${row.assists}A` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </TouchlineWidget>
-      </div>
+      {/* 5. Match flow */}
+      <MatchFlowPanel timeline={data.timeline} ownTeamName={ownTeamName} opponentName={opponentName} />
 
+      {/* 6. Coaching intent review */}
+      <TouchlineWidget>
+        <WidgetHeader eyebrow="Coaching intent review" title={intentLabel ?? "No intent recorded"} />
+        {coachingIntentNote && <p className="mt-1 text-[13px] text-[var(--text-soft)]">{coachingIntentNote}</p>}
+        <div className="mt-3">
+          {advisorViewModel?.status === "fresh" || advisorViewModel?.status === "stale" ? (
+            <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />
+          ) : advisorViewModel?.status === "reviewing" ? (
+            <AdvisorPanelReviewing />
+          ) : advisorViewModel?.status === "unavailable" ? (
+            <AdvisorPanelUnavailable />
+          ) : !hasAdvisorContent && !intentLabel ? (
+            <p className="text-[13px] text-[var(--text-muted)]">No coaching intent or review recorded for this match.</p>
+          ) : null}
+        </div>
+      </TouchlineWidget>
+
+      {/* 7. What this match added */}
+      <WhatThisMatchAddedPanel
+        input={{
+          hasNewObservations: data.footballObservations.length > 0,
+          observationCount: data.footballObservations.length,
+          hasNewOpponentEncounter: data.opponentObservation !== null,
+          opponentName,
+          firstTimeCanonicalPositions: data.firstTimeCanonicalPositions,
+        }}
+      />
+
+      {/* 8. Reflection/debrief */}
       <div className="grid gap-4 lg:grid-cols-3">
         <TouchlineWidget>
           <WidgetHeader eyebrow="Team reflection" title={data.reflection ? "Recorded" : "Not recorded"} />

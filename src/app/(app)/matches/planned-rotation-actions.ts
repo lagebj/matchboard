@@ -12,7 +12,7 @@ import {
   deletePlannedRotation,
   validatePlannedChanges,
   checkPlannedRotationCoverage,
-  projectPlannedMinutesForSquad,
+  getPlannedMinutesProjectionForMatch,
   type PlannedRotationWithChanges,
   type PlannedRotationChangeData,
   type PlannedRotationValidationIssue,
@@ -398,48 +398,14 @@ export async function getPlannedPlayingTimeAction(
 
     const match = await db.match.findFirst({
       where: { id: matchId, ...ctx.orgFilter.filter },
-      select: { id: true, matchType: true },
+      select: { id: true },
     });
     if (!match) return { success: false, error: "Match not found or access denied." };
 
-    const lineup = await db.matchLineup.findFirst({
-      where: { matchId, teamId, ...ctx.orgFilter.filter },
-      include: {
-        formation: { include: { slots: { select: { id: true, roleType: true } } } },
-        assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
-      },
-    });
-    if (!lineup || lineup.assignments.length === 0) {
-      return { success: true, hasLineup: false };
-    }
+    const projection = await getPlannedMinutesProjectionForMatch(matchId, teamId, ctx.orgFilter);
+    if (!projection.hasLineup) return { success: true, hasLineup: false };
 
-    const selections = await db.selection.findMany({
-      where: { matchId, status: { in: ["DRAFT", "FINALIZED"] }, match: { teamId } },
-      select: { playerId: true },
-      orderBy: [{ role: "asc" }],
-    });
-    const squadPlayerIds = selections.map((s) => s.playerId);
-
-    const slotsById = new Map((lineup.formation?.slots ?? []).map((s) => [s.id, s]));
-    const starters = lineup.assignments
-      .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
-      .map((a) => {
-        const roleType = slotsById.get(a.slotId)?.roleType;
-        return { playerId: a.playerId, position: roleType === "GOALKEEPER" ? "GK" : (roleType ?? "FLEXIBLE") };
-      });
-
-    // ARR-0053's format-aware fix — see checkPlannedRotationCoverageAction above for the full
-    // reasoning; this reader needs the same match-actually-configured total duration.
-    const formatState = await getMatchFormatOverrideState(matchId, ctx.organisationId);
-    const resolvedFormat = formatState?.frozenFormat ?? formatState?.effectiveFormat ?? null;
-    const periodConfig = getLeagueMatchPeriodConfig(match.matchType, resolvedFormat);
-    const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
-    const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : null;
-
-    const rotation = await getPlannedRotation(matchId, teamId, ctx.orgFilter);
-    const rows = projectPlannedMinutesForSquad(starters, rotation?.changes ?? [], totalMatchSeconds ?? 0, squadPlayerIds);
-
-    return { success: true, hasLineup: true, totalMatchSeconds, rows };
+    return { success: true, hasLineup: true, totalMatchSeconds: projection.totalMatchSeconds, rows: projection.rows };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to compute planned playing time." };
   }
