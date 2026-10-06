@@ -55,6 +55,7 @@ model Team {
   plannedRotations              PlannedRotation[]
   teamFocuses                   TeamFocus[]
   qualitativeObservations       QualitativeEvidenceObservation[]
+  teamSeasonProfiles            TeamSeasonProfile[]
   group                         FootballGroup                    @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
   organisation                  Organisation?                    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
@@ -1923,6 +1924,7 @@ model LeagueSeason {
   updatedAt                    DateTime              @updatedAt
   matchRounds                  MatchRound[]
   combinationEvidences         CombinationEvidence[]
+  teamSeasonProfiles           TeamSeasonProfile[]
   season                       Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   periodSnapshot               SeasonPeriodSnapshot?
   group                        FootballGroup         @relation(fields: [footballGroupId], references: [id], onDelete: Restrict)
@@ -2686,6 +2688,8 @@ model Organisation {
   qualitativeExtractionRuns     QualitativeEvidenceExtractionRun[]
   qualitativeObservations       QualitativeEvidenceObservation[]
   aiInsightClarifications       AiInsightClarification[]
+  // Team Season Profile follow-up (ADR-0156).
+  teamSeasonProfiles            TeamSeasonProfile[]
 
   @@index([slug])
   @@index([name])
@@ -4160,4 +4164,37 @@ model AiInsightClarification {
   updatedAt      DateTime         @updatedAt
 
   @@index([organisationId, createdAt])
+}
+
+/// Team Season Profile follow-up (ADR-0156), Slice 0. A derived, rebuildable snapshot of
+/// season-scoped football patterns for one (organisation, Team, LeagueSeason) -- never canonical
+/// evidence (match-phase/combination/qualitative evidence remain the source of truth; see
+/// match-phase-pattern-evidence.ts, combination-aggregation.ts, qualitative-evidence-service.ts).
+/// One row per team/season -- not one row per pattern -- validated as a versioned
+/// TeamSeasonProfileV1 JSON contract (src/lib/team-season-profile/contracts.ts) before every
+/// write and after every read. `sourceFingerprint` is a computeSourceFingerprint() digest of the
+/// canonical source state this payload was built from (05_DATA_MODEL_AND_REFRESH.md §3); a stale
+/// fingerprint is how the service layer (Slice 2) detects "rebuild needed", not a cron or TTL.
+model TeamSeasonProfile {
+  id             String @id @default(cuid())
+  organisationId String
+  teamId         String
+  leagueSeasonId String
+
+  profileVersion    Int      @default(1)
+  sourceFingerprint String
+  /// TeamSeasonProfileV1 (src/lib/team-season-profile/contracts.ts)
+  payload           Json
+  computedAt        DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  leagueSeason LeagueSeason  @relation(fields: [leagueSeasonId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, teamId, leagueSeasonId])
+  @@index([organisationId, leagueSeasonId])
+  @@index([organisationId, teamId])
 }
