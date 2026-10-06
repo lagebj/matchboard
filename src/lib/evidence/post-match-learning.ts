@@ -18,6 +18,7 @@ export type PostMatchLearningResult = {
   players: LearningStepResult;
   combinations: LearningStepResult;
   positionEvolution: LearningStepResult;
+  developmentContext: LearningStepResult;
 };
 
 /** What kicked off a learning run — for the observable `PostMatchLearningRun` record (ADR-0127). */
@@ -59,6 +60,7 @@ export async function runPostMatchLearning(
     players: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
     combinations: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
     positionEvolution: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
+    developmentContext: { status: "SKIPPED", reason: "NOT_ATTEMPTED" },
   };
 
   try {
@@ -130,6 +132,17 @@ export async function runPostMatchLearning(
     } catch (error) {
       result.combinations = { status: "FAILED", reason: failureReason(error) };
     }
+  }
+
+  try {
+    const { persistMatchContextPack } = await import("@/lib/development-context/persist-match-context");
+    const outcome = await persistMatchContextPack(ref);
+    result.developmentContext =
+      outcome.measurementsWritten > 0
+        ? { status: "APPLIED" }
+        : { status: "SKIPPED", reason: "NO_ELIGIBLE_MEASUREMENTS" };
+  } catch (error) {
+    result.developmentContext = { status: "FAILED", reason: failureReason(error) };
   }
 
   const overallOutcome = summariseLearningOutcome(result);
