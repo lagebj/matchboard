@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { computeTrendDraft, type TrendDraft, type TrendWindowMeasurement } from "./trend-derivation";
-import { getMetricDefinition, METRIC_REGISTRY } from "./metric-registry";
+import { computeTrendDraft, dimensionGroupKey, type TrendDraft, type TrendWindowMeasurement } from "./trend-derivation";
+import { getMetricDefinition, TREND_ENABLED_METRIC_KEYS } from "./metric-registry";
 import type { EvidenceRef, MetricKey } from "./types";
 
 /**
@@ -15,10 +15,6 @@ import type { EvidenceRef, MetricKey } from "./types";
  * comment on why).
  */
 
-const TREND_ENABLED_METRIC_KEYS = Object.values(METRIC_REGISTRY)
-  .filter((definition) => definition.trendEnabled)
-  .map((definition) => definition.key);
-
 type EligibleRow = {
   metricKey: string;
   dimensions: unknown;
@@ -29,14 +25,6 @@ type EligibleRow = {
   eventMatchId: string | null;
   scopeKey: string;
 };
-
-function dimensionGroupKey(metricKey: string, dimensions: Record<string, string>): string {
-  const sortedDims = Object.keys(dimensions)
-    .sort()
-    .map((key) => `${key}=${dimensions[key]}`)
-    .join("&");
-  return `${metricKey}\u0000${sortedDims}`;
-}
 
 async function resolveStartsAtByScopeKey(rows: EligibleRow[]): Promise<Map<string, Date>> {
   const matchIds = [...new Set(rows.filter((r) => r.matchId).map((r) => r.matchId!))];
@@ -58,7 +46,7 @@ async function resolveStartsAtByScopeKey(rows: EligibleRow[]): Promise<Map<strin
 /** Recomputes and replaces every `DerivedTrend` row for one player, across every trend-enabled metric and dimension combination they have eligible data for. */
 export async function recomputePlayerTrends(playerId: string, organisationId: string): Promise<{ trendsWritten: number }> {
   const rows = (await db.derivedMeasurement.findMany({
-    where: { playerId, eligible: true, metricKey: { in: TREND_ENABLED_METRIC_KEYS } },
+    where: { playerId, eligible: true, metricKey: { in: [...TREND_ENABLED_METRIC_KEYS] } },
     select: { metricKey: true, dimensions: true, value: true, numerator: true, denominator: true, matchId: true, eventMatchId: true, scopeKey: true },
   })) as EligibleRow[];
 

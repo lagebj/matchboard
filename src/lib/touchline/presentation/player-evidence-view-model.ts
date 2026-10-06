@@ -1,12 +1,15 @@
 /**
  * Player Detail's Evidence tab (Atlas Follow-up, `04_PLAYER_DETAIL_CONTRACT.md §7`) — "What does
  * Matchboard currently know enough to surface?" Grouped under Opportunity / Position / Match
- * context, each rendered through the existing `EvidenceStory` component
+ * context / Trend (the last added by ADR-0157 C5), each rendered through the existing
+ * `EvidenceStory` component
  * (`src/components/touchline/evidence/evidence-story.tsx`) — this view model supplies its data,
  * it does not duplicate that component's `observation → visual → sample → confidence → detail`
  * grammar. No overall player score, no "best player", no negative label (contract's own rule).
  */
-export type PlayerEvidenceGroup = "OPPORTUNITY" | "POSITION" | "MATCH_CONTEXT";
+/** `TREND` added by ADR-0157 C5 — ADR-0155 B6's persisted `DerivedTrend` rows, surfaced here for
+ * the first time (the baseline UI computed them but never rendered them). */
+export type PlayerEvidenceGroup = "OPPORTUNITY" | "POSITION" | "MATCH_CONTEXT" | "TREND";
 
 export type PlayerEvidenceStoryData = {
   id: string;
@@ -42,6 +45,7 @@ export function buildPlayerEvidenceViewModel(input: PlayerEvidenceViewModelInput
     OPPORTUNITY: [],
     POSITION: [],
     MATCH_CONTEXT: [],
+    TREND: [],
   };
   for (const story of input.stories) {
     storiesByGroup[story.group].push(story);

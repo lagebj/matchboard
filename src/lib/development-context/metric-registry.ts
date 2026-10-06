@@ -104,3 +104,10 @@ export const METRIC_REGISTRY: Readonly<Record<MetricKey, MetricDefinition>> = {
 export function getMetricDefinition(key: MetricKey): MetricDefinition {
   return METRIC_REGISTRY[key];
 }
+
+/** Every metric key the trend engine (B6) operates on -- the one derivation of this list, shared
+ * by `recompute-player-trends.ts` (writer) and `get-player-trend-stories.ts` (reader) so neither
+ * maintains its own copy of "which metrics trend." */
+export const TREND_ENABLED_METRIC_KEYS: readonly MetricKey[] = Object.values(METRIC_REGISTRY)
+  .filter((definition) => definition.trendEnabled)
+  .map((definition) => definition.key);

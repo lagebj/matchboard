@@ -6,6 +6,8 @@ import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerRecentOpportunity } from "@/lib/players/get-player-recent-opportunity";
 import { getPlayerMatchHistory } from "@/lib/players/get-player-match-history";
 import { getPlayerDevelopmentContextSummary } from "@/lib/development-context/get-player-development-context-summary";
+import { getPlayerTrendStories } from "@/lib/development-context/get-player-trend-stories";
+import { getPlayerAssistantCoachHypotheses } from "@/lib/ai/presentation/player-assistant-coach-hypotheses";
 import { getEffectivePlayerPositionProfileForPlayer } from "@/lib/player-development/get-effective-position-profile";
 import { availabilityOptions, preferredFootOptions, secondaryFootOptions, bestSideOptions, goalkeeperAbilityOptions } from "@/lib/player-form-options";
 import { playerPositionOptions, optionalPlayerPositionOptions } from "@/lib/player-form-options";
@@ -17,6 +19,7 @@ import { PlayerParticipationStrip } from "@/components/touchline/player/player-p
 import { PlayerPositionMapWidget } from "@/components/touchline/player/player-position-map-widget";
 import { PlayerDevelopmentFocus } from "@/components/touchline/player/player-development-focus";
 import { PlayerObservationStory } from "@/components/touchline/player/player-observation-story";
+import { PlayerCurrentStoryCard } from "@/components/touchline/player/player-current-story-card";
 import { PlayerRecentFootball } from "@/components/touchline/player/player-recent-football";
 import { PlayerMatchTimeline } from "@/components/touchline/player/player-match-timeline";
 import { PlayerPositionTimeline } from "@/components/touchline/player/player-position-timeline";
@@ -36,6 +39,7 @@ import { AssessmentHistoryPanel } from "@/components/players/player-assessment-h
 import { CoachContextPanel as PlayerCoachContextPanel } from "@/components/players/player-coach-context-panel";
 import { PlayerReadinessPanel } from "@/components/players/player-readiness-panel";
 import { PlayerDevelopmentThreadsPanel } from "@/components/players/player-development-threads-panel";
+import { AssistantCoachHypothesisPanel } from "@/components/ai/assistant-coach-hypothesis-panel";
 import { PlayerQuickObservationsPanel } from "@/components/players/player-quick-observations-panel";
 import { PlayerSquadContextPanel } from "@/components/players/player-squad-context-panel";
 import { PlayerOutfieldRoleSuitabilityPanel } from "@/components/players/player-outfield-role-suitability-panel";
@@ -215,18 +219,40 @@ async function OverviewTab({
   profile: PositionProfile;
 }) {
   establishTabTenantContext(orgFilter);
-  const [seasonStats, recentOpportunity, matchHistory, developmentThreads, latestObservationRow] = await Promise.all([
-    getPlayerAllTimeStats(playerId),
-    getPlayerRecentOpportunity(playerId),
-    getPlayerMatchHistory(playerId, orgFilter),
-    db.developmentThread.findMany({
-      where: { playerId, status: "ACTIVE", ...orgFilter.filter },
-      select: { id: true, focus: true, category: true, startedAt: true },
-      orderBy: { startedAt: "desc" },
-      take: 1,
-    }),
-    loadLatestObservation(playerId, orgFilter),
-  ]);
+  const [seasonStats, recentOpportunity, matchHistory, developmentThreads, latestObservationRow, trendStories, declaredPlayer, positionEvolutionRecord] =
+    await Promise.all([
+      getPlayerAllTimeStats(playerId),
+      getPlayerRecentOpportunity(playerId),
+      getPlayerMatchHistory(playerId, orgFilter),
+      db.developmentThread.findMany({
+        where: { playerId, status: "ACTIVE", ...orgFilter.filter },
+        select: { id: true, focus: true, category: true, startedAt: true },
+        orderBy: { startedAt: "desc" },
+        take: 1,
+      }),
+      loadLatestObservation(playerId, orgFilter),
+      getPlayerTrendStories(playerId),
+      db.player.findFirst({ where: { id: playerId, ...orgFilter.filter }, select: { primaryPosition: true } }),
+      // ADR-0139's automatic position-profile-evolution audit entry (priority 2 of the
+      // Current story selector) — most recent one regardless of age; staleness is gated inside
+      // `buildOverviewInput`, not here.
+      db.decisionRecord.findFirst({
+        where: { decisionType: "POSITION_PROFILE_EVOLUTION", entityType: "Player", entityId: playerId, ...orgFilter.filter },
+        orderBy: { createdAt: "desc" },
+        select: { beforeSnapshot: true, afterSnapshot: true, createdAt: true },
+      }),
+    ]);
+
+  const activeFocusLatestObservationAt =
+    developmentThreads.length > 0
+      ? (
+          await db.developmentThreadObservation.findFirst({
+            where: { threadId: developmentThreads[0].id },
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true },
+          })
+        )?.createdAt ?? null
+      : null;
 
   const overview = buildOverviewInput({
     playerId,
@@ -240,19 +266,22 @@ async function OverviewTab({
         : null,
     latestObservation: latestObservationRow,
     matchHistory,
+    trendStories,
+    positionEvolutionRecord,
+    currentDeclaredPrimaryPosition: declaredPlayer?.primaryPosition ?? null,
+    activeFocusLatestObservationAt,
   });
   const vm = buildPlayerOverviewViewModel(overview);
 
   return (
     <div className="flex flex-col gap-4">
-      <PlayerParticipationStrip {...vm.participation} scopeLabel="All time" />
-      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-        {vm.opportunity ? <OpportunityWidget {...vm.opportunity} /> : null}
-        <PlayerPositionMapWidget positions={vm.effectivePositions} />
-      </div>
-      <PlayerObservationStory observation={vm.latestObservation} />
+      {vm.currentStory ? <PlayerCurrentStoryCard story={vm.currentStory} /> : null}
+      <PlayerPositionMapWidget positions={vm.effectivePositions} />
+      {vm.opportunity ? <OpportunityWidget {...vm.opportunity} /> : null}
       <PlayerDevelopmentFocus focus={vm.activeDevelopmentFocus} />
+      <PlayerObservationStory observation={vm.latestObservation} />
       <PlayerRecentFootball matches={vm.recentMatches} viewAllHref={`/o/${orgSlug}/players/${playerId}?tab=matches`} />
+      <PlayerParticipationStrip {...vm.participation} scopeLabel="All time" />
     </div>
   );
 }
@@ -330,7 +359,7 @@ async function DevelopmentTab({
   orgFilter: OrgFilter;
 }) {
   establishTabTenantContext(orgFilter);
-  const [threads, cycleInsight] = await Promise.all([
+  const [threads, cycleInsight, assistantCoachHypotheses] = await Promise.all([
     db.developmentThread.findMany({
       where: { playerId, ...orgFilter.filter },
       select: {
@@ -346,6 +375,7 @@ async function DevelopmentTab({
       orderBy: { startedAt: "desc" },
     }),
     getPlayerDevelopmentCycleInsight({ organisationId: orgFilter.organisationId, playerId }),
+    getPlayerAssistantCoachHypotheses(orgFilter.organisationId, playerId),
   ]);
 
   const activeThread = threads.find((t) => t.status === "ACTIVE") ?? null;
@@ -433,6 +463,7 @@ async function DevelopmentTab({
           </p>
         </TouchlineWidget>
       ) : null}
+      <AssistantCoachHypothesisPanel hypotheses={assistantCoachHypotheses} />
       <PlayerDevelopmentTimeline observations={vm.observationTimeline} completedFocusHistory={vm.completedFocusHistory} />
     </div>
   );
@@ -450,32 +481,33 @@ async function EvidenceTab({
   profile: PositionProfile;
 }) {
   establishTabTenantContext(orgFilter);
-  const [seasonStats, recentOpportunity, matchHistory, developmentContext] = await Promise.all([
+  const [seasonStats, recentOpportunity, matchHistory, developmentContext, trendStories] = await Promise.all([
     getPlayerAllTimeStats(playerId),
     getPlayerRecentOpportunity(playerId),
     getPlayerMatchHistory(playerId, orgFilter),
     getPlayerDevelopmentContextSummary(playerId),
+    getPlayerTrendStories(playerId),
   ]);
 
   const vm = buildPlayerEvidenceViewModel({
-    stories: buildEvidenceStories({ playerId, orgSlug, seasonStats, recentOpportunity, profile, matchHistory, developmentContext }),
+    stories: buildEvidenceStories({ playerId, orgSlug, seasonStats, recentOpportunity, profile, matchHistory, developmentContext, trendStories }),
   });
 
   return (
     <div className="flex flex-col gap-4">
-      {(["OPPORTUNITY", "POSITION", "MATCH_CONTEXT"] as const).map((group) => {
+      {(["OPPORTUNITY", "POSITION", "MATCH_CONTEXT", "TREND"] as const).map((group) => {
         const stories = vm.storiesByGroup[group];
         if (stories.length === 0) return null;
+        const groupLabel =
+          group === "OPPORTUNITY" ? "Opportunity" : group === "POSITION" ? "Position" : group === "TREND" ? "Trends" : "Match context";
         return (
           <div key={group} className="flex flex-col gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-              {group === "OPPORTUNITY" ? "Opportunity" : group === "POSITION" ? "Position" : "Match context"}
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">{groupLabel}</p>
             {stories.map((s) => (
               <EvidenceStory
                 key={s.id}
                 question={s.question}
-                label={group === "OPPORTUNITY" ? "Opportunity" : group === "POSITION" ? "Position" : "Match context"}
+                label={groupLabel}
                 title={s.title}
                 value={s.value}
                 valueCaption={s.valueCaption}

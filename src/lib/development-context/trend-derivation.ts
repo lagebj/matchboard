@@ -15,6 +15,20 @@ export interface TrendWindowMeasurement {
   denominator?: number;
 }
 
+/**
+ * Groups measurements that belong to the same trend series: same metric, same dimension values
+ * (key order doesn't matter). Shared by `recompute-player-trends.ts` (writer) and
+ * `get-player-trend-stories.ts` (reader, ADR-0157 C5) so the two sides of "has this group reached
+ * 6 eligible matches yet?" can never silently disagree on what counts as "the same group."
+ */
+export function dimensionGroupKey(metricKey: string, dimensions: Record<string, string>): string {
+  const sortedDims = Object.keys(dimensions)
+    .sort()
+    .map((key) => `${key}=${dimensions[key]}`)
+    .join("&");
+  return `${metricKey}\u0000${sortedDims}`;
+}
+
 export interface TrendDraft {
   metricKey: MetricKey;
   metricVersion: number;

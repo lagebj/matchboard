@@ -58,6 +58,9 @@ export const overviewInput: PlayerOverviewViewModelInput = {
     { matchId: "m2", opponent: "Rød vs Graabein United", matchDate: "10 Sep", role: "Core", goals: 0, assists: 1, href: "#" },
     { matchId: "m3", opponent: "Sætre Lions", matchDate: "31 Aug", role: "Core", goals: 1, assists: 0, href: "#" },
   ],
+  // ADR-0157 C5: a representative deterministic trend headline, for like-for-like visual
+  // comparison of the new Current story block alongside the rest of this golden scenario.
+  currentStory: { text: "Left Wing exposure has increased across the latest eligible window (previous 3 matches vs. latest 3 matches).", source: "TREND" },
 };
 
 export const matchesInput: PlayerMatchesViewModelInput = {

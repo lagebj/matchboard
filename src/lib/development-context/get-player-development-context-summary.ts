@@ -19,7 +19,9 @@ export interface PlayerDevelopmentContextSummary {
   topCoPresencePartner: TopCoPresencePartner | null;
 }
 
-async function resolveTeammateName(teammateId: string): Promise<string> {
+/** Shared with `get-player-trend-stories.ts` (ADR-0157 C5) so both readers resolve a teammate
+ * dimension's display name through the one Player-then-GuestPlayer lookup, never a second copy. */
+export async function resolveTeammateName(teammateId: string): Promise<string> {
   const player = await db.player.findUnique({ where: { id: teammateId }, select: { firstName: true, lastName: true } });
   if (player) return [player.firstName, player.lastName].filter(Boolean).join(" ");
 
