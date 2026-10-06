@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { presentPattern, shortPatternLabel, confidenceLabel, trajectoryLabel } from "@/lib/team-season-profile/presentation";
+import { presentPattern, presentChip, shortPatternLabel, confidenceLabel, trajectoryLabel } from "@/lib/team-season-profile/presentation";
 import type { TeamSeasonPattern } from "@/lib/team-season-profile/contracts";
 
 function basePattern(overrides: Partial<TeamSeasonPattern>): TeamSeasonPattern {
@@ -119,5 +119,15 @@ describe("team-season-profile/presentation — shortPatternLabel", () => {
   it("never produces a label containing AI-style prose markers", () => {
     const label = shortPatternLabel(basePattern({ family: "TACTICAL_THEME", subtype: "BUILD_UP_WORKING" }));
     expect(label.length).toBeLessThan(40);
+  });
+});
+
+describe("team-season-profile/presentation — presentChip", () => {
+  it("pairs the short label with one evidence sentence and the confidence label", () => {
+    const chip = presentChip(basePattern({}));
+    expect(chip.shortLabel).toBe("Strong starts");
+    expect(chip.evidenceSentence).toContain("5 of 11 recorded goals");
+    expect(chip.confidenceLabel).toBe("Emerging pattern");
+    assertNoCausalLanguage(chip.evidenceSentence);
   });
 });
