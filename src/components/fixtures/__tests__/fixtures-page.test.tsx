@@ -204,6 +204,20 @@ describe("FixturesPage (League Operating Surface)", () => {
     });
   });
 
+  it("links 'Review season' to Season Review with the active league season preserved (ADR-0157 C7 'Entry from League')", async () => {
+    fetchFixturesOverview.mockResolvedValue({
+      periods: [makePeriod({ id: "p1", rounds: [makeRound({ matches: [makeMatch({ startsAt: isoAt(0) })] })] })],
+    });
+
+    await act(() => {
+      render(<FixturesPage orgSlug="test-org" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /review season/i })).toHaveAttribute("href", "/o/test-org/season?leagueSeasonId=p1");
+    });
+  });
+
   it("shows 'Generate all draft squads' as the primary action when the focused round needs generation", async () => {
     fetchFixturesOverview.mockResolvedValue({
       periods: [

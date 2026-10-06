@@ -16,6 +16,7 @@ import {
   getQualitativeEvidenceForMatches,
   dedupeQualitativeObservationsByStatement,
 } from "@/lib/evidence/qualitative-evidence-service";
+import { computeRecurringThemePhaseSummaries } from "@/lib/evidence/recurring-theme-facts";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
 import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
 import { getTeamSeasonProfile } from "@/lib/team-season-profile/service";
@@ -297,57 +298,23 @@ export async function buildWeeklyTeamReviewContext(params: {
   // newest-first and stopping at the first match that breaks it or lacks directional evidence for
   // this phase). Exposed only once a phase has evidence in >=2 matches ("current match plus one
   // historical match" per bundle §6) — a single match's own observation is already covered by
-  // `activeQualitativeEvidence` above.
-  const observationsByMatchId = new Map<string, typeof dedupedObservations>();
-  for (const o of dedupedObservations) {
-    if (!o.matchId) continue;
-    const list = observationsByMatchId.get(o.matchId) ?? [];
-    list.push(o);
-    observationsByMatchId.set(o.matchId, list);
-  }
+  // `activeQualitativeEvidence` above. The accumulation itself is extracted into
+  // `computeRecurringThemePhaseSummaries()` (ADR-0157 C7) so Season Review can reuse the exact
+  // same deterministic logic without a second recurring-theme algorithm.
+  const recurringThemePhaseSummaries = computeRecurringThemePhaseSummaries(dedupedObservations, recentMatches, {
+    minMatchCount: RECURRING_THEME_MIN_MATCH_COUNT,
+    maxItems: RECURRING_THEME_MAX_ITEMS,
+  });
 
-  function directionForMatchPhase(matchId: string, phase: string): "WORKING" | "PROBLEM" | null {
-    const directional = (observationsByMatchId.get(matchId) ?? []).filter((o) => o.phase === phase && (o.polarity === "WORKING" || o.polarity === "PROBLEM"));
-    const polarities = new Set(directional.map((o) => o.polarity));
-    return polarities.size === 1 ? (directional[0]!.polarity as "WORKING" | "PROBLEM") : null;
-  }
-
-  const phaseAccumulators = new Map<string, { workingMatchIds: Set<string>; problemMatchIds: Set<string>; newestObservationDate: Date }>();
-  for (const o of dedupedObservations) {
-    if (!o.matchId || (o.polarity !== "WORKING" && o.polarity !== "PROBLEM")) continue;
-    const acc = phaseAccumulators.get(o.phase) ?? { workingMatchIds: new Set<string>(), problemMatchIds: new Set<string>(), newestObservationDate: o.createdAt };
-    if (o.polarity === "WORKING") acc.workingMatchIds.add(o.matchId);
-    else acc.problemMatchIds.add(o.matchId);
-    if (o.createdAt > acc.newestObservationDate) acc.newestObservationDate = o.createdAt;
-    phaseAccumulators.set(o.phase, acc);
-  }
-
-  const recurringThemeFacts = [...phaseAccumulators.entries()]
-    .map(([phase, acc]) => {
-      const totalMatches = new Set([...acc.workingMatchIds, ...acc.problemMatchIds]).size;
-      if (totalMatches < RECURRING_THEME_MIN_MATCH_COUNT) return null;
-
-      let streakDirection: "WORKING" | "PROBLEM" | null = null;
-      let streakCount = 0;
-      for (const m of recentMatches) {
-        const direction = directionForMatchPhase(m.id, phase);
-        if (!direction) break;
-        if (streakDirection === null) streakDirection = direction;
-        else if (direction !== streakDirection) break;
-        streakCount++;
-      }
-
-      return withEvidenceRef(evidenceRefs, `${FACT}:recurring-theme:${teamRef}:${toRefSegment(phase)}`, {
-        phase,
-        matchesWithWorking: acc.workingMatchIds.size,
-        matchesWithProblem: acc.problemMatchIds.size,
-        newestObservationDate: acc.newestObservationDate.toISOString(),
-        consecutiveStreak: streakCount > 0 && streakDirection ? { direction: streakDirection, count: streakCount } : null,
-      });
-    })
-    .filter((t): t is NonNullable<typeof t> => t !== null)
-    .sort((a, b) => b.matchesWithWorking + b.matchesWithProblem - (a.matchesWithWorking + a.matchesWithProblem) || a.phase.localeCompare(b.phase))
-    .slice(0, RECURRING_THEME_MAX_ITEMS);
+  const recurringThemeFacts = recurringThemePhaseSummaries.map((summary) =>
+    withEvidenceRef(evidenceRefs, `${FACT}:recurring-theme:${teamRef}:${toRefSegment(summary.phase)}`, {
+      phase: summary.phase,
+      matchesWithWorking: summary.matchesWithWorking,
+      matchesWithProblem: summary.matchesWithProblem,
+      newestObservationDate: summary.newestObservationDate.toISOString(),
+      consecutiveStreak: summary.consecutiveStreak,
+    }),
+  );
 
   // Bundle §18 "unresolved NEXT_FOCUS items". Foreign, opaque text from a *different* review's
   // own ephemeral-ref numbering — same discipline as `post-match-review.ts`'s own
