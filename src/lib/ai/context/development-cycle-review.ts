@@ -12,6 +12,10 @@ import { withEvidenceRef, toRefSegment } from "@/lib/ai/context/evidence-ref";
 import {
   dedupeQualitativeObservationsByStatement,
 } from "@/lib/evidence/qualitative-evidence-service";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
+import { getTeamSeasonProfile } from "@/lib/team-season-profile/service";
+import { rankPatterns } from "@/lib/team-season-profile/build-profile";
 
 /**
  * `development_cycle_review` context builder (ADR-0152 §6 "Five-week learning cycle", bundle
@@ -56,6 +60,11 @@ const PLAYER_MIN_INDEPENDENT_EVIDENCE_ITEMS = 2;
 /** "Sufficient match exposure" alongside one explicit coach observation — this codebase's own
  * documented threshold, since the bundle leaves the number open: any recorded minutes in window. */
 const PLAYER_MIN_EXPOSURE_MINUTES = 1;
+
+// ADR-0156 §6 "Development Cycle Review integration" -- bounded seasonProfile context, limited
+// to 8 patterns total (no per-family sub-caps are specified for this capability, unlike
+// weekly_team_review's 4/4/2/2).
+const SEASON_PATTERN_MAX_TOTAL = 8;
 
 function ref(prefix: string, index: number): string {
   return `${prefix}${String(index + 1).padStart(2, "0")}`;
@@ -319,14 +328,19 @@ export async function buildDevelopmentCycleReviewContext(params: {
     if (o.secondaryPlayerId) addPlayerEvidence(o.secondaryPlayerId, `qualitative:${o.id}:secondary`);
   }
 
+  // Bundle §12's threshold as a reusable predicate -- also the exact gate §6's "a combination
+  // pattern cannot introduce a below-threshold player into player-state output" refers to below.
+  function meetsPlayerEvidenceThreshold(playerId: string): boolean {
+    const evidenceCount = playerEvidenceCounts.get(playerId)?.size ?? 0;
+    if (evidenceCount >= PLAYER_MIN_INDEPENDENT_EVIDENCE_ITEMS) return true;
+    const hasCoachDevelopmentObservation = (developmentObservationsByPlayer.get(playerId) ?? []).length > 0;
+    const exposureMinutes = sumClosedMinutes(minutesByPlayer.get(playerId) ?? []);
+    return hasCoachDevelopmentObservation && exposureMinutes >= PLAYER_MIN_EXPOSURE_MINUTES;
+  }
+  const qualifyingPlayerIds = new Set(sortedPlayerIds.filter(meetsPlayerEvidenceThreshold));
+
   const playerStateFacts = sortedPlayerIds
-    .filter((playerId) => {
-      const evidenceCount = playerEvidenceCounts.get(playerId)?.size ?? 0;
-      if (evidenceCount >= PLAYER_MIN_INDEPENDENT_EVIDENCE_ITEMS) return true;
-      const hasCoachDevelopmentObservation = (developmentObservationsByPlayer.get(playerId) ?? []).length > 0;
-      const exposureMinutes = sumClosedMinutes(minutesByPlayer.get(playerId) ?? []);
-      return hasCoachDevelopmentObservation && exposureMinutes >= PLAYER_MIN_EXPOSURE_MINUTES;
-    })
+    .filter((playerId) => qualifyingPlayerIds.has(playerId))
     .map((playerId) => {
       const playerRef = playerRefById.get(playerId)!;
       const thread = developmentThreads.find((t) => t.playerId === playerId);
@@ -339,8 +353,55 @@ export async function buildDevelopmentCycleReviewContext(params: {
       });
     });
 
+  // ADR-0156 §6 "Development Cycle Review integration" -- the League Season overlapping this
+  // five-week window. A combination/player-contribution season pattern is only included when
+  // every player it names already qualifies in `playerStates` above -- it must never introduce
+  // a below-threshold player into this capability's output (Test plan I.3).
+  const overlappingSeason = await db.leagueSeason.findFirst({
+    where: { organisationId: params.organisationId, startDate: { lte: windowEnd }, endDate: { gte: windowStart } },
+    orderBy: { startDate: "desc" },
+    select: { id: true },
+  });
+
+  let seasonProfileFact: JsonValue | null = null;
+  if (overlappingSeason) {
+    const orgFilter: OrgFilterMode = {
+      type: "org",
+      filter: organisationFilter(params.organisationId),
+      filterNullable: organisationFilterNullable(params.organisationId),
+      organisationId: params.organisationId,
+    };
+    const seasonProfile = await getTeamSeasonProfile({ organisationId: params.organisationId, teamId, leagueSeasonId: overlappingSeason.id, orgFilter });
+
+    if (seasonProfile) {
+      const eligiblePatterns = rankPatterns(seasonProfile.patterns).filter((pattern) =>
+        (pattern.subjects.playerIds ?? []).every((playerId) => qualifyingPlayerIds.has(playerId)),
+      );
+      const selectedPatterns = eligiblePatterns.slice(0, SEASON_PATTERN_MAX_TOTAL);
+
+      const seasonPatternFacts = selectedPatterns.map((pattern, index) =>
+        withEvidenceRef(evidenceRefs, `${FACT}:season-pattern:${teamRef}:${ref("SP", index)}`, {
+          ref: pattern.key,
+          family: pattern.family,
+          subtype: pattern.subtype,
+          evidenceStrength: pattern.evidenceStrength,
+          trajectory: pattern.trajectory,
+          metrics: pattern.metrics,
+          playerRefs: (pattern.subjects.playerIds ?? []).map((playerId) => playerRefById.get(playerId)!),
+        }),
+      );
+
+      seasonProfileFact = {
+        leagueSeasonId: seasonProfile.leagueSeasonId,
+        completedMatches: seasonProfile.sample.completedMatches,
+        patterns: seasonPatternFacts,
+      };
+    }
+  }
+
   const normalizedContext: JsonValue = {
     team: { ref: teamRef, windowStart: windowStart.toISOString(), windowEnd: windowEnd.toISOString() },
+    seasonProfile: seasonProfileFact,
     matches: matchFacts,
     participationFacts,
     developmentObservations: developmentObservationFacts,
@@ -357,6 +418,7 @@ export async function buildDevelopmentCycleReviewContext(params: {
     "This is a longitudinal learning cycle, not a player rating: the summary must help the coach's next five-week plan, and absence of evidence must be presented as absence of evidence, never as a negative judgement.",
     "Every fact object carries an evidenceRef field giving you the exact string to cite — copy it verbatim, never construct or guess your own evidence-ref string.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it — every proposal requires explicit coach confirmation before it becomes real.",
+    "The seasonProfile section (when present) contains deterministic, season-scoped descriptive patterns computed before you ever saw them. Use it only to give this five-week window season-long context (is this window's change new, or part of a longer pattern?) and to contextualize player contribution/combination patterns without turning them into development ratings — a season pattern is never itself a playerStates classification, and a PLAYER_CONTRIBUTION or COMBINATION pattern is descriptive evidence of recorded exposure, never a personality, ability, ranking, or causal claim. Every player named in seasonProfile already appears in playerStates; never discuss a player who does not.",
   ].join(" ");
 
   return { normalizedContext, instructions, refMap, evidenceRefs };
