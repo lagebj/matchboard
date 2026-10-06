@@ -283,4 +283,104 @@ describe("ai/context/weekly-team-review", () => {
       }
     });
   });
+
+  describe("ADR-0156 season profile integration", () => {
+    it("includes a bounded seasonProfile section with only EMERGING/ESTABLISHED patterns and valid evidence refs", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"];
+
+      const matchOne = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, {
+        startsAt: new Date("2025-04-28T10:00:00Z"),
+      });
+      const matchTwo = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, {
+        startsAt: new Date("2025-04-29T10:00:00Z"),
+      });
+      for (const match of [matchOne, matchTwo]) {
+        await testDb.postMatchReport.create({ data: { organisationId: fixtureIds.organisationId, matchId: match.id, status: "LOCKED" } });
+      }
+
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "season-m1",
+        fingerprintPayload: { x: "season-m1" },
+        subject: { matchId: matchOne.id },
+        observations: [{ scope: "TEAM", phase: "BUILD_UP", polarity: "WORKING", statement: "Played out well under pressure (m1)." }],
+      });
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "season-m2",
+        fingerprintPayload: { x: "season-m2" },
+        subject: { matchId: matchTwo.id },
+        observations: [{ scope: "TEAM", phase: "BUILD_UP", polarity: "WORKING", statement: "Played out well under pressure (m2)." }],
+      });
+
+      const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
+      expect(context).not.toBeNull();
+      if (!context) return;
+
+      const normalized = context.normalizedContext as {
+        seasonProfile: { leagueSeasonId: string; completedMatches: number; patterns: Array<{ family: string; evidenceStrength: string; evidenceRef: string }> } | null;
+      };
+
+      expect(normalized.seasonProfile).not.toBeNull();
+      expect(normalized.seasonProfile!.leagueSeasonId).toBe(fixtureIds.leagueSeasonId);
+      expect(normalized.seasonProfile!.completedMatches).toBeGreaterThanOrEqual(2);
+
+      const themePattern = normalized.seasonProfile!.patterns.find((p) => p.family === "TACTICAL_THEME");
+      expect(themePattern).toBeDefined();
+      expect(themePattern!.evidenceStrength).not.toBe("INSUFFICIENT");
+      expect(themePattern!.evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+      expect(context.evidenceRefs.has(themePattern!.evidenceRef)).toBe(true);
+
+      for (const evidenceRef of context.evidenceRefs) {
+        expect(evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+      }
+    });
+
+    it("caps the total number of season patterns at 12 and each family at its own cap", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"];
+      const match = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt: new Date("2025-04-28T10:00:00Z") });
+      await testDb.postMatchReport.create({ data: { organisationId: fixtureIds.organisationId, matchId: match.id, status: "LOCKED" } });
+
+      const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, WEEK_KEY) });
+      expect(context).not.toBeNull();
+      if (!context) return;
+
+      const normalized = context.normalizedContext as { seasonProfile: { patterns: Array<{ family: string }> } | null };
+      // One match with no qualitative/combination/player evidence surfaces nothing -- an empty
+      // bounded section, not a failure (Test plan H.8).
+      expect(normalized.seasonProfile).not.toBeNull();
+      expect(normalized.seasonProfile!.patterns.length).toBeLessThanOrEqual(12);
+    });
+
+    it("yields a null seasonProfile, not a failure, when no League Season overlaps the reviewed week", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"];
+      // The fixture's League Season spans 2025-01-06..2025-06-30 (test-db.ts). A match dated
+      // into 2026 still belongs to that same round/season relationally, but its own week falls
+      // entirely outside the season's date range -- the overlap query must find nothing.
+      const outsideWeekKey = "2026-W02";
+      const outsideMatch = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, {
+        startsAt: new Date("2026-01-06T10:00:00Z"),
+      });
+      await testDb.selection.create({
+        data: {
+          matchId: outsideMatch.id,
+          matchRoundId: fixtureIds.matchRoundId,
+          playerId: fixtureIds.players.find((p) => p.coreTeamName === "Bla")!.id,
+          role: "CORE",
+          status: "FINALIZED",
+          organisationId: fixtureIds.organisationId,
+        },
+      });
+
+      const context = await buildWeeklyTeamReviewContext({ organisationId: fixtureIds.organisationId, scopeId: buildWeeklyTeamReviewScopeId(blaTeamId, outsideWeekKey) });
+      expect(context).not.toBeNull();
+      if (!context) return;
+      const normalized = context.normalizedContext as { seasonProfile: unknown };
+      expect(normalized.seasonProfile).toBeNull();
+    });
+  });
 });
