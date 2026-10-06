@@ -1,5 +1,6 @@
 import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
 import { describeOpportunityTrend, type PlayerRecentOpportunityInput } from "./player-detail-view-model";
+import type { PlayerCurrentStory } from "./player-current-story";
 
 /**
  * Player Detail's Overview tab (Atlas Follow-up, `04_PLAYER_DETAIL_CONTRACT.md §4`). Distinct
@@ -31,6 +32,12 @@ export type PlayerOverviewViewModelInput = {
   activeDevelopmentFocus: { id: string; focus: string; category: string | null; href: string } | null;
   latestObservation: { id: string; note: string; createdAt: string; sourceLabel: string; themes: string[] } | null;
   recentMatches: PlayerRecentMatchRow[];
+  /**
+   * Already-selected by `selectPlayerCurrentStory()` in the production adapter (ADR-0157 C5) —
+   * this view model never re-runs the selector, only passes its single result through, matching
+   * `effectivePositions`' own "already-resolved" convention above.
+   */
+  currentStory: PlayerCurrentStory | null;
 };
 
 export type PlayerOverviewViewModel = {
@@ -40,6 +47,7 @@ export type PlayerOverviewViewModel = {
   activeDevelopmentFocus: PlayerOverviewViewModelInput["activeDevelopmentFocus"];
   latestObservation: PlayerOverviewViewModelInput["latestObservation"];
   recentMatches: PlayerRecentMatchRow[];
+  currentStory: PlayerCurrentStory | null;
 };
 
 export function buildPlayerOverviewViewModel(input: PlayerOverviewViewModelInput): PlayerOverviewViewModel {
@@ -59,5 +67,6 @@ export function buildPlayerOverviewViewModel(input: PlayerOverviewViewModelInput
     activeDevelopmentFocus: input.activeDevelopmentFocus,
     latestObservation: input.latestObservation,
     recentMatches: input.recentMatches,
+    currentStory: input.currentStory,
   };
 }

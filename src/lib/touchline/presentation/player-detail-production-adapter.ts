@@ -10,6 +10,8 @@ import type { PlayerMatchesViewModelInput } from "./player-matches-view-model";
 import type { PlayerDevelopmentViewModelInput } from "./player-development-view-model";
 import type { PlayerEvidenceStoryData } from "./player-evidence-view-model";
 import type { PlayerDevelopmentContextSummary } from "@/lib/development-context/get-player-development-context-summary";
+import type { PlayerTrendStory } from "@/lib/development-context/get-player-trend-stories";
+import { selectPlayerCurrentStory, type PlayerCurrentStory } from "./player-current-story";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { formatShortDate } from "@/lib/date-utils";
 
@@ -74,9 +76,98 @@ export type PlayerOverviewSource = {
     themes: string[];
   } | null;
   matchHistory: PlayerMatchHistoryEntry[];
+  /**
+   * ADR-0157 C5 additions — all optional/defaulted so every pre-existing caller (and this
+   * module's own existing tests) keeps compiling and behaving unchanged without passing them.
+   */
+  /** From `getPlayerTrendStories(playerId)` — never recomputed here, only selected from. */
+  trendStories?: PlayerTrendStory[];
+  /** The player's most recent ADR-0139 automatic position-profile-evolution `DecisionRecord`
+   * (`decisionType: "POSITION_PROFILE_EVOLUTION"`), if any — raw before/after position codes. */
+  positionEvolutionRecord?: {
+    beforeSnapshot: unknown;
+    afterSnapshot: unknown;
+    createdAt: Date;
+  } | null;
+  /** The player's currently-declared primary position (`Player.primaryPosition`, raw code) —
+   * used only to confirm a position-evolution record still reflects the live declaration, never
+   * displayed raw (see `buildPositionEvolutionStorySource` below). */
+  currentDeclaredPrimaryPosition?: string | null;
+  /** Most recent observation date on the active development-focus thread itself (not the
+   * broader "latest observation across any source" used elsewhere on Overview) — `null` when
+   * the thread has no observations yet. */
+  activeFocusLatestObservationAt?: Date | null;
+  /** Injectable for deterministic tests; defaults to the real current time. */
+  now?: Date;
 };
 
+/** A position-profile-evolution change is "current" for at most this long after it happened —
+ * no existing constant covers "is this specific kind of change still worth stating as today's
+ * story" (distinct from `opponents-view-model.ts`'s unrelated 90-day "recent encounter" window),
+ * so this is a new, deliberately tighter, disclosed judgement call for this one story source. */
+const POSITION_EVOLUTION_CURRENT_WINDOW_DAYS = 60;
+
+/** How recent a development-focus thread's own observation must be to count as "a recent
+ * supporting observation" for the Current story selector (distinct from the broader
+ * "latest observation across any source" story Overview already shows lower down). */
+const DEVELOPMENT_FOCUS_RECENT_OBSERVATION_WINDOW_DAYS = 21;
+
+function daysBetween(earlier: Date, later: Date): number {
+  return (later.getTime() - earlier.getTime()) / (1000 * 60 * 60 * 24);
+}
+
+/**
+ * Gates the position-evolution `DecisionRecord` into a current-story candidate, or `null` when
+ * it no longer qualifies: too old, or superseded by a later manual/automatic change (the
+ * record's own `afterSnapshot.primary` no longer matches what is actually declared today). This
+ * is "current evidence," never a reconstructed historical profile (contract's own distinction)
+ * — the before/after pair is read verbatim from the one real `DecisionRecord` the evolution
+ * engine itself wrote (`sync-effective-position.ts`), not re-derived.
+ */
+function buildPositionEvolutionStorySource(
+  record: { beforeSnapshot: unknown; afterSnapshot: unknown; createdAt: Date } | null | undefined,
+  currentDeclaredPrimaryPosition: string | null | undefined,
+  now: Date,
+): { newPrimaryLabel: string; previousPrimaryLabel: string | null } | null {
+  if (!record) return null;
+  if (daysBetween(record.createdAt, now) > POSITION_EVOLUTION_CURRENT_WINDOW_DAYS) return null;
+
+  const after = record.afterSnapshot as { primary?: string } | null;
+  const before = record.beforeSnapshot as { primary?: string } | null;
+  if (!after?.primary || after.primary !== currentDeclaredPrimaryPosition) return null;
+
+  return {
+    newPrimaryLabel: exactPositionLabel(after.primary),
+    previousPrimaryLabel: before?.primary ? exactPositionLabel(before.primary) : null,
+  };
+}
+
 export function buildOverviewInput(source: PlayerOverviewSource): PlayerOverviewViewModelInput {
+  const now = source.now ?? new Date();
+
+  const positionEvolution = buildPositionEvolutionStorySource(
+    source.positionEvolutionRecord ?? null,
+    source.currentDeclaredPrimaryPosition ?? null,
+    now,
+  );
+
+  const activeDevelopmentFocusStory = source.activeFocus
+    ? {
+        focus: source.activeFocus.focus,
+        hasRecentSupportingObservation: Boolean(
+          source.activeFocusLatestObservationAt &&
+            daysBetween(source.activeFocusLatestObservationAt, now) <= DEVELOPMENT_FOCUS_RECENT_OBSERVATION_WINDOW_DAYS,
+        ),
+      }
+    : null;
+
+  const currentStory: PlayerCurrentStory | null = selectPlayerCurrentStory({
+    trendStories: source.trendStories ?? [],
+    positionEvolution,
+    activeDevelopmentFocus: activeDevelopmentFocusStory,
+    recentOpportunity: source.recentOpportunity,
+  });
+
   return {
     participation: {
       matches: source.seasonStats.actualAppearances,
@@ -106,6 +197,7 @@ export function buildOverviewInput(source: PlayerOverviewSource): PlayerOverview
         }
       : null,
     recentMatches: recentMatchRows(source.matchHistory, source.orgSlug),
+    currentStory,
   };
 }
 
@@ -255,6 +347,9 @@ export type PlayerEvidenceSource = {
   matchHistory: PlayerMatchHistoryEntry[];
   /** `null` when the player has no development-context measurements yet (ADR-0155). */
   developmentContext: PlayerDevelopmentContextSummary | null;
+  /** From `getPlayerTrendStories(playerId)` (ADR-0155 B6, surfaced for the first time in
+   * ADR-0157 C5) — defaults to `[]` for existing callers/tests. */
+  trendStories?: PlayerTrendStory[];
 };
 
 function formatMinutes(seconds: number): string {
@@ -333,6 +428,40 @@ function buildCoPresenceStory(context: PlayerDevelopmentContextSummary | null): 
     confidence: matchCount >= 6 ? "Established" : matchCount >= 3 ? "Emerging" : null,
     interpretation: "Shared on-pitch time only -- not a chemistry, compatibility, or partnership-quality score.",
   };
+}
+
+/**
+ * ADR-0155 B6 trend stories, surfaced on Player Detail's Evidence tab for the first time by
+ * ADR-0157 C5. Direction/materiality/sample come from `getPlayerTrendStories()` verbatim — this
+ * function only maps that already-computed shape into `EvidenceStory`'s rendering grammar, never
+ * recomputing a trend in presentation code (the spec's own binding rule).
+ */
+function buildTrendStories(trendStories: PlayerTrendStory[]): PlayerEvidenceStoryData[] {
+  return trendStories.map((story) => {
+    if (story.kind === "NOT_ENOUGH_EVIDENCE") {
+      return {
+        id: `trend-pending-${story.metricKey}-${JSON.stringify(story.dimensions)}`,
+        group: "TREND",
+        question: `Is ${story.dimensionLabel.toLowerCase()} changing?`,
+        title: `Not enough evidence yet — ${story.dimensionLabel}`,
+        sample: `${story.eligibleSampleCount} of ${story.neededSampleCount} eligible matches recorded`,
+        confidence: null,
+        interpretation: story.headline,
+      };
+    }
+    return {
+      id: `trend-${story.metricKey}-${JSON.stringify(story.dimensions)}`,
+      group: "TREND",
+      question: `Is ${story.dimensionLabel.toLowerCase()} changing?`,
+      title: story.dimensionLabel,
+      value: story.direction === "UP" ? "Increasing" : story.direction === "DOWN" ? "Decreasing" : "Stable",
+      sample: `${story.sampleWindow.previousMatches} previous vs. ${story.sampleWindow.latestMatches} latest eligible matches`,
+      // A trend row only ever exists once 6 eligible matches fed it (`computeTrendDraft`'s own
+      // gate) — "Established" is therefore always honest here, never invented.
+      confidence: "Established",
+      interpretation: story.headline,
+    };
+  });
 }
 
 /**
@@ -428,6 +557,7 @@ export function buildEvidenceStories(source: PlayerEvidenceSource): PlayerEviden
 
   stories.push(buildGameStateStory(source.developmentContext));
   stories.push(buildCoPresenceStory(source.developmentContext));
+  stories.push(...buildTrendStories(source.trendStories ?? []));
 
   return stories;
 }

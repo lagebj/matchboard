@@ -11,6 +11,7 @@ import { buildPlayerIdentityViewModel } from "../player-identity-view-model";
 import type { EffectivePlayerPositionProfile } from "@/lib/player-development/effective-position-profile";
 import type { PlayerMatchHistoryEntry } from "@/lib/players/get-player-match-history";
 import type { PlayerRecentOpportunity } from "@/lib/players/get-player-recent-opportunity";
+import type { PlayerTrendStory } from "@/lib/development-context/get-player-trend-stories";
 
 /**
  * Atlas Follow-up Phase F8 (Player Detail production migration, `04_PLAYER_DETAIL_CONTRACT.md`):
@@ -136,6 +137,167 @@ describe("buildOverviewInput", () => {
     expect(input.recentMatches[0]).toMatchObject({ matchId: "m1", opponent: "Slemmestad Rød", role: "Core", goals: 1 });
     expect(input.recentMatches[1].role).toBeNull();
     expect(input.activeDevelopmentFocus?.href).toBe("/o/test-club/players/p1?tab=development");
+  });
+
+  it("omits currentStory when no material evidence exists (ADR-0157 C5)", () => {
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      activeFocus: null,
+      latestObservation: null,
+      matchHistory: [],
+    });
+    expect(input.currentStory).toBeNull();
+  });
+
+  it("surfaces a material trend as currentStory, taking priority over every other source", () => {
+    const trend: PlayerTrendStory = {
+      kind: "TREND",
+      metricKey: "role_seconds",
+      metricPriority: 0,
+      dimensions: { position: "CM" },
+      dimensionLabel: "Central Midfield exposure",
+      direction: "UP",
+      materialityRatio: 2,
+      sampleWindow: { previousMatches: 3, latestMatches: 3 },
+      rateContext: null,
+      headline: "Central Midfield exposure has increased across the latest eligible window (previous 3 matches vs. latest 3 matches).",
+      sourceRefs: [],
+    };
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: { perRound: [], recentCount: 5, recentTotal: 5, previousCount: null, previousTotal: null },
+      profile: makeProfile(),
+      activeFocus: null,
+      latestObservation: null,
+      matchHistory: [],
+      trendStories: [trend],
+    });
+    expect(input.currentStory).toEqual({ text: trend.headline, source: "TREND" });
+  });
+
+  it("surfaces a still-current position-evolution change when its declared primary still matches today's record", () => {
+    const now = new Date("2026-10-06T00:00:00Z");
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      activeFocus: null,
+      latestObservation: null,
+      matchHistory: [],
+      now,
+      currentDeclaredPrimaryPosition: "CDM",
+      positionEvolutionRecord: {
+        beforeSnapshot: { primary: "CM", secondary: null, tertiary: null },
+        afterSnapshot: { primary: "CDM", secondary: null, tertiary: null },
+        createdAt: new Date("2026-09-20T00:00:00Z"), // 16 days before `now` -- within the window.
+      },
+    });
+    expect(input.currentStory?.source).toBe("POSITION_EVOLUTION");
+    expect(input.currentStory?.text).toContain("Centre Defensive Midfield");
+    expect(input.currentStory?.text).toContain("previously Central Midfield");
+  });
+
+  it("never states a position-evolution change that is stale (older than the current-story window)", () => {
+    const now = new Date("2026-10-06T00:00:00Z");
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      activeFocus: null,
+      latestObservation: null,
+      matchHistory: [],
+      now,
+      currentDeclaredPrimaryPosition: "CDM",
+      positionEvolutionRecord: {
+        beforeSnapshot: { primary: "CM", secondary: null, tertiary: null },
+        afterSnapshot: { primary: "CDM", secondary: null, tertiary: null },
+        createdAt: new Date("2026-01-01T00:00:00Z"), // far outside the window.
+      },
+    });
+    expect(input.currentStory).toBeNull();
+  });
+
+  it("never states a position-evolution change that has since been superseded by a later declaration", () => {
+    const now = new Date("2026-10-06T00:00:00Z");
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      activeFocus: null,
+      latestObservation: null,
+      matchHistory: [],
+      now,
+      // The record says CDM, but the live declared primary is now something else entirely --
+      // a later manual or automatic change superseded it; never state the stale fact as current.
+      currentDeclaredPrimaryPosition: "CM",
+      positionEvolutionRecord: {
+        beforeSnapshot: { primary: "CM", secondary: null, tertiary: null },
+        afterSnapshot: { primary: "CDM", secondary: null, tertiary: null },
+        createdAt: new Date("2026-09-20T00:00:00Z"),
+      },
+    });
+    expect(input.currentStory).toBeNull();
+  });
+
+  it("surfaces a development focus with a recent supporting observation as currentStory", () => {
+    const now = new Date("2026-10-06T00:00:00Z");
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      activeFocus: { id: "dt1", focus: "Direct play", category: null },
+      latestObservation: null,
+      matchHistory: [],
+      now,
+      activeFocusLatestObservationAt: new Date("2026-09-28T00:00:00Z"), // 8 days before `now`.
+    });
+    expect(input.currentStory?.source).toBe("DEVELOPMENT_FOCUS");
+    expect(input.currentStory?.text).toContain("Direct play");
+  });
+
+  it("surfaces a consistent recent opportunity pattern as currentStory when nothing else qualifies", () => {
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: { perRound: [], recentCount: 5, recentTotal: 5, previousCount: null, previousTotal: null },
+      profile: makeProfile(),
+      activeFocus: null,
+      latestObservation: null,
+      matchHistory: [],
+    });
+    expect(input.currentStory).toEqual({ text: "Recent opportunities have been consistent: 5 of 5 eligible rounds.", source: "OPPORTUNITY" });
+  });
+
+  it("stays fully useful with every ADR-0157 C5 field omitted (Overview works with AI disabled and no new evidence)", () => {
+    const input = buildOverviewInput({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 11, goals: 2, assists: 4, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      activeFocus: { id: "dt1", focus: "Direct play", category: null },
+      latestObservation: null,
+      matchHistory: [makeHistoryEntry()],
+    });
+    expect(input.participation.matches).toBe(11);
+    expect(input.effectivePositions.length).toBeGreaterThan(0);
+    expect(input.activeDevelopmentFocus?.focus).toBe("Direct play");
+    expect(input.currentStory).toBeNull();
   });
 });
 
@@ -321,5 +483,63 @@ describe("buildEvidenceStories", () => {
     expect(story.value).toBe("10 min");
     expect(story.confidence).toBe("Emerging");
     expect(story.interpretation).toContain("not a chemistry");
+  });
+
+  it("renders a TREND group story using the persisted direction verbatim, never recomputed (ADR-0157 C5)", () => {
+    const trend: PlayerTrendStory = {
+      kind: "TREND",
+      metricKey: "role_seconds",
+      metricPriority: 0,
+      dimensions: { position: "CM" },
+      dimensionLabel: "Central Midfield exposure",
+      direction: "DOWN",
+      materialityRatio: 1.5,
+      sampleWindow: { previousMatches: 3, latestMatches: 3 },
+      rateContext: null,
+      headline: "Central Midfield exposure has decreased across the latest eligible window (previous 3 matches vs. latest 3 matches).",
+      sourceRefs: [],
+    };
+    const stories = buildEvidenceStories({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      matchHistory: [],
+      developmentContext: null,
+      trendStories: [trend],
+    });
+    const trendStory = stories.find((s) => s.group === "TREND")!;
+    expect(trendStory.title).toBe("Central Midfield exposure");
+    expect(trendStory.value).toBe("Decreasing");
+    expect(trendStory.confidence).toBe("Established");
+    expect(trendStory.interpretation).toBe(trend.headline);
+  });
+
+  it("renders the NOT_ENOUGH_EVIDENCE trend state with null confidence, never a fabricated zero/stable value", () => {
+    const stories = buildEvidenceStories({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      matchHistory: [],
+      developmentContext: null,
+      trendStories: [
+        {
+          kind: "NOT_ENOUGH_EVIDENCE",
+          metricKey: "role_seconds",
+          dimensions: { position: "RW" },
+          dimensionLabel: "Right Wing exposure",
+          eligibleSampleCount: 3,
+          neededSampleCount: 6,
+          headline: "Not enough eligible matches yet to show a right wing exposure trend (3 of 6 eligible matches recorded).",
+        },
+      ],
+    });
+    const trendStory = stories.find((s) => s.group === "TREND")!;
+    expect(trendStory.confidence).toBeNull();
+    expect(trendStory.value).toBeUndefined();
+    expect(trendStory.title).toContain("Not enough evidence");
   });
 });
