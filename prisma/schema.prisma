@@ -216,6 +216,7 @@ model Match {
   actualPositionIntervals       ActualPositionInterval[]
   matchPeriodTimingResolutions  MatchPeriodTimingResolution[]
   combinationEvidences          CombinationEvidence[]
+  derivedMeasurements           DerivedMeasurement[]
   postMatchLearningRuns         PostMatchLearningRun[]
   qualitativeObservations       QualitativeEvidenceObservation[]
   quickObservations             QuickObservation[]
@@ -1611,6 +1612,7 @@ model EventMatch {
   qualitativeObservations      QualitativeEvidenceObservation[]
   opponentSportingEvidence     OpponentSportingEvidence?
   combinationEvidence          CombinationEvidence[]
+  derivedMeasurements          DerivedMeasurement[]
   postMatchLearningRuns        PostMatchLearningRun[]
   developmentObservations      PlayerDevelopmentObservation[]
   matchAvailabilities          EventMatchAvailability[]
@@ -2211,6 +2213,29 @@ enum ActualIntervalSource {
   LIVE_RECORDED
 }
 
+/// ADR-0155 — a derived measurement's scope. MATCH for one match; WINDOW for a rolling
+/// multi-match comparison (DerivedTrend).
+enum MeasurementScopeType {
+  MATCH
+  WINDOW
+}
+
+/// ADR-0155 — how complete a derived measurement's/trend's inputs are. Distinct from AI
+/// uncertainty (src/lib/development-context/types.ts's MeasurementCoverage is the matching
+/// hand-written TS union this enum mirrors).
+enum MeasurementCoverageStatus {
+  COMPLETE
+  PARTIAL
+  UNKNOWN
+}
+
+/// ADR-0155 — a trend's recent-window direction.
+enum TrendDirectionStatus {
+  UP
+  DOWN
+  STABLE
+}
+
 /// ADR-0146 §8 — how a MatchPeriodTimingResolution row's `resolvedDurationMs` was established.
 /// Deliberately does NOT include a `TIMEOUT` value: `TIMEOUT` is `finishLiveReporting`'s own
 /// trigger/audit metadata (manual vs. automatic completion), not a period-resolution mechanism —
@@ -2640,6 +2665,8 @@ model Organisation {
   actualPositionIntervals       ActualPositionInterval[]
   matchPeriodTimingResolutions  MatchPeriodTimingResolution[]
   combinationEvidences          CombinationEvidence[]
+  derivedMeasurements           DerivedMeasurement[]
+  derivedTrends                 DerivedTrend[]
   postMatchLearningRuns         PostMatchLearningRun[]
   quickObservations             QuickObservation[]
   guestPlayers                  GuestPlayer[]
@@ -2803,6 +2830,97 @@ model CombinationEvidence {
   @@index([eventMatchId, family])
   @@index([eventMatchId, playerIds])
   @@index([leagueSeasonId])
+  @@index([organisationId])
+}
+
+/// ADR-0155 step B3 — the versioned derived-measurement store. One current row per
+/// (player, scope, metric, version, inputRevision); never hand-patched. Recompute replaces a
+/// match's current rows wholesale (delete-then-insert) rather than upserting in place — the same
+/// "replace current derived materialization" rule ActualPositionInterval's own
+/// rebuildActualTimeline already follows, so no @@unique constraint is needed here either;
+/// current-row identity is an application-level invariant, not a DB one.
+model DerivedMeasurement {
+  id             String  @id @default(cuid())
+  organisationId String
+  matchId        String?
+  eventMatchId   String?
+  // No enforced FK relation: participant-agnostic by the same precedent as ActualIntervalRow
+  // (actual-timeline.ts) -- this may resolve to a real Player.id or a GuestPlayer.id, and the
+  // upstream data this model is built from already collapses that distinction before it reaches
+  // this layer.
+  playerId       String
+
+  metricKey         String
+  metricVersion     Int
+  scopeType         MeasurementScopeType
+  scopeKey          String
+  value             Float
+  unit              String
+  numerator         Float?
+  denominator       Float?
+  denominatorUnit   String?
+  presentationScale Float?
+  exposureSeconds   Float?
+  coverage          MeasurementCoverageStatus
+  eligible          Boolean
+  /// string[]
+  missingInputs     Json
+  /// string[]
+  warnings          Json
+  /// Record<string, string>
+  dimensions        Json
+  /// EvidenceRef[] (src/lib/development-context/types.ts)
+  sourceRefs        Json
+  inputRevision     String
+  computedAt        DateTime                  @default(now())
+
+  match        Match?        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  eventMatch   EventMatch?   @relation(fields: [eventMatchId], references: [id], onDelete: Cascade)
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  // Exactly one of matchId/eventMatchId must be set — enforced by a CHECK constraint added by
+  // hand to the generated migration SQL (Prisma cannot express this), matching
+  // ActualPositionInterval/CombinationEvidence's own precedent.
+  @@index([matchId, playerId, metricKey])
+  @@index([eventMatchId, playerId, metricKey])
+  @@index([playerId, metricKey])
+  @@index([organisationId])
+}
+
+/// ADR-0155 step B3 — a transparent, deterministic recent-window trend comparison (six-eligible-
+/// match 3-vs-3 rule, source bundle §04). `dimensions` keeps trends for different dimension
+/// slices of the same metric (e.g. role_seconds at CM vs. at RW) from ever mixing.
+model DerivedTrend {
+  id                     String                    @id @default(cuid())
+  organisationId         String
+  playerId               String
+  metricKey              String
+  metricVersion          Int
+  /// Record<string, string>
+  dimensions             Json
+  /// string[] of the 3 previous-window match/eventMatch ids
+  previousWindowMatchIds Json
+  /// string[] of the 3 latest-window match/eventMatch ids
+  latestWindowMatchIds   Json
+  previousValue          Float
+  latestValue            Float
+  delta                  Float
+  direction              TrendDirectionStatus
+  materialityThreshold   Float
+  coverage               MeasurementCoverageStatus
+  eligible               Boolean
+  /// string[]
+  missingInputs          Json
+  /// string[]
+  warnings               Json
+  /// EvidenceRef[] (src/lib/development-context/types.ts)
+  sourceRefs             Json
+  inputRevision          String
+  computedAt             DateTime                  @default(now())
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, metricKey])
   @@index([organisationId])
 }
 
@@ -3642,7 +3760,7 @@ model AiAdvisorReview {
   /// landing new qualitative evidence). Persisting the exact map makes token resolution exact for
   /// every review, fresh or stale. Nullable: reviews persisted before this column have no map
   /// and keep the rebuild fallback.
-  refMap               Json?
+  refMap Json?
 
   inputTokens               Int?
   outputTokens              Int?

@@ -34,9 +34,9 @@ export { gameStateForInterval } from "./game-state";
 
 export { computeCoPresencePairs, type CoPresencePair } from "./co-presence";
 
-// `context-pack.ts` is deliberately NOT re-exported here: it is `server-only`/DB-backed
-// (ADR-0155 step B2), and everything above this line is pure and safe for a client component to
-// import. Merging it into this barrel would make importing even `METRIC_REGISTRY` from a client
-// component pull `db`/`pg` into the browser bundle — a real, previously-hit failure class that
-// only CI's Build job catches, not typecheck/lint/tests. Import `buildMatchContextPack` from
-// `@/lib/development-context/context-pack` directly.
+// `context-pack.ts` and `persist-match-context.ts` are deliberately NOT re-exported here: both
+// are `server-only`/DB-backed (ADR-0155 steps B2/B3), and everything above this line is pure and
+// safe for a client component to import. Merging either into this barrel would make importing
+// even `METRIC_REGISTRY` from a client component pull `db`/`pg` into the browser bundle — a
+// real, previously-hit failure class that only CI's Build job catches, not typecheck/lint/tests.
+// Import `buildMatchContextPack`/`persistMatchContextPack` directly from their own files.

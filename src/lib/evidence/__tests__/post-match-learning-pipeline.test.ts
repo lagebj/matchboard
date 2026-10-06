@@ -672,6 +672,12 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
       });
     }
 
+    // ADR-0155 step B3's role_seconds measurement never fills an unresolved end time from a
+    // guess -- this fixture's starting-lineup intervals are otherwise open-ended, so a
+    // resolvable matchEndMs (via matchDurationMinutes) is what makes role exposure computable
+    // at all, exactly like a real completed match would have.
+    await testDb.match.update({ where: { id: matchId }, data: { matchDurationMinutes: 50 } });
+
     const result = await runPostMatchLearning(ref, orgFilter);
 
     // Every step reaches a real, non-FAILED conclusion for this well-formed fixture.
@@ -679,6 +685,14 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
       expect(["APPLIED", "SKIPPED"]).toContain(step.status);
     }
     expect(result.actualTimeline.status).toBe("APPLIED");
+
+    // ADR-0155 step B3: development-context measurements are recomputed and persisted as part
+    // of the same orchestrated run, not a separate untested side effect.
+    expect(result.developmentContext.status).toBe("APPLIED");
+    const measurements = await testDb.derivedMeasurement.findMany({ where: { matchId } });
+    expect(measurements.length).toBeGreaterThan(0);
+    expect(measurements.some((m) => m.metricKey === "role_seconds")).toBe(true);
+    expect(measurements.every((m) => m.eventMatchId === null)).toBe(true);
 
     // ADR-0127: the run is recorded, observable, and its overall outcome is authoritative.
     const run = await testDb.postMatchLearningRun.findFirst({
@@ -690,6 +704,12 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     expect(run!.eventMatchId).toBeNull();
     expect(run!.overallOutcome).toBe(summariseLearningOutcome(result));
     expect(run!.steps).toEqual(result);
+
+    // Re-running learning (e.g. a report re-completion/replay) replaces rather than duplicates
+    // DerivedMeasurement rows (ADR-0155 step B3's "replace current derived materialization").
+    await runPostMatchLearning(ref, orgFilter);
+    const measurementsAfterRerun = await testDb.derivedMeasurement.findMany({ where: { matchId } });
+    expect(measurementsAfterRerun.length).toBe(measurements.length);
   });
 
   it("runPostMatchLearning distinguishes NO_FOOTBALL_OBSERVATIONS from INSUFFICIENT_DISTINCT_MATCHES (found via manual browser verification, Event Evidence Parity programme)", async () => {
