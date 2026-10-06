@@ -69,6 +69,8 @@ function makeAfterData(overrides: Partial<MatchDetailAfterData> = {}): MatchDeta
     goalAttributionGap: null,
     timingNeedsReviewCount: 0,
     outOfRangeEventCount: 0,
+    shapeChangeRows: [],
+    firstTimeCanonicalPositions: [],
     ...overrides,
   };
 }

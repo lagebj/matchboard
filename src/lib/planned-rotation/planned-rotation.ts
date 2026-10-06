@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import type { OrgFilterMode } from '@/lib/tenancy/resolve-org-filter';
 import type { PlannedRotationStatus, PlannedChangeStatus } from '@/generated/prisma/client';
+import { getLeagueMatchPeriodConfig, getTotalPeriodDurationMs } from '@/lib/live-match/period-config';
 
 export type { PlannedRotationStatus, PlannedChangeStatus };
 
@@ -547,6 +548,79 @@ export function projectPlannedMinutesForSquad(
         positions: [],
       },
   );
+}
+
+export type PlannedMinutesProjectionForMatch = {
+  hasLineup: boolean;
+  totalMatchSeconds: number | null;
+  rows: PlannedMinutesProjection[];
+};
+
+/**
+ * The one owner of "starters + saved rotation plan + this match's actually-configured duration ->
+ * per-squad-player planned minutes/positions" (ADR-0157 C6's required correction). Previously this
+ * input assembly was duplicated inline in `getPlannedPlayingTimeAction` and never reused, which is
+ * exactly how `getRotationVsActual()` ended up hardcoding `plannedMinutes = 0` instead of calling
+ * it. Both callers now share this function so they can never again drift onto two different
+ * answers for "what was planned."
+ *
+ * Starters are read from the team's current match line-up, never fabricated from the full squad —
+ * `hasLineup: false` when none has been set yet, matching `checkPlannedRotationCoverageAction`'s
+ * own honesty convention.
+ */
+export async function getPlannedMinutesProjectionForMatch(
+  matchId: string,
+  teamId: string,
+  orgFilter: OrgFilterMode,
+): Promise<PlannedMinutesProjectionForMatch> {
+  const match = await db.match.findFirst({
+    where: { id: matchId, ...orgFilter.filter },
+    select: { id: true, matchType: true },
+  });
+  if (!match) return { hasLineup: false, totalMatchSeconds: null, rows: [] };
+
+  const lineup = await db.matchLineup.findFirst({
+    where: { matchId, teamId, ...orgFilter.filter },
+    include: {
+      formation: { include: { slots: { select: { id: true, roleType: true } } } },
+      assignments: { where: { playerId: { not: null } }, select: { playerId: true, slotId: true } },
+    },
+  });
+  if (!lineup || lineup.assignments.length === 0) {
+    return { hasLineup: false, totalMatchSeconds: null, rows: [] };
+  }
+
+  const selections = await db.selection.findMany({
+    where: { matchId, status: { in: ['DRAFT', 'FINALIZED'] }, match: { teamId } },
+    select: { playerId: true },
+    orderBy: [{ role: 'asc' }],
+  });
+  const squadPlayerIds = selections.map((s) => s.playerId);
+
+  const slotsById = new Map((lineup.formation?.slots ?? []).map((s) => [s.id, s]));
+  const starters = lineup.assignments
+    .filter((a): a is typeof a & { playerId: string } => a.playerId !== null)
+    .map((a) => {
+      const roleType = slotsById.get(a.slotId)?.roleType;
+      return { playerId: a.playerId, position: roleType === 'GOALKEEPER' ? 'GK' : (roleType ?? 'FLEXIBLE') };
+    });
+
+  // ARR-0053's format-aware fix — the match's actually-configured total duration (match >
+  // team > season default override precedence), not the hardcoded per-format lookup table this
+  // replaced. Imported dynamically: `match-format-override.ts` is `"server-only"`-guarded, and
+  // this module is also imported by pure-function unit tests (and a client component, via a
+  // type-only import) that must not pay for that guard just to load this file.
+  const { getMatchFormatOverrideState } = await import('@/lib/matches/match-format-override');
+  const formatState = await getMatchFormatOverrideState(matchId, orgFilter.organisationId);
+  const resolvedFormat = formatState?.frozenFormat ?? formatState?.effectiveFormat ?? null;
+  const periodConfig = getLeagueMatchPeriodConfig(match.matchType, resolvedFormat);
+  const totalMatchDurationMs = getTotalPeriodDurationMs(periodConfig);
+  const totalMatchSeconds = totalMatchDurationMs !== null ? Math.round(totalMatchDurationMs / 1000) : null;
+
+  const rotation = await getPlannedRotation(matchId, teamId, orgFilter);
+  const rows = projectPlannedMinutesForSquad(starters, rotation?.changes ?? [], totalMatchSeconds ?? 0, squadPlayerIds);
+
+  return { hasLineup: true, totalMatchSeconds, rows };
 }
 
 export type PlannedRotationCoverageIssue = {

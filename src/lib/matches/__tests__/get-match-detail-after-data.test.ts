@@ -8,6 +8,8 @@ let db: PrismaClient;
 let fixture: TestFixtureIds;
 let orgFilter: OrgFilterMode;
 let matchId: string;
+let teamId: string;
+let matchStartsAt: Date;
 
 vi.mock("@/lib/db", () => ({
   get db() {
@@ -25,7 +27,11 @@ describe("getMatchDetailAfterData", () => {
       filterNullable: { organisationId: fixture.organisationId },
       organisationId: fixture.organisationId,
     };
-    matchId = Object.values(fixture.matches)[0];
+    const matchKey = Object.keys(fixture.matches)[0]!;
+    matchId = fixture.matches[matchKey]!;
+    teamId = fixture.teams[matchKey]!;
+    const match = await db.match.findUniqueOrThrow({ where: { id: matchId }, select: { startsAt: true } });
+    matchStartsAt = match.startsAt;
   });
 
   afterAll(async () => {
@@ -39,7 +45,7 @@ describe("getMatchDetailAfterData", () => {
   });
 
   it("returns a graceful empty shape when no report exists yet", async () => {
-    const data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, orgFilter });
+    const data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, teamId, matchStartsAt, orgFilter });
     expect(data.reportId).toBeNull();
     expect(data.reportStatus).toBeNull();
     expect(data.attendanceSummary).toEqual({ presentCount: 0, noShowCount: 0, totalCount: 0, noShowNames: [] });
@@ -62,7 +68,7 @@ describe("getMatchDetailAfterData", () => {
     await db.goal.create({ data: { reportId: report.id, organisationId: fixture.organisationId, playerId: p1.id, minute: 12, type: "NORMAL" } });
     await db.assist.create({ data: { reportId: report.id, organisationId: fixture.organisationId, playerId: p2.id, type: "NORMAL" } });
 
-    const data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, orgFilter });
+    const data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, teamId, matchStartsAt, orgFilter });
 
     expect(data.reportStatus).toBe("DRAFT");
     expect(data.attendanceSummary).toEqual({
@@ -119,7 +125,7 @@ describe("getMatchDetailAfterData", () => {
       },
     });
 
-    const data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, orgFilter });
+    const data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, teamId, matchStartsAt, orgFilter });
 
     expect(data.timeline).toHaveLength(1);
     expect(data.timeline[0]).toMatchObject({
@@ -134,11 +140,11 @@ describe("getMatchDetailAfterData", () => {
     const report = await db.postMatchReport.create({
       data: { matchId, organisationId: fixture.organisationId, status: "REPORTED", homeGoals: 0, awayGoals: 0 },
     });
-    let data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, orgFilter });
+    let data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, teamId, matchStartsAt, orgFilter });
     expect(data.combinationEvidence).toEqual([]);
 
     await db.postMatchReport.update({ where: { id: report.id }, data: { status: "LOCKED" } });
-    data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, orgFilter });
+    data = await getMatchDetailAfterData({ matchId, organisationId: fixture.organisationId, teamId, matchStartsAt, orgFilter });
     expect(data.combinationEvidence).toEqual([]); // No CombinationEvidence rows seeded — still a real, empty, honest result.
   });
 });

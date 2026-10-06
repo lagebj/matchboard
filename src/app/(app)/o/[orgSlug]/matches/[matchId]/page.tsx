@@ -285,7 +285,7 @@ export default async function MatchDetailPage({
   // actually moved into the AFTER composition.
   const afterData =
     surfaceState === "AFTER"
-      ? await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, orgFilter: ctx.orgFilter })
+      ? await getMatchDetailAfterData({ matchId, organisationId: ctx.organisationId, teamId: match.teamId, matchStartsAt: match.startsAt, orgFilter: ctx.orgFilter })
       : undefined;
 
   // ADR-0149: the BEFORE-match contextual Advisor panel is gone -- Match Insights (self-fetched
@@ -373,6 +373,7 @@ export default async function MatchDetailPage({
       opponentMemory={opponentMemory}
       coachingIntent={activeIntent?.category ?? undefined}
       coachingIntentId={matchIntent[0]?.id ?? undefined}
+      coachingIntentNote={activeIntent?.note ?? null}
       matchFormatState={
         matchFormatState
           ? {

@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { getPlannedMinutesProjectionForMatch } from "@/lib/planned-rotation/planned-rotation";
+import { computePlayerMinutesFromIntervals, type ActualIntervalFact } from "@/lib/matches/match-detail-view-model";
 
 export type RotationChangeComparison = {
   changeId: string;
@@ -19,10 +21,10 @@ export type RotationChangeComparison = {
 };
 
 export type RotationVsActualSummary = {
-  rotationId: string;
+  rotationId: string | null;
   matchId: string;
   teamId: string;
-  rotationStatus: string;
+  rotationStatus: string | null;
   totalPlannedChanges: number;
   applied: number;
   skipped: number;
@@ -32,18 +34,52 @@ export type RotationVsActualSummary = {
   unplannedSubstitutions: number;
   changes: RotationChangeComparison[];
   minuteDeviations: MinuteDeviation[];
+  /** Whether a match line-up exists to project planned minutes from (ADR-0157 C6) — `false`
+   * means every `plannedMinutes` below is honestly `0` because there is no plan, not a guess. */
+  hasLineup: boolean;
+  totalMatchSeconds: number | null;
 };
 
 export type MinuteDeviation = {
   playerId: string;
   playerName: string;
   plannedMinutes: number;
-  realisedMinutes: number;
-  deviation: number;
+  /** `null` when the player has no closed `ActualPositionInterval` (never recorded, or only an
+   * open/incomplete interval) — genuinely unknown, never assumed to match the plan or guessed
+   * as "rest of match" (ADR-0157 C6 required correction). */
+  realisedMinutes: number | null;
+  /** `null` when `realisedMinutes` is `null` — a deviation cannot be computed from an unknown
+   * actual value. */
+  deviation: number | null;
   plannedPositions: string[];
   realisedPositions: string[];
 };
 
+/** Collapses consecutive duplicate position labels (subbed off and later subbed back on at the
+ * same spot reads as one entry, not a repeated one) without reordering or deduplicating
+ * non-adjacent repeats. */
+function collapseConsecutive(positions: string[]): string[] {
+  const result: string[] = [];
+  for (const position of positions) {
+    if (result[result.length - 1] !== position) result.push(position);
+  }
+  return result;
+}
+
+/**
+ * Plan-vs-actual comparison for a match/team (ADR-0157 C6). Planned minutes/positions come from
+ * `getPlannedMinutesProjectionForMatch()` — the same owner `PlannedPlayingTimePanel` uses — never
+ * a second projection and never the previous `plannedMinutes = 0` placeholder. Realised
+ * minutes/positions come only from `ActualPositionInterval` (ARR-0052); `MatchRotation` rows are
+ * still used for the planned-change fidelity list (`changes`) below, which is a genuinely
+ * different question (did this specific planned substitution get applied on time?), not a source
+ * of realised minutes.
+ *
+ * A saved `PlannedRotation` row is no longer required for this to return data — a match with only
+ * a starting line-up and no planned in-match changes still has a real plan (play the starting XI
+ * the whole match) worth comparing against reality; `rotationId`/`rotationStatus` are `null` and
+ * `changes`/the fidelity counters are empty in that case.
+ */
 export async function getRotationVsActual(
   matchId: string,
   teamId: string,
@@ -65,8 +101,7 @@ export async function getRotationVsActual(
     },
   });
 
-  if (!rotation) return null;
-  if (rotation.organisationId !== orgId) return null;
+  if (rotation && rotation.organisationId !== orgId) return null;
 
   const matchRotations = await db.matchRotation.findMany({
     where: { matchId, organisationId: orgId },
@@ -76,7 +111,9 @@ export async function getRotationVsActual(
     },
   });
 
-  const changes: RotationChangeComparison[] = rotation.changes.map((c) => {
+  const rotationChanges = rotation?.changes ?? [];
+
+  const changes: RotationChangeComparison[] = rotationChanges.map((c) => {
     const deviation: RotationChangeComparison["deviation"] =
       c.status === "APPLIED" ? "applied" :
       c.status === "SKIPPED" ? "skipped" :
@@ -116,7 +153,7 @@ export async function getRotationVsActual(
   });
 
   const plannedPlayerIds = new Set<string>();
-  for (const c of rotation.changes) {
+  for (const c of rotationChanges) {
     if (c.outPlayerId) plannedPlayerIds.add(c.outPlayerId);
     if (c.inPlayerId) plannedPlayerIds.add(c.inPlayerId);
   }
@@ -129,16 +166,13 @@ export async function getRotationVsActual(
 
   let unplannedCount = 0;
   for (const r of matchRotations) {
-    if (r.source === "LIVE" && !rotation.changes.some((c) => c.liveEventId === r.liveEventId)) {
+    if (r.source === "LIVE" && !rotationChanges.some((c) => c.liveEventId === r.liveEventId)) {
       unplannedCount++;
     }
   }
 
-  const minuteDeviations: MinuteDeviation[] = [];
-
-  const allPlayerIds = new Set([...plannedPlayerIds, ...actualPlayerIds]);
   const playerMap = new Map<string, string>();
-  for (const c of rotation.changes) {
+  for (const c of rotationChanges) {
     if (c.outPlayer) playerMap.set(c.outPlayer.id, `${c.outPlayer.firstName}${c.outPlayer.lastName ? ` ${c.outPlayer.lastName}` : ""}`);
     if (c.inPlayer) playerMap.set(c.inPlayer.id, `${c.inPlayer.firstName}${c.inPlayer.lastName ? ` ${c.inPlayer.lastName}` : ""}`);
   }
@@ -147,94 +181,92 @@ export async function getRotationVsActual(
     if (r.inPlayer) playerMap.set(r.inPlayer.id, `${r.inPlayer.firstName}${r.inPlayer.lastName ? ` ${r.inPlayer.lastName}` : ""}`);
   }
 
-  const selections = await db.selection.findMany({
-    where: { matchId, status: "FINALIZED", match: { teamId } },
-    select: { playerId: true },
+  // Required correction (ADR-0157 C6): the real planned-minutes/position owner, shared with
+  // `PlannedPlayingTimePanel` — never a second projection, never a hardcoded `0`.
+  const projection = await getPlannedMinutesProjectionForMatch(matchId, teamId, orgFilter);
+  const projectionByPlayer = new Map(projection.rows.map((r) => [r.playerId, r]));
+
+  // Actual source: `ActualPositionInterval` only (ARR-0052) — never `MatchRotation.matchSeconds`,
+  // which this replaced; that field only tells us a substitution happened, not how long anyone
+  // was actually on the pitch, and treating an open interval's remainder as "to full time" was
+  // exactly the kind of guess ADR-0157 C6 prohibits.
+  const intervalRows = await db.actualPositionInterval.findMany({
+    where: { matchId, organisationId: orgId, playerId: { not: null } },
+    select: { playerId: true, position: true, startedAtMs: true, endedAtMs: true },
+    orderBy: { startedAtMs: "asc" },
   });
 
-  const match = await db.match.findFirst({
-    where: { id: matchId },
-    select: { gameFormat: true },
-  });
+  const intervalFacts: ActualIntervalFact[] = intervalRows.map((i) => ({
+    participantKey: i.playerId as string,
+    startedAtMs: i.startedAtMs,
+    endedAtMs: i.endedAtMs,
+  }));
+  const realisedMinutesByPlayer = computePlayerMinutesFromIntervals(intervalFacts);
 
-  const totalMatchSeconds = getMatchDurationSeconds(match?.gameFormat);
+  const realisedPositionsByPlayer = new Map<string, string[]>();
+  for (const row of intervalRows) {
+    if (!row.playerId) continue;
+    const list = realisedPositionsByPlayer.get(row.playerId) ?? [];
+    list.push(row.position);
+    realisedPositionsByPlayer.set(row.playerId, list);
+  }
 
-  for (const playerId of allPlayerIds) {
-    const plannedMinutes = 0;
-    const plannedPositions: string[] = [];
+  const allPlayerIds = new Set<string>([
+    ...projection.rows
+      .filter((r) => r.plannedMinutes > 0 || r.startingPosition !== null)
+      .map((r) => r.playerId),
+    ...intervalRows.filter((r) => r.playerId !== null).map((r) => r.playerId as string),
+    ...plannedPlayerIds,
+    ...actualPlayerIds,
+  ]);
 
-    const realisedRotations = matchRotations.filter(
-      (r) => r.outPlayerId === playerId || r.inPlayerId === playerId
-    );
-
-    const isSubstitutedOut = realisedRotations.some((r) => r.outPlayerId === playerId && !r.positionOnly);
-    const isSubstitutedIn = realisedRotations.some((r) => r.inPlayerId === playerId);
-
-    const isPlannedStarter = selections.some((s) => s.playerId === playerId);
-    let realisedMinutes = 0;
-    const realisedPositions: string[] = [];
-
-    // `MatchRotation.matchSeconds` is MILLISECONDS since period start (legacy name — ADR-0133
-    // H3), whereas `totalMatchSeconds` is genuinely seconds. Work in ms and divide by 60_000.
-    const totalMatchMs = totalMatchSeconds * 1000;
-    if (isPlannedStarter && !isSubstitutedOut) {
-      realisedMinutes = totalMatchMs / 60_000;
-      realisedPositions.push("starter");
-    } else if (isPlannedStarter && isSubstitutedOut) {
-      const outRotation = realisedRotations.find((r) => r.outPlayerId === playerId && !r.positionOnly);
-      if (outRotation) {
-        const outMs = outRotation.matchSeconds ?? totalMatchMs / 2;
-        realisedMinutes = outMs / 60_000;
-        realisedPositions.push(outRotation.outPosition ?? "starter");
-      }
-    }
-
-    if (isSubstitutedIn) {
-      const inRotation = realisedRotations.find((r) => r.inPlayerId === playerId && !r.positionOnly);
-      if (inRotation) {
-        const inMs = inRotation.matchSeconds ?? 0;
-        realisedMinutes += Math.max(0, totalMatchMs - inMs) / 60_000;
-        realisedPositions.push(inRotation.inPosition ?? "bench");
-      }
-    }
-
-    if (realisedMinutes > 0 || isPlannedStarter) {
-      minuteDeviations.push({
-        playerId,
-        playerName: playerMap.get(playerId) ?? "—",
-        plannedMinutes: Math.round(plannedMinutes * 10) / 10,
-        realisedMinutes: Math.round(realisedMinutes * 10) / 10,
-        deviation: Math.round((realisedMinutes - plannedMinutes) * 10) / 10,
-        plannedPositions,
-        realisedPositions,
-      });
+  const nameLookupIds = [...allPlayerIds].filter((id) => !playerMap.has(id));
+  if (nameLookupIds.length > 0) {
+    const players = await db.player.findMany({
+      where: { id: { in: nameLookupIds }, organisationId: orgId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    for (const p of players) {
+      playerMap.set(p.id, `${p.firstName}${p.lastName ? ` ${p.lastName}` : ""}`);
     }
   }
 
+  const minuteDeviations: MinuteDeviation[] = [...allPlayerIds].map((playerId) => {
+    const projectionRow = projectionByPlayer.get(playerId);
+    const plannedMinutes = projectionRow?.plannedMinutes ?? 0;
+    const plannedPositions = collapseConsecutive(projectionRow?.positions.map((p) => p.position) ?? []);
+
+    const realisedMinutes = realisedMinutesByPlayer.get(playerId) ?? null;
+    const realisedPositions = collapseConsecutive(realisedPositionsByPlayer.get(playerId) ?? []);
+
+    const deviation = realisedMinutes === null ? null : Math.round((realisedMinutes - plannedMinutes) * 10) / 10;
+
+    return {
+      playerId,
+      playerName: playerMap.get(playerId) ?? "—",
+      plannedMinutes: Math.round(plannedMinutes * 10) / 10,
+      realisedMinutes,
+      deviation,
+      plannedPositions,
+      realisedPositions,
+    };
+  });
+
   return {
-    rotationId: rotation.id,
-    matchId: rotation.matchId,
-    teamId: rotation.teamId,
-    rotationStatus: rotation.status,
-    totalPlannedChanges: rotation.changes.length,
-    applied: rotation.changes.filter((c) => c.status === "APPLIED").length,
-    skipped: rotation.changes.filter((c) => c.status === "SKIPPED").length,
-    modified: rotation.changes.filter((c) => c.status === "MODIFIED").length,
-    pending: rotation.changes.filter((c) => c.status === "PENDING").length,
-    delayed: rotation.changes.filter((c) => c.status === "DELAYED").length,
+    rotationId: rotation?.id ?? null,
+    matchId,
+    teamId,
+    rotationStatus: rotation?.status ?? null,
+    totalPlannedChanges: rotationChanges.length,
+    applied: rotationChanges.filter((c) => c.status === "APPLIED").length,
+    skipped: rotationChanges.filter((c) => c.status === "SKIPPED").length,
+    modified: rotationChanges.filter((c) => c.status === "MODIFIED").length,
+    pending: rotationChanges.filter((c) => c.status === "PENDING").length,
+    delayed: rotationChanges.filter((c) => c.status === "DELAYED").length,
     unplannedSubstitutions: unplannedCount,
     changes,
     minuteDeviations,
+    hasLineup: projection.hasLineup,
+    totalMatchSeconds: projection.totalMatchSeconds,
   };
-}
-
-function getMatchDurationSeconds(gameFormat: string | null | undefined): number {
-  const durations: Record<string, number> = {
-    "5v5": 40 * 60,
-    "7v7": 50 * 60,
-    "9v9": 60 * 60,
-    "11v11": 90 * 60,
-  };
-  if (gameFormat && gameFormat in durations) return durations[gameFormat];
-  return 60 * 60;
 }

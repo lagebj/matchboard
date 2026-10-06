@@ -5,6 +5,8 @@ import { computeGoalAttributionGap } from "@/lib/reports/report-mutations";
 import { getMatchCombinationEvidence } from "@/lib/evidence/combination-aggregation";
 import { buildLeagueMatchRef } from "@/lib/evidence/adapters/league-evidence-adapter";
 import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
+import { buildMatchStateTimeline } from "@/lib/evidence/match-state-timeline";
+import { buildShapeChangeRows, type ShapeChangeRow } from "@/lib/matches/completed-match-story";
 import {
   aggregateGoalScorers,
   aggregateAssistProviders,
@@ -83,14 +85,24 @@ export interface MatchDetailAfterData {
   goalAttributionGap: Awaited<ReturnType<typeof computeGoalAttributionGap>>;
   timingNeedsReviewCount: number;
   outOfRangeEventCount: number;
+  /** Concrete on-pitch position changes (ADR-0157 C6 "Match story" shape changes) -- `[]` when no
+   * canonical match-state timeline can be derived yet (e.g. no actual-position-interval data
+   * recorded), never a guessed formation label. */
+  shapeChangeRows: ShapeChangeRow[];
+  /** A player's first-ever recorded minutes at a canonical position, from this match
+   * (ADR-0157 C6 "What this match added"). Computed directly from `ActualPositionInterval`
+   * history, never a new derived measurement. */
+  firstTimeCanonicalPositions: Array<{ playerId: string; playerName: string; position: string }>;
 }
 
 export async function getMatchDetailAfterData(params: {
   matchId: string;
   organisationId: string;
+  teamId: string;
+  matchStartsAt: Date;
   orgFilter: { filter: Record<string, unknown>; filterNullable: Record<string, unknown> };
 }): Promise<MatchDetailAfterData> {
-  const { matchId, organisationId, orgFilter } = params;
+  const { matchId, organisationId, teamId, matchStartsAt, orgFilter } = params;
 
   const report = await db.postMatchReport.findFirst({
     where: { matchId, ...orgFilter.filterNullable },
@@ -136,7 +148,7 @@ export async function getMatchDetailAfterData(params: {
       }),
       db.actualPositionInterval.findMany({
         where: { matchId, organisationId },
-        select: { playerId: true, guestPlayerId: true, startedAtMs: true, endedAtMs: true },
+        select: { playerId: true, guestPlayerId: true, position: true, startedAtMs: true, endedAtMs: true },
       }),
     ]);
 
@@ -268,14 +280,49 @@ export async function getMatchDetailAfterData(params: {
   });
 
   const leagueMatchRef = report ? await buildLeagueMatchRef(matchId) : null;
-  const [goalAttributionGap, timingReviewItems, outOfRangeEventCount, combinationEvidence] = await Promise.all([
+  // Shape-change rows (ADR-0157 C6) don't depend on a report existing -- the canonical
+  // match-state timeline is derived from `ActualPositionInterval` alone, so this ref is resolved
+  // unconditionally rather than reusing the report-gated `leagueMatchRef` above.
+  const stateTimelineRef = await buildLeagueMatchRef(matchId);
+  const [goalAttributionGap, timingReviewItems, outOfRangeEventCount, combinationEvidence, matchStateTimeline] = await Promise.all([
     report ? computeGoalAttributionGap(matchId, organisationId) : Promise.resolve(null),
     leagueMatchRef ? getMatchTimingReviewItems(leagueMatchRef) : Promise.resolve([]),
     leagueMatchRef ? getOutOfRangeEventCount(leagueMatchRef) : Promise.resolve(0),
     // Combination evidence is available only for a locked report (data-mapping rule, §"Player
     // combinations"): "Implement only for locked report."
     report?.status === "LOCKED" ? getMatchCombinationEvidence(matchId) : Promise.resolve([]),
+    buildMatchStateTimeline(stateTimelineRef),
   ]);
+
+  const shapeChangeRows = matchStateTimeline ? buildShapeChangeRows(matchStateTimeline.transitions, nameByPlayerId) : [];
+
+  // "What this match added" (ADR-0157 C6) -- a player's first-ever recorded minutes at a
+  // canonical position, determined directly from `ActualPositionInterval` history (never a new
+  // derived measurement, never a guess): does any earlier closed interval for this exact
+  // player+position pair exist, on this team, before this match's kickoff.
+  const thisMatchClosedPositions = new Map<string, { playerId: string; position: string }>();
+  for (const i of intervalRows) {
+    if (!i.playerId || i.endedAtMs == null) continue;
+    thisMatchClosedPositions.set(`${i.playerId}\u0000${i.position}`, { playerId: i.playerId, position: i.position });
+  }
+  const priorPositionRows =
+    thisMatchClosedPositions.size > 0
+      ? await db.actualPositionInterval.findMany({
+          where: {
+            organisationId,
+            endedAtMs: { not: null },
+            matchId: { not: matchId },
+            match: { teamId, startsAt: { lt: matchStartsAt } },
+            OR: [...thisMatchClosedPositions.values()].map((p) => ({ playerId: p.playerId, position: p.position })),
+          },
+          select: { playerId: true, position: true },
+          distinct: ["playerId", "position"],
+        })
+      : [];
+  const priorPairKeys = new Set(priorPositionRows.map((r) => `${r.playerId}\u0000${r.position}`));
+  const firstTimeCanonicalPositions = [...thisMatchClosedPositions.entries()]
+    .filter(([key]) => !priorPairKeys.has(key))
+    .map(([, p]) => ({ playerId: p.playerId, playerName: nameByPlayerId.get(p.playerId) ?? "Unknown player", position: p.position }));
 
   return {
     reportId: report?.id ?? null,
@@ -299,5 +346,7 @@ export async function getMatchDetailAfterData(params: {
     goalAttributionGap,
     timingNeedsReviewCount: timingReviewItems.filter((t) => t.reviewStatus === "NEEDS_REVIEW").length,
     outOfRangeEventCount,
+    shapeChangeRows,
+    firstTimeCanonicalPositions,
   };
 }
