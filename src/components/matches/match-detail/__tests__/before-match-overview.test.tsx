@@ -65,6 +65,7 @@ function baseProps(overrides: Partial<Parameters<typeof BeforeMatchOverview>[0]>
     rotationChangeCount: 0,
     opponentEncounterCount: 0,
     opponentHasProfile: false,
+    opponentMemory: null,
     tabHref: (t: string) => `?tab=${t}`,
     ...overrides,
   };
@@ -116,5 +117,27 @@ describe("BeforeMatchOverview", () => {
     expect(text).not.toMatch(/player of the match/i);
     expect(text).not.toMatch(/\bMVP\b/);
     expect(text).not.toMatch(/\brating\b/i);
+  });
+
+  it("renders opponent memory between match identity and the metric strip when history exists", () => {
+    render(
+      <BeforeMatchOverview
+        {...baseProps({
+          opponentMemory: {
+            hasHistory: true,
+            recentEncounters: [{ matchId: "m0", occurredAt: new Date("2026-08-01"), resultLabel: "Won 3-1" }],
+            patterns: [{ summary: "Pressing described as a problem in 3 of 4 recorded meetings.", qualifier: "Consistent · seen in the most recent meeting" }],
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Opponent memory")).toBeInTheDocument();
+    expect(screen.getByText("Won 3-1")).toBeInTheDocument();
+    expect(screen.getByText(/Pressing described as a problem/)).toBeInTheDocument();
+  });
+
+  it("renders no opponent memory block when there is no history", () => {
+    render(<BeforeMatchOverview {...baseProps({ opponentMemory: null })} />);
+    expect(screen.queryByText("Opponent memory")).not.toBeInTheDocument();
   });
 });

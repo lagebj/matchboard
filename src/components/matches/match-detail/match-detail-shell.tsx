@@ -34,6 +34,7 @@ import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-
 import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-rotation";
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
+import type { OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 
 type SelectionRow = {
@@ -94,6 +95,9 @@ export type MatchDetailShellProps = {
   opponentConcernCount: number;
   opponentLatestConcernDate: string | null;
   currentMatchStyleTags: string[];
+  /** `null` on the AFTER surface (never computed there — preparation context has no role once
+   * the match is over) and when there is no opponent history to show. */
+  opponentMemory: OpponentMemoryViewModel | null;
   coachingIntent?: string;
   coachingIntentId?: string;
   matchFormatState?: {
@@ -156,6 +160,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     opponentConcernCount,
     opponentLatestConcernDate,
     currentMatchStyleTags,
+    opponentMemory,
     coachingIntent,
     coachingIntentId,
     matchFormatState,
@@ -308,6 +313,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
           opponentConcernCount={opponentConcernCount}
           opponentLatestConcernDate={opponentLatestConcernDate}
           currentMatchStyleTags={currentMatchStyleTags}
+          opponentMemory={opponentMemory}
           coachingIntent={coachingIntent}
           coachingIntentId={coachingIntentId}
           matchFormatState={matchFormatState}
@@ -376,6 +382,7 @@ function BeforeMatchTabContent(props: {
   opponentConcernCount: number;
   opponentLatestConcernDate: string | null;
   currentMatchStyleTags: string[];
+  opponentMemory: OpponentMemoryViewModel | null;
   coachingIntent?: string;
   coachingIntentId?: string;
   matchFormatState?: MatchDetailShellProps["matchFormatState"];
@@ -424,6 +431,7 @@ function BeforeMatchTabContent(props: {
         rotationChangeCount={props.plannedRotation?.changes.length ?? 0}
         opponentEncounterCount={props.opponentHistory?.totalPlayed ?? 0}
         opponentHasProfile={props.opponentTeamId != null}
+        opponentMemory={props.opponentMemory}
         tabHref={props.tabHref}
       />
     );

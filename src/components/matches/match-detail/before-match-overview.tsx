@@ -1,5 +1,6 @@
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
 import { MatchPreparationWidget } from "@/components/matches/match-detail/match-preparation-widget";
+import { MatchOpponentMemory } from "@/components/matches/match-detail/match-opponent-memory";
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
 import { BeforeMatchSecondaryRow } from "@/components/matches/match-detail/before-match-secondary-row";
 import { MatchTacticsPanel } from "@/components/matches/match-tactics-panel";
@@ -10,6 +11,7 @@ import { CoachingIntentSelector } from "@/components/matches/coaching-intent-sel
 import { MatchFormatOverrideControls } from "@/components/matches/match-format-override-controls";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchPreparationInput } from "@/lib/matches/match-detail-view-model";
+import type { OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
 import { formatMatchType, formatGameFormat, formatVenue, formatMatchFit } from "@/lib/matches/match-detail-format";
 
 type SelectionRow = {
@@ -42,6 +44,13 @@ type MatchFormatSnapshot = { numberOfPeriods: number; periodDurationMinutes: num
  * Insights surface (deterministic facts plus optional AI enrichment) inside its own pitch/sidebar
  * grid, self-fetched client-side rather than threaded down as a page-load-time prop, so it can
  * refresh live as the plan is edited. No separate Advisor rendering happens at this level anymore.
+ *
+ * ADR-0157 §6 "Match Preparation convergence" (2026-10-06): composition order now follows that
+ * bundle's target information hierarchy -- identity, opponent memory, ranked Match Insights,
+ * current plan (pitch + planned minutes), then coaching intent/secondary configuration last,
+ * alongside `BeforeMatchSecondaryRow`. This is an information-order change, not a new tab: the
+ * coaching intent / match format grid moved below `MatchTacticsPanel`/`PlannedPlayingTimePanel`
+ * rather than above them.
  */
 export function BeforeMatchOverview({
   presentation,
@@ -63,6 +72,7 @@ export function BeforeMatchOverview({
   rotationChangeCount,
   opponentEncounterCount,
   opponentHasProfile,
+  opponentMemory,
   tabHref,
 }: {
   presentation: MatchPresentation;
@@ -89,6 +99,7 @@ export function BeforeMatchOverview({
   rotationChangeCount: number;
   opponentEncounterCount: number;
   opponentHasProfile: boolean;
+  opponentMemory: OpponentMemoryViewModel | null;
   tabHref: (tab: string) => string;
 }) {
   const factsItems: MetricStripItem[] = [
@@ -109,7 +120,24 @@ export function BeforeMatchOverview({
         <MatchPreparationWidget input={preparationInput} />
       </div>
 
+      <MatchOpponentMemory opponentMemory={opponentMemory} opponentTabHref={tabHref("opponent-context")} />
+
       <MetricStrip items={factsItems} className="rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4" />
+
+      <MatchTacticsPanel
+        matchId={matchId}
+        teamId={teamId}
+        teamName={teamName}
+        gameFormat={gameFormat}
+        planningEditable={planningEditable}
+        selections={selections}
+      />
+
+      <PlannedPlayingTimePanel
+        matchId={matchId}
+        teamId={teamId}
+        squadPlayers={selections.map((s) => ({ playerId: s.playerId, playerName: s.playerName }))}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Surface padding="md">
@@ -138,21 +166,6 @@ export function BeforeMatchOverview({
           </Surface>
         )}
       </div>
-
-      <MatchTacticsPanel
-        matchId={matchId}
-        teamId={teamId}
-        teamName={teamName}
-        gameFormat={gameFormat}
-        planningEditable={planningEditable}
-        selections={selections}
-      />
-
-      <PlannedPlayingTimePanel
-        matchId={matchId}
-        teamId={teamId}
-        squadPlayers={selections.map((s) => ({ playerId: s.playerId, playerName: s.playerName }))}
-      />
 
       <BeforeMatchSecondaryRow
         matchId={matchId}

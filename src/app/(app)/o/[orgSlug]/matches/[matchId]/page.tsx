@@ -17,6 +17,8 @@ import { getMatchDetailAfterData } from "@/lib/matches/get-match-detail-after-da
 import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { formatKickoffTime } from "@/lib/date-utils";
 import { getCompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
+import { buildOpponentContext } from "@/lib/matches/match-insights/opponent-context";
+import { buildOpponentMemoryViewModel, type OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
 
 export const dynamic = "force-dynamic";
 
@@ -262,6 +264,22 @@ export default async function MatchDetailPage({
     }
   }
 
+  // Opponent memory (ADR-0157 §6 "Match Preparation convergence"): the rich per-opponent
+  // evidence `buildOpponentContext()` already computes for Match Insights candidate generation
+  // (`build-match-insight-facts.ts`), surfaced directly on Overview instead of only feeding
+  // candidates. BEFORE-surface only -- preparation context has no role once the match is over.
+  const opponentMemory: OpponentMemoryViewModel | null =
+    surfaceState === "BEFORE"
+      ? buildOpponentMemoryViewModel(
+          await buildOpponentContext({
+            teamId: match.teamId,
+            opponentTeamId: match.opponentTeamId ?? null,
+            organisationId: ctx.organisationId,
+            excludeMatchId: match.id,
+          }),
+        )
+      : null;
+
   // Bounded, surface-scoped read model (`08_COMPONENT_AND_ROUTE_ARCHITECTURE.md`: "Do not fetch
   // the complete post-match graph for an upcoming match.") — only queried once the match has
   // actually moved into the AFTER composition.
@@ -352,6 +370,7 @@ export default async function MatchDetailPage({
       opponentConcernCount={opponentConcernCount}
       opponentLatestConcernDate={opponentLatestConcernDate}
       currentMatchStyleTags={currentMatchStyleTags}
+      opponentMemory={opponentMemory}
       coachingIntent={activeIntent?.category ?? undefined}
       coachingIntentId={matchIntent[0]?.id ?? undefined}
       matchFormatState={

@@ -4,6 +4,8 @@ import { buildPlayerPreparationSummaries } from "./player-context";
 import { buildCombinationContext } from "./combination-context";
 import { buildOpponentContext } from "./opponent-context";
 import { buildTeamHistoryContext } from "./team-history-context";
+import { getEffectivePlayerPositionProfilesForPlayers } from "@/lib/player-development/get-effective-position-profile";
+import { normalizeCanonicalPosition } from "@/domain/positions/canonical-aliases";
 import type { CurrentPlanInput, MatchInsightFact, MatchInsightFactBundle } from "./types";
 
 /**
@@ -65,7 +67,7 @@ export async function buildMatchInsightFacts(
     .filter((e) => e.isActiveParticipant && e.participantType === "PLAYER" && e.playerId)
     .map((e) => ({ playerId: e.playerId!, role: e.role ?? "SUPPORT" as const, position: e.position }));
 
-  const [playerSummaries, combinationResult, opponentContext, teamHistory] = await Promise.all([
+  const [playerSummaries, combinationResult, opponentContext, teamHistory, effectivePositionProfiles] = await Promise.all([
     buildPlayerPreparationSummaries({
       playerIds,
       leagueSeasonId: plan.leagueSeasonId,
@@ -87,6 +89,10 @@ export async function buildMatchInsightFacts(
       currentFormation: plan.formation,
       currentCoreSquad: activeCoreSquad,
     }),
+    // ADR-0155 B8 follow-up (ADR-0157 §6 "Match Preparation convergence" — "extend deterministic
+    // fact coverage... current effective-position evidence"). Already-batched (never a per-player
+    // loop, matching this module's own `playerSummaries` doctrine above).
+    getEffectivePlayerPositionProfilesForPlayers(playerIds, orgFilter),
   ]);
 
   const facts: MatchInsightFact[] = [];
@@ -174,6 +180,33 @@ export async function buildMatchInsightFacts(
         value: { categories: summary.development.map((d) => d.category) },
         evidenceRefs: [factRefKey("fact", "development-context", playerId)],
         deterministicPriority: 35,
+      });
+    }
+
+    // Current effective-position evidence (ADR-0139/ADR-0157 §6): only a fact when the blended
+    // coach-declaration + actual-usage + observation model has moved the player's effective
+    // primary position away from their declared primary with well-established support — a
+    // genuine evolution, not every player's routine declared/effective agreement.
+    const effectiveProfile = effectivePositionProfiles.get(playerId);
+    const declaredPrimaryNormalized = normalizeCanonicalPosition(summary.declaredPositions.primary);
+    if (
+      effectiveProfile?.primary &&
+      effectiveProfile.primary !== declaredPrimaryNormalized &&
+      (effectiveProfile.positions[0]?.supportBand === "STRONG" || effectiveProfile.positions[0]?.supportBand === "STRONGEST")
+    ) {
+      facts.push({
+        id: factRefKey("effective-position-evidence", playerId),
+        type: "EFFECTIVE_POSITION_EVIDENCE",
+        subjectRefs: [playerId],
+        value: {
+          declaredPrimary: declaredPrimaryNormalized,
+          effectivePrimary: effectiveProfile.primary,
+          supportBand: effectiveProfile.positions[0].supportBand,
+        },
+        sample: { matches: effectiveProfile.positions[0].sources.appearances, minutes: effectiveProfile.positions[0].sources.minutes ?? undefined },
+        evidenceRefs: [factRefKey("fact", "effective-position-evidence", playerId)],
+        deterministicPriority: 45,
+        confidence: effectiveProfile.positions[0].confidence,
       });
     }
   }

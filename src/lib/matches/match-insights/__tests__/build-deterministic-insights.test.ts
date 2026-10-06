@@ -157,4 +157,20 @@ describe("match-insights/build-deterministic-insights", () => {
     expect(result[0].factRefs.length).toBeGreaterThan(0);
     expect(result[0].evidenceRefs.length).toBeGreaterThan(0);
   });
+
+  it("surfaces effective-position-evidence insights naming both the declared and effective position", () => {
+    const result = build([
+      fact({
+        type: "EFFECTIVE_POSITION_EVIDENCE",
+        subjectRefs: ["p1"],
+        value: { declaredPrimary: "CB", effectivePrimary: "CM", supportBand: "STRONGEST" },
+        deterministicPriority: 45,
+      }),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].observation).toContain("Noah");
+    expect(result[0].observation).toContain("CB");
+    expect(result[0].observation).toContain("CM");
+    expect(result[0].category).toBe("POSITION");
+  });
 });

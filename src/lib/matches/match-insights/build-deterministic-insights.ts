@@ -164,6 +164,18 @@ function buildDevelopmentContextInsight({ fact, playerNameById }: InsightBuilder
   });
 }
 
+function buildEffectivePositionEvidenceInsight({ fact, playerNameById }: InsightBuilderParams): MatchInsightCandidate {
+  const [playerId] = fact.subjectRefs;
+  const value = fact.value as { declaredPrimary: string | null; effectivePrimary: string; supportBand: string };
+  const declaredText = value.declaredPrimary ? `declared as ${value.declaredPrimary}` : "without a declared primary position";
+
+  return candidateFromFact(fact, {
+    title: "Position evidence beyond declaration",
+    observation: `${playerName(playerId, playerNameById)} is ${declaredText}, but match evidence now points to ${value.effectivePrimary} as their effective primary position.`,
+    implication: "Worth considering when planning this match.",
+  });
+}
+
 function buildOpponentEncounterInsight({ fact }: InsightBuilderParams): MatchInsightCandidate {
   const value = fact.value as { encounters: { occurredAt: string; goalsFor: number; goalsAgainst: number; formation: string | null }[] };
   const [latest] = value.encounters;
@@ -266,6 +278,7 @@ const BUILDERS: Record<MatchInsightFact["type"], (params: InsightBuilderParams) 
   ROTATION_CONTEXT: buildRotationContextInsight,
   MATCH_AVAILABILITY: buildMatchAvailabilityInsight,
   MATCH_DAY_ADDITION: buildMatchDayAdditionInsight,
+  EFFECTIVE_POSITION_EVIDENCE: buildEffectivePositionEvidenceInsight,
 };
 
 export function buildDeterministicInsights(params: {

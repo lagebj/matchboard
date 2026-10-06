@@ -41,7 +41,8 @@ export type MatchInsightFactType =
   | "OPPONENT_TREND"
   | "ROTATION_CONTEXT"
   | "MATCH_AVAILABILITY"
-  | "MATCH_DAY_ADDITION";
+  | "MATCH_DAY_ADDITION"
+  | "EFFECTIVE_POSITION_EVIDENCE";
 
 /**
  * One deterministic, evidence-backed fact. `id` is stable for the lifetime of one context build

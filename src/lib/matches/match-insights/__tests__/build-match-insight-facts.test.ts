@@ -40,6 +40,7 @@ describe("match-insights/build-match-insight-facts", () => {
     await testDb.developmentThread.deleteMany({});
     await testDb.selection.deleteMany({});
     await testDb.postMatchReport.deleteMany({});
+    await testDb.actualPositionInterval.deleteMany({});
   });
 
   function planFor(overrides: Partial<CurrentPlanInput> & { squad: CurrentPlanInput["squad"] }): CurrentPlanInput {
@@ -228,6 +229,56 @@ describe("match-insights/build-match-insight-facts", () => {
     );
 
     expect(bundle.facts.some((f) => f.type === "NEW_COMBINATION")).toBe(false);
+  });
+
+  it("surfaces EFFECTIVE_POSITION_EVIDENCE when strong actual usage diverges from the declared primary position", async () => {
+    const [, declaredCb] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla"); // index 1 -> declared primary "CB"
+    expect(declaredCb.primaryPosition).toBe("CB");
+
+    await testDb.actualPositionInterval.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        matchId: fixtureIds.matches["Bla"],
+        playerId: declaredCb.id,
+        position: "CM",
+        startedAtMs: 0,
+        endedAtMs: 60 * 60_000,
+        source: "STARTING_LINEUP",
+      },
+    });
+
+    const bundle = await buildMatchInsightFacts(
+      planFor({ squad: [{ playerId: declaredCb.id, role: "CORE", position: "CM" }] }),
+      orgFilter,
+    );
+
+    const fact = bundle.facts.find((f) => f.type === "EFFECTIVE_POSITION_EVIDENCE");
+    expect(fact).toBeDefined();
+    expect(fact?.subjectRefs).toEqual([declaredCb.id]);
+    expect(fact?.value).toMatchObject({ declaredPrimary: "CB", effectivePrimary: "CM", supportBand: "STRONGEST" });
+  });
+
+  it("does not surface EFFECTIVE_POSITION_EVIDENCE when actual usage matches the declared primary position", async () => {
+    const [, declaredCb] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
+
+    await testDb.actualPositionInterval.create({
+      data: {
+        organisationId: fixtureIds.organisationId,
+        matchId: fixtureIds.matches["Bla"],
+        playerId: declaredCb.id,
+        position: "CB",
+        startedAtMs: 0,
+        endedAtMs: 60 * 60_000,
+        source: "STARTING_LINEUP",
+      },
+    });
+
+    const bundle = await buildMatchInsightFacts(
+      planFor({ squad: [{ playerId: declaredCb.id, role: "CORE", position: "CB" }] }),
+      orgFilter,
+    );
+
+    expect(bundle.facts.some((f) => f.type === "EFFECTIVE_POSITION_EVIDENCE")).toBe(false);
   });
 
   it("includes rotation-context subjects for planned rotation changes", async () => {
