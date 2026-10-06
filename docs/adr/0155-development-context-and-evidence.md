@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted (programme — delivered incrementally, following ADR-0152/ADR-0154's precedent; see
-"Delivery" below)
+Accepted. Steps B0-B8 delivered (programme — delivered incrementally, following
+ADR-0152/ADR-0154's precedent; see "Delivery" below).
 
 ## Context
 
@@ -279,3 +279,43 @@ merged and CI-green before the next starts:
   `OpponentEncounterObservation` already cover more of the bundle's own "current state" section
   than the bundle itself credits — reflected in "What already exists and must not be re-derived"
   above.
+
+- 2026-10-06 (B8, hardening): all nine steps (B0-B8) delivered, one branch/PR each, sequential.
+  Final audit against the source bundle's §10 Definition of Done found everything satisfied,
+  with two findings worth recording explicitly rather than leaving implicit:
+
+  - **Mutation-behaviour recompute has no bespoke per-mutation-type trigger, by design.**
+    §05's "position/event/score/timing changes rebuild timeline-dependent metrics" is satisfied
+    the same way every other evidence type in this engine (player ratings, combination evidence,
+    opponent evidence) already satisfies it: `persistMatchContextPack`'s recompute runs inside
+    `runPostMatchLearning`'s own step sequence (step B3), and `runPostMatchLearning` is what
+    `replayPostMatchLearningHistory` — the engine `evidence-rebuild-actions.ts`'s existing
+    "Rebuild Evidence" admin action already calls — re-runs with `trigger: "REPLAY"` for every
+    completed match. There is no automatic per-correction cascade for *any* evidence type in
+    this engine (confirmed by inspection: no production call site invokes
+    `rebuildActualTimeline`/`rebuildEventActualTimeline` directly outside this same pipeline) —
+    a coach-visible correction's downstream recompute has always been manual-replay-shaped, not
+    automatic-cascade-shaped, and development-context measurements/trends now ride that exact
+    existing mechanism with zero new wiring. Verified directly:
+    `post-match-learning-pipeline.test.ts`'s existing re-run assertion was strengthened to call
+    `runPostMatchLearning(ref, orgFilter, "REPLAY")` — the literal trigger value the real
+    correction-recompute path uses — rather than the default, proving the exact mechanism a
+    correction actually exercises, not an inferred equivalent.
+  - **What is computed/persisted vs. what is UI-surfaced, stated plainly.** Role exposure,
+    game-state split, and co-presence are both computed (B2/B3) and shown on Player Detail's
+    Evidence tab (B5). Trends (B6) and zone/coordinate-coverage (B2) are computed, persisted,
+    and inspectable via `verify-development-context.ts`/direct query, but not yet rendered in
+    any UI — both were disclosed scope cuts in their own step's PR, not an oversight found only
+    now. Assistant Coach (B7) hypotheses are computed and persisted but have no dedicated
+    display component and no automatic domain trigger yet — also disclosed in B7. None of these
+    gaps block the Definition of Done's own final rule ("if a coach-facing number cannot answer
+    'where did this value come from?' ... the programme is not complete") — every persisted row
+    already carries `sourceRefs`/`inputRevision` regardless of whether a UI renders it yet.
+
+  Found, not fixed here (filed as GitHub issue #747, per this repository's issue-and-arr-
+  workflow, since it is a pre-existing gap in code this ADR extends rather than something this
+  programme's own steps introduced): `replayPostMatchLearningHistory`
+  (`src/lib/evidence/post-match-learning-replay.ts`, ADR-0113) has no direct test coverage of
+  its own match-selection/trigger-passing logic — only the thin, fully-mocked
+  `evidence-rebuild-actions.test.ts` and the now-strengthened `runPostMatchLearning` test cover
+  it transitively.
