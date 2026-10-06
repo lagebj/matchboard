@@ -159,6 +159,20 @@ export function FixturesPage({ orgSlug }: { orgSlug: string }) {
         </div>
       )}
 
+      {/* ADR-0157 slice C7 "Entry from League": the clear "Review season"/"Season review" action
+          on the active league-season context, deep-linked with the active season so Season
+          Review opens on the same league season the coach is currently looking at here. */}
+      {activePeriod && (
+        <div>
+          <Link
+            href={`/o/${orgSlug}/season?leagueSeasonId=${encodeURIComponent(activePeriod.id)}`}
+            className="text-[13px] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
+          >
+            Review season <span aria-hidden="true">›</span>
+          </Link>
+        </div>
+      )}
+
       {seasonHasUngenerated && !focusedNeedsGeneration && (
         <div className="flex items-center gap-3">
           <TouchlineButton
