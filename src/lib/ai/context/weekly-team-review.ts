@@ -16,6 +16,10 @@ import {
   getQualitativeEvidenceForMatches,
   dedupeQualitativeObservationsByStatement,
 } from "@/lib/evidence/qualitative-evidence-service";
+import type { OrgFilterMode } from "@/lib/tenancy/resolve-org-filter";
+import { organisationFilter, organisationFilterNullable } from "@/lib/tenancy/tenant-filter";
+import { getTeamSeasonProfile } from "@/lib/team-season-profile/service";
+import { rankPatterns } from "@/lib/team-season-profile/build-profile";
 
 /**
  * `weekly_team_review` context builder (06_AI_CAPABILITY_CONTRACTS.md "5. weekly_team_review").
@@ -57,6 +61,17 @@ const RECENT_TEAM_PATTERN_MAX_OBSERVATIONS = 60;
 const RECURRING_THEME_MIN_MATCH_COUNT = 2;
 const RECURRING_THEME_MAX_ITEMS = 10;
 const UNRESOLVED_NEXT_FOCUS_MAX_ITEMS = 10;
+
+// ADR-0156 §6 "Weekly Team Review integration" -- bounded seasonProfile context. Deterministic,
+// no AI call of its own (`getTeamSeasonProfile` never calls a provider); this only changes what
+// the *existing* weekly_team_review call sees, never how often it runs.
+const SEASON_PATTERN_MAX_TOTAL = 12;
+const SEASON_PATTERN_FAMILY_CAPS: Record<string, number> = {
+  MATCH_RHYTHM: 4,
+  TACTICAL_THEME: 4,
+  PLAYER_CONTRIBUTION: 2,
+  COMBINATION: 2,
+};
 
 function ref(prefix: string, index: number): string {
   return `${prefix}${String(index + 1).padStart(2, "0")}`;
@@ -346,8 +361,68 @@ export async function buildWeeklyTeamReviewContext(params: {
     }),
   );
 
+  // ADR-0156 §6 "Weekly Team Review integration" -- the League Season that overlaps this
+  // reviewed week (not "most recently started", so a review for a week inside a now-finished
+  // season still gets that season's own profile, never the following season's).
+  const overlappingSeason = await db.leagueSeason.findFirst({
+    where: { organisationId: params.organisationId, startDate: { lte: weekRange.endsAt }, endDate: { gte: weekRange.startsAt } },
+    orderBy: { startDate: "desc" },
+    select: { id: true },
+  });
+
+  let seasonProfileFact: JsonValue | null = null;
+  if (overlappingSeason) {
+    const orgFilter: OrgFilterMode = {
+      type: "org",
+      filter: organisationFilter(params.organisationId),
+      filterNullable: organisationFilterNullable(params.organisationId),
+      organisationId: params.organisationId,
+    };
+    const seasonProfile = await getTeamSeasonProfile({ organisationId: params.organisationId, teamId, leagueSeasonId: overlappingSeason.id, orgFilter });
+
+    if (seasonProfile) {
+      const familyCounts: Record<string, number> = {};
+      const selectedPatterns = rankPatterns(seasonProfile.patterns).filter((pattern) => {
+        const cap = SEASON_PATTERN_FAMILY_CAPS[pattern.family] ?? 0;
+        const count = familyCounts[pattern.family] ?? 0;
+        if (count >= cap) return false;
+        familyCounts[pattern.family] = count + 1;
+        return true;
+      }).slice(0, SEASON_PATTERN_MAX_TOTAL);
+
+      const seasonPatternFacts = selectedPatterns.map((pattern, index) => {
+        const playerRefs = (pattern.subjects.playerIds ?? []).map((playerId) => {
+          let playerRef = playerRefById.get(playerId);
+          if (!playerRef) {
+            playerRef = ref("P", playerRefById.size);
+            playerRefById.set(playerId, playerRef);
+            refMap.set(playerRef, { subjectType: AiInsightSubjectType.PLAYER, entityId: playerId });
+          }
+          return playerRef;
+        });
+
+        return withEvidenceRef(evidenceRefs, `${FACT}:season-pattern:${teamRef}:${ref("SP", index)}`, {
+          ref: pattern.key,
+          family: pattern.family,
+          subtype: pattern.subtype,
+          evidenceStrength: pattern.evidenceStrength,
+          trajectory: pattern.trajectory,
+          metrics: pattern.metrics,
+          playerRefs,
+        });
+      });
+
+      seasonProfileFact = {
+        leagueSeasonId: seasonProfile.leagueSeasonId,
+        completedMatches: seasonProfile.sample.completedMatches,
+        patterns: seasonPatternFacts,
+      };
+    }
+  }
+
   const normalizedContext: JsonValue = {
     team: { ref: teamRef, weekKey },
+    seasonProfile: seasonProfileFact,
     matches: [...matchRefById.entries()].map(([, matchRef]) => ({ ref: matchRef })).sort((a, b) => a.ref.localeCompare(b.ref)),
     opportunities: opportunityFacts,
     playersWithoutOpportunity: withoutOpportunityFacts,
@@ -369,6 +444,7 @@ export async function buildWeeklyTeamReviewContext(params: {
     "Do not label any player as strong, weak, better, or worse than another.",
     "Every fact object carries an evidenceRef field giving you the exact string to cite — copy it verbatim, never construct or guess your own evidence-ref string.",
     "You may propose at most one development observation per player, only via the confirm_development_observation action, and only when a supplied fact clearly supports it — every proposal requires explicit coach confirmation before it becomes real.",
+    "The seasonProfile section (when present) contains deterministic, season-scoped descriptive patterns computed before you ever saw them — you did not discover these, and you must not manufacture a season pattern it does not contain. Treat its evidenceStrength and trajectory as data: ESTABLISHED is not 'more true' than EMERGING, only more sampled; a trajectory of WEAKENING or DORMANT does not mean the pattern is 'fixed'. Use seasonProfile only to answer whether this week's observation is consistent with a season-long pattern, something new emerging, or evidence that an older pattern has weakened — never to re-discover season patterns, never to predict the next match, and never to turn a PLAYER_CONTRIBUTION or COMBINATION pattern into a personality, ability, ranking, or causal claim. When a weekly observation differs from an established season pattern, describe the difference rather than declaring the season pattern wrong.",
   ].join(" ");
 
   return { normalizedContext, instructions, refMap, evidenceRefs };
