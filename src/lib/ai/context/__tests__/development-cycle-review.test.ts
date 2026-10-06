@@ -233,6 +233,105 @@ describe("ai/context/development-cycle-review", () => {
     expect(normalized.matches).toHaveLength(1);
     expect(normalized.activeQualitativeEvidence.map((o) => o.statement)).toEqual(["Pressed well together."]);
   });
+
+  describe("ADR-0156 season profile integration", () => {
+    it("includes a bounded seasonProfile section with only EMERGING/ESTABLISHED patterns and valid evidence refs", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"];
+      const blaMatchId = fixtureIds.matches["Bla"];
+      await lockReport(blaMatchId);
+
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "cycle-season-m1",
+        fingerprintPayload: { x: "cycle-season-m1" },
+        subject: { matchId: blaMatchId },
+        observations: [{ scope: "TEAM", phase: "BUILD_UP", polarity: "WORKING", statement: "Played out well under pressure (m1)." }],
+      });
+      const secondMatch = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt: new Date("2025-04-20T10:00:00Z") });
+      await lockReport(secondMatch.id);
+      await recordDeterministicExtraction({
+        organisationId: fixtureIds.organisationId,
+        teamId: blaTeamId,
+        sourceType: "POST_MATCH_DEBRIEF_WORKED",
+        sourceId: "cycle-season-m2",
+        fingerprintPayload: { x: "cycle-season-m2" },
+        subject: { matchId: secondMatch.id },
+        observations: [{ scope: "TEAM", phase: "BUILD_UP", polarity: "WORKING", statement: "Played out well under pressure (m2)." }],
+      });
+
+      const scopeId = buildDevelopmentCycleScopeId(blaTeamId, windowStart(), windowEnd());
+      const context = await buildDevelopmentCycleReviewContext({ organisationId: fixtureIds.organisationId, scopeId });
+      expect(context).not.toBeNull();
+      if (!context) return;
+
+      const normalized = context.normalizedContext as {
+        seasonProfile: { leagueSeasonId: string; patterns: Array<{ family: string; evidenceStrength: string; evidenceRef: string }> } | null;
+      };
+      expect(normalized.seasonProfile).not.toBeNull();
+      const themePattern = normalized.seasonProfile!.patterns.find((p) => p.family === "TACTICAL_THEME");
+      expect(themePattern).toBeDefined();
+      expect(themePattern!.evidenceStrength).not.toBe("INSUFFICIENT");
+      expect(themePattern!.evidenceRef).toMatch(EVIDENCE_REF_PATTERN);
+      expect(context.evidenceRefs.has(themePattern!.evidenceRef)).toBe(true);
+      expect(normalized.seasonProfile!.patterns.length).toBeLessThanOrEqual(8);
+    });
+
+    it("excludes a season pattern naming a player who does not clear this capability's own evidence threshold", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"];
+      const [, , , belowThresholdPlayer] = fixtureIds.players.filter((p) => p.coreTeamName === "Bla");
+
+      // Three matches *before* the review window (season-wide evidence only) where
+      // belowThresholdPlayer scores and plays enough minutes to clear the season-profile's own
+      // player-contribution threshold -- but has zero evidence inside the review window itself.
+      for (const startsAt of [new Date("2025-01-10T10:00:00Z"), new Date("2025-01-17T10:00:00Z"), new Date("2025-01-24T10:00:00Z")]) {
+        const match = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt });
+        const report = await lockReport(match.id);
+        await testDb.goal.create({ data: { organisationId: fixtureIds.organisationId, reportId: report.id, playerId: belowThresholdPlayer.id, minute: 10 } });
+        await testDb.actualPositionInterval.create({
+          data: { matchId: match.id, playerId: belowThresholdPlayer.id, position: "FORWARD", startedAtMs: 0, endedAtMs: 1_500_000, source: "STARTING_LINEUP", organisationId: fixtureIds.organisationId },
+        });
+      }
+
+      // One in-window match keeps the capability itself active, with no evidence at all for
+      // belowThresholdPlayer.
+      const blaMatchId = fixtureIds.matches["Bla"];
+      await lockReport(blaMatchId);
+
+      const scopeId = buildDevelopmentCycleScopeId(blaTeamId, windowStart(), windowEnd());
+      const context = await buildDevelopmentCycleReviewContext({ organisationId: fixtureIds.organisationId, scopeId });
+      expect(context).not.toBeNull();
+      if (!context) return;
+
+      const normalized = context.normalizedContext as {
+        playerStates: Array<{ playerRef: string }>;
+        seasonProfile: { patterns: Array<{ family: string; playerRefs: string[] }> } | null;
+      };
+
+      // The player never clears the in-window threshold, so playerStates has no entry for them,
+      // and no season pattern naming them may appear either -- the season profile must never be
+      // the back door that introduces a below-threshold player into this capability's output.
+      expect(normalized.seasonProfile).not.toBeNull();
+      const playerContributionPattern = normalized.seasonProfile!.patterns.find((p) => p.family === "PLAYER_CONTRIBUTION");
+      expect(playerContributionPattern).toBeUndefined();
+    });
+
+    it("yields a null seasonProfile, not a failure, when no League Season overlaps the review window", async () => {
+      const blaTeamId = fixtureIds.teams["Bla"];
+      const farFutureStart = new Date("2027-01-01T00:00:00Z");
+      const farFutureEnd = new Date("2027-02-05T00:00:00Z");
+      const match = await createTestMatch(testDb, fixtureIds.organisationId, fixtureIds.matchRoundId, blaTeamId, null, { startsAt: new Date("2027-01-10T10:00:00Z") });
+      await lockReport(match.id);
+
+      const scopeId = buildDevelopmentCycleScopeId(blaTeamId, farFutureStart, farFutureEnd);
+      const context = await buildDevelopmentCycleReviewContext({ organisationId: fixtureIds.organisationId, scopeId });
+      expect(context).not.toBeNull();
+      if (!context) return;
+      const normalized = context.normalizedContext as { seasonProfile: unknown };
+      expect(normalized.seasonProfile).toBeNull();
+    });
+  });
 });
 
 async function lockReport(matchId: string) {
