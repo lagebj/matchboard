@@ -22,7 +22,9 @@ export type TeamPatternsTabData = {
   themes: PatternViewModel[];
   playerContributions: PatternViewModel[];
   combinations: PatternViewModel[];
-  weeklyExcerpt: { title: string; evidenceSentence: string; reviewHref: string } | null;
+  /** ADR-0156 §06 §7: up to 2 current/recent ACTIVE weekly-review insights, never generated for
+   * this page -- `null` when no successful weekly review exists yet for this team. */
+  weeklyExcerpt: { reviewHref: string; insights: Array<{ title: string; body: string }> } | null;
 };
 
 function PatternCard({ pattern }: { pattern: PatternViewModel }) {
@@ -120,8 +122,12 @@ export function TeamPatternsTab({ data }: { data: TeamPatternsTabData }) {
         <section className="mt-6">
           <Surface variant="info" padding="md" className="flex flex-col gap-1.5">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Assistant Coach · Latest weekly review</div>
-            <div className="text-sm font-semibold text-[var(--foreground)]">{data.weeklyExcerpt.title}</div>
-            <p className="text-xs text-[var(--text-soft)] leading-snug">{data.weeklyExcerpt.evidenceSentence}</p>
+            {data.weeklyExcerpt.insights.map((insight) => (
+              <div key={insight.title}>
+                <div className="text-sm font-semibold text-[var(--foreground)]">{insight.title}</div>
+                <p className="text-xs text-[var(--text-soft)] leading-snug">{insight.body}</p>
+              </div>
+            ))}
             <Link href={data.weeklyExcerpt.reviewHref} className="text-xs font-medium text-[var(--accent-strong)] hover:underline w-fit">
               Open Team Review →
             </Link>
