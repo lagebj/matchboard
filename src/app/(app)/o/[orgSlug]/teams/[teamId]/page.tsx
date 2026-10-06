@@ -11,16 +11,25 @@ import { getPlayerLocksForRound } from "@/lib/selection/player-lock";
 import { getBestLineup, getFormationsForTeam } from "@/lib/best-lineup/best-lineup";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getTeamsResultsOverview } from "@/lib/teams/get-teams-results-overview";
+import { getTeamSeasonProfile } from "@/lib/team-season-profile/service";
+import { rankPatterns, selectTopPatternKeys } from "@/lib/team-season-profile/build-profile";
+import { presentPattern, type PatternViewModel } from "@/lib/team-season-profile/presentation";
+import { formatPhaseDisplay } from "@/lib/date/format-phase-display";
 
 type TeamPageProps = {
   params: Promise<{
     orgSlug: string;
     teamId: string;
   }>;
+  searchParams: Promise<{
+    periodId?: string;
+    tab?: string;
+  }>;
 };
 
-export default async function TeamDetailPage({ params }: TeamPageProps) {
+export default async function TeamDetailPage({ params, searchParams }: TeamPageProps) {
   const { orgSlug, teamId } = await params;
+  const { periodId, tab } = await searchParams;
 
   const ctx = await requirePageActorContext(orgSlug);
   setTenantOrganisationId(ctx.organisationId);
@@ -74,19 +83,54 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
   }
 
   // Touchline Design Atlas (ADR-0136 Phase 6, `09_ROUTE_COMPOSITION_OPPONENTS_TEAMS_SEASON.md
-  // §D`): "current record from canonical matches" -- a real, previously-missing content gap (this
-  // page had no season-long W-D-L anywhere, only current-round status). Reuses the same canonical
-  // `getTeamsResultsOverview()` the Teams overview page already calls, for the most recently
-  // started league season (the same simple "most recent by startDate" default the overview page
-  // itself uses when no explicit period is selected) -- no new scoring logic duplicated here.
-  const mostRecentLeagueSeason = await db.leagueSeason.findFirst({
+  // §D`): "current record from canonical matches" -- reuses the same canonical
+  // `getTeamsResultsOverview()` the Teams overview page already calls. ADR-0156 §07 §2: the
+  // selected League Season is now explicit and URL-backed (`?periodId=`), using the exact same
+  // "most recent by startDate when unselected" default Teams overview itself uses, rather than
+  // a second independent "most recently started" lookup -- record, Team Season Profile, and the
+  // Patterns tab all read the one selected season consistently.
+  const leagueSeasons = await db.leagueSeason.findMany({
     where: { ...orgWhere },
     orderBy: { startDate: "desc" },
-    select: { id: true },
+    select: { id: true, name: true, startDate: true, endDate: true },
   });
-  const teamRecord = mostRecentLeagueSeason
-    ? (await getTeamsResultsOverview(mostRecentLeagueSeason.id, ctx.orgFilter)).rows.find((r) => r.teamId === team.id) ?? null
+  const selectedLeagueSeasonId = periodId ?? leagueSeasons[0]?.id ?? null;
+  const selectedLeagueSeason = selectedLeagueSeasonId ? leagueSeasons.find((s) => s.id === selectedLeagueSeasonId) ?? null : null;
+
+  const teamRecord = selectedLeagueSeasonId
+    ? (await getTeamsResultsOverview(selectedLeagueSeasonId, ctx.orgFilter)).rows.find((r) => r.teamId === team.id) ?? null
     : null;
+
+  // ADR-0156: deterministic Team Season Profile for the selected season. Never calls an AI
+  // provider; works identically whether or not the organisation has AI enabled (§16).
+  const seasonProfile = selectedLeagueSeasonId
+    ? await getTeamSeasonProfile({ organisationId: ctx.organisationId, teamId: team.id, leagueSeasonId: selectedLeagueSeasonId, orgFilter: ctx.orgFilter })
+    : null;
+
+  const referencedPlayerIds = [...new Set(seasonProfile?.patterns.flatMap((p) => p.subjects.playerIds ?? []) ?? [])];
+  const referencedPlayers = referencedPlayerIds.length > 0
+    ? await db.player.findMany({ where: { id: { in: referencedPlayerIds }, ...orgWhere }, select: { id: true, firstName: true, lastName: true } })
+    : [];
+  const playerNameById = new Map(referencedPlayers.map((p) => [p.id, formatPlayerName(p)]));
+  const playerName = (id: string) => playerNameById.get(id) ?? id;
+
+  const rankedPatterns = seasonProfile ? rankPatterns(seasonProfile.patterns) : [];
+  const summaryKeys = new Set(selectTopPatternKeys(rankedPatterns, 3, true));
+  const strongestKeys = new Set(selectTopPatternKeys(rankedPatterns, 5, true));
+  const patternViewByKey = new Map<string, PatternViewModel>(rankedPatterns.map((p) => [p.key, presentPattern(p, playerName)]));
+
+  const summaryPatterns = rankedPatterns.filter((p) => summaryKeys.has(p.key)).map((p) => patternViewByKey.get(p.key)!);
+  const strongestPatterns = rankedPatterns.filter((p) => strongestKeys.has(p.key)).map((p) => patternViewByKey.get(p.key)!);
+  const familyPatterns = (family: string) => rankedPatterns.filter((p) => p.family === family).map((p) => patternViewByKey.get(p.key)!);
+
+  const seasonLabel = selectedLeagueSeason
+    ? formatPhaseDisplay({
+        seasonName: selectedLeagueSeason.name,
+        phaseName: selectedLeagueSeason.name,
+        startDate: new Date(selectedLeagueSeason.startDate),
+        endDate: new Date(selectedLeagueSeason.endDate),
+      }).combinedLabel
+    : "No phase";
 
   const [bestLineup, teamFormations, teamFocuses] = await Promise.all([
     getBestLineup(teamId, ctx.orgFilter),
@@ -416,6 +460,26 @@ export default async function TeamDetailPage({ params }: TeamPageProps) {
     record: teamRecord
       ? { matchesPlayed: teamRecord.matchesPlayed, wins: teamRecord.wins, draws: teamRecord.draws, losses: teamRecord.losses }
       : null,
+    selectedPeriodId: selectedLeagueSeasonId,
+    periodOptions: leagueSeasons.map((s) => ({
+      id: s.id,
+      label: formatPhaseDisplay({ seasonName: s.name, phaseName: s.name, startDate: new Date(s.startDate), endDate: new Date(s.endDate) }).combinedLabel,
+    })),
+    initialTab: tab === "patterns" ? ("patterns" as const) : null,
+    summaryPatterns,
+    patternsTabData: {
+      seasonLabel,
+      completedMatches: seasonProfile?.sample.completedMatches ?? 0,
+      hasApproximateTiming: rankedPatterns.some((p) => p.approximateTiming),
+      strongest: strongestPatterns,
+      rhythm: familyPatterns("MATCH_RHYTHM"),
+      themes: familyPatterns("TACTICAL_THEME"),
+      playerContributions: familyPatterns("PLAYER_CONTRIBUTION"),
+      combinations: familyPatterns("COMBINATION"),
+      // Slice 7 (ADR-0156 §10): optional latest weekly Assistant Coach excerpt/link. Not wired
+      // in this slice -- "no Assistant Coach changes yet" per the implementation sequence.
+      weeklyExcerpt: null,
+    },
     sentAsSupportCount: sentAsSupport.length,
     receivedSupportCount: receivedPlayers.filter((p) => p.role === "SUPPORT").length,
     receivedSquadRepairCount: receivedPlayers.filter((p) => p.role === "BACKFILL").length,

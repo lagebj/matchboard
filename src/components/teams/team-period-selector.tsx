@@ -5,9 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 type PeriodSelectorProps = {
   leagueSeasons: Array<{ id: string; label: string }>;
   selectedPeriodId: string;
+  /** Defaults to "/teams" (the Teams overview's own route) -- Team Detail passes its own
+   * `/teams/<teamId>` path so the selector works there too (ADR-0156 §07 §2), preserving every
+   * other existing search param (e.g. `tab`) via the same URLSearchParams merge this already did. */
+  basePath?: string;
 };
 
-export function TeamPeriodSelector({ leagueSeasons, selectedPeriodId }: PeriodSelectorProps) {
+export function TeamPeriodSelector({ leagueSeasons, selectedPeriodId, basePath = "/teams" }: PeriodSelectorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -19,7 +23,7 @@ export function TeamPeriodSelector({ leagueSeasons, selectedPeriodId }: PeriodSe
         onChange={(e) => {
           const params = new URLSearchParams(searchParams.toString());
           params.set("periodId", e.target.value);
-          router.push(`/teams?${params.toString()}`);
+          router.push(`${basePath}?${params.toString()}`);
         }}
         className="h-8 rounded-md border border-[var(--border-soft)] bg-[var(--surface-base)] px-2 text-xs text-[var(--text-soft)] outline-none focus:border-[var(--accent-strong)] focus:ring-1 focus:ring-[var(--accent-strong)] max-w-[180px] sm:max-w-none"
       >
