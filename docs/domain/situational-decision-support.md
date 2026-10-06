@@ -391,10 +391,27 @@ type CoachSituationProjection = {
 };
 ```
 
+This block is a historical design-target sketch, not byte-identical to the shipped type (e.g.
+the real `CoachDecisionCandidate.recommendedAction` is singular, not `recommendedActions`) — see
+`src/lib/situational/situation-types.ts` for the exact current shape.
+
 Facts sent to the `situation` Rego entrypoint are compact, versionable, deterministic, tenant-safe
 primitives — never raw Prisma/domain aggregate objects. See the entrypoint's own doc comment in
 `policies/packs/matchboard-default/rego/matchboard_situation.rego` for the exact input/output
 shape currently implemented and tested.
+
+### Shared decision/evidence support (ADR-0157)
+
+Both `CoachDecisionCandidate` and `CoachDecision` carry an optional `evidenceSupport` field
+(`src/lib/situational/evidence-support.ts`, `DecisionEvidenceSupport`) — presentation metadata
+only (maturity/coverage/freshness/change-state plus a bounded, typed source list), propagated
+unchanged from candidate to decision and never sent to the `situation` Rego entrypoint as
+ranking input (`buildRegoInput()` in `situation-policy-adapter.ts` already whitelists only a
+specific primitive subset). Today, Match Preparation, Round Board, Player Detail, Completed
+Match, and Season Review all reuse this one vocabulary rather than each inventing their own
+confidence/freshness language — see ADR-0157 and
+`.matchboard-work/matchboard_contextual_coach_workspace/03_SHARED_DECISION_EVIDENCE_CONTRACT.md`
+for the full decision record.
 
 ## Situation policy (implemented, unwired)
 

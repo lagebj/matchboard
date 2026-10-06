@@ -176,4 +176,41 @@ describe("projectCandidates", () => {
       ]);
     });
   });
+
+  describe("ADR-0157 evidenceSupport propagation", () => {
+    it("carries evidenceSupport unchanged from candidate to decision", async () => {
+      const context = baseContext({ primarySituation: "NEXT" });
+      const support = {
+        maturity: "EMERGING" as const,
+        coverage: "COMPLETE" as const,
+        freshness: "CURRENT" as const,
+        changeState: "UNCHANGED" as const,
+        sources: [{ kind: "PLAN_INTEGRITY" as const, ref: "fact:1" }],
+        caveats: ["small sample"],
+      };
+      const candidates = [candidate({ id: "a", evidenceSupport: support })];
+      const [decision] = (await projectCandidates(context, candidates)).decisions;
+      expect(decision.evidenceSupport).toEqual(support);
+    });
+
+    it("leaves evidenceSupport undefined when the candidate does not supply it", async () => {
+      const context = baseContext({ primarySituation: "NEXT" });
+      const candidates = [candidate({ id: "a" })];
+      const [decision] = (await projectCandidates(context, candidates)).decisions;
+      expect(decision.evidenceSupport).toBeUndefined();
+    });
+
+    it("does not change decision ordering when evidenceSupport is present", async () => {
+      const context = baseContext({ primarySituation: "MATCHDAY", activeMatchId: "match-1" });
+      const withEvidence = candidate({
+        id: "with-evidence",
+        consequences: ["SQUAD_DEGRADED"],
+        affectedMatchIds: ["match-1"],
+        evidenceSupport: { maturity: "ESTABLISHED", coverage: "COMPLETE", freshness: "CURRENT", changeState: "UNCHANGED", sources: [], caveats: [] },
+      });
+      const withoutEvidence = candidate({ id: "without-evidence" });
+      const projection = await projectCandidates(context, [withoutEvidence, withEvidence]);
+      expect(projection.decisions.map((d) => d.candidateId)).toEqual(["with-evidence", "without-evidence"]);
+    });
+  });
 });

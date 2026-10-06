@@ -98,6 +98,7 @@ function toCoachDecision(
     deadlineAt: candidate.deadlineAt,
     deepLink: candidate.defaultDeepLink,
     reasonCodes: result.reasonCodes,
+    evidenceSupport: candidate.evidenceSupport,
   };
 }
 
