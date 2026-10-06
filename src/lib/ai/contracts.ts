@@ -128,3 +128,57 @@ export type AdvisorResponse = z.infer<typeof advisorResponseSchema>;
  * structured-output schema (every adapter except Ollama Cloud — see
  * 03_PROVIDER_ADAPTERS_AND_MODELS.md). Computed once; the schema is static. */
 export const ADVISOR_RESPONSE_JSON_SCHEMA = z.toJSONSchema(advisorResponseSchema);
+
+/**
+ * The Assistant Coach hypothesis response contract (ADR-0155 step B7, source bundle §07's
+ * `schemas/assistant-coach-hypotheses.schema.json`). Deliberately NOT a v2 of
+ * `advisorResponseSchema` above — ADR-0155 §8 records why: that contract's shape has no field
+ * for a hypothesis's uncertainty or its supporting/contradicting evidence, and widening it in
+ * place would affect every existing capability's consumers for a change only this one needs.
+ *
+ * Evidence refs here are `{kind, id}` objects matching
+ * `src/lib/development-context/types.ts`'s `EvidenceRef` shape exactly — a different convention
+ * from `advisorResponseSchema`'s `fact:...` string refs, because Assistant Coach's evidence pack
+ * is built from `DerivedMeasurement`/`DerivedTrend` rows, which already carry structured
+ * `EvidenceRef[]` provenance; there is nothing to gain from re-encoding it as a string.
+ */
+export const ASSISTANT_COACH_CONTRACT_VERSION = "1.0";
+export const MAX_ASSISTANT_COACH_HYPOTHESES = 6;
+
+export const ASSISTANT_COACH_EVIDENCE_REF_KINDS = [
+  "MATCH_EVENT",
+  "ACTUAL_POSITION_INTERVAL",
+  "QUALITATIVE_OBSERVATION",
+  "HUMAN_ASSESSMENT",
+  "MATCH_CONTEXT",
+  "DERIVED_MEASUREMENT",
+  "DERIVED_TREND",
+] as const;
+
+const assistantCoachEvidenceRefSchema = z.object({
+  kind: z.enum(ASSISTANT_COACH_EVIDENCE_REF_KINDS),
+  id: z.string().min(1),
+});
+
+export const ASSISTANT_COACH_UNCERTAINTY_VALUES = ["LOW", "MEDIUM", "HIGH"] as const;
+export type AssistantCoachUncertaintyWire = (typeof ASSISTANT_COACH_UNCERTAINTY_VALUES)[number];
+
+export const assistantCoachHypothesisSchema = z.object({
+  statement: z.string().min(1).max(2000),
+  uncertainty: z.enum(ASSISTANT_COACH_UNCERTAINTY_VALUES),
+  supportingRefs: z.array(assistantCoachEvidenceRefSchema),
+  contradictingRefs: z.array(assistantCoachEvidenceRefSchema),
+  missingEvidence: z.array(z.string().min(1).max(300)),
+});
+
+export type AssistantCoachHypothesisWire = z.infer<typeof assistantCoachHypothesisSchema>;
+
+export const assistantCoachHypothesesResponseSchema = z.object({
+  schemaVersion: z.literal(ASSISTANT_COACH_CONTRACT_VERSION),
+  hypotheses: z.array(assistantCoachHypothesisSchema).max(MAX_ASSISTANT_COACH_HYPOTHESES),
+});
+
+export type AssistantCoachHypothesesResponse = z.infer<typeof assistantCoachHypothesesResponseSchema>;
+
+/** JSON Schema form, for providers that accept a server-enforced structured-output schema. */
+export const ASSISTANT_COACH_HYPOTHESES_JSON_SCHEMA = z.toJSONSchema(assistantCoachHypothesesResponseSchema);

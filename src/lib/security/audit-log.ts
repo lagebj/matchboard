@@ -72,6 +72,7 @@ type SecurityEventAction =
   | "keep_quick_observation_as_note"
   | "convert_quick_observation"
   | "confirm_ai_development_suggestion"
+  | "confirm_assistant_coach_hypothesis"
   | "dismiss_ai_insight"
   | "answer_ai_insight_clarification"
   | "disconnect_ai_provider_connection"

@@ -113,6 +113,20 @@ describe("ai/providers/openai: executeReview", () => {
     expect(body.model).toBe("gpt-5");
   });
 
+  it("uses a custom responseSchema when the caller provides one, instead of the default advisor schema (ADR-0155 step B7)", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      fakeResponse({
+        json: { output: [{ type: "message", content: [{ type: "output_text", text: '{"schemaVersion":"1.0","hypotheses":[]}' }] }] },
+      }),
+    );
+    const customSchema = { type: "object", properties: { schemaVersion: { const: "1.0" } } };
+    await openaiAdapter.executeReview({ ...request, responseSchema: customSchema });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.text.format.schema).toEqual(customSchema);
+  });
+
   it("never sends tools, conversation linkage, or coach-authored free text outside `instructions`/`input`", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(

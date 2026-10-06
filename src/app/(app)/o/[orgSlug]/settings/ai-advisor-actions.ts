@@ -41,6 +41,7 @@ const CAPABILITIES: AiAdvisorCapability[] = [
   "POST_MATCH_REVIEW",
   "WEEKLY_TEAM_REVIEW",
   "DEVELOPMENT_CYCLE_REVIEW",
+  "ASSISTANT_COACH",
 ];
 
 const CREDENTIAL_LABELS: Record<AiProviderWireId, string> = {
@@ -84,6 +85,7 @@ export async function getAiAdvisorSettingsAction(organisationSlug: string): Prom
       POST_MATCH_REVIEW: settings?.postMatchReviewEnabled ?? false,
       WEEKLY_TEAM_REVIEW: settings?.weeklyTeamReviewEnabled ?? false,
       DEVELOPMENT_CYCLE_REVIEW: settings?.developmentCycleReviewEnabled ?? false,
+      ASSISTANT_COACH: settings?.assistantCoachEnabled ?? false,
     },
     activeConnection,
     providerOptions: (["openai", "anthropic", "google_gemini", "mistral", "ollama_cloud"] as const).map((id) => ({

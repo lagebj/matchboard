@@ -2679,6 +2679,8 @@ model Organisation {
   aiAdvisorReviews              AiAdvisorReview[]
   aiAdvisorInsights             AiAdvisorInsight[]
   aiAdvisorJobs                 AiAdvisorJob[]
+  assistantCoachRuns            AssistantCoachRun[]
+  assistantCoachHypotheses      AssistantCoachHypothesis[]
   // Coach learning loop (ADR-0152).
   postMatchDebriefs             PostMatchDebrief[]
   qualitativeExtractionRuns     QualitativeEvidenceExtractionRun[]
@@ -3602,6 +3604,8 @@ enum AiAdvisorCapability {
   POST_MATCH_REVIEW
   WEEKLY_TEAM_REVIEW
   DEVELOPMENT_CYCLE_REVIEW
+  /// ADR-0155 step B7. Does not use AiAdvisorReview/AiAdvisorInsight -- see AssistantCoachRun.
+  ASSISTANT_COACH
 }
 
 enum AiAdvisorScopeType {
@@ -3609,6 +3613,8 @@ enum AiAdvisorScopeType {
   MATCH
   TEAM_WEEK
   TEAM_WINDOW
+  /// ADR-0155 step B7 -- Assistant Coach's own scope, scopeId = Player.id.
+  PLAYER
 }
 
 /// ADR-0152 §5: AI contract v2 per-insight analysis role. Null for capabilities/reviews that do
@@ -3688,6 +3694,8 @@ model OrganisationAiSettings {
   weeklyTeamReviewEnabled       Boolean @default(false)
   // ADR-0152 §6: disabled by default for every organisation, including already-AI-enabled ones.
   developmentCycleReviewEnabled Boolean @default(false)
+  // ADR-0155 step B7: same precedent -- disabled by default for every organisation.
+  assistantCoachEnabled         Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3721,7 +3729,8 @@ model AiProviderConnection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  reviews AiAdvisorReview[]
+  reviews            AiAdvisorReview[]
+  assistantCoachRuns AssistantCoachRun[]
 
   @@index([organisationId])
   @@index([organisationId, status])
@@ -3853,6 +3862,105 @@ model AiAdvisorJob {
   @@unique([organisationId, capability, scopeType, scopeId, sourceFingerprint])
   @@index([organisationId])
   @@index([status, nextAttemptAt])
+}
+
+// ---------------------------------------------------------------------------
+// Assistant Coach (ADR-0155 step B7). Deliberately NOT AiAdvisorReview/AiAdvisorInsight -- that
+// contract has no field for a hypothesis's uncertainty or its supporting/contradicting evidence,
+// and widening it in place would affect every other capability's consumers for a change only
+// this one needs (ADR-0155 §8). Still goes through the shared AiAdvisorJob queue/claim loop --
+// only the runner's validate+persist step branches for this one capability.
+// ---------------------------------------------------------------------------
+
+/// One execution of the Assistant Coach capability for one player (mirrors AiAdvisorReview's own
+/// shape/status lifecycle, scoped to a player instead of a match/round/team-window).
+model AssistantCoachRun {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  playerId          String
+  sourceFingerprint String
+
+  status AiAdvisorReviewStatus @default(QUEUED)
+
+  providerConnectionId String?
+  providerConnection   AiProviderConnection? @relation(fields: [providerConnectionId], references: [id], onDelete: SetNull)
+  provider             AiProviderId?
+  model                String?
+  schemaVersion        String?
+
+  inputTokens               Int?
+  outputTokens              Int?
+  providerRequestDurationMs Int?
+
+  queuedAt    DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  failureCode String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hypotheses AssistantCoachHypothesis[]
+
+  @@index([organisationId])
+  @@index([organisationId, playerId, sourceFingerprint], map: "AssistantCoachRun_org_player_fingerprint_idx")
+  @@index([organisationId, playerId, status], map: "AssistantCoachRun_org_player_status_idx")
+}
+
+enum AssistantCoachUncertainty {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AssistantCoachHypothesisState {
+  ACTIVE
+  DISMISSED
+  PROMOTED
+}
+
+/// One hypothesis produced by one AssistantCoachRun (source bundle
+/// schemas/assistant-coach-hypotheses.schema.json). `supportingRefs`/`contradictingRefs` are
+/// `EvidenceRef[]` (src/lib/development-context/types.ts) -- structured {kind, id} objects, not
+/// the `fact:...` string refs the shared AiAdvisorInsight contract uses elsewhere, because this
+/// evidence pack is built from DerivedMeasurement/DerivedTrend rows that already carry that
+/// shape. Default AI output is ephemeral (bundle §07): promotion to a real, human-confirmed
+/// development-thread observation is a separate, explicit coach action, never automatic.
+model AssistantCoachHypothesis {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  runId String
+  run   AssistantCoachRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  statement         String
+  uncertainty       AssistantCoachUncertainty
+  /// EvidenceRef[]
+  supportingRefs    Json
+  /// EvidenceRef[]
+  contradictingRefs Json
+  /// string[]
+  missingEvidence   Json
+  displayOrder      Int                       @default(0)
+
+  state AssistantCoachHypothesisState @default(ACTIVE)
+
+  // Promotion provenance (bundle §07: "preserve provenance that it originated from Assistant
+  // Coach"). Set only when state transitions to PROMOTED; never changes an earlier promotion.
+  promotedDevelopmentThreadId String?
+  promotedAt                  DateTime?
+  promotedBy                  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organisationId])
+  @@index([runId])
+  @@index([organisationId, state])
 }
 
 // ---------------------------------------------------------------------------

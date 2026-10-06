@@ -117,7 +117,7 @@ async function executeReview(request: ProviderExecuteRequest): Promise<ProviderE
       systemInstruction: { parts: [{ text: request.instructions }] },
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: toGeminiResponseSchema(ADVISOR_RESPONSE_JSON_SCHEMA),
+        responseSchema: toGeminiResponseSchema(request.responseSchema ?? ADVISOR_RESPONSE_JSON_SCHEMA),
       },
     }),
   });
