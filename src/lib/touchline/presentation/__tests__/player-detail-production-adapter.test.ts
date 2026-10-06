@@ -203,6 +203,7 @@ describe("buildEvidenceStories", () => {
       recentOpportunity: opportunity,
       profile: makeProfile(),
       matchHistory: [makeHistoryEntry()],
+      developmentContext: null,
     });
     const opportunityStory = stories.find((s) => s.id === "opportunity-recent")!;
     expect(opportunityStory.group).toBe("OPPORTUNITY");
@@ -219,6 +220,7 @@ describe("buildEvidenceStories", () => {
       recentOpportunity: null,
       profile: makeProfile({ positions: [], primary: "", secondary: null, tertiary: null }),
       matchHistory: [],
+      developmentContext: null,
     });
     const positionStory = stories.find((s) => s.id === "position-concentration")!;
     expect(positionStory.confidence).toBeNull();
@@ -233,9 +235,91 @@ describe("buildEvidenceStories", () => {
       recentOpportunity: null,
       profile: makeProfile(),
       matchHistory: [],
+      developmentContext: null,
     });
     const phaseStory = stories.find((s) => s.id === "match-context-phase")!;
     expect(phaseStory.confidence).toBeNull();
     expect(phaseStory.title).toContain("Not enough evidence");
+  });
+
+  it("renders the game-state story's insufficient-evidence state when there is no development context yet (ADR-0155)", () => {
+    const stories = buildEvidenceStories({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      matchHistory: [],
+      developmentContext: null,
+    });
+    const story = stories.find((s) => s.id === "development-context-game-state")!;
+    expect(story.confidence).toBeNull();
+    expect(story.value).toBeUndefined();
+    expect(story.title).toBe("No recorded role time with a known game state yet");
+  });
+
+  it("surfaces the dominant game state without redistributing UNKNOWN time (ADR-0155)", () => {
+    const stories = buildEvidenceStories({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 6, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      matchHistory: [],
+      developmentContext: {
+        totalRoleSeconds: 1800,
+        matchesWithRoleData: 6,
+        gameStateBreakdown: [
+          { gameState: "DRAWING", seconds: 1200 },
+          { gameState: "LEADING", seconds: 300 },
+          { gameState: "UNKNOWN", seconds: 300 },
+        ],
+        topCoPresencePartner: null,
+      },
+    });
+    const story = stories.find((s) => s.id === "development-context-game-state")!;
+    expect(story.title).toBe("Most recorded minutes came while DRAWING");
+    expect(story.value).toBe("20 min");
+    expect(story.confidence).toBe("Established");
+    expect(story.interpretation).toContain("5 min LEADING");
+    expect(story.interpretation).toContain("5 min recorded with an unknown game state");
+    expect(story.interpretation).toContain("never redistributed");
+  });
+
+  it("renders the co-presence story's insufficient-evidence state when no teammate pairing exists (ADR-0155)", () => {
+    const stories = buildEvidenceStories({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 0, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      matchHistory: [],
+      developmentContext: null,
+    });
+    const story = stories.find((s) => s.id === "development-context-copresence")!;
+    expect(story.confidence).toBeNull();
+    expect(story.title).toBe("No shared on-pitch time recorded yet");
+  });
+
+  it("surfaces the top co-presence partner as exposure only, never a chemistry score (ADR-0155)", () => {
+    const stories = buildEvidenceStories({
+      playerId: "p1",
+      orgSlug: "test-club",
+      seasonStats: { actualAppearances: 3, goals: 0, assists: 0, plannedButAbsent: 0 },
+      recentOpportunity: null,
+      profile: makeProfile(),
+      matchHistory: [],
+      developmentContext: {
+        totalRoleSeconds: 900,
+        matchesWithRoleData: 3,
+        gameStateBreakdown: [],
+        topCoPresencePartner: { teammateId: "p2", teammateName: "Jamie Teammate", sharedSeconds: 600 },
+      },
+    });
+    const story = stories.find((s) => s.id === "development-context-copresence")!;
+    expect(story.title).toBe("Most shared time with Jamie Teammate");
+    expect(story.value).toBe("10 min");
+    expect(story.confidence).toBe("Emerging");
+    expect(story.interpretation).toContain("not a chemistry");
   });
 });
