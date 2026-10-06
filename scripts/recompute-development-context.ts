@@ -61,10 +61,11 @@ async function refsForPlayer(playerId: string): Promise<FootballMatchRef[]> {
 }
 
 /** Each ref's organisation is already known from its own per-org loop. */
-async function recomputeAllCompleted(dryRun: boolean): Promise<{ matches: number; measurements: number }> {
+async function recomputeAllCompleted(dryRun: boolean): Promise<{ matches: number; measurements: number; trends: number }> {
   const organisations = await db.organisation.findMany({ select: { id: true } });
   let matches = 0;
   let measurements = 0;
+  let trends = 0;
 
   for (const org of organisations) {
     await runWithTenantOrganisationId(org.id, async () => {
@@ -77,16 +78,20 @@ async function recomputeAllCompleted(dryRun: boolean): Promise<{ matches: number
         }
         const outcome = await persistMatchContextPack(ref);
         measurements += outcome.measurementsWritten;
-        console.log(`  ${ref.kind} ${footballMatchRefSourceId(ref)}: ${outcome.measurementsWritten} measurement(s).`);
+        trends += outcome.trendsWritten;
+        console.log(
+          `  ${ref.kind} ${footballMatchRefSourceId(ref)}: ${outcome.measurementsWritten} measurement(s), ${outcome.trendsWritten} trend(s).`,
+        );
       }
     });
   }
-  return { matches, measurements };
+  return { matches, measurements, trends };
 }
 
 /** The target's organisation isn't known up front -- resolve and recompute under system privilege. */
-async function recomputeTargeted(refs: FootballMatchRef[], dryRun: boolean): Promise<{ matches: number; measurements: number }> {
+async function recomputeTargeted(refs: FootballMatchRef[], dryRun: boolean): Promise<{ matches: number; measurements: number; trends: number }> {
   let measurements = 0;
+  let trends = 0;
   await runWithSystemPrivilege(SYSTEM_PRIVILEGE_REASON, async () => {
     for (const ref of refs) {
       if (dryRun) {
@@ -95,10 +100,13 @@ async function recomputeTargeted(refs: FootballMatchRef[], dryRun: boolean): Pro
       }
       const outcome = await persistMatchContextPack(ref);
       measurements += outcome.measurementsWritten;
-      console.log(`  ${ref.kind} ${footballMatchRefSourceId(ref)}: ${outcome.measurementsWritten} measurement(s).`);
+      trends += outcome.trendsWritten;
+      console.log(
+        `  ${ref.kind} ${footballMatchRefSourceId(ref)}: ${outcome.measurementsWritten} measurement(s), ${outcome.trendsWritten} trend(s).`,
+      );
     }
   });
-  return { matches: refs.length, measurements };
+  return { matches: refs.length, measurements, trends };
 }
 
 async function main() {
@@ -116,7 +124,7 @@ async function main() {
     process.exit(1);
   }
 
-  let result: { matches: number; measurements: number };
+  let result: { matches: number; measurements: number; trends: number };
   if (allCompleted) {
     // db.organisation.findMany() is RLS-exempt (Organisation is not scoped by itself); every
     // per-org query inside the loop runs under its own runWithTenantOrganisationId() already.
@@ -143,6 +151,7 @@ async function main() {
 
   console.log(`\nMatches processed: ${result.matches}`);
   console.log(`Total measurements written: ${result.measurements}`);
+  console.log(`Total trends written: ${result.trends}`);
 }
 
 main()
