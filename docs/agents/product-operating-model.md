@@ -29,6 +29,14 @@ Use `features/matchboard.feature` as the behavioral source of truth for selectio
 - `/players` — player participation, current round attention, and development context
 - `/more` / adjacent surfaces — history, groups, settings, insights, and supporting tools
 
+ADR-0157 (Contextual Coach Workspace Convergence) is converging this toward a contextual
+workspace: every piece of information lives where it changes a coach decision, and `/more`
+retires once Season Review, Opponents, Formations-in-Tactics, Settings, and the absorbed
+Insights/History jobs each have a verified contextual destination. This is a staged migration
+(`docs/product/navigation-model.md`'s "Planned convergence" section tracks current status);
+until the final convergence slice lands, the five canonical routes above remain current and
+accurate.
+
 ## Mandatory boundaries
 
 - No coach-operated finalize button exists; finalization is derived from real-world match state.

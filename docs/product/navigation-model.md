@@ -6,6 +6,37 @@
 > source agents load for navigation specifics. Adaptive/compact composition rules are in
 > `docs/product/adaptive-interaction-design.md` and **ADR-0124**.
 
+## Planned convergence (ADR-0157, in progress — not yet implemented)
+
+ADR-0157 (Contextual Coach Workspace Convergence) targets exactly **four** primary items —
+Today, League, Events, Players — with `More` removed once every job it currently owns has a
+verified contextual destination. This is a staged migration delivered as sequential slices
+(C0-C9); the five-item model below, and every route `More` currently owns, remains the live,
+accurate, current state until the final IA-convergence slice (C8) actually removes `More` from
+`TOUCHLINE_NAV_META`/`TOUCHLINE_NAV_ORDER`, the mobile bottom nav, and the sidebar/navigation
+rail, at which point this document's "Primary navigation" section below is updated in the same
+change (and `checkPrimaryNavConsistency`'s cross-check against `features/matchboard.feature`
+moves to four items in that same slice, not before).
+
+Target route disposition (`contracts/route-disposition.json` in ADR-0157's bundle):
+
+| Current `More` job | Target destination | Active primary nav |
+|---|---|---|
+| `/season` | Season Review, reached from League | League |
+| `/opponents`, `/opponents/[id]` | Contextual domain object (League / Match Preparation / encounter history) | League |
+| `/settings` | Expanded administration entry point | none (user/settings affordance) |
+| `/groups`, `/rules` | Settings admin subroutes | discovered via Settings |
+| `/formations` | Contextual formation management from Match Tactics; legacy route redirects once equivalent | contextual (Match Tactics) |
+| `/reviews` | Peer-review initiation moves onto the reviewed object; due work moves onto Today; hub retires | n/a |
+| `/simulation`, `/workbench`, rebuild/backfill tools | Settings > Advanced (admin only) | none |
+| `/insights` | Match/Round/Player/Opponent/Season (see `11_INSIGHTS_ROUTE_DISPOSITION.md`), with redirects preserving selected-entity query params | n/a |
+| `/history` | Match/Player/Opponent/Season, with export preserved | n/a |
+| `/more` | Deleted/redirected last, once every job above has a verified destination | n/a |
+
+Do not implement this section's target state early or out of slice order; do not remove a
+legacy route before its job is demonstrably reachable in its new contextual destination. See
+ADR-0157 for the full decision record and `14_DELIVERY_SEQUENCE.md` for the slice order.
+
 ## Primary navigation (5 items, in this order)
 
 The primary navigation has five items in this order — the Today/League/Events/Players/More information architecture (UI/UX programme Phase 2.4, `.matchboard-work/ux-branding-language-ui/PROGRAMME.md` §6, gitignored working bundle):
