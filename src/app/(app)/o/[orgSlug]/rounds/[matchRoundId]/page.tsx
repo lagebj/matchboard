@@ -17,8 +17,7 @@ import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 import type { CoachingIntentCategory } from "@/lib/coaching/types";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { getRoundBoardAdvisorViewModel } from "@/lib/ai/presentation/round-board-advisor";
-import { RoundBoardAdvisorBlock } from "@/components/ai/round-board-advisor-block";
-import { AdvisorPanelStale } from "@/components/ai/advisor-panel";
+import { getEffectivePlayerPositionProfilesForPlayers } from "@/lib/player-development/get-effective-position-profile";
 import { isMatchPlanningEditable, isMatchRoundPlanningEditable } from "@/lib/selection/planning-boundary";
 import { WarningSeverity } from "@/generated/prisma/client";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
@@ -266,9 +265,39 @@ export default async function RoundBoardPage({
 
   const integrity = await computeRoundPlanIntegrity(matchRoundId);
 
-  // Round Board Advisor block (08_UI_UX_SPEC.md "Round Board") — compact, decision-area-only;
-  // never an always-present AI lane.
+  // Round Board rail "Insights" mode's optional Assistant Coach synthesis (ADR-0157 §6,
+  // formerly the standalone `RoundBoardAdvisorBlock`) — compact, decision-area-only; never an
+  // always-present AI lane.
   const roundBoardAdvisorViewModel = await getRoundBoardAdvisorViewModel({ organisationId: ctx.organisationId, matchRoundId });
+
+  // Round Board rail "Development" mode (ADR-0157 §6): batched for every eligible player up
+  // front (never a per-player loop), since the rail's `selectedPlayerId` is client-side state
+  // the page cannot know ahead of render.
+  const allEligiblePlayerIds = eligiblePlayers.map((p) => p.id);
+  const [effectivePositionProfiles, activeDevelopmentThreads] = await Promise.all([
+    getEffectivePlayerPositionProfilesForPlayers(allEligiblePlayerIds, ctx.orgFilter),
+    db.developmentThread.findMany({
+      where: { playerId: { in: allEligiblePlayerIds }, organisationId: ctx.organisationId, status: "ACTIVE", category: { not: null } },
+      select: { playerId: true, category: true },
+    }),
+  ]);
+  const activeFocusByPlayerId: Record<string, string[]> = {};
+  for (const thread of activeDevelopmentThreads) {
+    if (!thread.category) continue;
+    const existing = activeFocusByPlayerId[thread.playerId] ?? [];
+    if (!existing.includes(thread.category)) existing.push(thread.category);
+    activeFocusByPlayerId[thread.playerId] = existing;
+  }
+  const effectivePositionsByPlayerId: Record<string, { positionId: string; supportBand: "LIMITED" | "ESTABLISHED" | "STRONG" | "STRONGEST"; confidence: "LOW" | "MEDIUM" | "HIGH"; appearances: number; minutes: number | null }[]> = {};
+  for (const [playerId, profile] of effectivePositionProfiles) {
+    effectivePositionsByPlayerId[playerId] = profile.positions.map((p) => ({
+      positionId: p.positionId,
+      supportBand: p.supportBand,
+      confidence: p.confidence,
+      appearances: p.sources.appearances,
+      minutes: p.sources.minutes,
+    }));
+  }
 
   const unresolvedSignals = integrity.signals;
 
@@ -564,9 +593,10 @@ export default async function RoundBoardPage({
           drops: totalDrops,
         }}
         fairnessMetrics={fairnessMetrics}
+        assistantCoach={roundBoardAdvisorViewModel}
+        effectivePositionsByPlayerId={effectivePositionsByPlayerId}
+        activeFocusByPlayerId={activeFocusByPlayerId}
       />
-      {roundBoardAdvisorViewModel?.status === "fresh" && <RoundBoardAdvisorBlock viewModel={roundBoardAdvisorViewModel} />}
-      {roundBoardAdvisorViewModel?.status === "stale" && <AdvisorPanelStale />}
       <RoundGuestPlayersPanel matchRoundId={matchRoundId} />
       {roundPlanningBoundary.editable && (
         <div className="flex flex-col gap-3">

@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { generateEmergencyRepairOptionsAction } from "@/app/(app)/matches/emergency-repair-actions";
 import type { EmergencyRepairOption } from "@/lib/selection/emergency-repair-options";
-import { FairnessSummary } from "@/components/round/fairness-summary";
 import { determineAutomaticRoleFromPaths } from "@/lib/selection/determine-automatic-role";
 import { renderReason } from "@/lib/formatters/recommendation-reason-text";
 import {
@@ -43,18 +42,22 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { DecisionBanner } from "@/components/ui/decision-banner";
 import { Dialog } from "@/components/ui/dialog";
 import { RoundStatusStrip } from "@/components/touchline/round-board/round-status-strip";
-import { RoundAttentionList } from "@/components/touchline/round-board/round-attention-list";
+import { RoundBoardRail } from "@/components/touchline/round-board/round-board-rail";
 import { PlayerAssignmentInspector } from "@/components/touchline/round-board/player-assignment-inspector";
 import { PlayerAssignmentSheet } from "@/components/touchline/round-board/player-assignment-sheet";
 import { AllocationMatrix } from "@/components/touchline/round-board/allocation-matrix";
 import type {
   RoundBoardAttentionItem,
   RoundBoardAssignmentSuggestion,
+  RoundBoardEffectivePosition,
 } from "@/lib/touchline/presentation/round-board-view-model";
+import type { RoundBoardAdvisorViewModel } from "@/lib/ai/presentation/round-board-advisor";
 import {
   buildRoundBoardViewModel,
   buildAssignmentContext,
   buildAllocationMatrix,
+  sortAttentionForSelection,
+  buildRoundBoardDevelopmentContext,
 } from "@/lib/touchline/presentation/round-board-production-adapter";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { formatKickoffDate, formatKickoffTime, formatKickoffDateTime } from "@/lib/date-utils";
@@ -147,6 +150,13 @@ type RoundBoardProps = {
     detail?: string;
     trend?: "up" | "down" | "neutral";
   }>;
+  /** Round Board rail "Insights" mode's optional Assistant Coach synthesis (ADR-0157 §6) —
+   * `null`/absent renders nothing extra, matching the retired standalone block's own empty rule. */
+  assistantCoach?: RoundBoardAdvisorViewModel | null;
+  /** Rail "Development" mode context, keyed by playerId — already-batched reads from the page,
+   * never fetched per-player here. */
+  effectivePositionsByPlayerId?: Record<string, RoundBoardEffectivePosition[]>;
+  activeFocusByPlayerId?: Record<string, string[]>;
 };
 
 const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
@@ -508,6 +518,9 @@ export function RoundBoard({
   signalSummary,
   movementSummary,
   fairnessMetrics,
+  assistantCoach = null,
+  effectivePositionsByPlayerId = {},
+  activeFocusByPlayerId = {},
 }: RoundBoardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -936,6 +949,19 @@ export function RoundBoard({
       )
     : null;
 
+  // Rail "Insights" mode ordering (contract: "When a player is selected, prioritize insight rows
+  // that involve that player...") and "Development" mode context — both derived here since
+  // `selectedPlayerId` is this component's own interaction state, not page-render-time data.
+  const sortedAttention = sortAttentionForSelection(vm.attention, selectedPlayerId);
+  const developmentContext = selectedPlayer
+    ? buildRoundBoardDevelopmentContext({
+        playerId: selectedPlayer.id,
+        displayName: selectedPlayer.name,
+        activeFocusCategories: activeFocusByPlayerId[selectedPlayer.id] ?? [],
+        effectivePositions: effectivePositionsByPlayerId[selectedPlayer.id] ?? [],
+      })
+    : null;
+
   // --- Allocation matrix (desktop secondary mode, contract §8 — same assignment command).
 
   const matrix = buildAllocationMatrix(
@@ -1063,12 +1089,18 @@ export function RoundBoard({
         />
       )}
 
-      {/* Unresolved decisions before routine allocations (contract §6). */}
-      <RoundAttentionList
-        items={attentionItems}
+      {/* Contextual rail (ADR-0157 §6 "Round Board contextual rail"): Insights (unresolved
+          decisions before routine allocations, contract §6, plus any Assistant Coach synthesis)
+          / Balance / Development. Replaces the former standalone `RoundBoardAdvisorBlock`. */}
+      <RoundBoardRail
+        attention={sortedAttention}
         onResolve={(item) => {
           if (item.playerId) handleSelectPlayer(item.playerId);
         }}
+        assistantCoach={assistantCoach}
+        fairnessMetrics={fairnessMetrics}
+        movementSummary={movementSummary}
+        developmentContext={developmentContext}
       />
 
       {planningNotes.length > 0 && (
@@ -1287,12 +1319,8 @@ export function RoundBoard({
 
         {mobileMode === "overview" ? (
           <>
-            <RoundAttentionList
-              items={attentionItems}
-              onResolve={(item) => {
-                if (item.playerId) handleSelectPlayer(item.playerId);
-              }}
-            />
+            {/* The contextual rail above (shared across breakpoints) already shows the
+                unresolved-decisions list — no second copy here. */}
             <TouchlineWidget padding="compact">
               <p className="text-[12px] text-[var(--text-muted)]">
                 {vm.summary.plannedOpportunities} of {vm.summary.targetOpportunities} planned
@@ -1444,8 +1472,6 @@ export function RoundBoard({
         onAssign={handleAssignSuggestion}
         onClose={() => setSheetOpen(false)}
       />
-
-      <FairnessSummary metrics={fairnessMetrics} movementSummary={movementSummary} />
 
       <Dialog
         isOpen={showClearRoundDialog}
