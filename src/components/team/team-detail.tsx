@@ -37,6 +37,10 @@ import { useOrgUrl } from "@/components/shell/org-slug-context";
 import { BestLineupTab } from "@/components/team/best-lineup-tab";
 import { TeamFocusPanel } from "@/components/team/team-focus-panel";
 import type { TeamFocusStatus } from "@/lib/coaching/team-focus";
+import { TeamPeriodSelector } from "@/components/teams/team-period-selector";
+import { TeamSeasonPatternSummary } from "@/components/team/team-season-pattern-summary";
+import { TeamPatternsTab, type TeamPatternsTabData } from "@/components/team/team-patterns-tab";
+import type { PatternViewModel } from "@/lib/team-season-profile/presentation";
 
 type PlayerSummary = {
   id: string;
@@ -201,14 +205,25 @@ type TeamDetailData = {
     closedAt: string | null;
     linkedIntentId: string | null;
   }>;
+  /** ADR-0156 §07 §2 — explicit, URL-backed selected League Season (null when the org has no
+   * league season at all yet). Record, pattern summary, and the Patterns tab all read this one
+   * selected season consistently rather than each independently assuming "most recent". */
+  selectedPeriodId: string | null;
+  periodOptions: Array<{ id: string; label: string }>;
+  initialTab: "patterns" | null;
+  /** Already-ranked, deterministically-selected (max 3, family-diversity-aware) and presented —
+   * this component never re-ranks or re-derives pattern copy itself (ADR-0156 §08 §4). */
+  summaryPatterns: PatternViewModel[];
+  patternsTabData: TeamPatternsTabData;
 };
 
-type TabKey = "squad" | "current-round" | "best-lineup" | "movement" | "candidates" | "focus" | "history" | "rules";
+type TabKey = "squad" | "current-round" | "best-lineup" | "patterns" | "movement" | "candidates" | "focus" | "history" | "rules";
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "squad", label: "Squad" },
   { key: "current-round", label: "Current Round" },
   { key: "best-lineup", label: "Recommended lineup" },
+  { key: "patterns", label: "Patterns" },
   { key: "movement", label: "Movement" },
   { key: "candidates", label: "Possible movement" },
   { key: "focus", label: "Focus" },
@@ -1090,7 +1105,7 @@ function MovementCandidatesTab({
 
 export function TeamDetail({ data }: { data: TeamDetailData }) {
   const orgUrl = useOrgUrl();
-  const [activeTab, setActiveTab] = useState<TabKey>("squad");
+  const [activeTab, setActiveTab] = useState<TabKey>(data.initialTab ?? "squad");
 
   return (
     // Touchline island (theme-aware — Phase 10 preparatory pass, ADR-0134). TouchlinePageHeader
@@ -1185,6 +1200,14 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
         )}
       </div>
 
+      {data.selectedPeriodId && data.periodOptions.length > 0 && (
+        <div className="flex items-center justify-between gap-2">
+          <TeamPeriodSelector leagueSeasons={data.periodOptions} selectedPeriodId={data.selectedPeriodId} basePath={`/teams/${data.teamId}`} />
+        </div>
+      )}
+
+      <TeamSeasonPatternSummary patterns={data.summaryPatterns} viewPatternsHref={orgUrl(`/teams/${data.teamId}${data.selectedPeriodId ? `?periodId=${data.selectedPeriodId}&` : "?"}tab=patterns`)} />
+
       <TabRail
         items={TABS.map((t) => ({ key: t.key, label: t.label }))}
         activeKey={activeTab}
@@ -1224,6 +1247,7 @@ export function TeamDetail({ data }: { data: TeamDetailData }) {
             players={data.bestLineupPlayers}
           />
         )}
+        {activeTab === "patterns" && <TeamPatternsTab data={data.patternsTabData} />}
         {activeTab === "history" && <HistoryTab finalizedRounds={data.finalizedRounds} />}
         {activeTab === "focus" && <TeamFocusPanel teamId={data.teamId} initialFocuses={data.teamFocuses} />}
         {activeTab === "rules" && <RulesTab rotationPaths={data.rotationPaths} teamId={data.teamId} teamOptions={data.teamOptions} />}
