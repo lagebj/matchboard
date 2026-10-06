@@ -17,6 +17,7 @@ import { createLiveSessionCandidateProvider } from "@/lib/situational/providers/
 import type { DecisionCandidateProvider } from "@/lib/situational/situation-types";
 import { getOrgActivePlayerAvailability } from "@/lib/players/get-org-active-player-availability";
 import { getRecentCompletedMatches } from "@/lib/matches/get-recent-completed-matches";
+import { getTodayUpcomingWeekMatches } from "@/lib/matches/get-today-upcoming-week-matches";
 import { summarizeSquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import { getTodaySelectionRecommendations } from "@/lib/touchline/get-today-selection-recommendations";
 import { getTodayLiveMatchSummaries } from "@/lib/live-match/get-today-live-match-summaries";
@@ -93,7 +94,7 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
   // evidence-spotlight removal below. See docs/domain/touchline-atlas-provenance.md §14/§17 for
   // the full account.
   const orgUrl = (path: string) => `/o/${orgSlug}${path}`;
-  const [recentMatches, orgPlayerAvailability, selectionDecisions, liveNow, matchdayContext] = await Promise.all([
+  const [recentMatches, orgPlayerAvailability, selectionDecisions, liveNow, matchdayContext, upcomingMatches] = await Promise.all([
     getRecentCompletedMatches(ctx.orgFilter, orgUrl),
     getOrgActivePlayerAvailability(ctx.orgFilter),
     getTodaySelectionRecommendations(ctx.organisationId, commandCentre.roundPlanIntegrities, orgSlug, projection.decisions),
@@ -107,6 +108,10 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
     // same-day match is already live (Live Now above owns that anchor) or there is no eligible
     // same-day match at all.
     getTodayFootballMatches(ctx.orgFilter, commandCentre.todayMatches, commandCentre.roundPlanIntegrities, orgUrl),
+    // ADR-0157 §6 "Today convergence" — bounded, forward-looking (next 7 days), feeds only the
+    // quiet-day "This week" chronology. Today's own matches are excluded (already covered by the
+    // Live Now/Matchday slot above).
+    getTodayUpcomingWeekMatches(ctx.orgFilter, orgUrl, new Set(commandCentre.todayMatches.map((m) => m.matchId))),
   ]);
   const squadStatus = orgPlayerAvailability.length > 0 ? summarizeSquadStatus(orgPlayerAvailability) : null;
 
@@ -174,6 +179,7 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
       sinceLastVisitFacts={sinceLastVisitFacts}
       carryForwardItems={carryForwardItems}
       matchdayContext={matchdayContext}
+      upcomingMatches={upcomingMatches}
     />
   );
 }

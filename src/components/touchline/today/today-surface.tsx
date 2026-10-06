@@ -2,13 +2,28 @@
 
 /**
  * TodaySurface — the sole production composition owner for the Today route (ADR-0141, ADR-0142
- * "One Today composition owner"). Replaces `AssistantCommandCentrePage`'s in-place augmentation:
- * a 9/3 operational/context-rail layout at the expanded breakpoint, collapsing to one column
- * below it (`02_PRODUCTION_COMPOSITION_CONTRACT.md`).
+ * "One Today composition owner", ADR-0157 §6 "Today convergence"). Replaces
+ * `AssistantCommandCentrePage`'s in-place augmentation: a 9/3 operational/context-rail layout at
+ * the expanded breakpoint, collapsing to one column below it
+ * (`02_PRODUCTION_COMPOSITION_CONTRACT.md`).
  *
- * Main column order: Live Now -> Next Action -> Selection decisions -> Planning attention ->
- * Other attention -> Today in order -> (Ready to revisit / peer-review link / PWA install).
- * Context rail order: Since your last visit -> Squad today -> Carry forward -> Recent football.
+ * The main column renders exactly one of two compositions, chosen by
+ * `selectTodayComposition()` from the already-resolved primary action (never a second relevance
+ * score):
+ *
+ * - **Quiet** (`TodayQuietState`): calm hero -> compact squad readiness (only when no same-day
+ *   Matchday object already shows its own) -> bounded "This week" chronology -> at most one
+ *   carry-forward item. No empty Next Action / Selection decisions / Planning attention / Other
+ *   attention sections.
+ * - **Decision**: Next Action -> inline Why? disclosure -> Selection decisions / Planning
+ *   attention / Other attention, capped to at most 2 items combined across those three sources
+ *   -> Today in order -> due peer/development reviews -> peer-review link.
+ *
+ * Live Now / Matchday render above this switch either way — they are their own "is a match live
+ * or imminent right now" state, not part of the quiet/decision choice. `InstallPwaCard` no
+ * longer renders here at all (ADR-0157 §6): it remains reachable via `/more` unchanged.
+ * Context rail order (desktop-only extra column; same content stacks in-flow on mobile): Since
+ * your last visit -> Squad today -> Carry forward -> Recent football.
  *
  * No generic count-only round/decision summary renders here — `blocked_round`/`decision_required`
  * work-item categories are never rendered as their own card; their raw signals are shown via
@@ -24,7 +39,6 @@ import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-m
 import type { CoachSituationProjection } from "@/lib/situational/situation-types";
 import type { WeeklyCoachingContextResult } from "@/lib/weekly/weekly-coaching-context-types";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
-import { InstallPwaCard } from "@/components/pwa/install-prompt-card";
 import { useOrgUrl } from "@/components/shell/org-slug-context";
 import { TodayAtmosphere } from "@/components/touchline/today/today-atmosphere";
 import { TodayLiveNow } from "@/components/touchline/today/today-live-now";
@@ -47,6 +61,44 @@ import { TodayMatchday } from "@/components/touchline/today/today-matchday";
 import type { TodayMatchdayContext } from "@/lib/touchline/get-today-football-matches";
 import { resolveTodayMatchdayAction } from "@/lib/touchline/presentation/today-matchday-readiness";
 import { resolveTodayMatchdayPhase } from "@/lib/touchline/presentation/today-matchday-phase";
+import {
+  selectTodayComposition,
+  buildTodayDecisionWhyContent,
+  selectTodayWeekChronologyItems,
+} from "@/lib/touchline/presentation/today-composition";
+import { TodayQuietState } from "@/components/touchline/today/today-quiet-state";
+import { TodayDecisionWhy } from "@/components/touchline/today/today-decision-why";
+import type { PlanIntegritySignal } from "@/lib/selection/compute-plan-integrity";
+import type { AssistantWorkItem } from "@/lib/assistant/types";
+
+/** ADR-0157 §6 "At most two secondary items that are also actionable now" — a bounded,
+ * priority-preserving cap across the three existing secondary sources (selection decisions,
+ * planning attention, other attention), never a new ranking: each source keeps its own current
+ * relative order, and the cap is a plain `slice`, not a re-sort. */
+const MAX_DECISION_DAY_SECONDARY_ITEMS = 2;
+
+type SecondaryCandidate =
+  | { kind: "SELECTION"; item: TodaySelectionDecision }
+  | { kind: "PLANNING"; item: PlanIntegritySignal }
+  | { kind: "OTHER"; item: AssistantWorkItem };
+
+function capSecondaryItems(
+  selection: TodaySelectionDecision[],
+  planning: PlanIntegritySignal[],
+  other: AssistantWorkItem[],
+): { selection: TodaySelectionDecision[]; planning: PlanIntegritySignal[]; other: AssistantWorkItem[] } {
+  const candidates: SecondaryCandidate[] = [
+    ...selection.map((item): SecondaryCandidate => ({ kind: "SELECTION", item })),
+    ...planning.map((item): SecondaryCandidate => ({ kind: "PLANNING", item })),
+    ...other.map((item): SecondaryCandidate => ({ kind: "OTHER", item })),
+  ].slice(0, MAX_DECISION_DAY_SECONDARY_ITEMS);
+
+  return {
+    selection: candidates.filter((c): c is { kind: "SELECTION"; item: TodaySelectionDecision } => c.kind === "SELECTION").map((c) => c.item),
+    planning: candidates.filter((c): c is { kind: "PLANNING"; item: PlanIntegritySignal } => c.kind === "PLANNING").map((c) => c.item),
+    other: candidates.filter((c): c is { kind: "OTHER"; item: AssistantWorkItem } => c.kind === "OTHER").map((c) => c.item),
+  };
+}
 
 function isActionable(item: AssistantCommandCentre["items"][number]): boolean {
   return item.category !== "upcoming_round";
@@ -65,6 +117,7 @@ export function TodaySurface({
   sinceLastVisitFacts,
   carryForwardItems,
   matchdayContext,
+  upcomingMatches,
 }: {
   commandCentre: AssistantCommandCentre;
   projection?: CoachSituationProjection;
@@ -82,6 +135,8 @@ export function TodaySurface({
   /** The one deterministically featured same-day match and its readiness (ADR-0143) — null
    * when Live Now already owns the anchor, or there is no eligible same-day match at all. */
   matchdayContext?: TodayMatchdayContext;
+  /** Bounded, forward-looking (ADR-0157 §6) — feeds the quiet-day "This week" chronology only. */
+  upcomingMatches?: MatchPresentation[];
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -169,6 +224,18 @@ export function TodaySurface({
       (recentMatches && recentMatches.length > 0),
   );
 
+  const compositionState = selectTodayComposition(primaryAction, commandCentre.dueDecisionReviews.length > 0);
+  const cappedSecondary = capSecondaryItems(remainingSelectionDecisions, planningAttentionSignals, otherAttentionItems);
+  const weekChronologyItems = selectTodayWeekChronologyItems({
+    upcomingMatches: upcomingMatches ?? [],
+    dueDecisionReviews: commandCentre.dueDecisionReviews,
+  });
+  const decisionWhyContent = buildTodayDecisionWhyContent(primaryAction);
+  const quietHero =
+    projection?.status === "LIVE"
+      ? { title: "Nothing else needs your attention right now.", description: "Follow the live match above, or open Fixtures to plan ahead." }
+      : { title: "Nothing needs your attention.", description: "Upcoming rounds are under control. Open Fixtures to plan ahead." };
+
   return (
     <div className="touchline relative isolate flex flex-col gap-6">
       <TodayAtmosphere />
@@ -199,51 +266,65 @@ export function TodaySurface({
 
         <div className={hasContextRailContent ? "grid grid-cols-1 gap-5 expanded:grid-cols-12" : ""}>
           <div className={hasContextRailContent ? "flex flex-col gap-5 expanded:col-span-9" : "flex flex-col gap-5"}>
-            <TodayNextAction
-              action={primaryAction}
-              status={projection?.status}
-              scope={sinceLastVisitScope ?? "default"}
-              displayDateKey={getDisplayDateKey()}
-              onApply={applyRecommendation}
-              roundBoardBaseHref={orgUrl("/rounds")}
-              orgUrl={orgUrl}
-            />
+            {compositionState === "QUIET" ? (
+              <TodayQuietState
+                heroTitle={quietHero.title}
+                heroDescription={quietHero.description}
+                showSquadReadiness={!matchdayContext}
+                squadStatus={squadStatus}
+                weekChronologyItems={weekChronologyItems}
+                carryForwardItems={carryForwardItems}
+              />
+            ) : (
+              <>
+                <div className="flex flex-col gap-0">
+                  <TodayNextAction
+                    action={primaryAction}
+                    status={projection?.status}
+                    scope={sinceLastVisitScope ?? "default"}
+                    displayDateKey={getDisplayDateKey()}
+                    onApply={applyRecommendation}
+                    roundBoardBaseHref={orgUrl("/rounds")}
+                    orgUrl={orgUrl}
+                  />
+                  <TodayDecisionWhy content={decisionWhyContent} />
+                </div>
 
-            <TodaySelectionDecisions
-              decisions={remainingSelectionDecisions}
-              scope={sinceLastVisitScope ?? "default"}
-              displayDateKey={getDisplayDateKey()}
-              onApply={applyRecommendation}
-              roundBoardBaseHref={orgUrl("/rounds")}
-            />
+                <TodaySelectionDecisions
+                  decisions={cappedSecondary.selection}
+                  scope={sinceLastVisitScope ?? "default"}
+                  displayDateKey={getDisplayDateKey()}
+                  onApply={applyRecommendation}
+                  roundBoardBaseHref={orgUrl("/rounds")}
+                />
 
-            <TodayPlanningAttention signals={planningAttentionSignals} orgUrl={orgUrl} />
+                <TodayPlanningAttention signals={cappedSecondary.planning} orgUrl={orgUrl} />
 
-            <TodayOtherAttention items={otherAttentionItems} />
+                <TodayOtherAttention items={cappedSecondary.other} />
 
-            <TodayOperationalTimeline
-              matches={commandCentre.todayMatches}
-              orgUrl={orgUrl}
-              excludedMatchId={timelineExcludedMatchId}
-            />
+                <TodayOperationalTimeline
+                  matches={commandCentre.todayMatches}
+                  orgUrl={orgUrl}
+                  excludedMatchId={timelineExcludedMatchId}
+                />
 
-            <DueDecisionReviewSection reviews={commandCentre.dueDecisionReviews} />
+                <DueDecisionReviewSection reviews={commandCentre.dueDecisionReviews} />
 
-            {reviewCount > 0 && (
-              <div className="flex items-center justify-end">
-                <TouchlineButton
-                  as={Link}
-                  href={orgUrl("/reviews")}
-                  variant="ghost"
-                  size="sm"
-                  trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
-                >
-                  View peer reviews
-                </TouchlineButton>
-              </div>
+                {reviewCount > 0 && (
+                  <div className="flex items-center justify-end">
+                    <TouchlineButton
+                      as={Link}
+                      href={orgUrl("/reviews")}
+                      variant="ghost"
+                      size="sm"
+                      trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
+                    >
+                      View peer reviews
+                    </TouchlineButton>
+                  </div>
+                )}
+              </>
             )}
-
-            <InstallPwaCard dismissible />
           </div>
 
           {hasContextRailContent && (

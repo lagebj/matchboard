@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 /**
  * Browser-level PWA installability regression coverage (ADR-0123).
@@ -164,7 +164,12 @@ test.describe("standalone launch & start_url", () => {
   test("the install card renders actionable guidance on a phone viewport (browser owns install)", async ({
     browser,
   }) => {
-    // Pixel 7-ish viewport + touch; keep the project's auth so /today renders the card.
+    // Pixel 7-ish viewport + touch; keep the project's auth.
+    //
+    // ADR-0157 §6 "Today convergence" moved InstallPwaCard out of Today's normal composition
+    // (it must not compete with coach decisions) -- it remains reachable unchanged via /more,
+    // which still exists and renders it during this programme's staged migration. This test
+    // follows that move rather than asserting a location the card no longer occupies.
     const ctx = await browser.newContext({
       storageState: "e2e/.auth/coach.json",
       viewport: { width: 412, height: 915 },
@@ -174,7 +179,7 @@ test.describe("standalone launch & start_url", () => {
         "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
     });
     const page = await ctx.newPage();
-    await gotoToday(page);
+    await page.goto("/more");
 
     const card = page.getByText("Install Matchboard", { exact: true });
     await expect(card).toBeVisible();
@@ -183,8 +188,3 @@ test.describe("standalone launch & start_url", () => {
     await ctx.close();
   });
 });
-
-async function gotoToday(page: Page): Promise<void> {
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/today/);
-}
