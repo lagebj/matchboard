@@ -9,6 +9,7 @@ import type { PlayerOverviewViewModelInput, PlayerRecentMatchRow } from "./playe
 import type { PlayerMatchesViewModelInput } from "./player-matches-view-model";
 import type { PlayerDevelopmentViewModelInput } from "./player-development-view-model";
 import type { PlayerEvidenceStoryData } from "./player-evidence-view-model";
+import type { PlayerDevelopmentContextSummary } from "@/lib/development-context/get-player-development-context-summary";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { formatShortDate } from "@/lib/date-utils";
 
@@ -252,7 +253,87 @@ export type PlayerEvidenceSource = {
   recentOpportunity: PlayerRecentOpportunity | null;
   profile: EffectivePlayerPositionProfile;
   matchHistory: PlayerMatchHistoryEntry[];
+  /** `null` when the player has no development-context measurements yet (ADR-0155). */
+  developmentContext: PlayerDevelopmentContextSummary | null;
 };
+
+function formatMinutes(seconds: number): string {
+  return `${Math.round(seconds / 60)} min`;
+}
+
+/**
+ * ADR-0155: role exposure split by game state (leading/drawing/trailing). UNKNOWN time is its
+ * own named entry, never folded into a known state -- the one binding rule this story cannot
+ * violate even in its display text.
+ */
+function buildGameStateStory(context: PlayerDevelopmentContextSummary | null): PlayerEvidenceStoryData {
+  const breakdown = context?.gameStateBreakdown ?? [];
+  const known = breakdown.filter((entry) => entry.gameState !== "UNKNOWN").sort((a, b) => b.seconds - a.seconds);
+  const unknown = breakdown.find((entry) => entry.gameState === "UNKNOWN");
+
+  if (known.length === 0) {
+    return {
+      id: "development-context-game-state",
+      group: "MATCH_CONTEXT",
+      question: "How much of this player's recorded time came while leading, drawing, or trailing?",
+      title: "No recorded role time with a known game state yet",
+      sample: `${context?.matchesWithRoleData ?? 0} match(es) with recorded role data`,
+      confidence: null,
+      interpretation: "Recorded exposure by game state appears once the player has a completed match with recorded position and score data.",
+    };
+  }
+
+  const top = known[0]!;
+  const others = known.slice(1).map((entry) => `${formatMinutes(entry.seconds)} ${entry.gameState}`);
+  const matchCount = context!.matchesWithRoleData;
+
+  return {
+    id: "development-context-game-state",
+    group: "MATCH_CONTEXT",
+    question: "How much of this player's recorded time came while leading, drawing, or trailing?",
+    title: `Most recorded minutes came while ${top.gameState}`,
+    value: formatMinutes(top.seconds),
+    valueCaption: `minutes recorded while ${top.gameState}`,
+    sample: `${matchCount} match${matchCount === 1 ? "" : "es"} with recorded role data`,
+    confidence: matchCount >= 6 ? "Established" : matchCount >= 3 ? "Emerging" : null,
+    interpretation: [
+      others.length > 0 ? `Also: ${others.join(", ")}.` : null,
+      unknown ? `${formatMinutes(unknown.seconds)} recorded with an unknown game state -- never redistributed into a known one.` : null,
+      "Exposure only, not a performance or impact score.",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
+/** ADR-0155: shared on-pitch seconds, exposure only -- never a chemistry/partnership-quality score. */
+function buildCoPresenceStory(context: PlayerDevelopmentContextSummary | null): PlayerEvidenceStoryData {
+  const partner = context?.topCoPresencePartner;
+  if (!partner) {
+    return {
+      id: "development-context-copresence",
+      group: "MATCH_CONTEXT",
+      question: "Which teammate has this player shared the most recorded pitch time with?",
+      title: "No shared on-pitch time recorded yet",
+      sample: `${context?.matchesWithRoleData ?? 0} match(es) with recorded role data`,
+      confidence: null,
+      interpretation: "Co-presence appears once the player has shared a completed match's pitch time with at least one teammate.",
+    };
+  }
+
+  const matchCount = context!.matchesWithRoleData;
+  return {
+    id: "development-context-copresence",
+    group: "MATCH_CONTEXT",
+    question: "Which teammate has this player shared the most recorded pitch time with?",
+    title: `Most shared time with ${partner.teammateName}`,
+    value: formatMinutes(partner.sharedSeconds),
+    valueCaption: "minutes on pitch together",
+    sample: `${matchCount} match${matchCount === 1 ? "" : "es"} with recorded role data`,
+    confidence: matchCount >= 6 ? "Established" : matchCount >= 3 ? "Emerging" : null,
+    interpretation: "Shared on-pitch time only -- not a chemistry, compatibility, or partnership-quality score.",
+  };
+}
 
 /**
  * Evidence tab stories (contract §7): Opportunity / Position / Match context, built from the
@@ -344,6 +425,9 @@ export function buildEvidenceStories(source: PlayerEvidenceSource): PlayerEviden
         ? "Phase patterns are computed per team-season, not per player, and stay on the team's insights surface."
         : "More completed matches are needed before a phase pattern can be shown.",
   });
+
+  stories.push(buildGameStateStory(source.developmentContext));
+  stories.push(buildCoPresenceStory(source.developmentContext));
 
   return stories;
 }

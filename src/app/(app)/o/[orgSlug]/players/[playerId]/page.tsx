@@ -5,6 +5,7 @@ import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getPlayerAllTimeStats } from "@/lib/selection/effective-participation";
 import { getPlayerRecentOpportunity } from "@/lib/players/get-player-recent-opportunity";
 import { getPlayerMatchHistory } from "@/lib/players/get-player-match-history";
+import { getPlayerDevelopmentContextSummary } from "@/lib/development-context/get-player-development-context-summary";
 import { getEffectivePlayerPositionProfileForPlayer } from "@/lib/player-development/get-effective-position-profile";
 import { availabilityOptions, preferredFootOptions, secondaryFootOptions, bestSideOptions, goalkeeperAbilityOptions } from "@/lib/player-form-options";
 import { playerPositionOptions, optionalPlayerPositionOptions } from "@/lib/player-form-options";
@@ -449,14 +450,15 @@ async function EvidenceTab({
   profile: PositionProfile;
 }) {
   establishTabTenantContext(orgFilter);
-  const [seasonStats, recentOpportunity, matchHistory] = await Promise.all([
+  const [seasonStats, recentOpportunity, matchHistory, developmentContext] = await Promise.all([
     getPlayerAllTimeStats(playerId),
     getPlayerRecentOpportunity(playerId),
     getPlayerMatchHistory(playerId, orgFilter),
+    getPlayerDevelopmentContextSummary(playerId),
   ]);
 
   const vm = buildPlayerEvidenceViewModel({
-    stories: buildEvidenceStories({ playerId, orgSlug, seasonStats, recentOpportunity, profile, matchHistory }),
+    stories: buildEvidenceStories({ playerId, orgSlug, seasonStats, recentOpportunity, profile, matchHistory, developmentContext }),
   });
 
   return (
