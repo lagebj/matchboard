@@ -146,3 +146,24 @@ export type RoundBoardPlayerAssignmentContext = {
   attentionSummary: string | null;
   suggestions: RoundBoardAssignmentSuggestion[];
 };
+
+/**
+ * Round Board rail "Development" mode (ADR-0157 §6 "Round Board contextual rail",
+ * `06_ROUND_BOARD.md`): context only for the currently-selected player — "It must not make an
+ * otherwise-ineligible move valid." Every field is a pass-through of an already-canonical source
+ * (the evolving player-position model, `DevelopmentThread.category`) — never a new derivation.
+ */
+export type RoundBoardEffectivePosition = {
+  positionId: string;
+  supportBand: "LIMITED" | "ESTABLISHED" | "STRONG" | "STRONGEST";
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  appearances: number;
+  minutes: number | null;
+};
+
+export type RoundBoardDevelopmentContext = {
+  playerId: string;
+  displayName: string;
+  activeFocusCategories: string[];
+  effectivePositions: RoundBoardEffectivePosition[];
+};

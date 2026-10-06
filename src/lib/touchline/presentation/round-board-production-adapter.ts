@@ -7,6 +7,8 @@ import type {
   RoundStatus,
   RoundBoardPlayerAssignmentContext,
   RoundBoardAssignmentSuggestion,
+  RoundBoardDevelopmentContext,
+  RoundBoardEffectivePosition,
 } from "@/lib/touchline/presentation/round-board-view-model";
 import type { AllocationMatrixColumn, AllocationMatrixRow } from "@/components/touchline/round-board/allocation-matrix";
 
@@ -247,4 +249,50 @@ export function buildAllocationMatrix(
   rows.sort((a, b) => (a.status === b.status ? a.displayName.localeCompare(b.displayName) : a.status === "NEEDS_ASSIGNMENT" ? -1 : 1));
 
   return { columns, rows };
+}
+
+/**
+ * Round Board rail "Insights" mode ordering (`06_ROUND_BOARD.md`: "When a player is selected,
+ * prioritize insight rows that involve that player or the destination being considered."). A
+ * stable sort — severity (BLOCKED before DECISION_REQUIRED) first, then the selected player's own
+ * rows within each severity group — never a re-derivation of severity or a new ranking score.
+ */
+export function sortAttentionForSelection(
+  items: RoundBoardAttentionItem[],
+  selectedPlayerId: string | null,
+): RoundBoardAttentionItem[] {
+  const severityRank: Record<RoundBoardAttentionItem["severity"], number> = { BLOCKED: 0, DECISION_REQUIRED: 1 };
+  return [...items]
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const severityDiff = severityRank[a.item.severity] - severityRank[b.item.severity];
+      if (severityDiff !== 0) return severityDiff;
+      if (selectedPlayerId) {
+        const aMatches = a.item.playerId === selectedPlayerId ? 0 : 1;
+        const bMatches = b.item.playerId === selectedPlayerId ? 0 : 1;
+        if (aMatches !== bMatches) return aMatches - bMatches;
+      }
+      return a.index - b.index; // stable tiebreak — preserve original (upstream) order otherwise.
+    })
+    .map(({ item }) => item);
+}
+
+/**
+ * Round Board rail "Development" mode (`06_ROUND_BOARD.md`): context only for the
+ * currently-selected player, built from the evolving player-position model's already-computed
+ * profile and the player's already-recorded active `DevelopmentThread` categories. Every reason
+ * is a pass-through fact, never an invented recommendation — this never produces an action.
+ */
+export function buildRoundBoardDevelopmentContext(params: {
+  playerId: string;
+  displayName: string;
+  activeFocusCategories: string[];
+  effectivePositions: RoundBoardEffectivePosition[];
+}): RoundBoardDevelopmentContext {
+  return {
+    playerId: params.playerId,
+    displayName: params.displayName,
+    activeFocusCategories: params.activeFocusCategories,
+    effectivePositions: params.effectivePositions,
+  };
 }
