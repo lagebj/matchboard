@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import { buildMatchContextPack } from "./context-pack";
+import { recomputePlayerTrends } from "./recompute-player-trends";
 
 /**
  * Persistence for the match derivation service (ADR-0155 step B3). "Replace current derived
@@ -26,13 +27,15 @@ async function resolveOrganisationId(ref: FootballMatchRef): Promise<string | nu
 }
 
 /**
- * Recomputes and replaces every `DerivedMeasurement` row for one match. A no-op (no delete, no
- * insert) when the match ref itself cannot be resolved -- distinct from "resolved but zero
- * eligible measurements", which legitimately clears any stale rows down to none.
+ * Recomputes and replaces every `DerivedMeasurement` row for one match, then recomputes trends
+ * (ADR-0155 step B6) for every player this match affected -- bundle §05's "recompute downstream
+ * trends affected by the match". A no-op (no delete, no insert, no trend recompute) when the
+ * match ref itself cannot be resolved -- distinct from "resolved but zero eligible
+ * measurements", which legitimately clears any stale rows down to none.
  */
-export async function persistMatchContextPack(ref: FootballMatchRef): Promise<{ measurementsWritten: number }> {
+export async function persistMatchContextPack(ref: FootballMatchRef): Promise<{ measurementsWritten: number; trendsWritten: number }> {
   const organisationId = await resolveOrganisationId(ref);
-  if (!organisationId) return { measurementsWritten: 0 };
+  if (!organisationId) return { measurementsWritten: 0, trendsWritten: 0 };
 
   const drafts = await buildMatchContextPack(ref);
   const matchId = ref.kind === "LEAGUE_MATCH" ? ref.matchId : null;
@@ -73,5 +76,12 @@ export async function persistMatchContextPack(ref: FootballMatchRef): Promise<{ 
     }
   });
 
-  return { measurementsWritten: drafts.length };
+  const affectedPlayerIds = [...new Set(drafts.map((draft) => draft.playerId))];
+  let trendsWritten = 0;
+  for (const playerId of affectedPlayerIds) {
+    const outcome = await recomputePlayerTrends(playerId, organisationId);
+    trendsWritten += outcome.trendsWritten;
+  }
+
+  return { measurementsWritten: drafts.length, trendsWritten };
 }
