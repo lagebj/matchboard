@@ -93,4 +93,27 @@ describe("TeamPatternsTab", () => {
     renderWithOrg(<TeamPatternsTab data={baseData({ rhythm: [view()], hasApproximateTiming: true })} />);
     expect(screen.getByText("Some timing is approximate.")).toBeTruthy();
   });
+
+  it("renders up to 2 weekly-excerpt insights with a link to Team Review, and omits the block entirely when there is none", () => {
+    const { rerender } = renderWithOrg(
+      <TeamPatternsTab
+        data={baseData({
+          rhythm: [view()],
+          weeklyExcerpt: {
+            reviewHref: "/o/test-org/teams/t1/review",
+            insights: [
+              { title: "Recent matches partly reinforce the season's late-defending pattern", body: "The last two reports both mention recovery positioning late in the match." },
+            ],
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Assistant Coach · Latest weekly review")).toBeTruthy();
+    expect(screen.getByText("Recent matches partly reinforce the season's late-defending pattern")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /open team review/i });
+    expect(link.getAttribute("href")).toBe("/o/test-org/teams/t1/review");
+
+    rerender(<OrgSlugProvider orgSlug="test-org"><TeamPatternsTab data={baseData({ rhythm: [view()], weeklyExcerpt: null })} /></OrgSlugProvider>);
+    expect(screen.queryByText("Assistant Coach · Latest weekly review")).toBeNull();
+  });
 });

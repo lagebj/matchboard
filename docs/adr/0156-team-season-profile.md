@@ -199,3 +199,19 @@ Delivered incrementally, one branch/PR per slice, sequentially:
   `combination-aggregation.ts`, and the ADR-0152 qualitative-evidence service already cover the
   hard derivation work the bundle describes — reflected in "What already exists and must not be
   re-derived" above. Slice 0 (this ADR + contracts + schema) delivered in the same change.
+
+- 2026-10-06 (Slice 7, convergence): all eight slices (0-7) delivered, one branch/PR each,
+  sequentially (#749-#756). The optional "latest weekly Assistant Coach excerpt" card
+  (ADR-0156 §06 §7) is wired in Team Detail's Patterns tab, reading up to two
+  `RECURRING_PATTERN`/`NEXT_FOCUS` insights from the most recent successful
+  `WEEKLY_TEAM_REVIEW` for the team — never generating one. No duplicate "Patterns" terminology
+  or competing pattern-display surface exists elsewhere in the app (`terminology:check` and a
+  direct search both clean). No dedicated Playwright spec exists for Team Detail or Teams
+  overview in this repository today (confirmed by inspection — `e2e/` has no such spec; the one
+  existing spec that navigates to `/teams` at all, `authz-failure.spec.ts`, exercises role-gate
+  behaviour this programme never touched); this was not independently bootstrapped against a
+  local dev server for this slice given the scope already covered by unit/component/integration
+  tests and eight green CI `Build` runs (which run a real `next build` over every changed server
+  component) — disclosed rather than silently skipped. Mobile/light-dark correctness relies on
+  the same Tailwind responsive classes and CSS custom-property tokens every other Touchline
+  surface in this codebase already uses, not an independently captured screenshot.

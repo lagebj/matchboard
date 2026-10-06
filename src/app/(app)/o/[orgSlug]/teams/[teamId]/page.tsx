@@ -123,6 +123,27 @@ export default async function TeamDetailPage({ params, searchParams }: TeamPageP
   const strongestPatterns = rankedPatterns.filter((p) => strongestKeys.has(p.key)).map((p) => patternViewByKey.get(p.key)!);
   const familyPatterns = (family: string) => rankedPatterns.filter((p) => p.family === family).map((p) => patternViewByKey.get(p.key)!);
 
+  // ADR-0156 §06 §7 / Slice 7: optional latest weekly Assistant Coach excerpt. Reads an already-
+  // completed review only -- never generates one for this page load (opening Patterns never
+  // calls an AI provider).
+  const latestWeeklyReview = await db.aiAdvisorReview.findFirst({
+    where: { organisationId: ctx.organisationId, capability: "WEEKLY_TEAM_REVIEW", scopeType: "TEAM_WEEK", scopeId: { startsWith: `${team.id}:` }, status: "SUCCEEDED" },
+    orderBy: { completedAt: "desc" },
+    select: { id: true },
+  });
+  let weeklyExcerpt: { reviewHref: string; insights: Array<{ title: string; body: string }> } | null = null;
+  if (latestWeeklyReview) {
+    const weeklyInsights = await db.aiAdvisorInsight.findMany({
+      where: { organisationId: ctx.organisationId, reviewId: latestWeeklyReview.id, state: "ACTIVE", analysisRole: { in: ["RECURRING_PATTERN", "NEXT_FOCUS"] } },
+      orderBy: { createdAt: "desc" },
+      take: 2,
+      select: { title: true, body: true },
+    });
+    if (weeklyInsights.length > 0) {
+      weeklyExcerpt = { reviewHref: `/o/${orgSlug}/teams/${team.id}/review`, insights: weeklyInsights };
+    }
+  }
+
   const seasonLabel = selectedLeagueSeason
     ? formatPhaseDisplay({
         seasonName: selectedLeagueSeason.name,
@@ -476,9 +497,7 @@ export default async function TeamDetailPage({ params, searchParams }: TeamPageP
       themes: familyPatterns("TACTICAL_THEME"),
       playerContributions: familyPatterns("PLAYER_CONTRIBUTION"),
       combinations: familyPatterns("COMBINATION"),
-      // Slice 7 (ADR-0156 §10): optional latest weekly Assistant Coach excerpt/link. Not wired
-      // in this slice -- "no Assistant Coach changes yet" per the implementation sequence.
-      weeklyExcerpt: null,
+      weeklyExcerpt,
     },
     sentAsSupportCount: sentAsSupport.length,
     receivedSupportCount: receivedPlayers.filter((p) => p.role === "SUPPORT").length,
