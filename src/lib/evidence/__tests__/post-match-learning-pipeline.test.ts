@@ -705,9 +705,16 @@ describe("Canonical post-match learning pipeline (ADR-0104)", () => {
     expect(run!.overallOutcome).toBe(summariseLearningOutcome(result));
     expect(run!.steps).toEqual(result);
 
-    // Re-running learning (e.g. a report re-completion/replay) replaces rather than duplicates
-    // DerivedMeasurement rows (ADR-0155 step B3's "replace current derived materialization").
-    await runPostMatchLearning(ref, orgFilter);
+    // Re-running learning via the real trigger a post-match correction uses --
+    // replayPostMatchLearningHistory() (the "Rebuild Evidence" admin action's own engine) always
+    // calls runPostMatchLearning with trigger "REPLAY", never the default -- replaces rather
+    // than duplicates DerivedMeasurement rows (ADR-0155 step B3's "replace current derived
+    // materialization"). This is the concrete mechanism behind ADR-0155's mutation-behaviour
+    // requirement ("position/event/score/timing changes rebuild timeline-dependent metrics"):
+    // there is no bespoke per-mutation-type auto-trigger for development-context specifically --
+    // it rides the same existing replay path every other evidence type in this engine already
+    // relies on for post-correction recompute.
+    await runPostMatchLearning(ref, orgFilter, "REPLAY");
     const measurementsAfterRerun = await testDb.derivedMeasurement.findMany({ where: { matchId } });
     expect(measurementsAfterRerun.length).toBe(measurements.length);
   });
