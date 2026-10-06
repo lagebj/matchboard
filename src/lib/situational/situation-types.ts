@@ -6,6 +6,8 @@
  * parallel sources of truth. `SituationContext` is derived fresh on every read.
  */
 
+import type { DecisionEvidenceSupport } from "./evidence-support";
+
 export type CoachingSituation = "MATCHDAY" | "NEXT" | "LONG_TERM";
 
 export type SituationRouteIntent =
@@ -107,6 +109,9 @@ export type CoachDecisionCandidate = {
   /** True when the candidate's own trade-offs are non-trivial enough that a coach should be
    * routed to a deep workspace rather than offered a single confirm/choose action. */
   requiresReview?: boolean;
+  /** ADR-0157 §4 — optional presentation metadata only. Never read by the situation policy as
+   * ranking input; propagated unchanged to the resulting `CoachDecision`. */
+  evidenceSupport?: DecisionEvidenceSupport;
 };
 
 export function assertCoachDecisionCandidate(
@@ -160,6 +165,8 @@ export type CoachDecision = {
   deadlineAt?: string;
   deepLink?: string;
   reasonCodes: string[];
+  /** ADR-0157 §4 — carried unchanged from the originating `CoachDecisionCandidate`. */
+  evidenceSupport?: DecisionEvidenceSupport;
 };
 
 export type CoachSituationProjectionStatus = "ACTION_REQUIRED" | "READY" | "LIVE" | "REVIEW_AVAILABLE";
