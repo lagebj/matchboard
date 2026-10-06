@@ -37,6 +37,7 @@ const CATEGORY_BY_FACT_TYPE: Record<MatchInsightFactType, MatchInsightCategory> 
   ROTATION_CONTEXT: "CURRENT_PLAN",
   MATCH_AVAILABILITY: "CURRENT_PLAN",
   MATCH_DAY_ADDITION: "CURRENT_PLAN",
+  EFFECTIVE_POSITION_EVIDENCE: "POSITION",
 };
 
 export function categoryForFactType(type: MatchInsightFactType): MatchInsightCategory {
@@ -65,6 +66,7 @@ const FACT_TYPE_BY_SLUG: Record<string, MatchInsightFactType> = {
   "rotation-context": "ROTATION_CONTEXT",
   "match-availability": "MATCH_AVAILABILITY",
   "match-day-addition": "MATCH_DAY_ADDITION",
+  "effective-position-evidence": "EFFECTIVE_POSITION_EVIDENCE",
 };
 
 /** Category for an insight identified only by the evidence refs it cites — the path a future AI
