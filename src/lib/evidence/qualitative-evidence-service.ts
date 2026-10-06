@@ -124,7 +124,20 @@ export async function recordDeterministicExtraction(
     return run.id;
   }
 
-  const runId = client ? await write(client) : await db.$transaction((tx) => write(tx));
+  if (client) {
+    const runId = await write(client);
+    return { status: "RECORDED", runId, observationCount: input.observations.length };
+  }
+
+  const runId = await db.$transaction((tx) => write(tx));
+
+  // ADR-0156 §6 best-effort eager refresh, fired only once this function's own transaction has
+  // committed (not when `client` was supplied -- that transaction is caller-owned and may not
+  // have committed yet, which would make a refresh read stale data). Deterministic, no AI call,
+  // and already swallows its own failures.
+  const { refreshTeamSeasonProfileBestEffort } = await import("@/lib/team-season-profile/service");
+  await refreshTeamSeasonProfileBestEffort(input.subject.matchId, input.organisationId);
+
   return { status: "RECORDED", runId, observationCount: input.observations.length };
 }
 
