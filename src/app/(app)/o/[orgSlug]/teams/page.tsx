@@ -16,6 +16,11 @@ import { Download } from "lucide-react";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { computeRoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import { countUnresolvedPlanningAttention } from "@/lib/teams/aggregate-team-attention";
+import { getTeamSeasonProfiles } from "@/lib/team-season-profile/service";
+import { rankPatterns, selectTopPatternKeys } from "@/lib/team-season-profile/build-profile";
+import { presentChip, type PatternChipViewModel } from "@/lib/team-season-profile/presentation";
+import { TeamPatternChips } from "@/components/teams/team-pattern-chips";
+import { formatPlayerName } from "@/lib/player-metrics";
 
 type TeamsPageProps = {
   searchParams: Promise<{
@@ -37,7 +42,7 @@ function formatGd(gd: number): string {
   return `${gd}`;
 }
 
-function TeamResultsRow({ row, orgSlug, attentionCount }: { row: TeamPeriodResultsRow; orgSlug: string; attentionCount: number }) {
+function TeamResultsRow({ row, orgSlug, attentionCount, patternChips }: { row: TeamPeriodResultsRow; orgSlug: string; attentionCount: number; patternChips: PatternChipViewModel[] }) {
   return (
     <tr className="hover:bg-[var(--surface-hover)] transition-colors">
       <td className="px-4 py-2.5">
@@ -58,6 +63,9 @@ function TeamResultsRow({ row, orgSlug, attentionCount }: { row: TeamPeriodResul
       </td>
       <td className="px-3 py-2.5 text-right text-[var(--text-soft)] tabular-nums">{row.cleanSheets}</td>
       <td className="px-3 py-2.5 text-right text-[var(--text-muted)] tabular-nums">{row.corePlayerCount}</td>
+      <td className="px-3 py-2.5">
+        <TeamPatternChips chips={patternChips} />
+      </td>
       <td className={`px-3 py-2.5 text-right tabular-nums ${attentionCount > 0 ? "text-[var(--warning)]" : "text-[var(--text-muted)]"}`}>
         {attentionCount > 0 ? attentionCount : "—"}
       </td>
@@ -65,7 +73,7 @@ function TeamResultsRow({ row, orgSlug, attentionCount }: { row: TeamPeriodResul
   );
 }
 
-function MobileTeamCard({ row, orgSlug, attentionCount }: { row: TeamPeriodResultsRow; orgSlug: string; attentionCount: number }) {
+function MobileTeamCard({ row, orgSlug, attentionCount, patternChips }: { row: TeamPeriodResultsRow; orgSlug: string; attentionCount: number; patternChips: PatternChipViewModel[] }) {
   return (
     <Surface variant="default" padding="sm">
       <div className="flex items-center justify-between">
@@ -85,6 +93,11 @@ function MobileTeamCard({ row, orgSlug, attentionCount }: { row: TeamPeriodResul
         </span>
         <span className="text-[10px] text-[var(--text-muted)]">Clean sheets {row.cleanSheets}</span>
       </div>
+      {patternChips.length > 0 && (
+        <div className="mt-1.5">
+          <TeamPatternChips chips={patternChips} />
+        </div>
+      )}
       {attentionCount > 0 && (
         <div className="mt-1 text-[10px] text-[var(--warning)]">{attentionCount} needs attention</div>
       )}
@@ -141,6 +154,34 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
     });
     const counts = countUnresolvedPlanningAttention(teamIds, allSignals, activeFocuses);
     for (const [teamId, count] of counts) attentionByTeamId.set(teamId, count);
+  }
+
+  // ADR-0156 §08: compact, deterministic pattern chips for the exact same selected period.
+  // Batched (concurrency-capped inside getTeamSeasonProfiles) rather than one profile build per
+  // row; never calls an AI provider.
+  const chipsByTeamId = new Map<string, PatternChipViewModel[]>();
+  if (overview && overview.rows.length > 0 && selectedPeriodId) {
+    const profiles = await getTeamSeasonProfiles({
+      organisationId: ctx.organisationId,
+      teamIds: overview.rows.map((r) => r.teamId),
+      leagueSeasonId: selectedPeriodId,
+      orgFilter: ctx.orgFilter,
+    });
+
+    const rankedByTeamId = new Map(
+      [...profiles.entries()].map(([teamId, profile]) => [teamId, rankPatterns(profile.patterns)] as const),
+    );
+    const referencedPlayerIds = [...new Set([...rankedByTeamId.values()].flatMap((patterns) => patterns.flatMap((p) => p.subjects.playerIds ?? [])))];
+    const referencedPlayers = referencedPlayerIds.length > 0
+      ? await db.player.findMany({ where: { id: { in: referencedPlayerIds }, ...ctx.orgFilter.filter }, select: { id: true, firstName: true, lastName: true } })
+      : [];
+    const playerNameById = new Map(referencedPlayers.map((p) => [p.id, formatPlayerName(p)]));
+    const playerName = (id: string) => playerNameById.get(id) ?? id;
+
+    for (const [teamId, ranked] of rankedByTeamId) {
+      const topKeys = new Set(selectTopPatternKeys(ranked, 2, true));
+      chipsByTeamId.set(teamId, ranked.filter((p) => topKeys.has(p.key)).map((p) => presentChip(p, playerName)));
+    }
   }
 
   const selectedPeriod = selectedPeriodId
@@ -227,19 +268,20 @@ export default async function TeamsPage({ params, searchParams }: { params: Prom
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">GD</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Clean sheets</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Core players</th>
+                  <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Patterns</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Attention</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-soft)]">
                 {overview.rows.map((row) => (
-                  <TeamResultsRow key={row.teamId} row={row} orgSlug={orgSlug} attentionCount={attentionByTeamId.get(row.teamId) ?? 0} />
+                  <TeamResultsRow key={row.teamId} row={row} orgSlug={orgSlug} attentionCount={attentionByTeamId.get(row.teamId) ?? 0} patternChips={chipsByTeamId.get(row.teamId) ?? []} />
                 ))}
               </tbody>
             </table>
           </div>
           <div className="flex flex-col gap-2 sm:hidden">
             {overview.rows.map((row) => (
-              <MobileTeamCard key={row.teamId} row={row} orgSlug={orgSlug} attentionCount={attentionByTeamId.get(row.teamId) ?? 0} />
+              <MobileTeamCard key={row.teamId} row={row} orgSlug={orgSlug} attentionCount={attentionByTeamId.get(row.teamId) ?? 0} patternChips={chipsByTeamId.get(row.teamId) ?? []} />
             ))}
           </div>
         </>

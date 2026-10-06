@@ -296,3 +296,25 @@ export function shortPatternLabel(pattern: TeamSeasonPattern): string {
 
   return pattern.subtype === "GOAL_CONTRIBUTION" ? "Goal contribution" : "Assist contribution";
 }
+
+export type PatternChipViewModel = {
+  key: string;
+  shortLabel: string;
+  evidenceSentence: string;
+  confidenceLabel: string;
+};
+
+/**
+ * Teams-overview chip: short label for the chip face, one evidence sentence for its hover/
+ * focus disclosure (§08 §2: "Hover/focus tooltip or accessible popover can show one evidence
+ * line"). Reuses `presentPattern()` for the sentence rather than building a second one.
+ */
+export function presentChip(pattern: TeamSeasonPattern, playerName: PlayerNameLookup = defaultPlayerName): PatternChipViewModel {
+  const full = presentPattern(pattern, playerName);
+  return {
+    key: pattern.key,
+    shortLabel: shortPatternLabel(pattern),
+    evidenceSentence: full.evidenceSentence,
+    confidenceLabel: full.confidenceLabel,
+  };
+}
