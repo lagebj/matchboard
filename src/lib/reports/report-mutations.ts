@@ -981,6 +981,13 @@ export async function completeReport(
       // leaves `learning` undefined.
     }
 
+    // ADR-0156 §6 best-effort eager refresh: canonical timeline/combination evidence has just
+    // been rebuilt above, so this is a good moment to refresh the Team Season Profile sooner
+    // than the next read would anyway detect via its own fingerprint check. Deterministic, no
+    // AI call, and `refreshTeamSeasonProfileBestEffort` already swallows its own failures.
+    const { refreshTeamSeasonProfileBestEffort } = await import("@/lib/team-season-profile/service");
+    await refreshTeamSeasonProfileBestEffort(report.matchId, report.organisationId);
+
     // AI Advisor's post_match_review domain trigger (07_EXECUTION_PIPELINE.md "Domain triggers":
     // "post-match report submitted -> post_match_review"). `triggerAiCapability` never throws
     // and never blocks report completion on its own.

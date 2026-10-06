@@ -332,6 +332,14 @@ async function processClaimedRun(run: ClaimedExtractionRow): Promise<"succeeded"
       { inputTokens: executeResult.inputTokens, outputTokens: executeResult.outputTokens, inputChars: source.text.length, outputChars: parsed.data.observations.reduce((n, o) => n + o.statement.length, 0) },
       { providerConnectionId: settings.activeConnectionId, provider: connection.provider, model },
     );
+
+    // ADR-0156 §6 best-effort eager refresh: new season-wide qualitative evidence just landed.
+    // `refreshTeamSeasonProfileBestEffort` resolves `source.matchId` to a League Match itself
+    // and silently no-ops when it isn't one (e.g. an Event source) -- never an AI call, never
+    // throws, never blocks this run from being marked succeeded.
+    const { refreshTeamSeasonProfileBestEffort } = await import("@/lib/team-season-profile/service");
+    await refreshTeamSeasonProfileBestEffort(source.matchId, run.organisationId);
+
     return "succeeded";
   });
 }
