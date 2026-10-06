@@ -81,7 +81,7 @@ async function executeReview(request: ProviderExecuteRequest): Promise<ProviderE
       system: request.instructions,
       messages: [{ role: "user", content: JSON.stringify(request.input) }],
       output_config: {
-        format: { type: "json_schema", schema: ADVISOR_RESPONSE_JSON_SCHEMA },
+        format: { type: "json_schema", schema: request.responseSchema ?? ADVISOR_RESPONSE_JSON_SCHEMA },
       },
     }),
   });

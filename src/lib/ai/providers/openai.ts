@@ -86,7 +86,7 @@ async function executeReview(request: ProviderExecuteRequest): Promise<ProviderE
         format: {
           type: "json_schema",
           name: "advisor_response",
-          schema: ADVISOR_RESPONSE_JSON_SCHEMA,
+          schema: request.responseSchema ?? ADVISOR_RESPONSE_JSON_SCHEMA,
           strict: true,
         },
       },

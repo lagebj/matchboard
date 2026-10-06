@@ -86,6 +86,20 @@ describe("ai/providers/ollama-cloud: executeReview — first attempt succeeds", 
     expect(body.messages[0].content).toContain("doctrine");
     expect(body.messages[0].content).toContain("JSON Schema");
   });
+
+  it("accepts a non-advisor-shaped response when a custom responseSchema is given, embedding that schema instead (ADR-0155 step B7)", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const hypothesesJson = { schemaVersion: "1.0", hypotheses: [] };
+    fetchMock.mockResolvedValue(fakeResponse({ json: { message: { content: JSON.stringify(hypothesesJson) } } }));
+
+    const customSchema = { type: "object", properties: { schemaVersion: { const: "1.0" } } };
+    const result = await ollamaCloudAdapter.executeReview({ ...request, responseSchema: customSchema });
+
+    expect(result).toMatchObject({ ok: true, raw: hypothesesJson });
+    expect(fetchMock).toHaveBeenCalledTimes(1); // no repair retry -- it was usable on the first attempt.
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.messages[0].content).toContain(JSON.stringify(customSchema));
+  });
 });
 
 describe("ai/providers/ollama-cloud: executeReview — repair retry", () => {

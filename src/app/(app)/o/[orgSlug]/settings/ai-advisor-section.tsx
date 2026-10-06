@@ -14,6 +14,7 @@ const CAPABILITY_LABELS: { key: keyof AiAdvisorSettingsSummary["capabilities"]; 
   { key: "POST_MATCH_REVIEW", title: "Post-match review", description: "Connect recorded match facts and evidence." },
   { key: "WEEKLY_TEAM_REVIEW", title: "Weekly team review", description: "Review completed-week opportunity patterns." },
   { key: "DEVELOPMENT_CYCLE_REVIEW", title: "Five-week learning cycle", description: "Longer development synthesis every five weeks." },
+  { key: "ASSISTANT_COACH", title: "Assistant Coach", description: "Player-scoped hypotheses from recorded role exposure, co-presence, and trends — never persisted until you confirm one." },
 ];
 
 /**

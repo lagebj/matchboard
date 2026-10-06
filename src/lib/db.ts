@@ -165,6 +165,9 @@ export const RLS_TABLES = new Set([
   // ADR-0155: Development-context-and-evidence.
   "derivedMeasurement",
   "derivedTrend",
+  // ADR-0155 step B7: Assistant Coach.
+  "assistantCoachRun",
+  "assistantCoachHypothesis",
 ]);
 
 const ORG_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;

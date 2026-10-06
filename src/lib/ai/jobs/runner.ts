@@ -21,7 +21,15 @@ import { computeSourceFingerprint } from "@/lib/ai/fingerprints";
 import { AI_ADVISOR_STABLE_DOCTRINE, AI_TERMINOLOGY_VERSION } from "@/lib/ai/terminology";
 import { REFMAP_PRESENT_FILTER } from "@/lib/ai/jobs/review-refmap";
 import { AI_CONTRACT_VERSION, toPrismaAiInsightKind, toPrismaAnalysisRole, type AnalysisRoleWire } from "@/lib/ai/contracts";
+import {
+  ASSISTANT_COACH_CONTRACT_VERSION,
+  ASSISTANT_COACH_HYPOTHESES_JSON_SCHEMA,
+  assistantCoachHypothesesResponseSchema,
+  type AssistantCoachHypothesisWire,
+} from "@/lib/ai/contracts";
 import { validateAdvisorResponse } from "@/lib/ai/response-validation";
+import { evidenceRefKey } from "@/lib/ai/context/assistant-coach";
+import type { AiProviderAdapter } from "@/lib/ai/providers/provider-adapter";
 
 /**
  * The AI job runner (07_EXECUTION_PIPELINE.md "Queue" — the 13-step worker-run sequence). Claims
@@ -181,6 +189,14 @@ async function processClaimedJob(job: ClaimedJobRow): Promise<"succeeded" | "fai
     // sourceFingerprint) keeps the persisted review honest about exactly what it reviewed.
     const currentFingerprint = computeSourceFingerprint(context.normalizedContext);
 
+    // ADR-0155 step B7: Assistant Coach never goes through AiAdvisorReview/AiAdvisorInsight --
+    // its own schema is deliberately not a v2 of that shared contract (ADR-0155 §8). Only the
+    // validate+persist step branches; the claim/credential/provider-call machinery above this
+    // line is unchanged and fully shared.
+    if (job.capability === "ASSISTANT_COACH") {
+      return processAssistantCoachJob(job, context, currentFingerprint, settings.activeConnectionId!, connection.provider, connection.model!);
+    }
+
     const alreadySucceeded = await db.aiAdvisorReview.findFirst({
       where: {
         organisationId: job.organisationId,
@@ -277,6 +293,168 @@ async function processClaimedJob(job: ClaimedJobRow): Promise<"succeeded" | "fai
 
     await markJobSucceeded(job.id);
     return "succeeded";
+  });
+}
+
+/**
+ * ADR-0155 step B7: Assistant Coach's own validate+persist path. Reuses the same provider-call
+ * machinery (`withProviderCredential`/`getProviderAdapter`) and failure-handling
+ * (`handleFailure`/`markJobFailed`/`markJobSucceeded`) `processClaimedJob` already uses for
+ * every other capability -- only the response schema, local validation, and persisted shape
+ * differ, because this capability's contract is deliberately not a v2 of
+ * `advisorResponseSchema` (ADR-0155 §8).
+ */
+async function processAssistantCoachJob(
+  job: ClaimedJobRow,
+  context: AiCapabilityContext,
+  currentFingerprint: string,
+  activeConnectionId: string,
+  provider: Parameters<typeof fromPrismaAiProviderId>[0],
+  model: string,
+): Promise<"succeeded" | "failed" | "retried" | "not_eligible"> {
+  const alreadySucceeded = await db.assistantCoachRun.findFirst({
+    where: { organisationId: job.organisationId, playerId: job.scopeId, sourceFingerprint: currentFingerprint, status: "SUCCEEDED" },
+    select: { id: true },
+  });
+  if (alreadySucceeded) {
+    await markJobSucceeded(job.id);
+    return "succeeded";
+  }
+
+  const providerWireId = fromPrismaAiProviderId(provider);
+  const adapter = getProviderAdapter(providerWireId);
+  const instructions = `${AI_ADVISOR_STABLE_DOCTRINE} ${context.instructions}`;
+
+  let executeResult: Awaited<ReturnType<AiProviderAdapter["executeReview"]>>;
+  try {
+    executeResult = await withProviderCredential(activeConnectionId, (credential) =>
+      adapter.executeReview({
+        credential,
+        model,
+        instructions,
+        input: context.normalizedContext,
+        responseSchema: ASSISTANT_COACH_HYPOTHESES_JSON_SCHEMA,
+      }),
+    );
+  } catch (error) {
+    const errorCode = error instanceof ProviderCredentialAccessError ? error.errorCode : "PROVIDER_UNAVAILABLE";
+    const outcome = await handleFailure(job, errorCode);
+    logger.warn({ jobId: job.id, capability: job.capability, errorCode, outcome }, "[ai/jobs/runner] Assistant Coach credential access failed");
+    return outcome;
+  }
+
+  if (!executeResult.ok) {
+    const outcome = await handleFailure(job, executeResult.errorCode);
+    logger.warn(
+      { jobId: job.id, capability: job.capability, errorCode: executeResult.errorCode, outcome },
+      "[ai/jobs/runner] Assistant Coach provider execution failed",
+    );
+    return outcome;
+  }
+
+  const parsed = assistantCoachHypothesesResponseSchema.safeParse(executeResult.raw);
+  if (!parsed.success) {
+    // Never retried, same reasoning as the shared advisor path: the same context/instructions
+    // would almost certainly reproduce the same invalid output.
+    await markJobFailed(job.id, "PROVIDER_OUTPUT_INVALID");
+    logger.warn(
+      { jobId: job.id, capability: job.capability, reason: parsed.error.issues.map((i) => i.message).join("; ") },
+      "[ai/jobs/runner] Assistant Coach output failed schema validation",
+    );
+    return "failed";
+  }
+
+  // Semantic validation mirroring validateAdvisorSemantics's own "Stage 2": every cited ref must
+  // be one this context actually produced -- never a ref the provider invented.
+  const allRefsKnown = parsed.data.hypotheses.every((hypothesis) =>
+    [...hypothesis.supportingRefs, ...hypothesis.contradictingRefs].every((ref) => context.evidenceRefs.has(evidenceRefKey(ref.kind, ref.id))),
+  );
+  if (!allRefsKnown) {
+    await markJobFailed(job.id, "PROVIDER_OUTPUT_INVALID");
+    logger.warn({ jobId: job.id, capability: job.capability }, "[ai/jobs/runner] Assistant Coach response cited an unknown evidence ref");
+    return "failed";
+  }
+
+  await persistSuccessfulAssistantCoachRun({
+    organisationId: job.organisationId,
+    playerId: job.scopeId,
+    sourceFingerprint: currentFingerprint,
+    providerConnectionId: activeConnectionId,
+    provider,
+    model,
+    inputTokens: executeResult.inputTokens,
+    outputTokens: executeResult.outputTokens,
+    providerRequestDurationMs: executeResult.durationMs,
+    hypotheses: parsed.data.hypotheses,
+  });
+
+  if (parsed.data.hypotheses.length === 0) {
+    // Same operator-visibility reasoning as the shared advisor path's own zero-insight log.
+    logger.warn(
+      { jobId: job.id, organisationId: job.organisationId, capability: job.capability, model, provider },
+      "[ai/jobs/runner] Assistant Coach run succeeded with zero hypotheses",
+    );
+  }
+
+  await markJobSucceeded(job.id);
+  return "succeeded";
+}
+
+interface PersistSuccessfulAssistantCoachRunParams {
+  organisationId: string;
+  playerId: string;
+  sourceFingerprint: string;
+  providerConnectionId: string;
+  provider: Parameters<typeof fromPrismaAiProviderId>[0];
+  model: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  providerRequestDurationMs: number;
+  hypotheses: AssistantCoachHypothesisWire[];
+}
+
+/** "Replace current" via supersession, mirroring persistSuccessfulReview's own pattern exactly
+ * -- history is preserved (old runs/hypotheses are never deleted, only marked SUPERSEDED). */
+async function persistSuccessfulAssistantCoachRun(params: PersistSuccessfulAssistantCoachRunParams): Promise<void> {
+  await db.$transaction(async (tx) => {
+    await tx.assistantCoachRun.updateMany({
+      where: { organisationId: params.organisationId, playerId: params.playerId, status: "SUCCEEDED" },
+      data: { status: AiAdvisorReviewStatus.SUPERSEDED },
+    });
+
+    const run = await tx.assistantCoachRun.create({
+      data: {
+        organisationId: params.organisationId,
+        playerId: params.playerId,
+        sourceFingerprint: params.sourceFingerprint,
+        status: AiAdvisorReviewStatus.SUCCEEDED,
+        providerConnectionId: params.providerConnectionId,
+        provider: params.provider,
+        model: params.model,
+        schemaVersion: ASSISTANT_COACH_CONTRACT_VERSION,
+        inputTokens: params.inputTokens,
+        outputTokens: params.outputTokens,
+        providerRequestDurationMs: params.providerRequestDurationMs,
+        startedAt: new Date(),
+        completedAt: new Date(),
+      },
+    });
+
+    for (const [displayOrder, hypothesis] of params.hypotheses.entries()) {
+      await tx.assistantCoachHypothesis.create({
+        data: {
+          organisationId: params.organisationId,
+          runId: run.id,
+          statement: hypothesis.statement,
+          uncertainty: hypothesis.uncertainty,
+          supportingRefs: hypothesis.supportingRefs as unknown as Prisma.InputJsonValue,
+          contradictingRefs: hypothesis.contradictingRefs as unknown as Prisma.InputJsonValue,
+          missingEvidence: hypothesis.missingEvidence as unknown as Prisma.InputJsonValue,
+          displayOrder,
+          state: "ACTIVE",
+        },
+      });
+    }
   });
 }
 

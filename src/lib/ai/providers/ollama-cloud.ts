@@ -29,19 +29,32 @@ function authHeaders(credential: string): Record<string, string> {
   return { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" };
 }
 
-function buildSchemaInstructions(baseInstructions: string): string {
+function buildSchemaInstructions(baseInstructions: string, schema: unknown): string {
   return (
     `${baseInstructions}\n\nRespond with ONLY a single JSON object — no markdown code fences, ` +
     `no commentary before or after — that conforms exactly to this JSON Schema:\n` +
-    JSON.stringify(ADVISOR_RESPONSE_JSON_SCHEMA)
+    JSON.stringify(schema)
   );
 }
 
-function buildRepairInstructions(baseInstructions: string, failureReason: string): string {
+function buildRepairInstructions(baseInstructions: string, schema: unknown, failureReason: string): string {
   return (
-    `${buildSchemaInstructions(baseInstructions)}\n\nYour previous response failed validation ` +
+    `${buildSchemaInstructions(baseInstructions, schema)}\n\nYour previous response failed validation ` +
     `(${failureReason}). Produce a corrected response for the same input, following the schema exactly this time.`
   );
+}
+
+/**
+ * Whether a response is even worth attempting to use, for a `responseSchema` other than the
+ * default advisor contract (ADR-0155 step B7) -- `parseAdvisorResponse` is bound to that one
+ * specific zod schema, so it cannot validate an arbitrary custom schema's shape. This gate is
+ * deliberately weaker (parseable, non-empty JSON object) than full shape validation; the real
+ * shape check still happens in the runner afterward (`processClaimedJob`'s own capability-aware
+ * validation branch) -- `executeReview`'s job here is only "is a repair retry worth trying",
+ * never the authoritative validator.
+ */
+function looksLikeUsableJson(raw: unknown): boolean {
+  return typeof raw === "object" && raw !== null && !("__unparsable" in (raw as object));
 }
 
 async function listModels(credential: string): Promise<ProviderListModelsResult> {
@@ -124,23 +137,29 @@ async function callChat(credential: string, model: string, systemContent: string
 async function executeReview(request: ProviderExecuteRequest): Promise<ProviderExecuteResult> {
   const startedAt = Date.now();
   const userContent = JSON.stringify(request.input);
+  const schema = request.responseSchema ?? ADVISOR_RESPONSE_JSON_SCHEMA;
+  // Only the default advisor contract has a bound zod validator here; a custom schema
+  // (ADR-0155 step B7) gets the weaker usability gate instead -- see looksLikeUsableJson's own
+  // comment for why.
+  const isUsable = request.responseSchema === undefined ? (raw: unknown) => parseAdvisorResponse(raw).valid : looksLikeUsableJson;
 
-  const first = await callChat(request.credential, request.model, buildSchemaInstructions(request.instructions), userContent);
+  const first = await callChat(request.credential, request.model, buildSchemaInstructions(request.instructions, schema), userContent);
   if (!first.ok) {
     return { ok: false, errorCode: first.errorCode, durationMs: Date.now() - startedAt };
   }
 
-  const firstValidation = parseAdvisorResponse(first.raw);
-  if (firstValidation.valid) {
+  if (isUsable(first.raw)) {
     return { ok: true, raw: first.raw, inputTokens: first.inputTokens, outputTokens: first.outputTokens, durationMs: Date.now() - startedAt };
   }
 
   // Exactly one bounded repair retry — the original input again, plus the failure category,
   // never the invalid raw output (03_PROVIDER_ADAPTERS_AND_MODELS.md's Ollama execution contract).
+  const defaultValidation = request.responseSchema === undefined ? parseAdvisorResponse(first.raw) : null;
+  const failureReason = defaultValidation && !defaultValidation.valid ? defaultValidation.reason : "unusable response";
   const second = await callChat(
     request.credential,
     request.model,
-    buildRepairInstructions(request.instructions, firstValidation.reason),
+    buildRepairInstructions(request.instructions, schema, failureReason),
     userContent,
   );
   const durationMs = Date.now() - startedAt;
@@ -148,8 +167,7 @@ async function executeReview(request: ProviderExecuteRequest): Promise<ProviderE
     return { ok: false, errorCode: second.errorCode, durationMs };
   }
 
-  const secondValidation = parseAdvisorResponse(second.raw);
-  if (!secondValidation.valid) {
+  if (!isUsable(second.raw)) {
     return { ok: false, errorCode: "PROVIDER_OUTPUT_INVALID", durationMs };
   }
 

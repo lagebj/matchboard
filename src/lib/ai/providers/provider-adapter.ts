@@ -44,6 +44,12 @@ export interface ProviderExecuteRequest {
   /** The normalized, pseudonymized structured facts for this operation — the only "content" a
    * provider ever receives beyond `instructions`. */
   input: unknown;
+  /** Overrides the default `ADVISOR_RESPONSE_JSON_SCHEMA` structured-output schema every adapter
+   * otherwise falls back to (ADR-0155 step B7) — e.g. Assistant Coach's own hypothesis schema,
+   * which is deliberately not a v2 of the shared advisor-response contract. Every adapter uses
+   * `request.responseSchema ?? ADVISOR_RESPONSE_JSON_SCHEMA`, so every existing capability's
+   * behavior is unchanged when this is omitted. */
+  responseSchema?: unknown;
 }
 
 export type ProviderExecuteResult =
