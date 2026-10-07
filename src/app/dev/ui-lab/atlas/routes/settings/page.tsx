@@ -21,7 +21,7 @@ export default function AtlasSettingsPage() {
   const [theme, setTheme] = useState<(typeof THEMES)[number]>("System");
 
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[900px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[900px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Settings" context="App preferences and configuration" />
 
       <div className="mt-5 flex flex-col gap-6 medium:flex-row">

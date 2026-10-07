@@ -16,7 +16,7 @@ export default function AtlasGroupsPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Members");
 
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[900px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[900px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title={groupSummary.name} context="Group workspace" actions={<TouchlineButton variant="secondary">Edit</TouchlineButton>} />
 
       <div className="mt-4">

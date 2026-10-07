@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { OrgSettingsClient } from "./org-settings-client";
 import { getAiAdvisorSettingsAction } from "./ai-advisor-actions";
 import { SeasonAdministrationSection } from "./season-administration-section";
+import { SettingsDiscoverySections } from "./settings-discovery-sections";
 
 export default async function OrgSettingsPage({
   params,
@@ -22,9 +23,11 @@ export default async function OrgSettingsPage({
     redirect("/organisations");
   }
 
-  if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
-    redirect(`/o/${orgSlug}`);
-  }
+  // ADR-0157 slice C8: Settings is the administration entry point for every member (the retired
+  // More hub was all-role accessible; its replacement must be too). Owner/admin-only sections
+  // (Season administration, Machine principals, Danger zone, Advanced tools) are conditionally
+  // rendered below; every mutation keeps its own server-side role enforcement.
+  const isAdmin = ctx.role === "OWNER" || ctx.role === "ADMIN";
 
   const org = await db.organisation.findUnique({
     where: { id: ctx.organisationId },
@@ -85,7 +88,10 @@ export default async function OrgSettingsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <SeasonAdministrationSection orgSlug={orgSlug} leagueSeasons={leagueSeasons} selected={selectedLeagueSeason} />
+      {isAdmin && (
+        <SeasonAdministrationSection orgSlug={orgSlug} leagueSeasons={leagueSeasons} selected={selectedLeagueSeason} />
+      )}
+      <SettingsDiscoverySections orgSlug={orgSlug} isAdmin={isAdmin} />
       <OrgSettingsClient
         org={JSON.parse(JSON.stringify(org))}
         principals={JSON.parse(JSON.stringify(principals))}

@@ -11,7 +11,7 @@ import { UiLabShell } from "../../../ui-lab-shells";
  */
 export default function AtlasRulesPage() {
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[820px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[820px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Rules" context="Selection rules, support priority, and rotation paths" />
 
       <div className="mt-5 flex flex-col gap-4">

@@ -48,10 +48,14 @@ export function ReviewListClient({
   reviews: initialReviews,
   myMembershipId,
   requesterNames,
+  hideHeader = false,
 }: {
   reviews: ReviewRequestRow[];
   myMembershipId: string;
   requesterNames: Record<string, string>;
+  /** Today embeds this list as a section (ADR-0157 C8) — it supplies its own section heading,
+   * so the page-level header is suppressed there. */
+  hideHeader?: boolean;
 }) {
   const [reviews, setReviews] = useState(initialReviews);
   const [loading, setLoading] = useState<string | null>(null);
@@ -108,7 +112,7 @@ export function ReviewListClient({
   return (
     // Touchline island (theme-aware — ADR-0134 Phase 9).
     <div className="touchline flex flex-col gap-8">
-      <TouchlinePageHeader title="Peer reviews" />
+      {!hideHeader && <TouchlinePageHeader title="Peer reviews" />}
 
       <ReviewSection
         title="Pending for me"

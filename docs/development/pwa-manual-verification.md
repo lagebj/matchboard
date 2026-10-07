@@ -54,10 +54,10 @@ For each row, record: date, app version, tester, and PASS/FAIL + notes per check
 6. **Authentication works from the installed app** — unauthenticated launch lands on the
    Matchboard sign-in page (same origin), Google sign-in completes, and returns to Matchboard
    still in standalone mode.
-7. **Navigation works** — primary nav (Today / League / Events / Players / More), and opening
+7. **Navigation works** — primary nav (Today / League / Events / Players), and opening
    `/today` directly.
 8. **No install prompt/help remains** after installation — the in-app card shows the installed
-   confirmation (More page) or nothing (Today).
+   confirmation (Settings, "App installation") or nothing (Today).
 9. **Dynamic data is live** — open a recent planning change (e.g. a round/squad edit) and confirm
    it reflects current server state — there is no broad offline cache; nothing outside live
    reporting should ever look stale. (ADR-0138 Bundle 7 added one narrow, scoped exception: an

@@ -1,5 +1,14 @@
-import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
+import {
+  pageSearchParamsToUrlSearchParams,
+  redirectToOrgSlugWithSearchParams,
+  type PageSearchParams,
+} from "@/lib/auth/redirect-to-org";
 
-export default async function LoadTimelineRedirect() {
-  return redirectToOrgSlug("/insights/load");
+export default async function LoadRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<PageSearchParams>;
+}) {
+  const sp = await searchParams;
+  return redirectToOrgSlugWithSearchParams("/insights/load", pageSearchParamsToUrlSearchParams(sp));
 }

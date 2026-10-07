@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { requirePageActorContext } from "@/lib/auth/actor-context";
 import { getAssistantCommandCentre } from "@/lib/assistant/get-assistant-command-centre";
 import { TodaySurface } from "@/components/touchline/today/today-surface";
+import { TodayPeerReviewSection } from "@/components/touchline/today/today-peer-review-section";
 import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
 import { getWeeklyCoachingContext } from "@/lib/weekly/get-weekly-coaching-context";
 import { formatIsoWeekKey } from "@/lib/date-utils";
@@ -180,6 +181,13 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
       carryForwardItems={carryForwardItems}
       matchdayContext={matchdayContext}
       upcomingMatches={upcomingMatches}
-    />
+    >
+      {/* ADR-0157 slice C8: the retired `/reviews` hub's due-work/resolve job lives on Today now.
+          Null when there is no peer-review activity (Today never renders empty sections). */}
+      <TodayPeerReviewSection
+        organisationId={ctx.organisationId}
+        membershipId={ctx.membershipId}
+      />
+    </TodaySurface>
   );
 }

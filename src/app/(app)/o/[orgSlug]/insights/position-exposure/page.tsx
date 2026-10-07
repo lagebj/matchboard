@@ -1,38 +1,34 @@
-import { db } from "@/lib/db";
-import { requirePageActorContext } from "@/lib/auth/actor-context";
-import { PositionExposureClient } from "@/app/(app)/insights/position-exposure/position-exposure-client";
-import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import {
+  redirectRetiredInsightRoute,
+  type RetiredInsightRedirectSearchParams,
+} from "@/lib/insights/retired-insight-redirects";
+import {
+  pageSearchParamsToUrlSearchParams,
+  type PageSearchParams,
+} from "@/lib/auth/redirect-to-org";
 
+/** ADR-0157 slice C8: `/insights/position-exposure` is retired — redirects to its contextual owner
+ * (`11_INSIGHTS_ROUTE_DISPOSITION.md`), preserving selected-entity query params. */
 export const dynamic = "force-dynamic";
 
-export default async function PositionExposurePage({ params }: { params: Promise<{ orgSlug: string }> }) {
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orgSlug: string }>;
+  searchParams: Promise<PageSearchParams>;
+}) {
   const { orgSlug } = await params;
-  const ctx = await requirePageActorContext(orgSlug);
-  setTenantOrganisationId(ctx.organisationId);
-  const orgWhere = ctx.orgFilter.filter;
-
-  const leagueSeasons = await db.leagueSeason.findMany({
-    where: { ...orgWhere },
-    orderBy: { startDate: "desc" },
-    select: {
-      id: true,
-      name: true,
-      startDate: true,
-      endDate: true,
-    },
-  });
-
-  const activeLeagueSeason = leagueSeasons[0] ?? null;
-
-  return (
-    <PositionExposureClient
-      leagueSeasons={leagueSeasons.map((ls) => ({
-        id: ls.id,
-        name: ls.name,
-        startDate: ls.startDate.toISOString(),
-        endDate: ls.endDate.toISOString(),
-      }))}
-      activeLeagueSeasonId={activeLeagueSeason?.id ?? null}
-    />
-  );
+  const sp = await searchParams;
+  const first = (key: string) => {
+    const value = sp[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  const selected: RetiredInsightRedirectSearchParams = {
+    leagueSeasonId: first("leagueSeasonId"),
+    playerId: first("playerId"),
+    teamId: first("teamId"),
+    matchId: first("matchId"),
+  };
+  return redirectRetiredInsightRoute(orgSlug, "position-exposure", selected, pageSearchParamsToUrlSearchParams(sp));
 }

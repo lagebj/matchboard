@@ -6,50 +6,47 @@
 > source agents load for navigation specifics. Adaptive/compact composition rules are in
 > `docs/product/adaptive-interaction-design.md` and **ADR-0124**.
 
-## Planned convergence (ADR-0157, in progress — not yet implemented)
+## Primary navigation (4 items, in this order)
 
-ADR-0157 (Contextual Coach Workspace Convergence) targets exactly **four** primary items —
-Today, League, Events, Players — with `More` removed once every job it currently owns has a
-verified contextual destination. This is a staged migration delivered as sequential slices
-(C0-C9); the five-item model below, and every route `More` currently owns, remains the live,
-accurate, current state until the final IA-convergence slice (C8) actually removes `More` from
-`TOUCHLINE_NAV_META`/`TOUCHLINE_NAV_ORDER`, the mobile bottom nav, and the sidebar/navigation
-rail, at which point this document's "Primary navigation" section below is updated in the same
-change (and `checkPrimaryNavConsistency`'s cross-check against `features/matchboard.feature`
-moves to four items in that same slice, not before).
+ADR-0157 (Contextual Coach Workspace Convergence) C8 is implemented: `More` is removed. Every
+job it used to own now has a verified contextual destination, a Settings subroute, or a redirect
+that preserves the caller's selected-entity query params — see "Route disposition (post-More)"
+below.
 
-Target route disposition (`contracts/route-disposition.json` in ADR-0157's bundle):
+1. **Today** (`/o/{orgSlug}/today`) — next action, setup progress, blockers, urgent reviews and upcoming work. Renders the same command-centre content previously presented as "Assistant" — the underlying data and component are unchanged, only the canonical route and nav label.
+2. **League** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. League teams (`/o/{orgSlug}/teams`) are reachable from a link on this page, not their own sidebar item. Season Review (`/o/{orgSlug}/season`) and the opponent domain (`/o/{orgSlug}/opponents`, `/o/{orgSlug}/opponents/[id]`) are also reached from League and keep League active.
+3. **Events** (`/o/{orgSlug}/events`) — event squads and planning.
+4. **Players** (`/o/{orgSlug}/players`) — season participation, current planning attention, and base-group administration.
 
-| Current `More` job | Target destination | Active primary nav |
+### Route disposition (post-More)
+
+| Former `More` job | Destination | Active primary nav |
 |---|---|---|
 | `/season` | Season Review, reached from League | League |
 | `/opponents`, `/opponents/[id]` | Contextual domain object (League / Match Preparation / encounter history) | League |
 | `/settings` | Expanded administration entry point | none (user/settings affordance) |
 | `/groups`, `/rules` | Settings admin subroutes | discovered via Settings |
-| `/formations` | Contextual formation management from Match Tactics; legacy route redirects once equivalent | contextual (Match Tactics) |
-| `/reviews` | Peer-review initiation moves onto the reviewed object; due work moves onto Today; hub retires | n/a |
-| `/simulation`, `/workbench`, rebuild/backfill tools | Settings > Advanced (admin only) | none |
-| `/insights` | Match/Round/Player/Opponent/Season (see `11_INSIGHTS_ROUTE_DISPOSITION.md`), with redirects preserving selected-entity query params | n/a |
-| `/history` | Match/Player/Opponent/Season, with export preserved | n/a |
-| `/more` | Deleted/redirected last, once every job above has a verified destination | n/a |
+| `/formations` | Contextual formation management drawer from Match Tactics; legacy list route redirects to League; builder routes keep `returnTo` | contextual (Match Tactics, under League/Events match context) |
+| `/reviews` | Peer-review list embedded on Today (due work, resolve/cancel, resolved history); entries link to the reviewed object; route redirects to Today | n/a |
+| `/simulation`, `/workbench`, rebuild/backfill tools | Discovered from Settings > Advanced (admin only); routes unchanged | none |
+| `/insights/*` | Redirected per-route to its contextual owner (Today, Round Board, Match Preparation, Player Detail, Completed Match, or Season Review) with selected-entity query params preserved | n/a (destination's own active item) |
+| `/history` | Redirected to Season Review's Players tab (same matrix/export) | League |
+| `/more` | Redirects to `/settings` | none |
 
-Do not implement this section's target state early or out of slice order; do not remove a
-legacy route before its job is demonstrably reachable in its new contextual destination. See
-ADR-0157 for the full decision record and `14_DELIVERY_SEQUENCE.md` for the slice order.
+See ADR-0157 for the full decision record and delivery sequence (C0-C9).
 
-## Primary navigation (5 items, in this order)
+### History: previous five-item model (superseded 2026-10-07, ADR-0157 C8)
 
-The primary navigation has five items in this order — the Today/League/Events/Players/More information architecture (UI/UX programme Phase 2.4, `.matchboard-work/ux-branding-language-ui/PROGRAMME.md` §6, gitignored working bundle):
-
-1. **Today** (`/o/{orgSlug}/today`) — next action, setup progress, blockers, urgent reviews and upcoming work. Renders the same command-centre content previously presented as "Assistant" — the underlying data and component are unchanged, only the canonical route and nav label.
-2. **League** (`/o/{orgSlug}/fixtures`) — the one-stop shop for the period → round → match hierarchy with actions. League teams (`/o/{orgSlug}/teams`) are reachable from a link on this page, not their own sidebar item.
-3. **Events** (`/o/{orgSlug}/events`) — event squads and planning.
-4. **Players** (`/o/{orgSlug}/players`) — season participation, current planning attention, and base-group administration.
-5. **More** (`/o/{orgSlug}/more`) — analysis and administration hub: Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, Reviews, and (admin roles only) Simulation and Policy workbench.
-
-### History: previous four-item model (superseded 2026-08-21)
-
-Before Phase 2.4, primary navigation had four items — Assistant, Fixtures, Teams, Players — and Events, Groups, Opponents, and Formations had drifted onto the shipped sidebar as additional primary items without this document or `AGENTS.md` ever being updated to match (found and recorded during the UI/UX programme's Phase 2.0 baseline audit). Phase 2.4 resolved that inconsistency by adopting the programme's target IA in full, rather than only trimming the sidebar back to the stale four-item documentation.
+Before C8, primary navigation had five items — Today, League, Events, Players, More — with More
+as an analysis/admin hub (Insights, Season, History, Opponents, Groups, Formations, Rules,
+Settings, Reviews, and admin-only Simulation/Policy workbench). Before that, and before UI/UX
+programme Phase 2.4 (superseded 2026-08-21), primary navigation had four items — Assistant,
+Fixtures, Teams, Players — and Events, Groups, Opponents, and Formations had drifted onto the
+shipped sidebar as additional primary items without this document or `AGENTS.md` ever being
+updated to match (found and recorded during the UI/UX programme's Phase 2.0 baseline audit).
+Phase 2.4 resolved that inconsistency by adopting its target IA in full. ADR-0157 C8 then
+converged the resulting five-item model back down to four once every job More owned had a
+verified contextual destination.
 
 ## Canonical redirects
 
@@ -64,15 +61,21 @@ The following must not be primary sidebar items:
 - `/o/{orgSlug}/teams` — reachable via a "League teams" link on League (Fixtures)
 - `/o/{orgSlug}/rounds`
 - `/o/{orgSlug}/matches`
-- `/o/{orgSlug}/season` — via More
-- `/o/{orgSlug}/history` — via More
-- `/o/{orgSlug}/rules` — via More
-- `/o/{orgSlug}/groups` — via More
-- `/o/{orgSlug}/opponents` — via More
-- `/o/{orgSlug}/formations` — via More
-- `/o/{orgSlug}/insights` — via More
-- `/o/{orgSlug}/settings` — via More
-- `/o/{orgSlug}/reviews`, `/o/{orgSlug}/simulation`, `/o/{orgSlug}/workbench` — via More
+- `/o/{orgSlug}/season` — reached from League; keeps League active
+- `/o/{orgSlug}/opponents` — reached from League / Match Preparation / encounter history; keeps League active
+- `/o/{orgSlug}/formations` — formation-library management is reachable from Match Tactics'
+  formation-management drawer; the standalone list route redirects to League (the entry to the
+  next match's Tactics flow). The create/edit builder routes remain, round-tripping via `returnTo`
+- `/o/{orgSlug}/history` — redirects to Season Review's Players tab
+- `/o/{orgSlug}/rules`, `/o/{orgSlug}/groups` — Settings admin subroutes, linked from Settings
+- `/o/{orgSlug}/insights/*` — each redirects to its contextual owner (see "Route disposition"
+  above); not a destination in its own right any more
+- `/o/{orgSlug}/settings` — the administration entry point; no primary item activates
+- `/o/{orgSlug}/reviews` — hub retired; the peer-review list (due work, resolve/cancel, resolved
+  history) is embedded on Today, and each entry links to the reviewed object; the route redirects
+  to Today
+- `/o/{orgSlug}/simulation`, `/o/{orgSlug}/workbench` — discovered from Settings > Advanced
+- `/o/{orgSlug}/more` — retired; redirects to `/o/{orgSlug}/settings`
 
 These remain accessible through contextually appropriate links, buttons, tabs, or secondary navigation.
 
@@ -107,9 +110,14 @@ on player detail. No player score, ranking, or invented judgement logic. See
 
 Teams is a selected-league-season completed-results overview. Team rules, squad limits, support priority, and rotation paths belong in team detail (`/teams/[teamId]`), not in the main overview table. Reached from the League page's "League teams" link, not from the primary sidebar.
 
-## More
+## Settings
 
-More (`/o/{orgSlug}/more`) is a hub page: a grid of link cards grouped into Analysis (Insights, Season, History, Opponents), Administration (Groups, Formations, Rules, Settings), Workflow (Reviews), and — for admin roles only — Advanced (Simulation, Policy workbench). It replaces having Groups, Opponents, and Formations compete for primary sidebar space.
+Settings (`/o/{orgSlug}/settings`) is the non-football administration home (ADR-0157 C8,
+superseding the retired More hub): Organisation/account, Season administration, Groups and
+access, Rules/policy configuration, App installation / PWA, AI connections, and — admin roles
+only — Advanced tools (Simulation, Policy workbench, and the transient
+rebuild/backfill/population tools). Reached from a user/settings affordance, not primary
+football navigation; no primary nav item activates on `/settings` or its subroutes.
 
 ## No duplicate paths
 
@@ -120,11 +128,16 @@ More (`/o/{orgSlug}/more`) is a hub page: a grid of link cards grouped into Anal
 ## Active navigation state
 
 - `/o/{orgSlug}/today` visibly activates Today
-- `/o/{orgSlug}/fixtures` and fixture/round/match/team/season child contexts visibly activate League
+- `/o/{orgSlug}/fixtures` and fixture/round/match/team/season/opponent child contexts visibly
+  activate League
 - `/o/{orgSlug}/events` contexts visibly activate Events
 - `/o/{orgSlug}/players` and `/o/{orgSlug}/players/[playerId]` contexts visibly activate Players
-- `/o/{orgSlug}/more` and its linked destinations visibly activate More
-- Redirected routes do not produce an unselected or misleading sidebar state
+- `/o/{orgSlug}/settings` and its admin subroutes (`/groups`, `/rules`, `/simulation`,
+  `/workbench`, and the transient rebuild/backfill/population tools) activate no primary item —
+  there is no fifth nav item
+- Redirected routes (former `/insights/*`, `/history`, `/more`) do not produce an unselected or
+  misleading state at their landing destination; they resolve to that destination's own active
+  item before the page renders
 
 ## Status vocabulary
 

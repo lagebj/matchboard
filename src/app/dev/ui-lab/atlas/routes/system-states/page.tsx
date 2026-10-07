@@ -20,7 +20,7 @@ function StateCard({ label, children }: { label: string; children: React.ReactNo
  */
 export default function AtlasSystemStatesPage() {
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[1000px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[1000px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="System states" context="Shared interaction/feedback states" />
 
       <div className="mt-5 grid grid-cols-1 gap-4 medium:grid-cols-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { PlayerPicker } from "@/components/formations/player-picker";
@@ -20,6 +20,8 @@ import { computePlayerPositionFitEntries } from "@/domain/positions/position-fit
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { AddPlayerDialog } from "@/components/matches/add-player-dialog";
 import { AbsenceControl } from "@/components/matches/absence-control";
+import { FormationLibraryDrawer } from "@/components/matches/formation-library-drawer";
+import type { GameFormat } from "@/generated/prisma/client";
 
 type LineupData = {
   id: string;
@@ -85,7 +87,12 @@ export function MatchTacticsPanel({
   selections,
 }: MatchTacticsPanelProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  // ADR-0157 slice C8: formation library reachable without leaving the match ("Formations in
+  // Tactics"). `/formations` itself remains the create/edit canvas (returnTo brings the coach
+  // back here) -- only the discovery/select/duplicate/archive jobs move into this drawer.
+  const [showFormationLibrary, setShowFormationLibrary] = useState(false);
   const [lineup, setLineup] = useState<LineupData | null>(null);
   const [formations, setFormations] = useState<{ id: string; name: string; source: string; slots: { id: string; gridX: number; gridY: number; label: string; shortLabel: string; roleType: string; acceptedPositionIds: string[]; sortOrder: number }[] }[]>([]);
   const [selectedFormationId, setSelectedFormationId] = useState<string | null>(null);
@@ -511,10 +518,18 @@ export function MatchTacticsPanel({
           </div>
         )}
         <div className="mt-4 border-t border-[var(--border-soft)] pt-3">
-          <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
+          <TouchlineButton variant="ghost" size="sm" onClick={() => setShowFormationLibrary(true)}>
             Manage formations
           </TouchlineButton>
         </div>
+        <FormationLibraryDrawer
+          isOpen={showFormationLibrary}
+          onClose={() => setShowFormationLibrary(false)}
+          gameFormat={gameFormat as GameFormat}
+          currentFormationId={selectedFormationId}
+          onSelect={(formationId) => setSelectedFormationId(formationId)}
+          returnTo={pathname}
+        />
       </Surface>
     );
   }
@@ -601,12 +616,20 @@ export function MatchTacticsPanel({
               </div>
             )}
             <div className="pt-1">
-              <TouchlineButton variant="ghost" size="sm" as="a" href={`/formations?gameFormat=${gameFormat}`}>
+              <TouchlineButton variant="ghost" size="sm" onClick={() => setShowFormationLibrary(true)}>
                 Manage formations
               </TouchlineButton>
             </div>
           </div>
         )}
+        <FormationLibraryDrawer
+          isOpen={showFormationLibrary}
+          onClose={() => setShowFormationLibrary(false)}
+          gameFormat={gameFormat as GameFormat}
+          currentFormationId={lineup.formationId}
+          onSelect={(formationId) => handleChangeFormation(formationId)}
+          returnTo={pathname}
+        />
 
         {lineupSuggestion && (
           <Surface padding="sm" className="mt-3 border-[var(--accent)]/30 bg-[var(--accent-subtle)]">

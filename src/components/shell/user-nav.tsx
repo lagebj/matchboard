@@ -2,7 +2,12 @@ import { auth, signOut } from "@/auth";
 import { LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 
-export async function UserNav() {
+/**
+ * The user/settings affordance (ADR-0157 C8). In an organisation context the gear links to that
+ * organisation's Settings — the administration entry point now that the More hub is retired.
+ * Outside an organisation context it falls back to /organisations.
+ */
+export async function UserNav({ settingsHref = "/organisations" }: { settingsHref?: string }) {
   const session = await auth();
 
   if (!session?.user) return null;
@@ -19,10 +24,10 @@ export async function UserNav() {
   return (
     <div className="flex items-center gap-2">
       <Link
-        href="/organisations"
+        href={settingsHref}
         className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--surface-muted)]/50 hover:text-[var(--foreground)] transition-colors"
-        title="Organisations"
-        aria-label="Organisations"
+        title="Settings"
+        aria-label="Settings"
       >
         <Settings className="h-3.5 w-3.5" />
       </Link>

@@ -13,6 +13,9 @@ import { MatchTacticsPanel } from "../match-tactics-panel";
 const routerRefresh = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: routerRefresh, push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  // ADR-0157 C8: MatchTacticsPanel reads usePathname() for the formation-library drawer's
+  // `returnTo` round-trip.
+  usePathname: () => "/o/test-org/matches/m1",
 }));
 
 const { markMatchAbsenceActionMock, clearMatchAbsenceActionMock } = vi.hoisted(() => ({

@@ -17,7 +17,7 @@ export default function AtlasFormationsPage() {
   const selectedSlot = lineupSlots[4]; // CM — a non-FREE example slot
 
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[1180px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[1180px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Formations" context="Manage reusable formation templates" actions={<TouchlineButton variant="primary">New formation</TouchlineButton>} />
 
       <div className="mt-5 flex flex-col gap-6 large:flex-row">

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import Link from "next/link";
-import { ArrowLeft, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import type { MatchPhasePatternRow } from "@/lib/evidence/match-phase-pattern-evidence";
 import { PeriodBars, MetricStory } from "@/components/viz";
 
@@ -74,9 +73,6 @@ export function MatchPhasePatternsClient({
     // Touchline island (dark-pinned during the phased migration — ADR-0134).
     <div className="touchline flex flex-col gap-4" data-theme="dark">
       <div className="flex items-center gap-3">
-        <Link href="/insights" className="text-zinc-500 hover:text-zinc-300 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
         <div>
           <h1 className="text-xl font-semibold text-zinc-100 flex items-center gap-2">
             <Clock className="h-5 w-5" />

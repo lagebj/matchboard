@@ -25,7 +25,7 @@ import type {
 export const UI_LAB_ORG_CONTEXT = "Slemmestad IF · G2015 · Autumn 2026";
 export const UI_LAB_SEASON = "Autumn 2026 · Jul–Dec";
 
-export function uiLabNav(activeKey: TouchlineNavKey) {
+export function uiLabNav(activeKey: TouchlineNavKey | null) {
   return {
     items: buildTouchlineNav((key) => `/dev/ui-lab/${navRoute(key)}`),
     activeKey,
@@ -42,8 +42,6 @@ function navRoute(key: TouchlineNavKey): string {
       return "event-day";
     case "players":
       return "";
-    case "more":
-      return "insights";
   }
 }
 
