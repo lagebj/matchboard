@@ -24,6 +24,7 @@ export type TodayFixtureStateKey =
   | "primary"
   | "planning"
   | "ready"
+  | "quiet"
   | "coordination"
   | "matchday-prepare"
   | "matchday-verify-problem"
@@ -37,6 +38,7 @@ export const TODAY_FIXTURE_STATES: { key: TodayFixtureStateKey; label: string }[
   { key: "primary", label: "Primary (golden)" },
   { key: "planning", label: "Planning — no live match" },
   { key: "ready", label: "Ready — no immediate action" },
+  { key: "quiet", label: "Quiet day (ADR-0157 golden)" },
   { key: "coordination", label: "Coordination — second decision waits" },
   { key: "matchday-prepare", label: "Matchday — prepare" },
   { key: "matchday-verify-problem", label: "Matchday — verify (doubtful player)" },
@@ -146,6 +148,13 @@ const noop: ApplyRecommendationFn = async () => ({ success: true, message: "Appl
 const recentMatches: MatchPresentation[] = [
   buildMatchPresentation({ id: "h1", href: null, teamName: "Rød", opponentName: "Sætre Lions", isHome: false, kickoffAt: null, lifecycleStatus: "done", ownGoals: 4, opponentGoals: 2, outcome: "WON" }),
   buildMatchPresentation({ id: "h2", href: null, teamName: "Rød", opponentName: "Hurum City", isHome: true, kickoffAt: null, lifecycleStatus: "done", ownGoals: 3, opponentGoals: 3, outcome: "DRAWN" }),
+];
+
+/* --- Quiet-day "This week" chronology input (ADR-0157 §6, `04_TODAY_SURFACE.md` state A):
+ * bounded, forward-looking — a mid-week match, a weekend match, and nothing fabricated. */
+const upcomingWeekMatches: MatchPresentation[] = [
+  buildMatchPresentation({ id: "match-hvit-tofte", href: "/matches/match-hvit-tofte", teamName: "Hvit", opponentName: "Tofte IF", isHome: false, kickoffAt: new Date(Date.now() + 2 * 24 * 3_600_000 + 17 * 3_600_000), lifecycleStatus: "planning_closed" }),
+  buildMatchPresentation({ id: "match-roed-konnerud", href: "/matches/match-roed-konnerud", teamName: "Rød", opponentName: "Konnerud Blå", isHome: true, kickoffAt: new Date(Date.now() + 5 * 24 * 3_600_000 + 12 * 3_600_000), lifecycleStatus: "planning_open" }),
 ];
 
 /* --- Squad status ------------------------------------------------------------------------- */
@@ -276,6 +285,8 @@ export type TodayFixture = {
   sinceLastVisitFacts: TodayVisitCurrentFacts | undefined;
   carryForwardItems: TodayCarryForwardItem[];
   matchdayContext: TodayMatchdayContext | undefined;
+  /** Bounded, forward-looking (ADR-0157 §6) — feeds the quiet-day "This week" chronology. */
+  upcomingMatches: MatchPresentation[];
 };
 
 /* --- Matchday (ADR-0143) fixture helpers ---------------------------------------------------- */
@@ -325,6 +336,13 @@ function makeReadiness(input: {
 }
 
 export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
+  const fixture = buildTodayFixtureState(state);
+  // Every state shares the same bounded forward-looking week chronology input (ADR-0157 §6) —
+  // it only renders in the QUIET composition, so decision-day states simply don't show it.
+  return { ...fixture, upcomingMatches: upcomingWeekMatches };
+}
+
+function buildTodayFixtureState(state: TodayFixtureStateKey): Omit<TodayFixture, "upcomingMatches"> {
   switch (state) {
     case "primary":
       return {
@@ -386,6 +404,29 @@ export function buildTodayFixture(state: TodayFixtureStateKey): TodayFixture {
         sinceLastVisitScope: "uilab-ready",
         sinceLastVisitFacts: undefined,
         carryForwardItems: [],
+        matchdayContext: undefined,
+      };
+    case "quiet":
+      return {
+        // ADR-0157 §6 quiet day (`04_TODAY_SURFACE.md` state A): no live/imminent match, no
+        // primary action, no plan-integrity signal, no due decision review — `selectTodayComposition()`
+        // resolves QUIET and Today renders the calm hero, compact readiness facts, and the
+        // bounded "This week" chronology (fed by `upcomingMatches` above).
+        commandCentre: makeCommandCentre(
+          [],
+          [
+            makeTodayMatch({ matchId: "match-hvit-tofte", matchRoundId: "round-35", teamName: "Hvit", opponent: "Tofte", homeAway: "AWAY", startsAt: new Date(Date.now() + 2 * 24 * 3_600_000).toISOString(), lifecycleStatus: "planning_closed", squadStatus: "finalized" }),
+          ],
+        ),
+        projection: makeProjection({ primarySituation: "NEXT" }, "READY"),
+        recentMatches,
+        squadStatus,
+        liveNow: noLiveMatch,
+        selectionDecisions: [],
+        applyRecommendation: noop,
+        sinceLastVisitScope: "uilab-quiet",
+        sinceLastVisitFacts: undefined,
+        carryForwardItems,
         matchdayContext: undefined,
       };
     case "coordination":

@@ -11,9 +11,12 @@ const ROUTES: { href: string; title: string; note: string; ready: boolean }[] = 
   { href: "/dev/ui-lab/atlas-followup/team-kit-colour", title: "Team Kit Colour", note: "Phase F1", ready: true },
   { href: "/dev/ui-lab/atlas-followup/planning-pitch", title: "Planning pitch (desktop + mobile)", note: "Phase F2 — Hard Gate A", ready: true },
   { href: "/dev/ui-lab/atlas-followup/position-map", title: "Player Detail position map", note: "Phase F2 — Hard Gate A", ready: true },
-  { href: "/dev/ui-lab/atlas-followup/player-detail", title: "Player Detail (Overview/Matches/Development/Evidence)", note: "Phase F4 — Gate B", ready: true },
+  { href: "/dev/ui-lab/atlas-followup/player-detail", title: "Player Detail (Overview/Matches/Development/Evidence)", note: "Phase F4 — Gate B · ADR-0157 C5 Current story · C9 golden", ready: true },
   { href: "/dev/ui-lab/atlas-followup/players-overview", title: "Player Overview", note: "Phase F5 — Gate C", ready: true },
-  { href: "/dev/ui-lab/atlas-followup/round-board", title: "Round Board", note: "Phase F6 — Gate D", ready: true },
+  { href: "/dev/ui-lab/atlas-followup/round-board", title: "Round Board (incl. ADR-0157 C4 contextual rail)", note: "Phase F6 — Gate D · C9 golden", ready: true },
+  { href: "/dev/ui-lab/atlas-followup/match-preparation", title: "Match Preparation (ADR-0157 C3)", note: "C9 golden state", ready: true },
+  { href: "/dev/ui-lab/atlas-followup/completed-match", title: "Completed Match (ADR-0157 C6)", note: "C9 golden state", ready: true },
+  { href: "/dev/ui-lab/atlas-followup/season-review", title: "Season Review (ADR-0157 C7)", note: "C9 golden state", ready: true },
 ];
 
 export default function AtlasFollowupIndexPage() {

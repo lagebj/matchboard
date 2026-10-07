@@ -123,10 +123,12 @@ const SCENARIOS: Scenario[] = [
     path: (ids) => ids.opponentPath,
   },
   {
+    // ADR-0157 C8 retired the standalone /insights/planned-vs-actual route — plan-vs-reality
+    // lives on the completed match's After-match surface now (C6).
     id: "plan-versus-actual",
     output: "matchday/plan-versus-actual.png",
     viewport: "desktop",
-    path: (ids) => `/o/${ids.orgSlug}/insights/planned-vs-actual`,
+    path: (ids) => `${ids.storyMatchPath}?tab=after-match`,
   },
   {
     id: "event-squads",
