@@ -1,45 +1,34 @@
-import { db } from "@/lib/db";
-import { requirePageActorContext } from "@/lib/auth/actor-context";
-import { PlayerPathwaysClient } from "@/app/(app)/insights/player-pathways/player-pathways-client";
-import { setTenantOrganisationId } from "@/lib/tenancy/tenant-async-storage";
+import {
+  redirectRetiredInsightRoute,
+  type RetiredInsightRedirectSearchParams,
+} from "@/lib/insights/retired-insight-redirects";
+import {
+  pageSearchParamsToUrlSearchParams,
+  type PageSearchParams,
+} from "@/lib/auth/redirect-to-org";
 
+/** ADR-0157 slice C8: `/insights/player-pathways` is retired — redirects to its contextual owner
+ * (`11_INSIGHTS_ROUTE_DISPOSITION.md`), preserving selected-entity query params. */
 export const dynamic = "force-dynamic";
 
-export default async function PlayerPathwaysPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orgSlug: string }>;
+  searchParams: Promise<PageSearchParams>;
+}) {
   const { orgSlug } = await params;
-  const ctx = await requirePageActorContext(orgSlug);
-  setTenantOrganisationId(ctx.organisationId);
-  const orgWhere = ctx.orgFilter.filter;
-
-  const leagueSeasons = await db.leagueSeason.findMany({
-    where: { ...orgWhere },
-    orderBy: { startDate: "desc" },
-    select: {
-      id: true,
-      name: true,
-      startDate: true,
-      endDate: true,
-    },
-  });
-
-  const activeLeagueSeason = leagueSeasons[0] ?? null;
-
-  const teams = await db.team.findMany({
-    where: { ...orgWhere },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
-
-  return (
-    <PlayerPathwaysClient
-      leagueSeasons={leagueSeasons.map((ls) => ({
-        id: ls.id,
-        name: ls.name,
-        startDate: ls.startDate.toISOString(),
-        endDate: ls.endDate.toISOString(),
-      }))}
-      activeLeagueSeasonId={activeLeagueSeason?.id ?? null}
-      teams={teams}
-    />
-  );
+  const sp = await searchParams;
+  const first = (key: string) => {
+    const value = sp[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  const selected: RetiredInsightRedirectSearchParams = {
+    leagueSeasonId: first("leagueSeasonId"),
+    playerId: first("playerId"),
+    teamId: first("teamId"),
+    matchId: first("matchId"),
+  };
+  return redirectRetiredInsightRoute(orgSlug, "player-pathways", selected, pageSearchParamsToUrlSearchParams(sp));
 }

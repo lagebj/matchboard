@@ -27,15 +27,15 @@ Use `features/matchboard.feature` as the behavioral source of truth for selectio
 - `/fixtures` or the league view — season, round, and match hierarchy
 - `/events` — event squad planning
 - `/players` — player participation, current round attention, and development context
-- `/more` / adjacent surfaces — history, groups, settings, insights, and supporting tools
+- `/settings` — the administration entry point (groups, rules, app installation, AI
+  connections, admin-only Advanced tools)
 
-ADR-0157 (Contextual Coach Workspace Convergence) is converging this toward a contextual
-workspace: every piece of information lives where it changes a coach decision, and `/more`
-retires once Season Review, Opponents, Formations-in-Tactics, Settings, and the absorbed
-Insights/History jobs each have a verified contextual destination. This is a staged migration
-(`docs/product/navigation-model.md`'s "Planned convergence" section tracks current status);
-until the final convergence slice lands, the five canonical routes above remain current and
-accurate.
+ADR-0157 (Contextual Coach Workspace Convergence) has converged this into a contextual
+workspace: every piece of information lives where it changes a coach decision. The final IA
+convergence slice (C8) retired the `/more` hub — its jobs now live in Season Review, Opponents,
+Formations-in-Tactics, Settings, Today (peer reviews), and per-route redirects from retired
+Insights/History deep links (`docs/product/navigation-model.md`'s "Route disposition
+(post-More)" section is the current map).
 
 ## Mandatory boundaries
 

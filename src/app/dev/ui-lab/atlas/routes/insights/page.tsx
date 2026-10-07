@@ -16,7 +16,7 @@ import { UiLabShell } from "../../../ui-lab-shells";
  */
 export default function AtlasInsightsPage() {
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[1180px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[1180px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Insights" context="Evidence-based coaching stories" />
 
       <div className="mt-5 grid grid-cols-1 gap-5 expanded:grid-cols-2">

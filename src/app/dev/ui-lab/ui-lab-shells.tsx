@@ -31,14 +31,16 @@ export function UiLabShell({
   compactPadClass = "px-4 pt-4",
   navBuilder = uiLabNav,
 }: {
-  activeKey: TouchlineNavKey;
+  activeKey: TouchlineNavKey | null;
   children: ReactNode;
   contentWidthClass?: string;
   compactPadClass?: string;
   /** Defaults to the original UI Lab's nav (routes under /dev/ui-lab/*); the Atlas follow-up
    * passes `atlasNav` (`src/app/dev/ui-lab/atlas/fixtures.ts`) to route under /dev/ui-lab/atlas/*
-   * instead, without a second shell implementation. */
-  navBuilder?: (activeKey: TouchlineNavKey) => { items: ReturnType<typeof uiLabNav>["items"]; activeKey: TouchlineNavKey };
+   * instead, without a second shell implementation. `null` renders with no primary item
+   * highlighted — the fixture for an admin/settings-style route now that `more` is gone
+   * (ADR-0157 C8). */
+  navBuilder?: (activeKey: TouchlineNavKey | null) => { items: ReturnType<typeof uiLabNav>["items"]; activeKey: TouchlineNavKey | null };
 }) {
   const { items, activeKey: active } = navBuilder(activeKey);
 

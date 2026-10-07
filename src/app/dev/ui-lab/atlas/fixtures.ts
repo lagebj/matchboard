@@ -27,7 +27,7 @@ import { buildReviewsViewModel, type ReviewRowInput } from "@/lib/touchline/pres
 
 export const ATLAS_ORG_CONTEXT = "Slemmestad IF · G2015 · Autumn 2026";
 
-export function atlasNav(activeKey: TouchlineNavKey) {
+export function atlasNav(activeKey: TouchlineNavKey | null) {
   return { items: buildTouchlineNav((key) => `/dev/ui-lab/atlas/routes/${navRoute(key)}`), activeKey };
 }
 function navRoute(key: TouchlineNavKey): string {
@@ -36,7 +36,6 @@ function navRoute(key: TouchlineNavKey): string {
     case "league": return "league";
     case "events": return "events";
     case "players": return "players";
-    case "more": return "more";
   }
 }
 

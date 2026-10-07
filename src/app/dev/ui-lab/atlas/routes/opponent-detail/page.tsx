@@ -15,7 +15,7 @@ export default function AtlasOpponentDetailPage() {
   const vm = opponentDetailViewModel;
 
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[720px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey="league" contentWidthClass="max-w-[720px]" navBuilder={atlasNav}>
       <TouchlinePageHeader
         title={vm.displayName}
         context={`Sporting level: ${LEVEL_LABEL[vm.sportingLevel]} (${vm.sportingLevelSampleCount} sample${vm.sportingLevelSampleCount === 1 ? "" : "s"})`}

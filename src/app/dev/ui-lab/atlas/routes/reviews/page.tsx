@@ -32,7 +32,7 @@ function ReviewGroup({ title, rows }: { title: string; rows: typeof reviewsViewM
 export default function AtlasReviewsPage() {
   const vm = reviewsViewModel;
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[720px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[720px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Peer reviews" context="Review requests between coaches" />
       <div className="mt-5 flex flex-col gap-4">
         <ReviewGroup title="Pending for me" rows={vm.pendingForMe} />

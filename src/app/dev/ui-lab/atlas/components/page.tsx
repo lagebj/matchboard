@@ -34,7 +34,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  */
 export default function AtlasComponentsGalleryPage() {
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[860px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[860px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Atlas components" context="Semantic widget + viz primitive gallery (Phase 2 gate)" />
 
       <Section title="NextMatchHero">

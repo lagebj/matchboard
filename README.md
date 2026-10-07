@@ -21,16 +21,16 @@ The primary workflow is `Setup → Intent → Populate → Check → Adjust → 
 7. **Reflect** — Record team-level reflection. Record player-level feedback only where useful. Use observable behavior.
 8. **Learn** — Use history, readiness, feedback, and fairness to inform later planning. Do not mutate finalized historical plans.
 
-The central operating flow is: `Today → League → Round Board → Match reporting → Season/History review`.
+The central operating flow is: `Today → League → Round Board → Match reporting → Season review`.
 
-The canonical primary navigation is: Today, League, Events, Players, More.
+The canonical primary navigation is: Today, League, Events, Players (ADR-0157).
 
-- Today (`/today`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows. `/assistant` remains a valid deep-link alias to the same page.
-- League (`/fixtures`) provides the league-season, round, and match hierarchy with populate all/generate actions. There is no finalize action — a round/match becomes historical automatically once its planning boundary closes. League teams are reachable via a header link on this page, not their own primary nav item.
+- Today (`/today`) shows the next action based on workflow state. Derives work items from live database state, not from persisted issue rows. `/assistant` remains a valid deep-link alias to the same page. The peer-review list (due work, resolve/cancel, resolved history) lives here.
+- League (`/fixtures`) provides the league-season, round, and match hierarchy with populate all/generate actions. There is no finalize action — a round/match becomes historical automatically once its planning boundary closes. League teams are reachable via a header link on this page, not their own primary nav item. Season Review (`/season`) and the opponent domain (`/opponents`) are reached from League.
 - Round Board is the primary squad decision surface.
 - Events (`/events`) provides event squad planning for cups, tournaments, and friendly days.
 - Players (`/players`) provides four modes: Overview, Current round, Development, and Manage base groups.
-- More (`/more`) links Insights, Season, History, Opponents, Groups, Formations, Rules, Settings, and Peer reviews.
+- Settings (`/settings`) is the administration entry point (reached from the user/settings affordance): organisation/account, season administration, groups and access, rules, app installation, AI connections, and admin-only Advanced tools. The former More hub is retired (ADR-0157 C8).
 
 ## Adaptive interaction design
 
@@ -221,7 +221,7 @@ Aggregation uses six-month exponential half-life weighting over valid non-exclud
 
 Opponent context is a bounded soft scoring preference in the selection engine. It cannot bypass availability, rotation paths, nonRotatable, same-round uniqueness, squad minimums, or finalized history. Hard boundaries are documented in `OPPONENT_CONTEXT_HARD_BOUNDARIES`.
 
-League and Event matches both contribute opponent sporting-level evidence through the same evidence algorithm — Event matches have no `MatchFit` auto-exclusion signal yet, otherwise the same rules apply. An admin-only, transient "Populate opponent levels" tool (More page) can bring an organisation's existing historical match history — League and Event alike — up to date with the current opponent-learning model, using the same algorithm as automatic report-completion learning.
+League and Event matches both contribute opponent sporting-level evidence through the same evidence algorithm — Event matches have no `MatchFit` auto-exclusion signal yet, otherwise the same rules apply. An admin-only, transient "Populate opponent levels" tool (Settings > Advanced) can bring an organisation's existing historical match history — League and Event alike — up to date with the current opponent-learning model, using the same algorithm as automatic report-completion learning.
 
 ## Player development observations
 

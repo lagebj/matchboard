@@ -3018,13 +3018,13 @@ Feature: Matchboard football operations workspace
 
     The app must feel like a football operations cockpit.
     It must not feel like a generic admin system.
-    (Navigation-area framing updated by ADR-0124: the canonical primary navigation is the
-    five-item Today/League/Events/Players/More model; see "Canonical navigation and route model".)
+    (Navigation-area framing updated by ADR-0157 C8: the canonical primary navigation is the
+    four-item Today/League/Events/Players model; see "Canonical navigation and route model".)
 
     Scenario: App uses persistent football operations shell
       Given the coach is using the app
       When any primary workflow route is open
-      Then the app must show persistent primary navigation for the five canonical destinations
+      Then the app must show persistent primary navigation for the four canonical destinations
       And a top context bar
       And an object header for the current football object where relevant
 
@@ -3034,7 +3034,7 @@ Feature: Matchboard football operations workspace
       Then a compact viewport below 600px must show fixed bottom navigation
       And a medium viewport from 600 to 839px must show a navigation rail
       And an expanded viewport of 840px or wider must show the sidebar
-      And all three must render the same five primary destinations with the same active-state logic
+      And all three must render the same four primary destinations with the same active-state logic
 
     Scenario: Top context bar shows current operational context
       Given a season, league season, and match round exist
@@ -4778,7 +4778,7 @@ Feature: Matchboard football operations workspace
 
     Matchboard has exactly five primary navigation items (UI/UX programme Phase 2.4). All other routes are secondary, accessible through contextual links rather than competing top-level navigation.
 
-    Scenario: Primary navigation contains exactly five items
+    Scenario: Primary navigation contains exactly four items
       Given the coach is using the app
       When the primary sidebar or mobile navigation is visible
       Then the navigation must contain exactly these items in order:
@@ -4787,8 +4787,7 @@ Feature: Matchboard football operations workspace
         | League   | /fixtures |
         | Events   | /events   |
         | Players  | /players  |
-        | More     | /more     |
-      And the navigation must not include /teams, /rounds, /matches, /season, /history, /rules, /groups, /opponents, /formations, /insights, /settings, /reviews, /simulation, or /workbench as primary items
+      And the navigation must not include /teams, /rounds, /matches, /season, /history, /rules, /groups, /opponents, /formations, /insights, /settings, /reviews, /simulation, /workbench, or /more as primary items
 
     Scenario: Root redirects to Today
       Given the coach navigates to the root URL
@@ -4817,8 +4816,8 @@ Feature: Matchboard football operations workspace
       When the sidebar renders
       Then the Today item must show active state
 
-    Scenario: League navigation is active in fixture, round, match, team, and season contexts
-      Given the coach navigates to /fixtures, /rounds/[matchRoundId], /matches/[matchId], /teams, /teams/[teamId], or /season
+    Scenario: League navigation is active in fixture, round, match, team, season, and opponent contexts
+      Given the coach navigates to /fixtures, /rounds/[matchRoundId], /matches/[matchId], /teams, /teams/[teamId], /season, /opponents, or /opponents/[opponentId]
       When the sidebar renders
       Then the League item must show active state
 
@@ -4832,16 +4831,37 @@ Feature: Matchboard football operations workspace
       When the sidebar renders
       Then the Players item must show active state
 
-    Scenario: More navigation is active in its linked secondary destinations
-      Given the coach navigates to /more, /insights, /opponents, /groups, /formations, /rules, /history, /reviews, or /settings
+    Scenario: No primary item is active on administration routes
+      Given the coach navigates to /settings, /groups, /rules, /simulation, or /workbench
       When the sidebar renders
-      Then the More item must show active state
+      Then no primary navigation item must show active state
+      And no fifth navigation item must be invented to represent these routes
 
     Scenario: Redirected routes do not show unselected sidebar
       Given the coach is redirected from / or /assistant to /today
       When the page loads
       Then the Today sidebar item must be active
       And no navigation state must appear unselected or misleading
+
+    Scenario: Retired More and Insights/History deep links redirect, preserving selected-entity query params
+      Given the coach navigates to /more, /history, /reviews, or any /insights/[slug] deep link with a leagueSeasonId, playerId, teamId, or matchId query param
+      When the app loads
+      Then the app must redirect to that job's contextual destination
+      And any leagueSeasonId, playerId, teamId, or matchId query param on the original URL must be preserved on the destination URL
+      And the destination must not be a generic Season or More-style hub that discards the original intent
+
+    Scenario: Peer reviews live on Today after the hub retires
+      Given a peer review request exists for the coach or requested by the coach
+      When the coach opens Today
+      Then Today must show the peer review list with pending work, resolve and cancel actions, and resolved history
+      And each review entry must link to the reviewed event squad or match lineup
+      And Today must not render an empty peer review section when no review activity exists
+
+    Scenario: Settings is the administration discovery surface
+      Given the coach opens Settings
+      Then Settings must link to groups and access, rules and policy configuration, and app installation
+      And an admin must additionally see the Advanced tools section with simulation, policy workbench, and the transient rebuild/backfill/population tools
+      And Settings must not re-list football analysis jobs (Insights, Season, History, Opponents, Formations, Reviews)
 
 
   Rule: Adaptive contextual UI composition (ADR-0124)

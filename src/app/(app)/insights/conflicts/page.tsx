@@ -1,5 +1,14 @@
-import { redirectToOrgSlug } from "@/lib/auth/redirect-to-org";
+import {
+  pageSearchParamsToUrlSearchParams,
+  redirectToOrgSlugWithSearchParams,
+  type PageSearchParams,
+} from "@/lib/auth/redirect-to-org";
 
-export default async function ConflictReviewRedirect() {
-  return redirectToOrgSlug("/insights/conflicts");
+export default async function ConflictsRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<PageSearchParams>;
+}) {
+  const sp = await searchParams;
+  return redirectToOrgSlugWithSearchParams("/insights/conflicts", pageSearchParamsToUrlSearchParams(sp));
 }

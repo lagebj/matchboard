@@ -17,7 +17,7 @@
  *   attention sections.
  * - **Decision**: Next Action -> inline Why? disclosure -> Selection decisions / Planning
  *   attention / Other attention, capped to at most 2 items combined across those three sources
- *   -> Today in order -> due peer/development reviews -> peer-review link.
+ *   -> Today in order -> due peer/development reviews -> the embedded peer-review list.
  *
  * Live Now / Matchday render above this switch either way — they are their own "is a match live
  * or imminent right now" state, not part of the quiet/decision choice. `InstallPwaCard` no
@@ -30,11 +30,9 @@
  * Planning attention / Selection decisions / the primary action instead.
  */
 
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { getDisplayDateKey } from "@/lib/date-utils";
 import type { AssistantCommandCentre } from "@/lib/assistant/types";
-import { TouchlinePageHeader, TouchlineButton } from "@/components/touchline";
+import { TouchlinePageHeader } from "@/components/touchline";
 import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import type { CoachSituationProjection } from "@/lib/situational/situation-types";
 import type { WeeklyCoachingContextResult } from "@/lib/weekly/weekly-coaching-context-types";
@@ -118,6 +116,7 @@ export function TodaySurface({
   carryForwardItems,
   matchdayContext,
   upcomingMatches,
+  children,
 }: {
   commandCentre: AssistantCommandCentre;
   projection?: CoachSituationProjection;
@@ -137,6 +136,9 @@ export function TodaySurface({
   matchdayContext?: TodayMatchdayContext;
   /** Bounded, forward-looking (ADR-0157 §6) — feeds the quiet-day "This week" chronology only. */
   upcomingMatches?: MatchPresentation[];
+  /** Server-rendered trailing sections — the embedded peer-review list (ADR-0157 C8). Null-safe:
+   * Today never renders empty sections. */
+  children?: React.ReactNode;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -212,10 +214,6 @@ export function TodaySurface({
   const timelineExcludedMatchId =
     liveNow?.primary?.matchId ??
     (matchdayContext?.featured.source === "LEAGUE" ? matchdayContext.featured.id : null);
-
-  const reviewCount = actionable.filter(
-    (i) => i.category === "review_assigned" || i.category === "review_changes_requested",
-  ).length;
 
   const hasContextRailContent = Boolean(
     (sinceLastVisitScope && sinceLastVisitFacts) ||
@@ -310,19 +308,11 @@ export function TodaySurface({
 
                 <DueDecisionReviewSection reviews={commandCentre.dueDecisionReviews} />
 
-                {reviewCount > 0 && (
-                  <div className="flex items-center justify-end">
-                    <TouchlineButton
-                      as={Link}
-                      href={orgUrl("/reviews")}
-                      variant="ghost"
-                      size="sm"
-                      trailingIcon={<ArrowRight className="h-3 w-3" aria-hidden="true" />}
-                    >
-                      View peer reviews
-                    </TouchlineButton>
-                  </div>
-                )}
+                {/* ADR-0157 slice C8: the retired `/reviews` hub's job lives here now — the
+                    server-rendered peer-review list (due work, resolve/cancel, resolved
+                    history), passed as children by the Today route. Renders nothing when
+                    there is no peer-review activity. */}
+                {children}
               </>
             )}
           </div>

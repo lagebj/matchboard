@@ -3,34 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  CalendarClock,
-  CalendarRange,
-  CalendarDays,
-  Users,
-  MoreHorizontal,
-  type LucideIcon,
-} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { TouchlineWordmark } from "@/components/touchline/brand/touchline-wordmark";
 import { isNavItemActive } from "@/components/shell/nav-active";
+import { primaryNavItems } from "@/components/shell/nav-items";
 import { APP_VERSION } from "@/lib/version";
-
-type NavItem = {
-  href: string;
-  labelKey: "today" | "league" | "events" | "players" | "more";
-  icon: LucideIcon;
-};
-
-function navItems(orgSlug: string): NavItem[] {
-  return [
-    { href: `/o/${orgSlug}/today`, labelKey: "today", icon: CalendarClock },
-    { href: `/o/${orgSlug}/fixtures`, labelKey: "league", icon: CalendarRange },
-    { href: `/o/${orgSlug}/events`, labelKey: "events", icon: CalendarDays },
-    { href: `/o/${orgSlug}/players`, labelKey: "players", icon: Users },
-    { href: `/o/${orgSlug}/more`, labelKey: "more", icon: MoreHorizontal },
-  ];
-}
 
 /**
  * SidebarNav — desktop primary nav, Touchline visual system (ADR-0134 §8,
@@ -43,7 +20,7 @@ function navItems(orgSlug: string): NavItem[] {
 export function SidebarNav({ orgSlug }: { orgSlug: string }) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
-  const items = navItems(orgSlug);
+  const items = primaryNavItems(orgSlug);
 
   return (
     <nav

@@ -39,7 +39,6 @@ const ROUTES: { href: string; title: string; note: string }[] = [
   { href: "/dev/ui-lab/atlas/routes/groups", title: "Groups", note: "10§B" },
   { href: "/dev/ui-lab/atlas/routes/rules", title: "Rules", note: "10§C" },
   { href: "/dev/ui-lab/atlas/routes/settings", title: "Settings", note: "10§D" },
-  { href: "/dev/ui-lab/atlas/routes/more", title: "More", note: "10§E" },
   { href: "/dev/ui-lab/atlas/routes/reviews", title: "Peer reviews", note: "10§F" },
   { href: "/dev/ui-lab/atlas/routes/invitation", title: "Invitation", note: "10§H" },
   { href: "/dev/ui-lab/atlas/routes/system-states", title: "System states", note: "10§I" },

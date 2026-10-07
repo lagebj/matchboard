@@ -117,4 +117,19 @@ describe("ReviewListClient (Touchline Design Atlas Phase 7, §F)", () => {
     expect(historySection).toHaveTextContent("Approved");
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
+
+  it("suppresses the page-level header when embedded on Today (ADR-0157 C8 hideHeader)", () => {
+    render(
+      <ReviewListClient
+        reviews={[baseReview]}
+        myMembershipId="membership-me"
+        requesterNames={{}}
+        hideHeader
+      />,
+    );
+
+    // The section grouping remains; only the standalone page's own header disappears.
+    expect(screen.getByText("Pending for me")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Peer reviews" })).not.toBeInTheDocument();
+  });
 });

@@ -11,7 +11,8 @@ export default async function EvidenceRebuildPage({ params }: { params: Promise<
   setTenantOrganisationId(ctx.organisationId);
 
   if (!canAdmin(ctx)) {
-    redirect(`/o/${orgSlug}/more`);
+    // More is retired (ADR-0157 C8) — Settings > Advanced is where admin tools are discovered now.
+    redirect(`/o/${orgSlug}/settings`);
   }
 
   return <EvidenceRebuildContent orgSlug={orgSlug} />;

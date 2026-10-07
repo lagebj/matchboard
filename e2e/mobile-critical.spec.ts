@@ -41,7 +41,6 @@ test.describe("compact shell", () => {
       { name: "League", url: /\/o\/test-club-a\/fixtures/ },
       { name: "Events", url: /\/o\/test-club-a\/events/ },
       { name: "Players", url: /\/o\/test-club-a\/players/ },
-      { name: "More", url: /\/o\/test-club-a\/more/ },
       { name: "Today", url: /\/o\/test-club-a\/today/ },
     ];
     for (const dest of destinations) {
@@ -52,7 +51,7 @@ test.describe("compact shell", () => {
   });
 
   test("primary surfaces have no page-level horizontal scroll at compact width", async ({ page }) => {
-    for (const path of ["today", "fixtures", "events", "players", "more"]) {
+    for (const path of ["today", "fixtures", "events", "players", "settings"]) {
       await gotoSurface(page, path);
       expect(await hasHorizontalScroll(page), `${path} must not scroll horizontally`).toBe(false);
     }

@@ -15,7 +15,7 @@ export default function AtlasOpponentsPage() {
   const vm = opponentsViewModel;
 
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[900px]" navBuilder={atlasNav}>
+    <UiLabShell activeKey="league" contentWidthClass="max-w-[900px]" navBuilder={atlasNav}>
       <TouchlinePageHeader title="Opponents" context="Encounter history and match environment" />
 
       <div className="mt-5 grid grid-cols-2 gap-3 medium:max-w-[420px]">

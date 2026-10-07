@@ -15,7 +15,7 @@ import { UiLabShell } from "../ui-lab-shells";
  */
 export default function UiLabInsightsPage() {
   return (
-    <UiLabShell activeKey="more" contentWidthClass="max-w-[560px]">
+    <UiLabShell activeKey={null} contentWidthClass="max-w-[560px]">
       <TouchlinePageHeader title="Insights" context="G2015 · Autumn 2026" />
 
       <div className="mt-4 flex flex-col gap-3">

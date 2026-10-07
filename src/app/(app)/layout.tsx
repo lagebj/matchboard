@@ -108,7 +108,7 @@ export default async function AppLayout({
               </div>
             )}
             <div className="shrink-0 px-3 py-2">
-              <UserNav />
+              <UserNav settingsHref={`/o/${orgSlug}/settings`} />
             </div>
           </header>
           <main className="min-w-0 flex-1 pb-[var(--nav-clearance)]">
