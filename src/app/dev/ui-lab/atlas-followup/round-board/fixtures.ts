@@ -1,6 +1,8 @@
 import type {
   RoundBoardViewModel,
   RoundBoardPlayerAssignmentContext,
+  RoundBoardAttentionItem,
+  RoundBoardDevelopmentContext,
 } from "@/lib/touchline/presentation/round-board-view-model";
 import type { AllocationMatrixColumn, AllocationMatrixRow } from "@/components/touchline/round-board/allocation-matrix";
 
@@ -94,3 +96,37 @@ export const allocationRows: AllocationMatrixRow[] = [
   { playerId: "p10", displayName: "Oscar", shirtNumber: 10, kitColor: RED, assignments: { rod: true }, total: 1, target: 1, status: "OK" },
   { playerId: "p12", displayName: "Fredrik", shirtNumber: 12, kitColor: RED, assignments: { rod: true }, total: 1, target: 1, status: "OK" },
 ];
+
+/** ADR-0157 C4 contextual-rail fixture data (C9 golden state: Round Board, desktop). Deterministic
+ * attention/fairness/movement/development context — factual counts only, no composite score, no
+ * Assistant Coach synthesis (the rail renders that only when a persisted, fresh review exists). */
+export const railAttention: RoundBoardAttentionItem[] = [
+  { id: "att-1", playerId: null, matchId: "rod", summary: "Rød has no goalkeeper in the squad", detail: "No goalkeeper is planned for Rød vs Asker SK.", severity: "BLOCKED" },
+  { id: "att-2", playerId: "p2", matchId: null, summary: "Henrik has no assignment this round", detail: "One player with a target of one match is currently unassigned.", severity: "DECISION_REQUIRED" },
+];
+
+export const railFairnessMetrics: { label: string; value: string | number; detail?: string; trend?: "up" | "down" | "neutral" }[] = [
+  { label: "Players with a finalized match", value: 41, detail: "of 42 players" },
+  { label: "Support opportunities", value: 7 },
+  { label: "Development opportunities", value: 3 },
+  { label: "Players below target", value: 1, trend: "down" },
+];
+
+export const railMovementSummary = {
+  supportSent: 5,
+  supportReceived: 5,
+  developmentSent: 2,
+  developmentReceived: 3,
+  squadRepairReceived: 1,
+  drops: 0,
+};
+
+export const railDevelopmentContext: RoundBoardDevelopmentContext = {
+  playerId: "p2",
+  displayName: "Henrik",
+  activeFocusCategories: ["Passing"],
+  effectivePositions: [
+    { positionId: "CM", supportBand: "ESTABLISHED", confidence: "MEDIUM", appearances: 6, minutes: 240 },
+    { positionId: "RM", supportBand: "LIMITED", confidence: "LOW", appearances: 1, minutes: 18 },
+  ],
+};

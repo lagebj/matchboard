@@ -9,9 +9,10 @@ import { RoundMatchLane } from "@/components/touchline/round-board/round-match-l
 import { PlayerAssignmentInspector } from "@/components/touchline/round-board/player-assignment-inspector";
 import { PlayerAssignmentSheet } from "@/components/touchline/round-board/player-assignment-sheet";
 import { AllocationMatrix } from "@/components/touchline/round-board/allocation-matrix";
+import { RoundBoardRail } from "@/components/touchline/round-board/round-board-rail";
 import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
 import type { RoundBoardAssignmentSuggestion } from "@/lib/touchline/presentation/round-board-view-model";
-import { roundBoardViewModel, assignmentContextByPlayerId, allocationColumns, allocationRows } from "./fixtures";
+import { roundBoardViewModel, assignmentContextByPlayerId, allocationColumns, allocationRows, railAttention, railFairnessMetrics, railMovementSummary, railDevelopmentContext } from "./fixtures";
 
 type DesktopView = "board" | "allocation";
 type MobileMode = "overview" | "matches" | "match";
@@ -87,7 +88,15 @@ export default function RoundBoardFixturePage() {
             <RoundMatchLane key={lane.matchId} lane={lane} selectedPlayerId={selectedPlayerId} onSelectPlayer={setSelectedPlayerId} />
           ))}
           <div className="flex flex-col gap-3">
-            <RoundAttentionList items={roundBoardViewModel.attention} />
+            {/* ADR-0157 C4 contextual rail (C9 golden state: Insights / Balance / Development
+                modes) — deterministic facts first, Assistant Coach synthesis only when fresh. */}
+            <RoundBoardRail
+              attention={railAttention}
+              assistantCoach={null}
+              fairnessMetrics={railFairnessMetrics}
+              movementSummary={railMovementSummary}
+              developmentContext={selectedPlayerId === railDevelopmentContext.playerId ? railDevelopmentContext : null}
+            />
             <PlayerAssignmentInspector context={assignmentContext} onAssign={handleAssign} onClose={() => setSelectedPlayerId(null)} />
           </div>
         </div>

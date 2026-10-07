@@ -13,6 +13,7 @@ import { TouchlineWordmark, AppearanceControl } from "@/components/touchline";
  * See docs/domain/touchline-atlas-provenance.md for full data-provenance detail per route.
  */
 const ROUTES: { href: string; title: string; note: string }[] = [
+  { href: "/dev/ui-lab/atlas/routes/today?state=quiet", title: "Today — quiet day (ADR-0157 golden)", note: "05§A · C9" },
   { href: "/dev/ui-lab/atlas/routes/today", title: "Today", note: "05§A" },
   { href: "/dev/ui-lab/atlas/routes/league", title: "League", note: "05§B" },
   { href: "/dev/ui-lab/atlas/routes/history", title: "History", note: "05§C" },

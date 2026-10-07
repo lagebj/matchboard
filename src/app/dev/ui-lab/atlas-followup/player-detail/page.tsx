@@ -14,6 +14,7 @@ import { PlayerRecentFootball } from "@/components/touchline/player/player-recen
 import { PlayerMatchTimeline } from "@/components/touchline/player/player-match-timeline";
 import { PlayerPositionTimeline } from "@/components/touchline/player/player-position-timeline";
 import { PlayerDevelopmentTimeline } from "@/components/touchline/player/player-development-timeline";
+import { PlayerCurrentStoryCard } from "@/components/touchline/player/player-current-story-card";
 import { OpportunityWidget } from "@/components/touchline/widgets/opportunity-widget";
 import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
 import { WidgetHeader } from "@/components/touchline/widget/widget-header";
@@ -44,6 +45,7 @@ const evidence = buildPlayerEvidenceViewModel(evidenceInput);
 function OverviewTab() {
   return (
     <div className="flex flex-col gap-4">
+      {overview.currentStory && <PlayerCurrentStoryCard story={overview.currentStory} />}
       <PlayerParticipationStrip {...overview.participation} />
       <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
         {overview.opportunity ? <OpportunityWidget {...overview.opportunity} /> : null}
