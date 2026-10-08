@@ -54,9 +54,9 @@ genuinely undelivered and do not conflict with ADR-0157's shape:
   has no `teamId`-equivalent to key evidence off), the post-match-review context builder's
   `plan`/`playerContext`/`opponentHistory`/`recentTeamPatterns` sections are League-only pending
   issue #696 (same root cause), and Event has no Today/Match-Details lifecycle parity at all
-  pending issue #686. No parity contract test suite exists asserting the scenarios in the
-  bundle's `08-league-event-domain-convergence.md`/`15-acceptance-test-matrix.md` across both
-  adapters.
+  pending issue #686 (resolved during this ADR's delivery — see "History" below). No parity
+  contract test suite exists asserting the scenarios in the bundle's
+  `08-league-event-domain-convergence.md`/`15-acceptance-test-matrix.md` across both adapters.
 - **`LeagueRoundParticipant.playerId` schema contraction.** ADR-0106 added this nullable column
   "for now", with an explicit scope decision that "only `GuestPlayer`s populate this table" and
   permanent `Player` round-participation stays on `Selection`/`Availability`. Mechanical
@@ -151,8 +151,10 @@ verify zero non-null production rows before the migration ships.
 
 ### Negative
 
-- Issues #691/#696/#686 (the genuine remaining League/Event asymmetries) are not resolved by this
-  ADR — only documented and contract-tested as known, intentional asymmetry.
+- Issues #691/#696 (the genuine remaining League/Event asymmetries) are not resolved by this ADR
+  — only documented and contract-tested as known, intentional asymmetry. #686 turned out to be a
+  real, bounded lifecycle-parity gap rather than a structural asymmetry, and was fixed during
+  this ADR's own delivery (see "History").
 
 ## Migration
 
@@ -187,3 +189,27 @@ ADR-0157 Slice C8 and ADR-0152 Slice 4 already deliver the bundle's Insights/Mor
 scope under an incompatible target shape, and confirmed the three residual items (League/Event
 parity tests, the dead `LeagueRoundParticipant.playerId` column, and the absent maintenance gates)
 are genuinely undelivered and non-conflicting — reflected in "Context" above.
+
+#### 2026-10-08 (continued) — Slices 1-3 delivered
+
+Slice 1 (PR #769): dropped `LeagueRoundParticipant.playerId`.
+
+Slice 2 (PR #771): `npm run deadcode:check` (Knip), `npm run legacy-visual:check`,
+`docs/architecture/compatibility-registry.md`, both wired into `npm run validate` and CI's `Lint`
+job, plus `docs:check`/`terminology:check`/`architecture:check` (previously documented as
+mandatory but never actually CI-enforced). Deleted 50 files `deadcode:check` identified as
+genuinely dead, each individually verified.
+
+Slice 3 (PR #774 then this PR): issue #686 (Event Today Live Now / Match Details lifecycle
+parity) turned out to be a real, user-visible gap, not just a missing link — Today's own Matchday
+card already deferred to Live Now whenever an Event match went live, so a live Event match made
+Today's live slot go completely blank. Fixed first (PR #774), then the League/Event parity
+contract suite (`src/lib/live-match/__tests__/league-event-live-parity.test.ts`) asserts genuine
+equivalence for the live-event guard, the lifecycle resolver via each adapter's own period-config
+resolution, and the guided debrief service — and asserts issues #691/#696's qualitative-evidence
+asymmetry explicitly (League produces active evidence from a submitted debrief; Event's identical
+submission does not), rather than forcing a false parity or inventing a Team-equivalent concept
+for Event, per this ADR's own "Context"/"Alternatives considered" sections. #686 is resolved;
+#691/#696 remain open, tracked, and now regression-tested as intentional, bounded asymmetry.
+
+ADR-0158 is fully delivered.
