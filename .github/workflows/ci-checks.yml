@@ -115,6 +115,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npm run docs:check
+      - run: npm run terminology:check
+      - run: npm run architecture:check
+      - run: npm run legacy-visual:check
+      # ADR-0158: deadcode:check is intentionally not run here yet -- see
+      # docs/architecture/compatibility-registry.md for why, and run-validate.mjs for the
+      # matching local-validate note.
 
   # workers/live-match/ (the Cloudflare Worker + MatchSessionObject Durable Object, ADR-0086) is
   # an independently deployed runtime with its own tsconfig/vitest config (incompatible
