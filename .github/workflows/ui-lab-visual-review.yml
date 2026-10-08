@@ -1,0 +1,66 @@
+name: UI Lab Visual Review
+
+# Screenshots are temporary review evidence, not committed golden binaries.
+# The UI Lab remains unavailable in production.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/ui-lab-visual-review.yml"
+      - "scripts/ui-lab-visual-review.mjs"
+      - "src/app/dev/ui-lab/**"
+      - "src/app/touchline.css"
+      - "src/components/touchline/**"
+      - "src/components/matches/match-detail/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-lab-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture fixture-backed UI Lab views
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start local fixture server
+        env:
+          MATCHBOARD_ENV: development
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npx next dev -p 3333 > /tmp/matchboard-ui-lab.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error --max-time 5 http://localhost:3333/dev/ui-lab/atlas-followup/ -o /dev/null; then
+              exit 0
+            fi
+            sleep 3
+          done
+          tail -n 100 /tmp/matchboard-ui-lab.log
+          exit 1
+      - name: Capture desktop/mobile, dark/light review states
+        env:
+          UI_LAB_BASE_URL: http://localhost:3333
+        run: node scripts/ui-lab-visual-review.mjs
+      - name: Upload temporary review evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ui-lab-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/ui-lab-review/
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 6
+      - name: Print server errors on failure
+        if: failure()
+        run: tail -n 120 /tmp/matchboard-ui-lab.log || true
