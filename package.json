@@ -1,6 +1,6 @@
 {
   "name": "matchboard",
-  "version": "0.168.2",
+  "version": "0.168.3",
   "private": true,
   "license": "Elastic-2.0",
   "engines": {
@@ -75,6 +75,8 @@
     "security:dast:active": "bash scripts/zap-active.sh",
     "security:review": "bash scripts/security-review.sh",
     "docs:check": "node scripts/check-docs.mjs",
+    "deadcode:check": "node scripts/check-deadcode.mjs",
+    "legacy-visual:check": "node scripts/check-legacy-visual-dependency.mjs",
     "validate": "node scripts/run-validate.mjs"
   },
   "dependencies": {
@@ -133,6 +135,7 @@
     "eslint-config-next": "16.3.5",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
+    "knip": "^6.40.0",
     "playwright": "^1.62.1",
     "prisma": "^7.10.0",
     "tailwindcss": "^4",

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/**/*.{ts,mjs,cjs}", "e2e/auth.setup.ts", "public/live-sw.js"],
+  "ignore": [
+    ".opencode/**",
+    "workers/**",
+    "src/lib/__tests__/prisma-query-field-safety.test-d.ts"
+  ]
+}

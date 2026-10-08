@@ -35,6 +35,8 @@ const STEPS = [
   ["forbidden SQL", "security:check-sql"],
   ["supply chain", "security:check-supply-chain"],
   ["docs check", "docs:check"],
+  ["legacy visual-system check", "legacy-visual:check"],
+  ["dead code check", "deadcode:check"],
 ];
 
 const results = [];
