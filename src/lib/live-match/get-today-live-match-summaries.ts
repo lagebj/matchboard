@@ -30,6 +30,15 @@ export type TodayLiveMatchSummary = {
   /** ADR-0152 §2: the same canonical resolver Live Reporting and (later) Match Details consume
    * — Today must not independently infer "what should the coach do next" for this match. */
   primaryAction: LiveReportingPrimaryAction;
+  /** ISO kickoff — exposed so `combineTodayLiveNow` can pick the overall-earliest primary across
+   * League and Event without re-querying. Not itself meant for display (Live Now already shows
+   * elapsed/period, not kickoff time). */
+  startsAtIso: string;
+  /** Issue #686 / ADR-0158 slice 3: League/Event share this one Live Now slot. `eventId` is the
+   * parent Event, required to build Event's nested `/events/{eventId}/matches/{matchId}/live`
+   * route — League's routes need only `matchId`. */
+  kind: "LEAGUE" | "EVENT";
+  eventId: string | null;
 };
 
 export type TodayLiveNowResult = {
@@ -121,6 +130,9 @@ export async function getTodayLiveMatchSummaries(
       elapsedLabel,
       isRunning: clock?.running ?? false,
       primaryAction,
+      startsAtIso: session.match.startsAt.toISOString(),
+      kind: "LEAGUE",
+      eventId: null,
     };
 
     return { summary, startsAt: session.match.startsAt };

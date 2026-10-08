@@ -22,6 +22,9 @@ function summary(overrides: Partial<TodayLiveMatchSummary>): TodayLiveMatchSumma
     elapsedLabel: "12:00",
     isRunning: true,
     primaryAction: { kind: "END_PERIOD", period: "FIRST_HALF", label: "End first half" },
+    startsAtIso: "2026-10-08T16:00:00.000Z",
+    kind: "LEAGUE",
+    eventId: null,
     ...overrides,
   };
 }

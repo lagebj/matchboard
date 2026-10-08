@@ -1,5 +1,9 @@
 import { db } from '@/lib/db';
 import { type MatchCategory } from './match-category';
+import { resolveLiveReportingPrimaryAction, type LiveReportingPrimaryAction } from '@/lib/live-match/live-reporting-primary-action';
+import { snapshotToFormat } from '@/lib/live-match/match-format';
+import { buildPeriodConfigFromFormat, getEventPeriodConfig } from '@/lib/live-match/period-config';
+import type { MatchPeriod } from '@/generated/prisma/client';
 
 export interface EventMatchWithReport {
   id: string;
@@ -19,6 +23,54 @@ export interface EventMatchWithReport {
     ourScore: number | null;
     opponentScore: number | null;
   } | null;
+  /** ADR-0152 §2 / issue #686: the same canonical resolver League Live Reporting/Today/Match
+   * Details already consume — Event's own match list must not independently infer "is this
+   * live" from a bare boolean. `null` when no active session exists. */
+  isLive: boolean;
+  livePrimaryAction: LiveReportingPrimaryAction | null;
+}
+
+type LiveSessionSnapshot = {
+  status: string;
+  clockPeriod: MatchPeriod;
+  clockRunning: boolean;
+  formatNumberOfPeriods: number | null;
+  formatPeriodDurationMinutes: number | null;
+  formatBreakDurationMinutes: number | null;
+} | null;
+
+const LIVE_SESSION_SELECT = {
+  select: {
+    status: true,
+    clockPeriod: true,
+    clockRunning: true,
+    formatNumberOfPeriods: true,
+    formatPeriodDurationMinutes: true,
+    formatBreakDurationMinutes: true,
+  },
+} as const;
+
+/**
+ * No `matchType`-driven fallback exists for Event (unlike League's `getLeagueMatchPeriodConfig`)
+ * -- a live session's own frozen format snapshot is expected to be populated by the time it's
+ * ACTIVE (ADR-0146), so a missing snapshot here is a genuine edge case, not the normal path.
+ * Falls back to a generic 2-half config with unknown (never a faked zero) duration, matching
+ * `getEventPeriodConfig`'s own "unknown duration" discipline.
+ */
+function deriveEventLiveState(liveSession: LiveSessionSnapshot): { isLive: boolean; livePrimaryAction: LiveReportingPrimaryAction | null } {
+  const isLive = liveSession?.status === 'ACTIVE';
+  if (!isLive || !liveSession) return { isLive: false, livePrimaryAction: null };
+
+  const format = snapshotToFormat(liveSession);
+  const periodConfig = format ? buildPeriodConfigFromFormat(format) : getEventPeriodConfig(null, 2, null);
+
+  const livePrimaryAction = resolveLiveReportingPrimaryAction({
+    sessionStatus: 'ACTIVE',
+    clock: { period: liveSession.clockPeriod, running: liveSession.clockRunning },
+    periodConfig,
+  });
+
+  return { isLive: true, livePrimaryAction };
 }
 
 export async function getEventMatchesForSquad(eventSquadId: string): Promise<EventMatchWithReport[]> {
@@ -34,6 +86,7 @@ export async function getEventMatchesForSquad(eventSquadId: string): Promise<Eve
           opponentScore: true,
         },
       },
+      liveSession: LIVE_SESSION_SELECT,
     },
   });
 
@@ -57,6 +110,7 @@ export async function getEventMatchesForSquad(eventSquadId: string): Promise<Eve
           opponentScore: m.postMatchReport.opponentScore,
         }
       : null,
+    ...deriveEventLiveState(m.liveSession),
   }));
 }
 
@@ -73,6 +127,7 @@ export async function getEventMatchesForEvent(eventId: string): Promise<EventMat
           opponentScore: true,
         },
       },
+      liveSession: LIVE_SESSION_SELECT,
     },
   });
 
@@ -96,6 +151,7 @@ export async function getEventMatchesForEvent(eventId: string): Promise<EventMat
           opponentScore: m.postMatchReport.opponentScore,
         }
       : null,
+    ...deriveEventLiveState(m.liveSession),
   }));
 }
 
