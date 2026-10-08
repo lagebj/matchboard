@@ -93,18 +93,18 @@ export async function getRoundGuestParticipants(
   orgFilter: OrgFilterMode,
 ): Promise<RoundGuestParticipant[]> {
   const participants = await db.leagueRoundParticipant.findMany({
-    where: { matchRoundId, guestPlayerId: { not: null }, ...orgFilter.filter },
+    where: { matchRoundId, ...orgFilter.filter },
     select: {
       guestPlayerId: true,
       guestPlayer: { select: { id: true, name: true, sourceLabel: true } },
     },
   });
 
-  return participants
-    .filter((p): p is typeof p & { guestPlayerId: string; guestPlayer: NonNullable<typeof p.guestPlayer> } =>
-      p.guestPlayerId !== null && p.guestPlayer !== null,
-    )
-    .map((p) => ({ guestPlayerId: p.guestPlayerId, name: p.guestPlayer.name, sourceLabel: p.guestPlayer.sourceLabel }));
+  return participants.map((p) => ({
+    guestPlayerId: p.guestPlayerId,
+    name: p.guestPlayer.name,
+    sourceLabel: p.guestPlayer.sourceLabel,
+  }));
 }
 
 export async function getAvailableGuestPlayersForRound(
@@ -116,7 +116,7 @@ export async function getAvailableGuestPlayersForRound(
 
   const [registered, guestPlayers] = await Promise.all([
     db.leagueRoundParticipant.findMany({
-      where: { matchRoundId, guestPlayerId: { not: null }, ...orgFilter.filter },
+      where: { matchRoundId, ...orgFilter.filter },
       select: { guestPlayerId: true },
     }),
     db.guestPlayer.findMany({
