@@ -211,7 +211,7 @@ export async function getLeagueMatchGuestCandidatesAction(matchId: string) {
 
   const [registered, existingAssignments, groupGuests] = await Promise.all([
     db.leagueRoundParticipant.findMany({
-      where: { matchRoundId: match.matchRoundId, guestPlayerId: { not: null }, ...ctx.orgFilter.filter },
+      where: { matchRoundId: match.matchRoundId, ...ctx.orgFilter.filter },
       select: {
         guestPlayerId: true,
         guestPlayer: { select: { id: true, name: true, sourceLabel: true } },
@@ -235,7 +235,7 @@ export async function getLeagueMatchGuestCandidatesAction(matchId: string) {
 
   // Registered round participants first (higher priority)
   for (const r of registered) {
-    if (!r.guestPlayerId || !r.guestPlayer || assignedIds.has(r.guestPlayerId) || seenIds.has(r.guestPlayerId)) continue;
+    if (assignedIds.has(r.guestPlayerId) || seenIds.has(r.guestPlayerId)) continue;
     seenIds.add(r.guestPlayerId);
     candidates.push({ guestPlayerId: r.guestPlayerId, name: r.guestPlayer.name, sourceLabel: r.guestPlayer.sourceLabel });
   }

@@ -146,7 +146,6 @@ model Player {
   assessmentChanges                  AssessmentChange[]
   actualPositionIntervals            ActualPositionInterval[]
   eventMatchAvailabilities           EventMatchAvailability[]
-  leagueRoundParticipations          LeagueRoundParticipant[]
   qualitativeObservations            QualitativeEvidenceObservation[] @relation("QualitativeObservationPlayer")
   qualitativeObservationsAsSecondary QualitativeEvidenceObservation[] @relation("QualitativeObservationSecondaryPlayer")
 
@@ -305,30 +304,25 @@ model MatchRound {
   @@map("MatchRound")
 }
 
-// ADR-0106. Registers a GuestPlayer into a League Round's participant pool -- the League
-// analog of Event's EventPlayerAvailability, but GuestPlayer-only for now (permanent Players
-// keep their existing Selection/Availability-based Round presence unchanged; a Round with zero
-// LeagueRoundParticipant rows behaves identically to today). playerId is kept nullable/dual-FK
-// alongside guestPlayerId for architectural consistency should Player round-registration ever
-// be needed later, but only guestPlayerId is populated by current write paths.
+// ADR-0106/ADR-0158. Registers a GuestPlayer into a League Round's participant pool -- the
+// League analog of Event's EventPlayerAvailability. Permanent Players keep their existing
+// Selection/Availability-based Round presence unchanged; a Round with zero
+// LeagueRoundParticipant rows behaves identically to today. Guest-only by construction
+// (ADR-0158 dropped the never-populated dual-FK playerId column) -- this table is not a second
+// source of truth for Player round-participation.
 model LeagueRoundParticipant {
   id             String   @id @default(cuid())
   organisationId String
   matchRoundId   String
-  playerId       String?
-  guestPlayerId  String?
+  guestPlayerId  String
   note           String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   matchRound   MatchRound    @relation(fields: [matchRoundId], references: [id], onDelete: Cascade)
-  player       Player?       @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  guestPlayer  GuestPlayer?  @relation(fields: [guestPlayerId], references: [id], onDelete: Restrict)
+  guestPlayer  GuestPlayer   @relation(fields: [guestPlayerId], references: [id], onDelete: Restrict)
   organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
 
-  // Exactly one of playerId/guestPlayerId must be set -- enforced by a hand-added CHECK
-  // constraint (see migration SQL), following the ActualPositionInterval precedent.
-  @@unique([matchRoundId, playerId])
   @@unique([matchRoundId, guestPlayerId])
   @@index([matchRoundId])
   @@index([organisationId])
@@ -337,7 +331,7 @@ model LeagueRoundParticipant {
 // ADR-0106. GuestPlayer's League Match usage record -- mirrors MatchHelperAssignment's exact
 // shape and role, kept as a deliberately separate table per ADR-0077's own precedent of not
 // merging League/Event Player-helper tables into one polymorphic model. Guest-only by
-// construction (no XOR needed, unlike LeagueRoundParticipant). A GuestPlayer is assignable to a
+// construction, same as LeagueRoundParticipant since ADR-0158. A GuestPlayer is assignable to a
 // Match only if it is already a LeagueRoundParticipant of that Match's Round -- enforced at the
 // write-time action, not by a schema constraint referencing two tables.
 model LeagueMatchGuestAssignment {
