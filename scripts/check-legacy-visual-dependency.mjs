@@ -27,6 +27,7 @@ const ALLOWLIST = {
   "docs/product/adaptive-interaction-design.md": 2,
   "src/app/globals.css": 1,
   "src/app/touchline.css": 3,
+  "docs/architecture/compatibility-registry.md": 1,
 };
 
 function listFiles() {

@@ -36,10 +36,7 @@ const STEPS = [
   ["supply chain", "security:check-supply-chain"],
   ["docs check", "docs:check"],
   ["legacy visual-system check", "legacy-visual:check"],
-  // ADR-0158: deadcode:check is intentionally not wired in here yet. It currently fails on 50
-  // already-identified, verified-dead files (see docs/architecture/compatibility-registry.md)
-  // that a destructive-change permission denial blocked this programme from removing. Wire it
-  // in as a normal step once that deletion lands.
+  ["dead code check", "deadcode:check"],
 ];
 
 const results = [];
