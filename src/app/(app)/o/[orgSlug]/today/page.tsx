@@ -21,7 +21,7 @@ import { getRecentCompletedMatches } from "@/lib/matches/get-recent-completed-ma
 import { getTodayUpcomingWeekMatches } from "@/lib/matches/get-today-upcoming-week-matches";
 import { summarizeSquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import { getTodaySelectionRecommendations } from "@/lib/touchline/get-today-selection-recommendations";
-import { getTodayLiveMatchSummaries } from "@/lib/live-match/get-today-live-match-summaries";
+import { getTodayLiveNow } from "@/lib/live-match/get-today-live-now";
 import { getTodayFootballMatches } from "@/lib/touchline/get-today-football-matches";
 import { getTodayLocalStateScope } from "@/lib/touchline/presentation/today-local-state-scope";
 import type { TodayVisitCurrentFacts } from "@/lib/touchline/presentation/today-visit-snapshot";
@@ -99,7 +99,7 @@ export default async function TodayPage({ params }: { params: Promise<{ orgSlug:
     getRecentCompletedMatches(ctx.orgFilter, orgUrl),
     getOrgActivePlayerAvailability(ctx.orgFilter),
     getTodaySelectionRecommendations(ctx.organisationId, commandCentre.roundPlanIntegrities, orgSlug, projection.decisions),
-    getTodayLiveMatchSummaries(
+    getTodayLiveNow(
       ctx.organisationId,
       commandCentre.todayMatches.filter((m) => m.hasActiveLiveSession).map((m) => m.matchId),
       situationContext.activeMatchId,

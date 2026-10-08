@@ -247,8 +247,16 @@ export function TodaySurface({
           <TodayLiveNow
             primary={liveNow.primary}
             otherLiveCount={liveNow.otherLiveCount}
-            matchHref={(matchId) => orgUrl(`/matches/${matchId}/live/follow`)}
-            reportHref={(matchId) => orgUrl(`/matches/${matchId}/live`)}
+            matchHref={(matchId) =>
+              liveNow.primary!.kind === "EVENT"
+                ? orgUrl(`/events/${liveNow.primary!.eventId}/matches/${matchId}/live/follow`)
+                : orgUrl(`/matches/${matchId}/live/follow`)
+            }
+            reportHref={(matchId) =>
+              liveNow.primary!.kind === "EVENT"
+                ? orgUrl(`/events/${liveNow.primary!.eventId}/matches/${matchId}/live`)
+                : orgUrl(`/matches/${matchId}/live`)
+            }
           />
         ) : (
           matchdayContext &&

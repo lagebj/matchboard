@@ -33,6 +33,9 @@ import { formatEventMatchSupportRole } from '@/lib/formatters/event-labels';
 import type { EventMatchSupportRole } from '@/generated/prisma/client';
 import { getEventMatchWindow } from '@/lib/events/event-match-time';
 import { formatKickoffDateTime, formatKickoffTime, getKickoffDateInputValue, getKickoffTimeInputValue } from '@/lib/date-utils';
+import type { EventMatchWithReport } from '@/lib/stats/event-match-stats';
+import { describeLiveReportingEntryPointLabel } from '@/lib/live-match/live-reporting-primary-action';
+import { useOrgSlug } from '@/components/shell/org-slug-context';
 
 const PLANNED_ROLE_OPTIONS: { value: EventMatchSupportRole | ''; label: string }[] = [
   { value: '', label: 'No specific role' },
@@ -54,26 +57,6 @@ const REPORT_STATUS_LABELS: Record<string, string> = {
   REPORTED: 'Reported',
   LOCKED: 'Completed',
 };
-
-interface EventMatchWithReport {
-  id: string;
-  eventSquadId: string;
-  category: string;
-  opponentName: string;
-  opponentTeamId: string | null;
-  startsAt: Date | string;
-  location: string | null;
-  notes: string | null;
-  status: string;
-  cancelledAt: Date | string | null;
-  cancelledReason: string | null;
-  report: {
-    id: string;
-    status: string;
-    ourScore: number | null;
-    opponentScore: number | null;
-  } | null;
-}
 
 type SupportAssignment = {
   id: string;
@@ -114,6 +97,7 @@ interface EventMatchesTabProps {
 }
 
 export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchDurationMinutes, numberOfHalves, breakDurationMinutes, opponentTeams }: EventMatchesTabProps) {
+  const orgSlug = useOrgSlug();
   const [matches, setMatches] = useState<EventMatchWithReport[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -507,6 +491,7 @@ export function EventMatchesTab({ eventId, squads, eventType, gameFormat, matchD
                 <EventMatchCard
                   key={m.id}
                   eventId={eventId}
+                  orgSlug={orgSlug}
                   match={m}
                   matchDurationMinutes={squad.effectiveMatchDurationMinutes ?? matchDurationMinutes}
                   numberOfHalves={squad.effectiveNumberOfHalves ?? numberOfHalves}
@@ -613,6 +598,7 @@ function SupportLoadSummary({
 
 function EventMatchCard({
   eventId,
+  orgSlug,
   match,
   matchDurationMinutes,
   numberOfHalves,
@@ -655,6 +641,7 @@ function EventMatchCard({
   gameFormat,
 }: {
   eventId: string;
+  orgSlug: string;
   match: EventMatchWithReport;
   matchDurationMinutes: number | null;
   numberOfHalves: number;
@@ -867,22 +854,24 @@ function EventMatchCard({
               {lineupMatchId === match.id ? '▼ Lineup' : '▶ Lineup'}
             </button>
           )}
+          {/* ADR-0152 §2 / issue #686: the same canonical resolver League Live Reporting/Today/
+              Match Details already consume -- the label/entry point must reflect real lifecycle
+              state (not-started/active/paused/ended), never a static "Live" link regardless of
+              session status. */}
           {match.status !== 'CANCELLED' && !match.report?.status?.includes('LOCKED') && (
             <a
-              href={`/events/${eventId}/matches/${match.id}/live`}
+              href={`/o/${orgSlug}/events/${eventId}/matches/${match.id}/live`}
               className="text-[10px] text-[var(--success)] hover:underline ml-1"
             >
-              Live
+              {match.livePrimaryAction ? describeLiveReportingEntryPointLabel(match.livePrimaryAction) : 'Start live reporting'}
             </a>
           )}
-          {/* ADR-0138 Bundle 8 — Follow Live parity for Event. Matches this file's own
-              existing minimal, unconditional-link style (no active-session-awareness here
-              yet, same as the "Live" link above) — the follow page itself shows "not being
-              reported live right now" when no active session exists, mirroring League's
+          {/* ADR-0138 Bundle 8 — Follow Live parity for Event. The follow page itself shows "not
+              being reported live right now" when no active session exists, mirroring League's
               Follow Live page exactly. */}
           {match.status !== 'CANCELLED' && (
             <a
-              href={`/events/${eventId}/matches/${match.id}/live/follow`}
+              href={`/o/${orgSlug}/events/${eventId}/matches/${match.id}/live/follow`}
               className="text-[10px] text-[var(--accent)] hover:underline ml-1"
             >
               Follow live
