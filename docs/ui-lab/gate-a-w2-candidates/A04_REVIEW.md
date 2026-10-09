@@ -98,6 +98,13 @@ should be added to the vocabulary, and (b) what source-priority rule, if any, sh
   acceptance examples, not thresholds.
 - Conflicting-source-value resolution (`CONFLICT` state + priority rule) is an open product
   question, see `BLOCKED` above.
+- No separate 360px/430px/768px/900px smoke captures were added for A04, unlike A01's W1
+  extension. A01 needed those because its desktop/mobile presentation choice (600px) and its
+  row-vs-stacked layout decision (840px) were two separate breakpoints that could squeeze between
+  them. A04's panels are single-column at every width (`max-w-[560px]`, no row/stacked layout
+  decision at all) — the existing 1440/390/320 triad already brackets the one 600px
+  inspector-vs-sheet breakpoint from both sides. If a reviewer wants the intermediate widths
+  captured anyway, that is a cheap follow-up, not a re-architecture.
 - **W1 housekeeping check (per `00_READ_FIRST.md`):** `gh release list` returns zero releases for
   this repository — the W1 `candidate_manifest.json`'s disclosed D7 durable-storage gap (the 48
   approved PNGs preserved via GitHub Release, beyond CI's 7-day artifact window) is **still open**,
