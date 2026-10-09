@@ -182,3 +182,33 @@ restoration for A01 (unit-tested). Full detail per case in each `visual_vs_curre
   overflow observed at 320px.
 - `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
   limitation); CI will run them.
+
+## PR #777 final A01 correction — round 3 (desktop/mobile responsive interaction)
+
+Round 2's capture revealed `TouchlineBottomSheet` running full-width at every viewport, including
+desktop — not the approved desktop-inspector/mobile-sheet responsive grammar. Fixed:
+`useMediaQuery("(min-width: 600px)")` (Touchline's own `medium` breakpoint) now selects exactly
+one presentation — a new isolated `LineupContextualInspector` (inline, beside the match, in a
+two-column layout that collapses back to one column when closed) on desktop, the existing
+`TouchlineBottomSheet` on mobile, now `tone="utility"` instead of `tone="context"` to fix a
+readability regression (page text showing through the sheet's translucent background). Both
+presentations share one `LineupList` component and one fixture; exactly one is ever mounted in the
+DOM (the other branch doesn't render at all), so there is no duplicate-accessible-control risk to
+reason about separately. Full detail in `visual_vs_current/A01.md`.
+
+## Validation run locally (PR #777 final A01 correction, round 3)
+
+- `npx eslint src ... scripts/ui-lab-visual-review.mjs` (full repo + script) — clean (same 3
+  pre-existing, unrelated warnings).
+- `npx tsc --noEmit` (full project) — clean.
+- `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` — 4 files, 35
+  tests, all passing (A01 alone: 14 tests, including a new responsive-presentation suite that
+  mocks `window.matchMedia("(min-width: 600px)")` per test to exercise both branches).
+- `npx vitest run src/app/dev/ui-lab/gate-a` (default config) — 2 files, 26 tests, all passing.
+- Local `next dev -p 3333` + `scripts/ui-lab-visual-review.mjs` — all A01 captures regenerated and
+  visually spot-checked: desktop `lineup-open` shows the two-column inspector layout (match still
+  primary, inspector clearly subordinate, same page); mobile/narrow `lineup-open` shows a solid,
+  readable sheet with no page text bleeding through; no horizontal overflow at 320px in either
+  theme.
+- `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
+  limitation); CI will run them.

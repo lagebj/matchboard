@@ -8,7 +8,7 @@
       "scenarioId": "A01",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a01-sports-first",
-      "fixtureVersion": 3,
+      "fixtureVersion": 4,
       "componentOwners": [
         "src/components/touchline/match/operational-match-card.tsx",
         "src/components/touchline/widget/touchline-widget.tsx",
@@ -16,9 +16,12 @@
         "src/components/touchline/widget/metric-strip.tsx",
         "src/components/touchline/widget/quick-action-grid.tsx",
         "src/components/touchline/overlay/touchline-bottom-sheet.tsx",
+        "src/lib/hooks/use-media-query.ts",
         "src/lib/matches/match-presentation.ts",
         "src/app/dev/ui-lab/gate-a/a01-sports-first/page.tsx",
-        "src/app/dev/ui-lab/gate-a/a01-sports-first/fixtures.ts"
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/lineup-list.tsx",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/lineup-contextual-inspector.tsx"
       ],
       "lifecycle": "live",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -28,7 +31,8 @@
       "baselineAssetRef": "NONE — A01 has no directly comparable existing shipped page; compared against XR-S02's written anti-pattern description and the F1 Rendered Design Study 01 directional study (see visual_vs_current/A01.md)",
       "knownGaps": [
         "PR #777 remediation round 1: the 'Edit lineup' quick action previously navigated to A02 (XR-I01 violation) — fixed to an in-page, read-only TouchlineBottomSheet lineup preview; confirmed against the F6 directional study's 'stays in this match' drawer pattern.",
-        "PR #777 remediation round 2: added Escape-to-close and focus-restoration (the page now captures and restores focus to whatever triggered the sheet) and an interactive-state capture ('lineup-open') across all viewports/themes, with a URL-unchanged assertion in the capture script. No further open gap on this case."
+        "PR #777 remediation round 2: added Escape-to-close and focus-restoration and an interactive-state capture ('lineup-open') across all viewports/themes, with a URL-unchanged assertion in the capture script.",
+        "PR #777 final A01 correction (round 3): round 2's sheet ran full-width at every viewport, including desktop, which doesn't match the approved desktop-inspector/mobile-sheet responsive grammar (F6/F2-F3 studies). Fixed: desktop (>=600px) now opens a new isolated LineupContextualInspector inline beside the match; mobile (<600px) keeps TouchlineBottomSheet, now tone='utility' (solid) instead of tone='context' (glass) to fix a readability regression where page text showed through. Exactly one presentation ever mounts; both share one LineupList component and one fixture. No further open gap on this case."
       ],
       "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
     },
