@@ -1,7 +1,7 @@
 {
   "description": "Temporary UI Lab visual-review evidence; requires human approval. Not an approved golden.",
-  "sourceCommitSha": "e019dc2385d322c9c64959d51db1a1f6fb2d4c7c",
-  "generatedAt": "2026-10-09T12:47:30.084Z",
+  "sourceCommitSha": "496594c773776c221950ac38d9579245151d2725",
+  "generatedAt": "2026-10-09T13:32:48.621Z",
   "environment": {
     "node": "v24.18.0",
     "platform": "linux",
@@ -22,7 +22,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "match-preparation-desktop-dark.png",
-      "sha256": "50f36e4f73dbf4661511e52f2d35c29ce93c5e6e0b3c5579faec41c237dc48c0"
+      "sha256": "ae6cdfa4d0b25792f8b31338fb925eefabd815ea477e82ffbbe8c02e9d58b5d3"
     },
     {
       "scenario": "match-preparation",
@@ -33,7 +33,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "match-preparation-desktop-light.png",
-      "sha256": "1658438b1afdac7a1f75097620b3bd2a72c20c678ca9261cfdb5752beac915b1"
+      "sha256": "8233a468bffd9b4b9b7031b64213214fc2c4db591e5ad09bf2546b8e8cb48d78"
     },
     {
       "scenario": "match-preparation",
@@ -44,7 +44,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "match-preparation-mobile-dark.png",
-      "sha256": "0386ca4de2ee57b9eba16282b1811d44e651acdc8f057b33b107b17f9cbcd153"
+      "sha256": "e419b785440d48c7ae1484eb7d79b21298bd382514da7bc88ed3c69f476551fa"
     },
     {
       "scenario": "match-preparation",
@@ -55,7 +55,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "match-preparation-mobile-light.png",
-      "sha256": "f1cee091bea9aac130bb6adde00fe0412590174683bc5bba901374601e66994f"
+      "sha256": "6bbb92a9ac4e36d553d7787298b4b307182c30d0217d00c0301065ef22de98b1"
     },
     {
       "scenario": "match-preparation",
@@ -66,7 +66,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "match-preparation-narrow-dark.png",
-      "sha256": "03ddabe177e7becb9a1467e3eb6cb1ecd7f3bafa4853dab175731f9fe1903585"
+      "sha256": "7e43c2c3d8412ea2f0a907d91e9410011b426ce88b823fad415a0e7ce876a65d"
     },
     {
       "scenario": "match-preparation",
@@ -77,7 +77,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "match-preparation-narrow-light.png",
-      "sha256": "ebec2dad4937ff90ac73300f957fc3c9dc34b3adaf361d670b0c2c57cf5d1d5a"
+      "sha256": "a57f15d901afabb8de9e8961e896dc8cca80d0af69ebd821a1d1570239580ec6"
     },
     {
       "scenario": "completed-match",
@@ -297,7 +297,7 @@
       "theme": "dark",
       "interactionState": "lineup-open",
       "file": "gate-a-a01-sports-first-desktop-dark-lineup-open.png",
-      "sha256": "c6f1e1eeb728cffbd66ed599fff7a945d082ca1329edd2d7c4322405a4fd2508"
+      "sha256": "c16663d9c3b4dd91aa2e229dfee3e84d093c496cc574935fcd8cc8bde7670840"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -319,7 +319,7 @@
       "theme": "light",
       "interactionState": "lineup-open",
       "file": "gate-a-a01-sports-first-desktop-light-lineup-open.png",
-      "sha256": "49410181193466c0ea486b195ac3ecc50f4b9831f2e9a564e9e99bc38ebf2558"
+      "sha256": "c69967cf075eca496b66deccb92911a89a90a0566f2c7bfb0093f7219e3c2b77"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -341,7 +341,7 @@
       "theme": "dark",
       "interactionState": "lineup-open",
       "file": "gate-a-a01-sports-first-mobile-dark-lineup-open.png",
-      "sha256": "112f48cebf28b6c722d9803983490f046bbbda827e1fe5247e9dddf8891f1db4"
+      "sha256": "ba68f717be8882cc159e91fc9f66be94d763dab0e93e7bbf555cabab7d18d605"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -363,7 +363,7 @@
       "theme": "light",
       "interactionState": "lineup-open",
       "file": "gate-a-a01-sports-first-mobile-light-lineup-open.png",
-      "sha256": "849593dc01f9f5a6310ccb4605185a0adf65614a479c5bd84917dcc76db6cccc"
+      "sha256": "e9b0128ce329e0489a4a38cc098ec299acfc6fc8c739db34113e79521ce8f5e9"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -385,7 +385,7 @@
       "theme": "dark",
       "interactionState": "lineup-open",
       "file": "gate-a-a01-sports-first-narrow-dark-lineup-open.png",
-      "sha256": "260f0572ec36e48d4ce260acad66d4366d1c7fc06748c0b006ba5a1ecfa5e45e"
+      "sha256": "31d828b848e8312230755b0cfaefdbe1939d775c28021b56ecc97264efa58e2c"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -407,7 +407,7 @@
       "theme": "light",
       "interactionState": "lineup-open",
       "file": "gate-a-a01-sports-first-narrow-light-lineup-open.png",
-      "sha256": "103aac5ba348d5bb964801a0a4b597ad655e4cfdc2363918bca35869cad929cc"
+      "sha256": "292955cd521c3176a808c2ad2e7fc8a3d5e24c0223337d546bc5f75746cff3a3"
     },
     {
       "scenario": "gate-a-a02-match-lifecycle",
