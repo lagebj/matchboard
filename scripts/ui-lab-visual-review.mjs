@@ -30,6 +30,15 @@ const scenarios = [
   {
     slug: "gate-a-a01-sports-first",
     route: "gate-a/a01-sports-first",
+    // Owner/independent review follow-up: verify the 600-840px range where the contextual
+    // inspector turns on (useMediaQuery's 600px threshold) but the row layout hasn't yet engaged
+    // (Touchline's wider `expanded`, 840px, breakpoint) — the exact range a fixed-width two-column
+    // layout would have squeezed, before the row/stacked decoupling fix.
+    extraViewports: [
+      { name: "tablet-600", width: 600, height: 900 },
+      { name: "tablet-768", width: 768, height: 1024 },
+      { name: "tablet-900", width: 900, height: 1024 },
+    ],
     interactions: [
       {
         id: "lineup-open",
@@ -79,10 +88,13 @@ const records = [];
 await mkdir(output,{recursive:true});
 const browser = await chromium.launch();
 try {
-  for (const scenario of scenarios) for (const viewport of viewports) for (const theme of ["dark","light"]) {
+  for (const scenario of scenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
+    // Width-based, not name-based: correct for any current or future viewport, including the
+    // tablet-* extras above, without special-casing each new name.
+    const isNarrowDevice = viewport.width < 600;
     const context = await browser.newContext({
       viewport:{width:viewport.width,height:viewport.height},
-      isMobile:viewport.name!=="desktop",hasTouch:viewport.name!=="desktop",
+      isMobile:isNarrowDevice,hasTouch:isNarrowDevice,
       colorScheme:theme,reducedMotion:"reduce",deviceScaleFactor:1,
     });
     try {

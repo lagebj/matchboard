@@ -204,4 +204,18 @@ describe("A01 — responsive Lineup presentation (PR #777 final correction)", ()
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect((container.firstElementChild as HTMLElement).className).toContain("max-w-[480px]");
   });
+
+  it("the two-column row layout only engages at the wider 'expanded' (840px) breakpoint, not at the 600px threshold that opens the inspector (avoids a cramped 600-840px squeeze)", () => {
+    mockViewport(true);
+    const { container } = renderPage();
+    fireEvent.click(screen.getByText("Lineup"));
+
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain("expanded:flex-row");
+    expect(root.className).not.toContain("medium:flex-row");
+
+    const matchColumn = root.firstElementChild as HTMLElement;
+    expect(matchColumn.className).toContain("expanded:w-[480px]");
+    expect(matchColumn.className).not.toContain("medium:w-[480px]");
+  });
 });

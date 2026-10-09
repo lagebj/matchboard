@@ -2,13 +2,13 @@
   "programmeRevision": "0.5.4",
   "baseCommitSha": "b070df73664d816f1b0ebc61d54487a24044972e",
   "authority": "CANDIDATE_ONLY",
-  "note": "This file holds STABLE candidate metadata only. A commit cannot reliably reference its own final hash, so the actual source commit SHA, per-capture screenshot SHA-256, capture timestamp and environment live in the separately-generated, separately-committed capture-attestation.json (PR #777 remediation) instead of here.",
+  "note": "This file holds STABLE candidate metadata only. A commit cannot reliably reference its own final hash, so the actual source commit SHA, per-capture screenshot SHA-256, capture timestamp and environment live in the separately-generated, separately-committed capture-attestation.json (PR #777 remediation) instead of here. Local capture sourceCommitSha and a GitHub Actions CI capture's sourceCommitSha may legitimately differ (CI runs pull_request workflows against a synthetic merge commit, not the branch tip) -- see A01_A02_A06_A12_REVIEW.md 'Capture provenance' section before treating a hash mismatch as an integrity failure.",
   "candidates": [
     {
       "scenarioId": "A01",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a01-sports-first",
-      "fixtureVersion": 4,
+      "fixtureVersion": 5,
       "componentOwners": [
         "src/components/touchline/match/operational-match-card.tsx",
         "src/components/touchline/widget/touchline-widget.tsx",
@@ -32,7 +32,8 @@
       "knownGaps": [
         "PR #777 remediation round 1: the 'Edit lineup' quick action previously navigated to A02 (XR-I01 violation) — fixed to an in-page, read-only TouchlineBottomSheet lineup preview; confirmed against the F6 directional study's 'stays in this match' drawer pattern.",
         "PR #777 remediation round 2: added Escape-to-close and focus-restoration and an interactive-state capture ('lineup-open') across all viewports/themes, with a URL-unchanged assertion in the capture script.",
-        "PR #777 final A01 correction (round 3): round 2's sheet ran full-width at every viewport, including desktop, which doesn't match the approved desktop-inspector/mobile-sheet responsive grammar (F6/F2-F3 studies). Fixed: desktop (>=600px) now opens a new isolated LineupContextualInspector inline beside the match; mobile (<600px) keeps TouchlineBottomSheet, now tone='utility' (solid) instead of tone='context' (glass) to fix a readability regression where page text showed through. Exactly one presentation ever mounts; both share one LineupList component and one fixture. No further open gap on this case."
+        "PR #777 final A01 correction (round 3): round 2's sheet ran full-width at every viewport, including desktop, which doesn't match the approved desktop-inspector/mobile-sheet responsive grammar (F6/F2-F3 studies). Fixed: desktop (>=600px) now opens a new isolated LineupContextualInspector inline beside the match; mobile (<600px) keeps TouchlineBottomSheet, now tone='utility' (solid) instead of tone='context' (glass) to fix a readability regression where page text showed through. Exactly one presentation ever mounts; both share one LineupList component and one fixture.",
+        "PR #777 round 4 (owner-acknowledged, responsive squeeze fix): the inspector's two-column row layout engaged at the same 600px threshold that turns the inspector on, leaving almost no room for the inspector column between ~600-840px. Fixed: the row-vs-stacked layout decision now uses Touchline's wider 'expanded' (840px) breakpoint, decoupled from the 600px component-choice decision. New captures at 600/768/900px verify the fix. No further open gap on this case."
       ],
       "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
     },
@@ -63,9 +64,12 @@
       "scenarioId": "A06",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a06-position-pitches",
-      "fixtureVersion": 3,
+      "fixtureVersion": 4,
       "componentOwners": [
         "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/domain/positions/grid.ts",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/candidate-position-grid.ts",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/candidate-tactical-position-map.tsx",
         "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-position-map.tsx",
         "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-pitch-markings.tsx",
         "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
@@ -77,11 +81,12 @@
       "requirementRefs": ["XR-A03", "XR-P01", "XR-P02", "XR-P03", "XR-P04"],
       "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
       "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
-      "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/position-map (same TouchlinePositionMap component, same evidence shape, no flat-profile counterpart existed before this PR)",
+      "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/position-map (same TouchlinePositionMap component, same evidence shape, no flat-profile counterpart existed before this PR — remains the unmodified production reference, unaffected by the round-4 override below)",
       "knownGaps": [
         "PR #777 remediation round 1: LB/LWB and RB/RWB previously shared a grid cell — fixed, each of the 14 profile positions now has a unique (lane, line) cell, unit-tested. The flat grid's line ordering/grouping (F / LW-AM-RW / LM-CM-RM / LWB-DM-RWB / LB-CB-RB / GK) matches the repository owner's explicit correction, cross-checked against F1 Study 02's own schematic pitch layout.",
         "PR #777 remediation round 2 (finding A06-1, FIXED): F and GK were clipped by the pitch's overflow boundary — fixed with a 9% vertical margin (PROFILE_GRID_VERTICAL_MARGIN_PCT), unit-tested against the worst-case dot+outline+glow extent at the smallest captured viewport (320px). Symmetric spacing preserved.",
         "PR #777 remediation round 2 (finding A06-2, FIXED, open product question documented): the previous fixture derived each consolidated dot's support/confidence as 'the strongest of its group' — an unapproved aggregation rule. Replaced with a flat, explicitly-labeled illustrative placeholder, with an on-page disclosure. OPEN QUESTION FOR FUTURE DESIGN REVIEW, not decided here: whether/how a real cross-position support/confidence aggregate should ever be computed for a consolidated profile group, and whether any such rule becomes product behaviour.",
+        "PR #777 round 4 (owner feedback, REVISE -> FIXED): the 24-code exact panel's LW/RW displayed on the attack line (y0, production's primaryDisplayCellFor default). Owner feedback: 'A06 24 point positions should have LW and RW on Attacking midfielder horizontal similar to 14 point position. GK and F are always central.' Fixed via a new candidate-only presentation override (candidate-position-grid.ts/candidate-tactical-position-map.tsx) -- LW/RW now display on the attacking-midfield line (y1). Production's primaryDisplayCellFor, the canonical grid table, position-coordinates.ts, and the real TouchlinePositionMap component are all completely untouched -- every other position delegates straight to the real primaryDisplayCellFor, verified by direct equality assertion in tests. This candidate is explicitly labeled on-page as the proposed presentation, not the unmodified production coordinate placement. Not yet owner-reviewed.",
         "F1 direction formally approved directly by the repository owner in the original working session — see CURRENT_STATE_AUDIT.md."
       ],
       "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }

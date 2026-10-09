@@ -212,3 +212,48 @@ reason about separately. Full detail in `visual_vs_current/A01.md`.
   theme.
 - `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
   limitation); CI will run them.
+
+## Owner visual feedback and round 4 (A06 LW/RW line + A01 responsive squeeze)
+
+Owner review, reviewed head `40b92d5bd9d64a887b121dc49aeeb52acbe901f5`, recorded verbatim in
+`A01_A02_A06_A12_REVIEW.md`: A01/A02/A12 visually acceptable ("Else they look good", not a formal
+approval); A06 marked REVISE — "A06 24 point positions should have LW and RW on Attacking
+midfielder horizontal similar to 14 point position. GK and F are always central."
+
+**A06 fix:** confirmed via direct source read that production's `primaryDisplayCellFor`
+(`src/domain/positions/grid.ts`) deliberately picks `LW`/`RW`'s attack-line (y0) cell — exactly
+why the candidate showed them there. Built a candidate-only presentation override
+(`candidate-position-grid.ts` + `candidate-tactical-position-map.tsx`) that moves `LW`/`RW` to
+their real, already-valid y1 cell for THIS candidate's rendering only; every other position
+delegates straight to the real `primaryDisplayCellFor`, verified by direct equality in tests.
+Production's grid table, `primaryDisplayCellFor`, `position-coordinates.ts`, and the real
+`TouchlinePositionMap` component are completely untouched — confirmed by tests that assert
+`primaryDisplayCellFor("LW"/"RW")` still returns the unmodified attack-line cell.
+
+**A01 fix:** independently verified the 600-840px range the owner's review flagged as
+outstanding — found a real layout squeeze (the two-column row and the inspector-vs-sheet decision
+shared the same 600px threshold, leaving a fixed 480px match column almost no room for the
+inspector between 600-840px). Fixed by moving the row-vs-stacked layout decision to Touchline's
+wider `expanded` (840px) breakpoint, decoupled from the 600px component-choice decision.
+
+**Capture provenance:** documented explicitly in `A01_A02_A06_A12_REVIEW.md` that a local capture
+set's `sourceCommitSha` and a GitHub Actions CI capture set's `sourceCommitSha` can legitimately
+differ — CI's `pull_request` trigger checks out a synthetic merge commit, not the branch tip — and
+that this is not, by itself, an integrity failure.
+
+## Validation run locally (owner feedback + round 4)
+
+- `npx eslint src ... scripts/ui-lab-visual-review.mjs` (full repo + script) — clean (same 3
+  pre-existing, unrelated warnings).
+- `npx tsc --noEmit` (full project) — clean.
+- New tests: `candidate-position-grid.test.ts` (10 tests, proves the override matches the owner's
+  table exactly and changes nothing else), A06 component tests extended (4 new tests: selection,
+  distinctness, CF/GK centrality, presentation disclosure), A01 test suite extended (1 new test:
+  breakpoint decoupling).
+- Local `next dev -p 3333` + the extended capture script (new `extraViewports` for A01 at
+  600/768/900px) — all screenshots captured and visually spot-checked: A06's left panel now shows
+  `LW`/`RW` on the attacking-midfield line (same line as `LAM`/`CAM`/`RAM`), `GK`/`CF` still
+  central; A01's 600px and 768px captures show the inspector stacked full-width below the match
+  (no squeeze), 900px shows a comfortable two-column row.
+- `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
+  limitation); CI will run them.

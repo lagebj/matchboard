@@ -1,4 +1,4 @@
-import type { TouchlinePositionMapEntry } from "@/components/touchline/pitch/touchline-position-map";
+import type { CandidateTacticalPositionMapEntry } from "./candidate-tactical-position-map";
 import type { FlatProfilePositionMapEntry } from "./flat-profile-position-map";
 
 /**
@@ -34,8 +34,16 @@ import type { FlatProfilePositionMapEntry } from "./flat-profile-position-map";
  * by this candidate. The exact-level entries below are completely unchanged by this fix — they
  * remain the real source of truth, and the 24→14 *position* mapping itself (not the support
  * values) is still the approved, unchanged behaviour this fixture demonstrates.
+ *
+ * Owner visual feedback (2026-10-09): "A06 24 point positions should have LW and RW on Attacking
+ * midfielder horizontal similar to 14 point position. GK and F are always central." This fixture
+ * data is unchanged by that feedback — it's a presentation fix, not a data fix — but the exact
+ * panel now renders through `CandidateTacticalPositionMap` (a candidate-only presentation
+ * override, see `candidate-position-grid.ts`) instead of the real production
+ * `TouchlinePositionMap`, so `LW`/`RW` display on the attacking-midfield line rather than
+ * production's attack-line default.
  */
-export const exactTacticalEvidence: TouchlinePositionMapEntry[] = [
+export const exactTacticalEvidence: CandidateTacticalPositionMapEntry[] = [
   // Singletons — map 1:1 to their profile label, no collapsing involved.
   { positionCode: "GK", positionLabel: "Goalkeeper", rank: 1, supportBand: "STRONGEST", confidence: "HIGH" },
   { positionCode: "LB", positionLabel: "Left Back", rank: 2, supportBand: "STRONG", confidence: "MEDIUM" },

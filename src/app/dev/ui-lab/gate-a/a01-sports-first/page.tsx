@@ -37,6 +37,14 @@ import { LineupContextualInspector } from "./lineup-contextual-inspector";
  * surface) instead of the glass tone, fixing a readability regression where underlying page text
  * showed through the sheet's background. `TouchlineBottomSheet` itself is untouched — this is a
  * call-site prop choice, within UI Lab scope.
+ *
+ * Owner/independent review follow-up: the inspector turning on at `useMediaQuery`'s 600px
+ * threshold must NOT force a cramped side-by-side layout immediately — a fixed 480px match column
+ * plus the inspector would have almost no room between ~600-840px. The *which component* decision
+ * (600px, `medium`) and the *row vs stacked layout* decision are deliberately decoupled: the
+ * two-column row only engages at Touchline's wider `expanded` (840px) breakpoint. Between 600 and
+ * 840px the inspector still renders (not the sheet) but stacks full-width below the match content
+ * — verified with extra captures at 600/768/900px (`scripts/ui-lab-visual-review.mjs`).
  */
 export default function A01SportsFirstPage() {
   const [lineupOpen, setLineupOpen] = useState(false);
@@ -63,10 +71,10 @@ export default function A01SportsFirstPage() {
     <div
       className={cn(
         "touchline mx-auto flex flex-col gap-6 px-4 py-8",
-        showInspector ? "max-w-[920px] medium:flex-row medium:items-start" : "max-w-[480px]",
+        showInspector ? "max-w-[920px] expanded:flex-row expanded:items-start" : "max-w-[480px]",
       )}
     >
-      <div className={cn("flex min-w-0 flex-col gap-6", showInspector && "medium:w-[480px] medium:shrink-0")}>
+      <div className={cn("flex min-w-0 flex-col gap-6", showInspector && "expanded:w-[480px] expanded:shrink-0")}>
         <div>
           <Link href="/dev/ui-lab/gate-a" className="text-[12px] text-[var(--text-muted)] hover:underline">
             &larr; Gate A candidates
@@ -111,7 +119,7 @@ export default function A01SportsFirstPage() {
           matchReference={matchReference}
           entries={lineupPreview}
           onClose={closeLineup}
-          className="medium:flex-1"
+          className="expanded:flex-1"
         />
       ) : null}
 
