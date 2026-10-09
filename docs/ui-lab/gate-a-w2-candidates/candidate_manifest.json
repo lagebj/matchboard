@@ -1,0 +1,134 @@
+{
+  "programmeRevision": "0.5.4",
+  "baseCommitSha": "5daded8d4912efef13e9b9a59f125bebb143045e",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — per-candidate approval state is authoritative; see each candidate's own status/approval object. APPROVED_GOLDEN is NOT production implementation authorization (see each approval.scope).",
+  "note": "This file holds STABLE candidate metadata only — same convention as docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json. A commit cannot reliably reference its own final hash, so the actual source commit SHA, per-capture screenshot SHA-256, capture timestamp, and environment live in the separately-generated, separately-committed capture-attestation.json instead. Every A04 case below is CANDIDATE, pending independent review and the repository owner's explicit APPROVED/REVISE/BLOCKED decision — none may be read as approved.",
+  "candidates": [
+    {
+      "scenarioId": "A04-S1",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a04-partial-minutes",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/evidence-question-panel.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/source-inspector.tsx"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A02", "XR-A04", "XR-V01"],
+      "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — src/components/touchline/player/player-participation-strip.tsx takes minutes:number and cannot truthfully render NOT_RECORDED; see visual_vs_current/A04.md",
+      "knownGaps": [
+        "5/5 is the eligible-opportunity denominator, not a start/full-match count — the fixture only establishes 'recorded opportunity', deliberately never 'played'.",
+        "The NOT_RECORDED choice (vs UNKNOWN) assumes the source can positively confirm no interval was captured for these five rounds; a real production source may need to distinguish 'checked, nothing there' from 'did not check' more explicitly than this fixture demonstrates."
+      ]
+    },
+    {
+      "scenarioId": "A04-S2",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a04-role-exposure-sparse",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-sparse/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-sparse/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-sparse/view-model.ts"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A01", "XR-A04", "XR-V01"],
+      "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — src/components/touchline/player/player-position-timeline.tsx has its own fewer-than-three sparse empty state, but it is not a task/data-comparable baseline for this exact 2-of-6 opportunity-denominator shape; see visual_vs_current/A04.md",
+      "knownGaps": [
+        "The 2/6 ratio is this fixture's proof of scarcity only — explicitly not a new product sufficiency threshold (`07_DECISIONS_DEFERRALS_AND_BLOCKERS.md` item 2).",
+        "No interaction-state screenshot is captured for S2 — its scope forbids any derived visual to drill into beyond the two already-visible recorded rows."
+      ]
+    },
+    {
+      "scenarioId": "A04-S3",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a04-role-exposure-supported",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/view-model.ts"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A01", "XR-V01"],
+      "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently partitions recorded role-duration minutes into a prior/latest window comparison; see visual_vs_current/A04.md",
+      "knownGaps": [
+        "The prior-3/latest-3 window split and the six-match completeness are this fixture's acceptance example only, not a universal product sufficiency rule (`07_DECISIONS_DEFERRALS_AND_BLOCKERS.md` item 2)."
+      ]
+    },
+    {
+      "scenarioId": "A04-S4",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a04-sparse-score-events",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/sparse-score-events/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/sparse-score-events/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/sparse-score-events/view-model.ts"
+      ],
+      "lifecycle": "done",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A04", "XR-V01"],
+      "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently separates a canonical final score from an independently partial event log as two distinct coverage states; see visual_vs_current/A04.md",
+      "knownGaps": [
+        "The data-truth test proving CONFLICT detection (two sources disagreeing on the same fact) is test-only (`shared/invariants.ts`'s describeConflict) — no production-looking conflict UI state exists anywhere in A04, since no source-priority order is approved yet (BLOCKED, see A04_REVIEW.md)."
+      ]
+    },
+    {
+      "scenarioId": "A04-S5",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a04-central-profile-projection",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/central-profile-projection/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/central-profile-projection/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/central-profile-projection/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A03", "XR-V01"],
+      "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
+      "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
+      "baselineAssetRef": "src/app/dev/ui-lab/gate-a/a12-profile-editor (W1, APPROVED_GOLDEN) demonstrates the same aggregator on a two-match fixture; A04-S5 is the single-match, non-overlapping-interval case specifically, not previously demonstrated",
+      "knownGaps": [
+        "Reuses W1's approved `aggregateExactAppearancesByProfile`/`collapseTacticalToProfile` unmodified — no new aggregation rule. The overlap-rejection invariant (`assertNonOverlappingIntervals`) is new in this PR, exercised by both a positive (S5's real fixture) and a negative (a deliberately overlapping variant, test-only) case."
+      ]
+    },
+    {
+      "scenarioId": "A04-S6",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a04-declared-only-versus-evidenced",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/declared-only-versus-evidenced/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/declared-only-versus-evidenced/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/declared-only-versus-evidenced/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A03", "XR-V01"],
+      "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
+      "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
+      "baselineAssetRef": "src/app/dev/ui-lab/gate-a/a12-profile-editor (W1, APPROVED_GOLDEN) Case A/Case B split is the direct conceptual precedent this candidate extends with real exact-interval evidence for Case B",
+      "knownGaps": [
+        "No evidence-derived profile position is ever automatically promoted to declared primary/secondary/tertiary — a real promotion requires ADR-0139's confidence threshold and explicit coach approval, not simulated here."
+      ]
+    }
+  ]
+}

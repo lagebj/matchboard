@@ -17,6 +17,28 @@ function resolveCommitSha() {
     return "unknown";
   }
 }
+/**
+ * A04's shared `source-open` interaction (Gate A W2): clicks the first "Inspect..." control on
+ * the page and waits for the resulting context-local dialog (inline inspector or bottom sheet) to
+ * settle — same settle-detection approach as A01's `lineup-open` (a bottom sheet is DOM-"visible"
+ * mid-transform the instant it mounts, so wait on its real rendered position, not just `state:
+ * "visible"`; the inline inspector has nothing to settle).
+ */
+async function openFirstSourceInspector(page) {
+  await page.getByRole("button", { name: /inspect/i }).first().click();
+  await page.getByRole("dialog").first().waitFor({ state: "visible", timeout: 10000 });
+  const isSheet = await page.evaluate(() => document.querySelector('[role="dialog"]')?.getAttribute("aria-modal") === "true");
+  if (isSheet) {
+    await page.waitForFunction(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (!dialog) return false;
+      const rect = dialog.getBoundingClientRect();
+      return rect.height > 0 && rect.bottom <= window.innerHeight + 2;
+    }, { timeout: 10000 });
+    await page.waitForTimeout(100);
+  }
+}
+
 // `slug` names the output file; `route` is the dev UI Lab path under /dev/ui-lab/.
 // `interactions` (PR #777 remediation, A01/A12 finding): optional extra captures of the SAME
 // page, in the SAME browser context (no reload), after performing a deterministic interaction —
@@ -74,6 +96,45 @@ const scenarios = [
     ],
   },
   { slug: "gate-a-a02-match-lifecycle", route: "gate-a/a02-match-lifecycle" },
+  // Gate A W2 candidate (programme_v054 `20_UI_LAB_CANDIDATE_WAVES.md` W2, A04) — CANDIDATE, not
+  // approved. One `source-open` interaction per scenario reuses the same `openFirstSourceInspector`
+  // action (click the first "Inspect..." control, wait for the resulting dialog to settle,
+  // identical in shape to A01's `lineup-open`). `interactionViewports` is a bounded script
+  // extension (A04 test/capture matrix: "at minimum source-open ... at 1440 and 390 ... 20
+  // additional screenshots") — when set, interactions only run at those viewport names, not
+  // every viewport in `viewports`; omitting it (every W1 scenario above) keeps the original
+  // all-viewports behavior unchanged.
+  {
+    slug: "gate-a-a04-partial-minutes",
+    route: "gate-a/a04-evidence-grammar/partial-minutes",
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "source-open", perform: openFirstSourceInspector }],
+  },
+  { slug: "gate-a-a04-role-exposure-sparse", route: "gate-a/a04-evidence-grammar/role-exposure-sparse" },
+  {
+    slug: "gate-a-a04-role-exposure-supported",
+    route: "gate-a/a04-evidence-grammar/role-exposure-supported",
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "source-open", perform: openFirstSourceInspector }],
+  },
+  {
+    slug: "gate-a-a04-sparse-score-events",
+    route: "gate-a/a04-evidence-grammar/sparse-score-events",
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "source-open", perform: openFirstSourceInspector }],
+  },
+  {
+    slug: "gate-a-a04-central-profile-projection",
+    route: "gate-a/a04-evidence-grammar/central-profile-projection",
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "source-open", perform: openFirstSourceInspector }],
+  },
+  {
+    slug: "gate-a-a04-declared-only-versus-evidenced",
+    route: "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "source-open", perform: openFirstSourceInspector }],
+  },
   { slug: "gate-a-a06-position-pitches", route: "gate-a/a06-position-pitches" },
   {
     slug: "gate-a-a12-profile-editor",
@@ -135,6 +196,7 @@ try {
       console.log("Captured "+initialName+" sha256="+initialSha256);
 
       for (const interaction of scenario.interactions ?? []) {
+        if (scenario.interactionViewports && !scenario.interactionViewports.includes(viewport.name)) continue;
         await interaction.perform(page);
         const urlBefore = url.pathname;
         if (page.url() && new URL(page.url()).pathname !== urlBefore) {
