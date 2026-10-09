@@ -1,7 +1,7 @@
 {
   "description": "Temporary UI Lab visual-review evidence for Gate A W2 A04; requires human approval. Not an approved golden.",
-  "sourceCommitSha": "c5ebfda08a03acfe5b485b710b9d65086c5c432c",
-  "generatedAt": "2026-10-09T19:31:41.000Z",
+  "sourceCommitSha": "53696fada4e530e5137a2812dd64f58b1ea7ca1a",
+  "generatedAt": "2026-10-09T20:46:39.000Z",
   "environment": {
     "node": "v24.9.0",
     "platform": "linux",
@@ -11,7 +11,8 @@
     "Captured against a local/ephemeral dev server, not a production or preview deployment.",
     "All gate-a-a04-* scenarios are CANDIDATE only \u2014 see docs/ui-lab/gate-a-w2-candidates/A04_REVIEW.md.",
     "Per-candidate metadata (componentOwners, requirementRefs, experienceContractRef, dataContractRef, knownGaps, baselineAssetRef, lifecycle, assistantCoachState, fixtureId, fixtureVersion, fixtureSha256) lives in candidate_manifest.json, keyed by scenarioId (e.g. A04-S1) \u2014 this file holds only the per-capture screenshot record.",
-    "CI re-captures against GitHub Actions own ephemeral dev server; its sourceCommitSha will legitimately differ from this local-capture sourceCommitSha (a pull_request run checks out a synthetic merge commit, not the branch tip) \u2014 see gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md Capture provenance for the precedent."
+    "CI re-captures against GitHub Actions own ephemeral dev server; its sourceCommitSha will legitimately differ from this local-capture sourceCommitSha (a pull_request run checks out a synthetic merge commit, not the branch tip) \u2014 see gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md Capture provenance for the precedent.",
+    "Regenerated for independent review round 1 (findings R1/R2/R3 + verification gaps) \u2014 supersedes the prior capture-attestation.json committed against 039d991ec. All 48 pre-existing W1 gate-a-* hashes and the 4 non-Gate-A atlas-followup baseline routes were re-verified at this commit too (not included in this A04-only file); match-preparation legitimately differs run-to-run due to its own Date.now()-based fixture, unrelated to this PR."
   ],
   "approvalStatus": "CANDIDATE",
   "captures": [
@@ -26,7 +27,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a04-partial-minutes-desktop-dark.png",
-      "sha256": "8630e0279b033f7665a5601059b35f01d2db7e945e2080a287133285d53db88f"
+      "sha256": "4ab9ff372f89bc15b82d61ab463e2d2c4efac120a8ff6c33d756b815f6da1fb5"
     },
     {
       "scenarioId": "A04-S1",
@@ -39,7 +40,20 @@
       "theme": "dark",
       "interactionState": "source-open",
       "file": "gate-a-a04-partial-minutes-desktop-dark-source-open.png",
-      "sha256": "9ad940b5d6a0dca4d7c6aaadff3161e3203cab6fd19ec7043a75703e1a8afb95"
+      "sha256": "2ca7d8f86ea924a0e82716782e8e3f1aace30ebd24491841dd5cdf9f91183eee"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "source-open-minutes",
+      "file": "gate-a-a04-partial-minutes-desktop-dark-source-open-minutes.png",
+      "sha256": "e522ab72ee437644aa9245e635975f42876da1741bdff09c03e955ad9a79be4b"
     },
     {
       "scenarioId": "A04-S1",
@@ -52,7 +66,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a04-partial-minutes-desktop-light.png",
-      "sha256": "888c7fad625d70e640ad6b9cf243e3e8c14b9099271edd8358da3a56571c6a63"
+      "sha256": "d9b62885d2ff03d8e0a836fe126807d805408fc52641905098f253ed069c4481"
     },
     {
       "scenarioId": "A04-S1",
@@ -65,7 +79,20 @@
       "theme": "light",
       "interactionState": "source-open",
       "file": "gate-a-a04-partial-minutes-desktop-light-source-open.png",
-      "sha256": "f545f9587dc30c9ffee3f7f3b38a5bcd2bd5225eb8d081fddf115c20f176f7d5"
+      "sha256": "b19e07d92b33337b03d00a57f0998b4140eada920ba8c259e62baab0f4975f7f"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "source-open-minutes",
+      "file": "gate-a-a04-partial-minutes-desktop-light-source-open-minutes.png",
+      "sha256": "4d13158ab28b0833607f58725d3a746af72537661cd614b2f63978362a3cc412"
     },
     {
       "scenarioId": "A04-S1",
@@ -78,7 +105,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a04-partial-minutes-mobile-dark.png",
-      "sha256": "2c279fb4b67b273c22e5b04337ab667f505d99d3c96dfb723eff5c7317bae51f"
+      "sha256": "4178532029ce67ba16eb1d93e56fac5f0e545cf13aac326b46f8bb8797697190"
     },
     {
       "scenarioId": "A04-S1",
@@ -91,7 +118,20 @@
       "theme": "dark",
       "interactionState": "source-open",
       "file": "gate-a-a04-partial-minutes-mobile-dark-source-open.png",
-      "sha256": "541a0cfd2e2a7b6a56fce2a453bf85778967d4d2139455fd4acea46b2e090e83"
+      "sha256": "2b7f27b3aff5993b26ca48f814f7d84ff2fc9f5db887ef5b5181b9098ab194a6"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "source-open-minutes",
+      "file": "gate-a-a04-partial-minutes-mobile-dark-source-open-minutes.png",
+      "sha256": "1d6e54056f7a0072cf11a755d0a8a07c9c505147af7f677f87d4b2088a5db198"
     },
     {
       "scenarioId": "A04-S1",
@@ -104,7 +144,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a04-partial-minutes-mobile-light.png",
-      "sha256": "5a11958b56b14f564b656043423674e708c0c800aa56233c13a0c6cdb72297c9"
+      "sha256": "b7219e1c2dd9a453daaa931e4422ca52303815f968dd235748bfc53b1dc941a2"
     },
     {
       "scenarioId": "A04-S1",
@@ -117,7 +157,20 @@
       "theme": "light",
       "interactionState": "source-open",
       "file": "gate-a-a04-partial-minutes-mobile-light-source-open.png",
-      "sha256": "d137689a92067bfbdba01954fdbcce0b17d2eab8ff285977c529505cacef0f7c"
+      "sha256": "84b3dc9350bc5552d8e28145c14d0328f6b986f2c6328f3a433e0fbb16a356f2"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "source-open-minutes",
+      "file": "gate-a-a04-partial-minutes-mobile-light-source-open-minutes.png",
+      "sha256": "2f49989f755380066ff769cdf1fa9b3439ff1f3fbec08ea3705669ee1ef11c31"
     },
     {
       "scenarioId": "A04-S1",
@@ -130,7 +183,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a04-partial-minutes-narrow-dark.png",
-      "sha256": "c8522f583392433d43d6e38c00df8c39ef52f9bee307488921949db0d44bdf4e"
+      "sha256": "7dfb80f8565f1ad1a3a68d90c0b0d34e728786ce17f3743c355362d85b193b70"
     },
     {
       "scenarioId": "A04-S1",
@@ -143,7 +196,59 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a04-partial-minutes-narrow-light.png",
-      "sha256": "73181a578ab1d6c1279be24457817612567f5219bb3dcf228eb998af6d4d4860"
+      "sha256": "6680fc30207eda274c5e54e17530e471194752b45e1e6b94c9283ca6fd2dc1c8"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-partial-minutes-a04-360-dark.png",
+      "sha256": "087e8c2a59d81a737b05e6e95d3d10f4abec4efa10d3c148d29e5cc6caf3d0cd"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-partial-minutes-a04-360-light.png",
+      "sha256": "753555d2205dd49a81a99acae287f8c585a83e93336e1a2b7da56b7c938df52a"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-partial-minutes-a04-430-dark.png",
+      "sha256": "f085ec6d1c1af6b80da8fbece31662e4c7d072259c00ccbf17a8318d5c98a8a2"
+    },
+    {
+      "scenarioId": "A04-S1",
+      "scenario": "gate-a-a04-partial-minutes",
+      "route": "gate-a/a04-evidence-grammar/partial-minutes",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-partial-minutes-a04-430-light.png",
+      "sha256": "bb4c99d3845e196026ef3956f92120441410cd88a5f85c8a131e450545fe82a4"
     },
     {
       "scenarioId": "A04-S2",
@@ -222,6 +327,58 @@
       "interactionState": "initial",
       "file": "gate-a-a04-role-exposure-sparse-narrow-light.png",
       "sha256": "93cc545b5f0ae50df6959745c8e09d5d7c5d39779c7d5326985aff17298c1bc1"
+    },
+    {
+      "scenarioId": "A04-S2",
+      "scenario": "gate-a-a04-role-exposure-sparse",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-sparse",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-sparse-a04-360-dark.png",
+      "sha256": "a04b59bab4de928d9f7a03b2aedb27846852e19995f24edf26c3ce368d735199"
+    },
+    {
+      "scenarioId": "A04-S2",
+      "scenario": "gate-a-a04-role-exposure-sparse",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-sparse",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-sparse-a04-360-light.png",
+      "sha256": "169386457596d2892509a321ef4b98b1e937dcbc8a40aa7bf78f20c74ede0477"
+    },
+    {
+      "scenarioId": "A04-S2",
+      "scenario": "gate-a-a04-role-exposure-sparse",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-sparse",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-sparse-a04-430-dark.png",
+      "sha256": "cdd49f76c783e2a94f5ce06c8c896e5ee96c1c00f95a56340a4b1a6540fe1362"
+    },
+    {
+      "scenarioId": "A04-S2",
+      "scenario": "gate-a-a04-role-exposure-sparse",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-sparse",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-sparse-a04-430-light.png",
+      "sha256": "7551488c8b05b92dd17966fa36bb02c88454106395b7548bca7cd7a167174484"
     },
     {
       "scenarioId": "A04-S3",
@@ -354,6 +511,58 @@
       "sha256": "b3604e94f1dd4221a4bd68d439243bc6f3f23352ce5e94d8791032f118e08fd6"
     },
     {
+      "scenarioId": "A04-S3",
+      "scenario": "gate-a-a04-role-exposure-supported",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-supported",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-supported-a04-360-dark.png",
+      "sha256": "674974afbf5a8ed29e7969377a6411b00dff8af4a6c1c3c475bf1dbad0faad43"
+    },
+    {
+      "scenarioId": "A04-S3",
+      "scenario": "gate-a-a04-role-exposure-supported",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-supported",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-supported-a04-360-light.png",
+      "sha256": "d307b3c548ea17a3a8d36bd9a511346ad3e273156e5ccd8713c3b967ddd16bf9"
+    },
+    {
+      "scenarioId": "A04-S3",
+      "scenario": "gate-a-a04-role-exposure-supported",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-supported",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-supported-a04-430-dark.png",
+      "sha256": "1201c78ebd8d85196ed4f7e68a032917bc4381028f6f3b05a8bb0392339fd95e"
+    },
+    {
+      "scenarioId": "A04-S3",
+      "scenario": "gate-a-a04-role-exposure-supported",
+      "route": "gate-a/a04-evidence-grammar/role-exposure-supported",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-role-exposure-supported-a04-430-light.png",
+      "sha256": "10302132f9a17fbb5108982f31271f2848b96581325e74dfb7809b259674fd8d"
+    },
+    {
       "scenarioId": "A04-S4",
       "scenario": "gate-a-a04-sparse-score-events",
       "route": "gate-a/a04-evidence-grammar/sparse-score-events",
@@ -375,9 +584,22 @@
       "viewportHeight": 900,
       "deviceScaleFactor": 1,
       "theme": "dark",
-      "interactionState": "source-open",
-      "file": "gate-a-a04-sparse-score-events-desktop-dark-source-open.png",
-      "sha256": "569050dc8eb7bd0310dc12ecfd4fc74c26e678dbeac6e04e2fb2e299c0d49122"
+      "interactionState": "source-open-result",
+      "file": "gate-a-a04-sparse-score-events-desktop-dark-source-open-result.png",
+      "sha256": "7b49fe88d045523a03f3ac15b381cadd9e7f7beefe150c86ded7cb9390332357"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "source-open-event",
+      "file": "gate-a-a04-sparse-score-events-desktop-dark-source-open-event.png",
+      "sha256": "dc83f5d0c9fc9ef41fa10daaacb2cb4a0b4ae63cddd3a5d8a73dbfb08251c1ce"
     },
     {
       "scenarioId": "A04-S4",
@@ -401,9 +623,22 @@
       "viewportHeight": 900,
       "deviceScaleFactor": 1,
       "theme": "light",
-      "interactionState": "source-open",
-      "file": "gate-a-a04-sparse-score-events-desktop-light-source-open.png",
-      "sha256": "976d898ef7a27c36778645f70628bb21d7eb01f280f5c99e4d7353da6abe6a24"
+      "interactionState": "source-open-result",
+      "file": "gate-a-a04-sparse-score-events-desktop-light-source-open-result.png",
+      "sha256": "ee80ad566cae95c3d09d0329787cccba2aa94087caf9a73b6cf153717376fa38"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "source-open-event",
+      "file": "gate-a-a04-sparse-score-events-desktop-light-source-open-event.png",
+      "sha256": "5a8a1a5b7f79c3c0066b596358a3c815c4698a57498cf6f4e8661205f03863be"
     },
     {
       "scenarioId": "A04-S4",
@@ -427,9 +662,22 @@
       "viewportHeight": 844,
       "deviceScaleFactor": 1,
       "theme": "dark",
-      "interactionState": "source-open",
-      "file": "gate-a-a04-sparse-score-events-mobile-dark-source-open.png",
-      "sha256": "ce1ee0a6e080eb8884c67decf404968fcf432098283392b62a1e8c1e0dd78649"
+      "interactionState": "source-open-result",
+      "file": "gate-a-a04-sparse-score-events-mobile-dark-source-open-result.png",
+      "sha256": "266fd8fd09fa8e204d7a99f07ac5039e7c0029c9dc2d8a37c5458f16308725b0"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "source-open-event",
+      "file": "gate-a-a04-sparse-score-events-mobile-dark-source-open-event.png",
+      "sha256": "f24dc9483d8e97700fbf65adbfdf6d6f9313cb27dea9f3f7faf5aa19f4a21e81"
     },
     {
       "scenarioId": "A04-S4",
@@ -453,9 +701,22 @@
       "viewportHeight": 844,
       "deviceScaleFactor": 1,
       "theme": "light",
-      "interactionState": "source-open",
-      "file": "gate-a-a04-sparse-score-events-mobile-light-source-open.png",
-      "sha256": "06a17909d8a251a78c2f46a6f283b4ce6cedb40b777a175b14ffa249789192c5"
+      "interactionState": "source-open-result",
+      "file": "gate-a-a04-sparse-score-events-mobile-light-source-open-result.png",
+      "sha256": "7822c0e14b3b088b112b5e21c6905d75ec8befc5388106bdbbcdabaec1ac9d5e"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "source-open-event",
+      "file": "gate-a-a04-sparse-score-events-mobile-light-source-open-event.png",
+      "sha256": "2a2a4b03aad8b1a2c52b774bb7af4057d3c7740d24be0bf92b35cfc9c2abf6e2"
     },
     {
       "scenarioId": "A04-S4",
@@ -482,6 +743,58 @@
       "interactionState": "initial",
       "file": "gate-a-a04-sparse-score-events-narrow-light.png",
       "sha256": "61fb80e07ec6c751b8df145774d200667c471ece884358664f34eef877a9fdd5"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-sparse-score-events-a04-360-dark.png",
+      "sha256": "0b5d3f87edf3bb6c95dfce38213c5e28a0f48d15ad397deb0f3b1355bee7ec93"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-sparse-score-events-a04-360-light.png",
+      "sha256": "7c3dbc2bbf067a33c39200c74d56906bcf9db3c1666a80463dba21da574dea5b"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-sparse-score-events-a04-430-dark.png",
+      "sha256": "8ff9f4eccfb5f476b904c334eb292b76fb33994323d41f1edc0391aea9ef746c"
+    },
+    {
+      "scenarioId": "A04-S4",
+      "scenario": "gate-a-a04-sparse-score-events",
+      "route": "gate-a/a04-evidence-grammar/sparse-score-events",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-sparse-score-events-a04-430-light.png",
+      "sha256": "404da742ffb416ef72fbd3491f73c2dcb8969ab13a536c0711d1279bc222e868"
     },
     {
       "scenarioId": "A04-S5",
@@ -614,6 +927,58 @@
       "sha256": "aad4df12fbd2c0c4201fec568ecceb26cacedc36a5d639443733b84ed023adf2"
     },
     {
+      "scenarioId": "A04-S5",
+      "scenario": "gate-a-a04-central-profile-projection",
+      "route": "gate-a/a04-evidence-grammar/central-profile-projection",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-central-profile-projection-a04-360-dark.png",
+      "sha256": "cc47325b4d2efc70b947cf0069cf764f3e2fd0c4f2d8942654fb82e2124a7fce"
+    },
+    {
+      "scenarioId": "A04-S5",
+      "scenario": "gate-a-a04-central-profile-projection",
+      "route": "gate-a/a04-evidence-grammar/central-profile-projection",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-central-profile-projection-a04-360-light.png",
+      "sha256": "bf00c50a8cf6f01c84f1f84faf5ba86a47fd8157968b803375e7383a2b165e82"
+    },
+    {
+      "scenarioId": "A04-S5",
+      "scenario": "gate-a-a04-central-profile-projection",
+      "route": "gate-a/a04-evidence-grammar/central-profile-projection",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-central-profile-projection-a04-430-dark.png",
+      "sha256": "45ed05f99ae97331499950d0f7f28c526f840f63f4a8853477d6e69855e5006a"
+    },
+    {
+      "scenarioId": "A04-S5",
+      "scenario": "gate-a-a04-central-profile-projection",
+      "route": "gate-a/a04-evidence-grammar/central-profile-projection",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-central-profile-projection-a04-430-light.png",
+      "sha256": "afb16b66928d4363b5b70a1bcef5c9aefb9374cdf23ed0f7462d0768768eaec7"
+    },
+    {
       "scenarioId": "A04-S6",
       "scenario": "gate-a-a04-declared-only-versus-evidenced",
       "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
@@ -624,7 +989,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark.png",
-      "sha256": "185e7366b5a9defb448d3d608d3fee7faa354750db5042cdd9362ddf1da04bca"
+      "sha256": "479ba65fa42a81e90ee67e51b4920c4ae2237e7c59ed8a87a3d06b22f1344612"
     },
     {
       "scenarioId": "A04-S6",
@@ -637,7 +1002,20 @@
       "theme": "dark",
       "interactionState": "source-open",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark-source-open.png",
-      "sha256": "3b149773809577f3c4473e2c8b98e0e68df469063c85fc71d52abcc33d197957"
+      "sha256": "b8805aaae4bd1a0db30b544a991509134ea895684522775541ff0fbda62fbe45"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "source-open-case-b",
+      "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark-source-open-case-b.png",
+      "sha256": "941b2a89f6c817574190018c09bcd401535ec2f74082285f5dbdcd14822c0b67"
     },
     {
       "scenarioId": "A04-S6",
@@ -650,7 +1028,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light.png",
-      "sha256": "bda7e5c655ca8689e3d96a617c3ff6f8dd98bc44fff8df6976a5686fa2bb759b"
+      "sha256": "5e69b06f801da708c835f0ed2ee6b2aa9a5a2eeb94fc94454bd89f8c38b97792"
     },
     {
       "scenarioId": "A04-S6",
@@ -663,7 +1041,20 @@
       "theme": "light",
       "interactionState": "source-open",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light-source-open.png",
-      "sha256": "13a27e23e9087b1b1464a9b61f43a954cd1a90d0864d332387e15c8ac9c753e8"
+      "sha256": "4a1681ac8c58203a7385365425b0fbe9f2c428b18ff3d4948681a504444a9b68"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "source-open-case-b",
+      "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light-source-open-case-b.png",
+      "sha256": "9488000400a7b70269dc74b8a06fbe426b8a4503faf45f0f610c90107277b2bf"
     },
     {
       "scenarioId": "A04-S6",
@@ -676,7 +1067,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a04-declared-only-versus-evidenced-mobile-dark.png",
-      "sha256": "b3f6fd2c2f8fd558d07c7fd8f1cdeac3b777c443b19a97879d2cd1f242eabd7c"
+      "sha256": "d253c445ae12c43f18942d8121830ee37fec629ff083482dcd58a2e5ff90f350"
     },
     {
       "scenarioId": "A04-S6",
@@ -689,7 +1080,20 @@
       "theme": "dark",
       "interactionState": "source-open",
       "file": "gate-a-a04-declared-only-versus-evidenced-mobile-dark-source-open.png",
-      "sha256": "a2a09c3e63528f4ef82140dcbdcb8c5033b42ee54298c2cde84e8c79e59ecba1"
+      "sha256": "d63116952bb6e1c98c58a04734c7cfe426b9719a61b66dae7faed6a84e57b0af"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "source-open-case-b",
+      "file": "gate-a-a04-declared-only-versus-evidenced-mobile-dark-source-open-case-b.png",
+      "sha256": "2349bfc54ffc0928f31d2ad395b15adcc27a118269a361079b55661d15e83caa"
     },
     {
       "scenarioId": "A04-S6",
@@ -702,7 +1106,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a04-declared-only-versus-evidenced-mobile-light.png",
-      "sha256": "503533adc7f77b73e98f4adfa4ef726f15d3768c983790577ebd3cd5db8ab528"
+      "sha256": "e68ecba8b487474a7d6cdffa12a15f6b471961e2512dc7d00b721074fd6be126"
     },
     {
       "scenarioId": "A04-S6",
@@ -715,7 +1119,20 @@
       "theme": "light",
       "interactionState": "source-open",
       "file": "gate-a-a04-declared-only-versus-evidenced-mobile-light-source-open.png",
-      "sha256": "5bf0bb0c88b48e34b812bde7a87307b5bfa2f007eb51df939ef3d056c9118f79"
+      "sha256": "49f4bcb3fd2fda32d730dc0bfe0ff3a47b9adf50a5300bccc5bc0ae5a7462cba"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "source-open-case-b",
+      "file": "gate-a-a04-declared-only-versus-evidenced-mobile-light-source-open-case-b.png",
+      "sha256": "c057d7348c457a3dcc6b01fcd3b6cc19ea0af24ed4fd65c960f41dc72d7ff459"
     },
     {
       "scenarioId": "A04-S6",
@@ -728,7 +1145,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a04-declared-only-versus-evidenced-narrow-dark.png",
-      "sha256": "350a9518d488a8cb2240482b7a23e34b56036659d3f1c62aff9cf7067f02b945"
+      "sha256": "9833834ad021af960e67434eb5d9c89f38ffe0fccafa1c764e3646fc5cc533dd"
     },
     {
       "scenarioId": "A04-S6",
@@ -741,7 +1158,59 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a04-declared-only-versus-evidenced-narrow-light.png",
-      "sha256": "5cfa28c707bd8485b229c2d6ac0288a0d5037ac517f0204ba488a567ad1c6a2e"
+      "sha256": "dc0c09296057faf4a300adb49119a8b7a89f72ef1e38edf5bc186dad780e526c"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-declared-only-versus-evidenced-a04-360-dark.png",
+      "sha256": "5318f0b8592e1d72ebaac905cbdbdbbccc64ad4c54afd8e0292ba679c949c210"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "a04-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-declared-only-versus-evidenced-a04-360-light.png",
+      "sha256": "23b87b7f742290800b7565a5410c03ce3c4580e71a46830cbb2008ad6881faf6"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a04-declared-only-versus-evidenced-a04-430-dark.png",
+      "sha256": "ff32bf96be073ddd530d4bef8efd9c5ded3f537351a05e03f4d3494277bb4997"
+    },
+    {
+      "scenarioId": "A04-S6",
+      "scenario": "gate-a-a04-declared-only-versus-evidenced",
+      "route": "gate-a/a04-evidence-grammar/declared-only-versus-evidenced",
+      "viewport": "a04-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "deviceScaleFactor": 1,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a04-declared-only-versus-evidenced-a04-430-light.png",
+      "sha256": "915166bf62c44b50bba4741a8da1cf35f9a4ef0e3b1b53e494e2756160e1bd21"
     }
   ]
 }
