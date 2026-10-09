@@ -35,10 +35,12 @@ export default function A06PositionPitchesPage() {
         </Link>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">A06 — Tactical vs profile pitch pairing</h1>
         <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          Left: real production <code>TouchlinePositionMap</code> (24-code exact, perspective) —
-          every one of the 24 canonical positions has evidence. Right: isolated flat 3×6 profile
-          candidate (14-role, no shirts, orthogonal grid) — the same evidence collapsed through
-          the real 24→14 mapping. No dot exists where there is no evidence in either panel.
+          Left: <code>CandidateTacticalPositionMap</code> — the proposed 24-code exact presentation
+          (perspective, canonical vocabulary; LW/RW on the attacking-midfield line per owner
+          feedback), not the unmodified production <code>TouchlinePositionMap</code>. Right:
+          isolated flat 3×6 profile candidate (14-role, no shirts, orthogonal grid) — the same
+          evidence collapsed through the real 24→14 mapping. No dot exists where there is no
+          evidence in either panel.
         </p>
       </div>
 
