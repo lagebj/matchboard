@@ -1,7 +1,7 @@
 {
   "description": "Temporary UI Lab visual-review evidence; requires human approval. Not an approved golden.",
-  "sourceCommitSha": "e45fb2cce2d39b0c46c543fc92af682b15916e04",
-  "generatedAt": "2026-10-09T11:36:18.158Z",
+  "sourceCommitSha": "e019dc2385d322c9c64959d51db1a1f6fb2d4c7c",
+  "generatedAt": "2026-10-09T12:47:30.084Z",
   "environment": {
     "node": "v24.18.0",
     "platform": "linux",
@@ -20,8 +20,9 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "match-preparation-desktop-dark.png",
-      "sha256": "7473d4c02a7a0a787b23ed70a4b9b0bac96793b89f05b97a835db85f1adc0b65"
+      "sha256": "50f36e4f73dbf4661511e52f2d35c29ce93c5e6e0b3c5579faec41c237dc48c0"
     },
     {
       "scenario": "match-preparation",
@@ -30,8 +31,9 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "match-preparation-desktop-light.png",
-      "sha256": "e2417fd9570e8415658b737e3842c2b57a8d9b7f618a968b834c7f0066194cea"
+      "sha256": "1658438b1afdac7a1f75097620b3bd2a72c20c678ca9261cfdb5752beac915b1"
     },
     {
       "scenario": "match-preparation",
@@ -40,8 +42,9 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "match-preparation-mobile-dark.png",
-      "sha256": "fa6a398c436f69e87e06985483ac77062563f8c0cefbb7107209093672131e79"
+      "sha256": "0386ca4de2ee57b9eba16282b1811d44e651acdc8f057b33b107b17f9cbcd153"
     },
     {
       "scenario": "match-preparation",
@@ -50,8 +53,9 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "match-preparation-mobile-light.png",
-      "sha256": "13c995828206e8d4839b861f7faa0a08dae89b853ccdcf23442ae8dc0dc92704"
+      "sha256": "f1cee091bea9aac130bb6adde00fe0412590174683bc5bba901374601e66994f"
     },
     {
       "scenario": "match-preparation",
@@ -60,8 +64,9 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "match-preparation-narrow-dark.png",
-      "sha256": "2d9c9fc570aa962391ddb0f213f99af9cadd0620f6f4aef6c93508aa1ce6d21e"
+      "sha256": "03ddabe177e7becb9a1467e3eb6cb1ecd7f3bafa4853dab175731f9fe1903585"
     },
     {
       "scenario": "match-preparation",
@@ -70,8 +75,9 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "match-preparation-narrow-light.png",
-      "sha256": "2bc42dba86d9493b301f0b09b5308c8ea6d721917903fa6d33fe64f1d442d16c"
+      "sha256": "ebec2dad4937ff90ac73300f957fc3c9dc34b3adaf361d670b0c2c57cf5d1d5a"
     },
     {
       "scenario": "completed-match",
@@ -80,6 +86,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "completed-match-desktop-dark.png",
       "sha256": "2c999d49032314f7746530ffd6d6a01e305f29ef130c304b9d5171ab5712f63c"
     },
@@ -90,6 +97,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "completed-match-desktop-light.png",
       "sha256": "e455a31c0694dc07988da0e8ce355e708d9f950895f222dd7e54f1ad92959de6"
     },
@@ -100,6 +108,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "completed-match-mobile-dark.png",
       "sha256": "c4a0761a129f73b1b8063e2c704cc14e0482c2ff5299d810b668acca31b532e7"
     },
@@ -110,6 +119,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "completed-match-mobile-light.png",
       "sha256": "daeab1b8745264690d90dc42288fee1b2fe3233f26009d6fa22b909947555d7e"
     },
@@ -120,6 +130,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "completed-match-narrow-dark.png",
       "sha256": "5046d4b1af71f54d1a1269ccb701e9a2cecc2974e8763290087ae15b24544ee7"
     },
@@ -130,6 +141,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "completed-match-narrow-light.png",
       "sha256": "5cf26c6f9f33e639d82127b7226a7291b86d9fb141da2c1d36901118a5eaeb1d"
     },
@@ -140,6 +152,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "player-detail-desktop-dark.png",
       "sha256": "3b0ea27b2d6247432e7593fc30c743b466e21fdefb86501eb561634797ef3542"
     },
@@ -150,6 +163,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "player-detail-desktop-light.png",
       "sha256": "6c9230029e273e482eeb8a24b304006978f180512a98ccdad862a9eda56d131a"
     },
@@ -160,6 +174,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "player-detail-mobile-dark.png",
       "sha256": "ddd0ce998c7be6558deb6d67b20ae1454c1fdb2acac793735394ce28c0ec4446"
     },
@@ -170,6 +185,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "player-detail-mobile-light.png",
       "sha256": "4b510b62cd23b7acc6cf6fe7408c2673cf84bd886d9880cd5d5f710bf39fcd0f"
     },
@@ -180,6 +196,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "player-detail-narrow-dark.png",
       "sha256": "4be649ad8f54aed0db60673eef3c8c02e4ca30c41176b27dd870d22affc8c6c1"
     },
@@ -190,6 +207,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "player-detail-narrow-light.png",
       "sha256": "cf83c711651946caeb17806f876d5b716ccdf844a1e9602db7b13ed468c7236e"
     },
@@ -200,6 +218,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "position-map-desktop-dark.png",
       "sha256": "8795012ff1d1b540212c0672770ad27a4c640f2beedce875dd2a26a168360cc1"
     },
@@ -210,6 +229,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "position-map-desktop-light.png",
       "sha256": "8ef0f8e811a3d6c6f69e26d776f136e0534924f7c10d446fed1caf74b11c4551"
     },
@@ -220,6 +240,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "position-map-mobile-dark.png",
       "sha256": "8080ba5ad618384c46fb70b69fe64f4238cc45794236c466cdd05dc380e57e95"
     },
@@ -230,6 +251,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "position-map-mobile-light.png",
       "sha256": "ce3378e758cb1898aca2b2f411bf97155d91a73d40bc8a6ecb65e05bc7d578c8"
     },
@@ -240,6 +262,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "position-map-narrow-dark.png",
       "sha256": "ba9bde248ca9e89b5f8cad88d8363cc76a2b5f6a4a0a3116912a7a6c56152d39"
     },
@@ -250,6 +273,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "position-map-narrow-light.png",
       "sha256": "de870e9886e67c090a7cada3247001d6cf2b57038b5160d81a7fe61ba0613719"
     },
@@ -260,6 +284,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a01-sports-first-desktop-dark.png",
       "sha256": "396e2a3430e9dd30a40c4764b3cbbd1ff4fca315e4e74a75e39b1ab361284f3c"
     },
@@ -269,9 +294,32 @@
       "viewport": "desktop",
       "viewportWidth": 1440,
       "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-desktop-dark-lineup-open.png",
+      "sha256": "c6f1e1eeb728cffbd66ed599fff7a945d082ca1329edd2d7c4322405a4fd2508"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a01-sports-first-desktop-light.png",
       "sha256": "e6420726f4f652d46c482afc36a4047abee7b7ac14d24ef6820739d2526a202d"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-desktop-light-lineup-open.png",
+      "sha256": "49410181193466c0ea486b195ac3ecc50f4b9831f2e9a564e9e99bc38ebf2558"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -280,6 +328,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a01-sports-first-mobile-dark.png",
       "sha256": "2da74cb3208e7d2ca9b7c6174cc7604b1a2378ec15c68195beaa984784042d42"
     },
@@ -289,9 +338,32 @@
       "viewport": "mobile",
       "viewportWidth": 390,
       "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-mobile-dark-lineup-open.png",
+      "sha256": "112f48cebf28b6c722d9803983490f046bbbda827e1fe5247e9dddf8891f1db4"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a01-sports-first-mobile-light.png",
       "sha256": "3e5516e363361e179e9ef3418beb6d8326c430b869cf3d101551795ea3e184ec"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-mobile-light-lineup-open.png",
+      "sha256": "849593dc01f9f5a6310ccb4605185a0adf65614a479c5bd84917dcc76db6cccc"
     },
     {
       "scenario": "gate-a-a01-sports-first",
@@ -300,6 +372,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a01-sports-first-narrow-dark.png",
       "sha256": "2562b675ccc1e4f98334006dce9c7abe85ff3e2fdbd664e9cf08a3a7dcaee739"
     },
@@ -309,9 +382,32 @@
       "viewport": "narrow",
       "viewportWidth": 320,
       "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-narrow-dark-lineup-open.png",
+      "sha256": "260f0572ec36e48d4ce260acad66d4366d1c7fc06748c0b006ba5a1ecfa5e45e"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a01-sports-first-narrow-light.png",
       "sha256": "2f857e1fee73cfb442e5329d3a73faa8710d45a0a21da0f0f53731c349303470"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-narrow-light-lineup-open.png",
+      "sha256": "103aac5ba348d5bb964801a0a4b597ad655e4cfdc2363918bca35869cad929cc"
     },
     {
       "scenario": "gate-a-a02-match-lifecycle",
@@ -320,6 +416,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a02-match-lifecycle-desktop-dark.png",
       "sha256": "c463b89c48c13bc8d40a47e424ce38d968d0eb63e21e265e055c4b8e130c8459"
     },
@@ -330,6 +427,7 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a02-match-lifecycle-desktop-light.png",
       "sha256": "9f0ac275e0e6b2c33cc8492becc351ae08a9cc92859fb48b91181ceed2ba52b4"
     },
@@ -340,6 +438,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a02-match-lifecycle-mobile-dark.png",
       "sha256": "2d8cc69b78b5bbd8f5532adae0643c5b72b9414d1157c11183c1323e8a8aafe6"
     },
@@ -350,6 +449,7 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a02-match-lifecycle-mobile-light.png",
       "sha256": "75f697c8ab00f5b97cebe01628db8fad44d4ab03c83100ba798aa086ad499cae"
     },
@@ -360,6 +460,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a02-match-lifecycle-narrow-dark.png",
       "sha256": "09a9b17fd639ed8d6bdff32d3ce57f993a34e44fc20c5fdcf5dc6f5d093b7ffa"
     },
@@ -370,6 +471,7 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a02-match-lifecycle-narrow-light.png",
       "sha256": "bbff6408bd141d2841a209e0a66d1bd48a68177deded6ae0cd473d4c8f5d2634"
     },
@@ -380,8 +482,9 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-desktop-dark.png",
-      "sha256": "20236a8436a59541c02429cb1a2607af7b404148ee4fbec3c2ddd1b1d8d83211"
+      "sha256": "73dd7a9c69aec16fc4147257e30e7036301329654e61bc4a2ddd512f1c5569a1"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -390,8 +493,9 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-desktop-light.png",
-      "sha256": "f60ef07bdf671f00a288eeb30dc6b54af84897e87f0fc8496b48c3c90037d350"
+      "sha256": "c9d571f11895e0e52ff2a2813f03303a9921bea0e1ab4b7651b593db6c1ec088"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -400,8 +504,9 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-mobile-dark.png",
-      "sha256": "2e5194185f647ebfdd2a06f3e8d39e659cf12d30bce68c9ed8982912fc0cb568"
+      "sha256": "03ecb9bda687e4a539a832443e7ceb7a10598231b76f6adcf061f8f2f9c36792"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -410,8 +515,9 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-mobile-light.png",
-      "sha256": "18c9e21315c25f093719d1967c40faaaf8fcc699ca94a9d0b7772000e83cf590"
+      "sha256": "7e0f3ea79fd1a2a8fc2e87afe7979f1ea544308f46ec6e9207520ea885555bc7"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -420,8 +526,9 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-narrow-dark.png",
-      "sha256": "7de2a7907c4d34ad04e9c7b09b1aa8bb131ff10fd4d59030c477c4592e6f1735"
+      "sha256": "4a0660245035a67bec3b63a93fab91b46dc696ac3d534250dc22ec6548e3e6ab"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -430,8 +537,9 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-narrow-light.png",
-      "sha256": "1c6458526df51acfd197ea9c46ed20ed848d4178503b7c84e1a389deaca4bc29"
+      "sha256": "e1eb34abe9a8f46a4c5ecdef79b20132765e94f4a00376a2a33e29952436e52c"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
@@ -440,8 +548,20 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a12-profile-editor-desktop-dark.png",
-      "sha256": "b08d4b6472ae1685839e6ca504777504342e44303658c36fd86b2a221f56bc58"
+      "sha256": "6113aaf15247c2f97d87bc45fcde4c9e6e0b2cee333a427b08b9abea834c2204"
+    },
+    {
+      "scenario": "gate-a-a12-profile-editor",
+      "route": "gate-a/a12-profile-editor",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "editor-expanded",
+      "file": "gate-a-a12-profile-editor-desktop-dark-editor-expanded.png",
+      "sha256": "1b2eb2f2fad8f47b2258da03b03f55e02d27ff4ec03ba36f1f8339781045de59"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
@@ -450,8 +570,20 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a12-profile-editor-desktop-light.png",
-      "sha256": "db0267456d0a7b27a67a54b0fd15be83393f4c47b0b824f7eacae08f7575c91e"
+      "sha256": "ef7b2e5d2b86a7acb6d8f57701904fe9c7624544dad05dece113ba0296badd50"
+    },
+    {
+      "scenario": "gate-a-a12-profile-editor",
+      "route": "gate-a/a12-profile-editor",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "editor-expanded",
+      "file": "gate-a-a12-profile-editor-desktop-light-editor-expanded.png",
+      "sha256": "c642ba59f4de341f216de5eb3cffdbf9f0a836a8b088275247465a3dc3e3411b"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
@@ -460,8 +592,20 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a12-profile-editor-mobile-dark.png",
-      "sha256": "3736400a9de4ff23bcf14d915bc2ab6ff9ad38d05d00f2755411687a9214e40c"
+      "sha256": "1bec70365322fa3840424a168a48abdf6975f77d519d42f835c5a90dd41e05f8"
+    },
+    {
+      "scenario": "gate-a-a12-profile-editor",
+      "route": "gate-a/a12-profile-editor",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "editor-expanded",
+      "file": "gate-a-a12-profile-editor-mobile-dark-editor-expanded.png",
+      "sha256": "a99deb56bebad068bcd9ad705bdfc657b2ce9b19521a331d695c649e5e711ac4"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
@@ -470,8 +614,20 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a12-profile-editor-mobile-light.png",
-      "sha256": "93ffe6b5d9f21d958afe4c20b8ff9f6db9e2392ab25c1c3dfa0b9ef438902831"
+      "sha256": "515abf44529d425d7d577b6e931ff3176dd1fb8cb7b0f76c80c360f3b239842f"
+    },
+    {
+      "scenario": "gate-a-a12-profile-editor",
+      "route": "gate-a/a12-profile-editor",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "editor-expanded",
+      "file": "gate-a-a12-profile-editor-mobile-light-editor-expanded.png",
+      "sha256": "ea50838dc36054c03ac59d81e13ceca3102dde673d24fc6005dbffeeb19111f0"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
@@ -480,8 +636,20 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "dark",
+      "interactionState": "initial",
       "file": "gate-a-a12-profile-editor-narrow-dark.png",
-      "sha256": "e65108f8c13bb4e5c3cca248add21ab9dd1a59215568febb0905731d7a4b4124"
+      "sha256": "5987f783c8db6fef0b074a32746ddedcb9c33896e44e4c213056c4ae09f17787"
+    },
+    {
+      "scenario": "gate-a-a12-profile-editor",
+      "route": "gate-a/a12-profile-editor",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "editor-expanded",
+      "file": "gate-a-a12-profile-editor-narrow-dark-editor-expanded.png",
+      "sha256": "2e82492b9812d8982eab7ed4ac3f3e40ad5d2d2d8ac5da31e7e7e0ab40e446a0"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
@@ -490,8 +658,20 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "theme": "light",
+      "interactionState": "initial",
       "file": "gate-a-a12-profile-editor-narrow-light.png",
-      "sha256": "beed08b32d70a31d9d8f94b3f5eee350c808859bd6aba8fd1f97aab0687c1ddc"
+      "sha256": "f601824f9a3138753e336ab6aa0b082a214e06211837388b74b88076ead42b02"
+    },
+    {
+      "scenario": "gate-a-a12-profile-editor",
+      "route": "gate-a/a12-profile-editor",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "editor-expanded",
+      "file": "gate-a-a12-profile-editor-narrow-light-editor-expanded.png",
+      "sha256": "af4272410d70e3e97dc22d65c8462eb65356b987aa9b79f99c5c0971920b3a01"
     }
   ]
 }
