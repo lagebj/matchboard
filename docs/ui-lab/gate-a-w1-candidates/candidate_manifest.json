@@ -8,7 +8,7 @@
       "scenarioId": "A01",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a01-sports-first",
-      "fixtureVersion": 2,
+      "fixtureVersion": 3,
       "componentOwners": [
         "src/components/touchline/match/operational-match-card.tsx",
         "src/components/touchline/widget/touchline-widget.tsx",
@@ -27,7 +27,8 @@
       "dataContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
       "baselineAssetRef": "NONE — A01 has no directly comparable existing shipped page; compared against XR-S02's written anti-pattern description and the F1 Rendered Design Study 01 directional study (see visual_vs_current/A01.md)",
       "knownGaps": [
-        "PR #777 remediation: the 'Edit lineup' quick action previously navigated to A02 (XR-I01 violation) — fixed to an in-page, read-only TouchlineBottomSheet lineup preview; confirmed against the F6 directional study's 'stays in this match' drawer pattern. No further open gap on this point."
+        "PR #777 remediation round 1: the 'Edit lineup' quick action previously navigated to A02 (XR-I01 violation) — fixed to an in-page, read-only TouchlineBottomSheet lineup preview; confirmed against the F6 directional study's 'stays in this match' drawer pattern.",
+        "PR #777 remediation round 2: added Escape-to-close and focus-restoration (the page now captures and restores focus to whatever triggered the sheet) and an interactive-state capture ('lineup-open') across all viewports/themes, with a URL-unchanged assertion in the capture script. No further open gap on this case."
       ],
       "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
     },
@@ -58,7 +59,7 @@
       "scenarioId": "A06",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a06-position-pitches",
-      "fixtureVersion": 2,
+      "fixtureVersion": 3,
       "componentOwners": [
         "src/components/touchline/pitch/touchline-position-map.tsx",
         "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-position-map.tsx",
@@ -74,8 +75,9 @@
       "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
       "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/position-map (same TouchlinePositionMap component, same evidence shape, no flat-profile counterpart existed before this PR)",
       "knownGaps": [
-        "PR #777 remediation: LB/LWB and RB/RWB previously shared a grid cell — fixed, each of the 14 profile positions now has a unique (lane, line) cell, unit-tested. The flat grid's line ordering/grouping (F / LW-AM-RW / LM-CM-RM / LWB-DM-RWB / LB-CB-RB / GK) now matches the repository owner's explicit correction and was cross-checked against F1 Study 02's own schematic pitch layout, which independently shows the same vertical ordering (confirmed via directional-study review, not just the correction text).",
-        "The fixture now exercises the full 24-code vocabulary, including all 5 centre-line consolidation groups (CB/DM/CM/AM/F), each profile dot's support/confidence traceable to its strongest real exact-level source value (never invented).",
+        "PR #777 remediation round 1: LB/LWB and RB/RWB previously shared a grid cell — fixed, each of the 14 profile positions now has a unique (lane, line) cell, unit-tested. The flat grid's line ordering/grouping (F / LW-AM-RW / LM-CM-RM / LWB-DM-RWB / LB-CB-RB / GK) matches the repository owner's explicit correction, cross-checked against F1 Study 02's own schematic pitch layout.",
+        "PR #777 remediation round 2 (finding A06-1, FIXED): F and GK were clipped by the pitch's overflow boundary — fixed with a 9% vertical margin (PROFILE_GRID_VERTICAL_MARGIN_PCT), unit-tested against the worst-case dot+outline+glow extent at the smallest captured viewport (320px). Symmetric spacing preserved.",
+        "PR #777 remediation round 2 (finding A06-2, FIXED, open product question documented): the previous fixture derived each consolidated dot's support/confidence as 'the strongest of its group' — an unapproved aggregation rule. Replaced with a flat, explicitly-labeled illustrative placeholder, with an on-page disclosure. OPEN QUESTION FOR FUTURE DESIGN REVIEW, not decided here: whether/how a real cross-position support/confidence aggregate should ever be computed for a consolidated profile group, and whether any such rule becomes product behaviour.",
         "F1 direction formally approved directly by the repository owner in the original working session — see CURRENT_STATE_AUDIT.md."
       ],
       "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
@@ -84,7 +86,7 @@
       "scenarioId": "A12",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a12-profile-editor",
-      "fixtureVersion": 2,
+      "fixtureVersion": 3,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-a/a12-profile-editor/profile-position-selector.tsx",
         "src/app/dev/ui-lab/gate-a/a12-profile-editor/profile-position-triple-editor.tsx",
@@ -101,8 +103,9 @@
       "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
       "baselineAssetRef": "src/components/players/player-editor-form.tsx (production, offers all 24 sided codes — no 14-role picker exists to compare against); interaction pattern confirmed against F1 Study 02's Overview (compact text summary) / Manage (full 14-button grid + 3 dropdowns) distinction",
       "knownGaps": [
-        "PR #777 remediation: now covers primary (required), secondary (optional), tertiary (optional), with duplicate prevention and clearable optional slots — previously only a single declared position existed.",
-        "Added a legacy migration preview (LCF/CF/RCF -> single F primary, no invented secondary/tertiary).",
+        "PR #777 remediation round 1: now covers primary (required), secondary (optional), tertiary (optional), with duplicate prevention and clearable optional slots — previously only a single declared position existed.",
+        "PR #777 remediation round 2 (finding A12-1, FIXED): the legacy migration preview previously implied match evidence alone could determine a declared primary. Split into Case A 'Legacy declared positions' (LCF/CF/RCF declared primary/secondary/tertiary -> single F primary, original primary declaration keeps ordering authority) and Case B 'Recorded match exposure' (minutes only, no declared fields — never produces a declared triple; promoting exposure to a declaration requires ADR-0139's confidence threshold + coach approval, not simulated here).",
+        "Added an interactive-state capture ('editor-expanded') across all viewports/themes, with a URL-unchanged assertion in the capture script.",
         "No production mutation path exists or is implied by this candidate — selecting a profile position here writes nothing.",
         "DM/AM/F unsided stored-candidate mapping (-> CDM/CAM/CF) is display metadata only, pending actual domain migration authority (BLK-08, unresolved)."
       ],

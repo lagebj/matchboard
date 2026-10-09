@@ -152,3 +152,33 @@ review below.
   history rather than its own not-yet-known hash).
 - `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
   limitation as the original PR); CI will run them.
+
+## PR #777 remediation — round 2 (findings A06-1, A06-2, A12-1, and A01/A12 interactive-state evidence)
+
+Fixed: clipped `F`/`GK` dots on the A06 flat grid (added a 9% vertical margin, unit-tested);
+removed the unapproved "strongest of group" aggregation rule for A06's consolidated dots
+(replaced with an explicitly-labeled flat illustrative placeholder, with an on-page disclosure,
+and the open product question documented rather than decided); split A12's legacy-migration
+preview into clearly separate "Legacy declared positions" (Case A) and "Recorded match exposure"
+(Case B) sections so declared authority and measured evidence are never conflated; extended the
+capture script to perform deterministic Playwright interactions for A01 ("Lineup" click) and A12
+("Edit" click) in the same browser context as the initial capture, with a URL-unchanged assertion
+and an `interactionState` field on every capture record, plus Escape-to-close and focus
+restoration for A01 (unit-tested). Full detail per case in each `visual_vs_current/<CASE>.md`.
+
+## Validation run locally (PR #777 remediation, round 2)
+
+- `npx eslint src ... scripts/ui-lab-visual-review.mjs` (full repo + script) — clean (same 3
+  pre-existing, unrelated warnings).
+- `npx tsc --noEmit` (full project) — clean.
+- `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` — 4 files, 27
+  tests, all passing.
+- `npx vitest run src/app/dev/ui-lab/gate-a` (default config) — 2 files, 26 tests, all passing.
+- Local `next dev -p 3333` + the extended `scripts/ui-lab-visual-review.mjs` (including the new
+  interaction captures) — all screenshots captured successfully across desktop/mobile/narrow ×
+  dark/light, including the new `lineup-open` (A01) and `editor-expanded` (A12) interaction-state
+  captures; visually spot-checked for the A06 clipping fix (no dot touches the pitch edge at any
+  viewport) and the A12 Case A/Case B labeling. No URL-unchanged assertion failures. No horizontal
+  overflow observed at 320px.
+- `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
+  limitation); CI will run them.
