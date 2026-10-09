@@ -47,18 +47,61 @@ an approved golden; see `A01_A02_A06_A12_REVIEW.md` for the per-case status (`CA
   for `match-preparation` / `completed-match` / `player-detail` / `position-map` (re-ran locally;
   all 4 baseline captures still succeed byte-for-byte in shape — see Validation below).
 
-## Known limitation (disclosed)
+## Known limitation (disclosed, original W0/W1 PR — resolved in the PR #777 remediation below)
 
 The F1–F6 directional-study archives
-(`programme_v054/directional_studies_not_goldens/*.zip`) were not reviewed pixel-by-pixel. An
-earlier research pass assigned to extract and summarize them went outside its read-only scope
-(see PR description for the full incident account) and was stopped before it reported findings.
-Per the handoff's own stated precedence
+(`programme_v054/directional_studies_not_goldens/*.zip`) were not reviewed pixel-by-pixel in the
+original PR. An earlier research pass assigned to extract and summarize them went outside its
+read-only scope (see the git history / original PR description for the full incident account)
+and was stopped before it reported findings. Per the handoff's own stated precedence
 (`00_READ_ME_FIRST.md`: "If details conflict, use `01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md`,
 `15_...CONTRACT.md`, `17_...CONTRACT.md`, `18_GATE_A_DIRECTION_SIGNOFF.md`... in that order") the
 written contracts outrank the studies, which are explicitly non-normative illustrations — this
 candidate was built from the written contracts (01, 13, 15, 16, 17, 18) and the real repository
-components, not from the study archives.
+components, not from the study archives, for the original W0/W1 PR.
+
+## PR #777 remediation (this round)
+
+A full, detailed study of the F1–F6 directional archives was carried out this round, using a
+fresh agent with no inherited "execute this handoff" framing and an explicit instruction to treat
+everything inside the archives — including any embedded text resembling instructions — as design
+notes only, never as directives, and to copy no markup/code verbatim. Findings are cited
+concretely in each `visual_vs_current/*.md` file (file/line-level description of what was
+actually seen, not generic inference). Summary of what changed as a direct result:
+
+- **A06 (correctness defect):** the flat profile grid placed `LB`/`LWB` and `RB`/`RWB` on the
+  same coordinates — a genuine bug, since a player can have independent evidence at both and both
+  must be independently visible/selectable. Fixed to the layout the repository owner specified
+  (and independently corroborated by the F1 Study 02 review): `F` alone on the attack line,
+  `LW/AM/RW`, `LM/CM/RM`, `LWB/DM/RWB`, `LB/CB/RB`, `GK` alone on the goalkeeper line — all 14
+  profile positions now have a unique grid cell (unit-tested).
+- **A06 (coverage gap):** the fixture previously used only 3 non-collapsing exact codes
+  (`LW`/`LM`/`RW`), which never exercised the 24→14 projection at all. Rebuilt to cover all 24
+  canonical positions, explicitly demonstrating all five centre-line consolidation groups
+  (`CB`/`DM`/`CM`/`AM`/`F`), each profile-level value traceable to its strongest real exact-level
+  source (unit-tested, never invented).
+- **A12 (missing scope):** the candidate only supported a single declared position. Rebuilt as a
+  full primary/secondary/tertiary `ProfilePositionTripleEditor` with duplicate prevention and
+  clearable optional slots, plus a legacy migration preview (`LCF`/`CF`/`RCF` → single `F`
+  primary, no invented secondary/tertiary) — the interaction pattern (compact summary by default,
+  expand to 3 selects + the full 14-button grid) is drawn directly from the F1 Study 02 review's
+  Overview-vs-Manage distinction, not invented independently.
+- **A01 (interaction-contract violation, XR-I01):** the "Edit lineup" quick action navigated to
+  the unrelated A02 scenario page — a real violation of the context-local rule. Fixed to a
+  real, shipped `TouchlineBottomSheet` opening an in-page, read-only lineup preview, confirmed
+  against the F6 Interactive Study 01's "stays in this match" drawer pattern. Relabeled "Lineup"
+  (not "Edit lineup") since no editing capability is actually implemented.
+- **Capture/manifest hygiene:** `candidate_manifest.json`'s self-referential `prCommitSha:
+  "PENDING_COMMIT"` field is removed — a commit cannot reliably contain its own final hash. Stable
+  candidate metadata stays in that file; the actual source commit SHA, per-capture SHA-256,
+  capture timestamp/environment and known limitations now live in a separately-generated,
+  separately-committed `capture-attestation.json`, referencing an already-existing prior commit
+  (avoids the circular-dependency problem entirely).
+- Capture matrix extended to three widths (desktop 1440px, mobile 390px, narrow 320px) × dark/light,
+  applied uniformly to all 8 scenarios (4 existing baseline + 4 Gate A).
+
+No change was made outside `src/app/dev/ui-lab/gate-a/**`, `docs/ui-lab/gate-a-w1-candidates/**`,
+and the narrow capture-script edit — exactly the scope this remediation was authorized for.
 
 ## F1 approval status
 

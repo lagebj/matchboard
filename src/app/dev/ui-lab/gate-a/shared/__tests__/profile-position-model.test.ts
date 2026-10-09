@@ -3,9 +3,11 @@ import { CANONICAL_TACTICAL_POSITIONS } from "@/domain/positions/roles";
 import {
   PROFILE_POSITIONS,
   PROFILE_TO_TACTICAL_GROUP,
+  PROFILE_FLAT_GRID,
   collapseTacticalToProfile,
   allCanonicalTacticalPositionsCovered,
   aggregateExactAppearancesByProfile,
+  profileFlatGridCellKey,
   type ExactPositionAppearance,
 } from "../profile-position-model";
 
@@ -63,6 +65,38 @@ describe("Gate A profile-position model (candidate, not production)", () => {
     const [aggregate] = aggregateExactAppearancesByProfile(appearances);
     expect(aggregate.totalMinutes).toBe(30);
     expect(aggregate.appearanceCount).toBe(1);
+  });
+
+  describe("flat 3x6 grid coordinates (PR #777 remediation)", () => {
+    it("gives every one of the 14 profile positions its own unique grid cell", () => {
+      const cellKeys = PROFILE_POSITIONS.map(profileFlatGridCellKey);
+      expect(new Set(cellKeys).size).toBe(14);
+    });
+
+    it("never places LB on the same cell as LWB, or RB on the same cell as RWB", () => {
+      expect(profileFlatGridCellKey("LB")).not.toBe(profileFlatGridCellKey("LWB"));
+      expect(profileFlatGridCellKey("RB")).not.toBe(profileFlatGridCellKey("RWB"));
+    });
+
+    it("places GK alone on the bottom line and every other position on a line above it", () => {
+      expect(PROFILE_FLAT_GRID.GK.line).toBe(5);
+      for (const position of PROFILE_POSITIONS) {
+        if (position === "GK") continue;
+        expect(PROFILE_FLAT_GRID[position].line).toBeLessThan(5);
+      }
+    });
+
+    it("places F alone on the top (attacking) line", () => {
+      expect(PROFILE_FLAT_GRID.F.line).toBe(0);
+      expect(PROFILE_FLAT_GRID.F.lane).toBe("CENTRE");
+    });
+
+    it("keeps LWB/DM/RWB on their own line above LB/CB/RB (defence)", () => {
+      expect(PROFILE_FLAT_GRID.LWB.line).toBe(PROFILE_FLAT_GRID.DM.line);
+      expect(PROFILE_FLAT_GRID.RWB.line).toBe(PROFILE_FLAT_GRID.DM.line);
+      expect(PROFILE_FLAT_GRID.LB.line).toBeGreaterThan(PROFILE_FLAT_GRID.LWB.line);
+      expect(PROFILE_FLAT_GRID.RB.line).toBeGreaterThan(PROFILE_FLAT_GRID.RWB.line);
+    });
   });
 });
 

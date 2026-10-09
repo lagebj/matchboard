@@ -101,30 +101,43 @@ export function allCanonicalTacticalPositionsCovered(): boolean {
  * shirts"). Unlike `TouchlinePositionMap`'s perspective-projected 5×6 tactical grid, this is a
  * plain orthogonal grid — no trapezoid, no depth scale.
  *
- * Known candidate gap (disclosed, not resolved here): `LWB`/`RWB` share a grid cell with
- * `LB`/`RB` respectively. A real player's evidence is practically never split exactly evenly
- * across both in a way that would visually collide in this fixture, but true non-overlapping
- * placement for a player with support at both is an open design question for a later wave, not
- * decided by this candidate.
+ * PR #777 remediation (repository-owner correction, 2026-10-09): every one of the 14 profile
+ * positions now has its own unique `(lane, line)` cell — `LB`/`LWB` and `RB`/`RWB` previously
+ * shared a cell with their full-back counterpart; a player with evidence at both must be able to
+ * show both simultaneously and distinguishably, so each now owns its own line:
+ *
+ * - Line 0 (attack):            —    F   —
+ * - Line 1:                    LW   AM   RW
+ * - Line 2:                    LM   CM   RM
+ * - Line 3 (def. mid/wing-back): LWB  DM  RWB
+ * - Line 4 (defence):           LB   CB   RB
+ * - Line 5 (goalkeeper):         —   GK   —
  */
 export const PROFILE_FLAT_GRID: Readonly<Record<ProfilePosition, { lane: "LEFT" | "CENTRE" | "RIGHT"; line: number }>> = {
-  LW: { lane: "LEFT", line: 0 },
   F: { lane: "CENTRE", line: 0 },
-  RW: { lane: "RIGHT", line: 0 },
+  LW: { lane: "LEFT", line: 1 },
   AM: { lane: "CENTRE", line: 1 },
+  RW: { lane: "RIGHT", line: 1 },
   LM: { lane: "LEFT", line: 2 },
   CM: { lane: "CENTRE", line: 2 },
   RM: { lane: "RIGHT", line: 2 },
+  LWB: { lane: "LEFT", line: 3 },
   DM: { lane: "CENTRE", line: 3 },
+  RWB: { lane: "RIGHT", line: 3 },
   LB: { lane: "LEFT", line: 4 },
-  LWB: { lane: "LEFT", line: 4 },
   CB: { lane: "CENTRE", line: 4 },
   RB: { lane: "RIGHT", line: 4 },
-  RWB: { lane: "RIGHT", line: 4 },
   GK: { lane: "CENTRE", line: 5 },
 };
 
 export const PROFILE_GRID_LINE_COUNT = 6;
+
+/** Every `(lane, line)` cell in `PROFILE_FLAT_GRID` is unique — asserted in the test suite, not
+ * just by construction, so a future edit that reintroduces a collision fails loudly. */
+export function profileFlatGridCellKey(position: ProfilePosition): string {
+  const { lane, line } = PROFILE_FLAT_GRID[position];
+  return `${lane}:${line}`;
+}
 
 const LANE_PERCENT: Record<"LEFT" | "CENTRE" | "RIGHT", number> = {
   LEFT: 18,

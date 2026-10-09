@@ -27,9 +27,10 @@ export default function A06PositionPitchesPage() {
         </Link>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">A06 — Tactical vs profile pitch pairing</h1>
         <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          Left: real production <code>TouchlinePositionMap</code> (24-code exact, perspective).
-          Right: isolated flat 3×6 profile candidate (14-role, no shirts, orthogonal grid). No dot
-          exists where there is no evidence in either panel.
+          Left: real production <code>TouchlinePositionMap</code> (24-code exact, perspective) —
+          every one of the 24 canonical positions has evidence. Right: isolated flat 3×6 profile
+          candidate (14-role, no shirts, orthogonal grid) — the same evidence collapsed through
+          the real 24→14 mapping. No dot exists where there is no evidence in either panel.
         </p>
       </div>
 
@@ -60,7 +61,8 @@ export default function A06PositionPitchesPage() {
 
       <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 p-3 text-[11px] text-[var(--text-muted)]">
         <p>LW and RW stay their own sided profile labels — never collapsed into a single unsided &ldquo;W&rdquo;.</p>
-        <p>CB has no dot here in either panel — no evidence exists for it in this fixture.</p>
+        <p>LB/LWB and RB/RWB each have their own evidence and their own grid cell — distinct, simultaneously visible, and independently selectable (PR #777 remediation; previously these shared a cell).</p>
+        <p>Five centre-line groups collapse to one profile dot each, never fabricating a stronger signal than their strongest source: LCB/CB/RCB → CB, LDM/CDM/RDM → DM, LCM/CM/RCM → CM, LAM/CAM/RAM → AM, LCF/CF/RCF → F.</p>
       </div>
     </div>
   );

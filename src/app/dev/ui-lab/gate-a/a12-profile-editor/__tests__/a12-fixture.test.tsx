@@ -1,9 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { exactAppearances, profileEvidenceAggregates } from "../fixtures";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { useState } from "react";
+import { exactAppearances, profileEvidenceAggregates, initialDeclaredTriple } from "../fixtures";
 import { LegacyEvidenceDrilldown } from "../legacy-evidence-drilldown";
 import { ProfilePositionSelector } from "../profile-position-selector";
+import { ProfilePositionTripleEditor } from "../profile-position-triple-editor";
+import type { ProfilePositionTriple } from "../profile-triple-selection";
 import { PROFILE_POSITIONS } from "../../shared/profile-position-model";
+
+function ControlledEditor({ initial }: { initial: ProfilePositionTriple }) {
+  const [value, setValue] = useState(initial);
+  return <ProfilePositionTripleEditor value={value} onChange={setValue} />;
+}
 
 /**
  * A12 candidate fixture invariants (`20_UI_LAB_CANDIDATE_WAVES.md` A12): the selector's visible
@@ -35,5 +43,34 @@ describe("A12 profile-editor candidate fixture", () => {
     expect(rb?.totalMinutes).toBe(45);
     const cm = profileEvidenceAggregates.find((a) => a.profile === "CM");
     expect(cm?.breakdown.some((b) => b.tacticalPosition === "RB")).toBe(false);
+  });
+
+  it("the triple editor starts collapsed, showing a compact Primary/Secondary/Tertiary summary", () => {
+    render(<ControlledEditor initial={initialDeclaredTriple} />);
+    expect(screen.getByText(/Primary:/)).toBeInTheDocument();
+    expect(screen.getByText("CM")).toBeInTheDocument(); // primary value in the summary
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument(); // no selects until expanded
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("expands to three selects plus the 14-role grid, and collapses again on Done", () => {
+    render(<ControlledEditor initial={initialDeclaredTriple} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    const selects = screen.getAllByRole("combobox");
+    expect(selects).toHaveLength(3); // primary, secondary, tertiary
+    expect(screen.getByRole("radio", { name: "CM" })).toBeInTheDocument(); // the 14-button grid
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("never offers the current primary as a secondary/tertiary option, preventing duplicates in the UI", () => {
+    render(<ControlledEditor initial={initialDeclaredTriple} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    const [, secondarySelect] = screen.getAllByRole("combobox");
+    const optionValues = Array.from(secondarySelect.querySelectorAll("option")).map((o) => (o as HTMLOptionElement).value);
+    expect(optionValues).not.toContain("CM"); // current primary
   });
 });
