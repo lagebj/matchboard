@@ -1,0 +1,128 @@
+{
+  "programmeRevision": "0.5.4",
+  "baseCommitSha": "b070df73664d816f1b0ebc61d54487a24044972e",
+  "prCommitSha": "PENDING_COMMIT",
+  "authority": "CANDIDATE_ONLY",
+  "candidates": [
+    {
+      "scenarioId": "A01",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a01-sports-first",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/match/operational-match-card.tsx",
+        "src/components/touchline/widget/touchline-widget.tsx",
+        "src/components/touchline/widget/widget-header.tsx",
+        "src/components/touchline/widget/metric-strip.tsx",
+        "src/components/touchline/widget/quick-action-grid.tsx",
+        "src/lib/matches/match-presentation.ts",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/page.tsx"
+      ],
+      "lifecycle": "live",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S02", "XR-V01", "D2", "D3"],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md",
+      "dataContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "baselineAssetRef": "NONE — A01 has no directly comparable existing shipped page; compared against XR-S02's written anti-pattern description instead (see visual_vs_current/A01.md)",
+      "knownGaps": [
+        "No pixel-level comparison against the F1/F2 directional studies' own renders (studies not reviewed in detail this wave; written contract used instead)."
+      ],
+      "captures": [
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "dark", "assetFile": "gate-a-a01-sports-first-desktop-dark.png", "assetSha256": "1d00ee30f3c59cd22a8b6bba1b3417c0c799876c586a533f2d8ed9871f211390" },
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "light", "assetFile": "gate-a-a01-sports-first-desktop-light.png", "assetSha256": "d380b15e7677ba2d9474d634ae69881e19d0bdc60707abf9c8fb6ccb6c1d92b0" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "dark", "assetFile": "gate-a-a01-sports-first-mobile-dark.png", "assetSha256": "8622483dd8f83c94147c938addf84c1e3b6fd557518d877a6e8c5e9785d502e3" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "light", "assetFile": "gate-a-a01-sports-first-mobile-light.png", "assetSha256": "86493e6ba749ae2eba85a6949fce4790a74089c7dace914811563d591e4c58fd" }
+      ],
+      "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
+    },
+    {
+      "scenarioId": "A02",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a02-match-lifecycle",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/match/operational-match-card.tsx",
+        "src/components/touchline/match/match-score-header.tsx",
+        "src/lib/matches/match-presentation.ts",
+        "src/app/dev/ui-lab/gate-a/a02-match-lifecycle/page.tsx"
+      ],
+      "lifecycle": "ALL — planning_closed, live, done",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S01", "XR-V01", "D1", "D5"],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md",
+      "dataContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/match-preparation and completed-match (separate pages, separate fixtures, no shared match id) — see visual_vs_current/A02.md",
+      "knownGaps": [
+        "Only 3 of the match's lifecycle states are shown (planned/live/completed); a 'cancelled' state exists in production (MatchLifecycleStatus) but is not part of this candidate's demonstration."
+      ],
+      "captures": [
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "dark", "assetFile": "gate-a-a02-match-lifecycle-desktop-dark.png", "assetSha256": "c463b89c48c13bc8d40a47e424ce38d968d0eb63e21e265e055c4b8e130c8459" },
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "light", "assetFile": "gate-a-a02-match-lifecycle-desktop-light.png", "assetSha256": "9f0ac275e0e6b2c33cc8492becc351ae08a9cc92859fb48b91181ceed2ba52b4" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "dark", "assetFile": "gate-a-a02-match-lifecycle-mobile-dark.png", "assetSha256": "2d8cc69b78b5bbd8f5532adae0643c5b72b9414d1157c11183c1323e8a8aafe6" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "light", "assetFile": "gate-a-a02-match-lifecycle-mobile-light.png", "assetSha256": "75f697c8ab00f5b97cebe01628db8fad44d4ab03c83100ba798aa086ad499cae" }
+      ],
+      "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
+    },
+    {
+      "scenarioId": "A06",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a06-position-pitches",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-position-map.tsx",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-pitch-markings.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/page.tsx"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A03", "XR-P01", "XR-P02", "XR-P03", "XR-P04"],
+      "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
+      "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
+      "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/position-map (same TouchlinePositionMap component, same evidence shape, no flat-profile counterpart existed before this PR)",
+      "knownGaps": [
+        "F1 direction formally approved directly by the repository owner this session (not via the external programme's own signoff record) — see CURRENT_STATE_AUDIT.md.",
+        "Flat 3x6 grid's LWB/RWB cells share a position with LB/RB respectively (documented assumption in profile-position-model.ts) — true non-overlapping placement for a player with evidence at both is unresolved, left for a later wave.",
+        "6-line grouping (FWD/AM/MID/DM/DEF/GK) for the profile analysis map is this candidate's own simplifying choice, not dictated verbatim by any single source document — flagged for human review."
+      ],
+      "captures": [
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "dark", "assetFile": "gate-a-a06-position-pitches-desktop-dark.png", "assetSha256": "d1e75abf009d9ad98469991c64ac6b269fc44a4350c27c080bc4c361e8a64664" },
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "light", "assetFile": "gate-a-a06-position-pitches-desktop-light.png", "assetSha256": "18201b5355057b45bbd83014b9f772dde5a24d798d2506a21db06d982f7396b3" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "dark", "assetFile": "gate-a-a06-position-pitches-mobile-dark.png", "assetSha256": "21414d0afdc184815053f6838de705d047baa37cf1de4f59fd11bfa3b7a1bdde" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "light", "assetFile": "gate-a-a06-position-pitches-mobile-light.png", "assetSha256": "7eed371b85380764abed71a7e863e25bb784eee217a78c1f084667a3863020c2" }
+      ],
+      "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
+    },
+    {
+      "scenarioId": "A12",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-a12-profile-editor",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/profile-position-selector.tsx",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/legacy-evidence-drilldown.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/page.tsx"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-P01", "XR-P02", "XR-P03", "XR-P04"],
+      "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
+      "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
+      "baselineAssetRef": "src/components/players/player-editor-form.tsx (production, offers all 24 sided codes — no 14-role picker exists to compare against)",
+      "knownGaps": [
+        "F1 direction formally approved directly by the repository owner this session — see CURRENT_STATE_AUDIT.md.",
+        "No production mutation path exists or is implied by this candidate — selecting a profile position here writes nothing.",
+        "DM/AM/F unsided stored-candidate mapping (→ CDM/CAM/CF) is display metadata only, pending actual domain migration authority (BLK-08, unresolved)."
+      ],
+      "captures": [
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "dark", "assetFile": "gate-a-a12-profile-editor-desktop-dark.png", "assetSha256": "844d0a729bdf49b5f8b7a0650861951b427161761d7a03258039c7070472403a" },
+        { "viewport": "desktop", "width": 1440, "height": 900, "theme": "light", "assetFile": "gate-a-a12-profile-editor-desktop-light.png", "assetSha256": "ff90c694d97912247b6f8a7ce66ff84c5a9f330950f3c4800bf447897b4df33c" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "dark", "assetFile": "gate-a-a12-profile-editor-mobile-dark.png", "assetSha256": "353651a39348993553d13233fa6f7c292b6f80b1c53f9c2304b25a69d5840c48" },
+        { "viewport": "mobile", "width": 390, "height": 844, "theme": "light", "assetFile": "gate-a-a12-profile-editor-mobile-light.png", "assetSha256": "0679407f9a897427b1cd4db6ddc4c13346524aef414cbfc2cbc4dc99487c0cc6" }
+      ],
+      "approval": { "state": "NOT_READY", "approvedAt": null, "approvedBy": null, "releaseTag": null }
+    }
+  ]
+}
