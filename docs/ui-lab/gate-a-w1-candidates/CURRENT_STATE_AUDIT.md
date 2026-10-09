@@ -113,7 +113,7 @@ retroactively edit the historical `18_GATE_A_DIRECTION_SIGNOFF.md` record, and i
 the resulting A06/A12 renders approved goldens — those still require the normal per-case visual
 review below.
 
-## Validation run locally
+## Validation run locally (original W0/W1 PR)
 
 - `npx eslint src/app/dev/ui-lab/gate-a scripts/ui-lab-visual-review.mjs` — clean.
 - `npx tsc --noEmit` (full project) — clean.
@@ -130,3 +130,25 @@ review below.
   devcontainer regardless of branch); passes in real CI.
 - `npm run validate` (full, incl. `policy:verify`) — **NOT RUN** locally; ran the component
   pieces above individually instead. CI will run the full command.
+
+## Validation run locally (PR #777 remediation)
+
+- `npx eslint src prisma.config.ts next.config.ts eslint.config.mjs prisma/seed-demo.cjs
+  playwright.config.ts e2e scripts/ui-lab-visual-review.mjs` (full repo + the modified script) —
+  clean (3 pre-existing, unrelated warnings in `src/lib/selection/compute-plan-integrity.ts`, not
+  touched by this change).
+- `npx tsc --noEmit` (full project) — clean.
+- `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` — 4 files, 18
+  tests, all passing.
+- `npx vitest run src/app/dev/ui-lab/gate-a` (default config) — 2 files, 19 tests, all passing.
+- Local `next dev -p 3333` + the extended `scripts/ui-lab-visual-review.mjs` — all 48 screenshots
+  captured successfully (8 scenarios × desktop/mobile/narrow × dark/light), visually spot-checked
+  (A06's full 24/14 coverage with no LB/LWB or RB/RWB overlap at desktop and narrow widths, A12's
+  collapsed primary/secondary/tertiary summary + per-slot evidence + legacy preview, A01's renamed
+  "Lineup" action) — no horizontal overflow observed at 320px on any Gate A scenario.
+- Real capture output copied into `capture-attestation.json`, `sourceCommitSha`
+  `e45fb2cce2d39b0c46c543fc92af682b15916e04` (the already-pushed remediation commit; this
+  attestation file is committed separately, after that commit, so it references real, existing
+  history rather than its own not-yet-known hash).
+- `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
+  limitation as the original PR); CI will run them.
