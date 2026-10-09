@@ -1,7 +1,7 @@
 {
   "description": "Temporary UI Lab visual-review evidence; requires human approval. Not an approved golden.",
-  "sourceCommitSha": "496594c773776c221950ac38d9579245151d2725",
-  "generatedAt": "2026-10-09T13:32:48.621Z",
+  "sourceCommitSha": "0cde47c596fea0f45d3ad34530da3a3a8fed9d27",
+  "generatedAt": "2026-10-09T16:42:37.630Z",
   "environment": {
     "node": "v24.18.0",
     "platform": "linux",
@@ -22,7 +22,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "match-preparation-desktop-dark.png",
-      "sha256": "ae6cdfa4d0b25792f8b31338fb925eefabd815ea477e82ffbbe8c02e9d58b5d3"
+      "sha256": "302ebfcd04261fd557d999f9b3bf4593c59719f52d98b5db31609b5eb12bafb0"
     },
     {
       "scenario": "match-preparation",
@@ -33,7 +33,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "match-preparation-desktop-light.png",
-      "sha256": "8233a468bffd9b4b9b7031b64213214fc2c4db591e5ad09bf2546b8e8cb48d78"
+      "sha256": "8eb7298b82133e0b2918b07d5d4b50e804e4f20c8ed26a40b64243db20b4ae24"
     },
     {
       "scenario": "match-preparation",
@@ -44,7 +44,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "match-preparation-mobile-dark.png",
-      "sha256": "e419b785440d48c7ae1484eb7d79b21298bd382514da7bc88ed3c69f476551fa"
+      "sha256": "2ea5edb2d404c5b8d3edc71164eb7f261f2b77456e39544c74362b4a53c8d7a6"
     },
     {
       "scenario": "match-preparation",
@@ -55,7 +55,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "match-preparation-mobile-light.png",
-      "sha256": "6bbb92a9ac4e36d553d7787298b4b307182c30d0217d00c0301065ef22de98b1"
+      "sha256": "f0ee05835a708457e22a1fe2b8102a6ed1e532882c81ac0dec9e21f5545d0239"
     },
     {
       "scenario": "match-preparation",
@@ -66,7 +66,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "match-preparation-narrow-dark.png",
-      "sha256": "7e43c2c3d8412ea2f0a907d91e9410011b426ce88b823fad415a0e7ce876a65d"
+      "sha256": "cc1fd7744967d11c9acdd25b4c7883cfc48051c22019540fa171d650cd3924ac"
     },
     {
       "scenario": "match-preparation",
@@ -77,7 +77,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "match-preparation-narrow-light.png",
-      "sha256": "a57f15d901afabb8de9e8961e896dc8cca80d0af69ebd821a1d1570239580ec6"
+      "sha256": "9609bd52bbbe727855ddc0e6474bb14d494aafff3f1bfe4072b1b9b1844d29e1"
     },
     {
       "scenario": "completed-match",
@@ -410,6 +410,138 @@
       "sha256": "292955cd521c3176a808c2ad2e7fc8a3d5e24c0223337d546bc5f75746cff3a3"
     },
     {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a01-sports-first-tablet-600-dark.png",
+      "sha256": "d1634726ca95497e1023dfbc45292a7202af3e322d210b295ba3311155e071ee"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-tablet-600-dark-lineup-open.png",
+      "sha256": "95f60af1f7e5a5758e33bc80d98fc93ec2d53da5db7184fbe9c6f10eef231c70"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a01-sports-first-tablet-600-light.png",
+      "sha256": "3c7fd2e0a5b00aedeb9e7eea78c9e1e784f48e673306acfd6c5fd1b7869bd79e"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-tablet-600-light-lineup-open.png",
+      "sha256": "eb89ce244a31e1cf52435d69f77e4bcb77d412c464c70166e438482e920223ee"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a01-sports-first-tablet-768-dark.png",
+      "sha256": "7d66a1f2f8cd337aedc5e1939551a3ada8f5345e15a608316226e19c69dbe796"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-tablet-768-dark-lineup-open.png",
+      "sha256": "cf9593b08830bafe06f16c86d562afacf2355729f0237f7cfcb5e3a4304f59ad"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a01-sports-first-tablet-768-light.png",
+      "sha256": "944846519af95aea20f30762a66cd3fb04d415ff592af33f197ff3db79dfad79"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-tablet-768-light-lineup-open.png",
+      "sha256": "02b812a99ae744e9d34fd80c0230996f2a87e0908e867caaa88f770694b819ac"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-a-a01-sports-first-tablet-900-dark.png",
+      "sha256": "f30d09321c8dba193d6a56d545c225378c5f7fb7c889ca801afddd11750b9085"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-tablet-900-dark-lineup-open.png",
+      "sha256": "203cfc7e55bf3a2c9f3ce23824e9f560f7fb8dd390c4775e59c8cee07a6d7bd5"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-a-a01-sports-first-tablet-900-light.png",
+      "sha256": "af8c4f57693c944d5eb2d002f830be962bc0a1902d2371450f1800b07b92cc0b"
+    },
+    {
+      "scenario": "gate-a-a01-sports-first",
+      "route": "gate-a/a01-sports-first",
+      "viewport": "tablet-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "lineup-open",
+      "file": "gate-a-a01-sports-first-tablet-900-light-lineup-open.png",
+      "sha256": "49d0e7dab451eda7609af12bf015f989839cd202748dfdcd006ef1236b53d434"
+    },
+    {
       "scenario": "gate-a-a02-match-lifecycle",
       "route": "gate-a/a02-match-lifecycle",
       "viewport": "desktop",
@@ -484,7 +616,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-desktop-dark.png",
-      "sha256": "73dd7a9c69aec16fc4147257e30e7036301329654e61bc4a2ddd512f1c5569a1"
+      "sha256": "dcf27d03ebb2ffecf5068a5302ab8da295b494e3186d0a7fabac24ca8690cda9"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -495,7 +627,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-desktop-light.png",
-      "sha256": "c9d571f11895e0e52ff2a2813f03303a9921bea0e1ab4b7651b593db6c1ec088"
+      "sha256": "dbfca7b6f262ddc34f49dbc11913371704b883857c7c216a67f6efd67adc66d9"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -506,7 +638,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-mobile-dark.png",
-      "sha256": "03ecb9bda687e4a539a832443e7ceb7a10598231b76f6adcf061f8f2f9c36792"
+      "sha256": "a15c9faf844d110120fcd96c1d084e2676a21e68b751d077a0cf86eb0876800a"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -517,7 +649,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-mobile-light.png",
-      "sha256": "7e0f3ea79fd1a2a8fc2e87afe7979f1ea544308f46ec6e9207520ea885555bc7"
+      "sha256": "31af34992c848c7a156206314218ca9fda5ec13b5ceb9448b8cc2fc0963b9ca5"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -528,7 +660,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-narrow-dark.png",
-      "sha256": "4a0660245035a67bec3b63a93fab91b46dc696ac3d534250dc22ec6548e3e6ab"
+      "sha256": "45d7a627a292c25ccceebefbddab07a9ecc37cc31cc8742e409306f819bf97d0"
     },
     {
       "scenario": "gate-a-a06-position-pitches",
@@ -539,7 +671,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-a06-position-pitches-narrow-light.png",
-      "sha256": "e1eb34abe9a8f46a4c5ecdef79b20132765e94f4a00376a2a33e29952436e52c"
+      "sha256": "136f57208c9790a07cf30cdf07b38dc293d0775dbb054c1022e09251aae917f4"
     },
     {
       "scenario": "gate-a-a12-profile-editor",
