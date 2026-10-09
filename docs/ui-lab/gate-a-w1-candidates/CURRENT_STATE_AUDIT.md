@@ -257,3 +257,44 @@ that this is not, by itself, an integrity failure.
   (no squeeze), 900px shows a comfortable two-column row.
 - `npm run build` / full `npm run validate` — **NOT RUN** locally (same pre-existing sandbox OOM
   limitation); CI will run them.
+
+## Governance verification and merge preparation (2026-10-09)
+
+Final verification pass after the repository owner's `APPROVED_GOLDEN` approval of A01/A02/A06/A12
+(see `A01_A02_A06_A12_REVIEW.md`'s "Formal approval record"), against commit
+`370561c58a25ae852fdf5477da90a5741824d65b` (the approval-record commit, built on the corrected
+`7dbdf85cc` revision the approval itself was recorded against).
+
+**Local verification:**
+- `npx eslint` (full repo + `scripts/ui-lab-visual-review.mjs`) — clean (3 pre-existing, unrelated
+  warnings, untouched by this work).
+- `npx tsc --noEmit` (full project) — clean.
+- `npm test` (the repository's full test suite, both vitest configs) — **518 + 90 = 608 test
+  files, 5938 + 578 = 6516 tests, all passing.** Not scoped to Gate A — this is every test in the
+  repository.
+- `npm run build` — attempted again for this final check; still hangs/times out locally. Confirmed
+  this is the same pre-existing sandbox-only limitation documented throughout this work (not a
+  regression) — see the CI result below for the authoritative outcome.
+
+**CI verification (`gh pr checks 777`, against head `370561c58`):** every check passes —
+`Build`, `Lint`, `TypeScript Check`, `Tests` (7m34s), `Tests (Workers)`, `TypeScript Check
+(Workers)`, `Policy Verify`, `Prisma Query Fields`, `Forbidden SQL Methods` (both instances),
+`Migration from Zero`, `Authorization Security Tests`, `Gitleaks Secret Detection`, `Semgrep
+SAST`, `OSV Dependency Scan`, `Supply Chain Integrity` (both instances), `CodeQL`, `Version
+Verify`, `check-cla`, and — specific to this work — **`Capture fixture-backed UI Lab views`**
+(the Gate A screenshot capture CI job itself). No failing or pending checks.
+
+**Merge state:** `gh pr view 777` reports `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN` — no
+conflicts with `main`.
+
+**Still open, disclosed (not a blocker for CI/code correctness, but a real gap against doc 07's
+full storage strategy):** the durable GitHub Release holding the 48 approved screenshots (D7
+storage strategy, "preserve approved screenshots beyond CI artifact expiration") could not be
+created in this session — blocked by the sandbox's own permission classifier, which requires
+explicit human authorization to create a new public GitHub surface. The exact prepared command is
+in `A01_A02_A06_A12_REVIEW.md`'s "Formal approval record" section. This does not affect the
+approval record's own durability (it's committed to git) or CI/mergeability.
+
+**PR state:** left in draft, per this session's standing instruction not to merge or mark
+production-ready without explicit further direction — all governance/CI preconditions for merge
+are satisfied; moving out of draft and/or merging is the repository owner's call.
