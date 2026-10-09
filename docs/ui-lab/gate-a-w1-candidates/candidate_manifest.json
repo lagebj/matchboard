@@ -1,0 +1,213 @@
+{
+  "programmeRevision": "0.5.4",
+  "baseCommitSha": "b070df73664d816f1b0ebc61d54487a24044972e",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — per-candidate approval state is authoritative; see each candidate's own status/approval object. APPROVED_GOLDEN is NOT production implementation authorization (see each approval.scope).",
+  "note": "This file holds STABLE candidate metadata only. A commit cannot reliably reference its own final hash, so the actual source commit SHA, per-capture screenshot SHA-256, capture timestamp and environment live in the separately-generated, separately-committed capture-attestation.json (PR #777 remediation) instead of here. Local capture sourceCommitSha and a GitHub Actions CI capture's sourceCommitSha may legitimately differ (CI runs pull_request workflows against a synthetic merge commit, not the branch tip) -- see A01_A02_A06_A12_REVIEW.md 'Capture provenance' section before treating a hash mismatch as an integrity failure. 2026-10-09: repository owner approved A01/A02/A06/A12 as APPROVED_GOLDEN (design reference only). Durable off-git asset storage (GitHub Release, per 07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md's D7 strategy) is PENDING -- blocked by this session's sandbox permission classifier ('Create Public Surface'); approvedCaptures hashes below are independently verified against capture-attestation.json in the meantime.",
+  "candidates": [
+    {
+      "scenarioId": "A01",
+      "status": "APPROVED_GOLDEN",
+      "fixtureId": "gate-a-a01-sports-first",
+      "fixtureVersion": 5,
+      "componentOwners": [
+        "src/components/touchline/match/operational-match-card.tsx",
+        "src/components/touchline/widget/touchline-widget.tsx",
+        "src/components/touchline/widget/widget-header.tsx",
+        "src/components/touchline/widget/metric-strip.tsx",
+        "src/components/touchline/widget/quick-action-grid.tsx",
+        "src/components/touchline/overlay/touchline-bottom-sheet.tsx",
+        "src/lib/hooks/use-media-query.ts",
+        "src/lib/matches/match-presentation.ts",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/lineup-list.tsx",
+        "src/app/dev/ui-lab/gate-a/a01-sports-first/lineup-contextual-inspector.tsx"
+      ],
+      "lifecycle": "live",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S02", "XR-V01", "XR-I01", "D2", "D3"],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md",
+      "dataContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "baselineAssetRef": "NONE — A01 has no directly comparable existing shipped page; compared against XR-S02's written anti-pattern description and the F1 Rendered Design Study 01 directional study (see visual_vs_current/A01.md)",
+      "knownGaps": [
+        "PR #777 remediation round 1: the 'Edit lineup' quick action previously navigated to A02 (XR-I01 violation) — fixed to an in-page, read-only TouchlineBottomSheet lineup preview; confirmed against the F6 directional study's 'stays in this match' drawer pattern.",
+        "PR #777 remediation round 2: added Escape-to-close and focus-restoration and an interactive-state capture ('lineup-open') across all viewports/themes, with a URL-unchanged assertion in the capture script.",
+        "PR #777 final A01 correction (round 3): round 2's sheet ran full-width at every viewport, including desktop, which doesn't match the approved desktop-inspector/mobile-sheet responsive grammar (F6/F2-F3 studies). Fixed: desktop (>=600px) now opens a new isolated LineupContextualInspector inline beside the match; mobile (<600px) keeps TouchlineBottomSheet, now tone='utility' (solid) instead of tone='context' (glass) to fix a readability regression where page text showed through. Exactly one presentation ever mounts; both share one LineupList component and one fixture.",
+        "PR #777 round 4 (owner-acknowledged, responsive squeeze fix): the inspector's two-column row layout engaged at the same 600px threshold that turns the inspector on, leaving almost no room for the inspector column between ~600-840px. Fixed: the row-vs-stacked layout decision now uses Touchline's wider 'expanded' (840px) breakpoint, decoupled from the 600px component-choice decision. New captures at 600/768/900px verify the fix. No further open gap on this case."
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-09",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-desktop-dark.png", "sha256": "396e2a3430e9dd30a40c4764b3cbbd1ff4fca315e4e74a75e39b1ab361284f3c" },
+          { "viewport": "desktop", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-desktop-dark-lineup-open.png", "sha256": "c16663d9c3b4dd91aa2e229dfee3e84d093c496cc574935fcd8cc8bde7670840" },
+          { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-a-a01-sports-first-desktop-light.png", "sha256": "e6420726f4f652d46c482afc36a4047abee7b7ac14d24ef6820739d2526a202d" },
+          { "viewport": "desktop", "theme": "light", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-desktop-light-lineup-open.png", "sha256": "c69967cf075eca496b66deccb92911a89a90a0566f2c7bfb0093f7219e3c2b77" },
+          { "viewport": "mobile", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-mobile-dark.png", "sha256": "2da74cb3208e7d2ca9b7c6174cc7604b1a2378ec15c68195beaa984784042d42" },
+          { "viewport": "mobile", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-mobile-dark-lineup-open.png", "sha256": "ba68f717be8882cc159e91fc9f66be94d763dab0e93e7bbf555cabab7d18d605" },
+          { "viewport": "mobile", "theme": "light", "interactionState": "initial", "file": "gate-a-a01-sports-first-mobile-light.png", "sha256": "3e5516e363361e179e9ef3418beb6d8326c430b869cf3d101551795ea3e184ec" },
+          { "viewport": "mobile", "theme": "light", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-mobile-light-lineup-open.png", "sha256": "e9b0128ce329e0489a4a38cc098ec299acfc6fc8c739db34113e79521ce8f5e9" },
+          { "viewport": "narrow", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-narrow-dark.png", "sha256": "2562b675ccc1e4f98334006dce9c7abe85ff3e2fdbd664e9cf08a3a7dcaee739" },
+          { "viewport": "narrow", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-narrow-dark-lineup-open.png", "sha256": "31d828b848e8312230755b0cfaefdbe1939d775c28021b56ecc97264efa58e2c" },
+          { "viewport": "narrow", "theme": "light", "interactionState": "initial", "file": "gate-a-a01-sports-first-narrow-light.png", "sha256": "2f857e1fee73cfb442e5329d3a73faa8710d45a0a21da0f0f53731c349303470" },
+          { "viewport": "narrow", "theme": "light", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-narrow-light-lineup-open.png", "sha256": "292955cd521c3176a808c2ad2e7fc8a3d5e24c0223337d546bc5f75746cff3a3" },
+          { "viewport": "tablet-600", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-tablet-600-dark.png", "sha256": "d1634726ca95497e1023dfbc45292a7202af3e322d210b295ba3311155e071ee" },
+          { "viewport": "tablet-600", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-tablet-600-dark-lineup-open.png", "sha256": "95f60af1f7e5a5758e33bc80d98fc93ec2d53da5db7184fbe9c6f10eef231c70" },
+          { "viewport": "tablet-600", "theme": "light", "interactionState": "initial", "file": "gate-a-a01-sports-first-tablet-600-light.png", "sha256": "3c7fd2e0a5b00aedeb9e7eea78c9e1e784f48e673306acfd6c5fd1b7869bd79e" },
+          { "viewport": "tablet-600", "theme": "light", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-tablet-600-light-lineup-open.png", "sha256": "eb89ce244a31e1cf52435d69f77e4bcb77d412c464c70166e438482e920223ee" },
+          { "viewport": "tablet-768", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-tablet-768-dark.png", "sha256": "7d66a1f2f8cd337aedc5e1939551a3ada8f5345e15a608316226e19c69dbe796" },
+          { "viewport": "tablet-768", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-tablet-768-dark-lineup-open.png", "sha256": "cf9593b08830bafe06f16c86d562afacf2355729f0237f7cfcb5e3a4304f59ad" },
+          { "viewport": "tablet-768", "theme": "light", "interactionState": "initial", "file": "gate-a-a01-sports-first-tablet-768-light.png", "sha256": "944846519af95aea20f30762a66cd3fb04d415ff592af33f197ff3db79dfad79" },
+          { "viewport": "tablet-768", "theme": "light", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-tablet-768-light-lineup-open.png", "sha256": "02b812a99ae744e9d34fd80c0230996f2a87e0908e867caaa88f770694b819ac" },
+          { "viewport": "tablet-900", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-tablet-900-dark.png", "sha256": "f30d09321c8dba193d6a56d545c225378c5f7fb7c889ca801afddd11750b9085" },
+          { "viewport": "tablet-900", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-tablet-900-dark-lineup-open.png", "sha256": "203cfc7e55bf3a2c9f3ce23824e9f560f7fb8dd390c4775e59c8cee07a6d7bd5" },
+          { "viewport": "tablet-900", "theme": "light", "interactionState": "initial", "file": "gate-a-a01-sports-first-tablet-900-light.png", "sha256": "af8c4f57693c944d5eb2d002f830be962bc0a1902d2371450f1800b07b92cc0b" },
+          { "viewport": "tablet-900", "theme": "light", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-tablet-900-light-lineup-open.png", "sha256": "49d0e7dab451eda7609af12bf015f989839cd202748dfdcd006ef1236b53d434" }
+        ]
+      }
+    },
+    {
+      "scenarioId": "A02",
+      "status": "APPROVED_GOLDEN",
+      "fixtureId": "gate-a-a02-match-lifecycle",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/match/operational-match-card.tsx",
+        "src/components/touchline/match/match-score-header.tsx",
+        "src/lib/matches/match-presentation.ts",
+        "src/app/dev/ui-lab/gate-a/a02-match-lifecycle/page.tsx"
+      ],
+      "lifecycle": "ALL — planning_closed, live, done",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S01", "XR-V01", "D1", "D5"],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md",
+      "dataContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
+      "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/match-preparation and completed-match (separate pages, separate fixtures, no shared match id) — see visual_vs_current/A02.md",
+      "knownGaps": [
+        "Only 3 of the match's lifecycle states are shown (planned/live/completed); a 'cancelled' state exists in production (MatchLifecycleStatus) but is not part of this candidate's demonstration.",
+        "No changes required by PR #777's remediation request — A02 was not among its findings."
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-09",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-desktop-dark.png", "sha256": "c463b89c48c13bc8d40a47e424ce38d968d0eb63e21e265e055c4b8e130c8459" },
+          { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-desktop-light.png", "sha256": "9f0ac275e0e6b2c33cc8492becc351ae08a9cc92859fb48b91181ceed2ba52b4" },
+          { "viewport": "mobile", "theme": "dark", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-mobile-dark.png", "sha256": "2d8cc69b78b5bbd8f5532adae0643c5b72b9414d1157c11183c1323e8a8aafe6" },
+          { "viewport": "mobile", "theme": "light", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-mobile-light.png", "sha256": "75f697c8ab00f5b97cebe01628db8fad44d4ab03c83100ba798aa086ad499cae" },
+          { "viewport": "narrow", "theme": "dark", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-narrow-dark.png", "sha256": "09a9b17fd639ed8d6bdff32d3ce57f993a34e44fc20c5fdcf5dc6f5d093b7ffa" },
+          { "viewport": "narrow", "theme": "light", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-narrow-light.png", "sha256": "bbff6408bd141d2841a209e0a66d1bd48a68177deded6ae0cd473d4c8f5d2634" }
+        ]
+      }
+    },
+    {
+      "scenarioId": "A06",
+      "status": "APPROVED_GOLDEN",
+      "fixtureId": "gate-a-a06-position-pitches",
+      "fixtureVersion": 4,
+      "componentOwners": [
+        "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/domain/positions/grid.ts",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/candidate-position-grid.ts",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/candidate-tactical-position-map.tsx",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-position-map.tsx",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/flat-profile-pitch-markings.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a06-position-pitches/fixtures.ts"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A03", "XR-P01", "XR-P02", "XR-P03", "XR-P04"],
+      "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
+      "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
+      "baselineAssetRef": "src/app/dev/ui-lab/atlas-followup/position-map (same TouchlinePositionMap component, same evidence shape, no flat-profile counterpart existed before this PR — remains the unmodified production reference, unaffected by the round-4 override below)",
+      "knownGaps": [
+        "PR #777 remediation round 1: LB/LWB and RB/RWB previously shared a grid cell — fixed, each of the 14 profile positions now has a unique (lane, line) cell, unit-tested. The flat grid's line ordering/grouping (F / LW-AM-RW / LM-CM-RM / LWB-DM-RWB / LB-CB-RB / GK) matches the repository owner's explicit correction, cross-checked against F1 Study 02's own schematic pitch layout.",
+        "PR #777 remediation round 2 (finding A06-1, FIXED): F and GK were clipped by the pitch's overflow boundary — fixed with a 9% vertical margin (PROFILE_GRID_VERTICAL_MARGIN_PCT), unit-tested against the worst-case dot+outline+glow extent at the smallest captured viewport (320px). Symmetric spacing preserved.",
+        "PR #777 remediation round 2 (finding A06-2, FIXED, open product question documented): the previous fixture derived each consolidated dot's support/confidence as 'the strongest of its group' — an unapproved aggregation rule. Replaced with a flat, explicitly-labeled illustrative placeholder, with an on-page disclosure. OPEN QUESTION FOR FUTURE DESIGN REVIEW, not decided here: whether/how a real cross-position support/confidence aggregate should ever be computed for a consolidated profile group, and whether any such rule becomes product behaviour.",
+        "PR #777 round 4 (owner feedback, REVISE -> FIXED): the 24-code exact panel's LW/RW displayed on the attack line (y0, production's primaryDisplayCellFor default). Owner feedback: 'A06 24 point positions should have LW and RW on Attacking midfielder horizontal similar to 14 point position. GK and F are always central.' Fixed via a new candidate-only presentation override (candidate-position-grid.ts/candidate-tactical-position-map.tsx) -- LW/RW now display on the attacking-midfield line (y1). Production's primaryDisplayCellFor, the canonical grid table, position-coordinates.ts, and the real TouchlinePositionMap component are all completely untouched -- every other position delegates straight to the real primaryDisplayCellFor, verified by direct equality assertion in tests. This candidate is explicitly labeled on-page as the proposed presentation, not the unmodified production coordinate placement. Not yet owner-reviewed.",
+        "F1 direction formally approved directly by the repository owner in the original working session — see CURRENT_STATE_AUDIT.md.",
+        "Editorial amendment (post-approval-instruction, pre-approval-recording): the page intro paragraph still read 'Left: real production TouchlinePositionMap' after the round-4 override replaced that panel's renderer -- a text-only bug, no component/fixture/test logic change. Corrected before this approval was recorded (commit 7dbdf85cc), so the approval below applies to the corrected text/captures, never to the pre-correction hashes."
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-09",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a06-position-pitches-desktop-dark.png", "sha256": "5e1f5ed9871b29f4324d9e541f98fbca3b94ab8aac207e41984ecca684fedc6e" },
+          { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-a-a06-position-pitches-desktop-light.png", "sha256": "f1d11647e30df2f9a1efc8cc9581220fd21e1da5c220ba4bb24641d881fc7001" },
+          { "viewport": "mobile", "theme": "dark", "interactionState": "initial", "file": "gate-a-a06-position-pitches-mobile-dark.png", "sha256": "3613d0afb633e836ba08d69e1ae353744392c3850bc66ee2fceb0e9c285ca447" },
+          { "viewport": "mobile", "theme": "light", "interactionState": "initial", "file": "gate-a-a06-position-pitches-mobile-light.png", "sha256": "ad704a7d50106ef19c2b6de60c4ad68b70538dd4bfc9741915eb2d18e277ae57" },
+          { "viewport": "narrow", "theme": "dark", "interactionState": "initial", "file": "gate-a-a06-position-pitches-narrow-dark.png", "sha256": "7da1858b05a320b2747cb9a71982334db7472e083e338115479e3d6aafa8a2f7" },
+          { "viewport": "narrow", "theme": "light", "interactionState": "initial", "file": "gate-a-a06-position-pitches-narrow-light.png", "sha256": "d09a2fd4ed8b8195d29530658357f84731cfd06f6115b41300df2f63b1e8f145" }
+        ]
+      }
+    },
+    {
+      "scenarioId": "A12",
+      "status": "APPROVED_GOLDEN",
+      "fixtureId": "gate-a-a12-profile-editor",
+      "fixtureVersion": 3,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/profile-position-selector.tsx",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/profile-position-triple-editor.tsx",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/profile-triple-selection.ts",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/legacy-evidence-drilldown.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a12-profile-editor/fixtures.ts"
+      ],
+      "lifecycle": "NOT_APPLICABLE",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-P01", "XR-P02", "XR-P03", "XR-P04"],
+      "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
+      "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
+      "baselineAssetRef": "src/components/players/player-editor-form.tsx (production, offers all 24 sided codes — no 14-role picker exists to compare against); interaction pattern confirmed against F1 Study 02's Overview (compact text summary) / Manage (full 14-button grid + 3 dropdowns) distinction",
+      "knownGaps": [
+        "PR #777 remediation round 1: now covers primary (required), secondary (optional), tertiary (optional), with duplicate prevention and clearable optional slots — previously only a single declared position existed.",
+        "PR #777 remediation round 2 (finding A12-1, FIXED): the legacy migration preview previously implied match evidence alone could determine a declared primary. Split into Case A 'Legacy declared positions' (LCF/CF/RCF declared primary/secondary/tertiary -> single F primary, original primary declaration keeps ordering authority) and Case B 'Recorded match exposure' (minutes only, no declared fields — never produces a declared triple; promoting exposure to a declaration requires ADR-0139's confidence threshold + coach approval, not simulated here).",
+        "Added an interactive-state capture ('editor-expanded') across all viewports/themes, with a URL-unchanged assertion in the capture script.",
+        "No production mutation path exists or is implied by this candidate — selecting a profile position here writes nothing.",
+        "DM/AM/F unsided stored-candidate mapping (-> CDM/CAM/CF) is display metadata only, pending actual domain migration authority (BLK-08, unresolved)."
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-09",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a12-profile-editor-desktop-dark.png", "sha256": "6113aaf15247c2f97d87bc45fcde4c9e6e0b2cee333a427b08b9abea834c2204" },
+          { "viewport": "desktop", "theme": "dark", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-desktop-dark-editor-expanded.png", "sha256": "1b2eb2f2fad8f47b2258da03b03f55e02d27ff4ec03ba36f1f8339781045de59" },
+          { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-a-a12-profile-editor-desktop-light.png", "sha256": "ef7b2e5d2b86a7acb6d8f57701904fe9c7624544dad05dece113ba0296badd50" },
+          { "viewport": "desktop", "theme": "light", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-desktop-light-editor-expanded.png", "sha256": "c642ba59f4de341f216de5eb3cffdbf9f0a836a8b088275247465a3dc3e3411b" },
+          { "viewport": "mobile", "theme": "dark", "interactionState": "initial", "file": "gate-a-a12-profile-editor-mobile-dark.png", "sha256": "1bec70365322fa3840424a168a48abdf6975f77d519d42f835c5a90dd41e05f8" },
+          { "viewport": "mobile", "theme": "dark", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-mobile-dark-editor-expanded.png", "sha256": "a99deb56bebad068bcd9ad705bdfc657b2ce9b19521a331d695c649e5e711ac4" },
+          { "viewport": "mobile", "theme": "light", "interactionState": "initial", "file": "gate-a-a12-profile-editor-mobile-light.png", "sha256": "515abf44529d425d7d577b6e931ff3176dd1fb8cb7b0f76c80c360f3b239842f" },
+          { "viewport": "mobile", "theme": "light", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-mobile-light-editor-expanded.png", "sha256": "ea50838dc36054c03ac59d81e13ceca3102dde673d24fc6005dbffeeb19111f0" },
+          { "viewport": "narrow", "theme": "dark", "interactionState": "initial", "file": "gate-a-a12-profile-editor-narrow-dark.png", "sha256": "5987f783c8db6fef0b074a32746ddedcb9c33896e44e4c213056c4ae09f17787" },
+          { "viewport": "narrow", "theme": "dark", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-narrow-dark-editor-expanded.png", "sha256": "2e82492b9812d8982eab7ed4ac3f3e40ad5d2d2d8ac5da31e7e7e0ab40e446a0" },
+          { "viewport": "narrow", "theme": "light", "interactionState": "initial", "file": "gate-a-a12-profile-editor-narrow-light.png", "sha256": "f601824f9a3138753e336ab6aa0b082a214e06211837388b74b88076ead42b02" },
+          { "viewport": "narrow", "theme": "light", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-narrow-light-editor-expanded.png", "sha256": "af4272410d70e3e97dc22d65c8462eb65356b987aa9b79f99c5c0971920b3a01" }
+        ]
+      }
+    }
+  ]
+}
