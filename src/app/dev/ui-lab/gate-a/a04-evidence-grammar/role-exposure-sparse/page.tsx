@@ -22,7 +22,7 @@ export default function RoleExposureSparsePage() {
   const sources = buildSourceRecords();
 
   return (
-    <div className="touchline mx-auto flex max-w-[560px] flex-col gap-6 px-4 py-8">
+    <div className="touchline mx-auto flex max-w-[560px] flex-col gap-6 px-4 py-8" data-ui-lab-ready="true">
       <div>
         <Link href="/dev/ui-lab/gate-a/a04-evidence-grammar" className="text-[12px] text-[var(--text-muted)] hover:underline">
           &larr; A04 evidence grammar

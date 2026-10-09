@@ -12,7 +12,7 @@ Gate A W2 only — one UI Lab **candidate** (A04, "evidence grammar"), dev-only,
 (`src/app/dev/ui-lab/gate-a/page.tsx`). No production route, `src/domain/**`, production
 `src/components/**`, Prisma schema, auth/authz, or deployment file was touched. W1's four approved
 candidates (A01, A02, A06, A12) and their approval records are byte-for-byte unmodified — verified
-by re-running the local capture script and confirming all 32 of their screenshot SHA-256 values are
+by re-running the local capture script and confirming all 48 of their screenshot SHA-256 values are
 identical to the ones already recorded as `APPROVED_GOLDEN` in
 `docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json`. A04 itself is `CANDIDATE`, never
 `APPROVED`, pending independent review and the repository owner's explicit decision.
@@ -64,14 +64,58 @@ identical to the ones already recorded as `APPROVED_GOLDEN` in
   without resolving it — no production-looking "conflict" UI state was invented. See `BLOCKED`
   items in `A04_REVIEW.md`.
 - `.github/workflows/ui-lab-visual-review.yml` already globs `src/app/dev/ui-lab/**`; no workflow
-  file change was needed. `scripts/ui-lab-visual-review.mjs` was extended narrowly: a shared
-  `openFirstSourceInspector` interaction function (reused by 5 of 6 A04 scenarios) and an optional,
-  backward-compatible `scenario.interactionViewports` filter (limits which viewports run a given
-  scenario's interactions — used here to keep A04's interaction count at exactly the documented
-  minimum of 20, by running `source-open` only at desktop/mobile, not narrow). Every existing W1
-  scenario is untouched by this filter (it has no `interactionViewports` field, so its existing
-  all-viewports interaction behavior is unchanged) — confirmed by re-running the full capture
-  locally and diffing all 32 W1 screenshot hashes against the already-approved ones (identical).
+  file change was needed. `scripts/ui-lab-visual-review.mjs` was extended narrowly: named
+  `openSourceInspectorByName(name)` interaction functions (one per scoped inspect trigger — see
+  "Independent review round 1" below), an optional backward-compatible `scenario.
+  interactionViewports` filter (limits which viewports run a given scenario's interactions),
+  `a04ExtraSmokeViewports` (360/430px), an A04-scoped `data-ui-lab-ready` wait, and a console/
+  page-error gate (fails only for `gate-a-a04-*` routes, warns elsewhere). Every existing W1
+  scenario is untouched by these additions (no `interactionViewports`/`extraViewports` field
+  added to them, and the error gate only warns for them) — confirmed by re-running the full
+  capture locally and diffing all 48 W1 `gate-a-*` screenshot hashes against the already-approved
+  ones (identical; see "Independent review round 1" below for the one unrelated, pre-existing,
+  out-of-scope non-determinism observed in a non-Gate-A baseline scenario).
+
+## Independent review round 1 (PR #778, this round)
+
+An independent technical review (recorded verbatim in `A04_REVIEW.md`'s "Independent review round
+1" section) returned `REVISE` against head `56ff0402c`, with three required fixes and several
+verification gaps. All are implemented; full detail and the affected files are in `A04_REVIEW.md`.
+In researching the fixes:
+
+- **R1 (S1 opportunity fact):** confirmed the original fixture's `buildSourceRecords` counted a
+  round as having "an opportunity" purely from `opportunitySourceId` being a non-empty string,
+  while its own rendered text said "Eligible — player was selectable", conflating eligibility
+  (administrative) with a recorded opportunity (concrete squad selection) — two different real-
+  world facts that happened to always co-occur in the original fixture, hiding the distinction.
+  Fixed by splitting each round's source into two records with their own IDs and matching text.
+- **R2 (S6 coverage conflation):** confirmed Case A's single panel carried one `NOT_APPLICABLE`
+  badge covering both "is there a declaration" (yes, fully recorded) and "is there actual
+  exposure" (no) — two different coverage states folded into one. Fixed by splitting every case
+  into a declaration panel (`COMPLETE`) and an exposure/evidence panel (`NOT_RECORDED` for Case A,
+  `COMPLETE` for Case B), each with its own source.
+- **R3 (scoped inspection):** confirmed the shared `SourceInspector` instance pattern meant every
+  "Inspect..." button in a scenario opened the identical combined list. Fixed by giving S1, S4, and
+  S6 their own `useSourceInspector()` instance per claim, each wired to its own scoped
+  `buildXSourceRecords()` function.
+- **200% zoom check (attempted, then removed):** first implemented via Chromium's non-standard
+  `document.documentElement.style.zoom = "2"`, but this scales rendered layout boxes without
+  correspondingly shrinking `document.documentElement.clientWidth` the way real browser/OS page
+  zoom does (which reduces the effective CSS-pixel viewport and lets responsive layout reflow) —
+  confirmed by observing it fail at narrow viewports for pages whose initial, unzoomed screenshots
+  show no overflow at all. This check does not measure what it claims to; removed rather than kept
+  as a flaky/misleading gate. 200% zoom legibility remains a manual-QA item, not automated here.
+- **Sequential-interaction bug found while re-capturing:** S1/S4/S6 each chain two interactions on
+  the same page/context. The first interaction's mobile bottom sheet (a full-screen `fixed inset-0`
+  overlay) was still open when the second interaction tried to click its own trigger underneath it,
+  causing a real Playwright click-interception timeout. Fixed by having
+  `openSourceInspectorByName` close any already-open dialog (Escape) before opening its target.
+- **Console/page-error gate, first attempt:** initially fired on three messages present on every
+  single scenario (a report-only CSP `upgrade-insecure-requests` warning plus two
+  `net::ERR_FAILED` resource-load messages) — confirmed these are local-dev-server environment
+  noise, not caused by any page's own code (they appear identically on W1's already-approved
+  pages). Filtered by message pattern before evaluating the gate, so it only reacts to a genuine
+  new error.
 
 ## Validation run locally
 
@@ -81,12 +125,12 @@ identical to the ones already recorded as `APPROVED_GOLDEN` in
   `src/lib/selection/compute-plan-integrity.ts`, not touched by this change; `scripts/` is not in
   the lint glob, and `node --check scripts/ui-lab-visual-review.mjs` confirms the extended script
   is syntactically valid).
-- `npx vitest run src/app/dev/ui-lab/gate-a/a04-evidence-grammar` (node config) — 8 files, 36
+- `npx vitest run src/app/dev/ui-lab/gate-a/a04-evidence-grammar` (node config) — 8 files, 53
   tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a/a04-evidence-grammar`
-  — 6 files, 25 tests, all passing.
+  — 6 files, 30 tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (W1 + W2
-  regression together) — 10 files, 65 tests, all passing.
+  regression together) — 10 files, 70 tests, all passing.
 - `npm test` (both vitest configs, full repository) — **526 + 96 = 622 test files, 5974 + 603 =
   6577 tests, all passing.** Not scoped to Gate A — every test in the repository.
 - Local `next dev -p 3333` + the extended `scripts/ui-lab-visual-review.mjs` — all 128 screenshots

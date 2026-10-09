@@ -5,7 +5,7 @@ import { AppearanceControl } from "@/components/touchline";
 import { EvidenceQuestionPanel } from "../shared/evidence-question-panel";
 import { SourceInspector } from "../shared/source-inspector";
 import { useSourceInspector } from "../shared/use-source-inspector";
-import { finalScoreLabel, buildSourceRecords } from "./view-model";
+import { finalScoreLabel, buildResultSourceRecords, buildEventSourceRecords } from "./view-model";
 import { homeTeam, awayTeam, eventLog } from "./fixtures";
 
 /**
@@ -13,13 +13,18 @@ import { homeTeam, awayTeam, eventLog } from "./fixtures";
  * event-by-event timeline are two separate source classes with two separate coverage states — the
  * recorded result can be `COMPLETE` while the event chronology stays `PARTIAL`, and the UI must
  * never pretend one implies the other (`02_A04_SCOPE_AND_FIXTURE_TRUTH.md` A04-S4).
+ *
+ * Independent review round 1 (PR #778, finding R3): each claim gets its own scoped inspector —
+ * the event inspector must show only the event record, never the result record first.
  */
 export default function SparseScoreEventsPage() {
-  const inspector = useSourceInspector();
-  const sources = buildSourceRecords();
+  const resultInspector = useSourceInspector();
+  const eventInspector = useSourceInspector();
+  const resultSources = buildResultSourceRecords();
+  const eventSources = buildEventSourceRecords();
 
   return (
-    <div className="touchline mx-auto flex max-w-[560px] flex-col gap-6 px-4 py-8">
+    <div className="touchline mx-auto flex max-w-[560px] flex-col gap-6 px-4 py-8" data-ui-lab-ready="true">
       <div>
         <Link href="/dev/ui-lab/gate-a/a04-evidence-grammar" className="text-[12px] text-[var(--text-muted)] hover:underline">
           &larr; A04 evidence grammar
@@ -37,7 +42,7 @@ export default function SparseScoreEventsPage() {
         valueCaption="Recorded from the canonical match result — not recomputed from the event log below."
         sample={`${homeTeam} vs ${awayTeam}`}
         coverage="COMPLETE"
-        onInspect={inspector.open}
+        onInspect={resultInspector.open}
         inspectLabel="Inspect result source"
       />
 
@@ -62,16 +67,23 @@ export default function SparseScoreEventsPage() {
         valueCaption="The other goals in the 6–4 result were not individually logged — this timeline is incomplete, not empty."
         sample={`${homeTeam} vs ${awayTeam}`}
         coverage="PARTIAL"
-        onInspect={inspector.open}
+        onInspect={eventInspector.open}
         inspectLabel="Inspect event source"
       />
 
       <SourceInspector
-        isOpen={inspector.isOpen}
-        onClose={inspector.close}
-        title="A04-S4 sources"
-        description="Canonical result and individually logged events — independent source classes."
-        sources={sources}
+        isOpen={resultInspector.isOpen}
+        onClose={resultInspector.close}
+        title="A04-S4 result source"
+        description="The canonical match result record — a separate source class from the event log below."
+        sources={resultSources}
+      />
+      <SourceInspector
+        isOpen={eventInspector.isOpen}
+        onClose={eventInspector.close}
+        title="A04-S4 event source"
+        description="Individually logged match events — a separate source class from the canonical result above."
+        sources={eventSources}
       />
     </div>
   );

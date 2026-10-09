@@ -7,7 +7,9 @@ export function finalScoreLabel(): string {
   return `${canonicalResult.homeScore}–${canonicalResult.awayScore}`;
 }
 
-export function buildSourceRecords(): SourceRecord[] {
+/** Scoped to the final-score claim only (independent review round 1, PR #778, finding R3 — the
+ * event inspector must not open with the result record first). */
+export function buildResultSourceRecords(): SourceRecord[] {
   return [
     {
       sourceId: canonicalResult.sourceId,
@@ -18,14 +20,18 @@ export function buildSourceRecords(): SourceRecord[] {
       fieldValue: finalScoreLabel(),
       coverage: canonicalResult.coverage,
     },
-    ...eventLog.events.map((e) => ({
-      sourceId: e.sourceId,
-      sourceClass: identity.sourceClass,
-      provenance: "Individually logged match event",
-      scope: `${homeTeam} vs ${awayTeam} · ${e.minute}'`,
-      fieldLabel: e.type,
-      fieldValue: `${e.minute}'`,
-      coverage: eventLog.coverage,
-    })),
   ];
+}
+
+/** Scoped to the event-log claim only. */
+export function buildEventSourceRecords(): SourceRecord[] {
+  return eventLog.events.map((e) => ({
+    sourceId: e.sourceId,
+    sourceClass: identity.sourceClass,
+    provenance: "Individually logged match event",
+    scope: `${homeTeam} vs ${awayTeam} · ${e.minute}'`,
+    fieldLabel: e.type,
+    fieldValue: `${e.minute}'`,
+    coverage: eventLog.coverage,
+  }));
 }

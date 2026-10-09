@@ -8,13 +8,14 @@
       "scenarioId": "A04-S1",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a04-partial-minutes",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes/page.tsx",
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes/fixtures.ts",
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes/view-model.ts",
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/evidence-question-panel.tsx",
-        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/source-inspector.tsx"
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/source-inspector.tsx",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/invariants.ts"
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -24,7 +25,8 @@
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — src/components/touchline/player/player-participation-strip.tsx takes minutes:number and cannot truthfully render NOT_RECORDED; see visual_vs_current/A04.md",
       "knownGaps": [
         "5/5 is the eligible-opportunity denominator, not a start/full-match count — the fixture only establishes 'recorded opportunity', deliberately never 'played'.",
-        "The NOT_RECORDED choice (vs UNKNOWN) assumes the source can positively confirm no interval was captured for these five rounds; a real production source may need to distinguish 'checked, nothing there' from 'did not check' more explicitly than this fixture demonstrates."
+        "The NOT_RECORDED choice (vs UNKNOWN) assumes the source can positively confirm no interval was captured for these five rounds; a real production source may need to distinguish 'checked, nothing there' from 'did not check' more explicitly than this fixture demonstrates.",
+        "fixtureVersion 2 (independent review round 1, finding R1): eligibility and recorded-opportunity are now two separate source records per round, each with matching field text; the opportunity inspector is scoped separately from the minutes inspector (finding R3)."
       ]
     },
     {
@@ -52,11 +54,12 @@
       "scenarioId": "A04-S3",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a04-role-exposure-supported",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/page.tsx",
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/fixtures.ts",
-        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/view-model.ts"
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/role-exposure-supported/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/invariants.ts"
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -65,7 +68,8 @@
       "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently partitions recorded role-duration minutes into a prior/latest window comparison; see visual_vs_current/A04.md",
       "knownGaps": [
-        "The prior-3/latest-3 window split and the six-match completeness are this fixture's acceptance example only, not a universal product sufficiency rule (`07_DECISIONS_DEFERRALS_AND_BLOCKERS.md` item 2)."
+        "The prior-3/latest-3 window split and the six-match completeness are this fixture's acceptance example only, not a universal product sufficiency rule (`07_DECISIONS_DEFERRALS_AND_BLOCKERS.md` item 2).",
+        "fixtureVersion 2 (independent review round 1, verification gap): each observation now carries an explicit typed `coverage` field, and `computeWindowComparison` validates every entry is COMPLETE and every matchId distinct before computing any total, instead of inferring completeness from the presence of a `minutes` field."
       ]
     },
     {
@@ -85,7 +89,8 @@
       "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently separates a canonical final score from an independently partial event log as two distinct coverage states; see visual_vs_current/A04.md",
       "knownGaps": [
-        "The data-truth test proving CONFLICT detection (two sources disagreeing on the same fact) is test-only (`shared/invariants.ts`'s describeConflict) — no production-looking conflict UI state exists anywhere in A04, since no source-priority order is approved yet (BLOCKED, see A04_REVIEW.md)."
+        "The data-truth test proving CONFLICT detection (two sources disagreeing on the same fact) is test-only (`shared/invariants.ts`'s describeConflict) — no production-looking conflict UI state exists anywhere in A04, since no source-priority order is approved yet (BLOCKED, see A04_REVIEW.md).",
+        "Independent review round 1 (finding R3): the result and event claims are now scoped to separate inspectors (`buildResultSourceRecords`/`buildEventSourceRecords`) — the event inspector no longer shows the result record first."
       ]
     },
     {
@@ -113,7 +118,7 @@
       "scenarioId": "A04-S6",
       "status": "CANDIDATE",
       "fixtureId": "gate-a-a04-declared-only-versus-evidenced",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/declared-only-versus-evidenced/page.tsx",
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/declared-only-versus-evidenced/fixtures.ts",
@@ -127,7 +132,8 @@
       "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
       "baselineAssetRef": "src/app/dev/ui-lab/gate-a/a12-profile-editor (W1, APPROVED_GOLDEN) Case A/Case B split is the direct conceptual precedent this candidate extends with real exact-interval evidence for Case B",
       "knownGaps": [
-        "No evidence-derived profile position is ever automatically promoted to declared primary/secondary/tertiary — a real promotion requires ADR-0139's confidence threshold and explicit coach approval, not simulated here."
+        "No evidence-derived profile position is ever automatically promoted to declared primary/secondary/tertiary — a real promotion requires ADR-0139's confidence threshold and explicit coach approval, not simulated here.",
+        "fixtureVersion 2 (independent review round 1, finding R2): each case now renders a declaration panel (COMPLETE) separately from an exposure/evidence panel (NOT_RECORDED for Case A, COMPLETE for Case B), each with its own scoped source and inspector (finding R3) — the prior single combined badge per case is gone."
       ]
     }
   ]

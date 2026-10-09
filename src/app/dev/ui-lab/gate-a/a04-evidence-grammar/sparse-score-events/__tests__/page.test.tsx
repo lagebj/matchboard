@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
+import { installViewportMock } from "../../shared/__tests__/mock-viewport";
 import SparseScoreEventsPage from "../page";
+
+const mockViewport = installViewportMock();
 
 function renderPage() {
   return render(
@@ -35,5 +38,25 @@ describe("A04-S4 sparse-score-events page", () => {
   it("keeps the score caption explicit that it is not recomputed from the event log", () => {
     renderPage();
     expect(screen.getByText(/not recomputed from the event log/i)).toBeInTheDocument();
+  });
+
+  describe("independent review round 1 (PR #778, finding R3): scoped inspectors", () => {
+    it("Inspect event source opens only the event record, never the result record first", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect event source/i }));
+      const rows = screen.getAllByTestId("source-record-row");
+      expect(rows).toHaveLength(1);
+      expect(rows[0].textContent).toMatch(/GOAL_FOR/);
+    });
+
+    it("Inspect result source opens only the result record", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect result source/i }));
+      const rows = screen.getAllByTestId("source-record-row");
+      expect(rows).toHaveLength(1);
+      expect(rows[0].textContent).toMatch(/Final score/);
+    });
   });
 });

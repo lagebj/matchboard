@@ -15,7 +15,7 @@ function renderPage() {
 }
 
 describe("A04-S1 partial-minutes page", () => {
-  it("shows 5/5 eligible rounds with an opportunity, never full-match or start language", () => {
+  it("shows 5/5 eligible rounds with a recorded opportunity, never full-match or start language", () => {
     renderPage();
     expect(screen.getByText("5/5 eligible rounds with a recorded opportunity")).toBeInTheDocument();
     expect(screen.queryByText(/full match/i)).not.toBeInTheDocument();
@@ -34,19 +34,32 @@ describe("A04-S1 partial-minutes page", () => {
     expect(caption.textContent).not.toMatch(/played minutes exist/i);
   });
 
-  it("opens the desktop inline source inspector in place, with every opportunity source and the minutes-measure source", () => {
+  it("the opportunity inspector shows only eligibility + opportunity records, never the minutes-measure record", () => {
     mockViewport(true);
     renderPage();
-    fireEvent.click(screen.getAllByRole("button", { name: /inspect/i })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /inspect sources/i }));
     const inspector = screen.getByRole("dialog");
     expect(inspector).toHaveAttribute("aria-modal", "false");
-    expect(screen.getAllByTestId("source-record-row")).toHaveLength(6); // 5 opportunities + 1 minutes-measure record
+    const rows = screen.getAllByTestId("source-record-row");
+    expect(rows).toHaveLength(10); // 5 rounds x (eligibility + opportunity)
+    expect(rows.some((r) => r.textContent?.includes("Minutes ("))).toBe(false);
+  });
+
+  it("the minutes inspector shows only the minutes-measure record, scoped separately from opportunity sources", () => {
+    mockViewport(true);
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /inspect minutes source/i }));
+    const inspector = screen.getByRole("dialog");
+    expect(inspector).toHaveAttribute("aria-modal", "false");
+    const rows = screen.getAllByTestId("source-record-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toMatch(/Minutes \(/);
   });
 
   it("opens a mobile bottom sheet instead, never both presentations at once", () => {
     mockViewport(false);
     renderPage();
-    fireEvent.click(screen.getAllByRole("button", { name: /inspect/i })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /inspect sources/i }));
     const dialogs = screen.getAllByRole("dialog");
     expect(dialogs).toHaveLength(1);
     expect(dialogs[0]).toHaveAttribute("aria-modal", "true");
@@ -55,7 +68,7 @@ describe("A04-S1 partial-minutes page", () => {
   it("closes on Escape and restores focus to the trigger", () => {
     mockViewport(true);
     renderPage();
-    const trigger = screen.getAllByRole("button", { name: /inspect/i })[0];
+    const trigger = screen.getByRole("button", { name: /inspect sources/i });
     trigger.focus();
     fireEvent.click(trigger);
     expect(screen.getByRole("dialog")).toBeInTheDocument();

@@ -5,7 +5,7 @@ import { AppearanceControl } from "@/components/touchline";
 import { EvidenceQuestionPanel } from "../shared/evidence-question-panel";
 import { SourceInspector } from "../shared/source-inspector";
 import { useSourceInspector } from "../shared/use-source-inspector";
-import { computeOpportunityCoverage, buildSourceRecords } from "./view-model";
+import { computeOpportunityCoverage, buildOpportunitySourceRecords, buildMinutesSourceRecords } from "./view-model";
 import { eligibleRounds, groupScopeLabel, actualMinutesMeasure } from "./fixtures";
 
 /**
@@ -13,14 +13,20 @@ import { eligibleRounds, groupScopeLabel, actualMinutesMeasure } from "./fixture
  * this player actually play, or only have the chance to? The eligible-opportunity denominator
  * (5/5) and the missing actual-minutes measurement are both real, both shown together, and never
  * merged into one confidence-sounding number.
+ *
+ * Independent review round 1 (PR #778, findings R1/R3): the opportunity claim and the
+ * actual-minutes claim are two different recording scopes with two different source sets — each
+ * now has its own scoped inspector, instead of both "Inspect..." buttons opening one combined list.
  */
 export default function PartialMinutesPage() {
-  const inspector = useSourceInspector();
+  const opportunityInspector = useSourceInspector();
+  const minutesInspector = useSourceInspector();
   const { numerator, denominator } = computeOpportunityCoverage();
-  const sources = buildSourceRecords();
+  const opportunitySources = buildOpportunitySourceRecords();
+  const minutesSources = buildMinutesSourceRecords();
 
   return (
-    <div className="touchline mx-auto flex max-w-[560px] flex-col gap-6 px-4 py-8">
+    <div className="touchline mx-auto flex max-w-[560px] flex-col gap-6 px-4 py-8" data-ui-lab-ready="true">
       <div>
         <Link href="/dev/ui-lab/gate-a/a04-evidence-grammar" className="text-[12px] text-[var(--text-muted)] hover:underline">
           &larr; A04 evidence grammar
@@ -36,7 +42,7 @@ export default function PartialMinutesPage() {
         label="Participation evidence"
         title={`${numerator}/${denominator} eligible rounds with a recorded opportunity`}
         value={`${numerator}/${denominator}`}
-        valueCaption="eligible rounds with an opportunity record"
+        valueCaption="eligible rounds with a recorded opportunity"
         visual={
           <ul className="flex flex-wrap gap-1.5" data-testid="s1-opportunity-strip">
             {eligibleRounds.map((round) => (
@@ -52,7 +58,7 @@ export default function PartialMinutesPage() {
         }
         sample={`${denominator} distinct rounds · ${groupScopeLabel}`}
         coverage="COMPLETE"
-        onInspect={inspector.open}
+        onInspect={opportunityInspector.open}
       />
 
       <EvidenceQuestionPanel
@@ -62,16 +68,23 @@ export default function PartialMinutesPage() {
         valueCaption={`This fixture measures ${actualMinutesMeasure.measureName}, not played minutes — no closed playing interval exists for any of the five rounds above.`}
         sample={groupScopeLabel}
         coverage={actualMinutesMeasure.coverage}
-        onInspect={inspector.open}
+        onInspect={minutesInspector.open}
         inspectLabel="Inspect minutes source"
       />
 
       <SourceInspector
-        isOpen={inspector.isOpen}
-        onClose={inspector.close}
-        title="A04-S1 sources"
-        description="Opportunity records and the actual-minutes measurement scope — read-only."
-        sources={sources}
+        isOpen={opportunityInspector.isOpen}
+        onClose={opportunityInspector.close}
+        title="A04-S1 opportunity sources"
+        description="Eligibility and recorded-opportunity records for each round — two different facts, read-only."
+        sources={opportunitySources}
+      />
+      <SourceInspector
+        isOpen={minutesInspector.isOpen}
+        onClose={minutesInspector.close}
+        title="A04-S1 minutes source"
+        description="The actual-minutes measurement scope — a separate recording scope from the opportunity records above."
+        sources={minutesSources}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import type { SourceRecord } from "../shared/coverage";
-import { eligibleMatches, roleLabel, groupScopeLabel, identity } from "./fixtures";
+import { assertUniqueIds } from "../shared/invariants";
+import { eligibleMatches, roleLabel, groupScopeLabel, identity, type CompleteMatchRoleExposure } from "./fixtures";
 
 export type WindowComparison = {
   priorMatches: readonly { matchLabel: string; minutes: number }[];
@@ -11,14 +12,33 @@ export type WindowComparison = {
   direction: "higher" | "lower" | "equal";
 };
 
+/**
+ * Validates every observation is a genuinely complete, distinct measurement before any comparison
+ * is computed — a raw `minutes` field alone does not prove completeness (independent review
+ * round 1, PR #778, verification gap).
+ */
+function assertAllComplete(matches: readonly CompleteMatchRoleExposure[]): void {
+  assertUniqueIds(
+    matches.map((m) => m.matchId),
+    "match",
+  );
+  for (const m of matches) {
+    if (m.coverage !== "COMPLETE") {
+      throw new Error(`role-exposure-supported requires every observation to be COMPLETE; "${m.matchId}" is ${m.coverage}.`);
+    }
+  }
+}
+
 /** Partitions the chronologically ordered fixture into prior-3/latest-3 and derives totals from
  * the actual per-match minutes — never a hard-coded 37/67. Asserts the fixture really is sorted
- * chronologically, so a future edit that reorders it fails loudly instead of silently mislabeling
- * which matches are "prior" vs "latest". */
-export function computeWindowComparison(): WindowComparison {
-  const sorted = [...eligibleMatches].sort((a, b) => a.dateUtc.localeCompare(b.dateUtc));
+ * chronologically (so a future edit that reorders it fails loudly) and that every observation is
+ * genuinely complete and distinct before computing any total. */
+export function computeWindowComparison(matches: readonly CompleteMatchRoleExposure[] = eligibleMatches): WindowComparison {
+  assertAllComplete(matches);
+
+  const sorted = [...matches].sort((a, b) => a.dateUtc.localeCompare(b.dateUtc));
   for (let i = 0; i < sorted.length; i++) {
-    if (sorted[i].matchId !== eligibleMatches[i].matchId) {
+    if (sorted[i].matchId !== matches[i].matchId) {
       throw new Error("role-exposure-supported fixture must already be in chronological order");
     }
   }
@@ -48,6 +68,6 @@ export function buildSourceRecords(): SourceRecord[] {
     scope: `${m.matchLabel} · ${m.dateUtc.slice(0, 10)} · ${groupScopeLabel}`,
     fieldLabel: `${roleLabel} exposure`,
     fieldValue: `${m.minutes} minutes`,
-    coverage: "COMPLETE",
+    coverage: m.coverage,
   }));
 }

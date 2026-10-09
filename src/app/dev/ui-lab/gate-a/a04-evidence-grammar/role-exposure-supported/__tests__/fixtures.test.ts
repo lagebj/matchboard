@@ -1,11 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
-import { eligibleMatches, identity, rawRecordsForHash } from "../fixtures";
+import {
+  eligibleMatches,
+  eligibleMatchesWithOneIncomplete,
+  eligibleMatchesWithDuplicateMatchId,
+  identity,
+  rawRecordsForHash,
+} from "../fixtures";
 import { computeWindowComparison } from "../view-model";
 
 describe("A04-S3 role-exposure-supported fixture", () => {
-  it("has exactly six distinct eligible matches", () => {
+  it("has exactly six distinct eligible matches, all COMPLETE", () => {
     expect(new Set(eligibleMatches.map((m) => m.matchId)).size).toBe(6);
+    expect(eligibleMatches.every((m) => m.coverage === "COMPLETE")).toBe(true);
   });
 
   it("derives the prior-3/latest-3 totals from the actual intervals, matching the documented 37/67 example", () => {
@@ -22,6 +29,16 @@ describe("A04-S3 role-exposure-supported fixture", () => {
     const comparison = computeWindowComparison();
     expect(comparison.direction).toBe(comparison.latestTotal > comparison.priorTotal ? "higher" : "lower");
     expect(comparison.direction).toBe("higher");
+  });
+
+  describe("independent review round 1 (PR #778, verification gap): typed coverage is checked, not inferred", () => {
+    it("rejects the sample when one observation is actually NOT_RECORDED, instead of silently treating it as measured", () => {
+      expect(() => computeWindowComparison(eligibleMatchesWithOneIncomplete)).toThrow(/requires every observation to be COMPLETE/);
+    });
+
+    it("rejects a duplicated matchId instead of silently double-counting it", () => {
+      expect(() => computeWindowComparison(eligibleMatchesWithDuplicateMatchId)).toThrow(/Duplicate match id/);
+    });
   });
 
   it("fixtureSha256 matches an independent recomputation", () => {
