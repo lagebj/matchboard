@@ -45,20 +45,30 @@ const scenarios = [
         perform: async (page) => {
           await page.getByText("Lineup", { exact: true }).click();
           await page.getByTestId("lineup-preview-list").waitFor({ state: "visible", timeout: 10000 });
-          // TouchlineBottomSheet slides in via a CSS transform driven by a requestAnimationFrame
-          // state flip — the list is already DOM-"visible" (non-zero size, display:block) the
-          // instant it mounts, mid-transform, off-screen. A `getComputedStyle().transform` read
-          // was tried here first and proved unreliable (it can report the settled value a moment
-          // before the dialog's actual rendered position/boundingClientRect catches up) — wait on
-          // the real rendered position instead: once settled, the dialog's bottom edge sits flush
-          // with the viewport bottom; mid-transition (or pre-transition) it extends below it.
-          await page.waitForFunction(() => {
-            const dialog = document.querySelector('[role="dialog"]');
-            if (!dialog) return false;
-            const rect = dialog.getBoundingClientRect();
-            return rect.height > 0 && rect.bottom <= window.innerHeight + 2;
-          }, { timeout: 10000 });
-          await page.waitForTimeout(100); // settle grace period
+          // Two different presentations open here depending on viewport (A01 final correction):
+          // the mobile TouchlineBottomSheet (aria-modal="true", fixed overlay, slides in via a
+          // CSS-transform/requestAnimationFrame state flip) or the desktop LineupContextualInspector
+          // (aria-modal="false", plain inline flow, no animation at all). Only the sheet needs a
+          // settle wait — it's already DOM-"visible" mid-transform, off-screen, the instant it
+          // mounts (CSS transforms don't affect visibility). The inspector has nothing to settle,
+          // and on a stacked (600-840px) layout its natural position legitimately extends below the
+          // viewport fold — waiting for it to be "flush with the viewport bottom" would hang
+          // forever, which is exactly what happened here before this fix.
+          const isSheet = await page.evaluate(() => document.querySelector('[role="dialog"]')?.getAttribute("aria-modal") === "true");
+          if (isSheet) {
+            // A `getComputedStyle().transform` read was tried here first and proved unreliable (it
+            // can report the settled value a moment before the dialog's actual rendered position/
+            // boundingClientRect catches up) — wait on the real rendered position instead: once
+            // settled, the sheet's bottom edge sits flush with the viewport bottom; mid-transition
+            // (or pre-transition) it extends below it.
+            await page.waitForFunction(() => {
+              const dialog = document.querySelector('[role="dialog"]');
+              if (!dialog) return false;
+              const rect = dialog.getBoundingClientRect();
+              return rect.height > 0 && rect.bottom <= window.innerHeight + 2;
+            }, { timeout: 10000 });
+            await page.waitForTimeout(100); // settle grace period
+          }
         },
       },
     ],
