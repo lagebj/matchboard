@@ -4,10 +4,12 @@ import {
   PROFILE_POSITIONS,
   PROFILE_TO_TACTICAL_GROUP,
   PROFILE_FLAT_GRID,
+  PROFILE_GRID_VERTICAL_MARGIN_PCT,
   collapseTacticalToProfile,
   allCanonicalTacticalPositionsCovered,
   aggregateExactAppearancesByProfile,
   profileFlatGridCellKey,
+  profilePositionToFlatPoint,
   type ExactPositionAppearance,
 } from "../profile-position-model";
 
@@ -96,6 +98,42 @@ describe("Gate A profile-position model (candidate, not production)", () => {
       expect(PROFILE_FLAT_GRID.RWB.line).toBe(PROFILE_FLAT_GRID.DM.line);
       expect(PROFILE_FLAT_GRID.LB.line).toBeGreaterThan(PROFILE_FLAT_GRID.LWB.line);
       expect(PROFILE_FLAT_GRID.RB.line).toBeGreaterThan(PROFILE_FLAT_GRID.RWB.line);
+    });
+  });
+
+  describe("vertical margin keeps dots off the pitch edge (PR #777 remediation, finding A06-1)", () => {
+    it("never places a position's yPct at the bare 0% or 100% edge", () => {
+      for (const position of PROFILE_POSITIONS) {
+        const { yPct } = profilePositionToFlatPoint(position);
+        expect(yPct).toBeGreaterThanOrEqual(PROFILE_GRID_VERTICAL_MARGIN_PCT);
+        expect(yPct).toBeLessThanOrEqual(100 - PROFILE_GRID_VERTICAL_MARGIN_PCT);
+      }
+    });
+
+    it("places F (top) and GK (bottom) exactly at the margin boundary, never past it", () => {
+      expect(profilePositionToFlatPoint("F").yPct).toBe(PROFILE_GRID_VERTICAL_MARGIN_PCT);
+      expect(profilePositionToFlatPoint("GK").yPct).toBe(100 - PROFILE_GRID_VERTICAL_MARGIN_PCT);
+    });
+
+    it("keeps the 6 lines evenly spaced between the margins (symmetric vertical spacing)", () => {
+      const lineYs = [0, 1, 2, 3, 4, 5].map((line) => {
+        const position = PROFILE_POSITIONS.find((p) => PROFILE_FLAT_GRID[p].line === line)!;
+        return profilePositionToFlatPoint(position).yPct;
+      });
+      const gaps = lineYs.slice(1).map((y, i) => y - lineYs[i]);
+      const [firstGap, ...restGaps] = gaps;
+      for (const gap of restGaps) expect(gap).toBeCloseTo(firstGap, 5);
+    });
+
+    it("leaves enough margin to keep even the largest dot, its outline and glow fully inside the pitch at the smallest viewport this candidate is captured at (320px)", () => {
+      // position-evidence-dot.tsx: STRONGEST-band diameter is 22px, glow blur up to 16px, outline
+      // offset 2px -> worst-case visual half-extent from the dot's centre is ~29px.
+      const WORST_CASE_DOT_HALF_EXTENT_PX = 29;
+      // 320px viewport, after page padding the panel is ~288px wide; aspect-[3/5] -> ~480px tall.
+      // Using a conservative lower bound in case of narrower future layouts.
+      const SMALLEST_REALISTIC_PANEL_HEIGHT_PX = 420;
+      const marginPx = (PROFILE_GRID_VERTICAL_MARGIN_PCT / 100) * SMALLEST_REALISTIC_PANEL_HEIGHT_PX;
+      expect(marginPx).toBeGreaterThanOrEqual(WORST_CASE_DOT_HALF_EXTENT_PX);
     });
   });
 });

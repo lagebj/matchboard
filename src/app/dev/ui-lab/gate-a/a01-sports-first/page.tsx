@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ClipboardList, Users, CalendarDays } from "lucide-react";
 import {
   AppearanceControl,
@@ -29,6 +29,21 @@ import { heroMatchPresentation, squadMetrics, lineupPreview } from "./fixtures";
  */
 export default function A01SportsFirstPage() {
   const [lineupOpen, setLineupOpen] = useState(false);
+  // Focus restoration (PR #777 remediation, finding A01/A12): TouchlineBottomSheet moves focus to
+  // its own close button on open, but a generic shared sheet has no way to know which trigger
+  // opened it — that's this page's job. Capture whatever was focused right before opening, and
+  // return focus to it on close, so a keyboard user ends up exactly where they started.
+  const lineupTriggerRef = useRef<HTMLElement | null>(null);
+
+  const openLineup = () => {
+    lineupTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setLineupOpen(true);
+  };
+
+  const closeLineup = () => {
+    setLineupOpen(false);
+    lineupTriggerRef.current?.focus();
+  };
 
   return (
     <div className="touchline mx-auto flex max-w-[480px] flex-col gap-6 px-4 py-8">
@@ -58,7 +73,7 @@ export default function A01SportsFirstPage() {
       <TouchlineWidget tone="utility" padding="compact">
         <QuickActionGrid
           actions={[
-            { key: "lineup", label: "Lineup", icon: ClipboardList, onClick: () => setLineupOpen(true) },
+            { key: "lineup", label: "Lineup", icon: ClipboardList, onClick: openLineup },
             { key: "squad", label: "Players", icon: Users, href: "/dev/ui-lab/gate-a/a12-profile-editor" },
             { key: "fixtures", label: "Fixtures", icon: CalendarDays, href: "/dev/ui-lab/gate-a" },
           ]}
@@ -72,7 +87,7 @@ export default function A01SportsFirstPage() {
 
       <TouchlineBottomSheet
         isOpen={lineupOpen}
-        onClose={() => setLineupOpen(false)}
+        onClose={closeLineup}
         title="Lineup"
         description="Rød vs Sætre Lions — context-local preview, stays on this page. Read-only; no production mutation."
         tone="context"

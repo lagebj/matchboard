@@ -18,16 +18,43 @@ function resolveCommitSha() {
   }
 }
 // `slug` names the output file; `route` is the dev UI Lab path under /dev/ui-lab/.
+// `interactions` (PR #777 remediation, A01/A12 finding): optional extra captures of the SAME
+// page, in the SAME browser context (no reload), after performing a deterministic interaction —
+// proves initial render AND the reviewable interaction state, and that the action never navigates.
 const scenarios = [
   { slug: "match-preparation", route: "atlas-followup/match-preparation" },
   { slug: "completed-match", route: "atlas-followup/completed-match" },
   { slug: "player-detail", route: "atlas-followup/player-detail" },
   { slug: "position-map", route: "atlas-followup/position-map" },
   // Gate A W1 candidates (programme_v054 `20_UI_LAB_CANDIDATE_WAVES.md`) — CANDIDATE, not approved.
-  { slug: "gate-a-a01-sports-first", route: "gate-a/a01-sports-first" },
+  {
+    slug: "gate-a-a01-sports-first",
+    route: "gate-a/a01-sports-first",
+    interactions: [
+      {
+        id: "lineup-open",
+        perform: async (page) => {
+          await page.getByText("Lineup", { exact: true }).click();
+          await page.getByTestId("lineup-preview-list").waitFor({ state: "visible", timeout: 10000 });
+        },
+      },
+    ],
+  },
   { slug: "gate-a-a02-match-lifecycle", route: "gate-a/a02-match-lifecycle" },
   { slug: "gate-a-a06-position-pitches", route: "gate-a/a06-position-pitches" },
-  { slug: "gate-a-a12-profile-editor", route: "gate-a/a12-profile-editor" },
+  {
+    slug: "gate-a-a12-profile-editor",
+    route: "gate-a/a12-profile-editor",
+    interactions: [
+      {
+        id: "editor-expanded",
+        perform: async (page) => {
+          await page.getByRole("button", { name: "Edit" }).click();
+          await page.getByRole("combobox").first().waitFor({ state: "visible", timeout: 10000 });
+        },
+      },
+    ],
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
@@ -54,10 +81,10 @@ try {
       await page.locator('.touchline[data-theme="'+theme+'"]').first().waitFor({state:"attached",timeout:30000});
       await page.evaluate(()=>document.fonts.ready);
       await page.addStyleTag({content:"nextjs-portal,#__next-build-watcher,[data-nextjs-dev-tools-button],[data-nextjs-toast]{display:none!important}"});
-      const name=scenario.slug+"-"+viewport.name+"-"+theme+".png";
-      const filePath = path.join(output,name);
-      await page.screenshot({path:filePath,fullPage:true,animations:"disabled",caret:"hide"});
-      const sha256 = createHash("sha256").update(await readFile(filePath)).digest("hex");
+      const initialName=scenario.slug+"-"+viewport.name+"-"+theme+".png";
+      const initialPath = path.join(output,initialName);
+      await page.screenshot({path:initialPath,fullPage:true,animations:"disabled",caret:"hide"});
+      const initialSha256 = createHash("sha256").update(await readFile(initialPath)).digest("hex");
       records.push({
         scenario: scenario.slug,
         route: scenario.route,
@@ -65,10 +92,37 @@ try {
         viewportWidth: viewport.width,
         viewportHeight: viewport.height,
         theme,
-        file: name,
-        sha256,
+        interactionState: "initial",
+        file: initialName,
+        sha256: initialSha256,
       });
-      console.log("Captured "+name+" sha256="+sha256);
+      console.log("Captured "+initialName+" sha256="+initialSha256);
+
+      for (const interaction of scenario.interactions ?? []) {
+        await interaction.perform(page);
+        const urlBefore = url.pathname;
+        if (page.url() && new URL(page.url()).pathname !== urlBefore) {
+          throw new Error(
+            scenario.slug+" interaction '"+interaction.id+"' navigated away from "+urlBefore+" to "+page.url()+" — context-local actions must not navigate.",
+          );
+        }
+        const name=scenario.slug+"-"+viewport.name+"-"+theme+"-"+interaction.id+".png";
+        const filePath = path.join(output,name);
+        await page.screenshot({path:filePath,fullPage:true,animations:"disabled",caret:"hide"});
+        const sha256 = createHash("sha256").update(await readFile(filePath)).digest("hex");
+        records.push({
+          scenario: scenario.slug,
+          route: scenario.route,
+          viewport: viewport.name,
+          viewportWidth: viewport.width,
+          viewportHeight: viewport.height,
+          theme,
+          interactionState: interaction.id,
+          file: name,
+          sha256,
+        });
+        console.log("Captured "+name+" sha256="+sha256);
+      }
     } finally { await context.close(); }
   }
 } finally {

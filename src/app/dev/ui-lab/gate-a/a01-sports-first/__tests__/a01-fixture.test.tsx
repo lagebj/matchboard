@@ -49,4 +49,25 @@ describe("A01 sports-first candidate — context-local Lineup action", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByTestId("lineup-preview-list")).not.toBeInTheDocument();
   });
+
+  it("closes on Escape (keyboard access)", () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Lineup"));
+    expect(screen.getByTestId("lineup-preview-list")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByTestId("lineup-preview-list")).not.toBeInTheDocument();
+  });
+
+  it("restores focus to the Lineup trigger after closing (focus restoration)", () => {
+    renderPage();
+    const trigger = screen.getByText("Lineup").closest("button")!;
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(document.activeElement).toBe(trigger);
+  });
 });

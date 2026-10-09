@@ -7,10 +7,20 @@ import { ProfilePositionSelector } from "../profile-position-selector";
 import { ProfilePositionTripleEditor } from "../profile-position-triple-editor";
 import type { ProfilePositionTriple } from "../profile-triple-selection";
 import { PROFILE_POSITIONS } from "../../shared/profile-position-model";
+import { ThemeProvider } from "@/lib/theme/theme-provider";
+import A12ProfileEditorPage from "../page";
 
 function ControlledEditor({ initial }: { initial: ProfilePositionTriple }) {
   const [value, setValue] = useState(initial);
   return <ProfilePositionTripleEditor value={value} onChange={setValue} />;
+}
+
+function renderPage() {
+  return render(
+    <ThemeProvider>
+      <A12ProfileEditorPage />
+    </ThemeProvider>,
+  );
 }
 
 /**
@@ -72,5 +82,35 @@ describe("A12 profile-editor candidate fixture", () => {
     const [, secondarySelect] = screen.getAllByRole("combobox");
     const optionValues = Array.from(secondarySelect.querySelectorAll("option")).map((o) => (o as HTMLOptionElement).value);
     expect(optionValues).not.toContain("CM"); // current primary
+  });
+
+  describe("PR #777 remediation (finding A12-1): declared positions vs recorded match exposure", () => {
+    it("labels Case A precisely as 'Legacy declared positions', never calling it match evidence", () => {
+      renderPage();
+      expect(screen.getByText("Case A — Legacy declared positions")).toBeInTheDocument();
+      const caseA = screen.getByTestId("a12-case-a-legacy-declared");
+      expect(caseA.textContent).toMatch(/ordering authority/i);
+      expect(caseA.textContent).not.toMatch(/match exposure|recorded minutes/i);
+    });
+
+    it("labels Case B precisely as 'Recorded match exposure', never calling it a declaration", () => {
+      renderPage();
+      expect(screen.getByText("Case B — Recorded match exposure")).toBeInTheDocument();
+      const caseB = screen.getByTestId("a12-case-b-match-exposure");
+      expect(caseB.textContent).toMatch(/no primary, secondary, or tertiary declaration is created/i);
+    });
+
+    it("Case A's declared LCF/CF/RCF consolidates to a single F primary with empty secondary/tertiary", () => {
+      renderPage();
+      const caseA = screen.getByTestId("a12-case-a-legacy-declared");
+      expect(caseA.textContent).toMatch(/primary\s*F/i);
+    });
+
+    it("Case B shows real recorded minutes but creates no declared triple anywhere in its output", () => {
+      renderPage();
+      const caseB = screen.getByTestId("a12-case-b-match-exposure");
+      expect(caseB.textContent).toMatch(/105 min/); // 30 + 60 + 15, from the fixture
+      expect(caseB.textContent).toMatch(/3 appearances/);
+    });
   });
 });

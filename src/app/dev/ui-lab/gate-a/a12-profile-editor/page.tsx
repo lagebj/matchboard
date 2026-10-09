@@ -5,7 +5,12 @@ import { useState } from "react";
 import { AppearanceControl } from "@/components/touchline";
 import { ProfilePositionTripleEditor } from "./profile-position-triple-editor";
 import { LegacyEvidenceDrilldown } from "./legacy-evidence-drilldown";
-import { initialDeclaredTriple, profileEvidenceAggregates, legacyForwardConsolidationPreview } from "./fixtures";
+import {
+  initialDeclaredTriple,
+  profileEvidenceAggregates,
+  legacyDeclaredConsolidationPreview,
+  matchExposureOnlyAggregates,
+} from "./fixtures";
 import type { ProfilePositionTriple } from "./profile-triple-selection";
 import type { ProfilePosition } from "../shared/profile-position-model";
 
@@ -70,22 +75,50 @@ export default function A12ProfileEditorPage() {
         })}
       </div>
 
-      <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-          Legacy migration preview
+      <div className="flex flex-col gap-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          Legacy migration preview — two different signals, not interchangeable
         </p>
-        <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 p-3 text-[12px] text-[var(--text-muted)]">
-          <p>
-            Historical exact record: <code>{legacyForwardConsolidationPreview.sourceCodes.join(", ")}</code>
-          </p>
-          <p className="mt-1">
-            Consolidates to one declared primary:{" "}
-            <span className="font-medium text-[var(--foreground)]">
-              {legacyForwardConsolidationPreview.singleProfile ?? "— ambiguous, not auto-declared —"}
-            </span>
-            . Secondary and tertiary stay empty — nothing in the source record distinguishes them,
-            so nothing is invented.
-          </p>
+
+        <div>
+          <p className="mb-1 text-[12px] font-medium text-[var(--foreground)]">Case A — Legacy declared positions</p>
+          <div
+            className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 p-3 text-[12px] text-[var(--text-muted)]"
+            data-testid="a12-case-a-legacy-declared"
+          >
+            <p>
+              Already-declared (24-code) primary <code>{legacyDeclaredConsolidationPreview.sourceDeclared.primary}</code>,
+              secondary <code>{legacyDeclaredConsolidationPreview.sourceDeclared.secondary}</code>, tertiary{" "}
+              <code>{legacyDeclaredConsolidationPreview.sourceDeclared.tertiary}</code>.
+            </p>
+            <p className="mt-1">
+              Projects to primary <span className="font-medium text-[var(--foreground)]">{legacyDeclaredConsolidationPreview.primary}</span>,
+              secondary <span className="font-medium text-[var(--foreground)]">{legacyDeclaredConsolidationPreview.secondary ?? "—"}</span>,
+              tertiary <span className="font-medium text-[var(--foreground)]">{legacyDeclaredConsolidationPreview.tertiary ?? "—"}</span>.
+              The original primary declaration provides the ordering authority — this is a
+              consolidation of an existing coach decision, not a new one.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-[12px] font-medium text-[var(--foreground)]">Case B — Recorded match exposure</p>
+          <div
+            className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 p-3 text-[12px] text-[var(--text-muted)]"
+            data-testid="a12-case-b-match-exposure"
+          >
+            <p>No declared profile fields exist for this player — only recorded match minutes.</p>
+            {matchExposureOnlyAggregates.map((aggregate) => (
+              <LegacyEvidenceDrilldown key={aggregate.profile} aggregate={aggregate} className="mt-2" />
+            ))}
+            <p className="mt-2 font-medium text-[var(--foreground)]">
+              No primary, secondary, or tertiary declaration is created from this evidence alone.
+            </p>
+            <p className="mt-1">
+              Promoting recorded exposure to a declared primary requires the production confidence
+              threshold and explicit coach approval (ADR-0139) — not simulated by this candidate.
+            </p>
+          </div>
         </div>
       </div>
     </div>

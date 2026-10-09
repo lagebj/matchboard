@@ -145,12 +145,27 @@ const LANE_PERCENT: Record<"LEFT" | "CENTRE" | "RIGHT", number> = {
   RIGHT: 82,
 };
 
-/** Flat (non-perspective) screen percentages for a profile position, attack at the top (yPct 0). */
+/**
+ * PR #777 remediation (finding A06-1): line 0 and line 5 previously projected to exactly 0%/100%
+ * vertical, so `F` and `GK` — centered on those coordinates — were clipped by the pitch
+ * container's `overflow-hidden` boundary (a `STRONGEST`-band dot is 22px across, plus up to 16px
+ * of glow and a 2px outline offset — roughly 29px of half-extent from its centre, comfortably
+ * more than a bare 0%/100% placement leaves room for at any viewport this candidate is captured
+ * at: 9% of this panel's minimum realistic height, ~420px at the 320px narrow viewport, is
+ * ~38px — see the clipping-safety tests in `__tests__/profile-position-model.test.ts`). Lines
+ * stay evenly spaced between the margins, so spacing stays symmetric top-to-bottom.
+ */
+export const PROFILE_GRID_VERTICAL_MARGIN_PCT = 9;
+
+/** Flat (non-perspective) screen percentages for a profile position, attack at the top. Every
+ * line sits inside `PROFILE_GRID_VERTICAL_MARGIN_PCT`..`100 - PROFILE_GRID_VERTICAL_MARGIN_PCT`,
+ * never at the bare 0%/100% edge, so no dot (including its outline/glow) is clipped. */
 export function profilePositionToFlatPoint(position: ProfilePosition): { xPct: number; yPct: number } {
   const { lane, line } = PROFILE_FLAT_GRID[position];
+  const span = 100 - 2 * PROFILE_GRID_VERTICAL_MARGIN_PCT;
   return {
     xPct: LANE_PERCENT[lane],
-    yPct: (line / (PROFILE_GRID_LINE_COUNT - 1)) * 100,
+    yPct: PROFILE_GRID_VERTICAL_MARGIN_PCT + (line / (PROFILE_GRID_LINE_COUNT - 1)) * span,
   };
 }
 

@@ -16,9 +16,24 @@ import type { FlatProfilePositionMapEntry } from "./flat-profile-position-map";
  *    `LCB/CB/RCB` → `CB`, `LDM/CDM/RDM` → `DM`, `LCM/CM/RCM` → `CM`, `LAM/CAM/RAM` → `AM`,
  *    `LCF/CF/RCF` → `F`.
  *
- * Every profile-level support/confidence value below is the *strongest* of its group's three
- * exact-level values (never invented beyond what the exact entries already state) — each profile
- * entry's comment cites which exact code it mirrors, so a reviewer can trace it back.
+ * PR #777 remediation (finding A06-2): an earlier version of this fixture derived each
+ * consolidated profile dot's support/confidence as "the strongest of its group's three exact-
+ * level values" — an aggregation *rule* with no product approval, and no authoritative domain
+ * service in this repository computes that semantics (`effective-position-profile.ts` /
+ * `get-effective-position-profile.ts`, ADR-0139's evidence-ranking engine, scores individual
+ * exact tactical codes — it has no notion of collapsing three sided codes' support into one
+ * profile-level value). Inventing that rule here would have made this UI Lab candidate look like
+ * it was proposing real domain behaviour.
+ *
+ * The five consolidated profile dots below therefore carry one flat, explicitly-labeled
+ * *illustrative* placeholder (`ESTABLISHED`/`MEDIUM`) instead — chosen, not computed, and
+ * identical across all five groups specifically so no reviewer could read a pattern into it as
+ * if it were derived from the source values. See the page caption for the same disclosure.
+ * Whether and how a real cross-position aggregate should ever be computed is an open product
+ * question for a future design review (`candidate_manifest.json`'s A06 `knownGaps`), not decided
+ * by this candidate. The exact-level entries below are completely unchanged by this fix — they
+ * remain the real source of truth, and the 24→14 *position* mapping itself (not the support
+ * values) is still the approved, unchanged behaviour this fixture demonstrates.
  */
 export const exactTacticalEvidence: TouchlinePositionMapEntry[] = [
   // Singletons — map 1:1 to their profile label, no collapsing involved.
@@ -69,10 +84,16 @@ export const profileEvidence: FlatProfilePositionMapEntry[] = [
   { position: "RM", positionLabel: "RM", rank: null, supportBand: "LIMITED", confidence: "LOW" },
   { position: "LW", positionLabel: "LW", rank: 1, supportBand: "STRONGEST", confidence: "HIGH" },
   { position: "RW", positionLabel: "RW", rank: null, supportBand: "LIMITED", confidence: "LOW" },
-  // Consolidated — each mirrors its group's strongest exact-level value (see comments above).
-  { position: "CB", positionLabel: "CB", rank: 1, supportBand: "STRONGEST", confidence: "HIGH" }, // mirrors CB
-  { position: "DM", positionLabel: "DM", rank: 2, supportBand: "STRONG", confidence: "HIGH" }, // mirrors CDM
-  { position: "CM", positionLabel: "CM", rank: 2, supportBand: "STRONG", confidence: "HIGH" }, // mirrors LCM
-  { position: "AM", positionLabel: "AM", rank: 1, supportBand: "STRONGEST", confidence: "HIGH" }, // mirrors CAM
-  { position: "F", positionLabel: "F", rank: 2, supportBand: "STRONG", confidence: "HIGH" }, // mirrors CF
+  // Consolidated — ILLUSTRATIVE placeholder only (ESTABLISHED/MEDIUM, uniformly, rank null): not
+  // computed from the exact-level group members, no approved aggregation rule exists (see the
+  // file-level comment above and CONSOLIDATED_GROUP_PLACEHOLDER_NOTE below).
+  { position: "CB", positionLabel: "CB", rank: null, supportBand: "ESTABLISHED", confidence: "MEDIUM" },
+  { position: "DM", positionLabel: "DM", rank: null, supportBand: "ESTABLISHED", confidence: "MEDIUM" },
+  { position: "CM", positionLabel: "CM", rank: null, supportBand: "ESTABLISHED", confidence: "MEDIUM" },
+  { position: "AM", positionLabel: "AM", rank: null, supportBand: "ESTABLISHED", confidence: "MEDIUM" },
+  { position: "F", positionLabel: "F", rank: null, supportBand: "ESTABLISHED", confidence: "MEDIUM" },
 ];
+
+/** The five profile positions whose fixture value above is an illustrative placeholder rather
+ * than a real or derived value — used by the fixture test to assert honest labeling/traceability. */
+export const CONSOLIDATED_PLACEHOLDER_PROFILE_POSITIONS = ["CB", "DM", "CM", "AM", "F"] as const;

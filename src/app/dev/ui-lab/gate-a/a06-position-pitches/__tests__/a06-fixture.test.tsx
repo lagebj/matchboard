@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { CANONICAL_TACTICAL_POSITIONS } from "@/domain/positions/roles";
-import { exactTacticalEvidence, profileEvidence } from "../fixtures";
+import { CANONICAL_TACTICAL_POSITIONS, type CanonicalTacticalPosition } from "@/domain/positions/roles";
+import { exactTacticalEvidence, profileEvidence, CONSOLIDATED_PLACEHOLDER_PROFILE_POSITIONS } from "../fixtures";
 import { FlatProfilePositionMap } from "../flat-profile-position-map";
-import { PROFILE_POSITIONS } from "../../shared/profile-position-model";
+import { collapseTacticalToProfile, PROFILE_POSITIONS } from "../../shared/profile-position-model";
+import { ThemeProvider } from "@/lib/theme/theme-provider";
+import A06PositionPitchesPage from "../page";
 
 /**
  * A06 candidate fixture invariants (PR #777 remediation): the fixture now exercises the full
@@ -41,21 +43,53 @@ describe("A06 position-pitches candidate fixture", () => {
     expect(rb.style.top).not.toBe(rwb.style.top);
   });
 
-  it("every consolidated profile dot (CB/DM/CM/AM/F) never exceeds the strongest support of its exact source group", () => {
-    const BAND_RANK = { LIMITED: 0, ESTABLISHED: 1, STRONG: 2, STRONGEST: 3 } as const;
-    const GROUPS: Record<string, string[]> = {
-      CB: ["LCB", "CB", "RCB"],
-      DM: ["LDM", "CDM", "RDM"],
-      CM: ["LCM", "CM", "RCM"],
-      AM: ["LAM", "CAM", "RAM"],
-      F: ["LCF", "CF", "RCF"],
-    };
-    for (const [profile, exactCodes] of Object.entries(GROUPS)) {
-      const profileEntry = profileEvidence.find((e) => e.position === profile)!;
-      const maxExactBand = Math.max(
-        ...exactCodes.map((code) => BAND_RANK[exactTacticalEvidence.find((e) => e.positionCode === code)!.supportBand]),
+  describe("PR #777 remediation (finding A06-2): no unapproved aggregation rule", () => {
+    it("preserves every consolidated group's three exact-level source entries exactly as the fixture defines them", () => {
+      const GROUPS: Record<string, string[]> = {
+        CB: ["LCB", "CB", "RCB"],
+        DM: ["LDM", "CDM", "RDM"],
+        CM: ["LCM", "CM", "RCM"],
+        AM: ["LAM", "CAM", "RAM"],
+        F: ["LCF", "CF", "RCF"],
+      };
+      for (const exactCodes of Object.values(GROUPS)) {
+        for (const code of exactCodes) {
+          const entry = exactTacticalEvidence.find((e) => e.positionCode === code);
+          expect(entry, `exact entry for ${code} must still exist, unmodified`).toBeDefined();
+        }
+      }
+      // Exactly 24 exact entries, 24 canonical codes — nothing added or dropped by this fix.
+      expect(exactTacticalEvidence).toHaveLength(24);
+    });
+
+    it("maps each consolidated profile dot to the position its real exact-level group collapses to (mapping, not support, correctness)", () => {
+      for (const profile of CONSOLIDATED_PLACEHOLDER_PROFILE_POSITIONS) {
+        const anySourceCode = exactTacticalEvidence
+          .map((e) => e.positionCode)
+          .find((code) => collapseTacticalToProfile(code as CanonicalTacticalPosition) === profile);
+        expect(anySourceCode, `at least one exact code should collapse to ${profile}`).toBeDefined();
+        expect(profileEvidence.find((e) => e.position === profile)).toBeDefined();
+      }
+    });
+
+    it("gives every consolidated profile dot the same flat illustrative placeholder, never a value that looks derived from its group's exact values", () => {
+      for (const profile of CONSOLIDATED_PLACEHOLDER_PROFILE_POSITIONS) {
+        const entry = profileEvidence.find((e) => e.position === profile)!;
+        expect(entry.supportBand).toBe("ESTABLISHED");
+        expect(entry.confidence).toBe("MEDIUM");
+        expect(entry.rank).toBeNull();
+      }
+    });
+
+    it("renders an explicit on-page disclosure that consolidated values are illustrative, not computed", () => {
+      render(
+        <ThemeProvider>
+          <A06PositionPitchesPage />
+        </ThemeProvider>,
       );
-      expect(BAND_RANK[profileEntry.supportBand]).toBe(maxExactBand);
-    }
+      const disclosure = screen.getByTestId("a06-illustrative-disclosure");
+      expect(disclosure.textContent).toMatch(/illustrative/i);
+      expect(disclosure.textContent).toMatch(/not a computed aggregate/i);
+    });
   });
 });

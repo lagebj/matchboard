@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { PROFILE_POSITIONS } from "../../shared/profile-position-model";
+import { PROFILE_POSITIONS, aggregateExactAppearancesByProfile, type ExactPositionAppearance } from "../../shared/profile-position-model";
 import {
   isValidTriple,
   setPrimary,
   setSecondary,
   setTertiary,
   availableOptionsFor,
-  previewLegacyConsolidation,
+  previewLegacyDeclaredConsolidation,
   type ProfilePositionTriple,
 } from "../profile-triple-selection";
 
@@ -59,15 +59,65 @@ describe("A12 profile-triple selection", () => {
     expect(tertiaryOptions).toContain("LW");
   });
 
-  it("consolidates LCF/CF/RCF to a single F primary, inventing nothing", () => {
-    const preview = previewLegacyConsolidation(["LCF", "CF", "RCF"]);
-    expect(preview.singleProfile).toBe("F");
-    expect(preview.distinctProfiles).toEqual(["F"]);
+  describe("Case A — legacy DECLARED positions (PR #777 remediation, finding A12-1)", () => {
+    it("consolidates a declared LCF/CF/RCF primary/secondary/tertiary to a single F primary, inventing nothing", () => {
+      const preview = previewLegacyDeclaredConsolidation({ primary: "LCF", secondary: "CF", tertiary: "RCF" });
+      expect(preview.primary).toBe("F");
+      expect(preview.secondary).toBeNull();
+      expect(preview.tertiary).toBeNull();
+      expect(preview.sourceDeclared).toEqual({ primary: "LCF", secondary: "CF", tertiary: "RCF" });
+    });
+
+    it("the original primary declaration provides the ordering authority — it always wins the primary slot", () => {
+      const preview = previewLegacyDeclaredConsolidation({ primary: "LCM", secondary: "LCF" });
+      expect(preview.primary).toBe("CM"); // from the declared primary, LCM
+      expect(preview.secondary).toBe("F"); // distinct group, kept
+    });
+
+    it("keeps genuinely distinct declared groups as distinct secondary/tertiary, never merging them", () => {
+      const preview = previewLegacyDeclaredConsolidation({ primary: "GK", secondary: "LCM", tertiary: "LCF" });
+      expect(preview.primary).toBe("GK");
+      expect(preview.secondary).toBe("CM");
+      expect(preview.tertiary).toBe("F");
+    });
   });
 
-  it("does not guess a primary when the source codes span more than one profile group", () => {
-    const preview = previewLegacyConsolidation(["LCF", "LCM"]);
-    expect(preview.singleProfile).toBeNull();
-    expect(preview.distinctProfiles.sort()).toEqual(["CM", "F"]);
+  describe("Case B — recorded MATCH EXPOSURE only, no declaration (PR #777 remediation, finding A12-1)", () => {
+    it("collapses recorded exposure through the same 24->14 mapping without creating any declared triple", () => {
+      const appearances: ExactPositionAppearance[] = [
+        { matchId: "m-10", tacticalPosition: "LCF", minutes: 30 },
+        { matchId: "m-11", tacticalPosition: "CF", minutes: 60 },
+        { matchId: "m-12", tacticalPosition: "RCF", minutes: 15 },
+      ];
+      const aggregates = aggregateExactAppearancesByProfile(appearances);
+      // Exposure is real and visible...
+      expect(aggregates).toEqual([
+        {
+          profile: "F",
+          totalMinutes: 105,
+          appearanceCount: 3,
+          breakdown: [
+            { tacticalPosition: "LCF", minutes: 30 },
+            { tacticalPosition: "CF", minutes: 60 },
+            { tacticalPosition: "RCF", minutes: 15 },
+          ],
+        },
+      ]);
+      // ...but the aggregation function itself has no concept of "primary" / "declared" at all —
+      // it cannot produce a ProfilePositionTriple, so no declaration can leak out of this path.
+      expect(aggregates[0]).not.toHaveProperty("primary");
+      expect(aggregates[0]).not.toHaveProperty("secondary");
+      expect(aggregates[0]).not.toHaveProperty("tertiary");
+    });
+
+    it("never double-counts a match that appears at two sided codes within the same profile group", () => {
+      const appearances: ExactPositionAppearance[] = [
+        { matchId: "m-1", tacticalPosition: "LCF", minutes: 20 },
+        { matchId: "m-1", tacticalPosition: "RCF", minutes: 20 },
+      ];
+      const [aggregate] = aggregateExactAppearancesByProfile(appearances);
+      expect(aggregate.totalMinutes).toBe(40);
+      expect(aggregate.appearanceCount).toBe(1);
+    });
   });
 });

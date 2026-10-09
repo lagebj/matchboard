@@ -1,5 +1,5 @@
 import { aggregateExactAppearancesByProfile, type ExactPositionAppearance } from "../shared/profile-position-model";
-import { previewLegacyConsolidation, type ProfilePositionTriple } from "./profile-triple-selection";
+import { previewLegacyDeclaredConsolidation, type ProfilePositionTriple } from "./profile-triple-selection";
 
 /**
  * A12 — declared profile vs exact match-evidence boundary (`20_UI_LAB_CANDIDATE_WAVES.md` A12).
@@ -25,8 +25,32 @@ export const initialDeclaredTriple: ProfilePositionTriple = {
   tertiary: null,
 };
 
-/** Legacy migration preview (PR #777 remediation): a player whose entire historical exact-match
- * record is LCF/CF/RCF — all three collapse to the single `F` profile group, so the preview must
- * show ONE declared primary (`F`) and must NOT invent a secondary or tertiary the source data
- * never distinguished. */
-export const legacyForwardConsolidationPreview = previewLegacyConsolidation(["LCF", "CF", "RCF"]);
+/**
+ * Case A — "Legacy declared positions" (PR #777 remediation, finding A12-1): a player who
+ * already had a declared 24-code primary/secondary/tertiary (`LCF`/`CF`/`RCF`). All three
+ * collapse to the single `F` profile group — the projected result is primary `F`, with secondary
+ * and tertiary left empty (not three declarations of the same thing). The original primary
+ * declaration (`LCF`) is what gives `F` its ordering authority here — this is a consolidation of
+ * an existing coach decision, not a new one.
+ */
+export const legacyDeclaredConsolidationPreview = previewLegacyDeclaredConsolidation({
+  primary: "LCF",
+  secondary: "CF",
+  tertiary: "RCF",
+});
+
+/**
+ * Case B — "Recorded match exposure" (PR #777 remediation, finding A12-1): a *different* player,
+ * with no declared profile fields at all — only historical match minutes at `LCF`/`CF`/`RCF`.
+ * Reuses the same `aggregateExactAppearancesByProfile` as the main evidence drilldown: real
+ * minutes and distinct-match counts, source intervals fully preserved. Deliberately NOT run
+ * through any declared-triple logic — this fixture must never produce a primary/secondary/
+ * tertiary declaration, since match exposure alone does not authorize one.
+ */
+export const matchExposureOnlyAppearances: ExactPositionAppearance[] = [
+  { matchId: "m-10", tacticalPosition: "LCF", minutes: 30 },
+  { matchId: "m-11", tacticalPosition: "CF", minutes: 60 },
+  { matchId: "m-12", tacticalPosition: "RCF", minutes: 15 },
+];
+
+export const matchExposureOnlyAggregates = aggregateExactAppearancesByProfile(matchExposureOnlyAppearances);

@@ -51,6 +51,11 @@ export default function A06PositionPitchesPage() {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
             Profile — 14-role flat 3×6 (candidate)
           </p>
+          <p className="mb-2 text-[11px] text-[var(--text-muted)]" data-testid="a06-illustrative-disclosure">
+            The 5 consolidated dots (CB/DM/CM/AM/F) show an illustrative placeholder value, not a
+            computed aggregate — no approved rule exists yet for combining 3 sided positions&rsquo;
+            support/confidence into one. See the tactical panel for the real per-code evidence.
+          </p>
           <FlatProfilePositionMap
             entries={profileEvidence}
             selectedPosition={selectedProfile}
@@ -62,7 +67,7 @@ export default function A06PositionPitchesPage() {
       <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 p-3 text-[11px] text-[var(--text-muted)]">
         <p>LW and RW stay their own sided profile labels — never collapsed into a single unsided &ldquo;W&rdquo;.</p>
         <p>LB/LWB and RB/RWB each have their own evidence and their own grid cell — distinct, simultaneously visible, and independently selectable (PR #777 remediation; previously these shared a cell).</p>
-        <p>Five centre-line groups collapse to one profile dot each, never fabricating a stronger signal than their strongest source: LCB/CB/RCB → CB, LDM/CDM/RDM → DM, LCM/CM/RCM → CM, LAM/CAM/RAM → AM, LCF/CF/RCF → F.</p>
+        <p>Five centre-line groups collapse to one profile dot each — the <em>position</em> mapping is approved and real: LCB/CB/RCB → CB, LDM/CDM/RDM → DM, LCM/CM/RCM → CM, LAM/CAM/RAM → AM, LCF/CF/RCF → F. Each dot&rsquo;s support/confidence value, however, is an illustrative placeholder (see above) — not derived from its three source codes.</p>
       </div>
     </div>
   );

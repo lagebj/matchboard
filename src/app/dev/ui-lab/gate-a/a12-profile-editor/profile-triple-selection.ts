@@ -59,27 +59,52 @@ export function availableOptionsFor(
   return allPositions.filter((p) => !otherUsed.has(p));
 }
 
-export type LegacyConsolidationResult = {
-  /** The one profile group to declare as primary when every source code collapses to the same
-   * profile position. `null` when the source codes collapse to more than one distinct profile —
-   * this candidate never guesses which one should be primary in that case. */
-  singleProfile: ProfilePosition | null;
-  /** Every distinct profile position the source codes collapse to, for display. */
-  distinctProfiles: ProfilePosition[];
-  sourceCodes: readonly CanonicalTacticalPosition[];
+/**
+ * PR #777 remediation (finding A12-1): the original legacy-migration preview conflated two
+ * different signals that the approved contract (`15_PLAYER_PROFILE_VS_TACTICAL_POSITION_
+ * CONTRACT.md`) keeps strictly separate and differently authoritative:
+ *
+ * - **Case A — "Legacy declared positions":** the player already had a *declared*
+ *   primary/secondary/tertiary, expressed in the old 24-code vocabulary. Projecting an existing
+ *   declaration onto the 14-role vocabulary is a like-for-like consolidation — the original
+ *   primary declaration keeps its ordering authority, it just becomes the primary's profile
+ *   group. This is legitimate: a coach already decided this player's primary position; only the
+ *   vocabulary changed.
+ * - **Case B — "Recorded match exposure":** the player has no declared profile fields at all,
+ *   only historical match minutes at certain exact tactical positions. That exposure can be
+ *   *shown*, collapsed through the same 24→14 mapping — but it must never, by itself, create a
+ *   primary/secondary/tertiary declaration. Evidence alone is not a coach decision; promoting it
+ *   to one requires the production confidence-threshold/approval mechanism (ADR-0139), which this
+ *   dev-only candidate does not implement or simulate.
+ */
+export type LegacyDeclaredPositions = {
+  primary: CanonicalTacticalPosition;
+  secondary?: CanonicalTacticalPosition | null;
+  tertiary?: CanonicalTacticalPosition | null;
+};
+
+export type LegacyDeclaredConsolidationResult = {
+  sourceDeclared: LegacyDeclaredPositions;
+  /** The projected primary's profile group — always set; the original primary declaration is the
+   * ordering authority, so it always maps straight through. */
+  primary: ProfilePosition;
+  /** `null` when the projected value would duplicate primary (or secondary, for tertiary) —
+   * never invented, never silently promoted. */
+  secondary: ProfilePosition | null;
+  tertiary: ProfilePosition | null;
 };
 
 /**
- * Collapses a player's historical exact-position codes to profile positions, for a "legacy
- * migration preview" — proves `LCF`/`CF`/`RCF` consolidate to one declared `F` primary, not three
- * separate declarations, and that this candidate never invents a secondary/tertiary the source
- * data doesn't actually distinguish (`20_UI_LAB_CANDIDATE_WAVES.md` A12).
+ * Case A — projects an existing 24-code *declared* primary/secondary/tertiary onto the 14-role
+ * profile vocabulary. E.g. declared primary `LCF`, secondary `CF`, tertiary `RCF` all collapse to
+ * `F` — the result is primary `F`, secondary `null`, tertiary `null` (not three declarations of
+ * the same thing, and nothing invented for the now-empty slots).
  */
-export function previewLegacyConsolidation(sourceCodes: readonly CanonicalTacticalPosition[]): LegacyConsolidationResult {
-  const distinctProfiles = Array.from(new Set(sourceCodes.map(collapseTacticalToProfile)));
-  return {
-    singleProfile: distinctProfiles.length === 1 ? distinctProfiles[0] : null,
-    distinctProfiles,
-    sourceCodes,
-  };
+export function previewLegacyDeclaredConsolidation(declared: LegacyDeclaredPositions): LegacyDeclaredConsolidationResult {
+  const primary = collapseTacticalToProfile(declared.primary);
+  const secondaryProjected = declared.secondary ? collapseTacticalToProfile(declared.secondary) : null;
+  const tertiaryProjected = declared.tertiary ? collapseTacticalToProfile(declared.tertiary) : null;
+  const secondary = secondaryProjected && secondaryProjected !== primary ? secondaryProjected : null;
+  const tertiary = tertiaryProjected && tertiaryProjected !== primary && tertiaryProjected !== secondary ? tertiaryProjected : null;
+  return { sourceDeclared: declared, primary, secondary, tertiary };
 }
