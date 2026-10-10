@@ -2,11 +2,11 @@
   "programmeRevision": "0.5.4",
   "baseCommitSha": "5daded8d4912efef13e9b9a59f125bebb143045e",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — per-candidate approval state is authoritative; see each candidate's own status/approval object. APPROVED_GOLDEN is NOT production implementation authorization (see each approval.scope).",
-  "note": "This file holds STABLE candidate metadata only — same convention as docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json. A commit cannot reliably reference its own final hash, so the actual source commit SHA, per-capture screenshot SHA-256, capture timestamp, and environment live in the separately-generated, separately-committed capture-attestation.json instead. Every A04 case below is CANDIDATE, pending independent review and the repository owner's explicit APPROVED/REVISE/BLOCKED decision — none may be read as approved.",
+  "note": "This file holds STABLE candidate metadata only — same convention as docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json. A commit cannot reliably reference its own final hash, so the actual source commit SHA, per-capture screenshot SHA-256, capture timestamp, and environment live in the separately-generated, separately-committed capture-attestation.json instead. 2026-10-10: repository owner approved all six A04 scenarios (S1-S6) as APPROVED_GOLDEN (design reference only) at revision 35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8, per the third independent review's PASS confirmation of findings R1-R4 and all verification gaps. Durable off-git asset storage (GitHub Release, per 07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md's D7 strategy) is PENDING, same disclosed gap as W1 — approvedCaptures hashes below are independently verified against the CI artifact and capture-attestation.json in the meantime.",
   "candidates": [
     {
       "scenarioId": "A04-S1",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-partial-minutes",
       "fixtureVersion": 2,
       "componentOwners": [
@@ -19,7 +19,11 @@
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-A02", "XR-A04", "XR-V01"],
+      "requirementRefs": [
+        "XR-A02",
+        "XR-A04",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
       "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — src/components/touchline/player/player-participation-strip.tsx takes minutes:number and cannot truthfully render NOT_RECORDED; see visual_vs_current/A04.md",
@@ -28,11 +32,150 @@
         "The NOT_RECORDED choice (vs UNKNOWN) assumes the source can positively confirm no interval was captured for these five rounds; a real production source may need to distinguish 'checked, nothing there' from 'did not check' more explicitly than this fixture demonstrates.",
         "fixtureVersion 2 (independent review round 1, finding R1): eligibility and recorded-opportunity are now two separate source records per round, each with matching field text; the opportunity inspector is scoped separately from the minutes inspector (finding R3).",
         "Independent review round 2 (finding R4): the opportunity and minutes inspectors now share one useActiveSourceClaim instance — exactly one dialog is ever active, and clicking the other trigger on desktop switches content in place instead of opening a second dialog. Minutes source label corrected to 'Actual playing minutes' (editorial)."
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-10",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
+        "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-desktop-dark.png",
+            "sha256": "8a11545082ef6ad1d2a2e48bac06dfc7359cb6c1a3d0abb64f2f1d5455348796"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-partial-minutes-desktop-dark-source-open.png",
+            "sha256": "8d8bd8f4f7ad79b6fa6b447623eab99edb9c2a4c5ec487294303d3f65a2a1440"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open-minutes",
+            "file": "gate-a-a04-partial-minutes-desktop-dark-source-open-minutes.png",
+            "sha256": "fcae9ea2426295693670d22ddabdc67efbf5b7e2224e2f7b23731a7cf862ca74"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-desktop-light.png",
+            "sha256": "6aea1708bf032b088d60927728ed60ce2a7b6130eca8182cf4cadadea67e7614"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-partial-minutes-desktop-light-source-open.png",
+            "sha256": "ae197d8ce799c91504935ae5c3c1e18dbbcdedf6e57a64e74a6861e80e55bb69"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open-minutes",
+            "file": "gate-a-a04-partial-minutes-desktop-light-source-open-minutes.png",
+            "sha256": "a0ec4b5e5b3f2d79f87276645796fce596fa416a7517569eaef263279ec653fc"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-mobile-dark.png",
+            "sha256": "e264b30910f40e527e83d4eb8a81c72b29186a69417535ad75e8adefeb1d46bc"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-partial-minutes-mobile-dark-source-open.png",
+            "sha256": "3fd3b9ee350afd01e49e8e6514a0d4dbb01d01ba7f0156263a74937c1ebf9ec8"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open-minutes",
+            "file": "gate-a-a04-partial-minutes-mobile-dark-source-open-minutes.png",
+            "sha256": "a23958ee6e35e41c4a6faa19989ba8e8df75a1a9ff267d55d42326f29fcd3353"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-mobile-light.png",
+            "sha256": "a23c9ef06d4be2553af0d70c6b06b31e9e08747c420e5bb85aa9ee43e246e453"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-partial-minutes-mobile-light-source-open.png",
+            "sha256": "00230e206931cc7ac7ff169400d016ed0b7941a01a53099d1750f07694831906"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open-minutes",
+            "file": "gate-a-a04-partial-minutes-mobile-light-source-open-minutes.png",
+            "sha256": "112881e31fd8e6fb53de4eb79cb744b72a6e20e2210c0e9727419942fe3bcd8c"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-narrow-dark.png",
+            "sha256": "7268b238890a6a4866d429d2a7fe76f9292e8ca85dd515bacde7b668e6b72b43"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-narrow-light.png",
+            "sha256": "7a18886b211d435b83408532b0a003260cf1496a89605472d0fade3646ee5ce5"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-a04-360-dark.png",
+            "sha256": "2f7f8b199b99f2ac09a059f74d6c5d2b2a612ed2a0623b6cfdbcdb57d48bee7c"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-a04-360-light.png",
+            "sha256": "c6be0c0f4653459e0568ee0bba551021281cf0567844458939b6aa65cfc4606f"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-a04-430-dark.png",
+            "sha256": "f5f45840a1c41e2f39e591aa2bd41e6354f74ea8c07f2467500d244abe8480c1"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-partial-minutes-a04-430-light.png",
+            "sha256": "48e1d87c193df8e65f4126124a34f460ac5ef4583d07f8bf07ea94c7620c1d82"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A04-S2",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-role-exposure-sparse",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -42,18 +185,105 @@
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-A01", "XR-A04", "XR-V01"],
+      "requirementRefs": [
+        "XR-A01",
+        "XR-A04",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
       "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — src/components/touchline/player/player-position-timeline.tsx has its own fewer-than-three sparse empty state, but it is not a task/data-comparable baseline for this exact 2-of-6 opportunity-denominator shape; see visual_vs_current/A04.md",
       "knownGaps": [
         "The 2/6 ratio is this fixture's proof of scarcity only — explicitly not a new product sufficiency threshold (`07_DECISIONS_DEFERRALS_AND_BLOCKERS.md` item 2).",
         "No interaction-state screenshot is captured for S2 — its scope forbids any derived visual to drill into beyond the two already-visible recorded rows."
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-10",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
+        "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-desktop-dark.png",
+            "sha256": "d4a4b29f30405741802a6a069931623686d3013b0d69567f22c630c5df92005f"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-desktop-light.png",
+            "sha256": "29ac739180c7bbbffb25bb97498889af036115461037bd2aa7793ab8ccc9a003"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-mobile-dark.png",
+            "sha256": "d8f0f14ff06ec7ee51773bd182390a16769f6c07892b57c9d4c32461ba8f6fcd"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-mobile-light.png",
+            "sha256": "21c451e2ff14d79481b11ffc86e5ae043696602b2c941ae0d2dab80f5dbce33a"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-narrow-dark.png",
+            "sha256": "526d3d901b1c8bfda104bc3cde3de6dd69c9e4ecc5180c7852f8634e88e27231"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-narrow-light.png",
+            "sha256": "fcc9eb7b4cfb200d5d5591b1e0f2624215b80fd37a2184f9937d5411d760b76d"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-a04-360-dark.png",
+            "sha256": "a05f8ed516f175ef36f5104957767ffff63cbabbbe4c624b55604df6e0e4df0c"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-a04-360-light.png",
+            "sha256": "28a039a30da1a2df7efd1e2a99389d25bb276832e8e7412f30a92901290c5604"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-a04-430-dark.png",
+            "sha256": "ad0a7a1cd0c4691f852b88b780a1b9944d01e6dca24453e53c554f363cb48a3f"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-sparse-a04-430-light.png",
+            "sha256": "92a807099cd6c38f468ba77bdf9a01f4223f22b54449e57b5a3cd990b6b9a1f6"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A04-S3",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-role-exposure-supported",
       "fixtureVersion": 2,
       "componentOwners": [
@@ -64,18 +294,132 @@
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-A01", "XR-V01"],
+      "requirementRefs": [
+        "XR-A01",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
       "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently partitions recorded role-duration minutes into a prior/latest window comparison; see visual_vs_current/A04.md",
       "knownGaps": [
         "The prior-3/latest-3 window split and the six-match completeness are this fixture's acceptance example only, not a universal product sufficiency rule (`07_DECISIONS_DEFERRALS_AND_BLOCKERS.md` item 2).",
         "fixtureVersion 2 (independent review round 1, verification gap): each observation now carries an explicit typed `coverage` field, and `computeWindowComparison` validates every entry is COMPLETE and every matchId distinct before computing any total, instead of inferring completeness from the presence of a `minutes` field."
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-10",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
+        "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-desktop-dark.png",
+            "sha256": "8f59734d53da0d99d8cd1de022cf7eee9e60d8091b320bd40edbcf74322baddd"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-role-exposure-supported-desktop-dark-source-open.png",
+            "sha256": "4fae1e767d02ba347216ff9e4291e5bd88bbeaf268433e573103b56f3f037380"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-desktop-light.png",
+            "sha256": "86692568b0347c7ad314e339cd0a9e2312ccc66267c88abc7be67219c44cd46b"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-role-exposure-supported-desktop-light-source-open.png",
+            "sha256": "3e367fc3322ecd9cdf1c368769d56230d9804b151136bb694a2193640292f80a"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-mobile-dark.png",
+            "sha256": "b86df1aaf138f1e622a494b1e76f6b4ade7cc6900a5385013174bc2e499aa5e1"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-role-exposure-supported-mobile-dark-source-open.png",
+            "sha256": "9eb560deb422b4ea4858d28c5e00c73799cbcfc689069e0eb5bd6fed07c562df"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-mobile-light.png",
+            "sha256": "147f486cd511f1453c3705fdece5935a17d8448b598a885425ea67758265a756"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-role-exposure-supported-mobile-light-source-open.png",
+            "sha256": "b9318b3d4fb7bac379afdb864360b43d5182209d9f594544ef3ef2db260b4d68"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-narrow-dark.png",
+            "sha256": "32acc155bc8d92d97ac4b7021537e9c62dd90e6423829eee4e1024c0754c008b"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-narrow-light.png",
+            "sha256": "f56341c5b0aab1462e9790d5900f4ff50d72c95507d3506bb5eb87fdf76c3473"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-a04-360-dark.png",
+            "sha256": "97fa4846deabb30c0d4cce14d8f6cc2d79944eecb971b3eb020e8f42dfe5f084"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-a04-360-light.png",
+            "sha256": "18752e6995cabcda9440eb019026e788d4497967eb6cedb6dd40a11d0b6f12c1"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-a04-430-dark.png",
+            "sha256": "564024bbaca511777b7ce6e2370bef98f7e9060488a2920effa3f5a68c04fadc"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-role-exposure-supported-a04-430-light.png",
+            "sha256": "65bf1e5cecd6f6f58e7b03ed1579822034d987ba60f7d6df2da566178166b624"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A04-S4",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-sparse-score-events",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -85,7 +429,10 @@
       ],
       "lifecycle": "done",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-A04", "XR-V01"],
+      "requirementRefs": [
+        "XR-A04",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/05_DATA_AND_VISUALIZATION_TRUTH.md",
       "dataContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F4",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently separates a canonical final score from an independently partial event log as two distinct coverage states; see visual_vs_current/A04.md",
@@ -93,11 +440,150 @@
         "The data-truth test proving CONFLICT detection (two sources disagreeing on the same fact) is test-only (`shared/invariants.ts`'s describeConflict) — no production-looking conflict UI state exists anywhere in A04, since no source-priority order is approved yet (BLOCKED, see A04_REVIEW.md).",
         "Independent review round 1 (finding R3): the result and event claims are now scoped to separate inspectors (`buildResultSourceRecords`/`buildEventSourceRecords`) — the event inspector no longer shows the result record first.",
         "Independent review round 2 (finding R4): the result and event inspectors now share one useActiveSourceClaim instance — exactly one dialog is ever active, and clicking the other trigger on desktop switches content in place."
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-10",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
+        "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-desktop-dark.png",
+            "sha256": "afaf154658850d9a30e0024e785bced5a8e5c23d857d417c8e3b7796b20fd6f6"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open-event",
+            "file": "gate-a-a04-sparse-score-events-desktop-dark-source-open-event.png",
+            "sha256": "d6eb17292c1c122332b394ba327fc6a50c03b1c26dd11b49f1daf67725784276"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open-result",
+            "file": "gate-a-a04-sparse-score-events-desktop-dark-source-open-result.png",
+            "sha256": "1c03d40e58eb43b8b48dec217c37fa0ee9550bcb83118d86a5165a5d413b9134"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-desktop-light.png",
+            "sha256": "44bd929f9f716c34ff4437f46d08a5ecb996941a2bd1ba9787f9058e9629bdab"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open-event",
+            "file": "gate-a-a04-sparse-score-events-desktop-light-source-open-event.png",
+            "sha256": "5a86849946633747cf1d922b0e95d014e799b422a3046c8f29571cc27f6a6597"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open-result",
+            "file": "gate-a-a04-sparse-score-events-desktop-light-source-open-result.png",
+            "sha256": "3379969a6c9ff05a2658fe2dc2ed1c598505ecf2f06ed4bd3d6632eb451b03d5"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-mobile-dark.png",
+            "sha256": "9f9e769bfa1774640b0d547713e1cd74a1f4bf92f011d98df85a3a36996e746b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open-event",
+            "file": "gate-a-a04-sparse-score-events-mobile-dark-source-open-event.png",
+            "sha256": "fcf099f4251be04ff01ec9495cd04d6780f0c7920fbcbe953eec052151ef9e03"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open-result",
+            "file": "gate-a-a04-sparse-score-events-mobile-dark-source-open-result.png",
+            "sha256": "d496d2aebb9a09e51f3d2bc652f55bd267cdc2dd6cd1b9971c863356475cc002"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-mobile-light.png",
+            "sha256": "225bd2b4c81787e981364a22d4a5c19703fb588b0f4ae2e1b27b71b105f20912"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open-event",
+            "file": "gate-a-a04-sparse-score-events-mobile-light-source-open-event.png",
+            "sha256": "1c254787684f6cbff3c5d5f9c374baacb823accfc69d64906cad8cb3add82f7f"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open-result",
+            "file": "gate-a-a04-sparse-score-events-mobile-light-source-open-result.png",
+            "sha256": "59c90262b598d669f1a2278c3f80baaeda4f936b351cff04d6bb1bc5d2a6bb4b"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-narrow-dark.png",
+            "sha256": "7b518ceb102b3bbe8d168a37e1eb0cf4eff7c4c2a128d2c4293e27138b5197bc"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-narrow-light.png",
+            "sha256": "f3f36998884618f4b00674cfc504d0edfce78d4ee38cf5f99d0a4aa5b91b55d3"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-a04-360-dark.png",
+            "sha256": "5aaebad07a29e3d15792ea04230e2449eb2aff8f2f6a50b6796dd9ec7c03567e"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-a04-360-light.png",
+            "sha256": "8a474e1cc0b8bdca8d87b3bb14f2a440acd88739b74400baa29f45c5e5dbfab3"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-a04-430-dark.png",
+            "sha256": "b36fd83ef50d6e7cb2a0850dcf50ecb12f0bae6246ab166d39241f164d9c1924"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-sparse-score-events-a04-430-light.png",
+            "sha256": "a3e37d205b400beb0a7aa1296c3646a301ae8b8cc7723a0bc21553dac854c480"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A04-S5",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-central-profile-projection",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -108,17 +594,131 @@
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-A03", "XR-V01"],
+      "requirementRefs": [
+        "XR-A03",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
       "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
       "baselineAssetRef": "src/app/dev/ui-lab/gate-a/a12-profile-editor (W1, APPROVED_GOLDEN) demonstrates the same aggregator on a two-match fixture; A04-S5 is the single-match, non-overlapping-interval case specifically, not previously demonstrated",
       "knownGaps": [
         "Reuses W1's approved `aggregateExactAppearancesByProfile`/`collapseTacticalToProfile` unmodified — no new aggregation rule. The overlap-rejection invariant (`assertNonOverlappingIntervals`) is new in this PR, exercised by both a positive (S5's real fixture) and a negative (a deliberately overlapping variant, test-only) case."
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-10",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
+        "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-desktop-dark.png",
+            "sha256": "4c6c3e64bfbd78989dc67227f331f8d36eb9c5ea7e6b365c1e671e6956c48a0b"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-central-profile-projection-desktop-dark-source-open.png",
+            "sha256": "fa3b4f211561926b254c8a4f561196f95c6c31489b75e5a883750ee75575ed23"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-desktop-light.png",
+            "sha256": "50c390747a63ab3a15835432d66289a0fa9f67efc96b67e9c9135f849fbeb1c3"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-central-profile-projection-desktop-light-source-open.png",
+            "sha256": "9429dca4a3e2e89207637cfcfca8b2a416993a780e1fc57be15bbb3d9329cf41"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-mobile-dark.png",
+            "sha256": "2b23fe942d76d9edfa9c93930212584b969481f55e82b8cf7aa26dfb6b6607e1"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-central-profile-projection-mobile-dark-source-open.png",
+            "sha256": "df01adf6d297e683d37f1a98952cd3833006bc23a0197f723bba7f3fd6272de9"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-mobile-light.png",
+            "sha256": "cb5e6587250ff5a2449fb32f1408d5ec5bfef3b4ee3e4c10602c45b459bc411a"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-central-profile-projection-mobile-light-source-open.png",
+            "sha256": "a57e10dd3c96bbdf2b4ea0ecf1ff1da13547ac2c8d9dc05fa98944a447ab0c23"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-narrow-dark.png",
+            "sha256": "207e871bf886595b7178b5d2f9a6bc95f6bb3c2d866172d290a03549b89748f7"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-narrow-light.png",
+            "sha256": "dcf8d1c57d9a089730e9dd77b8ce9e48983b18952c6d0f55bd0541379d7d3b74"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-a04-360-dark.png",
+            "sha256": "bf4ce84709bb44c613255235f905c6eea4d53d2aeafd82513ac9ff3d386bee1b"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-a04-360-light.png",
+            "sha256": "00d12dd2f58c0552719a083f8bcffdc12ce9481623ce217c8d4679a989e3d8fd"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-a04-430-dark.png",
+            "sha256": "915cfafe84206a6bb62f72f44675ae5424dab54e4762422c5ad504406998e31c"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-central-profile-projection-a04-430-light.png",
+            "sha256": "5b434f26dc8859236aa4def6eb609c92da55fa2bd661f1f39450f9e3e3bb4b0c"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A04-S6",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-declared-only-versus-evidenced",
       "fixtureVersion": 2,
       "componentOwners": [
@@ -129,7 +729,10 @@
       ],
       "lifecycle": "NOT_APPLICABLE",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-A03", "XR-V01"],
+      "requirementRefs": [
+        "XR-A03",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md",
       "dataContractRef": "programme_v054/16_POSITION_SEMANTICS_TRACEABILITY.csv",
       "baselineAssetRef": "src/app/dev/ui-lab/gate-a/a12-profile-editor (W1, APPROVED_GOLDEN) Case A/Case B split is the direct conceptual precedent this candidate extends with real exact-interval evidence for Case B",
@@ -137,7 +740,146 @@
         "No evidence-derived profile position is ever automatically promoted to declared primary/secondary/tertiary — a real promotion requires ADR-0139's confidence threshold and explicit coach approval, not simulated here.",
         "fixtureVersion 2 (independent review round 1, finding R2): each case now renders a declaration panel (COMPLETE) separately from an exposure/evidence panel (NOT_RECORDED for Case A, COMPLETE for Case B), each with its own scoped source and inspector (finding R3) — the prior single combined badge per case is gone.",
         "Independent review round 2 (finding R4): all four claims now share one useActiveSourceClaim instance and exactly one SourceInspector element, repositioned next to the active case group via CSS order (not a second JSX call site, which was found to cause a real remount/flash-of-mobile-sheet bug on a desktop cross-group switch). Exactly one dialog is ever active across all four claims."
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-10",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
+        "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark.png",
+            "sha256": "989f10f9d5116ea1a5628f1e48429d73fd6b1c71f040917efede0b7912ee7433"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark-source-open.png",
+            "sha256": "ff690834cd1fe55ba594ac053bc13df35c49d7822eb51da47da6ff2d4667ec59"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "source-open-case-b",
+            "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark-source-open-case-b.png",
+            "sha256": "38d06f482d3e0e8181ce23d64b98556d8bbe9c266b9dd20b532b638595720f03"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light.png",
+            "sha256": "1347435105f022312509332f119963ee0bdf6ed32253b9d55e1fb2266710072a"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light-source-open.png",
+            "sha256": "60e7c507c4296d9d86e2acc1b143898ef8cfc29df83bf96ecaf49e773ceca27c"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "source-open-case-b",
+            "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light-source-open-case-b.png",
+            "sha256": "32340bceac16b88b73485a7b201c3d44708d2aa15419b532323fc3c302611fbb"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-mobile-dark.png",
+            "sha256": "99453909b6fb959db156044b0f6b42e4fc937e61b6b6f8d5b7cf37805cc83853"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-declared-only-versus-evidenced-mobile-dark-source-open.png",
+            "sha256": "43ff942d5e1dd577cdd85521464c933d06edd523fbfcba7160cc260a781809ba"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "source-open-case-b",
+            "file": "gate-a-a04-declared-only-versus-evidenced-mobile-dark-source-open-case-b.png",
+            "sha256": "94bff9ec2e2daf34c3b0e0b61efe3a204ef00b5204b237e460b2c32d9f59e7b8"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-mobile-light.png",
+            "sha256": "e0ac034796d8a96baced95bfeb96f0be2c67d62eee797bba1f7af127aa3dbbca"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open",
+            "file": "gate-a-a04-declared-only-versus-evidenced-mobile-light-source-open.png",
+            "sha256": "c70169ccfec6188b1fece31d1e7b76a3ed060cf4e360f0298d1780ac68660b0c"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "source-open-case-b",
+            "file": "gate-a-a04-declared-only-versus-evidenced-mobile-light-source-open-case-b.png",
+            "sha256": "982248a629f9fde2538f2c4d4c3430a784b60a67f86b9fa09d8f91c42dc2268c"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-narrow-dark.png",
+            "sha256": "64d0d3eac6df9614f80cd7f2572a0133eb0d34cc7f2ff8a06e299723a94f871f"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-narrow-light.png",
+            "sha256": "18313128bc4380de1684a86387f3fa1ae5223497026ea6652c01225505ef12a2"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-a04-360-dark.png",
+            "sha256": "1aed19b5beaf802e291943de831f92344473d43812f84de30ba3e7c75a5ba970"
+          },
+          {
+            "viewport": "a04-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-a04-360-light.png",
+            "sha256": "be92f50b8ac408f740f140fb112885ab0ca72610d7dc661cc04e39c45d647321"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-a04-430-dark.png",
+            "sha256": "30e6a6ffc6a3773bf57930992f5b9a308dd8b97ff84a72f9b1f9a100cdbc9c7c"
+          },
+          {
+            "viewport": "a04-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-a04-declared-only-versus-evidenced-a04-430-light.png",
+            "sha256": "e53429c70120fed3705202a951f2fb4caacb62608551c032b3df9c97a0095ffc"
+          }
+        ]
+      }
     }
   ]
 }

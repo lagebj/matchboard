@@ -14,8 +14,12 @@ Gate A W2 only — one UI Lab **candidate** (A04, "evidence grammar"), dev-only,
 candidates (A01, A02, A06, A12) and their approval records are byte-for-byte unmodified — verified
 by re-running the local capture script and confirming all 48 of their screenshot SHA-256 values are
 identical to the ones already recorded as `APPROVED_GOLDEN` in
-`docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json`. A04 itself is `CANDIDATE`, never
-`APPROVED`, pending independent review and the repository owner's explicit decision.
+`docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json`. **Update, 2026-10-10:** after three
+independent review rounds (R1–R4 and all verification gaps resolved — see `A04_REVIEW.md`) and the
+repository owner's explicit decision, all six A04 scenarios are now `APPROVED_GOLDEN` (design
+reference only) at revision `35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8` — see `A04_REVIEW.md`'s
+"Status" section and `candidate_manifest.json`'s per-scenario `approval` objects for the full
+record. This PR remains in draft and unmerged.
 
 ## Repository state found (independently re-verified against the live repo, not the bundle's dated claims)
 
