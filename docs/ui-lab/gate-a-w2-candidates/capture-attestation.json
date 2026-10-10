@@ -1,7 +1,7 @@
 {
   "description": "Temporary UI Lab visual-review evidence for Gate A W2 A04; requires human approval. Not an approved golden.",
-  "sourceCommitSha": "53696fada4e530e5137a2812dd64f58b1ea7ca1a",
-  "generatedAt": "2026-10-09T20:46:39.000Z",
+  "sourceCommitSha": "bd9d1d3f602625174ca4a4e66eece63f6bdad71f",
+  "generatedAt": "2026-10-10T09:07:31.000Z",
   "environment": {
     "node": "v24.9.0",
     "platform": "linux",
@@ -12,7 +12,7 @@
     "All gate-a-a04-* scenarios are CANDIDATE only \u2014 see docs/ui-lab/gate-a-w2-candidates/A04_REVIEW.md.",
     "Per-candidate metadata (componentOwners, requirementRefs, experienceContractRef, dataContractRef, knownGaps, baselineAssetRef, lifecycle, assistantCoachState, fixtureId, fixtureVersion, fixtureSha256) lives in candidate_manifest.json, keyed by scenarioId (e.g. A04-S1) \u2014 this file holds only the per-capture screenshot record.",
     "CI re-captures against GitHub Actions own ephemeral dev server; its sourceCommitSha will legitimately differ from this local-capture sourceCommitSha (a pull_request run checks out a synthetic merge commit, not the branch tip) \u2014 see gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md Capture provenance for the precedent.",
-    "Regenerated for independent review round 1 (findings R1/R2/R3 + verification gaps) \u2014 supersedes the prior capture-attestation.json committed against 039d991ec. All 48 pre-existing W1 gate-a-* hashes and the 4 non-Gate-A atlas-followup baseline routes were re-verified at this commit too (not included in this A04-only file); match-preparation legitimately differs run-to-run due to its own Date.now()-based fixture, unrelated to this PR."
+    "Regenerated for independent review round 2 (finding R4 \u2014 exactly one active source inspector) \u2014 supersedes the prior capture-attestation.json committed against 53696fada. All 48 pre-existing W1 gate-a-* hashes and the 4 non-Gate-A atlas-followup baseline routes were re-verified at this commit too (not included in this A04-only file); match-preparation legitimately differs run-to-run due to its own Date.now()-based fixture, unrelated to this PR. gate-a-a04-declared-only-versus-evidenced-desktop-{dark,light}-source-open-case-b.png demonstrate the real desktop switch-without-closing behavior the review asked for: Case A declaration opened first, then Case B evidence opened directly with no Escape in between."
   ],
   "approvalStatus": "CANDIDATE",
   "captures": [
@@ -53,7 +53,7 @@
       "theme": "dark",
       "interactionState": "source-open-minutes",
       "file": "gate-a-a04-partial-minutes-desktop-dark-source-open-minutes.png",
-      "sha256": "e522ab72ee437644aa9245e635975f42876da1741bdff09c03e955ad9a79be4b"
+      "sha256": "c701427398cecedb39427809a35d3c85ffde22e288a48dbfada362d45b612a2f"
     },
     {
       "scenarioId": "A04-S1",
@@ -92,7 +92,7 @@
       "theme": "light",
       "interactionState": "source-open-minutes",
       "file": "gate-a-a04-partial-minutes-desktop-light-source-open-minutes.png",
-      "sha256": "4d13158ab28b0833607f58725d3a746af72537661cd614b2f63978362a3cc412"
+      "sha256": "33482b25b7bf3523466b2a823b6bd8e813861c75894180cbb5cf3026dfb54a15"
     },
     {
       "scenarioId": "A04-S1",
@@ -131,7 +131,7 @@
       "theme": "dark",
       "interactionState": "source-open-minutes",
       "file": "gate-a-a04-partial-minutes-mobile-dark-source-open-minutes.png",
-      "sha256": "1d6e54056f7a0072cf11a755d0a8a07c9c505147af7f677f87d4b2088a5db198"
+      "sha256": "1db9c4a8bea95528a333efbd46a7756cec4e2c661c2c82a71abf27fedfb3320e"
     },
     {
       "scenarioId": "A04-S1",
@@ -170,7 +170,7 @@
       "theme": "light",
       "interactionState": "source-open-minutes",
       "file": "gate-a-a04-partial-minutes-mobile-light-source-open-minutes.png",
-      "sha256": "2f49989f755380066ff769cdf1fa9b3439ff1f3fbec08ea3705669ee1ef11c31"
+      "sha256": "d43e7ea01dcc33b7f79a7abe64bd1092519798cd22c54ae2ae9514f7b2bcb0e0"
     },
     {
       "scenarioId": "A04-S1",
@@ -599,7 +599,7 @@
       "theme": "dark",
       "interactionState": "source-open-event",
       "file": "gate-a-a04-sparse-score-events-desktop-dark-source-open-event.png",
-      "sha256": "dc83f5d0c9fc9ef41fa10daaacb2cb4a0b4ae63cddd3a5d8a73dbfb08251c1ce"
+      "sha256": "ccdcd9d32feec368ff58ff23f5e50eeb36aa234ca53e410bb07b6eb5d0103082"
     },
     {
       "scenarioId": "A04-S4",
@@ -638,7 +638,7 @@
       "theme": "light",
       "interactionState": "source-open-event",
       "file": "gate-a-a04-sparse-score-events-desktop-light-source-open-event.png",
-      "sha256": "5a8a1a5b7f79c3c0066b596358a3c815c4698a57498cf6f4e8661205f03863be"
+      "sha256": "d7e5859dd54fd5607e7bdb66639cc2a6c3b0ecf5a6603f91293e1118b8fac923"
     },
     {
       "scenarioId": "A04-S4",
@@ -677,7 +677,7 @@
       "theme": "dark",
       "interactionState": "source-open-event",
       "file": "gate-a-a04-sparse-score-events-mobile-dark-source-open-event.png",
-      "sha256": "f24dc9483d8e97700fbf65adbfdf6d6f9313cb27dea9f3f7faf5aa19f4a21e81"
+      "sha256": "f661ab457d915bf2850c80c8ca15297712040458112345d714a037cc95ccfe76"
     },
     {
       "scenarioId": "A04-S4",
@@ -716,7 +716,7 @@
       "theme": "light",
       "interactionState": "source-open-event",
       "file": "gate-a-a04-sparse-score-events-mobile-light-source-open-event.png",
-      "sha256": "2a2a4b03aad8b1a2c52b774bb7af4057d3c7740d24be0bf92b35cfc9c2abf6e2"
+      "sha256": "00156cca6ecc359936e58fba6864632c9b7946652b6cfe674c129c118132ca9b"
     },
     {
       "scenarioId": "A04-S4",
@@ -1002,7 +1002,7 @@
       "theme": "dark",
       "interactionState": "source-open",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark-source-open.png",
-      "sha256": "b8805aaae4bd1a0db30b544a991509134ea895684522775541ff0fbda62fbe45"
+      "sha256": "96606d64ef0e8de2c012518be6ad46e9f4d5f791b7759d3186ca2ebed3951573"
     },
     {
       "scenarioId": "A04-S6",
@@ -1015,7 +1015,7 @@
       "theme": "dark",
       "interactionState": "source-open-case-b",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-dark-source-open-case-b.png",
-      "sha256": "941b2a89f6c817574190018c09bcd401535ec2f74082285f5dbdcd14822c0b67"
+      "sha256": "57739a4cc19aeba1991335994affb8fc44359c7e6f1840523ac68cb15901a00b"
     },
     {
       "scenarioId": "A04-S6",
@@ -1041,7 +1041,7 @@
       "theme": "light",
       "interactionState": "source-open",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light-source-open.png",
-      "sha256": "4a1681ac8c58203a7385365425b0fbe9f2c428b18ff3d4948681a504444a9b68"
+      "sha256": "5021b6c0e962bd864b05e0100c8051033452ec5a8b1e40d25f0f33825ce6be89"
     },
     {
       "scenarioId": "A04-S6",
@@ -1054,7 +1054,7 @@
       "theme": "light",
       "interactionState": "source-open-case-b",
       "file": "gate-a-a04-declared-only-versus-evidenced-desktop-light-source-open-case-b.png",
-      "sha256": "9488000400a7b70269dc74b8a06fbe426b8a4503faf45f0f610c90107277b2bf"
+      "sha256": "68e0308c32d0e268b32a8479afcaa7ea9d5cfcf5785de09ae88493a4e861dc56"
     },
     {
       "scenarioId": "A04-S6",
