@@ -1,0 +1,293 @@
+{
+  "programmeRevision": "0.5.4",
+  "baseCommitSha": "b6d932b98c5218b7f85d5101efc9cf5380437279",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-a/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate A W3 (A03 decision anatomy, A07 Match Details edit lineup, A09 Today quick action). Every entry is CANDIDATE — no `approval` object exists on any entry yet; owner approval is a separate explicit decision recorded in a later commit against an exact source SHA and per-image capture hashes, per `23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`. A07-S1 and A07-S2 share one componentOwners route/fixture (assign-reserve-success) — S1 (open/draft/preview) has no distinct end-state of its own and is captured as that page's draft-preview interaction state; S2 (saved) is the same page's saved interaction state. Local browser capture could not be run in this session's sandbox (HMR WebSocket upgrade failure starves React hydration — reproduces on an untouched W1 page too, see CURRENT_STATE_AUDIT.md); capture-attestation.json will be added in a follow-up commit once the PR's CI 'UI Lab Visual Review' run produces real screenshots, same two-commit pattern W1/W2 used.",
+  "candidates": [
+    {
+      "scenarioId": "A03-S1",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a03-open-decision",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/open-decision/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/open-decision/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/open-decision/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S01", "XR-S02", "XR-V01"],
+      "experienceContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F3",
+      "dataContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — no current production surface renders this exact situation/action/consequence/reason anatomy for an unfilled lineup slot; see visual_vs_current/A03.md",
+      "knownGaps": ["Permitted action is illustrative only (no mutation, no navigation) — see BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A03-S2",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a03-closed-plan-review",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/closed-plan-review/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/closed-plan-review/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/closed-plan-review/page.tsx"
+      ],
+      "lifecycle": "planning_closed",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S01", "XR-V01"],
+      "experienceContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F3",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A03.md",
+      "knownGaps": []
+    },
+    {
+      "scenarioId": "A03-S3",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a03-permission-denied",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/permission-denied/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/permission-denied/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/permission-denied/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S02"],
+      "experienceContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F3",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A03.md",
+      "knownGaps": ["Denial-UI honesty is illustrative only; does not prove the real authorization service enforces this — see BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A03-S4",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a03-integrity-signal",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/integrity-signal/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/integrity-signal/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a03-decision-anatomy/integrity-signal/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S02", "XR-A02"],
+      "experienceContractRef": "programme_v054/02_GATE_A_FOUNDATION_DESIGN_SPEC.md A-F3",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A03.md",
+      "knownGaps": []
+    },
+    {
+      "scenarioId": "A07-S1/A07-S2",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a07-assign-reserve-success",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/assign-reserve-success/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/assign-reserve-success/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/assign-reserve-success/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/fixture-operation.ts",
+        "src/app/dev/ui-lab/gate-a/shared/match-w3-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-I02", "XR-S01", "XR-V02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — MatchTacticsPanel is self-fetching and not fixture-injectable; see visual_vs_current/A07.md",
+      "knownGaps": ["SUCCESS/DENIED/CONFLICT/PLANNING_CLOSED are simulated fixture responses; no production server guard is exercised — see BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A07-S3",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a07-assign-reserve-denied",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/assign-reserve-denied/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/assign-reserve-denied/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/assign-reserve-denied/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-V02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A07.md",
+      "knownGaps": ["Denial is a predeclared fixture outcome, not a real authorization check — see BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A07-S4",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a07-server-conflict",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/server-conflict/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/server-conflict/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/server-conflict/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-V02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A07.md",
+      "knownGaps": ["No production lineup-assignment action actually exposes an optimistic-concurrency fingerprint today — conflict is illustrative; see BLOCKERS.md item 3"]
+    },
+    {
+      "scenarioId": "A07-S5",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a07-planning-closed-after-opening",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/planning-closed-after-opening/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/planning-closed-after-opening/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/planning-closed-after-opening/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx"
+      ],
+      "lifecycle": "planning_closed",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-V02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A07.md",
+      "knownGaps": []
+    },
+    {
+      "scenarioId": "A07-S6",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a07-dirty-draft-close",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/dirty-draft-close/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/dirty-draft-close/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/dirty-draft-close/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/fixture-operation.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-I02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A07.md",
+      "knownGaps": ["Simulated 'browser Back' is a second explicit control, not real history interception — see 07_DEFERRED_DECISIONS_AND_BLOCKERS.md item 5 / BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A09-S1",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a09-add-eligible-player-success",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-eligible-player-success/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-eligible-player-success/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-eligible-player-success/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-A02", "XR-V02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/06_QUICK_ACTIONS_AND_RESPONSIVE_INTERACTIONS.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — Today does not yet expose a context-local add action in production; see visual_vs_current/A09.md",
+      "knownGaps": ["SUCCESS is a simulated fixture response; no production RSVP/planning-boundary check is exercised — see BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A09-S2",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a09-add-player-denied",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-denied/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-denied/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-denied/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/06_QUICK_ACTIONS_AND_RESPONSIVE_INTERACTIONS.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A09.md",
+      "knownGaps": ["Denial is disabled-at-entry only in this scenario (A09-S4/S5 cover denial after preview) — see BLOCKERS.md"]
+    },
+    {
+      "scenarioId": "A09-S3",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a09-add-player-rsvp-blocked",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-rsvp-blocked/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-rsvp-blocked/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-rsvp-blocked/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/06_QUICK_ACTIONS_AND_RESPONSIVE_INTERACTIONS.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — Matchboard has no automated deadline-driven RSVP-decline mechanism today; this fixture is illustrative (`NO_RSVP`/`DECLINED` are manual `PlannedAbsenceReason` values) — see visual_vs_current/A09.md and BLOCKERS.md item 1",
+      "knownGaps": ["No separate match-day-addition workflow is rendered for Jonas, by design — fixture does not support it for this candidate"]
+    },
+    {
+      "scenarioId": "A09-S4",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a09-add-player-planning-closed",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-planning-closed/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-planning-closed/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-planning-closed/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx"
+      ],
+      "lifecycle": "planning_closed",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A09.md",
+      "knownGaps": ["planning_closed blocks only this planned-selection path — it does not establish anything about the separate match-day-addition path (A09-S6)"]
+    },
+    {
+      "scenarioId": "A09-S5",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a09-add-player-conflict",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-conflict/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-conflict/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-player-conflict/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/03_INTERACTION_AND_POLICY_CONTRACT.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A09.md",
+      "knownGaps": ["No production Today/roster add action actually exposes an optimistic-concurrency fingerprint today — conflict is illustrative; see BLOCKERS.md item 3"]
+    },
+    {
+      "scenarioId": "A09-S6",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w3-a09-match-day-addition",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/match-day-addition/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/match-day-addition/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/match-day-addition/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/match-w3-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-I01", "XR-A02"],
+      "experienceContractRef": "programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md",
+      "dataContractRef": "programme_v054/06_QUICK_ACTIONS_AND_RESPONSIVE_INTERACTIONS.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY — see visual_vs_current/A09.md",
+      "knownGaps": ["Eligibility reasoning mirrors ADR-0077's real `assertLeagueMatchHelperEligible` scope (match-not-cancelled, player active, not-already-participant) but does not invoke it — illustrative only; see BLOCKERS.md item 2"]
+    }
+  ]
+}

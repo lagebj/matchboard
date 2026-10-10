@@ -1,0 +1,30 @@
+# Gate A W3 — A03/A07/A09 Changed Files
+
+All paths are new unless marked "modified". Every path is UI-Lab-only, test, or review
+documentation. Nothing under `src/domain/**`, production `src/components/**`, production routes,
+Prisma schema, auth, or deployment config is touched. W1's four candidates, W2's A04, and their
+docs directories are not in this list — they are unmodified (re-verified: full `gate-a` test suite
+passes, 0 diff in those directories per `git status`).
+
+| Path | Type | UI-Lab-only? | Imported by production? | Promotion-to-production requirement |
+|---|---|---|---|---|
+| `src/app/dev/ui-lab/gate-a/page.tsx` | **modified** | yes | no | Added three new links (A03/A07/A09) to the Gate A index — no other change |
+| `src/app/dev/ui-lab/gate-a/shared/fixture-identity.ts` | new | yes | no | N/A — shared `FixtureIdentity` type, reproduced rather than imported from A04's (different concept family, deliberately not coupled) |
+| `src/app/dev/ui-lab/gate-a/shared/fixture-operation.ts` | new | yes | no | `useFixtureOperation`/`useDirtyCloseGuard` — the typed fixture-response-port state machine (`authoritativeFixtureState`/`draftState`, `PENDING→SUCCESS\|PERMISSION_DENIED\|CONFLICT\|PLANNING_CLOSED\|SERVER_ERROR`). A real promotion would need a production hook with an actual server action behind it, not this simulated port |
+| `src/app/dev/ui-lab/gate-a/shared/match-w3-fixture.ts` | new | yes | no | The one shared match-w3-01 fixture anchor (identity, 8-member squad, 24-code lineup slots, Today/helper candidates) reused by every A03/A07/A09 scenario |
+| `src/app/dev/ui-lab/gate-a/shared/__tests__/{fixture-operation.test.tsx,match-w3-fixture.test.ts}` | new | yes | no | N/A — tests |
+| `src/app/dev/ui-lab/gate-a/a03-decision-anatomy/page.tsx` | new | yes | no | N/A — family index listing S1–S4 |
+| `src/app/dev/ui-lab/gate-a/a03-decision-anatomy/{open-decision,closed-plan-review,permission-denied,integrity-signal}/{fixtures.ts,view-model.ts,page.tsx,__tests__/{fixtures.test.ts,page.test.tsx}}` | new (16 files) | yes | no | A03-S1..S4 — decision anatomy (situation→permitted/unavailable action→consequence→inspectable reason). Dev-only, read-only, no save flow. A real promotion needs the actual Round Board/Match Details decision surfaces to render this grammar, plus a verified server-side permission/integrity-signal source |
+| `src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/page.tsx` | new | yes | no | N/A — family index listing S1/S2 and S3–S6 |
+| `src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx` | new | yes | no | Desktop-inspector/mobile-sheet lineup editor (reuses the real `TouchlinePlanningPitch`). A real promotion needs this wired to `lineup-actions.ts`'s actual `assignPlayerToSlot` and a verified revision/concurrency field, which does not exist in production today — see `BLOCKERS.md` item 3 |
+| `src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/__tests__/mock-viewport.ts` | new | yes | no | N/A — shared test helper (`useMediaQuery` mock), A07-local copy (not imported from A04's) |
+| `src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/{assign-reserve-success,assign-reserve-denied,server-conflict,planning-closed-after-opening,dirty-draft-close}/{fixtures.ts,view-model.ts,page.tsx,__tests__/{fixtures.test.ts,page.test.tsx}}` | new (25 files) | yes | no | A07-S1..S6 (S1/S2 share one page/fixture). Fixture-only simulated save flow in the same Match Details context (no route change). A real promotion needs the real server guard, revision fingerprint, and `requirePlanningEditable` wired to this UI — none of that is proven here |
+| `src/app/dev/ui-lab/gate-a/a09-today-quick-action/page.tsx` | new | yes | no | N/A — family index listing S1–S6 |
+| `src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx` | new | yes | no | Desktop-inspector/mobile-sheet Today quick-action editor, shared body for both planned-selection and `MATCH_DAY_ADDITION` action families. A real promotion needs this wired to a genuinely new Today-local entry point into the existing `addLeagueMatchHelperAction`/Selection mutation paths |
+| `src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/__tests__/mock-viewport.ts` | new | yes | no | N/A — shared test helper, A09-local copy |
+| `src/app/dev/ui-lab/gate-a/a09-today-quick-action/{add-eligible-player-success,add-player-denied,add-player-rsvp-blocked,add-player-planning-closed,add-player-conflict,match-day-addition}/{fixtures.ts,view-model.ts,page.tsx,__tests__/{fixtures.test.ts,page.test.tsx}}` | new (30 files) | yes | no | A09-S1..S6. A real promotion needs a genuine Today-local candidate-eligibility source (RSVP/planning-boundary for planned selection; `assertLeagueMatchHelperEligible` for match-day addition) — this UI Lab candidate does not prove either exists for Today specifically |
+| `scripts/ui-lab-visual-review.mjs` | **modified** | yes | no (CI/local script only) | Additive only: `clickByName`/`clickWithinDialog`/`clickTestId` interaction helpers, `w3ExtraSmokeViewports` (360/430px, same rationale as A04's), 15 new `gate-a-w3-*` scenario entries, and an `isW3Route` route guard (bounded to the three new family route prefixes) added alongside the existing `isA04Route` guard for the `data-ui-lab-ready` wait and console/page-error gate. Every existing W1/W2/baseline scenario entry is untouched — no field added to any of them, and the error gate still only warns (not fails) for them |
+| `docs/ui-lab/gate-a-w3-candidates/*` | new | n/a (docs) | no | Review/evidence documentation for this PR. `capture-attestation.json` is deliberately **not yet included** — local browser capture could not be run in this session's sandbox (see `CURRENT_STATE_AUDIT.md`); it will be committed in a follow-up commit once the PR's CI "UI Lab Visual Review" run produces the real artifact, same two-commit pattern W1/W2 used |
+
+Total: 90 new files under `src/app/dev/ui-lab/gate-a/**` + 2 modified files (`gate-a/page.tsx`,
+`scripts/ui-lab-visual-review.mjs`) + this docs directory.

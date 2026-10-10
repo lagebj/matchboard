@@ -69,6 +69,39 @@ const a04ExtraSmokeViewports = [
   { name: "a04-430", width: 430, height: 900 },
 ];
 
+// Gate A W3 (A03/A07/A09) smoke widths, same 360/430px rationale as A04's — named `a0x-*` to stay
+// unambiguous from both A01's `tablet-*` and A04's `a04-*` extras.
+const w3ExtraSmokeViewports = [
+  { name: "a0x-360", width: 360, height: 800 },
+  { name: "a0x-430", width: 430, height: 900 },
+];
+
+/**
+ * Gate A W3 interaction helpers (`04_TESTS_AND_CAPTURE_MATRIX.md`: "no random timers/network; use
+ * a deterministic fixture-step controller/test gate"). A07/A09's shared editor renders its own
+ * outer page-level trigger ("Edit lineup" / the scenario's `actionLabel`) AND, once open, an
+ * in-dialog confirm button that reuses the SAME accessible name (A09's `actionLabel` is shared by
+ * both the outer trigger and the in-dialog confirm control) — `clickWithinDialog` scopes to the
+ * open dialog specifically so the two never collide; `clickByName` is for the unambiguous
+ * page-level trigger (clicked before any dialog exists) and for controls with their own distinct
+ * name (A07's "Confirm assignment", both families' "Continue fixture simulation →", "Close").
+ */
+function clickByName(name) {
+  return async function perform(page) {
+    await page.getByRole("button", { name, exact: true }).click();
+  };
+}
+function clickWithinDialog(name) {
+  return async function perform(page) {
+    await page.getByRole("dialog").first().getByRole("button", { name, exact: true }).click();
+  };
+}
+function clickTestId(testId) {
+  return async function perform(page) {
+    await page.getByTestId(testId).click();
+  };
+}
+
 // `slug` names the output file; `route` is the dev UI Lab path under /dev/ui-lab/.
 // `interactions` (PR #777 remediation, A01/A12 finding): optional extra captures of the SAME
 // page, in the SAME browser context (no reload), after performing a deterministic interaction —
@@ -195,6 +228,153 @@ const scenarios = [
       },
     ],
   },
+  // Gate A W3 candidates (programme_v054 `20_UI_LAB_CANDIDATE_WAVES.md` W3) — A03/A07/A09,
+  // CANDIDATE, not approved. `w3ExtraSmokeViewports` mirrors A04's 360/430px smoke widths.
+  {
+    slug: "gate-a-w3-a03-open-decision",
+    route: "gate-a/a03-decision-anatomy/open-decision",
+    extraViewports: w3ExtraSmokeViewports,
+    interactions: [{ id: "why-open", perform: clickByName("Why?") }],
+  },
+  {
+    slug: "gate-a-w3-a03-closed-plan-review",
+    route: "gate-a/a03-decision-anatomy/closed-plan-review",
+    extraViewports: w3ExtraSmokeViewports,
+    interactions: [{ id: "review-open", perform: clickByName("Review plan") }],
+  },
+  {
+    slug: "gate-a-w3-a03-permission-denied",
+    route: "gate-a/a03-decision-anatomy/permission-denied",
+    extraViewports: w3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w3-a03-integrity-signal",
+    route: "gate-a/a03-decision-anatomy/integrity-signal",
+    extraViewports: w3ExtraSmokeViewports,
+    interactions: [{ id: "why-open", perform: clickByName("Why?") }],
+  },
+  {
+    slug: "gate-a-w3-a07-assign-reserve-success",
+    route: "gate-a/a07-match-details-edit-lineup/assign-reserve-success",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Confirm assignment") },
+      { id: "saved", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a07-assign-reserve-denied",
+    route: "gate-a/a07-match-details-edit-lineup/assign-reserve-denied",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Confirm assignment") },
+      { id: "denied", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a07-server-conflict",
+    route: "gate-a/a07-match-details-edit-lineup/server-conflict",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Confirm assignment") },
+      { id: "conflict", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a07-planning-closed-after-opening",
+    route: "gate-a/a07-match-details-edit-lineup/planning-closed-after-opening",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Confirm assignment") },
+      { id: "planning-closed", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a07-dirty-draft-close",
+    route: "gate-a/a07-match-details-edit-lineup/dirty-draft-close",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "discard-prompt", perform: clickWithinDialog("Close") },
+      { id: "discarded-and-closed", perform: clickTestId("confirm-discard-and-close") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a09-add-eligible-player-success",
+    route: "gate-a/a09-today-quick-action/add-eligible-player-success",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "sheet-open", perform: clickByName("Add player") },
+      { id: "draft-preview", perform: clickTestId("today-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Add player") },
+      { id: "saved", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a09-add-player-denied",
+    route: "gate-a/a09-today-quick-action/add-player-denied",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "sheet-open", perform: clickByName("Add player") }],
+  },
+  {
+    slug: "gate-a-w3-a09-add-player-rsvp-blocked",
+    route: "gate-a/a09-today-quick-action/add-player-rsvp-blocked",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "sheet-open", perform: clickByName("Add player") }],
+  },
+  {
+    slug: "gate-a-w3-a09-add-player-planning-closed",
+    route: "gate-a/a09-today-quick-action/add-player-planning-closed",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "sheet-open", perform: clickByName("Add player") },
+      { id: "draft-preview", perform: clickTestId("today-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Add player") },
+      { id: "planning-closed", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a09-add-player-conflict",
+    route: "gate-a/a09-today-quick-action/add-player-conflict",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "sheet-open", perform: clickByName("Add player") },
+      { id: "draft-preview", perform: clickTestId("today-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Add player") },
+      { id: "conflict", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
+  {
+    slug: "gate-a-w3-a09-match-day-addition",
+    route: "gate-a/a09-today-quick-action/match-day-addition",
+    extraViewports: w3ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "sheet-open", perform: clickByName("Add match-day helper") },
+      { id: "draft-preview", perform: clickTestId("today-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Add match-day helper") },
+      { id: "saved", perform: clickWithinDialog("Continue fixture simulation →") },
+    ],
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
@@ -209,6 +389,13 @@ try {
   // only, so every W1/baseline scenario's capture behavior is provably unchanged (independent
   // review round 1, PR #778).
   const isA04Route = (route) => route.startsWith("gate-a/a04-evidence-grammar/");
+  // Same gate, extended additively to Gate A W3 (A03/A07/A09) — every W3 page also marks its root
+  // with `data-ui-lab-ready="true"`. Scoped to the three W3 family prefixes only, so A01/A02/A04/
+  // A06/A12 and the non-Gate-A baseline scenarios are provably unaffected by this addition.
+  const isW3Route = (route) =>
+    route.startsWith("gate-a/a03-decision-anatomy/") ||
+    route.startsWith("gate-a/a07-match-details-edit-lineup/") ||
+    route.startsWith("gate-a/a09-today-quick-action/");
 
   for (const scenario of scenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
     // Width-based, not name-based: correct for any current or future viewport, including the
@@ -238,7 +425,7 @@ try {
       // A04 candidate-ready signal (04_TEST_AND_CAPTURE_MATRIX.md: "Wait for an explicit
       // candidate-ready indicator"), independent review round 1 verification gap — every A04
       // scenario page marks its root with `data-ui-lab-ready="true"` once mounted.
-      if (isA04Route(scenario.route)) {
+      if (isA04Route(scenario.route) || isW3Route(scenario.route)) {
         await page.locator('[data-ui-lab-ready="true"]').first().waitFor({state:"attached",timeout:30000});
       }
       await page.evaluate(()=>document.fonts.ready);
@@ -288,11 +475,11 @@ try {
       }
 
       // Console/page-error gate (independent review round 1, PR #778, verification gap): bounded
-      // to A04 — fails loudly there, only warns elsewhere so no W1/baseline scenario's CI result
-      // can change as a side effect of this addition.
+      // to A04 (and now W3) — fails loudly there, only warns elsewhere so no W1/baseline scenario's
+      // CI result can change as a side effect of this addition.
       if (consoleErrors.length > 0) {
         const message = scenario.slug+" "+viewport.name+"/"+theme+": "+consoleErrors.length+" console/page error(s): "+consoleErrors.slice(0,3).join(" | ");
-        if (isA04Route(scenario.route)) throw new Error(message);
+        if (isA04Route(scenario.route) || isW3Route(scenario.route)) throw new Error(message);
         console.warn("WARNING (non-A04 scenario, not failing the run): "+message);
       }
     } finally { await context.close(); }
