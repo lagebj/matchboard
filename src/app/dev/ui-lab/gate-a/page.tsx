@@ -10,6 +10,7 @@ import { TouchlineWordmark, AppearanceControl } from "@/components/touchline";
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-a/a01-sports-first", id: "A01", title: "Global composition — sports-first hierarchy" },
   { href: "/dev/ui-lab/gate-a/a02-match-lifecycle", id: "A02", title: "Match identity across planned / live / completed" },
+  { href: "/dev/ui-lab/gate-a/a04-evidence-grammar", id: "A04", title: "Evidence grammar — known, measured, unrecorded, and validly inferred" },
   { href: "/dev/ui-lab/gate-a/a06-position-pitches", id: "A06", title: "Tactical 5×6 pitch vs flat profile 3×6 analysis map" },
   { href: "/dev/ui-lab/gate-a/a12-profile-editor", id: "A12", title: "14-role profile picker vs 24-code exact match evidence" },
 ];
