@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { StrictMode } from "react";
 import { renderHook, act } from "@testing-library/react";
 import { useFixtureOperation, useDirtyCloseGuard } from "../fixture-operation";
 
@@ -11,6 +12,27 @@ function setup() {
       assignedTo: draft.candidateId,
       revision: result.revision,
     })),
+  );
+}
+
+/**
+ * Same as `setup()`, but wrapped in `<StrictMode>` — the real-world regression (found via this
+ * wave's own CI capture run, not by plain `setup()` above): React Strict Mode intentionally
+ * invokes every `setState` functional updater TWICE and keeps only the second call's result, to
+ * catch an impure updater. An earlier version of this hook mutated a `useRef` as a side effect
+ * inside the updater; the first invocation's mutation was already visible to the second
+ * invocation, which then silently no-opped forever. `renderHook`'s default (no wrapper) does NOT
+ * exercise this, which is exactly why the bug shipped past the non-Strict-Mode tests below and
+ * was only caught in CI, where Next.js's dev server renders the app in Strict Mode.
+ */
+function setupStrict() {
+  return renderHook(
+    () =>
+      useFixtureOperation<Authoritative, Draft, { revision: string }>({ assignedTo: null, revision: "rev-1" }, (authoritative, draft, result) => ({
+        assignedTo: draft.candidateId,
+        revision: result.revision,
+      })),
+    { wrapper: StrictMode },
   );
 }
 
@@ -86,6 +108,37 @@ describe("useFixtureOperation", () => {
     act(() => result.current.resolvePending());
     expect(result.current.status).toBe("SUCCESS");
     expect(result.current.authoritative).toEqual({ assignedTo: "player-y", revision: "rev-3" });
+  });
+
+  describe("under React.StrictMode (regression: CI capture run found resolvePending() never left PENDING in dev mode)", () => {
+    it("resolvePending() reaches SUCCESS and applies the draft, not stuck at PENDING", () => {
+      const { result } = setupStrict();
+      act(() => result.current.setDraft({ candidateId: "player-x" }));
+      act(() => result.current.submit({ kind: "SUCCESS", revision: "rev-2", result: { revision: "rev-2" } }));
+      expect(result.current.status).toBe("PENDING");
+      act(() => result.current.resolvePending());
+      expect(result.current.status).toBe("SUCCESS");
+      expect(result.current.authoritative).toEqual({ assignedTo: "player-x", revision: "rev-2" });
+    });
+
+    it("resolvePending() reaches a denial outcome, not stuck at PENDING", () => {
+      const { result } = setupStrict();
+      act(() => result.current.setDraft({ candidateId: "player-x" }));
+      act(() => result.current.submit({ kind: "PERMISSION_DENIED", reason: "nope" }));
+      act(() => result.current.resolvePending());
+      expect(result.current.status).toBe("PERMISSION_DENIED");
+      expect(result.current.authoritative).toEqual({ assignedTo: null, revision: "rev-1" });
+    });
+
+    it("a second resolvePending() call after settling is a no-op, not a re-application", () => {
+      const { result } = setupStrict();
+      act(() => result.current.setDraft({ candidateId: "player-x" }));
+      act(() => result.current.submit({ kind: "SUCCESS", revision: "rev-2", result: { revision: "rev-2" } }));
+      act(() => result.current.resolvePending());
+      act(() => result.current.resolvePending());
+      expect(result.current.status).toBe("SUCCESS");
+      expect(result.current.authoritative).toEqual({ assignedTo: "player-x", revision: "rev-2" });
+    });
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Gate A W3 shared state machine (`03_INTERACTION_AND_POLICY_CONTRACT.md` "State-machine
@@ -31,6 +31,25 @@ export type FixtureOperationState<TAuthoritative, TDraft, TSuccess> = {
   draft: TDraft | null;
   status: FixtureOperationStatus;
   outcome: FixtureOperationOutcome<TSuccess> | null;
+  /**
+   * Holds the predeclared outcome between `submit()` (enters PENDING) and `resolvePending()`
+   * (applies it) — the deterministic "fixture-step controller" the capture matrix asks for
+   * (`04_TESTS_AND_CAPTURE_MATRIX.md` §"Capture scenarios": "no random timers/network; use a
+   * deterministic fixture-step controller/test gate"). A real, visible UI control triggers
+   * `resolvePending()`, never a `setTimeout`.
+   *
+   * Deliberately part of React state, NOT a `useRef` mutated inside a `setState` updater — an
+   * earlier version used a ref there, which is impure (a `setState` updater must be a pure
+   * function of its input state). React's Strict Mode intentionally invokes every functional
+   * updater TWICE to catch exactly this: the first call's `ref.current = null` side effect had
+   * already run by the time the second call read the ref, so the second call (the one React
+   * actually keeps) always saw a `null` outcome and silently no-opped — `resolvePending()` could
+   * never leave `PENDING` in dev mode. Found via this wave's own CI capture run, not by local
+   * testing (`@testing-library/react` does not wrap in Strict Mode, so the component tests never
+   * exercised the double-invoke). Keeping this in state makes every updater pure and idempotent
+   * under a double call, which is the actual fix — not a workaround.
+   */
+  pendingOutcome: FixtureOperationOutcome<TSuccess> | null;
 };
 
 /**
@@ -47,16 +66,11 @@ export function useFixtureOperation<TAuthoritative, TDraft, TSuccess>(
     draft: null,
     status: "IDLE",
     outcome: null,
+    pendingOutcome: null,
   });
-  // Holds the predeclared outcome between `submit()` (enters PENDING) and `resolvePending()`
-  // (applies it) — the deterministic "fixture-step controller" the capture matrix asks for
-  // (`04_TESTS_AND_CAPTURE_MATRIX.md` §"Capture scenarios": "no random timers/network; use a
-  // deterministic fixture-step controller/test gate"). A real, visible UI control triggers
-  // `resolvePending()`, never a `setTimeout`.
-  const pendingOutcomeRef = useRef<FixtureOperationOutcome<TSuccess> | null>(null);
 
   const setDraft = useCallback((draft: TDraft | null) => {
-    setState((s) => (s.status === "PENDING" ? s : { authoritative: s.authoritative, draft, status: "IDLE", outcome: null }));
+    setState((s) => (s.status === "PENDING" ? s : { ...s, draft, status: "IDLE", outcome: null, pendingOutcome: null }));
   }, []);
 
   const submit = useCallback((outcome: FixtureOperationOutcome<TSuccess>) => {
@@ -68,30 +82,28 @@ export function useFixtureOperation<TAuthoritative, TDraft, TSuccess>(
       if (s.draft === null) {
         throw new Error("useFixtureOperation.submit: no draft to submit — a fixture response must apply to a real pending change.");
       }
-      pendingOutcomeRef.current = outcome;
-      return { ...s, status: "PENDING", outcome: null };
+      return { ...s, status: "PENDING", outcome: null, pendingOutcome: outcome };
     });
   }, []);
 
   const resolvePending = useCallback(() => {
     setState((s) => {
-      const outcome = pendingOutcomeRef.current;
-      if (s.status !== "PENDING" || !outcome) return s;
-      pendingOutcomeRef.current = null;
+      if (s.status !== "PENDING" || !s.pendingOutcome) return s;
+      const outcome = s.pendingOutcome;
       if (outcome.kind === "SUCCESS") {
         if (s.draft === null) {
           throw new Error("useFixtureOperation.resolvePending: SUCCESS outcome with no draft to apply.");
         }
-        return { authoritative: applySuccess(s.authoritative, s.draft, outcome.result), draft: null, status: "SUCCESS", outcome };
+        return { authoritative: applySuccess(s.authoritative, s.draft, outcome.result), draft: null, status: "SUCCESS", outcome, pendingOutcome: null };
       }
       // DENIED / CONFLICT / PLANNING_CLOSED / SERVER_ERROR: authoritative and draft are
       // untouched — the coach's proposed change stays visible for inspection or discard.
-      return { ...s, status: outcome.kind, outcome };
+      return { ...s, status: outcome.kind, outcome, pendingOutcome: null };
     });
   }, [applySuccess]);
 
   const discardDraft = useCallback(() => {
-    setState((s) => ({ authoritative: s.authoritative, draft: null, status: "IDLE", outcome: null }));
+    setState((s) => ({ ...s, draft: null, status: "IDLE", outcome: null, pendingOutcome: null }));
   }, []);
 
   return {
