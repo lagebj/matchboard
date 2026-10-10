@@ -102,6 +102,26 @@ function clickTestId(testId) {
   };
 }
 
+/**
+ * The fixture-simulation "resolve" step (clicking "Continue fixture simulation →" to settle
+ * PENDING into its final predeclared outcome). A plain `clickWithinDialog` here raced the
+ * screenshot ahead of React's post-click re-render on a real CI runner: the click itself always
+ * succeeded, but the heavier A07 pitch re-render in particular was consistently still mid-flight
+ * when the screenshot fired immediately after, producing a "resolved" capture pixel-identical to
+ * the "pending" one it should differ from (found by inspecting this PR's own first CI capture
+ * run — the app's state machine itself was independently verified correct by component tests, so
+ * this is a capture-script wait gap, not an app bug). Waiting for the universal "Saving… (fixture
+ * simulation)" text to detach after the click guarantees the screenshot reflects the settled
+ * state, for every A07/A09 resolve step.
+ */
+function clickResolvePending() {
+  return async function perform(page) {
+    const dialog = page.getByRole("dialog").first();
+    await dialog.getByRole("button", { name: "Continue fixture simulation →", exact: true }).click();
+    await dialog.getByText("Saving… (fixture simulation)").waitFor({ state: "detached", timeout: 10000 });
+  };
+}
+
 // `slug` names the output file; `route` is the dev UI Lab path under /dev/ui-lab/.
 // `interactions` (PR #777 remediation, A01/A12 finding): optional extra captures of the SAME
 // page, in the SAME browser context (no reload), after performing a deterministic interaction —
@@ -262,7 +282,7 @@ const scenarios = [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Confirm assignment") },
-      { id: "saved", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "saved", perform: clickResolvePending() },
     ],
   },
   {
@@ -274,7 +294,7 @@ const scenarios = [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Confirm assignment") },
-      { id: "denied", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "denied", perform: clickResolvePending() },
     ],
   },
   {
@@ -286,7 +306,7 @@ const scenarios = [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Confirm assignment") },
-      { id: "conflict", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "conflict", perform: clickResolvePending() },
     ],
   },
   {
@@ -298,7 +318,7 @@ const scenarios = [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Confirm assignment") },
-      { id: "planning-closed", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "planning-closed", perform: clickResolvePending() },
     ],
   },
   {
@@ -322,7 +342,7 @@ const scenarios = [
       { id: "sheet-open", perform: clickByName("Add player") },
       { id: "draft-preview", perform: clickTestId("today-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Add player") },
-      { id: "saved", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "saved", perform: clickResolvePending() },
     ],
   },
   {
@@ -348,7 +368,7 @@ const scenarios = [
       { id: "sheet-open", perform: clickByName("Add player") },
       { id: "draft-preview", perform: clickTestId("today-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Add player") },
-      { id: "planning-closed", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "planning-closed", perform: clickResolvePending() },
     ],
   },
   {
@@ -360,7 +380,7 @@ const scenarios = [
       { id: "sheet-open", perform: clickByName("Add player") },
       { id: "draft-preview", perform: clickTestId("today-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Add player") },
-      { id: "conflict", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "conflict", perform: clickResolvePending() },
     ],
   },
   {
@@ -372,7 +392,7 @@ const scenarios = [
       { id: "sheet-open", perform: clickByName("Add match-day helper") },
       { id: "draft-preview", perform: clickTestId("today-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Add match-day helper") },
-      { id: "saved", perform: clickWithinDialog("Continue fixture simulation →") },
+      { id: "saved", perform: clickResolvePending() },
     ],
   },
 ];
