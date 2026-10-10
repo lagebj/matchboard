@@ -107,6 +107,52 @@ An independent technical review returned **`REVISE`**, quoted here in full for t
 Full per-file diff is in `CHANGED_FILES.md` (rows marked "round 2"). Revised capture evidence is in
 `capture-attestation.json`, re-generated against this round's commit.
 
+## Independent review round 2 (PR #778, head `f6b47e6f1`)
+
+A second independent technical review returned **`REVISE`** again, with R1/R2/R3 and every
+verification gap confirmed `PASS`, plus one new finding:
+
+> **R4 (medium):** `partial-minutes`, `sparse-score-events`, and `declared-only-versus-evidenced`
+> each create more than one independent `useSourceInspector()` instance with its own `isOpen`. On
+> desktop the inline inspector is `aria-modal="false"`, so a user can open Claim A, then click
+> Claim B's still-visible "Inspect" button without closing A — leaving two dialogs open at once
+> (S6 could open up to four). The capture script's own `openSourceInspectorByName()` closes any
+> existing inspector before opening the next, which makes captures deterministic but does not
+> demonstrate real switch behavior and masks the defect.
+
+**R4 fixed:** replaced the per-claim `useSourceInspector()` instances in all three scenarios with
+one shared `useActiveSourceClaim<K>()` (`shared/use-active-source-claim.ts`) — a single
+`activeClaim` key and exactly one `SourceInspector` element per page, with sources/title/
+description selected from whichever claim is active. Clicking a second "Inspect..." control on
+desktop now switches the inspector's content in place (confirmed: exactly one `role="dialog"` at
+all times, no stale rows); on mobile the bottom sheet stays genuinely modal, so switching requires
+closing first (realistic mobile behavior, not a gap). New component tests in all three scenarios
+switch claims **without an intervening Escape** and assert exactly one dialog plus the correct
+scoped source rows after each switch. The capture script's `openSourceInspectorByName()` now only
+closes an existing dialog first when it is genuinely modal (`aria-modal="true"`) — on desktop it
+clicks the next trigger directly, so the existing chained `source-open`/`source-open-*`
+interactions now themselves demonstrate the real switch-without-closing behavior at desktop,
+captured in `gate-a-a04-declared-only-versus-evidenced-desktop-*-source-open-case-b.png` (open
+Case A's declaration, then switch directly to Case B's evidence with no Escape in between).
+
+**A real bug found and fixed while implementing the single-inspector design, disclosed rather than
+silently patched around:** S6's first attempt kept "adjacent to the active group" (acceptance
+criterion 5) by rendering the inspector at two different conditional JSX call sites (one inside
+each case's own `<div>`). Switching across groups unmounted the old instance and mounted a fresh
+one; the freshly-mounted instance's `useMediaQuery` briefly reported its SSR-safe default (`false`)
+before its own effect corrected it, so a desktop cross-group switch flashed the mobile bottom sheet
+for one render — which hung the capture script's sheet-settle wait (confirmed: this exact capture
+run failed with a 30s timeout at that interaction before the fix). Fixed by mounting the inspector
+ONCE and repositioning it via CSS `order` on a shared flex container instead of a second call site
+— same element, no remount, "adjacent to the active group" still holds visually.
+
+**Minor editorial item fixed:** S1's minutes source record was labeled `Minutes (recorded
+opportunity)`, reusing the opportunity claim's measure name for an unrelated fact. Relabeled to
+`Actual playing minutes` — the `NOT_RECORDED` state and its explanation are unchanged.
+
+Full per-file diff is in `CHANGED_FILES.md` (rows marked "round 3"). Revised capture evidence is in
+`capture-attestation.json`, re-generated against this round's commit.
+
 ## Data-truth invariant tests (beyond S1–S6 themselves)
 
 1. `ZERO` vs `NOT_RECORDED`/`UNKNOWN`/`NOT_APPLICABLE` never both render as `0`
@@ -140,8 +186,8 @@ should be added to the vocabulary, and (b) what source-priority rule, if any, sh
 
 - `npx tsc --noEmit` — clean.
 - `npx eslint` (full repo lint glob) — clean, 3 pre-existing unrelated warnings.
-- `npm test` (both vitest configs, full repository) — 622 test files, 6599 tests, all passing.
-  A04-specific: 14 test files, 83 tests (53 node-config + 30 component-config). One pre-existing,
+- `npm test` (both vitest configs, full repository) — 622 test files, 6604 tests, all passing.
+  A04-specific: 14 test files, 88 tests (53 node-config + 35 component-config). One pre-existing,
   unrelated test (`src/lib/ai/presentation/__tests__/player-development-cycle-insight.test.ts`)
   was observed to fail once in an earlier full-suite run and pass both in isolation and in a
   subsequent clean full run — a pre-existing flake, not caused by this branch, and not reproduced

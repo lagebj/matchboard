@@ -42,7 +42,7 @@ describe("A04-S1 partial-minutes page", () => {
     expect(inspector).toHaveAttribute("aria-modal", "false");
     const rows = screen.getAllByTestId("source-record-row");
     expect(rows).toHaveLength(10); // 5 rounds x (eligibility + opportunity)
-    expect(rows.some((r) => r.textContent?.includes("Minutes ("))).toBe(false);
+    expect(rows.some((r) => r.textContent?.includes("Actual playing minutes"))).toBe(false);
   });
 
   it("the minutes inspector shows only the minutes-measure record, scoped separately from opportunity sources", () => {
@@ -53,7 +53,36 @@ describe("A04-S1 partial-minutes page", () => {
     expect(inspector).toHaveAttribute("aria-modal", "false");
     const rows = screen.getAllByTestId("source-record-row");
     expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toMatch(/Minutes \(/);
+    expect(rows[0].textContent).toMatch(/Actual playing minutes/);
+  });
+
+  describe("independent review round 2 (PR #778, finding R4): exactly one active inspector", () => {
+    it("clicking the minutes trigger while the opportunity inspector is already open (desktop, no Escape) switches content instead of opening a second dialog", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect sources/i }));
+      expect(screen.getAllByTestId("source-record-row")).toHaveLength(10);
+
+      // No Escape here — this is the real desktop switch behavior finding R4 requires.
+      fireEvent.click(screen.getByRole("button", { name: /inspect minutes source/i }));
+
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      const rows = screen.getAllByTestId("source-record-row");
+      expect(rows).toHaveLength(1);
+      expect(rows[0].textContent).toMatch(/Actual playing minutes/);
+      expect(screen.getByText("A04-S1 minutes source")).toBeInTheDocument();
+    });
+
+    it("switching back to the opportunity trigger restores its full scoped source list, not a stale combination", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect minutes source/i }));
+      fireEvent.click(screen.getByRole("button", { name: /inspect sources/i }));
+
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      expect(screen.getAllByTestId("source-record-row")).toHaveLength(10);
+      expect(screen.getByText("A04-S1 opportunity sources")).toBeInTheDocument();
+    });
   });
 
   it("opens a mobile bottom sheet instead, never both presentations at once", () => {

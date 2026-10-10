@@ -26,17 +26,25 @@ function resolveCommitSha() {
  * `lineup-open` (a bottom sheet is DOM-"visible" mid-transform the instant it mounts, so wait on
  * its real rendered position, not just `state: "visible"`; the inline inspector has nothing to
  * settle).
+ *
+ * Independent review round 2 (finding R4): scenarios with more than one scoped inspector (S1, S4,
+ * S6) now enforce exactly one active claim in a single `SourceInspector` (`useActiveSourceClaim`),
+ * so a SECOND `source-open`-family interaction in the same page/context should click its trigger
+ * DIRECTLY, without closing the first — on desktop (`aria-modal="false"`) this is the real
+ * switch-without-closing behavior the review asked to demonstrate, not a workaround. Only a
+ * genuinely MODAL dialog (the mobile bottom sheet, `aria-modal="true"`) still needs an explicit
+ * close first, since its full-screen backdrop would otherwise intercept the next click — that
+ * mirrors real mobile modal behavior, it isn't masking a bug.
  */
 function openSourceInspectorByName(name) {
   return async function perform(page) {
-    // Scenarios with more than one scoped inspector (S1, S4, S6) chain multiple `source-open`
-    // interactions in the SAME page/context (never a reload) — close whatever inspector a prior
-    // interaction left open first, otherwise the mobile bottom sheet's full-screen backdrop
-    // intercepts the next trigger's click (real find while re-capturing after finding R3).
     const openDialogs = page.getByRole("dialog");
     if ((await openDialogs.count()) > 0) {
-      await page.keyboard.press("Escape");
-      await openDialogs.first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+      const isModal = await openDialogs.first().getAttribute("aria-modal");
+      if (isModal === "true") {
+        await page.keyboard.press("Escape");
+        await openDialogs.first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+      }
     }
     await page.getByRole("button", { name, exact: true }).click();
     await page.getByRole("dialog").first().waitFor({ state: "visible", timeout: 10000 });

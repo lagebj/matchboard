@@ -117,7 +117,59 @@ In researching the fixes:
   pages). Filtered by message pattern before evaluating the gate, so it only reacts to a genuine
   new error.
 
-## Validation run locally
+## Independent review round 2 (PR #778, this round)
+
+A second review (head `f6b47e6f1`) confirmed R1/R2/R3 and every round-1 verification gap as
+`PASS`, and raised one new finding, **R4**: `partial-minutes`, `sparse-score-events`, and
+`declared-only-versus-evidenced` each used one independent `useSourceInspector()` instance per
+claim; since the desktop inline inspector is `aria-modal="false"`, nothing stopped a user opening
+a second claim's inspector while the first was still open, leaving more than one dialog active
+(S6 could reach four). The capture script's own pre-click "close any open dialog" step hid this
+in automated captures without demonstrating the real desktop behavior.
+
+**R4 fixed:** all three scenarios now share one `useActiveSourceClaim<K>()` hook
+(`shared/use-active-source-claim.ts`) and exactly one `SourceInspector` element — a single
+`activeClaim` key selects which scoped source list/title is shown, so clicking a second trigger on
+desktop swaps the inspector's content in place (verified: exactly one `role="dialog"`, no stale
+rows, in new component tests that switch claims **without** pressing Escape first). The capture
+script's `openSourceInspectorByName()` now only force-closes an existing dialog when it is
+genuinely modal (`aria-modal="true"`, i.e. the mobile sheet) — on desktop it clicks the next
+trigger directly, so the EXISTING chained interactions now themselves demonstrate the real
+switch-without-closing behavior, visible in `gate-a-a04-declared-only-versus-evidenced-desktop-*-
+source-open-case-b.png`.
+
+**A genuine remount bug found and fixed while implementing this, not hidden:** S6's first attempt
+kept the inspector "visually adjacent to the active case group" by rendering it at two different
+conditional JSX call sites (inside Case A's `<div>` vs Case B's `<div>`). Switching across groups
+unmounted the old instance and mounted a fresh one; the new instance's `useMediaQuery` briefly
+reported its SSR-safe default (`false`, "not desktop") before its own effect corrected it — so a
+desktop cross-group switch flashed the mobile bottom sheet for one render. This hung the capture
+script's sheet-settle wait (`page.waitForFunction` timeout, reproduced and captured in
+`/tmp/ui-lab-capture6.log` during this session). Fixed by mounting the inspector exactly ONCE and
+repositioning it via a CSS `order` utility on a shared flex container, instead of a second JSX call
+site — same element throughout, no remount, the visual-adjacency goal still holds.
+
+**Minor editorial fix:** S1's minutes source record label changed from `Minutes (recorded
+opportunity)` (reusing the opportunity claim's measure name for an unrelated fact) to `Actual
+playing minutes`.
+
+## Validation run locally (initial commit, `c5ebfda08`, before any review)
+
+- `npx tsc --noEmit` (full project) — clean.
+- `npx eslint` (full repo + script syntax check) — clean, 3 pre-existing unrelated warnings.
+- `npx vitest run src/app/dev/ui-lab/gate-a/a04-evidence-grammar` (node config) — 8 files, 36
+  tests, all passing.
+- `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a/a04-evidence-grammar`
+  — 6 files, 25 tests, all passing.
+- `npm test` (both vitest configs, full repository) — 622 test files, 6577 tests, all passing.
+- Local `next dev -p 3333` + `scripts/ui-lab-visual-review.mjs` — 128 screenshots captured (72
+  existing baseline/W1 + 56 new A04: 6 scenarios × 3 viewports × 2 themes = 36 initial + 5
+  scenarios × 2 viewports × 2 themes `source-open` interaction = 20), all 48 `gate-a-*` W1 hashes
+  byte-identical to the approved record.
+- `npm run build` / full `npm run validate` — **NOT RUN locally**, same pre-existing sandbox
+  limitation documented in W1's audit; CI will run them.
+
+## Validation run locally (round 2, current — after R1–R4 and all verification gaps)
 
 - `npx tsc --noEmit` (full project) — clean.
 - `npx eslint src prisma.config.ts next.config.ts eslint.config.mjs prisma/seed-demo.cjs
@@ -128,23 +180,24 @@ In researching the fixes:
 - `npx vitest run src/app/dev/ui-lab/gate-a/a04-evidence-grammar` (node config) — 8 files, 53
   tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a/a04-evidence-grammar`
-  — 6 files, 30 tests, all passing.
+  — 6 files, 35 tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (W1 + W2
-  regression together) — 10 files, 70 tests, all passing.
-- `npm test` (both vitest configs, full repository) — **526 + 96 = 622 test files, 5974 + 603 =
-  6577 tests, all passing.** Not scoped to Gate A — every test in the repository.
-- Local `next dev -p 3333` + the extended `scripts/ui-lab-visual-review.mjs` — all 128 screenshots
-  captured successfully (72 existing baseline/W1 + 56 new A04), including the 4 pre-existing
-  `atlas-followup` scenarios and all 4 W1 Gate A candidates (byte-identical hashes to the approved
-  `candidate_manifest.json` — confirmed via direct comparison). A04's 56 captures = 6 scenarios ×
-  (3 viewports × 2 themes) = 36 initial + 5 scenarios × (2 viewports × 2 themes) `source-open`
-  interaction = 20, matching `04_TEST_AND_CAPTURE_MATRIX.md`'s documented minimum exactly (S2 has
-  no `source-open` interaction capture — its own scope explicitly forbids any trend/derived visual,
-  and its question panel's "Inspect sources" control is still fully keyboard/mouse operable; S1,
-  S3, S4, S5, S6 each have one). Spot-checked rendered PNGs directly (desktop/mobile/narrow, both
-  themes, several `source-open` states) — no horizontal overflow, no clipped labels, correct
-  dark/light contrast, mobile bottom sheet settles with a visible drag handle and close control,
-  desktop inline inspector sits beside/below content without navigating.
+  regression together) — 10 files, 75 tests, all passing.
+- `npm test` (both vitest configs, full repository) — **526 + 96 = 622 test files, 5991 + 613 =
+  6604 tests, all passing.** Not scoped to Gate A — every test in the repository.
+- Local `next dev -p 3333` + the revised `scripts/ui-lab-visual-review.mjs` — all 164 screenshots
+  captured successfully (72 existing baseline/W1 + 92 A04), including the 4 pre-existing
+  `atlas-followup` scenarios and all 4 W1 Gate A candidates (all 48 `gate-a-*` captures
+  byte-identical to the approved `candidate_manifest.json` hashes — confirmed via direct
+  comparison; the non-Gate-A `match-preparation` baseline's 6 captures legitimately differ
+  run-to-run due to its own `Date.now()`-based fixture, unrelated to this PR). A04's 92 captures =
+  6 scenarios × 5 widths × 2 themes = 60 initial + per-scenario `source-open`-family interactions
+  at desktop/mobile × 2 themes = 32 (S1/S4/S6 two each = 16, S3/S5 one each = 8, S2 none). Spot-
+  checked rendered PNGs directly, including the S6 cross-group switch-without-Escape capture
+  (`...-desktop-light-source-open-case-b.png`): exactly one dialog, correct Case B evidence rows,
+  positioned adjacent to the Case B group — confirming the R4 fix. No horizontal overflow, no
+  clipped labels, correct dark/light contrast, mobile bottom sheet settles with a visible drag
+  handle and close control, desktop inline inspector sits beside/below content without navigating.
 - `npm run build` / full `npm run validate` (incl. `policy:verify`) — **NOT RUN locally**, same
   pre-existing sandbox limitation documented in W1's audit (reproduces on clean `main`, passes in
   real CI); CI will run them.

@@ -59,4 +59,22 @@ describe("A04-S4 sparse-score-events page", () => {
       expect(rows[0].textContent).toMatch(/Final score/);
     });
   });
+
+  describe("independent review round 2 (PR #778, finding R4): exactly one active inspector", () => {
+    it("switching from result to event (desktop, no Escape) swaps content instead of opening a second dialog", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect result source/i }));
+      expect(screen.getAllByTestId("source-record-row")[0].textContent).toMatch(/Final score/);
+
+      // No Escape — the real desktop switch behavior finding R4 requires.
+      fireEvent.click(screen.getByRole("button", { name: /inspect event source/i }));
+
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      const rows = screen.getAllByTestId("source-record-row");
+      expect(rows).toHaveLength(1);
+      expect(rows[0].textContent).toMatch(/GOAL_FOR/);
+      expect(screen.getByText("A04-S4 event source")).toBeInTheDocument();
+    });
+  });
 });

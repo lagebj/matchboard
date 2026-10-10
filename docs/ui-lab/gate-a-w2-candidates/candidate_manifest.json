@@ -26,7 +26,8 @@
       "knownGaps": [
         "5/5 is the eligible-opportunity denominator, not a start/full-match count — the fixture only establishes 'recorded opportunity', deliberately never 'played'.",
         "The NOT_RECORDED choice (vs UNKNOWN) assumes the source can positively confirm no interval was captured for these five rounds; a real production source may need to distinguish 'checked, nothing there' from 'did not check' more explicitly than this fixture demonstrates.",
-        "fixtureVersion 2 (independent review round 1, finding R1): eligibility and recorded-opportunity are now two separate source records per round, each with matching field text; the opportunity inspector is scoped separately from the minutes inspector (finding R3)."
+        "fixtureVersion 2 (independent review round 1, finding R1): eligibility and recorded-opportunity are now two separate source records per round, each with matching field text; the opportunity inspector is scoped separately from the minutes inspector (finding R3).",
+        "Independent review round 2 (finding R4): the opportunity and minutes inspectors now share one useActiveSourceClaim instance — exactly one dialog is ever active, and clicking the other trigger on desktop switches content in place instead of opening a second dialog. Minutes source label corrected to 'Actual playing minutes' (editorial)."
       ]
     },
     {
@@ -90,7 +91,8 @@
       "baselineAssetRef": "NO_BASELINE_CAPABILITY — no production surface currently separates a canonical final score from an independently partial event log as two distinct coverage states; see visual_vs_current/A04.md",
       "knownGaps": [
         "The data-truth test proving CONFLICT detection (two sources disagreeing on the same fact) is test-only (`shared/invariants.ts`'s describeConflict) — no production-looking conflict UI state exists anywhere in A04, since no source-priority order is approved yet (BLOCKED, see A04_REVIEW.md).",
-        "Independent review round 1 (finding R3): the result and event claims are now scoped to separate inspectors (`buildResultSourceRecords`/`buildEventSourceRecords`) — the event inspector no longer shows the result record first."
+        "Independent review round 1 (finding R3): the result and event claims are now scoped to separate inspectors (`buildResultSourceRecords`/`buildEventSourceRecords`) — the event inspector no longer shows the result record first.",
+        "Independent review round 2 (finding R4): the result and event inspectors now share one useActiveSourceClaim instance — exactly one dialog is ever active, and clicking the other trigger on desktop switches content in place."
       ]
     },
     {
@@ -133,7 +135,8 @@
       "baselineAssetRef": "src/app/dev/ui-lab/gate-a/a12-profile-editor (W1, APPROVED_GOLDEN) Case A/Case B split is the direct conceptual precedent this candidate extends with real exact-interval evidence for Case B",
       "knownGaps": [
         "No evidence-derived profile position is ever automatically promoted to declared primary/secondary/tertiary — a real promotion requires ADR-0139's confidence threshold and explicit coach approval, not simulated here.",
-        "fixtureVersion 2 (independent review round 1, finding R2): each case now renders a declaration panel (COMPLETE) separately from an exposure/evidence panel (NOT_RECORDED for Case A, COMPLETE for Case B), each with its own scoped source and inspector (finding R3) — the prior single combined badge per case is gone."
+        "fixtureVersion 2 (independent review round 1, finding R2): each case now renders a declaration panel (COMPLETE) separately from an exposure/evidence panel (NOT_RECORDED for Case A, COMPLETE for Case B), each with its own scoped source and inspector (finding R3) — the prior single combined badge per case is gone.",
+        "Independent review round 2 (finding R4): all four claims now share one useActiveSourceClaim instance and exactly one SourceInspector element, repositioned next to the active case group via CSS order (not a second JSX call site, which was found to cause a real remount/flash-of-mobile-sheet bug on a desktop cross-group switch). Exactly one dialog is ever active across all four claims."
       ]
     }
   ]

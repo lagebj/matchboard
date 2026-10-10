@@ -69,4 +69,33 @@ describe("A04-S6 declared-only-versus-evidenced page", () => {
       expect(screen.getAllByTestId("source-record-row")).toHaveLength(2); // LCM + RCM, no declaration
     });
   });
+
+  describe("independent review round 2 (PR #778, finding R4): exactly one active inspector across all four claims", () => {
+    it("switching within Case A (declaration -> exposure, desktop, no Escape) swaps content, never two dialogs", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect case a declaration source/i }));
+      expect(screen.getAllByTestId("source-record-row")).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole("button", { name: /inspect case a exposure-check source/i }));
+
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      const rows = screen.getAllByTestId("source-record-row");
+      expect(rows).toHaveLength(1);
+      expect(screen.getByText("A04-S6 Case A exposure-check source")).toBeInTheDocument();
+    });
+
+    it("switching across cases (Case A declaration -> Case B evidence, desktop, no Escape) still yields exactly one dialog with the right content", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: /inspect case a declaration source/i }));
+
+      fireEvent.click(screen.getByRole("button", { name: /inspect case b evidence sources/i }));
+
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      expect(screen.getAllByTestId("source-record-row")).toHaveLength(2); // LCM + RCM
+      expect(screen.getByText("A04-S6 Case B evidence sources")).toBeInTheDocument();
+      expect(screen.queryByText("A04-S6 Case A declaration source")).not.toBeInTheDocument();
+    });
+  });
 });

@@ -57,7 +57,10 @@ export function buildOpportunitySourceRecords(): SourceRecord[] {
 }
 
 /** Scoped to the actual-minutes claim only — a different recording scope from the opportunity
- * records above, inspected separately (review finding R3). */
+ * records above, inspected separately (review finding R3). Field label is the fact itself
+ * ("Actual playing minutes"), not the measure name used for the opportunity records above —
+ * independent review round 2 editorial finding: the prior label, "Minutes (recorded
+ * opportunity)", read as if minutes were a kind of opportunity record. */
 export function buildMinutesSourceRecords(): SourceRecord[] {
   return [
     {
@@ -65,7 +68,7 @@ export function buildMinutesSourceRecords(): SourceRecord[] {
       sourceClass: identity.sourceClass,
       provenance: "Actual-minutes measurement scope",
       scope: groupScopeLabel,
-      fieldLabel: `Minutes (${actualMinutesMeasure.measureName})`,
+      fieldLabel: "Actual playing minutes",
       fieldValue: actualMinutesMeasure.explanation,
       coverage: actualMinutesMeasure.coverage,
     },

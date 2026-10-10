@@ -4,9 +4,11 @@ import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 import { EvidenceQuestionPanel } from "../shared/evidence-question-panel";
 import { SourceInspector } from "../shared/source-inspector";
-import { useSourceInspector } from "../shared/use-source-inspector";
+import { useActiveSourceClaim } from "../shared/use-active-source-claim";
 import { computeOpportunityCoverage, buildOpportunitySourceRecords, buildMinutesSourceRecords } from "./view-model";
 import { eligibleRounds, groupScopeLabel, actualMinutesMeasure } from "./fixtures";
+
+type ClaimKey = "opportunity" | "minutes";
 
 /**
  * `/dev/ui-lab/gate-a/a04-evidence-grammar/partial-minutes` — A04-S1. Answers one question: did
@@ -15,12 +17,13 @@ import { eligibleRounds, groupScopeLabel, actualMinutesMeasure } from "./fixture
  * merged into one confidence-sounding number.
  *
  * Independent review round 1 (PR #778, findings R1/R3): the opportunity claim and the
- * actual-minutes claim are two different recording scopes with two different source sets — each
- * now has its own scoped inspector, instead of both "Inspect..." buttons opening one combined list.
+ * actual-minutes claim are two different recording scopes with two different source sets.
+ * Independent review round 2 (finding R4): exactly one `SourceInspector` is ever active — a single
+ * `activeClaim` key picks which scoped source list and title it shows, so clicking a second
+ * "Inspect..." control switches the inspector's content instead of opening a second dialog.
  */
 export default function PartialMinutesPage() {
-  const opportunityInspector = useSourceInspector();
-  const minutesInspector = useSourceInspector();
+  const inspector = useActiveSourceClaim<ClaimKey>();
   const { numerator, denominator } = computeOpportunityCoverage();
   const opportunitySources = buildOpportunitySourceRecords();
   const minutesSources = buildMinutesSourceRecords();
@@ -58,7 +61,7 @@ export default function PartialMinutesPage() {
         }
         sample={`${denominator} distinct rounds · ${groupScopeLabel}`}
         coverage="COMPLETE"
-        onInspect={opportunityInspector.open}
+        onInspect={() => inspector.open("opportunity")}
       />
 
       <EvidenceQuestionPanel
@@ -68,23 +71,20 @@ export default function PartialMinutesPage() {
         valueCaption={`This fixture measures ${actualMinutesMeasure.measureName}, not played minutes — no closed playing interval exists for any of the five rounds above.`}
         sample={groupScopeLabel}
         coverage={actualMinutesMeasure.coverage}
-        onInspect={minutesInspector.open}
+        onInspect={() => inspector.open("minutes")}
         inspectLabel="Inspect minutes source"
       />
 
       <SourceInspector
-        isOpen={opportunityInspector.isOpen}
-        onClose={opportunityInspector.close}
-        title="A04-S1 opportunity sources"
-        description="Eligibility and recorded-opportunity records for each round — two different facts, read-only."
-        sources={opportunitySources}
-      />
-      <SourceInspector
-        isOpen={minutesInspector.isOpen}
-        onClose={minutesInspector.close}
-        title="A04-S1 minutes source"
-        description="The actual-minutes measurement scope — a separate recording scope from the opportunity records above."
-        sources={minutesSources}
+        isOpen={inspector.activeClaim !== null}
+        onClose={inspector.close}
+        title={inspector.activeClaim === "minutes" ? "A04-S1 minutes source" : "A04-S1 opportunity sources"}
+        description={
+          inspector.activeClaim === "minutes"
+            ? "The actual-minutes recording scope — a separate recording scope from the opportunity records below."
+            : "Eligibility and recorded-opportunity records for each round — two different facts, read-only."
+        }
+        sources={inspector.activeClaim === "minutes" ? minutesSources : opportunitySources}
       />
     </div>
   );
