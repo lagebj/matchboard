@@ -7,12 +7,14 @@ No owner review has occurred. Technical implementation, passing local tests, and
 `23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing screenshot pipeline is not approval." All 13
 scenario IDs remain `CANDIDATE` in `candidate_manifest.json`.
 
-**Capture evidence status:** real local screenshot evidence now exists — `capture-attestation.json`
-(182 captures, all 13 scenarios × 5 viewports × 2 themes + interaction states, zero console/page
-errors, visually spot-checked in this session) — but it was captured **locally in this agent
-sandbox session**, not by CI, and the underlying PNG files are not committed or uploaded anywhere
-durable (see `BLOCKERS.md` W4-BLK-11). A CI run of `ui-lab-visual-review.yml` against this PR's
-actual head commit, producing a durable downloadable artifact, has not yet been triggered/observed.
+**Capture evidence status:** real CI screenshot evidence exists — `capture-attestation.json` (182
+captures, all 13 scenarios × 5 viewports × 2 themes + interaction states, zero console/page
+errors), from CI run `38180483804` (`ui-lab-visual-review.yml`, against this PR's branch-tip
+commit `03683e34a1c66d0f47237c22b6fb3c79c933e0cb`), artifact `ui-lab-review-38180483804-1`. Every
+recorded hash was independently re-verified in this session: the artifact was downloaded fresh via
+the GitHub API and all 182 PNG files' SHA-256 recomputed from the raw bytes, zero mismatches. The
+artifact is a **temporary** GitHub Actions artifact (expires `2026-10-18T22:36:48Z`) — no durable
+GitHub Release has been created (see `BLOCKERS.md` W4-BLK-06, unchanged from every prior wave).
 
 ## What this candidate proves
 
