@@ -33,7 +33,7 @@ export default function ServerConflictPage() {
     setIsOpen(false);
     triggerRef.current?.focus();
   };
-  const guard = useDirtyCloseGuard(op.draft !== null && op.status !== "SUCCESS", close);
+  const guard = useDirtyCloseGuard(op.draft !== null, op.status === "PENDING", close);
 
   const openEditor = () => {
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;

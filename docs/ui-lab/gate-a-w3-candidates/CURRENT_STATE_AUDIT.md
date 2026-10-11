@@ -17,7 +17,9 @@ entries in the existing Gate A index (`src/app/dev/ui-lab/gate-a/page.tsx`). No 
 `src/domain/**`, production `src/components/**`, Prisma schema, auth/authz, or deployment file was
 touched. W1's four approved candidates and W2's six `APPROVED_GOLDEN` A04 scenarios are unmodified
 — re-confirmed by running the full `src/app/dev/ui-lab/gate-a` test suite (27 node-config files /
-131 tests, 26 component-config files / 151 tests, all passing) after every family was built.
+131 tests, 26 component-config files / 164 tests, all passing — see "Real bugs found and fixed"
+items 7-8 below for the two findings from a second independent technical review) after every
+family was built.
 
 ## Repository state found (independently re-verified against the live repo, not the bundle's dated claims)
 
@@ -162,24 +164,109 @@ first CI capture run surfaced a real bug worth fixing before trusting the eviden
    (`scripts/ui-lab-visual-review.mjs`) never exercise a close-then-reopen interaction for any A09
    page — only A07's `dirty-draft-close` scenario captures a close interaction, and that page was
    already correct (bug 1) — so `capture-attestation.json` remains fully valid, unregenerated.
+7. **A09-S1 and A09-S6 permitted the same candidate to be added twice — found by a second
+   independent technical review, not by this wave's original testing.** Both scenarios'
+   `useFixtureOperation` authoritative state was a bare `number` (the displayed count); a resolved
+   `SUCCESS` only ever incremented it, recording no participant identity. Reopening after a
+   successful addition therefore still showed the identical candidate as eligible and selectable —
+   the same predeclared `SUCCESS` outcome could be submitted and resolved a second time for the
+   same player, producing an internally inconsistent fixture (one player, two additions). Fixed by
+   introducing a minimal authoritative roster projection (`gate-a/shared/roster-projection.ts`):
+   `RosterProjection = { baselineCount, addedPlayerIds }`, with the displayed count always
+   `rosterDisplayCount()`-derived from it (never a separately-tracked field that could drift) and a
+   candidate's eligibility/reasons always `deriveCandidate(roster)`-derived from whether
+   `rosterIncludesPlayer()` is true — never a static fixture constant, never a `hasAddedPlayer`
+   boolean, never a permanently-disabled editor. Once a candidate is already in the roster, the
+   candidate row becomes disabled with the reason `"Already included in this match"` — the
+   already-applied authoritative result represented honestly, not a newly invented permission
+   system. `applySuccess` now calls `addPlayerToRoster()`, which is itself idempotent (a pure
+   data-consistency guarantee, not a policy decision) so the projection could never become
+   internally inconsistent even from a bug elsewhere in the call chain. The planned-selection
+   (A09-S1) and operational (A09-S6) roster projections remain two entirely separate
+   `useFixtureOperation` instances, as before — this fix does not change that separation, only
+   enriches what each one tracks. One full end-to-end regression test per scenario (open → select →
+   submit → resolve `SUCCESS` → verify exactly one addition → close → reopen → verify "already
+   included" and disabled → attempt to re-add → verify no-op → verify count unchanged) was added to
+   both A09-S1 and A09-S6's test files, plus 5 new `roster-projection.ts` unit tests. Independently
+   verified to fail against the pre-fix `deriveCandidate` logic (confirmed for both S1 and S6: the
+   candidate row was still enabled and re-addable after a close/reopen following `SUCCESS`) and
+   pass after the fix.
+8. **`useDirtyCloseGuard` allowed a `PENDING` operation to be discarded without ever resolving it —
+   found by the same second independent review.** The guard only ever checked `hasDraft`; since
+   `op.draft` stays non-null throughout `PENDING` (it is only cleared once `resolvePending()`
+   settles), a user could request close while an operation was mid-flight, get the normal
+   discard-confirmation prompt, and confirm it — which called `op.discardDraft()`, silently
+   resetting `status`/`outcome`/`pendingOutcome` to a clean `IDLE` state and abandoning the
+   submitted-but-unresolved predeclared fixture response (the simulated equivalent of cancelling a
+   request that may already have "landed"). Fixed with a deterministic rule matching the finding's
+   own framing: an editor cannot close at all while `PENDING` — not even with a discard
+   confirmation. `useDirtyCloseGuard`'s signature gained an explicit `isPending: boolean` third
+   parameter; `requestClose()` is now a no-op while `isPending` (it does not even set `confirming`,
+   so no stale prompt can appear) — the SAME single funnel point every dismissal path already used
+   (the chrome's own Close button, `Escape`, and the mobile sheet's backdrop/X all call
+   `onRequestClose`), so this one change blocks every dismissal path uniformly without touching
+   `TouchlineBottomSheet` (a production component, out of this PR's file scope) or any chrome
+   component. All 11 A07/A09 call sites were updated to pass `op.status === "PENDING"`; the
+   previously-redundant `&& op.status !== "SUCCESS"` clause some pages had on `hasDraft` (dead logic
+   — `draft` is already `null` by the time `status` is `SUCCESS`, confirmed during an earlier W3
+   investigation) was simplified away everywhere for consistency. 6 new tests were added directly
+   to `useDirtyCloseGuard`'s own suite (including a `<StrictMode>`-wrapped lifecycle test and two
+   hook-integration tests combining it with `useFixtureOperation` end-to-end: `PENDING` → blocked →
+   `resolvePending()` → `SUCCESS` → immediate close, and `PENDING` → blocked → `resolvePending()` →
+   `PERMISSION_DENIED` → discard confirmation required, never silently reapplied), plus page-level
+   PENDING-block tests added to three representative real pages (A07's `assign-reserve-success` and
+   `assign-reserve-denied`, A09's `add-player-conflict`) proving the fix holds through real Close-
+   button and `Escape` interactions, not just at the hook level. Independently verified: temporarily
+   removing just the `isPending` check (keeping the new 3-argument signature, isolating the logic
+   bug from the signature change) reproduced exactly 2 failing unit tests with the predicted
+   symptom (`confirming` became `true` while pending, instead of staying blocked silently); restored
+   and re-verified passing. This fix changes no already-captured screenshot for A07 (a blocked click
+   is visually indistinguishable from the state already captured — nothing re-renders) and adds two
+   new, genuinely novel capture states for A09-S1/S6 (`closed-after-saved`/
+   `reopened-already-included`), covering bug 7's new "already included" visual state in the same
+   pass — see "Visual capture evidence" below.
+
+## Visual capture evidence (this round)
+
+Neither fix changes any of the four already-captured A09-S1/S6 interaction states
+(`sheet-open`/`draft-preview`/`pending`/`saved`): the roster projection starts empty either way, so
+`deriveCandidate()` returns identical `eligible`/`reasons` values throughout that entire sequence,
+and `rosterDisplayCount()` computes the identical number the old `authoritative + 1` arithmetic
+did. This is not assumed — it is re-verified empirically in CI below, not merely reasoned about
+locally, per this round's own instruction not to assume unchanged initial screens imply an
+unchanged attestation. Two genuinely new interaction states were added to the capture matrix for
+A09-S1 and A09-S6 (`closed-after-saved`, `reopened-already-included`) to capture bug 7's new
+"already included, disabled" visual state, which no prior capture exercised. A07's PENDING-block
+fix (bug 8) produces no new visual state anywhere (a blocked dismissal attempt leaves the DOM
+unchanged) and needs no new capture entries. See `capture-attestation.json` and its own disclosure
+for the exact CI run this was verified against.
 
 ## Validation run locally
 
 - `npx tsc --noEmit -p tsconfig.json` (full project) — clean, 0 errors.
 - `npx eslint src/app/dev/ui-lab/gate-a` — clean, 0 output.
-- `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — 27 files, 131 tests, all passing.
+- `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — **28 files, 138 tests**, all passing
+  (27/131 + 1 new `roster-projection.test.ts` file / 5 tests + 2 new fixtures-test assertions for
+  bugs 7/8).
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (component
-  config) — 26 files, **151 tests** (137 + 3 `<StrictMode>` regression tests for bug 5 + 11 new
-  close/reopen regression tests for bug 6, 1 of which is also `<StrictMode>`-wrapped), all passing.
+  config) — **26 files, 164 tests**, all passing (151 + 2 full end-to-end duplicate-prevention
+  tests for bug 7 + 2 PENDING-block tests on A09-S1/S6 + 3 PENDING-block tests on representative
+  A07/A09 pages for bug 8).
 - `node --check scripts/ui-lab-visual-review.mjs` — syntactically valid.
 - `npm run terminology:check` — clean.
 - `npm run policy:verify` — PASSED (arm64 wasm-hash rebuild drift is the known advisory-only
   ARR-0037 case; CI's amd64 job is canonical).
-- `npm test` (both vitest configs, whole repository) — 654 files, 6722 tests, all passing.
+- `npm test` (both vitest configs, whole repository) — **655 files, 6742 tests, all passing** on a
+  clean run. One pre-existing, unrelated test
+  (`src/lib/ai/presentation/__tests__/player-development-cycle-insight.test.ts` — zero diff in
+  `src/lib/ai/**` on this entire branch, confirmed against `git diff b6d932b98 HEAD -- src/lib/ai`)
+  was observed to fail intermittently across full-suite runs (2 of 3 attempts) and pass every time
+  in isolation — the same pre-existing flake this wave's own earlier audit already documented, not
+  a regression from this round's changes.
 - `npm run build` / full `npm run validate` — **NOT RUN locally**, same pre-existing sandbox
   limitation documented in W1/W2's own audits (reproduces on clean `main`, passes in real CI); CI's
-  `Build` and `Tests` jobs both passed on the prior commit (`bd0442ce1`) and are expected to on the
-  bug-6 fix commit too.
+  `Build` and `Tests` jobs are expected to pass on this round's fix commit, as they did on every
+  prior commit in this PR.
 - Local browser capture — **NOT RUN to completion** in this session's sandbox, see "Local
   capture-script limitation" above. **CI's "UI Lab Visual Review" workflow succeeded** on the final
   commit (run `38085816627`, 6m44s) and produced all 332 W3 screenshots across 16 scenario IDs, 5

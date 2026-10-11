@@ -143,9 +143,9 @@ describe("useFixtureOperation", () => {
 });
 
 describe("useDirtyCloseGuard", () => {
-  it("closes immediately when there is no draft", () => {
+  it("closes immediately when there is no draft and nothing is pending", () => {
     const onClose = vi.fn();
-    const { result } = renderHook(() => useDirtyCloseGuard(false, onClose));
+    const { result } = renderHook(() => useDirtyCloseGuard(false, false, onClose));
     act(() => result.current.requestClose());
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(result.current.confirming).toBe(false);
@@ -153,7 +153,7 @@ describe("useDirtyCloseGuard", () => {
 
   it("asks for confirmation instead of closing when a draft is present, and does not call onClose until confirmed", () => {
     const onClose = vi.fn();
-    const { result } = renderHook(() => useDirtyCloseGuard(true, onClose));
+    const { result } = renderHook(() => useDirtyCloseGuard(true, false, onClose));
     act(() => result.current.requestClose());
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.confirming).toBe(true);
@@ -164,10 +164,119 @@ describe("useDirtyCloseGuard", () => {
 
   it("cancelConfirm keeps editing without closing", () => {
     const onClose = vi.fn();
-    const { result } = renderHook(() => useDirtyCloseGuard(true, onClose));
+    const { result } = renderHook(() => useDirtyCloseGuard(true, false, onClose));
     act(() => result.current.requestClose());
     act(() => result.current.cancelConfirm());
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.confirming).toBe(false);
+  });
+
+  describe("isPending blocks closing entirely (independent review finding: discarding a PENDING draft silently abandoned a submitted-but-unresolved fixture response)", () => {
+    it("requestClose() is a no-op while pending — no onClose call, no confirmation prompt", () => {
+      const onClose = vi.fn();
+      const { result } = renderHook(() => useDirtyCloseGuard(true, true, onClose));
+      act(() => result.current.requestClose());
+      expect(onClose).not.toHaveBeenCalled();
+      expect(result.current.confirming).toBe(false); // blocked silently, not offered as a choice
+    });
+
+    it("repeated requestClose() attempts while pending never leave a stale confirmation prompt open", () => {
+      const onClose = vi.fn();
+      const { result } = renderHook(() => useDirtyCloseGuard(true, true, onClose));
+      act(() => result.current.requestClose());
+      act(() => result.current.requestClose());
+      act(() => result.current.requestClose());
+      expect(result.current.confirming).toBe(false);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("once no longer pending, requestClose() resumes normal dirty-draft behavior", () => {
+      const onClose = vi.fn();
+      const { result, rerender } = renderHook(({ isPending }: { isPending: boolean }) => useDirtyCloseGuard(true, isPending, onClose), {
+        initialProps: { isPending: true },
+      });
+      act(() => result.current.requestClose());
+      expect(onClose).not.toHaveBeenCalled();
+
+      rerender({ isPending: false }); // the fixture-simulation step settled
+      act(() => result.current.requestClose());
+      expect(onClose).not.toHaveBeenCalled(); // a draft is still present — confirmation, not a free close
+      expect(result.current.confirming).toBe(true);
+      act(() => result.current.confirmDiscardAndClose());
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("integration with useFixtureOperation: the real PENDING -> resolved -> close lifecycle", () => {
+    function setupGuarded() {
+      const onCloseSpy = vi.fn();
+      const hook = renderHook(() => {
+        const op = useFixtureOperation<number, { id: string }, { ok: true }>(0, (authoritative) => authoritative + 1);
+        const guard = useDirtyCloseGuard(op.draft !== null, op.status === "PENDING", onCloseSpy);
+        return { op, guard };
+      });
+      return { ...hook, onCloseSpy };
+    }
+
+    it("PENDING blocks Close/Escape; resolving to SUCCESS then allows an immediate close", () => {
+      const { result, onCloseSpy } = setupGuarded();
+      act(() => result.current.op.setDraft({ id: "x" }));
+      act(() => result.current.op.submit({ kind: "SUCCESS", revision: "r1", result: { ok: true } }));
+      expect(result.current.op.status).toBe("PENDING");
+
+      // Close/Escape while PENDING: blocked, operation untouched, no stale confirmation prompt.
+      act(() => result.current.guard.requestClose());
+      expect(onCloseSpy).not.toHaveBeenCalled();
+      expect(result.current.guard.confirming).toBe(false);
+      expect(result.current.op.status).toBe("PENDING");
+      expect(result.current.op.draft).toEqual({ id: "x" });
+
+      act(() => result.current.op.resolvePending());
+      expect(result.current.op.status).toBe("SUCCESS");
+      expect(result.current.op.authoritative).toBe(1);
+
+      act(() => result.current.guard.requestClose());
+      expect(onCloseSpy).toHaveBeenCalledTimes(1); // SUCCESS clears the draft, so this closes immediately
+    });
+
+    it("PENDING blocks Close; resolving to PERMISSION_DENIED then requires discard confirmation, never silently reapplying it", () => {
+      const { result, onCloseSpy } = setupGuarded();
+      act(() => result.current.op.setDraft({ id: "x" }));
+      act(() => result.current.op.submit({ kind: "PERMISSION_DENIED", reason: "nope" }));
+      act(() => result.current.guard.requestClose()); // blocked
+      expect(onCloseSpy).not.toHaveBeenCalled();
+
+      act(() => result.current.op.resolvePending());
+      expect(result.current.op.status).toBe("PERMISSION_DENIED");
+
+      act(() => result.current.guard.requestClose());
+      expect(onCloseSpy).not.toHaveBeenCalled();
+      expect(result.current.guard.confirming).toBe(true); // draft retained, now a normal discard prompt
+      act(() => result.current.guard.confirmDiscardAndClose());
+      expect(onCloseSpy).toHaveBeenCalledTimes(1);
+      expect(result.current.op.authoritative).toBe(0); // never applied
+    });
+  });
+
+  describe("under React.StrictMode", () => {
+    it("the PENDING block and subsequent resolved-close behavior both hold under double-invocation", () => {
+      const onClose = vi.fn();
+      const { result } = renderHook(
+        () => {
+          const op = useFixtureOperation<number, { id: string }, { ok: true }>(0, (authoritative) => authoritative + 1);
+          const guard = useDirtyCloseGuard(op.draft !== null, op.status === "PENDING", onClose);
+          return { op, guard };
+        },
+        { wrapper: StrictMode },
+      );
+      act(() => result.current.op.setDraft({ id: "x" }));
+      act(() => result.current.op.submit({ kind: "SUCCESS", revision: "r1", result: { ok: true } }));
+      act(() => result.current.guard.requestClose());
+      expect(onClose).not.toHaveBeenCalled();
+      act(() => result.current.op.resolvePending());
+      expect(result.current.op.status).toBe("SUCCESS");
+      act(() => result.current.guard.requestClose());
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
   });
 });

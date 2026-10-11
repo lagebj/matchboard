@@ -86,4 +86,54 @@ describe("A09-S6 match-day-addition page", () => {
       expect(screen.getByTestId("a09-s6-planned-squad-line")).toHaveTextContent("Planned squad: 8/9 (unchanged by this action)");
     });
   });
+
+  describe("duplicate-prevention after SUCCESS (independent review finding: the same candidate could be added twice, since the authoritative count alone never recorded who was added)", () => {
+    it("the full interaction: add Didrik, close, reopen, confirm he is already included and cannot be added again, operational count unchanged, planned-squad line never touched", () => {
+      mockViewport(true);
+      renderPage();
+
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      let dialog = screen.getByRole("dialog");
+      fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add match-day helper" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/Operational roster: 9/);
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      dialog = screen.getByRole("dialog");
+
+      const row = within(dialog).getByTestId("today-candidate-row");
+      expect(row).toBeDisabled();
+      expect(within(dialog).getByText(/Already included in this match/)).toBeInTheDocument();
+
+      fireEvent.click(row);
+      expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Add match-day helper" })).toBeDisabled();
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/Operational roster: 9/);
+      expect(screen.getByTestId("a09-s6-planned-squad-line")).toHaveTextContent("Planned squad: 8/9 (unchanged by this action)");
+    });
+  });
+
+  describe("PENDING blocks closing entirely (independent review finding: discarding a PENDING draft silently abandoned a submitted-but-unresolved fixture response)", () => {
+    it("Close is blocked while PENDING; resolving to SUCCESS then allows an immediate close", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      const dialog = screen.getByRole("dialog");
+      fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add match-day helper" }));
+      expect(within(dialog).getByText("Saving… (fixture simulation)")).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+      expect(within(dialog).getByText("Saved (simulated)")).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
 });

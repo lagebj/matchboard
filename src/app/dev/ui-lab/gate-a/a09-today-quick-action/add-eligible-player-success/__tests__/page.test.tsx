@@ -208,4 +208,68 @@ describe("A09-S1 add-eligible-player-success page", () => {
       expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
     });
   });
+
+  describe("duplicate-prevention after SUCCESS (independent review finding: the same candidate could be added twice, since the authoritative count alone never recorded who was added)", () => {
+    it("the full interaction: add Felix, close, reopen, confirm he is already included and cannot be added again, count unchanged", () => {
+      mockViewport(true);
+      renderPage();
+
+      // 1-5: open, select, submit, resolve SUCCESS.
+      fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+      let dialog = screen.getByRole("dialog");
+      fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add player" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+
+      // 5: exactly one participant was added — 8/9 -> 9/9, exactly once.
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/9 \/ 9/);
+
+      // 6-7: close, reopen.
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+      dialog = screen.getByRole("dialog");
+
+      // 8: the candidate is already included — represented as the already-applied authoritative
+      // result, not a disabled editor or a new permission system.
+      const row = within(dialog).getByTestId("today-candidate-row");
+      expect(row).toBeDisabled();
+      expect(within(dialog).getByText(/Already included in this match/)).toBeInTheDocument();
+
+      // 9: cannot be added again — clicking the disabled row is a no-op, no draft forms, Confirm
+      // stays disabled.
+      fireEvent.click(row);
+      expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Add player" })).toBeDisabled();
+
+      // 10: the authoritative count has not increased further.
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/9 \/ 9/);
+    });
+  });
+
+  describe("PENDING blocks closing entirely (independent review finding: discarding a PENDING draft silently abandoned a submitted-but-unresolved fixture response)", () => {
+    it("Close is blocked while PENDING; resolving to SUCCESS then allows an immediate close", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+      const dialog = screen.getByRole("dialog");
+      fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add player" }));
+      expect(within(dialog).getByText("Saving… (fixture simulation)")).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument(); // still open — blocked, not even a prompt
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.getByRole("dialog")).toBeInTheDocument(); // Escape is blocked too, same guard
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+      expect(within(dialog).getByText("Saved (simulated)")).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); // normal closing resumes once settled
+    });
+  });
 });

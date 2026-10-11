@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { AppearanceControl } from "@/components/touchline";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { useFixtureOperation, useDirtyCloseGuard } from "../../shared/fixture-operation";
+import { initialRoster, rosterDisplayCount, addPlayerToRoster, type RosterProjection } from "../../shared/roster-projection";
 import { TodayQuickActionInspector, TodayQuickActionSheet, type TodayQuickActionSuccess } from "../shared/today-quick-action-sheet";
 import {
   matchW3Identity,
@@ -14,7 +15,7 @@ import {
   MATCH_W3_CURRENT_SQUAD_SIZE,
   MATCH_W3_TARGET_SQUAD_SIZE,
 } from "../../shared/match-w3-fixture";
-import { candidate, successOutcome } from "./view-model";
+import { deriveCandidate, successOutcome } from "./view-model";
 
 const MATCH_REFERENCE = `${MATCH_W3_TEAM_NAME} vs ${MATCH_W3_OPPONENT_NAME} — ${MATCH_W3_ROUND_LABEL}`;
 
@@ -28,14 +29,17 @@ export default function AddEligiblePlayerSuccessPage() {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLElement | null>(null);
 
-  const op = useFixtureOperation<number, { candidateId: string }, TodayQuickActionSuccess>(MATCH_W3_CURRENT_SQUAD_SIZE, (authoritative) => authoritative + 1);
+  const op = useFixtureOperation<RosterProjection, { candidateId: string }, TodayQuickActionSuccess>(initialRoster(MATCH_W3_CURRENT_SQUAD_SIZE), (authoritative, draft) =>
+    addPlayerToRoster(authoritative, draft.candidateId),
+  );
+  const candidate = deriveCandidate(op.authoritative);
 
   const close = () => {
     op.discardDraft();
     setIsOpen(false);
     triggerRef.current?.focus();
   };
-  const dirtyGuard = useDirtyCloseGuard(op.draft !== null && op.status !== "SUCCESS", close);
+  const dirtyGuard = useDirtyCloseGuard(op.draft !== null, op.status === "PENDING", close);
 
   const open = () => {
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -47,7 +51,7 @@ export default function AddEligiblePlayerSuccessPage() {
     dateLabel: matchW3Identity.kickoffDate ?? "",
     roundLabel: MATCH_W3_ROUND_LABEL,
     countLabel: "Planned squad",
-    currentCount: op.authoritative,
+    currentCount: rosterDisplayCount(op.authoritative),
     targetCount: MATCH_W3_TARGET_SQUAD_SIZE,
     actionLabel: "Add player",
     candidate,

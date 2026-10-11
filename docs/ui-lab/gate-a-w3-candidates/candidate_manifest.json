@@ -183,7 +183,8 @@
         "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-eligible-player-success/fixtures.ts",
         "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-eligible-player-success/view-model.ts",
         "src/app/dev/ui-lab/gate-a/a09-today-quick-action/add-eligible-player-success/page.tsx",
-        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx"
+        "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/roster-projection.ts"
       ],
       "lifecycle": "planning_open",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -279,7 +280,8 @@
         "src/app/dev/ui-lab/gate-a/a09-today-quick-action/match-day-addition/view-model.ts",
         "src/app/dev/ui-lab/gate-a/a09-today-quick-action/match-day-addition/page.tsx",
         "src/app/dev/ui-lab/gate-a/a09-today-quick-action/shared/today-quick-action-sheet.tsx",
-        "src/app/dev/ui-lab/gate-a/shared/match-w3-fixture.ts"
+        "src/app/dev/ui-lab/gate-a/shared/match-w3-fixture.ts",
+        "src/app/dev/ui-lab/gate-a/shared/roster-projection.ts"
       ],
       "lifecycle": "planning_open",
       "assistantCoachState": "NOT_APPLICABLE",

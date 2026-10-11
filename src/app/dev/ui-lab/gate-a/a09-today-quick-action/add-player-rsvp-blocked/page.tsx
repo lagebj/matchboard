@@ -29,7 +29,7 @@ export default function AddPlayerRsvpBlockedPage() {
     setIsOpen(false);
     triggerRef.current?.focus();
   };
-  const dirtyGuard = useDirtyCloseGuard(op.draft !== null, close);
+  const dirtyGuard = useDirtyCloseGuard(op.draft !== null, op.status === "PENDING", close);
 
   const open = () => {
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;

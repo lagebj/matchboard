@@ -121,19 +121,33 @@ export function useFixtureOperation<TAuthoritative, TDraft, TSuccess>(
 /**
  * Shared dirty-draft close guard (A07-S6, `02_SCENARIOS_AND_FIXTURES.md`: "editor dismissed with
  * dirty draft" — "Escape and browser Back do not silently drop pending edits"). A single hook so
- * every A07 scenario's X/Escape/Back path gets the same guard for free, rather than re-
- * implementing a "confirm discard" dialog per scenario page.
+ * every A07/A09 scenario's X/Escape/backdrop path gets the same guard for free, rather than
+ * re-implementing a "confirm discard" dialog per scenario page.
+ *
+ * `isPending` (independent review finding): while a predeclared fixture response is in flight
+ * (`status === "PENDING"`), the editor cannot close at all — not even with a discard
+ * confirmation. `op.draft` is still non-null during `PENDING` (it is only cleared once
+ * `resolvePending()` settles), so a naive `hasDraft`-only guard would offer "Discard and close",
+ * and confirming it calls `discardDraft()` — which silently abandons a submitted-but-unresolved
+ * fixture response (the simulated equivalent of cancelling a request that may already be
+ * in-flight). `requestClose()` is a deliberate no-op while `isPending` — the SAME funnel point
+ * every dismissal path already uses (the chrome's own Close button, `Escape`, and the mobile
+ * sheet's backdrop/X all call `onRequestClose`), so blocking it here blocks all of them uniformly
+ * without each page or chrome component needing its own pending check. The existing fixture-step
+ * control (`resolvePending()`, via the visible "Continue fixture simulation →" button) remains the
+ * only way out of `PENDING` — normal closing resumes once it settles.
  */
-export function useDirtyCloseGuard(hasDraft: boolean, onClose: () => void) {
+export function useDirtyCloseGuard(hasDraft: boolean, isPending: boolean, onClose: () => void) {
   const [confirming, setConfirming] = useState(false);
 
   const requestClose = useCallback(() => {
+    if (isPending) return;
     if (hasDraft) {
       setConfirming(true);
       return;
     }
     onClose();
-  }, [hasDraft, onClose]);
+  }, [hasDraft, isPending, onClose]);
 
   const confirmDiscardAndClose = useCallback(() => {
     setConfirming(false);

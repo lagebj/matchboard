@@ -113,4 +113,28 @@ describe("A07-S1/S2 assign-reserve-success page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit lineup" }));
     expect(screen.getByTestId("fixture-simulation-caption").textContent).toMatch(/Fixture-only simulated save/);
   });
+
+  describe("PENDING blocks closing entirely (independent review finding: discarding a PENDING draft silently abandoned a submitted-but-unresolved fixture response)", () => {
+    it("Close and Escape are both blocked while PENDING; resolving to SUCCESS then allows an immediate close", () => {
+      mockViewport(true);
+      renderPage();
+      openAndSelect();
+      fireEvent.click(screen.getByRole("button", { name: "Confirm assignment" }));
+      expect(screen.getByText("Saving… (fixture simulation)")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument(); // still open — blocked, not even a prompt
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.getByRole("dialog")).toBeInTheDocument(); // Escape funnels through the same guard
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Continue fixture simulation →" }));
+      expect(screen.getByText("Saved (simulated)")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); // normal closing resumes once settled
+    });
+  });
 });

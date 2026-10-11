@@ -343,6 +343,11 @@ const scenarios = [
       { id: "draft-preview", perform: clickTestId("today-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Add player") },
       { id: "saved", perform: clickResolvePending() },
+      // Independent review (duplicate-addition finding): close after SUCCESS, then reopen —
+      // captures the genuinely new "already included" visual state (disabled candidate row,
+      // "Already included in this match" reason) that no prior capture exercised.
+      { id: "closed-after-saved", perform: clickWithinDialog("Close") },
+      { id: "reopened-already-included", perform: clickByName("Add player") },
     ],
   },
   {
@@ -393,6 +398,11 @@ const scenarios = [
       { id: "draft-preview", perform: clickTestId("today-candidate-row") },
       { id: "pending", perform: clickWithinDialog("Add match-day helper") },
       { id: "saved", perform: clickResolvePending() },
+      // Independent review (duplicate-addition finding): close after SUCCESS, then reopen —
+      // captures the genuinely new "already included" visual state, and that the separate
+      // planned-squad line still reads unchanged in this state too.
+      { id: "closed-after-saved", perform: clickWithinDialog("Close") },
+      { id: "reopened-already-included", perform: clickByName("Add match-day helper") },
     ],
   },
 ];

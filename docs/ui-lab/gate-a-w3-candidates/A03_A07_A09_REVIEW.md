@@ -84,6 +84,13 @@ field is stale relative to shipped code (disclosed, not fixed here — out of th
    mounts one editor instance), focus restoration to the trigger on close/Escape, and the dirty-
    draft close guard (A07-S6, and A09-S1 reusing the same pattern) is asserted to block an
    immediate close only when a draft exists.
+8. A09-S1/S6's roster projection (`gate-a/shared/roster-projection.ts`) is idempotent — adding the
+   same player twice never double-counts — and its displayed count is always derived from
+   `addedPlayerIds`, never tracked as a separate field that could drift out of sync.
+9. `useDirtyCloseGuard` cannot be made to close, or even offer a discard prompt, while
+   `status === "PENDING"` — verified both as a pure hook-level invariant (`it.each`-style coverage
+   across every outcome kind) and through real Close-button/`Escape` interactions on three
+   representative A07/A09 pages.
 
 ## `BLOCKED` / `CANDIDATE`-only items (disclosed, not worked around with a plausible fake)
 
@@ -95,13 +102,27 @@ conflict fixtures) or a disclosed environment limitation (local capture).
 
 - `npx tsc --noEmit -p tsconfig.json` — clean, 0 errors (full project).
 - `npx eslint src/app/dev/ui-lab/gate-a` — clean, 0 output.
-- `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — 27 files, 131 tests, all passing.
+- `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — **28 files, 138 tests**, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (component
-  config) — 26 files, **140 tests**, all passing (includes 3 new `<StrictMode>` regression tests
-  for the bug below, independently verified to fail against the pre-fix implementation).
+  config) — **26 files, 164 tests**, all passing (includes `<StrictMode>` regression tests for two
+  separate real bugs this PR's independent reviews found — see `CURRENT_STATE_AUDIT.md` items 5
+  and 8 — each independently verified to fail against its pre-fix implementation before the fix
+  landed).
+- `npm test` (both vitest configs, whole repository) — 655 files, 6742 tests, all passing on a
+  clean run; one pre-existing, unrelated flaky test disclosed in `CURRENT_STATE_AUDIT.md`'s
+  "Validation run locally" section (zero diff on this branch, fails intermittently across full-
+  suite runs, passes every time in isolation).
 - `npm run build` / full `npm run validate` — not run locally (pre-existing sandbox limitation,
   reproduces on clean `main`, passes in real CI per prior Gate A PRs); CI's `Build` and `Tests`
-  jobs both passed on the final commit.
+  jobs passed on every commit in this PR so far.
+
+**Second independent review (this round):** found two additional real defects — A09-S1/S6 permitted
+the same candidate to be added twice after a `SUCCESS` (the authoritative state was a bare count
+with no participant identity), and `useDirtyCloseGuard` allowed a `PENDING` operation to be
+discarded without ever resolving it. Both are fixed; full root-cause writeups, the new
+`gate-a/shared/roster-projection.ts` module, the `useDirtyCloseGuard` signature change, and all new
+regression tests are in `CURRENT_STATE_AUDIT.md` items 7-8. Neither fix touches W1, W2, A03, or
+production code; A07 continues to use `TouchlinePlanningPitch` unchanged.
 - **Local browser capture could not be run to completion in this session's sandbox** (devcontainer
   HMR WebSocket upgrade failure starves React hydration; reproduces on an untouched W1 page; see
   `CURRENT_STATE_AUDIT.md`). **CI's "UI Lab Visual Review" workflow succeeded** (run `38085816627`,
