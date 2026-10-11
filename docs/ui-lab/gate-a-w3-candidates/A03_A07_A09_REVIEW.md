@@ -97,15 +97,27 @@ conflict fixtures) or a disclosed environment limitation (local capture).
 - `npx eslint src/app/dev/ui-lab/gate-a` — clean, 0 output.
 - `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — 27 files, 131 tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (component
-  config) — 26 files, 137 tests, all passing.
+  config) — 26 files, **140 tests**, all passing (includes 3 new `<StrictMode>` regression tests
+  for the bug below, independently verified to fail against the pre-fix implementation).
 - `npm run build` / full `npm run validate` — not run locally (pre-existing sandbox limitation,
-  reproduces on clean `main`, passes in real CI per prior Gate A PRs); CI will run them.
-- **Local browser capture — not run to completion** (devcontainer HMR WebSocket upgrade failure
-  starves React hydration; reproduces on an untouched W1 page; see `CURRENT_STATE_AUDIT.md`).
-  `capture-attestation.json` will be added in a follow-up commit referencing this PR's real CI
-  "UI Lab Visual Review" artifact — screenshots, hashes, and interaction-state coverage for all 15
-  physical scenario pages (16 scenario IDs) at desktop/mobile/narrow + 360/430px smoke widths,
-  dark/light, will be verified against that artifact before this doc is updated to reflect it.
+  reproduces on clean `main`, passes in real CI per prior Gate A PRs); CI's `Build` and `Tests`
+  jobs both passed on the final commit.
+- **Local browser capture could not be run to completion in this session's sandbox** (devcontainer
+  HMR WebSocket upgrade failure starves React hydration; reproduces on an untouched W1 page; see
+  `CURRENT_STATE_AUDIT.md`). **CI's "UI Lab Visual Review" workflow succeeded** (run `38085816627`,
+  6m44s, against commit `bd0442ce1`) and is the real evidence source — `capture-attestation.json`
+  is committed, covering 332 screenshots across all 15 physical scenario pages (16 scenario IDs) at
+  5 viewport widths and both themes.
+  - This took three commits, not two: the FIRST CI capture run (against `7677aeddd`) surfaced a
+    real capture-script timing gap (fixed in `f43e1f0e9`), and the retry then surfaced a real
+    **application** bug — `resolvePending()` permanently stuck at `PENDING` under React Strict
+    Mode, from an impure `setState` updater that mutated a ref as a side effect (fixed in
+    `bd0442ce1`; full root-cause writeup in `CURRENT_STATE_AUDIT.md` item 5). Both fixes were
+    re-verified against a clean CI capture run before this attestation was trusted: every one of
+    the 332 captures' resolve-step screenshots was checked programmatically to have a genuinely
+    different hash from its own pending screenshot (zero exceptions), and the A07-S1/S2 "saved"
+    screenshot was additionally inspected directly — it correctly shows Tobias placed at RCM with
+    a "Saved (simulated)" banner.
 
 ## Known gaps / open product questions (not decided by this candidate)
 

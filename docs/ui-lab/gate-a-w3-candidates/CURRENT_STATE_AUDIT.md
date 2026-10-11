@@ -17,7 +17,7 @@ entries in the existing Gate A index (`src/app/dev/ui-lab/gate-a/page.tsx`). No 
 `src/domain/**`, production `src/components/**`, Prisma schema, auth/authz, or deployment file was
 touched. W1's four approved candidates and W2's six `APPROVED_GOLDEN` A04 scenarios are unmodified
 — re-confirmed by running the full `src/app/dev/ui-lab/gate-a` test suite (27 node-config files /
-131 tests, 26 component-config files / 137 tests, all passing) after every family was built.
+131 tests, 26 component-config files / 140 tests, all passing) after every family was built.
 
 ## Repository state found (independently re-verified against the live repo, not the bundle's dated claims)
 
@@ -86,13 +86,15 @@ same failure reproduces on `/dev/ui-lab/gate-a/a01-sports-first` — an untouche
 page, zero code changes. A freshly-restarted dev server (after killing a stale multi-day-old
 `next-server` process) and a chromium reinstall did not change the result.
 
-Consequently: **component/unit test coverage (vitest + jsdom) is the real verification signal in
+Consequently: **component/unit test coverage (vitest + jsdom) was the first verification signal in
 this session** — it does not depend on real browser hydration and passed in full (see
-"Validation" below). **Real screenshot capture is deferred to CI.** `capture-attestation.json` is
-deliberately not included in this PR's first commit; it will be added in a follow-up commit
-referencing the real `sourceCommitSha` and per-image SHA-256 once the PR's "UI Lab Visual Review"
-GitHub Actions workflow (a clean, non-proxied runner) produces its artifact — the same two-commit
-pattern W1/W2 used for their own attestations, not a new shortcut invented for this gap.
+"Validation" below). **Real screenshot capture ran in CI instead**, and caught two genuine bugs
+component tests had missed (see items 4 and 5 below) — both fixed and re-verified against a fresh
+CI capture run before this attestation was written. `capture-attestation.json` is included in this
+PR, generated from CI run `38085816627` against commit `bd0442ce1b8c5b49d6f339044ae6c1bfb51782d9`
+(branch tip at the time) / `7d8e0468efe41c75b0fb08d35fdbf3d84826ef44` (CI's synthetic merge commit)
+— the two-commit attestation pattern W1/W2 used, except here it took three commits because the
+first CI capture run surfaced a real bug worth fixing before trusting the evidence.
 
 ## Real bugs found and fixed while implementing (disclosed, not hidden)
 
@@ -112,6 +114,30 @@ pattern W1/W2 used for their own attestations, not a new shortcut invented for t
    in the CONFLICT banner, one in the main action row — same accessible name, two different click
    targets. Fixed by removing the banner's own button and keeping the single canonical one in the
    action row.
+4. **Capture script screenshotted the resolve step before React's re-render committed.** The PR's
+   first CI capture run (`38084153831`, against commit `7677aeddd`) showed every A07 desktop
+   "resolved" screenshot (saved/denied/conflict/planning-closed) pixel-identical to its own
+   "pending" screenshot, and two of A09's four desktop resolve cases showing the same symptom —
+   `clickWithinDialog("Continue fixture simulation →")` clicked the resolve control and the capture
+   loop screenshotted immediately after, racing ahead of the commit. Fixed by a dedicated
+   `clickResolvePending()` helper that explicitly waits for the "Saving… (fixture simulation)"
+   banner to detach before returning (commit `f43e1f0e9`).
+5. **`resolvePending()` was permanently stuck at `PENDING` under React Strict Mode — a real
+   application bug, not a timing artifact.** The explicit wait added for bug 4 then *timed out*
+   (10s, never resolving) on the next CI run, proving the desktop path never transitioned at all.
+   Root cause: `gate-a/shared/fixture-operation.ts`'s `submit`/`resolvePending` mutated a `useRef`
+   as a side effect *inside* their `setState` functional updater — an impure updater. React Strict
+   Mode (on by default for Next.js App Router in dev, which is exactly what `next dev` runs for the
+   capture script) intentionally invokes every updater **twice** to catch this, keeping only the
+   second call's result; the first invocation's `pendingOutcomeRef.current = null` side effect had
+   already run by the time the second invocation read the ref, so the second call always saw a
+   `null` outcome and silently no-opped. `@testing-library/react`'s `renderHook` does not wrap in
+   Strict Mode by default, so this wave's original component tests never exercised the
+   double-invoke and all passed — only a real `next dev` server (CI's, not reachable from this
+   session's sandbox either way) could catch it. Fixed by moving `pendingOutcome` into the hook's
+   React state instead of a ref, making every updater pure and idempotent (commit `bd0442ce1`). A
+   dedicated `<StrictMode>`-wrapped test suite was added and independently verified to fail against
+   the old ref-based implementation and pass against the fix, before trusting it.
 
 ## Validation run locally
 
@@ -119,13 +145,20 @@ pattern W1/W2 used for their own attestations, not a new shortcut invented for t
 - `npx eslint src/app/dev/ui-lab/gate-a` — clean, 0 output.
 - `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — 27 files, 131 tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (component
-  config) — 26 files, 137 tests, all passing.
+  config) — 26 files, **140 tests** (137 + 3 new `<StrictMode>` regression tests for bug 5), all
+  passing.
 - `node --check scripts/ui-lab-visual-review.mjs` — syntactically valid.
 - `npm run build` / full `npm run validate` — **NOT RUN locally**, same pre-existing sandbox
-  limitation documented in W1/W2's own audits (reproduces on clean `main`, passes in real CI); CI
-  will run them.
-- Local browser capture — **NOT RUN to completion**, see "Local capture-script limitation" above;
-  CI's "UI Lab Visual Review" workflow will produce the real artifact.
+  limitation documented in W1/W2's own audits (reproduces on clean `main`, passes in real CI); CI's
+  `Build` and `Tests` jobs both passed on the final commit (`bd0442ce1`).
+- Local browser capture — **NOT RUN to completion** in this session's sandbox, see "Local
+  capture-script limitation" above. **CI's "UI Lab Visual Review" workflow succeeded** on the final
+  commit (run `38085816627`, 6m44s) and produced all 332 W3 screenshots across 16 scenario IDs, 5
+  viewport widths, and both themes — independently re-verified in this session: every resolve-step
+  screenshot (saved/denied/conflict/planning-closed) now has a genuinely different hash from its
+  own pending screenshot (zero exceptions across all 332 captures, checked programmatically), and
+  the A07-S1/S2 "saved" screenshot was visually re-inspected directly — Tobias correctly appears at
+  RCM on the pitch with a "Saved (simulated)" banner. See `capture-attestation.json`.
 
 ## Version impact
 
