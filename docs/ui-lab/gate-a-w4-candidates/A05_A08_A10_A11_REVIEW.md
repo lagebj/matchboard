@@ -4,10 +4,15 @@
 
 No owner review has occurred. Technical implementation, passing local tests, and `tsc`/`eslint`/
 `terminology:check`/`policy:verify` success **do not themselves approve a golden** — per
-`23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing screenshot pipeline is not approval." No CI
-visual-capture run has occurred yet either (see `BLOCKERS.md` W4-BLK-11) — this record is
-submitted for review with **zero** screenshot evidence attached. All 13 scenario IDs remain
-`CANDIDATE` in `candidate_manifest.json`.
+`23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing screenshot pipeline is not approval." All 13
+scenario IDs remain `CANDIDATE` in `candidate_manifest.json`.
+
+**Capture evidence status:** real local screenshot evidence now exists — `capture-attestation.json`
+(182 captures, all 13 scenarios × 5 viewports × 2 themes + interaction states, zero console/page
+errors, visually spot-checked in this session) — but it was captured **locally in this agent
+sandbox session**, not by CI, and the underlying PNG files are not committed or uploaded anywhere
+durable (see `BLOCKERS.md` W4-BLK-11). A CI run of `ui-lab-visual-review.yml` against this PR's
+actual head commit, producing a durable downloadable artifact, has not yet been triggered/observed.
 
 ## What this candidate proves
 

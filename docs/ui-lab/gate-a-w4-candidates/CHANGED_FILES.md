@@ -22,6 +22,8 @@ fixture-operation,match-w3-fixture,roster-projection}.ts` file were modified —
 - `docs/ui-lab/gate-a-w4-candidates/ACTION_OWNERSHIP.md`
 - `docs/ui-lab/gate-a-w4-candidates/A05_A08_A10_A11_REVIEW.md`
 - `docs/ui-lab/gate-a-w4-candidates/candidate_manifest.json`
+- `docs/ui-lab/gate-a-w4-candidates/capture-attestation.json` (committed as a separate, later
+  commit referencing the code commit's own SHA — same two-commit pattern as W1-W3)
 - `docs/ui-lab/gate-a-w4-candidates/CHANGED_FILES.md` (this file)
 - `docs/ui-lab/gate-a-w4-candidates/visual_vs_current/A05_A08.md`
 - `docs/ui-lab/gate-a-w4-candidates/visual_vs_current/A10.md`
