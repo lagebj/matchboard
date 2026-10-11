@@ -1,7 +1,7 @@
 {
   "description": "Gate A W3 (A03/A07/A09) UI Lab visual-review evidence. Not an approved golden \u2014 requires human approval.",
-  "sourceCommitSha": "7d8e0468efe41c75b0fb08d35fdbf3d84826ef44",
-  "generatedAt": "2026-10-10T21:05:00.225Z",
+  "sourceCommitSha": "5e9eba1786ee2c1831d6f9d26a3767079126c316",
+  "generatedAt": "2026-10-11T07:48:53.615Z",
   "environment": {
     "node": "v24.21.0",
     "platform": "linux",
@@ -10,7 +10,8 @@
   "knownLimitations": [
     "Captured against a GitHub Actions CI runner (not this session's local sandbox, which could not complete hydration \u2014 see CURRENT_STATE_AUDIT.md).",
     "Gate A W3 scenarios (scenario slugs prefixed gate-a-w3-) are CANDIDATE only \u2014 see docs/ui-lab/gate-a-w3-candidates/.",
-    "This attestation reflects CI run 38085816627 against commit bd0442ce1b8c5b49d6f339044ae6c1bfb51782d9 (branch tip); sourceCommitSha above is CI's synthetic merge-into-main commit, which legitimately differs from the branch-tip commit per GitHub's pull_request trigger semantics \u2014 same precedent as W1/W2."
+    "This attestation reflects CI run 38122262239 against commit eea27298e3c97371245d6a2c6152b6137e194d44 (branch tip); sourceCommitSha above is CI's synthetic merge-into-main commit, which legitimately differs from the branch-tip commit per GitHub's pull_request trigger semantics \u2014 same precedent as W1/W2.",
+    "Supersedes the attestation generated for commit bd0442ce1: two real post-review fixes (A09 duplicate-addition prevention, PENDING-close blocking) changed the A09-S1/S6 'saved' state's candidate-row content (now correctly shows 'Already included in this match' immediately on SUCCESS) and added two new interaction states (closed-after-saved, reopened-already-included) for A09-S1/S6 \u2014 see CURRENT_STATE_AUDIT.md items 7-8 and its 'Visual capture evidence' section for the full empirical verification record, including a capture-script timing bug found and fixed along the way (commit eea27298e)."
   ],
   "approvalStatus": "CANDIDATE",
   "captures": [
@@ -1092,7 +1093,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w3-a07-assign-reserve-success-mobile-light-saved.png",
-      "sha256": "24e5e7d93daafef68c3d0f683e9429147c54f37707209ccf66c5349b5bf6de87"
+      "sha256": "2e564cbc4503be8bee41168a2aaa796bd3b5b9c1905e50a6b9c6e3d7da8213ba"
     },
     {
       "scenarioId": "A07-S1/A07-S2",
@@ -2028,7 +2029,7 @@
       "theme": "light",
       "interactionState": "planning-closed",
       "file": "gate-a-w3-a07-planning-closed-after-opening-mobile-light-planning-closed.png",
-      "sha256": "1eeb6c3e12060c6ac945dd77220d9fa4683666446a1ca2125fe4339c657ed393"
+      "sha256": "9a22d5d63973f0d13af9b03b1e5f2976a980ccebef0f5cb4479f7d2052caa6ef"
     },
     {
       "scenarioId": "A07-S5",
@@ -2124,7 +2125,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w3-a07-dirty-draft-close-desktop-dark-editor-open.png",
-      "sha256": "cb752dc7f4900b4ca8a545287c1ae5ff8874d68c3e636086a190c427727a777b"
+      "sha256": "737e15f1decf58084909217d8987c9ab1441b42cad11b7638b359fc0734362f4"
     },
     {
       "scenarioId": "A07-S6",
@@ -2148,7 +2149,7 @@
       "theme": "dark",
       "interactionState": "discard-prompt",
       "file": "gate-a-w3-a07-dirty-draft-close-desktop-dark-discard-prompt.png",
-      "sha256": "86aea5f8d22cb66b77ae0e2ee0724b6331de505056bd19b5a0f33cb1dcebde12"
+      "sha256": "655f8d02d557082b01a7a66899c579bd2bcc02dc116da96cdaf3ee6c2537ff23"
     },
     {
       "scenarioId": "A07-S6",
@@ -2256,7 +2257,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-a-w3-a07-dirty-draft-close-mobile-dark-draft-preview.png",
-      "sha256": "08928fd72734bf220cf39ea99ff3109be898f986c67072a60bac7419cd202e5f"
+      "sha256": "8abd531c87e20bd879ad705fb8582416dc9319baae7ddb4fbdb141bac4fbbafa"
     },
     {
       "scenarioId": "A07-S6",
@@ -2472,7 +2473,31 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-add-eligible-player-success-desktop-dark-saved.png",
-      "sha256": "abc3b3303afca1287fbf7ab593fffa0cc03b019e475335e860b03d5487ae2af7"
+      "sha256": "6e9aa48978d9cbaaffabd6d0358e612ea2bf8e50602d475dc48883f814b5f12c"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-add-eligible-player-success-desktop-dark-closed-after-saved.png",
+      "sha256": "3df6a90bb5454e65968fb85dd3c8bf8dae11e847233fa366e776c083dc0376f5"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-add-eligible-player-success-desktop-dark-reopened-already-included.png",
+      "sha256": "60963f8ddd6cb39ccfa6afd0f145850a7bf43c1562aef1d79c7fda62185bf12e"
     },
     {
       "scenarioId": "A09-S1",
@@ -2532,7 +2557,31 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-add-eligible-player-success-desktop-light-saved.png",
-      "sha256": "bdc60d87230b9b22c3e83e5ac638a4bcfb1e89e0c0eec6b9241a3e678383843a"
+      "sha256": "e83eddc2befd2b2509bad7f6517bf6c42ab89cd0bb35484eef4faac20bd5b04b"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-add-eligible-player-success-desktop-light-closed-after-saved.png",
+      "sha256": "348efda04088ef2fbcbc7f84cbe4381360c35b627ed26ef1b9106563d7770aab"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-add-eligible-player-success-desktop-light-reopened-already-included.png",
+      "sha256": "05e1acb4b08462e6b05ac8c222a159bd3f0fbec9741837b10395b35f8bc0d3fb"
     },
     {
       "scenarioId": "A09-S1",
@@ -2592,7 +2641,31 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-add-eligible-player-success-mobile-dark-saved.png",
-      "sha256": "fa3a574e374a3d02b5f23e1e167f059a8cf121fe3dac6cc12c732a957fdaa3a5"
+      "sha256": "eb4703e5d37e2da3765c4622e90ca98c3ada42c9186d517d7b12116f8e16ffe0"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-add-eligible-player-success-mobile-dark-closed-after-saved.png",
+      "sha256": "14be65940855538d478fe941ca60582121b7853bf6c76833b6c7973d4ca35b36"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-add-eligible-player-success-mobile-dark-reopened-already-included.png",
+      "sha256": "a918658065a6308816450372a60fc9ef2c37ef7f275dc9af2b68a8e78b6c9c2d"
     },
     {
       "scenarioId": "A09-S1",
@@ -2652,7 +2725,31 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-add-eligible-player-success-mobile-light-saved.png",
-      "sha256": "f5be292eb6e01090dd390a5b2927862f00d8646d0556a022e6b0d483ba62f62c"
+      "sha256": "e6d088f265f1ac6d8efe17af39820f184641991e77ee41b4b8128621f85f0e29"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-add-eligible-player-success-mobile-light-closed-after-saved.png",
+      "sha256": "2fc05b1e8271cf811dcd0c9fb8672cbbf1a6da503bc96fdacee7cf9a36fa0fb9"
+    },
+    {
+      "scenarioId": "A09-S1",
+      "scenario": "gate-a-w3-a09-add-eligible-player-success",
+      "route": "gate-a/a09-today-quick-action/add-eligible-player-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-add-eligible-player-success-mobile-light-reopened-already-included.png",
+      "sha256": "cedcd6c97e89f742aad5a2c7f95fe8bf07b671a1b52b9a404f2b25b4d610fec4"
     },
     {
       "scenarioId": "A09-S1",
@@ -3744,7 +3841,31 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-match-day-addition-desktop-dark-saved.png",
-      "sha256": "c2d581622b0e8640dce41dcb35d2b6d3259afae08968d21b34e6c70e1738fba8"
+      "sha256": "188493304bb644daca4438422e36e58fa5a5ecf9fb0b14548f03c87807f85899"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-match-day-addition-desktop-dark-closed-after-saved.png",
+      "sha256": "9582770757f74e60eafa34ba178a50e103b9465f80d9ac1d2e9ed515de9429c2"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-match-day-addition-desktop-dark-reopened-already-included.png",
+      "sha256": "f510a0117b1fce7b5a565f31bb762520f766fd1069a2de3f4f9be65f0511ef83"
     },
     {
       "scenarioId": "A09-S6",
@@ -3804,7 +3925,31 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-match-day-addition-desktop-light-saved.png",
-      "sha256": "6dcd63830682e969a1aa6eb7f7a312904699801aa6b188d4a039385679cbf5f3"
+      "sha256": "e7959851a4d46f78c21e3a5117a983d8712ca7a4b44c9109e24d49adc145d1f1"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-match-day-addition-desktop-light-closed-after-saved.png",
+      "sha256": "1ea7f152f61780d734920fc38169edb29aab143b28ca62cf822e95bfa5271ac9"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-match-day-addition-desktop-light-reopened-already-included.png",
+      "sha256": "c653257a55f6bd61052e5b4fbc567614f4ac73a28e9c2517d5c797281b30e564"
     },
     {
       "scenarioId": "A09-S6",
@@ -3864,7 +4009,31 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-match-day-addition-mobile-dark-saved.png",
-      "sha256": "3a7dd4f9964eb558ecd5da1a8a621cf6a6721aa10f047bcb0fc2226c1ab253d0"
+      "sha256": "90803910f139ce3d8f08e39824f3e1fb9853aec0ea39068e392c4dd18da1389f"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-match-day-addition-mobile-dark-closed-after-saved.png",
+      "sha256": "fa5f853a79b2d47476b7b1b9e9b1bdc42945917952360eee43caf70dc63b5d8f"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-match-day-addition-mobile-dark-reopened-already-included.png",
+      "sha256": "e4b9218b1818a4a576ee34289523e185585ae7797758fcc8eff061f054286d86"
     },
     {
       "scenarioId": "A09-S6",
@@ -3924,7 +4093,31 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w3-a09-match-day-addition-mobile-light-saved.png",
-      "sha256": "af4099910a02eb1d865e84ba75ab3a9d1ba5d0c4bb89106ca103f06f039092a0"
+      "sha256": "f1e0452323db50743de144591c0cba36807b467809efff26405d17fdcbbde34a"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w3-a09-match-day-addition-mobile-light-closed-after-saved.png",
+      "sha256": "2bea543df9d5f87b74508a8e4b26435d5dc69b344001c2c0e24be8ee0ac7e47e"
+    },
+    {
+      "scenarioId": "A09-S6",
+      "scenario": "gate-a-w3-a09-match-day-addition",
+      "route": "gate-a/a09-today-quick-action/match-day-addition",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "reopened-already-included",
+      "file": "gate-a-w3-a09-match-day-addition-mobile-light-reopened-already-included.png",
+      "sha256": "eafed4e505a3f5f727b16122a74abbbb64a8c67b814d7c2d7247544c8797a702"
     },
     {
       "scenarioId": "A09-S6",

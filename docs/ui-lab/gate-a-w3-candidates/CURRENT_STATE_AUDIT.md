@@ -264,8 +264,7 @@ comparison found three categories of result, not one:
    that simply had not been unlucky enough to manifest in any prior run of this PR. Fixed generically
    in `clickByName` itself: after the click, if a genuinely modal dialog now exists, wait for it to
    reach its final on-screen position before returning (same settle check already used elsewhere in
-   this script). A fresh CI capture run is required to confirm the fix and produce the final,
-   trustworthy attestation — see below for that run's result once available.
+   this script).
 
 Two genuinely new interaction states were added to the capture matrix for A09-S1 and A09-S6
 (`closed-after-saved`, `reopened-already-included`) to capture bug 7's new "already included,
@@ -273,8 +272,23 @@ disabled" visual state after a close/reopen specifically (distinct from category
 the *same* state immediately on save, before any close). A07's PENDING-block fix (bug 8) produces
 no new visual state anywhere (a blocked dismissal attempt leaves the DOM unchanged, confirmed: every
 A07 capture this round differed from the prior run by 0.000-0.002%, i.e. sub-pixel rendering noise
-only) and needs no new capture entries. See `capture-attestation.json` and its own disclosure for
-the exact CI run this was verified against.
+only) and needs no new capture entries.
+
+**Final confirming run, after the `clickByName` fix (CI run `38122262239`, commit `eea27298e`):**
+downloaded and re-verified from scratch. The three previously-broken mobile `sheet-open` captures
+(A09-S2, A09-S3, A09-S6) are now **byte-identical (0.0000% pixel difference)** to their last known-
+good versions from before any of this round's changes — confirming the capture-script fix, not just
+hoping it worked. A full key-based diff of this run's 348 W3 captures against the previously-committed
+`capture-attestation.json`'s 332 found: **16 new keys** (exactly the two new interaction states × 2
+scenarios × 2 viewports × 2 themes, no more, no fewer), **0 removed keys**, and **13 changed-hash
+keys among the 332 originals** — 8 are the expected A09-S1/S6 `saved`-state content change (category
+2 above), and the other 5 (scattered across A07) were individually re-measured at 0.0001-0.0064%
+pixel difference, confirming sub-pixel rendering noise, not content changes. The new
+`reopened-already-included` state was also visually inspected directly
+(`gate-a-w3-a09-match-day-addition-mobile-light-reopened-already-included.png`): "Operational
+roster: 9", "Didrik ✕ Already included in this match" (disabled), and the separate "Planned squad:
+8/9 (unchanged by this action)" line all correctly present together. `capture-attestation.json` is
+updated from this run (348 captures, `sourceCommitSha` `5e9eba1786ee2c1831d6f9d26a3767079126c316`).
 
 ## Validation run locally
 

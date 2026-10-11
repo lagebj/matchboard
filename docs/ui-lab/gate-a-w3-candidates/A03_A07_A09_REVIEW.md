@@ -122,23 +122,37 @@ with no participant identity), and `useDirtyCloseGuard` allowed a `PENDING` oper
 discarded without ever resolving it. Both are fixed; full root-cause writeups, the new
 `gate-a/shared/roster-projection.ts` module, the `useDirtyCloseGuard` signature change, and all new
 regression tests are in `CURRENT_STATE_AUDIT.md` items 7-8. Neither fix touches W1, W2, A03, or
-production code; A07 continues to use `TouchlinePlanningPitch` unchanged.
+production code; A07 continues to use `TouchlinePlanningPitch` unchanged. Verifying this round's
+capture-evidence impact also surfaced and fixed a third, pre-existing bug — this one in the capture
+script itself (`clickByName`'s missing mobile-sheet settle wait, item 9's write-up is folded into
+`CURRENT_STATE_AUDIT.md`'s "Visual capture evidence" section) — found by actually downloading and
+pixel-comparing a CI run rather than assuming the initial prediction was right.
+
 - **Local browser capture could not be run to completion in this session's sandbox** (devcontainer
   HMR WebSocket upgrade failure starves React hydration; reproduces on an untouched W1 page; see
-  `CURRENT_STATE_AUDIT.md`). **CI's "UI Lab Visual Review" workflow succeeded** (run `38085816627`,
-  6m44s, against commit `bd0442ce1`) and is the real evidence source — `capture-attestation.json`
-  is committed, covering 332 screenshots across all 15 physical scenario pages (16 scenario IDs) at
-  5 viewport widths and both themes.
-  - This took three commits, not two: the FIRST CI capture run (against `7677aeddd`) surfaced a
-    real capture-script timing gap (fixed in `f43e1f0e9`), and the retry then surfaced a real
-    **application** bug — `resolvePending()` permanently stuck at `PENDING` under React Strict
-    Mode, from an impure `setState` updater that mutated a ref as a side effect (fixed in
-    `bd0442ce1`; full root-cause writeup in `CURRENT_STATE_AUDIT.md` item 5). Both fixes were
-    re-verified against a clean CI capture run before this attestation was trusted: every one of
-    the 332 captures' resolve-step screenshots was checked programmatically to have a genuinely
-    different hash from its own pending screenshot (zero exceptions), and the A07-S1/S2 "saved"
-    screenshot was additionally inspected directly — it correctly shows Tobias placed at RCM with
-    a "Saved (simulated)" banner.
+  `CURRENT_STATE_AUDIT.md`). **CI's "UI Lab Visual Review" workflow succeeded** (final confirming
+  run `38122262239`, 6m40s, against commit `eea27298e`) and is the real evidence source —
+  `capture-attestation.json` is committed, covering **348 screenshots** across all 15 physical
+  scenario pages (16 scenario IDs) at 5 viewport widths and both themes (332 original + 16 for the
+  two new `closed-after-saved`/`reopened-already-included` states added this round).
+  - This W3 attestation took five commits across two review rounds, not two: in the first round,
+    the FIRST CI capture run (against `7677aeddd`) surfaced a real capture-script timing gap
+    (fixed in `f43e1f0e9`), and the retry then surfaced a real **application** bug —
+    `resolvePending()` permanently stuck at `PENDING` under React Strict Mode, from an impure
+    `setState` updater that mutated a ref as a side effect (fixed in `bd0442ce1`; full root-cause
+    writeup in `CURRENT_STATE_AUDIT.md` item 5). In the second round (this one), fixing the two
+    application bugs the second independent review found (items 7-8) led to re-checking capture
+    evidence, which surfaced and fixed a second capture-script bug — a missing mobile-sheet settle
+    wait in `clickByName` (fixed in `eea27298e`; full write-up in `CURRENT_STATE_AUDIT.md`'s
+    "Visual capture evidence" section). Every fix in both rounds was re-verified against a clean CI
+    capture run before being trusted: for round one, every resolve-step screenshot was checked
+    programmatically to have a genuinely different hash from its own pending screenshot (zero
+    exceptions), and the A07-S1/S2 "saved" screenshot was inspected directly. For round two, the
+    three previously-broken mobile `sheet-open` captures were confirmed byte-identical
+    (0.0000% pixel difference) to their last known-good versions, a full key-based diff against the
+    prior attestation found exactly the 16 expected new keys and 0 unexpected removals, and the 13
+    changed-hash keys among the 332 originals were individually classified (8 expected content
+    changes, 5 sub-pixel noise at 0.0001-0.0064%) rather than assumed safe.
 
 ## Known gaps / open product questions (not decided by this candidate)
 
