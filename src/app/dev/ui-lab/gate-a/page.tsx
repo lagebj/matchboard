@@ -2,16 +2,21 @@ import Link from "next/link";
 import { TouchlineWordmark, AppearanceControl } from "@/components/touchline";
 
 /**
- * `/dev/ui-lab/gate-a` index — Matchboard Experience Convergence, Gate A W0/W1 UI Lab-only
- * candidate (handoff `01_START_PROMPT_FOR_AGENT.md`). Development-only, no production route
+ * `/dev/ui-lab/gate-a` index — Matchboard Experience Convergence, Gate A W0/W1/W2/W3 UI Lab-only
+ * candidates (handoff `01_START_PROMPT_FOR_AGENT.md`). Development-only, no production route
  * touched. Every case here is `CANDIDATE`, never an approved golden — see
- * `docs/ui-lab/gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md` for the per-case review record.
+ * `docs/ui-lab/gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md`,
+ * `docs/ui-lab/gate-a-w2-candidates/A04_REVIEW.md`, and
+ * `docs/ui-lab/gate-a-w3-candidates/A03_A07_A09_REVIEW.md` for the per-case review records.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-a/a01-sports-first", id: "A01", title: "Global composition — sports-first hierarchy" },
   { href: "/dev/ui-lab/gate-a/a02-match-lifecycle", id: "A02", title: "Match identity across planned / live / completed" },
+  { href: "/dev/ui-lab/gate-a/a03-decision-anatomy", id: "A03", title: "Decision anatomy — actionable vs closed vs denied vs integrity signal" },
   { href: "/dev/ui-lab/gate-a/a04-evidence-grammar", id: "A04", title: "Evidence grammar — known, measured, unrecorded, and validly inferred" },
   { href: "/dev/ui-lab/gate-a/a06-position-pitches", id: "A06", title: "Tactical 5×6 pitch vs flat profile 3×6 analysis map" },
+  { href: "/dev/ui-lab/gate-a/a07-match-details-edit-lineup", id: "A07", title: "Match Details edit lineup — context-local inspector/sheet, save-flow state machine" },
+  { href: "/dev/ui-lab/gate-a/a09-today-quick-action", id: "A09", title: "Today quick action — same-day add, planned vs match-day addition" },
   { href: "/dev/ui-lab/gate-a/a12-profile-editor", id: "A12", title: "14-role profile picker vs 24-code exact match evidence" },
 ];
 
