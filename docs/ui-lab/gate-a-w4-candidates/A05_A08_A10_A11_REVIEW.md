@@ -1,0 +1,61 @@
+# Gate A W4 — A05/A08/A10/A11 Review Record
+
+## Status: NOT SUBMITTED / PENDING
+
+No owner review has occurred. Technical implementation, passing local tests, and `tsc`/`eslint`/
+`terminology:check`/`policy:verify` success **do not themselves approve a golden** — per
+`23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing screenshot pipeline is not approval." No CI
+visual-capture run has occurred yet either (see `BLOCKERS.md` W4-BLK-11) — this record is
+submitted for review with **zero** screenshot evidence attached. All 13 scenario IDs remain
+`CANDIDATE` in `candidate_manifest.json`.
+
+## What this candidate proves
+
+| Case | Coach question | States exercised |
+|---|---|---|
+| A05-disabled | Does Assistant Coach off leave no reserved gap and deterministic facts untouched? | Absent, deterministic unaffected |
+| A05-enabled-with-pattern | Is a valuable hypothesis conspicuous, cited, and clearly not a fact? | Hypothesis card, simulated promote/dismiss |
+| A05-enabled-without-pattern | Does "ran, found nothing" read differently from "off"? | Honest quiet notice |
+| A05-unavailable | Does an AI failure stay restrained, with facts intact? | Unavailable notice, deterministic unaffected |
+| A08-off | Same layout, no reserved gap, as a parity structural property? | `assistant-coach-slot` absent entirely |
+| A08-on-strong-pattern | Same layout, conspicuous synthesis? | `assistant-coach-slot` contains the hypothesis card |
+| A08-on-no-insight | Same layout, no filler? | `assistant-coach-slot` contains only the honest notice |
+| A10-review-alternative-success | Can I review an evidence-backed lineup proposal and apply it in place? | Open, evidence/rationale/limitations, diff preview, pending, `SUCCESS` |
+| A10-stale-proposal-blocked | Is a stale proposal blocked before I can even try to apply it? | Inspectable, no Apply affordance, revision mismatch stated |
+| A10-disabled-or-failed | Does "no proposal" stay honest and point back to manual editing? | No proposal, reachable entry point |
+| A11-coach-text-and-parsed-evidence | Can I see exactly what was structured from my own note, and nothing more? | Original note + validated parsed observations |
+| A11-profile-change-review-guarded | Can I review and explicitly accept a guarded profile-change proposal? | Before/after, evidence, `ACCEPTED` (simulated) |
+| A11-profile-change-review-rejected | Can I reject (or defer) without any change or implicit write? | `REJECTED`/`DEFERRED` (simulated) |
+
+## Requirement traceability
+
+| Requirement | Source | Covered by |
+|---|---|---|
+| A05/A08/A10/A11 per-ID definition | `programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv` rows 6, 31, 37, 38 | `CONTRACT_RECONCILIATION.md`; all 13 scenarios |
+| XR-I01/XR-I02 context-local interaction | `programme_v054/17_CONTEXT_LOCAL_INTERACTION_CONTRACT.md` | Desktop inspector/mobile sheet pattern, A10; `SAME_VIEW`, A05/A08/A11 |
+| Assistant Coach capability families 1-3 | `programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md` | A05/A08 (interpret), A10 (structured assistance), A11 (governed learning) |
+| Deterministic facts survive AI state | `src/lib/matches/match-insights/get-match-insights.ts` (verified) | A05/A08, all four states |
+| No AI write without coach approval | `programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md` D4 | A10 (Apply is coach-triggered only), A11 (Accept/Reject/Defer) |
+
+## Owner review questions (per `18_OWNER_VISUAL_REVIEW_SHEET.md`)
+
+1. Can I understand each Assistant Coach state without a separate AI workspace?
+2. Are recorded facts, deterministic findings, and AI suggestions visually distinct in every state?
+3. Do I understand evidence strength, limitations, and uncertainty before any action?
+4. Can I tell exactly what a structured proposal or profile-change review would change?
+5. Does the pitch (A10) remain readable on a 390px phone and at the 600/768/840px breakpoints?
+6. Do unavailable, stale, and no-insight states remain useful rather than alarming?
+7. Can I reject, discard, or defer without accidental changes?
+8. Are pending, applied, stale, and unavailable states honest and safe?
+9. Does this improve coach decisions enough to justify later production implementation, given the
+   disclosed gaps in `BLOCKERS.md` (especially W4-BLK-03/04/09/10)?
+
+## Approval fields (per scenario, to be completed only by the repository owner)
+
+- `status`: CANDIDATE / APPROVED_GOLDEN / REVISE / REJECT — currently `CANDIDATE` for all 13.
+- `approvedBy`, `approvedAt` — not set.
+- `scope`: design reference ONLY, same scope boundary as every prior Gate A wave.
+- Capture evidence: **none exists yet** — a CI `UI Lab Visual Review` run against this PR's head
+  SHA is required before any approval can cite capture hashes.
+
+**No code merge, release, or further programme wave is implied or authorized by this candidate.**
