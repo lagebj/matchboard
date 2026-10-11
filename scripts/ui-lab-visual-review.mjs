@@ -86,9 +86,36 @@ const w3ExtraSmokeViewports = [
  * page-level trigger (clicked before any dialog exists) and for controls with their own distinct
  * name (A07's "Confirm assignment", both families' "Continue fixture simulation →", "Close").
  */
+/**
+ * Real-CI finding (commit 1c0ff4c97's capture run): three mobile `sheet-open` captures
+ * (add-player-denied, add-player-rsvp-blocked, match-day-addition) came back ~50% different from
+ * their own prior-run hashes — not noise (compare: unrelated same-content captures differed by
+ * single-digit pixel counts out of ~330k). Direct visual inspection showed the mobile bottom
+ * sheet had not opened at all in the new captures: still off-screen, as if the screenshot fired
+ * before `TouchlineBottomSheet`'s own `requestAnimationFrame`-driven enter transition committed.
+ * `clickByName` — used for every A07/A09 "open" trigger — never waited for this, unlike A01's and
+ * A04's own open-interaction helpers (which already settle-wait the sheet). This is pre-existing,
+ * timing-dependent flakiness in the capture script itself (not an application bug, not something
+ * this round's code changes caused) that happened not to manifest in earlier runs purely by luck
+ * — S1's `sheet-open` in this exact run was unaffected. Fixed generically: after the click, if a
+ * genuinely modal dialog now exists (`aria-modal="true"`, i.e. the mobile sheet), wait for it to
+ * settle into its final on-screen position before returning — the same settle check already used
+ * elsewhere in this script. A07's `editor-open` step uses this same helper and was equally
+ * exposed; fixing it here covers both families without duplicating the wait logic.
+ */
 function clickByName(name) {
   return async function perform(page) {
     await page.getByRole("button", { name, exact: true }).click();
+    const isSheet = await page.evaluate(() => document.querySelector('[role="dialog"]')?.getAttribute("aria-modal") === "true");
+    if (isSheet) {
+      await page.waitForFunction(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (!dialog) return false;
+        const rect = dialog.getBoundingClientRect();
+        return rect.height > 0 && rect.bottom <= window.innerHeight + 2;
+      }, { timeout: 10000 });
+      await page.waitForTimeout(100);
+    }
   };
 }
 function clickWithinDialog(name) {

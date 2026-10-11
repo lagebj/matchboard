@@ -228,18 +228,53 @@ first CI capture run surfaced a real bug worth fixing before trusting the eviden
 
 ## Visual capture evidence (this round)
 
-Neither fix changes any of the four already-captured A09-S1/S6 interaction states
-(`sheet-open`/`draft-preview`/`pending`/`saved`): the roster projection starts empty either way, so
-`deriveCandidate()` returns identical `eligible`/`reasons` values throughout that entire sequence,
-and `rosterDisplayCount()` computes the identical number the old `authoritative + 1` arithmetic
-did. This is not assumed — it is re-verified empirically in CI below, not merely reasoned about
-locally, per this round's own instruction not to assume unchanged initial screens imply an
-unchanged attestation. Two genuinely new interaction states were added to the capture matrix for
-A09-S1 and A09-S6 (`closed-after-saved`, `reopened-already-included`) to capture bug 7's new
-"already included, disabled" visual state, which no prior capture exercised. A07's PENDING-block
-fix (bug 8) produces no new visual state anywhere (a blocked dismissal attempt leaves the DOM
-unchanged) and needs no new capture entries. See `capture-attestation.json` and its own disclosure
-for the exact CI run this was verified against.
+**The initial prediction here was wrong in one respect, found only by actually checking — not by
+reasoning about it a second time.** The hypothesis going in was that none of the four
+already-captured A09-S1/S6 interaction states (`sheet-open`/`draft-preview`/`pending`/`saved`)
+would change. This was verified empirically against a real CI capture run (`38121549351`, commit
+`1c0ff4c97`, downloaded and compared pixel-for-pixel against the committed `capture-attestation.json`),
+exactly as this round required — not assumed because the initial screens looked unchanged. The
+comparison found three categories of result, not one:
+
+1. **Confirmed unchanged, as predicted:** `sheet-open`, `draft-preview`, and `pending` for both
+   A09-S1 and A09-S6, and every A03/A07 capture not described below — byte-identical or
+   sub-pixel-noise-identical (see category 3).
+2. **Genuinely changed, NOT predicted, but correct:** the `saved` state for both A09-S1 and A09-S6
+   (4 viewport/theme combinations each) now shows the candidate row already reading "Already
+   included in this match" and disabled, immediately on `SUCCESS` — not just after a later
+   reopen. This was not anticipated when writing the prediction above, because `op.authoritative`
+   already contains the newly-added player ID the moment `resolvePending()` resolves, and
+   `deriveCandidate()` re-derives from it on every render, including the "saved" render itself —
+   the fix is more immediately honest than the original prediction assumed. Visually confirmed
+   directly (`gate-a-w3-a09-add-eligible-player-success-desktop-dark-saved.png`): "Felix · №15 ✕
+   Already included in this match", "Planned squad: 9 / 9", "Saved (simulated)" all correctly
+   present together. This is a desired consequence of the bug 7 fix, not a defect.
+3. **A real, pre-existing capture-script bug, found by this verification pass and fixed:** three
+   mobile `sheet-open` captures (A09-S2 `add-player-denied`, A09-S3 `add-player-rsvp-blocked`,
+   A09-S6 `match-day-addition`) came back ~48-53% different — not noise (a set of genuinely
+   content-identical captures elsewhere in this same diff differed by 0.000-0.006%, i.e. single-
+   digit pixel counts out of ~330k-1.4M, confirmed by direct pixel comparison). Visual inspection
+   showed the mobile bottom sheet had not opened at all in the new captures — still off-screen.
+   Root cause: `clickByName` (used for every A07/A09 "open" trigger, including A07's `editor-open`
+   step) never waited for `TouchlineBottomSheet`'s own `requestAnimationFrame`-driven enter
+   transition to settle before the screenshot fired, unlike A01's and A04's own open-interaction
+   helpers, which already do this. This is pre-existing, timing-dependent flakiness in the capture
+   script itself — not caused by this round's A09/A07 code changes (A09-S1's `sheet-open` in this
+   exact same run was unaffected; this is genuinely a coin-flip on CI timing, not deterministic) —
+   that simply had not been unlucky enough to manifest in any prior run of this PR. Fixed generically
+   in `clickByName` itself: after the click, if a genuinely modal dialog now exists, wait for it to
+   reach its final on-screen position before returning (same settle check already used elsewhere in
+   this script). A fresh CI capture run is required to confirm the fix and produce the final,
+   trustworthy attestation — see below for that run's result once available.
+
+Two genuinely new interaction states were added to the capture matrix for A09-S1 and A09-S6
+(`closed-after-saved`, `reopened-already-included`) to capture bug 7's new "already included,
+disabled" visual state after a close/reopen specifically (distinct from category 2 above, which is
+the *same* state immediately on save, before any close). A07's PENDING-block fix (bug 8) produces
+no new visual state anywhere (a blocked dismissal attempt leaves the DOM unchanged, confirmed: every
+A07 capture this round differed from the prior run by 0.000-0.002%, i.e. sub-pixel rendering noise
+only) and needs no new capture entries. See `capture-attestation.json` and its own disclosure for
+the exact CI run this was verified against.
 
 ## Validation run locally
 
