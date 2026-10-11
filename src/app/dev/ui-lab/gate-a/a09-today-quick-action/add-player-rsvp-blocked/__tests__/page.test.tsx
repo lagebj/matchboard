@@ -32,4 +32,19 @@ describe("A09-S3 add-player-rsvp-blocked page", () => {
     expect(screen.getByTestId("match-day-addition-disclosure")).toHaveTextContent(/separate match-day addition workflow/i);
     expect(screen.queryByRole("button", { name: /match-day/i })).not.toBeInTheDocument();
   });
+
+  it("close and reopen stays clean — the candidate is blocked at entry, so no draft ever forms to leak between sessions", () => {
+    mockViewport(true);
+    renderPage();
+    const trigger = screen.getByRole("button", { name: "Add player" });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId("today-count").textContent).toMatch(/8 \/ 9/);
+  });
 });

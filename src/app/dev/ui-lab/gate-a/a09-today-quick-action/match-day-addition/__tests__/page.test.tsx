@@ -44,4 +44,46 @@ describe("A09-S6 match-day-addition page", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByTestId("today-count").textContent).not.toMatch(/\//);
   });
+
+  describe("close/reopen lifecycle (regression: close() previously left the draft and operation status stuck for the next session)", () => {
+    it("a discarded draft does not reappear after close and reopen — clean editor, operational count unchanged", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      let dialog = screen.getByRole("dialog");
+      fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+      expect(within(dialog).getByTestId("today-diff-preview")).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      fireEvent.click(screen.getByTestId("confirm-discard-and-close"));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      dialog = screen.getByRole("dialog");
+      expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+      expect(within(dialog).getByTestId("today-candidate-row")).toHaveAttribute("aria-pressed", "false");
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/Operational roster: 8/);
+    });
+
+    it("after a successful match-day addition, closing and reopening keeps the saved operational count and resets feedback, while the planned-squad line stays untouched", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      let dialog = screen.getByRole("dialog");
+      fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add match-day helper" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/Operational roster: 9/);
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Add match-day helper" }));
+      dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByTestId("today-count").textContent).toMatch(/Operational roster: 9/);
+      expect(within(dialog).queryByText("Saved (simulated)")).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+      expect(screen.getByTestId("a09-s6-planned-squad-line")).toHaveTextContent("Planned squad: 8/9 (unchanged by this action)");
+    });
+  });
 });

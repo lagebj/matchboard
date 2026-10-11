@@ -17,7 +17,7 @@ entries in the existing Gate A index (`src/app/dev/ui-lab/gate-a/page.tsx`). No 
 `src/domain/**`, production `src/components/**`, Prisma schema, auth/authz, or deployment file was
 touched. W1's four approved candidates and W2's six `APPROVED_GOLDEN` A04 scenarios are unmodified
 — re-confirmed by running the full `src/app/dev/ui-lab/gate-a` test suite (27 node-config files /
-131 tests, 26 component-config files / 140 tests, all passing) after every family was built.
+131 tests, 26 component-config files / 151 tests, all passing) after every family was built.
 
 ## Repository state found (independently re-verified against the live repo, not the bundle's dated claims)
 
@@ -138,6 +138,30 @@ first CI capture run surfaced a real bug worth fixing before trusting the eviden
    React state instead of a ref, making every updater pure and idempotent (commit `bd0442ce1`). A
    dedicated `<StrictMode>`-wrapped test suite was added and independently verified to fail against
    the old ref-based implementation and pass against the fix, before trusting it.
+6. **All six A09 pages' `close()` handlers left a stale draft and operation status behind when the
+   editor was closed and reopened — found by independent technical review, not by this wave's
+   original testing.** Every A09 page's `close()` only called `setIsOpen(false)`; unlike every A07
+   page (which already called `op.discardDraft()` first — see bug 1, which fixed this exact gap in
+   A07 but did not generalize it to A09), nothing reset `useFixtureOperation`'s `draft`/`status`/
+   `outcome`. Concretely: discarding a draft and reopening could show the abandoned preview again;
+   closing after a `SUCCESS` and reopening could still show a stale "Saved (simulated)" banner
+   (and, since `isDraftSelected` was computed from the stale non-null state, a phantom "selected"
+   candidate) even though no draft existed in the new session. Fixed by adding the same
+   `op.discardDraft()` call A07 already used to the start of `close()` in all six A09 pages
+   (`add-eligible-player-success`, `add-player-denied`, `add-player-rsvp-blocked`,
+   `add-player-planning-closed`, `add-player-conflict`, `match-day-addition`) — `discardDraft()`
+   resets `draft`/`status`/`outcome` to a clean `IDLE` state while leaving `authoritative`
+   untouched, so a completed `SUCCESS` (or `MATCH_DAY_ADDITION`'s operational count) is correctly
+   retained across a close/reopen while its one-time feedback banner is not. 11 new regression
+   tests were added across all six A09 test files (plus one `<StrictMode>`-wrapped page-level
+   lifecycle test), independently verified to fail against the pre-fix pages (confirmed: 7 of the
+   11 fail pre-fix with the exact stale-UI symptom described above; the other 4, on the two
+   blocked-at-entry pages where no draft can ever form, pass either way and exist only to keep
+   close/reopen coverage uniform across all six pages) and pass after the fix. This fix does not
+   change any already-captured screenshot: the capture script's A09 scenario entries
+   (`scripts/ui-lab-visual-review.mjs`) never exercise a close-then-reopen interaction for any A09
+   page — only A07's `dirty-draft-close` scenario captures a close interaction, and that page was
+   already correct (bug 1) — so `capture-attestation.json` remains fully valid, unregenerated.
 
 ## Validation run locally
 
@@ -145,12 +169,17 @@ first CI capture run surfaced a real bug worth fixing before trusting the eviden
 - `npx eslint src/app/dev/ui-lab/gate-a` — clean, 0 output.
 - `npx vitest run src/app/dev/ui-lab/gate-a` (node config) — 27 files, 131 tests, all passing.
 - `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a` (component
-  config) — 26 files, **140 tests** (137 + 3 new `<StrictMode>` regression tests for bug 5), all
-  passing.
+  config) — 26 files, **151 tests** (137 + 3 `<StrictMode>` regression tests for bug 5 + 11 new
+  close/reopen regression tests for bug 6, 1 of which is also `<StrictMode>`-wrapped), all passing.
 - `node --check scripts/ui-lab-visual-review.mjs` — syntactically valid.
+- `npm run terminology:check` — clean.
+- `npm run policy:verify` — PASSED (arm64 wasm-hash rebuild drift is the known advisory-only
+  ARR-0037 case; CI's amd64 job is canonical).
+- `npm test` (both vitest configs, whole repository) — 654 files, 6722 tests, all passing.
 - `npm run build` / full `npm run validate` — **NOT RUN locally**, same pre-existing sandbox
   limitation documented in W1/W2's own audits (reproduces on clean `main`, passes in real CI); CI's
-  `Build` and `Tests` jobs both passed on the final commit (`bd0442ce1`).
+  `Build` and `Tests` jobs both passed on the prior commit (`bd0442ce1`) and are expected to on the
+  bug-6 fix commit too.
 - Local browser capture — **NOT RUN to completion** in this session's sandbox, see "Local
   capture-script limitation" above. **CI's "UI Lab Visual Review" workflow succeeded** on the final
   commit (run `38085816627`, 6m44s) and produced all 332 W3 screenshots across 16 scenario IDs, 5

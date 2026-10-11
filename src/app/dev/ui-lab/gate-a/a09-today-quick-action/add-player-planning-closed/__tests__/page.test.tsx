@@ -33,4 +33,27 @@ describe("A09-S4 add-player-planning-closed page", () => {
     expect(within(dialog).getByTestId("today-count").textContent).toMatch(/8 \/ 9/); // unchanged
     expect(within(dialog).getByTestId("today-diff-preview")).toBeInTheDocument(); // draft preserved for inspection
   });
+
+  it("closing and reopening after PLANNING_CLOSED starts a clean new session — no stale banner, count unchanged (regression: close() previously left the draft and operation status stuck)", () => {
+    mockViewport(true);
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+    let dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add player" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+    expect(within(dialog).getByText("Planning is closed for this match")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("alertdialog", { name: "Discard draft?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("confirm-discard-and-close"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+    dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText("Planning is closed for this match")).not.toBeInTheDocument();
+    expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId("today-candidate-row")).toHaveAttribute("aria-pressed", "false");
+    expect(within(dialog).getByTestId("today-count").textContent).toMatch(/8 \/ 9/);
+  });
 });

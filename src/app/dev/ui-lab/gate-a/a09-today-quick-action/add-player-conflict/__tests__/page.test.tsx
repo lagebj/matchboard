@@ -32,4 +32,28 @@ describe("A09-S5 add-player-conflict page", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Discard draft" }));
     expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
   });
+
+  it("closing and reopening after a CONFLICT starts a clean new session — no stale conflict banner, count unchanged (regression: close() previously left the draft and operation status stuck)", () => {
+    mockViewport(true);
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+    let dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByTestId("today-candidate-row"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add player" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Continue fixture simulation →" }));
+    expect(within(dialog).getByText("Already a participant — recheck match")).toBeInTheDocument();
+
+    // CONFLICT retains the draft, so close requests the discard-confirmation prompt.
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("alertdialog", { name: "Discard draft?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("confirm-discard-and-close"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+    dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText("Already a participant — recheck match")).not.toBeInTheDocument();
+    expect(within(dialog).queryByTestId("today-diff-preview")).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId("today-candidate-row")).toHaveAttribute("aria-pressed", "false");
+    expect(within(dialog).getByTestId("today-count").textContent).toMatch(/8 \/ 9/); // no duplicate add, ever
+  });
 });

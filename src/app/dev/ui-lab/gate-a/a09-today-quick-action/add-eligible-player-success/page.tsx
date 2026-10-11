@@ -31,6 +31,7 @@ export default function AddEligiblePlayerSuccessPage() {
   const op = useFixtureOperation<number, { candidateId: string }, TodayQuickActionSuccess>(MATCH_W3_CURRENT_SQUAD_SIZE, (authoritative) => authoritative + 1);
 
   const close = () => {
+    op.discardDraft();
     setIsOpen(false);
     triggerRef.current?.focus();
   };

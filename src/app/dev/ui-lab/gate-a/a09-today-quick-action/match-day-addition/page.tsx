@@ -34,6 +34,7 @@ export default function MatchDayAdditionPage() {
   const op = useFixtureOperation<number, { candidateId: string }, TodayQuickActionSuccess>(MATCH_W3_OPERATIONAL_ROSTER_BASE_COUNT, (authoritative) => authoritative + 1);
 
   const close = () => {
+    op.discardDraft();
     setIsOpen(false);
     triggerRef.current?.focus();
   };
