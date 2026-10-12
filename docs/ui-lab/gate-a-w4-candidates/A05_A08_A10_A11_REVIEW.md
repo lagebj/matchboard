@@ -7,21 +7,24 @@ No owner review has occurred. Technical implementation, passing local tests, and
 `23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing screenshot pipeline is not approval." All 13
 scenario IDs remain `CANDIDATE` in `candidate_manifest.json`.
 
-**Capture evidence status:** real CI screenshot evidence exists for the round-2 (N1–N4, A11-F1)
+**Capture evidence status:** real CI screenshot evidence exists for the round-3 (F1, F2)
 remediated implementation — `capture-attestation.json` (186 captures, all 13 scenarios × 5
-viewports × 2 themes + interaction states, zero console/page errors), from CI run
-[`38247353225`](https://github.com/lagebj/matchboard/actions/runs/38247353225)
+viewports × 2 themes + interaction states), from CI run
+[`38258456189`](https://github.com/lagebj/matchboard/actions/runs/38258456189)
 (`ui-lab-visual-review.yml`, against this PR's branch-tip commit
-`370bcba87b455ef54a62b8acfdcc9fe08f69bb71`, synthetic merge commit
-`d61c9e540a60433352061ef4dd8eeaf53990f4fc`), artifact `ui-lab-review-38247353225-1`. Every recorded
-hash was independently re-verified in this session: the artifact was downloaded fresh via the
-GitHub API (never `gh run download`) and all 698 files of that run (not just the 186 W4 ones) had
-their SHA-256 recomputed from the raw bytes, zero mismatches; the downloaded zip's byte size also
-matched the API-listed size exactly. This supersedes the round-1 evidence (CI run `38213344006`,
-commit `8fa4956c7badceb4bba8fc8630e2660db787b641`), which predated round 2's visible-state changes
-— see `BLOCKERS.md` W4-BLK-13. The artifact is a **temporary** GitHub Actions artifact (expires
-`2026-10-19T12:19:59Z`) — no durable GitHub Release has been created (see `BLOCKERS.md` W4-BLK-06,
-unchanged from every prior wave).
+`046be6359818311bd043acc3c1afa0a3ee18eda9`, synthetic merge commit
+`82da919557d26ae6b0e8e54c67ba9d1f2e0f3135`), artifact `ui-lab-review-38258456189-1`. Every
+recorded hash was independently re-verified in this session: the artifact was downloaded fresh via
+the GitHub API (never `gh run download`) and all 698 files of that run (not just the 186 W4 ones)
+had their SHA-256 recomputed from the raw bytes, zero mismatches; the downloaded zip's byte size
+also matched the API-listed size exactly. Round 3 changed only the A10 validation contract and
+fixture context, not the editor component or any page — this was independently confirmed, not
+just assumed: 184 of 186 W4 captures are byte-identical to round 2's evidence, and the remaining 2
+differ by a sub-perceptible 15-pixel/max-2-value anti-aliasing variance (pixel-diffed, not a real
+content change). This supersedes the round-2 evidence (CI run `38247353225`, commit
+`370bcba87b455ef54a62b8acfdcc9fe08f69bb71`) — see `BLOCKERS.md` W4-BLK-14. The artifact is a
+**temporary** GitHub Actions artifact (expires `2026-10-19T13:59:20Z`) — no durable GitHub Release
+has been created (see `BLOCKERS.md` W4-BLK-06, unchanged from every prior wave).
 
 ## What this candidate proves
 
@@ -70,7 +73,7 @@ unchanged from every prior wave).
 - `approvedBy`, `approvedAt` — not set.
 - `scope`: design reference ONLY, same scope boundary as every prior Gate A wave.
 - Capture evidence: real CI `UI Lab Visual Review` evidence exists (`capture-attestation.json`,
-  186 captures, CI run `38247353225`, post-round-2-remediation) — see "Capture evidence status"
+  186 captures, CI run `38258456189`, post-round-3-remediation) — see "Capture evidence status"
   above. An owner approval must still cite the exact capture hashes it reviewed.
 
 **No code merge, release, or further programme wave is implied or authorized by this candidate.**
