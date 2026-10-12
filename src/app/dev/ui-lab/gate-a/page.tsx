@@ -2,14 +2,16 @@ import Link from "next/link";
 import { TouchlineWordmark, AppearanceControl } from "@/components/touchline";
 
 /**
- * `/dev/ui-lab/gate-a` index — Matchboard Experience Convergence, Gate A W0/W1/W2/W3/W4 UI Lab-only
- * candidates (handoff `01_START_PROMPT_FOR_AGENT.md`). Development-only, no production route
- * touched. See per-wave review records: `docs/ui-lab/gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md`,
+ * `/dev/ui-lab/gate-a` index — Matchboard Experience Convergence, Gate A W0-W4 UI Lab-only
+ * candidates (handoff `01_START_PROMPT_FOR_AGENT.md`), covering all twelve A01-A12 families.
+ * Development-only, no production route touched. See per-wave review records:
+ * `docs/ui-lab/gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md`,
  * `docs/ui-lab/gate-a-w2-candidates/A04_REVIEW.md`,
  * `docs/ui-lab/gate-a-w3-candidates/A03_A07_A09_REVIEW.md` (W1-W3 are owner-approved
  * `APPROVED_GOLDEN` design references, see each wave's own `candidate_manifest.json`), and
- * `docs/ui-lab/gate-a-w4-candidates/CANDIDATE_REVIEW.md` — W4 (A05/A08/A10/A11) stays `CANDIDATE`
- * pending owner review.
+ * `docs/ui-lab/gate-a-w4-candidates/A05_A08_A10_A11_REVIEW.md` — W4 (A05/A08/A10/A11) stays
+ * `CANDIDATE` pending owner review. W5 cross-wave convergence audit:
+ * `docs/ui-lab/gate-a-w5-convergence/`.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-a/a01-sports-first", id: "A01", title: "Global composition — sports-first hierarchy" },
@@ -30,7 +32,7 @@ export default function GateAIndexPage() {
   return (
     <div className="touchline mx-auto max-w-[720px] px-6 py-10">
       <TouchlineWordmark />
-      <h1 className="mt-4 text-[28px] font-[650] text-[var(--foreground)]">Gate A W0/W1 candidates</h1>
+      <h1 className="mt-4 text-[28px] font-[650] text-[var(--foreground)]">Gate A W0-W4 candidates</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
         Dev-only design candidates, not approved goldens. Real production Touchline components and
         deterministic fixtures only — no production route, domain, or persistence change.

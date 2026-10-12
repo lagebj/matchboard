@@ -1,0 +1,68 @@
+# Gate A W5 — Review Record
+
+**Status: `NOT_SUBMITTED` / `PENDING_OWNER_REVIEW`.** No owner review has occurred for either
+decision below. Passing CI, a clean technical audit, or this document's own existence does not
+constitute approval of anything. Per `23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing
+screenshot pipeline is not approval."
+
+This PR carries **two separate decisions**, per `15_OWNER_APPROVAL_AND_REVIEW_SHEET.md`. Do not
+conflate them.
+
+## Decision A — W4 outstanding visual approval (not this PR's to make)
+
+See `APPROVAL_DEPENDENCIES.md` for the full per-scenario table. 13 scenarios across A05/A08/A10/
+A11, all still `CANDIDATE`, `approval: null`. This PR does not set, infer, or backdate any approval
+field for any W4 scenario. Recommend reviewing A10 against a post-fix capture (see `VISUAL_
+COVERAGE_AND_CAPTURE.md`).
+
+| Field | Value |
+|---|---|
+| reviewedBy | *(blank — owner to complete)* |
+| reviewedAt | *(blank)* |
+| exactPRHead | *(the owner's eventual review should record the actual commit SHA reviewed)* |
+| scenarioOrInvariant | Per-scenario, 13 rows — see `APPROVAL_DEPENDENCIES.md` |
+| evidenceManifestAndCIRef | `docs/ui-lab/gate-a-w4-candidates/capture-attestation.json`; recommend a fresh CI run on this branch for A10 specifically |
+| decision | *(blank — `APPROVE_GOLDEN` / `REVISE` / `REJECT` per scenario)* |
+| reasoning | *(blank)* |
+| requiredFix | *(blank, if any)* |
+| validForDesignOnly | Yes, by definition of every prior wave's approval scope |
+| productionAuthorization | **NO**, and must remain `NO` unless separately and explicitly authorized |
+
+## Decision B — W5 convergence review (this PR's actual deliverable)
+
+The findings below are ready for independent technical review first, then owner visual review,
+per `14_IMPLEMENTATION_PHASES_AND_DELIVERABLES.md`'s Phase 5. Per-issue decision options:
+`ACCEPT_CONSISTENCY` / `REVISE_REFERENCE` / `DEFER_NON_BLOCKING_PRODUCTION_GAP` / `BLOCK_GATE`.
+
+| Issue | Evidence | Proposed decision (this PR's recommendation, not a self-approval) |
+|---|---|---|
+| W5-F01 — A07's approved golden shares A01's responsive squeeze defect | `CROSS_WAVE_CONSISTENCY.md` C-X07, `CONFLICT_AND_BLOCKER_REGISTER.md` | `REVISE_REFERENCE` recommended (apply A10's identical fix, recapture, record as a reviewed revision) — but this is explicitly the owner's call, not asserted here |
+| W5-F02 — A10 shared the same defect | Fixed in this PR | `ACCEPT_CONSISTENCY` (already resolved, no further decision needed) |
+| W5-F03 — W2 attestation file didn't back its own approval | Fixed in this PR, re-verified byte-for-byte | `ACCEPT_CONSISTENCY` (already resolved; approval itself was never in question) |
+| W5-F04 — Audit script false-positive bug | Fixed via a corrected, repo-native script | `ACCEPT_CONSISTENCY` (tooling-only) |
+| W5-F05 — Stale UI Lab index text | Fixed in this PR | `ACCEPT_CONSISTENCY` |
+| Durable D7 storage still not attempted | `VISUAL_COVERAGE_AND_CAPTURE.md` | `DEFER_NON_BLOCKING_PRODUCTION_GAP` (unchanged since W1; needs separate owner authorization for a "Create Public Surface" action, not a design decision) |
+| A11 vs. ADR-0139 conflict | `CONFLICT_AND_BLOCKER_REGISTER.md` carry-forward | `DEFER_NON_BLOCKING_PRODUCTION_GAP` (real conflict, but a Gate B/ADR-amendment decision, not blocking Gate A design review) |
+| W4's 13 candidates (Decision A) | `APPROVAL_DEPENDENCIES.md` | Not a Decision B item — handled above |
+
+## Owner check questions (per `15_OWNER_APPROVAL_AND_REVIEW_SHEET.md`), answered where this audit
+## can answer them from source/evidence, left open where only a human visual read can answer them
+
+| Question | This audit's finding |
+|---|---|
+| Does Match Details retain one stable identity through planned/live/completed? | Source-confirmed consistent (C-X01/C-X02); not independently re-screenshotted this session |
+| Are A07/A09/A10 context-local operations coherent without false action states? | Source-confirmed (C-X03); A10's 54-case rejection-code test suite directly supports this |
+| Is a sparse report obviously incomplete instead of misleadingly empty or complete? | Source-confirmed (`SOURCE_TRUTH_AUDIT.md`) |
+| Does A04 evidence truth survive Assistant Coach and profile projection contexts? | Source-confirmed (C-X04, C-X09) |
+| Are tactical pitch and profile map clearly distinct and accurately oriented? | Source-confirmed (C-X05); visual confirmation still owner's to make |
+| Is OFF/ON/no-value/unavailable behavior free of misleading blank space or fabricated advice? | Source-confirmed (C-X06, C-X09) |
+| Can a coach inspect evidence without selecting or applying a proposal? | Source-confirmed (`INTERACTION_STATE_AUDIT.md` item 4) |
+| Does A11 coach text preserve exact source claims, and is guarded primary change honestly labelled as future simulated behavior? | Source-confirmed (`SOURCE_TRUTH_AUDIT.md`) |
+| Are all key states usable on mobile and desktop, light and dark, including breakpoint transitions? | **Partially revised this session** — found and fixed one real regression (A10), found and flagged one real instance in an already-approved golden (A07) |
+| Are screenshot bytes, approval hashes and source revisions traceable and recoverable? | **Found and fixed one real gap (W2)**; all others confirmed traceable and currently recoverable (`VISUAL_COVERAGE_AND_CAPTURE.md`) |
+
+## Final posture
+
+This PR does not declare Gate A complete. `C6` (design authority) remains explicitly unmet. No
+production work is authorized. No merge is requested by this record — the PR itself is opened as
+**draft**, per the start prompt's instruction.

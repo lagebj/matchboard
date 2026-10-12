@@ -55,8 +55,8 @@ export default function A10DisabledOrFailedPage() {
   };
 
   return (
-    <div className="touchline mx-auto flex max-w-[920px] flex-col gap-6 px-4 py-8 medium:flex-row medium:items-start" data-ui-lab-ready="true">
-      <div className="flex min-w-0 flex-1 flex-col gap-6">
+    <div className="touchline mx-auto flex max-w-[920px] flex-col gap-6 px-4 py-8 expanded:flex-row expanded:items-start" data-ui-lab-ready="true">
+      <div className="flex min-w-0 flex-col gap-6 expanded:w-[480px] expanded:shrink-0">
         <div>
           <Link href="/dev/ui-lab/gate-a/a10-assistant-coach-structured-action" className="text-[12px] text-[var(--text-muted)] hover:underline">
             &larr; A10 Assistant Coach structured action
@@ -80,7 +80,7 @@ export default function A10DisabledOrFailedPage() {
         </button>
       </div>
 
-      {isOpen && isDesktop ? <LineupProposalInspector {...sharedProps} /> : null}
+      {isOpen && isDesktop ? <LineupProposalInspector {...sharedProps} className="expanded:flex-1" /> : null}
       {isOpen && !isDesktop ? <LineupProposalSheet isOpen={isOpen} {...sharedProps} /> : null}
     </div>
   );
