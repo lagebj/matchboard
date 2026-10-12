@@ -1,0 +1,324 @@
+{
+  "programmeRevision": "0.5.4",
+  "baseCommitSha": "1a2b5095ead2568aef2a7a505a15409b588107ac",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY \u2014 dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-a/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate A W4 (A05 Assistant Coach semantic grammar, A08 Assistant Coach activation parity, A10 Assistant Coach structured action, A11 qualitative evidence + mutation). Per CONTRACT_RECONCILIATION.md, the official programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv was located and read directly; it was found to conflict with the handoff bundle's own provisional A11 mapping (the bundle duplicated A10's lineup-apply mechanics under A11; the register assigns A11 to qualitative-evidence-parsing and guarded profile-change review instead). The register's definition is implemented here. All 13 scenario entries are CANDIDATE \u2014 no owner approval has been sought or recorded in this session. No local browser capture could be run in this sandbox (HMR WebSocket upgrade failure starves hydration, same disclosed limitation as W1-W3); scripts/ui-lab-visual-review.mjs was extended additively with all 13 scenarios' capture entries, but none has been executed, so no capture-attestation.json accompanies this manifest yet \u2014 see BLOCKERS.md W4-BLK-11. Real CI capture evidence exists for all 13 scenarios, post-remediation (186 captures, zero console/page errors) from CI run 38213344006 (artifact ui-lab-review-38213344006-1, expires 2026-10-19T06:45:47Z) \u2014 see capture-attestation.json and BLOCKERS.md W4-BLK-06/W4-BLK-12. Independent technical review (R1-R5) remediated: A11 extraction fixture (unsupported period fact), A10 proposal validation/evidence inspection (new lineup-proposal-contract.ts), A10 PENDING-discard guard, A10 already-applied detection, and A11 authoritative profile-state modelling. Fixture versions bumped for the three scenarios with changed fixture content (A10-review-alternative-success, A10-stale-proposal-blocked, A11-coach-text-and-parsed-evidence); their fixtureSha256 independently recomputed. See ACTION_OWNERSHIP.md \"Remediation record\" and BLOCKERS.md W4-BLK-12. Round 2 (independent technical review follow-up): fixed N1 (proposal validation compared against the wrong authoritative slot occupant), N2 (evidence inspector nested inside the selection button, invalid HTML), N3 (diff preview omitted the proposed player), N4 (runtime validation typed but not shape-checked, could throw), and A11-F1 (unsupported BUILD_UP phase attribution, corrected to GENERAL). See ACTION_OWNERSHIP.md Remediation record round 2 and BLOCKERS.md W4-BLK-13. Round 3 (independent technical review follow-up): fixed F1 (the validator accepted an occupied-slot replacement the fixture reducer cannot execute, now rejected as TARGET_SLOT_OCCUPIED) and F2 (slot-specific evidence could support a proposal targeting a different slot, now rejected as EVIDENCE_TARGET_MISMATCH). ASSIGN_PLAYER_TO_LINEUP_SLOT supports assignment into an empty tactical slot only; occupied-slot replacement is not implemented or approved. See ACTION_OWNERSHIP.md Remediation record round 3 and BLOCKERS.md W4-BLK-14.",
+  "candidates": [
+    {
+      "scenarioId": "A05-disabled",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a05-disabled",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/disabled/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/disabled/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/disabled/page.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/w4-assistant-coach-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "DISABLED",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A05-enabled-with-pattern",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a05-enabled-with-pattern",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/enabled-with-pattern/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/enabled-with-pattern/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/enabled-with-pattern/page.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/assistant-coach-hypothesis-card.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/w4-assistant-coach-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ENABLED_WITH_PATTERN",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [
+        "Promote/dismiss are simulated locally, not the real server actions \u2014 see BLOCKERS.md W4-BLK-10"
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "A05-enabled-without-pattern",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a05-enabled-without-pattern",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/enabled-without-pattern/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/enabled-without-pattern/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/enabled-without-pattern/page.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/assistant-coach-hypothesis-card.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ENABLED_WITHOUT_PATTERN",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A05-unavailable",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a05-unavailable",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/unavailable/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/unavailable/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar/unavailable/page.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/assistant-coach-hypothesis-card.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "UNAVAILABLE",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A08-off",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a08-off",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/off/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/off/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/shared/activation-harness.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "DISABLED",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 31",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A08-on-strong-pattern",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a08-on-strong-pattern",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/on-strong-pattern/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/on-strong-pattern/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/shared/activation-harness.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/assistant-coach-hypothesis-card.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ENABLED_WITH_PATTERN",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 31",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A08-on-no-insight",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a08-on-no-insight",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/on-no-insight/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/on-no-insight/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity/shared/activation-harness.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/assistant-coach-hypothesis-card.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ENABLED_WITHOUT_PATTERN",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/01_APPROVED_PRODUCT_EXPERIENCE_CONTRACT.md D4",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 31",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a10-review-alternative-success",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/review-alternative-success/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/review-alternative-success/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/review-alternative-success/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-editor.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/fixture-operation.ts",
+        "src/app/dev/ui-lab/gate-a/shared/match-w3-fixture.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-contract.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ENABLED_WITH_PATTERN",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-I02",
+        "XR-V01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 37",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY \u2014 see visual_vs_current/A10.md",
+      "knownGaps": [
+        "No production structured-proposal capability exists yet \u2014 see BLOCKERS.md W4-BLK-03/04"
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "A10-stale-proposal-blocked",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a10-stale-proposal-blocked",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-editor.tsx",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-contract.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ENABLED_WITH_PATTERN",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 37",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY \u2014 see visual_vs_current/A10.md",
+      "knownGaps": [
+        "No production structured-proposal capability exists yet \u2014 see BLOCKERS.md W4-BLK-03/04"
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "A10-disabled-or-failed",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a10-disabled-or-failed",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/disabled-or-failed/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/disabled-or-failed/view-model.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/disabled-or-failed/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-editor.tsx",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-contract.ts",
+        "src/app/dev/ui-lab/gate-a/a10-assistant-coach-structured-action/shared/lineup-proposal-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "DISABLED_OR_FAILED",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 37",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY \u2014 see visual_vs_current/A10.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A11-coach-text-and-parsed-evidence",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a11-coach-text-and-parsed-evidence",
+      "fixtureVersion": 3,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/coach-text-and-parsed-evidence/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/coach-text-and-parsed-evidence/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/shared/qualitative-evidence-review.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 38",
+      "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A11.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "A11-profile-change-review-guarded",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a11-profile-change-review-guarded",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-guarded/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-guarded/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/shared/profile-change-review-card.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 38",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY \u2014 see visual_vs_current/A11.md",
+      "knownGaps": [
+        "Materiality threshold is explicitly hypothetical, not an approved policy \u2014 see BLOCKERS.md W4-BLK-09"
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "A11-profile-change-review-rejected",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-a-w4-a11-profile-change-review-rejected",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-rejected/fixtures.ts",
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-rejected/page.tsx",
+        "src/app/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation/shared/profile-change-review-card.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-I01",
+        "XR-V01"
+      ],
+      "experienceContractRef": "programme_v054/04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md",
+      "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 38",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY \u2014 see visual_vs_current/A11.md",
+      "knownGaps": [
+        "Materiality threshold is explicitly hypothetical, not an approved policy \u2014 see BLOCKERS.md W4-BLK-09"
+      ],
+      "approval": null
+    }
+  ]
+}

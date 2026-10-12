@@ -2,12 +2,14 @@ import Link from "next/link";
 import { TouchlineWordmark, AppearanceControl } from "@/components/touchline";
 
 /**
- * `/dev/ui-lab/gate-a` index — Matchboard Experience Convergence, Gate A W0/W1/W2/W3 UI Lab-only
+ * `/dev/ui-lab/gate-a` index — Matchboard Experience Convergence, Gate A W0/W1/W2/W3/W4 UI Lab-only
  * candidates (handoff `01_START_PROMPT_FOR_AGENT.md`). Development-only, no production route
- * touched. Every case here is `CANDIDATE`, never an approved golden — see
- * `docs/ui-lab/gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md`,
- * `docs/ui-lab/gate-a-w2-candidates/A04_REVIEW.md`, and
- * `docs/ui-lab/gate-a-w3-candidates/A03_A07_A09_REVIEW.md` for the per-case review records.
+ * touched. See per-wave review records: `docs/ui-lab/gate-a-w1-candidates/A01_A02_A06_A12_REVIEW.md`,
+ * `docs/ui-lab/gate-a-w2-candidates/A04_REVIEW.md`,
+ * `docs/ui-lab/gate-a-w3-candidates/A03_A07_A09_REVIEW.md` (W1-W3 are owner-approved
+ * `APPROVED_GOLDEN` design references, see each wave's own `candidate_manifest.json`), and
+ * `docs/ui-lab/gate-a-w4-candidates/CANDIDATE_REVIEW.md` — W4 (A05/A08/A10/A11) stays `CANDIDATE`
+ * pending owner review.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-a/a01-sports-first", id: "A01", title: "Global composition — sports-first hierarchy" },
@@ -18,6 +20,10 @@ const SCENARIOS = [
   { href: "/dev/ui-lab/gate-a/a07-match-details-edit-lineup", id: "A07", title: "Match Details edit lineup — context-local inspector/sheet, save-flow state machine" },
   { href: "/dev/ui-lab/gate-a/a09-today-quick-action", id: "A09", title: "Today quick action — same-day add, planned vs match-day addition" },
   { href: "/dev/ui-lab/gate-a/a12-profile-editor", id: "A12", title: "14-role profile picker vs 24-code exact match evidence" },
+  { href: "/dev/ui-lab/gate-a/a05-assistant-coach-semantic-grammar", id: "A05", title: "Assistant Coach semantic grammar — disabled/pattern/no-pattern/unavailable" },
+  { href: "/dev/ui-lab/gate-a/a08-assistant-coach-activation-parity", id: "A08", title: "Assistant Coach activation parity — OFF/ON-pattern/ON-no-insight" },
+  { href: "/dev/ui-lab/gate-a/a10-assistant-coach-structured-action", id: "A10", title: "Assistant Coach structured action — review lineup alternative, stale, disabled" },
+  { href: "/dev/ui-lab/gate-a/a11-qualitative-evidence-and-mutation", id: "A11", title: "Qualitative evidence + mutation — coach text, parsed evidence, guarded review" },
 ];
 
 export default function GateAIndexPage() {

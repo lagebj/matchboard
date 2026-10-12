@@ -76,6 +76,13 @@ const w3ExtraSmokeViewports = [
   { name: "a0x-430", width: 430, height: 900 },
 ];
 
+// Gate A W4 (A05/A08/A10/A11) smoke widths, same 600px inspector-threshold rationale as W3's —
+// own named set per this script's established "no hidden coupling between waves" convention.
+const w4ExtraSmokeViewports = [
+  { name: "w4-360", width: 360, height: 800 },
+  { name: "w4-430", width: 430, height: 900 },
+];
+
 /**
  * Gate A W3 interaction helpers (`04_TESTS_AND_CAPTURE_MATRIX.md`: "no random timers/network; use
  * a deterministic fixture-step controller/test gate"). A07/A09's shared editor renders its own
@@ -146,6 +153,22 @@ function clickResolvePending() {
     const dialog = page.getByRole("dialog").first();
     await dialog.getByRole("button", { name: "Continue fixture simulation →", exact: true }).click();
     await dialog.getByText("Saving… (fixture simulation)").waitFor({ state: "detached", timeout: 10000 });
+  };
+}
+
+/**
+ * Gate A W4 (A05/A11) interaction helper: fills the AssistantCoachHypothesisCard's/
+ * ProfileChangeReviewCard's text input (where present) before clicking a button whose
+ * disabled/enabled state depends on it — a plain `clickByName` alone can't exercise the
+ * "Promote to development focus" control, which stays disabled until non-empty.
+ */
+function fillAndClick(labelText, value, buttonName) {
+  return async function perform(page) {
+    const input = page.getByLabel(labelText, { exact: true });
+    if ((await input.count()) > 0) {
+      await input.fill(value);
+    }
+    await page.getByRole("button", { name: buttonName, exact: true }).click();
   };
 }
 
@@ -432,6 +455,97 @@ const scenarios = [
       { id: "reopened-already-included", perform: clickByName("Add match-day helper") },
     ],
   },
+  // Gate A W4 candidates (programme_v054 `20_UI_LAB_CANDIDATE_WAVES.md` W4) — A05/A08/A10/A11,
+  // CANDIDATE, not approved. `w4ExtraSmokeViewports` mirrors A04's/W3's 360/430px smoke widths.
+  {
+    slug: "gate-a-w4-a05-disabled",
+    route: "gate-a/a05-assistant-coach-semantic-grammar/disabled",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a05-enabled-with-pattern",
+    route: "gate-a/a05-assistant-coach-semantic-grammar/enabled-with-pattern",
+    extraViewports: w4ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "promoted", perform: fillAndClick("Development focus to record if promoted", "Composure under pressure", "Promote to development focus") }],
+  },
+  {
+    slug: "gate-a-w4-a05-enabled-without-pattern",
+    route: "gate-a/a05-assistant-coach-semantic-grammar/enabled-without-pattern",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a05-unavailable",
+    route: "gate-a/a05-assistant-coach-semantic-grammar/unavailable",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a08-off",
+    route: "gate-a/a08-assistant-coach-activation-parity/off",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a08-on-strong-pattern",
+    route: "gate-a/a08-assistant-coach-activation-parity/on-strong-pattern",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a08-on-no-insight",
+    route: "gate-a/a08-assistant-coach-activation-parity/on-no-insight",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a10-review-alternative-success",
+    route: "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+    extraViewports: w4ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Review lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-proposal-row") },
+      { id: "pending", perform: clickWithinDialog("Apply proposal") },
+      { id: "saved", perform: clickResolvePending() },
+      // Independent review finding R4: reopening after a successful apply must show an honest
+      // "already applied" state, never a freshly-actionable proposal — capture it explicitly
+      // rather than only proving it in component tests.
+      { id: "closed-after-saved", perform: clickWithinDialog("Close") },
+      { id: "reopened-already-applied", perform: clickByName("Review lineup") },
+    ],
+  },
+  {
+    slug: "gate-a-w4-a10-stale-proposal-blocked",
+    route: "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
+    extraViewports: w4ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    // Remediation finding R2: a blocked (stale) proposal no longer renders a selectable
+    // `lineup-proposal-row` at all — only the inspectable rationale/evidence inside the blocked-
+    // reason banner. "editor-open" alone already captures that settled state; there is no further
+    // interaction to perform.
+    interactions: [{ id: "editor-open", perform: clickByName("Review lineup") }],
+  },
+  {
+    slug: "gate-a-w4-a10-disabled-or-failed",
+    route: "gate-a/a10-assistant-coach-structured-action/disabled-or-failed",
+    extraViewports: w4ExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "editor-open", perform: clickByName("Review lineup") }],
+  },
+  {
+    slug: "gate-a-w4-a11-coach-text-and-parsed-evidence",
+    route: "gate-a/a11-qualitative-evidence-and-mutation/coach-text-and-parsed-evidence",
+    extraViewports: w4ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-a-w4-a11-profile-change-review-guarded",
+    route: "gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-guarded",
+    extraViewports: w4ExtraSmokeViewports,
+    interactions: [{ id: "accepted", perform: clickByName("Accept change") }],
+  },
+  {
+    slug: "gate-a-w4-a11-profile-change-review-rejected",
+    route: "gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-rejected",
+    extraViewports: w4ExtraSmokeViewports,
+    interactions: [{ id: "rejected", perform: clickByName("Reject") }],
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
@@ -453,6 +567,14 @@ try {
     route.startsWith("gate-a/a03-decision-anatomy/") ||
     route.startsWith("gate-a/a07-match-details-edit-lineup/") ||
     route.startsWith("gate-a/a09-today-quick-action/");
+  // Same gate, extended additively to Gate A W4 (A05/A08/A10/A11) — every W4 page also marks its
+  // root with `data-ui-lab-ready="true"`. Scoped to the four W4 family prefixes only, so every
+  // earlier wave is provably unaffected by this addition.
+  const isW4Route = (route) =>
+    route.startsWith("gate-a/a05-assistant-coach-semantic-grammar/") ||
+    route.startsWith("gate-a/a08-assistant-coach-activation-parity/") ||
+    route.startsWith("gate-a/a10-assistant-coach-structured-action/") ||
+    route.startsWith("gate-a/a11-qualitative-evidence-and-mutation/");
 
   for (const scenario of scenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
     // Width-based, not name-based: correct for any current or future viewport, including the
@@ -482,7 +604,7 @@ try {
       // A04 candidate-ready signal (04_TEST_AND_CAPTURE_MATRIX.md: "Wait for an explicit
       // candidate-ready indicator"), independent review round 1 verification gap — every A04
       // scenario page marks its root with `data-ui-lab-ready="true"` once mounted.
-      if (isA04Route(scenario.route) || isW3Route(scenario.route)) {
+      if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route)) {
         await page.locator('[data-ui-lab-ready="true"]').first().waitFor({state:"attached",timeout:30000});
       }
       await page.evaluate(()=>document.fonts.ready);
@@ -532,11 +654,11 @@ try {
       }
 
       // Console/page-error gate (independent review round 1, PR #778, verification gap): bounded
-      // to A04 (and now W3) — fails loudly there, only warns elsewhere so no W1/baseline scenario's
-      // CI result can change as a side effect of this addition.
+      // to A04 (and now W3/W4) — fails loudly there, only warns elsewhere so no W1/baseline
+      // scenario's CI result can change as a side effect of this addition.
       if (consoleErrors.length > 0) {
         const message = scenario.slug+" "+viewport.name+"/"+theme+": "+consoleErrors.length+" console/page error(s): "+consoleErrors.slice(0,3).join(" | ");
-        if (isA04Route(scenario.route) || isW3Route(scenario.route)) throw new Error(message);
+        if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route)) throw new Error(message);
         console.warn("WARNING (non-A04 scenario, not failing the run): "+message);
       }
     } finally { await context.close(); }
