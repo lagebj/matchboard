@@ -160,6 +160,29 @@ describe("A10-review-alternative-success page", () => {
     expect(within(pitches[0]).getByText("Tobias")).toBeInTheDocument();
   });
 
+  it("the resulting lineup is internally consistent — Tobias occupies RCM exactly once, and the other six starting slots are unchanged (third review round requirement: validate the full assignment map, not just that Tobias's name appears)", () => {
+    mockViewport(true);
+    renderPage();
+    resolveToSuccess();
+
+    const pitch = within(screen.getAllByTestId("touchline-planning-pitch")[0]);
+
+    // The exact resulting slot/occupant map — proves the reducer placed Tobias at RCM without
+    // leaving a duplicate occupant and without touching any other player's slot.
+    expect(pitch.getByLabelText("Oskar — GK")).toBeInTheDocument();
+    expect(pitch.getByLabelText("Theodor — LCB")).toBeInTheDocument();
+    expect(pitch.getByLabelText("Markus — RCB")).toBeInTheDocument();
+    expect(pitch.getByLabelText("Sindre — LCM")).toBeInTheDocument();
+    expect(pitch.getByLabelText("Kasper — CM")).toBeInTheDocument();
+    expect(pitch.getByLabelText("Tobias — RCM")).toBeInTheDocument();
+    expect(pitch.getByLabelText("Noah — CF")).toBeInTheDocument();
+
+    // No duplicate occupant anywhere: Tobias appears exactly once on the pitch, and nobody else is
+    // also labelled as occupying RCM.
+    expect(pitch.getAllByText("Tobias")).toHaveLength(1);
+    expect(pitch.queryByLabelText(/— RCM$/)).toBe(pitch.getByLabelText("Tobias — RCM"));
+  });
+
   describe("PENDING blocks Discard, not just Close (independent review finding R3)", () => {
     it("the Discard draft control is not rendered at all while PENDING", () => {
       mockViewport(true);

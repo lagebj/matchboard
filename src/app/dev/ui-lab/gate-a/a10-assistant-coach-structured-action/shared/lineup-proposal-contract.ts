@@ -36,6 +36,13 @@ export type LineupProposalEvidenceSource = {
   matchId: string;
   groupId: string;
   playerId: string | null;
+  /** Third-round finding F2: set ONLY when this source's claim concerns a specific tactical slot
+   * (e.g. "RCM slot occupant: None" — the source establishes that slot's occupancy). `undefined`
+   * for match-wide or player-profile evidence with no slot-specific claim at all (e.g. a declared
+   * secondary position) — those remain valid for any proposal regardless of target slot, as long as
+   * their player/scope relationships check out. Never inferred from `fieldLabel`/`fieldValue`/
+   * `supports` text — always this explicit typed field. */
+  slotId?: string;
   kind: EvidenceSourceKind;
   /** What field this record actually holds, e.g. "RCM slot occupant". */
   fieldLabel: string;
@@ -76,10 +83,12 @@ export type LineupProposalRejectionCode =
   | "UNKNOWN_SLOT"
   | "BEFORE_STATE_MISMATCH"
   | "BAD_DIFF"
+  | "TARGET_SLOT_OCCUPIED"
   | "DUPLICATE_ASSIGNMENT"
   | "MISSING_EVIDENCE"
   | "UNKNOWN_EVIDENCE_REF"
   | "EVIDENCE_SCOPE_MISMATCH"
+  | "EVIDENCE_TARGET_MISMATCH"
   | "EVIDENCE_SUBJECT_MISMATCH";
 
 /**
@@ -168,6 +177,38 @@ export function validateLineupProposal(raw: unknown, ctx: LineupProposalValidati
   return validateProposalSemantics(shape.data, ctx);
 }
 
+/**
+ * Third review round finding F1: `ASSIGN_PLAYER_TO_LINEUP_SLOT` is this W4 candidate's ONLY
+ * supported operation, and it means exactly one thing — placing a player into a tactical slot that
+ * is genuinely EMPTY. The underlying fixture reducer (`withTacticalAssignment` in
+ * `match-w3-fixture.ts`) only ever sets the proposed player's own `tacticalPosition`; it never
+ * clears a different player who already holds that slot. A proposal that correctly describes an
+ * OCCUPIED slot (its `before.playerId` genuinely matches the real occupant) was previously accepted
+ * as `APPLICABLE` even though applying it through the real reducer would leave two players
+ * assigned to the same slot — the validated operation and the executable operation had silently
+ * diverged. `TARGET_SLOT_OCCUPIED` makes that case a first-class, distinctly coded rejection,
+ * never conflated with `BEFORE_STATE_MISMATCH` (which means the proposal's description of the
+ * current state is simply WRONG, occupied or not) or `DUPLICATE_ASSIGNMENT` (which means the
+ * PROPOSED player already sits in some OTHER slot). Occupied-slot replacement, swapping, moving a
+ * displaced player to reserves, etc. are explicitly out of scope — each would need its own typed
+ * proposal kind, validator, preview and authoritative outcome; see `BLOCKERS.md`.
+ *
+ * Deterministic check order (every branch below, top to bottom):
+ *   1. action kind / producer allowlist
+ *   2. scope (match/group)
+ *   3. player identity (known at all -> in this match's roster)
+ *   4. target slot exists at all (`UNKNOWN_SLOT`)
+ *   5. the proposal's `before.playerId` matches the slot's REAL occupant (`BEFORE_STATE_MISMATCH`)
+ *   6. the diff itself is well-formed and not a no-op (`BAD_DIFF`) — this also catches "proposed
+ *      player already occupies the target slot" (before === after === that same player), which
+ *      must read as a no-op rather than as an occupied-slot-replacement attempt
+ *   7. the (correctly-described) target slot must be EMPTY, or the operation this reducer cannot
+ *      execute is rejected (`TARGET_SLOT_OCCUPIED`)
+ *   8. the proposed player must not already occupy a DIFFERENT slot (`DUPLICATE_ASSIGNMENT`)
+ *   9. evidence: exists at all -> each ref resolves -> each ref's scope -> each ref's slot target
+ *      (`EVIDENCE_TARGET_MISMATCH`, F2) -> each ref's player subject (`EVIDENCE_SUBJECT_MISMATCH`)
+ *   10. revision freshness (`STALE` vs `APPLICABLE`)
+ */
 function validateProposalSemantics(shaped: ProposalShape, ctx: LineupProposalValidationContext): LineupProposalValidationResult {
   if (shaped.proposalKind !== "ASSIGN_PLAYER_TO_LINEUP_SLOT") {
     return { valid: false, code: "UNSUPPORTED_ACTION_KIND", reason: "This action is not supported." };
@@ -200,6 +241,15 @@ function validateProposalSemantics(shaped: ProposalShape, ctx: LineupProposalVal
     return { valid: false, code: "BAD_DIFF", reason: "The proposed change is invalid." };
   }
 
+  // F1: this candidate's ONLY supported operation is assignment into a genuinely EMPTY slot — a
+  // correctly-described OCCUPIED slot (targetSlotOccupant !== null) means a DIFFERENT player is
+  // being proposed to replace the real occupant, which the fixture reducer cannot execute without
+  // leaving duplicate slot occupants. Reached only when before/after are not a same-player no-op
+  // (that already returned BAD_DIFF above).
+  if (targetSlotOccupant !== null) {
+    return { valid: false, code: "TARGET_SLOT_OCCUPIED", reason: "The target slot is already occupied — this proposal kind only supports assigning a player into an empty slot, not replacing an existing occupant." };
+  }
+
   // The proposed player must not already occupy a DIFFERENT slot — this candidate only models a
   // plain assignment into an empty slot, never a silent two-slot duplication or an (unmodelled)
   // relocation. A relocation would need its own explicitly typed proposal kind.
@@ -220,6 +270,13 @@ function validateProposalSemantics(shaped: ProposalShape, ctx: LineupProposalVal
     }
     if (source.matchId !== proposal.matchId || source.groupId !== proposal.groupId) {
       return { valid: false, code: "EVIDENCE_SCOPE_MISMATCH", reason: "The proposal cites evidence from another match or group." };
+    }
+    // F2: slot-specific evidence (`source.slotId` set) must concern the EXACT slot this proposal
+    // targets — evidence establishing one slot's occupancy (e.g. "RCM is empty") must never be
+    // accepted as support for a DIFFERENT slot's proposal (e.g. a GK assignment). Evidence with no
+    // `slotId` at all (match-wide or player-profile facts) has no slot to mismatch and is unaffected.
+    if (source.slotId !== undefined && source.slotId !== proposal.slotId) {
+      return { valid: false, code: "EVIDENCE_TARGET_MISMATCH", reason: "The proposal cites slot-specific evidence that concerns a different tactical slot." };
     }
     // Player-specific evidence (playerId !== null) must concern the SAME player the proposal is
     // about — match-level evidence (playerId === null) has no subject to mismatch.

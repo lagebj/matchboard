@@ -190,3 +190,42 @@ review-alternative-success and stale-proposal-blocked `proposal` object literals
 in round 2 (only the contract/fixture/editor code they're validated and rendered by changed), so
 their `fixtureVersion`/hash correctly stay at round 1's values. See the finished report for exact
 test counts, command output, and capture evidence.
+
+## Round 3 remediation delta (findings F1, F2)
+
+### Modified — A10 proposal contract (F1, F2)
+
+- `shared/lineup-proposal-contract.ts` — added `TARGET_SLOT_OCCUPIED` and
+  `EVIDENCE_TARGET_MISMATCH` to `LineupProposalRejectionCode`; added optional `slotId` to
+  `LineupProposalEvidenceSource`; `validateProposalSemantics` now rejects a correctly-described
+  OCCUPIED target slot as `TARGET_SLOT_OCCUPIED` (F1) and a slot-specific evidence source whose
+  `slotId` doesn't match the proposal's own target slot as `EVIDENCE_TARGET_MISMATCH` (F2); added
+  a doc comment documenting the full deterministic check order
+- `shared/lineup-proposal-fixture.ts` — added `slotId: "slot-RCM"` to the two genuinely
+  RCM-specific evidence sources (`src-fact-slot-rcm-empty`, `src-fact-player-exposure-rcm`); left
+  `src-fact-player-declared-cm` without a `slotId` (player-profile evidence, not slot-specific);
+  added one new negative-fixture-only evidence source (`src-fact-slot-gk-occupied`, `slotId:
+  "slot-GK"`), never cited by any real scenario, used only by the new cross-slot-evidence negative
+  tests
+- `shared/__tests__/lineup-proposal-contract.test.ts` — removed the two tests that codified the
+  F1 defect (asserting an occupied-slot replacement was `APPLICABLE`); added an "F1: occupied-slot
+  replacement is not a supported operation" `describe` block (5 tests) and an "F2: slot-specific
+  evidence must target the proposal's own slot" `describe` block (6 tests); 45→54 total cases
+- `review-alternative-success/__tests__/page.test.tsx` — added one test asserting the full
+  resulting slot/occupant map after Apply (all seven slots, no duplicate occupant), not just that
+  Tobias's name appears somewhere on the pitch
+
+### Modified — documentation
+
+- `ACTION_OWNERSHIP.md`, `BLOCKERS.md`, `CHANGED_FILES.md` (this file), `candidate_manifest.json`,
+  `capture-attestation.json`, `visual_vs_current/A10.md`, `A05_A08_A10_A11_REVIEW.md` — updated for
+  the round-3 operation-contract scope (empty-slot-only) and evidence-target-relationship behaviour
+
+## Totals (after round 3 remediation)
+
+0 new files, 4 modified source/test files (contract, fixture, 2 test files). No fixture version
+bumped this round: `A10_EVIDENCE_CATALOG` (shared, unversioned infra) is not covered by either
+scenario's `rawRecordsForHash` — only each scenario's own `proposal`/`predeclaredOutcome`/
+`blockedReason` literals are, and neither was edited this round. A05/A08/A11 fixtures were not
+touched at all. The real A10 success path (RCM genuinely empty) renders byte-identical output to
+round 2's capture — see the finished report for the independent hash comparison proving this.

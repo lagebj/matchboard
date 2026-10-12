@@ -56,14 +56,6 @@ describe("validateLineupProposal — N1: exact-target-slot occupancy (not a sing
     expect(result).toMatchObject({ valid: false, code: "BEFORE_STATE_MISMATCH" });
   });
 
-  it("accepts a correctly-described replacement at an OCCUPIED slot (GK: Oskar -> Tobias) — proves the resolver reads the real occupant, not just 'empty'", () => {
-    const result = validateLineupProposal(
-      validProposal({ slotId: "slot-GK", before: { playerId: oskarGk }, after: { playerId: tobias } }),
-      a10ValidationContext(),
-    );
-    expect(result).toMatchObject({ valid: true, applicability: "APPLICABLE" });
-  });
-
   it("requires the correct target-slot occupant even when the WRONG occupant is a real player elsewhere in the fixture", () => {
     // Claims GK's occupant is Sindre (actually at LCM) — still wrong, still rejected.
     const result = validateLineupProposal(
@@ -82,14 +74,51 @@ describe("validateLineupProposal — duplicate on-pitch assignment prevention", 
     const result = validateLineupProposal(validProposal({ playerId: sindreLcm, after: { playerId: sindreLcm } }), a10ValidationContext());
     expect(result).toMatchObject({ valid: false, code: "DUPLICATE_ASSIGNMENT" });
   });
+});
 
-  it("does not reject a player who occupies the SAME target slot being described as the before-state", () => {
-    // Replacing Oskar at GK with Tobias — Oskar's own occupancy of slot-GK is the `before`, not a
-    // duplicate-assignment violation.
+/**
+ * Third review round finding F1: `ASSIGN_PLAYER_TO_LINEUP_SLOT` supports assignment into an EMPTY
+ * slot only. The fixture reducer (`withTacticalAssignment`) never clears a displaced occupant, so a
+ * proposal that correctly describes an OCCUPIED slot must be rejected as unsupported, never accepted
+ * as APPLICABLE — that was the exact defect a prior round's own test suite codified (removed here).
+ */
+describe("validateLineupProposal — F1: occupied-slot replacement is not a supported operation", () => {
+  it("rejects a correctly-described replacement at an OCCUPIED slot (GK: Oskar -> Tobias) as TARGET_SLOT_OCCUPIED, not APPLICABLE", () => {
     const result = validateLineupProposal(
       validProposal({ slotId: "slot-GK", before: { playerId: oskarGk }, after: { playerId: tobias } }),
       a10ValidationContext(),
     );
+    expect(result).toMatchObject({ valid: false, code: "TARGET_SLOT_OCCUPIED" });
+  });
+
+  it("is distinct from BEFORE_STATE_MISMATCH — a WRONGLY-described occupied slot still reports the before-state error, not TARGET_SLOT_OCCUPIED", () => {
+    const result = validateLineupProposal(
+      validProposal({ slotId: "slot-GK", before: { playerId: null }, after: { playerId: tobias } }),
+      a10ValidationContext(),
+    );
+    expect(result).toMatchObject({ valid: false, code: "BEFORE_STATE_MISMATCH" });
+  });
+
+  it("is distinct from DUPLICATE_ASSIGNMENT — an occupied-slot replacement is rejected even when the proposed player holds no slot elsewhere", () => {
+    // Tobias holds no slot at all in the default fixture; this proves TARGET_SLOT_OCCUPIED fires on
+    // its own, not merely as a side effect of a duplicate-assignment check.
+    const result = validateLineupProposal(
+      validProposal({ slotId: "slot-LCM", playerId: tobias, before: { playerId: sindreLcm }, after: { playerId: tobias } }),
+      a10ValidationContext(),
+    );
+    expect(result).toMatchObject({ valid: false, code: "TARGET_SLOT_OCCUPIED" });
+  });
+
+  it("a proposal re-describing the SAME player already at the target slot is rejected as a no-op (BAD_DIFF), not as TARGET_SLOT_OCCUPIED", () => {
+    const result = validateLineupProposal(
+      validProposal({ slotId: "slot-GK", playerId: oskarGk, before: { playerId: oskarGk }, after: { playerId: oskarGk } }),
+      a10ValidationContext(),
+    );
+    expect(result).toMatchObject({ valid: false, code: "BAD_DIFF" });
+  });
+
+  it("the genuinely empty RCM assignment is unaffected and still validates as APPLICABLE", () => {
+    const result = validateLineupProposal(validProposal(), a10ValidationContext());
     expect(result).toMatchObject({ valid: true, applicability: "APPLICABLE" });
   });
 });
@@ -186,6 +215,66 @@ describe("validateLineupProposal — invalid proposals never enter an actionable
     // mismatch merely because the proposal itself concerns a specific player.
     const result = validateLineupProposal(validProposal({ evidenceRefs: ["src-fact-slot-rcm-empty"] }), a10ValidationContext());
     expect(result).toMatchObject({ valid: true, applicability: "APPLICABLE" });
+  });
+});
+
+/**
+ * Third review round finding F2: a slot-specific source's claim (e.g. "RCM is empty") must only
+ * ever support a proposal that actually targets THAT slot — never a different one. `slotId` on
+ * `LineupProposalEvidenceSource` is the one typed signal checked; nothing is inferred from
+ * `fieldLabel`/`fieldValue`/`supports` text.
+ */
+describe("validateLineupProposal — F2: slot-specific evidence must target the proposal's own slot", () => {
+  it("RCM vacancy evidence validly supports the RCM proposal it actually concerns", () => {
+    const result = validateLineupProposal(validProposal({ evidenceRefs: ["src-fact-slot-rcm-empty"] }), a10ValidationContext());
+    expect(result).toMatchObject({ valid: true, applicability: "APPLICABLE" });
+  });
+
+  it("GK-slot evidence cannot support an RCM proposal — slot-specific evidence naming a different slot is rejected", () => {
+    const result = validateLineupProposal(
+      validProposal({ evidenceRefs: ["src-fact-slot-gk-occupied", "src-fact-player-declared-cm"] }),
+      a10ValidationContext(),
+    );
+    expect(result).toMatchObject({ valid: false, code: "EVIDENCE_TARGET_MISMATCH" });
+  });
+
+  it("is distinct from EVIDENCE_SUBJECT_MISMATCH — a wrong-slot source is rejected by target, not by player", () => {
+    // src-fact-slot-gk-occupied has playerId: null (no subject to mismatch at all) — only the slot
+    // mismatch explains the rejection.
+    const result = validateLineupProposal(validProposal({ evidenceRefs: ["src-fact-slot-gk-occupied"] }), a10ValidationContext());
+    expect(result).toMatchObject({ valid: false, code: "EVIDENCE_TARGET_MISMATCH" });
+  });
+
+  it("player-profile evidence with no slotId at all remains valid regardless of the proposal's target slot", () => {
+    // src-fact-player-declared-cm (a declared secondary position) is not slot-specific — it must not
+    // be rejected merely because it has no slotId to compare.
+    const result = validateLineupProposal(validProposal({ evidenceRefs: ["src-fact-slot-rcm-empty", "src-fact-player-declared-cm"] }), a10ValidationContext());
+    expect(result).toMatchObject({ valid: true, applicability: "APPLICABLE" });
+  });
+
+  it("RCM-scoped development evidence (recorded minutes at RCM) remains valid for the RCM proposal it was recorded against", () => {
+    const result = validateLineupProposal(
+      validProposal({ evidenceRefs: ["src-fact-slot-rcm-empty", "src-fact-player-exposure-rcm"] }),
+      a10ValidationContext(),
+    );
+    expect(result).toMatchObject({ valid: true, applicability: "APPLICABLE" });
+  });
+
+  it("RCM vacancy evidence specifically cannot establish GK vacancy, even for an otherwise well-formed GK proposal", () => {
+    // GK is occupied in the real fixture — hypothetically vacate it here (context override only, no
+    // production behavior implied) purely to isolate the evidence-target check from TARGET_SLOT_OCCUPIED.
+    const hypotheticallyEmptyGk = new Map(A10_SLOT_OCCUPANTS);
+    hypotheticallyEmptyGk.set("slot-GK", null);
+    const ctx = a10ValidationContext({ slotOccupants: hypotheticallyEmptyGk });
+    const result = validateLineupProposal(
+      validProposal({
+        slotId: "slot-GK",
+        before: { playerId: null },
+        evidenceRefs: ["src-fact-slot-rcm-empty", "src-fact-player-declared-cm"],
+      }),
+      ctx,
+    );
+    expect(result).toMatchObject({ valid: false, code: "EVIDENCE_TARGET_MISMATCH" });
   });
 });
 

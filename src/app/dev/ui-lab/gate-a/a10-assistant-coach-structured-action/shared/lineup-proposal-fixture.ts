@@ -6,6 +6,15 @@ import type { LineupProposalEvidenceSource, LineupProposalValidationContext } fr
  * `LineupSlotAssignmentProposal` and `expectedRevision`, but the scope/roster/slot/evidence facts
  * a proposal is validated against are the SAME underlying W3 match anchor, so they live here once
  * rather than being re-declared (and risking drift) in each scenario file.
+ *
+ * Third review round: `ASSIGN_PLAYER_TO_LINEUP_SLOT` supports assignment into an EMPTY tactical
+ * slot only (finding F1) — `A10_SLOT_OCCUPANTS` is exactly the authoritative occupancy map
+ * `validateLineupProposal` checks a proposal's target slot against, so an occupied-slot replacement
+ * is rejected (`TARGET_SLOT_OCCUPIED`) rather than silently accepted. Occupied-slot replacement,
+ * swapping, or moving a displaced player elsewhere are NOT implemented or approved — see
+ * `BLOCKERS.md`. The evidence catalog below also now marks which sources are slot-specific via an
+ * explicit `slotId` (finding F2), so evidence about one slot's occupancy can never be cited to
+ * support a proposal targeting a different slot.
  */
 export const A10_MATCH_ID = MATCH_W3_ID;
 export const A10_GROUP_ID = MATCH_W3_GROUP_ID;
@@ -47,6 +56,9 @@ export const A10_EVIDENCE_CATALOG: readonly LineupProposalEvidenceSource[] = [
     matchId: A10_MATCH_ID,
     groupId: A10_GROUP_ID,
     playerId: null,
+    // F2: this source's claim IS a specific slot's occupancy — it must only ever support a
+    // proposal that actually targets slot-RCM, never be cited to establish some other slot's state.
+    slotId: "slot-RCM",
     kind: "RECORDED_MATCH",
     fieldLabel: "RCM slot occupant",
     fieldValue: "None — unfilled",
@@ -58,6 +70,9 @@ export const A10_EVIDENCE_CATALOG: readonly LineupProposalEvidenceSource[] = [
     matchId: A10_MATCH_ID,
     groupId: A10_GROUP_ID,
     playerId: MATCH_W3_PENDING_STARTER_PLAYER_ID,
+    // No slotId: a declared secondary position is player-profile evidence, not tied to any one
+    // tactical slot — it remains valid support for a proposal targeting any slot that position
+    // covers, as long as its player/scope relationships check out (F2's own requirement).
     kind: "COACH_DECLARED",
     fieldLabel: "Declared secondary position",
     fieldValue: "CM",
@@ -69,11 +84,29 @@ export const A10_EVIDENCE_CATALOG: readonly LineupProposalEvidenceSource[] = [
     matchId: A10_MATCH_ID,
     groupId: A10_GROUP_ID,
     playerId: MATCH_W3_PENDING_STARTER_PLAYER_ID,
+    // Explicitly scoped to RCM — it measures the player's recorded minutes AT that exact slot,
+    // so (unlike the declared-position fact above) it must not be cited for a different slot.
+    slotId: "slot-RCM",
     kind: "DEVELOPMENT_EVIDENCE",
     fieldLabel: "Recorded minutes at RCM",
     fieldValue: "Not recorded",
     coverage: "NOT_RECORDED",
     supports: "Discloses the proposal's own limitation — no completed-match minutes at this exact tactical slot.",
+  },
+  // Deliberately wrong-slot evidence — never cited by any real A10 proposal, only by the negative
+  // fixture test proving slot-specific evidence cannot support a proposal targeting a different
+  // tactical slot (independent review round 3, finding F2).
+  {
+    sourceId: "src-fact-slot-gk-occupied",
+    matchId: A10_MATCH_ID,
+    groupId: A10_GROUP_ID,
+    playerId: null,
+    slotId: "slot-GK",
+    kind: "RECORDED_MATCH",
+    fieldLabel: "GK slot occupant",
+    fieldValue: "Oskar",
+    coverage: "COMPLETE",
+    supports: "Negative-fixture-only: concerns a different tactical slot than the one being proposed.",
   },
   // Deliberately wrong-scope evidence — never cited by any real A10 proposal, only by the negative
   // fixture tests proving a cross-match/cross-group evidence ref is rejected.
