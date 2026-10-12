@@ -504,6 +504,11 @@ const scenarios = [
       { id: "draft-preview", perform: clickTestId("lineup-proposal-row") },
       { id: "pending", perform: clickWithinDialog("Apply proposal") },
       { id: "saved", perform: clickResolvePending() },
+      // Independent review finding R4: reopening after a successful apply must show an honest
+      // "already applied" state, never a freshly-actionable proposal — capture it explicitly
+      // rather than only proving it in component tests.
+      { id: "closed-after-saved", perform: clickWithinDialog("Close") },
+      { id: "reopened-already-applied", perform: clickByName("Review lineup") },
     ],
   },
   {
