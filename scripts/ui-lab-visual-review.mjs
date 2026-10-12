@@ -511,10 +511,11 @@ const scenarios = [
     route: "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
     extraViewports: w4ExtraSmokeViewports,
     interactionViewports: ["desktop", "mobile"],
-    interactions: [
-      { id: "editor-open", perform: clickByName("Review lineup") },
-      { id: "draft-preview", perform: clickTestId("lineup-proposal-row") },
-    ],
+    // Remediation finding R2: a blocked (stale) proposal no longer renders a selectable
+    // `lineup-proposal-row` at all — only the inspectable rationale/evidence inside the blocked-
+    // reason banner. "editor-open" alone already captures that settled state; there is no further
+    // interaction to perform.
+    interactions: [{ id: "editor-open", perform: clickByName("Review lineup") }],
   },
   {
     slug: "gate-a-w4-a10-disabled-or-failed",
