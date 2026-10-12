@@ -55,4 +55,14 @@ describe("A10-stale-proposal-blocked page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
     expect(pitch.textContent).not.toMatch(/Tobias/);
   });
+
+  it("expanding evidence in the blocked state still cannot alter the authoritative pitch (independent review finding N2)", () => {
+    mockViewport(true);
+    renderPage();
+    const pitchBefore = screen.getAllByTestId("touchline-planning-pitch")[0].textContent;
+    fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+    fireEvent.click(screen.getByText(/Based on 3 cited sources/));
+    const pitchAfter = screen.getAllByTestId("touchline-planning-pitch")[0].textContent;
+    expect(pitchAfter).toBe(pitchBefore);
+  });
 });

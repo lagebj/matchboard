@@ -4,11 +4,15 @@ import { identity, rawRecordsForHash, extraction, coachNote } from "../fixtures"
 import { safeParseExtractionResponse } from "@/lib/evidence/qualitative-evidence-extraction-contract";
 
 /**
- * Independent review finding R1: the original version of this test ("every observation is a
- * claim present in the coach's own text, not invented") only asserted statements were nonempty —
- * it would have passed even with the unsupported `period: "SECOND_HALF"` fabrication the review
- * actually found. These assertions are tied to the exact claims in `coachNote.text`, not a
- * generic nonempty check.
+ * Independent review finding R1 (round 1): the original version of this test ("every observation
+ * is a claim present in the coach's own text, not invented") only asserted statements were
+ * nonempty — it would have passed even with the unsupported `period: "SECOND_HALF"` fabrication
+ * the review actually found. These assertions are tied to the exact claims in `coachNote.text`,
+ * not a generic nonempty check.
+ *
+ * Independent review finding A11-F1 (round 2): round 1's own fix left `phase: "BUILD_UP"` on the
+ * SAME observation unexamined — "deeper midfield" names a position, not a phase the note actually
+ * states. Fixed to `GENERAL`; see the fixture's own doc comment for the full reasoning.
  */
 describe("A11-coach-text-and-parsed-evidence fixture — semantic grounding", () => {
   const composure = extraction.observations[0];
@@ -27,6 +31,13 @@ describe("A11-coach-text-and-parsed-evidence fixture — semantic grounding", ()
   it("Tobias's composure observation has no unsupported period — the note never scopes it to a half", () => {
     expect(composure.statement).toMatch(/composed receiving the ball in deeper midfield/);
     expect(composure.period).toBeNull();
+  });
+
+  it("Tobias's composure observation has no unsupported tactical phase — the note names a position, not a phase (A11-F1)", () => {
+    // "deeper midfield" is where it happened, not which tactical phase it was; the note does not
+    // say build-up, progression, or any other phase, so the extraction must fall back to GENERAL.
+    expect(composure.statement).not.toMatch(/build.?up|progression|transition/i);
+    expect(composure.phase).toBe("GENERAL");
   });
 
   it("the team's pressing observation retains its explicitly-supported second-half period", () => {

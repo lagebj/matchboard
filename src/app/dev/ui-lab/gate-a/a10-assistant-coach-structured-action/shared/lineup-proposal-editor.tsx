@@ -21,6 +21,11 @@ import type { LineupProposalEvidenceSource, LineupSlotAssignmentProposal } from 
  * button conditions (independent review finding): exactly one `OperationControlPolicy` derivation
  * decides whether select/apply/discard are each available, so a future change to PENDING/applied
  * semantics cannot silently diverge between controls again.
+ *
+ * Second review round: evidence inspection (`EvidenceSourceList`) is a sibling of, never nested
+ * inside, the candidate-selection button (finding N2 — a `<details>` inside a `<button>` is
+ * invalid interactive HTML and could toggle selection on expand/collapse). The diff preview
+ * identifies the actual proposed player, not just "draft, not yet applied" (finding N3).
  */
 export type { LineupSlotAssignmentProposal };
 
@@ -175,43 +180,47 @@ export function LineupProposalEditorBody({
       {proposal && !blockedReason && !policy.appliedAlready ? (
         <div data-testid="lineup-proposal-card">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Assistant Coach proposal</p>
-          <button
-            type="button"
-            data-testid="lineup-proposal-row"
-            onClick={onSelectCandidate}
-            disabled={!policy.canSelect}
-            aria-pressed={isDraftSelected}
-            className={cn(
-              "flex w-full items-center justify-between gap-2 rounded-lg border p-3 text-left",
-              isDraftSelected ? "border-[var(--accent)] bg-[var(--accent-subtle)]" : "border-[var(--border-soft)]",
-            )}
+          {/* Second review round finding N2: evidence inspection must never live inside the
+              selection button — a <details>/<summary> nested in a <button> is invalid interactive
+              HTML, and opening/closing it could toggle the parent's onClick too. Candidate
+              identity, rationale, limitations, and the evidence inspector are now a plain
+              non-interactive info block; "Select proposal" is its own separate, sibling button. */}
+          <div
+            data-testid="lineup-proposal-info"
+            className={cn("rounded-lg border p-3", isDraftSelected ? "border-[var(--accent)] bg-[var(--accent-subtle)]" : "border-[var(--border-soft)]")}
           >
-            <div>
-              <p className="text-[13px] font-[600] text-[var(--foreground)]">
-                {candidateDisplayName} · №{candidateShirtNumber}
-              </p>
-              <p className="mt-1 text-[12px] text-[var(--text-muted)]">{proposal.rationale}</p>
-              {proposal.limitations.length > 0 ? (
-                <ul className="mt-1 flex flex-col gap-0.5">
-                  {proposal.limitations.map((l) => (
-                    <li key={l} className="text-[11px] text-[var(--text-soft)]">
-                      Limitation: {l}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <EvidenceSourceList evidence={evidence} />
-            </div>
-            <span aria-hidden="true" className="text-[11px] text-[var(--text-muted)]">
-              {isDraftSelected ? "Selected ✓" : "Select"}
-            </span>
-          </button>
+            <p className="text-[13px] font-[600] text-[var(--foreground)]">
+              {candidateDisplayName} · №{candidateShirtNumber}
+            </p>
+            <p className="mt-1 text-[12px] text-[var(--text-muted)]">{proposal.rationale}</p>
+            {proposal.limitations.length > 0 ? (
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {proposal.limitations.map((l) => (
+                  <li key={l} className="text-[11px] text-[var(--text-soft)]">
+                    Limitation: {l}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <EvidenceSourceList evidence={evidence} />
+            <button
+              type="button"
+              data-testid="lineup-proposal-row"
+              onClick={onSelectCandidate}
+              disabled={!policy.canSelect}
+              aria-pressed={isDraftSelected}
+              className="mt-3 w-full rounded-lg border border-[var(--border-soft)] px-3 py-2 text-[13px] font-[600] text-[var(--foreground)] disabled:opacity-50"
+            >
+              {isDraftSelected ? "Selected ✓" : "Select proposal"}
+            </button>
+          </div>
 
           {isDraftSelected ? (
             <div data-testid="lineup-diff-preview" className="mt-3 rounded-lg border border-[var(--border-soft)] p-3 text-[12px] text-[var(--foreground)]">
               <p>
-                <span className="font-[650]">{slotLabel}:</span> {currentSlotAssignment ? currentSlotAssignment.name : "Empty"} → draft, not yet applied.
+                <span className="font-[650]">{slotLabel}:</span> {currentSlotAssignment ? currentSlotAssignment.name : "Empty"} → {candidateDisplayName}
               </p>
+              <p className="mt-1 text-[11px] text-[var(--text-muted)]">Draft, not yet applied.</p>
               {proposal.expectedConsequences.length > 0 ? (
                 <ul className="mt-2 flex flex-col gap-0.5">
                   {proposal.expectedConsequences.map((c) => (

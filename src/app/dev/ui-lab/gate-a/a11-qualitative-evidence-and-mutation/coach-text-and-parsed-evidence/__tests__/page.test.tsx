@@ -30,4 +30,13 @@ describe("A11-coach-text-and-parsed-evidence page", () => {
     renderPage();
     expect(screen.getByTestId("fixture-simulation-caption").textContent).toMatch(/Parsing, not inference/);
   });
+
+  it("Tobias's composure card shows the unsupported-phase fix (general, not build up) — A11-F1", () => {
+    renderPage();
+    const cards = screen.getAllByTestId("extracted-observation-card");
+    const composureCard = cards.find((c) => c.textContent?.includes("composed receiving the ball"));
+    expect(composureCard).toBeDefined();
+    expect(composureCard).toHaveTextContent("general");
+    expect(composureCard).not.toHaveTextContent("build up");
+  });
 });

@@ -126,10 +126,67 @@ test cases, all passing.
   `visual_vs_current/A11.md` — updated to describe the remediated contract/validation/evidence/
   authoritative-state behaviour and the new fixture versions/hashes
 
-## Totals (after remediation)
+## Totals (after round 1 remediation)
 
 3 new files (A10 contract + fixture context + its unit test), 1 new test file (A11 hook unit
 test), 12 modified source/test files, 8 modified documentation files. 3 fixture versions bumped
 (A10 review-alternative-success, A10 stale-proposal-blocked, A11 coach-text-and-parsed-evidence),
-each with an independently recomputed `fixtureSha256`. See the finished report for exact test
-counts and command output.
+each with an independently recomputed `fixtureSha256`.
+
+## Round 2 remediation delta (findings N1–N4, A11-F1)
+
+### Modified — A10 proposal contract (N1, N4)
+
+- `shared/lineup-proposal-contract.ts` — `validateLineupProposal` now accepts `unknown` (was
+  `LineupSlotAssignmentProposal`) and runs a `zod` `.strict()` shape schema before any semantic
+  check (N4); `LineupProposalValidationContext.currentSlotPlayerId` (a single field) replaced by
+  `slotOccupants: ReadonlyMap<string, string | null>` (N1); added `DUPLICATE_ASSIGNMENT` (a
+  player already occupying a different slot) and `UNSUPPORTED_PRODUCER`/`EVIDENCE_SUBJECT_MISMATCH`
+  rejection codes
+- `shared/lineup-proposal-fixture.ts` — `A10_SLOT_OCCUPANTS` built from the real
+  `matchW3PlanningPitchAssignments()` projection (Oskar/Theodor/Markus/Sindre/Kasper/Noah at their
+  real slots, RCM unfilled), replacing the single `A10_CURRENT_SLOT_PLAYER_ID` field; added one
+  cross-player evidence-catalog entry for the new `EVIDENCE_SUBJECT_MISMATCH` negative test
+- `shared/__tests__/lineup-proposal-contract.test.ts` — rewritten: 45 tests (up from 17), covering
+  N1's exact regression (GK falsely validating against RCM's empty state), duplicate-assignment
+  prevention, and a dedicated non-throwing-runtime-shape sweep (`null`/`undefined`/string/array/
+  missing-nested-object/wrong-field-type/extra-field, for every required field)
+
+### Modified — A10 presentation (N2, N3)
+
+- `shared/lineup-proposal-editor.tsx` — candidate identity/rationale/limitations/evidence
+  restructured into a plain non-interactive info block; "Select proposal" is now a separate
+  sibling `<button>`, never a wrapper around `EvidenceSourceList`'s `<details>` (N2); diff preview
+  now reads `"{slot}: {before} → {candidateDisplayName}"` with `"Draft, not yet applied."` as its
+  own line (N3)
+- `review-alternative-success/__tests__/page.test.tsx` — added a `describe` block of 6 tests
+  proving evidence inspection never selects/deselects/mutates state and that no interactive
+  element nests another (desktop and mobile), plus updated/added N3 diff-preview assertions
+- `stale-proposal-blocked/__tests__/page.test.tsx` — added a test proving evidence expansion in
+  the blocked state still cannot mutate the authoritative pitch
+
+### Modified — A11 (A11-F1)
+
+- `coach-text-and-parsed-evidence/fixtures.ts` — changed Tobias's composure observation's
+  `phase` from `"BUILD_UP"` to `"GENERAL"` (`fixtureVersion` 2→3, hash recomputed) — the note
+  names a position ("deeper midfield"), never a tactical phase
+- `.../__tests__/fixtures.test.ts` — added an assertion that the composure observation's phase is
+  `GENERAL` and its statement names no phase keyword
+- `.../__tests__/page.test.tsx` — added an assertion that Tobias's rendered card shows "general",
+  not "build up" (phase IS rendered in the real UI, confirmed by source read before asserting)
+
+### Modified — documentation
+
+- `ACTION_OWNERSHIP.md`, `BLOCKERS.md`, `CHANGED_FILES.md` (this file), `candidate_manifest.json`,
+  `capture-attestation.json`, `visual_vs_current/A10.md`, `A05_A08_A10_A11_REVIEW.md` — updated for
+  the round-2 validation/evidence/preview behaviour and the new A10/A11 fixture hashes
+
+## Totals (after round 2 remediation)
+
+0 new files, 7 modified source/test files (2 contract/fixture, 1 editor, 1 A11 fixture, 3 test
+files beyond the rewritten contract test), 1 fully-rewritten test file. Only 1 fixture version
+bumped this round (A11 coach-text-and-parsed-evidence, 2→3, hash recomputed) — A10's
+review-alternative-success and stale-proposal-blocked `proposal` object literals were not edited
+in round 2 (only the contract/fixture/editor code they're validated and rendered by changed), so
+their `fixtureVersion`/hash correctly stay at round 1's values. See the finished report for exact
+test counts, command output, and capture evidence.

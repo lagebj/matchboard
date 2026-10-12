@@ -59,14 +59,95 @@ describe("A10-review-alternative-success page", () => {
     expect(sources[2]).toHaveTextContent("Not recorded");
   });
 
-  it("shows the diff preview and expected-consequence disclaimer once selected", () => {
+  describe("evidence inspection is independent of candidate selection (independent review finding N2)", () => {
+    it("the evidence inspector and the Select proposal control are siblings, not nested — no interactive element contains another", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+      const selectButton = screen.getByRole("button", { name: "Select proposal" });
+      const inspector = screen.getByTestId("proposal-evidence-inspector");
+      // Neither interactive element may be a DOM descendant of the other.
+      expect(selectButton.contains(inspector)).toBe(false);
+      expect(inspector.contains(selectButton)).toBe(false);
+      // A <details> (and its <summary>) must never be nested inside a <button>.
+      expect(selectButton.querySelector("details")).toBeNull();
+      expect(selectButton.closest("details")).toBeNull();
+    });
+
+    it("expanding the evidence disclosure does not select the candidate or create a draft", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+      const summary = within(screen.getByTestId("proposal-evidence-inspector")).getByText(/Based on 3 cited sources/);
+      fireEvent.click(summary);
+      expect(screen.getByRole("button", { name: "Select proposal" })).toBeInTheDocument();
+      expect(screen.queryByTestId("lineup-diff-preview")).not.toBeInTheDocument();
+    });
+
+    it("collapsing an already-expanded evidence disclosure does not deselect an existing selection", () => {
+      mockViewport(true);
+      renderPage();
+      openAndSelect();
+      expect(screen.getByTestId("lineup-diff-preview")).toBeInTheDocument();
+      const summary = within(screen.getByTestId("proposal-evidence-inspector")).getByText(/Based on 3 cited sources/);
+      fireEvent.click(summary); // expand
+      fireEvent.click(summary); // collapse
+      expect(screen.getByRole("button", { name: "Selected ✓" })).toBeInTheDocument();
+      expect(screen.getByTestId("lineup-diff-preview")).toBeInTheDocument();
+    });
+
+    it("inspecting evidence never mutates the authoritative pitch", () => {
+      mockViewport(true);
+      renderPage();
+      const pitchBefore = screen.getAllByTestId("touchline-planning-pitch")[0].textContent;
+      fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+      const summary = within(screen.getByTestId("proposal-evidence-inspector")).getByText(/Based on 3 cited sources/);
+      fireEvent.click(summary);
+      const pitchAfter = screen.getAllByTestId("touchline-planning-pitch")[0].textContent;
+      expect(pitchAfter).toBe(pitchBefore);
+    });
+
+    it("the Select proposal control has its own accessible name, reachable independently of the evidence disclosure's own accessible name", () => {
+      mockViewport(true);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+      expect(screen.getByRole("button", { name: "Select proposal" })).toBeInTheDocument();
+      expect(screen.getByText(/Based on 3 cited sources/)).toBeInTheDocument();
+    });
+
+    it("holds on mobile (bottom sheet) too — no nested interactive elements, expanding evidence does not select", () => {
+      mockViewport(false);
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+      const selectButton = screen.getByRole("button", { name: "Select proposal" });
+      const inspector = screen.getByTestId("proposal-evidence-inspector");
+      expect(selectButton.contains(inspector)).toBe(false);
+      expect(inspector.contains(selectButton)).toBe(false);
+      fireEvent.click(within(inspector).getByText(/Based on 3 cited sources/));
+      expect(screen.getByRole("button", { name: "Select proposal" })).toBeInTheDocument();
+    });
+  });
+
+  it("shows the complete before/after diff — including the proposed player — and expected-consequence disclaimer once selected (independent review finding N3)", () => {
     mockViewport(true);
     renderPage();
     openAndSelect();
     const preview = screen.getByTestId("lineup-diff-preview");
     expect(preview.textContent).toMatch(/RCM:/);
-    expect(preview.textContent).toMatch(/not yet applied/i);
+    expect(preview.textContent).toMatch(/Empty.*Tobias/);
+    expect(preview.textContent).toMatch(/Draft, not yet applied\./);
     expect(preview.textContent).toMatch(/advisory only, not a guaranteed outcome/);
+  });
+
+  it("the preview's proposed player matches the player the submitted/applied operation actually assigns", () => {
+    mockViewport(true);
+    renderPage();
+    openAndSelect();
+    expect(screen.getByTestId("lineup-diff-preview").textContent).toMatch(/Tobias/);
+    fireEvent.click(screen.getByRole("button", { name: "Apply proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue fixture simulation →" }));
+    const pitches = screen.getAllByTestId("touchline-planning-pitch");
+    expect(within(pitches[0]).getByText("Tobias")).toBeInTheDocument();
   });
 
   it("Apply proposal enters PENDING, then resolving applies SUCCESS and the pitch reflects Tobias at RCM exactly once", () => {

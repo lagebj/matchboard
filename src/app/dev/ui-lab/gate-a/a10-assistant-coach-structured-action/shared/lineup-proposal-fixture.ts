@@ -1,11 +1,4 @@
-import {
-  MATCH_W3_ID,
-  MATCH_W3_GROUP_ID,
-  MATCH_W3_PENDING_STARTER_PLAYER_ID,
-  MATCH_W3_UNFILLED_SLOT,
-  MATCH_W3_LINEUP_REVISION,
-  matchW3Squad,
-} from "../../shared/match-w3-fixture";
+import { MATCH_W3_ID, MATCH_W3_GROUP_ID, MATCH_W3_PENDING_STARTER_PLAYER_ID, MATCH_W3_UNFILLED_SLOT, MATCH_W3_LINEUP_REVISION, matchW3Squad, matchW3PlanningPitchAssignments } from "../../shared/match-w3-fixture";
 import type { LineupProposalEvidenceSource, LineupProposalValidationContext } from "./lineup-proposal-contract";
 
 /**
@@ -28,10 +21,25 @@ export const A10_KNOWN_PLAYER_IDS: ReadonlySet<string> = new Set([
 
 export const A10_ROSTER_PLAYER_IDS: ReadonlySet<string> = new Set(matchW3Squad.map((m) => m.playerId));
 
+/** Every real slot id this match's formation defines, each mapped to `null` (unfilled) by
+ * default — occupied slots are filled in below from the SAME `matchW3PlanningPitchAssignments`
+ * projection the editor renders the pitch from, never a second independently authored list
+ * (second review round finding N1: a single `currentSlotPlayerId` field previously let a proposal
+ * targeting ANY slot validate against one hardcoded slot's — RCM's — empty state). */
 export const A10_VALID_SLOT_IDS: ReadonlySet<string> = new Set(["slot-GK", "slot-LCB", "slot-RCB", "slot-LCM", "slot-CM", "slot-RCM", "slot-CF"]);
 
-/** The RCM slot is currently unfilled in every A10 scenario's starting authoritative projection. */
-export const A10_CURRENT_SLOT_PLAYER_ID: string | null = null;
+function buildSlotOccupants(): ReadonlyMap<string, string | null> {
+  const occupants = new Map<string, string | null>([...A10_VALID_SLOT_IDS].map((slotId) => [slotId, null]));
+  for (const assignment of matchW3PlanningPitchAssignments()) {
+    if (occupants.has(assignment.slotId)) occupants.set(assignment.slotId, assignment.playerId);
+  }
+  return occupants;
+}
+
+/** The real authoritative starting projection: Oskar at `slot-GK`, Theodor at `slot-LCB`, Markus
+ * at `slot-RCB`, Sindre at `slot-LCM`, Kasper at `slot-CM`, Noah at `slot-CF`, `slot-RCM` unfilled
+ * — exactly `matchW3Squad`'s own real assignments, not a re-authored copy. */
+export const A10_SLOT_OCCUPANTS: ReadonlyMap<string, string | null> = buildSlotOccupants();
 
 export const A10_EVIDENCE_CATALOG: readonly LineupProposalEvidenceSource[] = [
   {
@@ -80,6 +88,19 @@ export const A10_EVIDENCE_CATALOG: readonly LineupProposalEvidenceSource[] = [
     coverage: "COMPLETE",
     supports: "Negative-fixture-only: belongs to a different match/group entirely.",
   },
+  // Deliberately wrong-subject evidence — never cited by any real A10 proposal, only by the
+  // negative fixture test proving player-specific evidence about an unrelated player is rejected.
+  {
+    sourceId: "src-fact-other-player-evidence",
+    matchId: A10_MATCH_ID,
+    groupId: A10_GROUP_ID,
+    playerId: "player-w3-sindre",
+    kind: "COACH_DECLARED",
+    fieldLabel: "Declared secondary position",
+    fieldValue: "CM",
+    coverage: "COMPLETE",
+    supports: "Negative-fixture-only: concerns a different player than the one being proposed.",
+  },
 ];
 
 export function a10ValidationContext(overrides: Partial<LineupProposalValidationContext> = {}): LineupProposalValidationContext {
@@ -89,8 +110,7 @@ export function a10ValidationContext(overrides: Partial<LineupProposalValidation
     currentRevision: A10_CURRENT_REVISION,
     knownPlayerIds: A10_KNOWN_PLAYER_IDS,
     rosterPlayerIds: A10_ROSTER_PLAYER_IDS,
-    validSlotIds: A10_VALID_SLOT_IDS,
-    currentSlotPlayerId: A10_CURRENT_SLOT_PLAYER_ID,
+    slotOccupants: A10_SLOT_OCCUPANTS,
     evidenceCatalog: A10_EVIDENCE_CATALOG,
     ...overrides,
   };
