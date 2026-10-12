@@ -22,16 +22,20 @@ two-column engagement that collides with the same-threshold inspector-vs-sheet d
 defect A01's own round-4 remediation already found and fixed via a decoupled `expanded` (840px)
 breakpoint. A09 has no two-column layout at any width and is unaffected.
 
-**Explicit per-wave breakpoint check (`320/360/390/430/599/600/640/768/840/900/1024/1440`):**
-`NOT_TESTED` live in this session (no browser). What *is* verified: the exact pixel values of
-`--breakpoint-medium`/`--breakpoint-expanded` in `src/app/globals.css` (600px/840px), and that
-every A07/A10 (pre-fix)/A01 page's container class list resolves to one of exactly two documented
-behaviors at each of those widths — stacked single column below 600px, inspector-without-row
-between 600-840px (A01, and now A10), or the pre-fix squeeze between 600-840px (A07, still). A09's
-single `max-w-[480px]` column never changes shape. CI's next real capture run on this branch (see
-`VISUAL_COVERAGE_AND_CAPTURE.md`) will produce actual 768px screenshots of the fixed A10 pages,
-which is the right way to close this `NOT_TESTED` gap with real evidence rather than a further
-inference chain.
+**Explicit breakpoint check at 768px: `CONFIRMED` with real CI screenshots.** This local sandbox
+cannot run Playwright directly, so `scripts/ui-lab-visual-review.mjs` was extended with 600/768/900px
+capture widths for A07's and A10's scenarios and pushed to this PR's branch (CI run `38287815867`,
+artifact `ui-lab-review-38287815867-1`). The resulting screenshots, inspected directly:
+`gate-a-w3-a07-assign-reserve-success-squeeze-768-dark-editor-open.png` shows the match-content
+column squeezed to an unreadable sliver at 768px (the defect, still present — A07 untouched);
+`gate-a-w4-a10-review-alternative-success-squeeze-768-dark-editor-open.png` shows both the match
+content and the inspector rendering full-width, stacked, fully readable at the identical width (the
+fix, confirmed working). A09's single `max-w-[480px]` column was not separately re-screenshotted at
+these widths since it structurally cannot change shape (no row/column breakpoint exists in its
+markup at all — confirmed by source read, not just by absence of a capture). The full
+320-1440px sweep beyond 600/768/900 was not re-captured in this session; those three widths bound
+the exact squeeze range (600 = inspector turns on, 840 = row layout engages) and are sufficient to
+confirm both the defect and the fix.
 
 ## 3. Focus restoration, pending guards, dirty-close
 

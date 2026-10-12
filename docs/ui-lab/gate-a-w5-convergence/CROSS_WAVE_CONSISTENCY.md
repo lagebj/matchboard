@@ -137,14 +137,25 @@ equivalent defect there.
   GAP` (A07 never shipped to production, so the squeeze only affects the design-reference artifact
   itself, not a live user) — see `REVIEW_RECORD.md`.
 
-**Verification gap, disclosed:** no live browser was available to actually screenshot either family
-at 768px in this sandbox. The finding is grounded in the breakpoint *source values* themselves
-(`--breakpoint-medium: 600px` / `--breakpoint-expanded: 840px` in `src/app/globals.css`, confirmed
-against A01's own documented round-4 fix, which *was* screenshot-verified at the time) and in the
-identical Tailwind class strings across files, not a fresh pixel capture. This PR's branch push
-will trigger `ui-lab-visual-review.yml`'s real CI capture, which is the correct way to get an
-independently reviewable before/after screenshot at 768px for A10 — see `VISUAL_COVERAGE_AND_
-CAPTURE.md`, which names the exact run/artifact to check once CI completes.
+**Verification: confirmed with real CI screenshots, not left as an inference chain.** This
+session's local sandbox cannot run Playwright/`next dev` directly (devcontainer HMR WebSocket
+upgrade failure), so `scripts/ui-lab-visual-review.mjs` was extended to add the exact 600/768/900px
+widths to A07's and A10's own capture scenarios (`inspectorSqueezeSmokeViewports`, same dimensions
+as A01's existing `tablet-600/768/900`) and pushed to this PR's branch, triggering a real CI capture
+run. The resulting screenshots confirm both halves of this finding directly:
+
+- `gate-a-w3-a07-assign-reserve-success-squeeze-768-dark-editor-open.png` (CI run `38287815867`,
+  artifact `ui-lab-review-38287815867-1`, commit `6faf8d3d2f754ce0aca3c533e63f7af75b55fd16`):
+  at 768px, the match-content column is squeezed to a sliver of truncated, unreadable text
+  (`AO7`, `Mat`, `Deta`...) while the inspector occupies nearly the full width — the exact defect
+  described above, now visually confirmed, not inferred.
+- `gate-a-w4-a10-review-alternative-success-squeeze-768-dark-editor-open.png` (same run/artifact):
+  at the identical 768px width, the match content and the review inspector both render full-width,
+  stacked, fully readable — confirming the fix works exactly as intended, matching A01's own
+  approved behavior at the same width.
+
+Both images were inspected directly in this session (not just hash-diffed). See `VISUAL_COVERAGE_
+AND_CAPTURE.md` for the full capture inventory this added.
 
 ## C-X08 — Comparable semantics across themes
 

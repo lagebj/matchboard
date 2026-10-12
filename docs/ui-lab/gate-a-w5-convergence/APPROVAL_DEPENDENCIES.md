@@ -12,10 +12,13 @@ approval are different authority types (`03_MERGED_BASELINE_AND_APPROVAL_INVENTO
 types" list), and this PR does not change that status for any scenario.
 
 **This PR's A10 breakpoint fix (`INTERACTION_STATE_AUDIT.md`) changes the visible container layout
-of all 3 A10 scenarios between 600-840px wide.** Any capture evidence an owner reviews for A10
-should be taken **after** this fix lands, not reused from the pre-fix CI runs cited in `VISUAL_
-COVERAGE_AND_CAPTURE.md` — recapture is a mechanical CI re-run away (push triggers `ui-lab-visual-
-review.yml` automatically) and does not require a new fixture version (layout-only change).
+of all 3 A10 scenarios between 600-840px wide.** A fresh capture confirming the fix already exists
+on this branch — CI run `38287815867` (artifact `ui-lab-review-38287815867-1`, commit
+`6faf8d3d2f754ce0aca3c533e63f7af75b55fd16`), which also added dedicated 600/768/900px captures to
+make the fixed range directly reviewable (not just the pre-existing desktop/mobile/narrow widths).
+Any owner review of A10 should use this run's captures, not the pre-fix ones cited elsewhere in
+`VISUAL_COVERAGE_AND_CAPTURE.md`'s W4 section. No new fixture version was needed (layout-only
+change).
 
 ## Per-family decision table
 
@@ -23,7 +26,7 @@ review.yml` automatically) and does not require a new fixture version (layout-on
 |---|---|---|---|---|
 | A05 | `disabled`, `enabled-with-pattern`, `enabled-without-pattern`, `unavailable` | 1 (all) | 10+14+10+10 = 44 | Is a valuable hypothesis conspicuous, cited, and clearly not a fact? Does "off" leave no reserved gap? |
 | A08 | `off`, `on-strong-pattern`, `on-no-insight` | 1 (all) | 10+10+10 = 30 | Is the surrounding layout identical across all three, with no filler when on-but-empty? |
-| A10 | `review-alternative-success`, `stale-proposal-blocked`, `disabled-or-failed` | 2, 2, 1 | 34+14+14 = 62 (pre-this-PR's-fix; recapture recommended) | Can I review an evidence-backed proposal and apply it in place? Is a stale proposal blocked before I can even try? Does the pitch remain readable at 390px and the 600/768/840px breakpoints — **directly relevant to this PR's `W5` fix, worth the owner's specific attention this round** |
+| A10 | `review-alternative-success`, `stale-proposal-blocked`, `disabled-or-failed` | 2, 2, 1 | 34+14+14 = 62 pre-fix baseline; post-fix capture (run `38287815867`) adds 3 extra widths × 2 themes per scenario on top | Can I review an evidence-backed proposal and apply it in place? Is a stale proposal blocked before I can even try? Does the pitch remain readable at 390px and the 600/768/840px breakpoints — **confirmed fixed in this PR, directly visible in run `38287815867`'s `squeeze-600/768/900` captures** |
 | A11 | `coach-text-and-parsed-evidence`, `profile-change-review-guarded`, `profile-change-review-rejected` | 3, 1, 1 | 10+20+20 = 50 | Can I see exactly what was structured from my own note, and nothing more? Can I accept/reject/defer without any implicit write? |
 
 Total: 13 scenarios, 186 candidate captures (pre-this-PR's-A10-fix count; A10's 62 should be

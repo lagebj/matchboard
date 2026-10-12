@@ -3,6 +3,25 @@
 Per `10_DESIGN_REFERENCE_AUTHORITY_AND_STORAGE.md` and `11_VISUAL_CAPTURE_TEST_PLAN.md`. This is
 the exact algorithm those documents specify, actually run — not assumed.
 
+## New capture evidence produced by this PR (W5-F01/W5-F02)
+
+`scripts/ui-lab-visual-review.mjs` was extended with `inspectorSqueezeSmokeViewports`
+(600/768/900px, same dimensions as A01's own `tablet-600/768/900`) on A07's 5 scenarios and A10's 3
+scenarios — the only widths in A01-A12 where the inspector-vs-sheet decision (600px) and the
+two-column row engagement (840px, or incorrectly 600px pre-fix) can actually diverge. Pushed to
+this branch, triggering CI run **`38287815867`** (artifact `ui-lab-review-38287815867-1`, commit
+`6faf8d3d2f754ce0aca3c533e63f7af75b55fd16`, not expired, expires `2026-10-19T18:09:43Z`). Both
+halves of the finding are now directly visible, inspected in this session:
+
+- `gate-a-w3-a07-assign-reserve-success-squeeze-768-dark-editor-open.png` — A07 (untouched,
+  `APPROVED_GOLDEN`): match content squeezed to an unreadable sliver, inspector taking nearly the
+  full width.
+- `gate-a-w4-a10-review-alternative-success-squeeze-768-dark-editor-open.png` — A10 (fixed in this
+  PR): both panels stack full-width and remain fully readable at the identical viewport width.
+
+This is real, independently reviewable evidence for `W5-F01`/`W5-F02`, not an inference from source
+values alone. See `CONFLICT_AND_BLOCKER_REGISTER.md` for the full finding writeup.
+
 ## Algorithm applied
 
 1. Enumerate manifest records and approval blocks — done via `scripts/audit-gate-a-golden-

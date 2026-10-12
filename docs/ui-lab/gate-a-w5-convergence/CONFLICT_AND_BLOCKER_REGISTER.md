@@ -23,7 +23,7 @@ resolution, decisionMaker, status, captureRefs`.
 | resolution | **Not applied in this PR.** A07 is `APPROVED_GOLDEN` — per every prior wave's own non-negotiable, an approved golden's component/capture set is not silently revised. Proposed resolution: apply the identical fix A10 received in this PR, recapture, and record as a reviewed revision bump — but only on explicit owner instruction |
 | decisionMaker | Repository owner (Lage Berger-Brendryen) |
 | status | `OWNER_DECISION_REQUIRED` |
-| captureRefs | None yet (would need a fresh capture after the fix, if authorized) |
+| captureRefs | `ui-lab-review-38287815867-1` (run `38287815867`, commit `6faf8d3d2f754ce0aca3c533e63f7af75b55fd16`) — `gate-a-w3-a07-assign-reserve-success-squeeze-{600,768,900}-{dark,light}-editor-open.png` (and the other 4 A07 scenarios' equivalents) visually confirm the defect is still present, unfixed |
 
 ### W5-F02 — A10's identical defect (now fixed, unapproved family)
 
@@ -42,7 +42,7 @@ resolution, decisionMaker, status, captureRefs`.
 | resolution | **Fixed in this PR.** `LineupProposalInspector` now accepts a `className` prop; all three A10 pages use `expanded:flex-row`/`expanded:w-[480px] expanded:shrink-0`/`className="expanded:flex-1"`, matching A01's approved pattern exactly. `tsc`, lint, and both Gate A vitest suites pass unchanged |
 | decisionMaker | N/A — narrow dev-only fix on an unapproved candidate, in scope per this PR's own mandate |
 | status | `RESOLVED` |
-| captureRefs | Pending a fresh CI capture run on this branch (see `VISUAL_COVERAGE_AND_CAPTURE.md`) |
+| captureRefs | `ui-lab-review-38287815867-1` (run `38287815867`, commit `6faf8d3d2f754ce0aca3c533e63f7af75b55fd16`) — `gate-a-w4-a10-review-alternative-success-squeeze-{600,768,900}-{dark,light}-editor-open.png` (and the other 2 A10 scenarios' equivalents) visually confirm the fix: full-width stacked layout, no squeeze, at the identical width A07 still fails |
 
 ### W5-F03 — W2's committed capture-attestation.json did not back its own approved hashes
 
