@@ -1,26 +1,26 @@
 {
-  "description": "Gate A W4 (A05/A08/A10/A11) UI Lab visual-review evidence, post-remediation (R1-R5). Not an approved golden — requires human approval.",
-  "sourceCommitSha": "8dee306b60f65d101908b43c47eeed9bfb950806",
-  "generatedAt": "2026-10-12T06:45:47.227Z",
+  "description": "Gate A W4 (A05/A08/A10/A11) UI Lab visual-review evidence, post-remediation round 2 (N1-N4, A11-F1), following round 1 (R1-R5). Not an approved golden \u2014 requires human approval.",
+  "sourceCommitSha": "d61c9e540a60433352061ef4dd8eeaf53990f4fc",
+  "generatedAt": "2026-10-12T12:19:58.799Z",
   "environment": {
     "node": "v24.21.0",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38213344006",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38247353225",
   "ciArtifact": {
-    "id": 11731620317,
-    "name": "ui-lab-review-38213344006-1",
-    "expiresAt": "2026-10-19T06:45:47Z"
+    "id": 11747170083,
+    "name": "ui-lab-review-38247353225-1",
+    "expiresAt": "2026-10-19T12:19:59Z"
   },
-  "reviewedBranchHeadSha": "8fa4956c7badceb4bba8fc8630e2660db787b641",
-  "supersedes": "The previous capture-attestation.json (CI run 38180483804, commit 03683e34a) predated the R1-R5 remediation and its visible-state changes (evidence inspector, already-applied state, authoritative profile-state outcomes) — see BLOCKERS.md W4-BLK-12 (now resolved).",
+  "reviewedBranchHeadSha": "370bcba87b455ef54a62b8acfdcc9fe08f69bb71",
+  "supersedes": "The previous capture-attestation.json (CI run 38213344006, commit 8fa4956c7badceb4bba8fc8630e2660db787b641) predated round 2's N1-N4/A11-F1 remediation and its visible-state changes (A10 candidate info is now a plain block with a separate 'Select proposal' button instead of one combined selectable button; the A10 diff preview now names the proposed player; A11's composure observation now reads 'general' instead of 'build up') \u2014 see BLOCKERS.md W4-BLK-13 (now resolved).",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
-    "Gate A W4 scenarios (scenario slugs prefixed gate-a-w4-) are CANDIDATE only — see docs/ui-lab/gate-a-w4-candidates/.",
-    "GitHub Actions artifact retention is temporary (expires ciArtifact.expiresAt) — a durable GitHub Release (07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md D7 strategy) has not been attempted; same disclosed gap as every prior wave.",
-    "This session also ran scripts/ui-lab-visual-review.mjs locally (local next dev -p 3333, not CI) against the same source and got an identical capture count/scenario/interaction-state set, zero console/page errors — but the local run's own PNG byte hashes differ from this CI artifact's hashes for every file (expected font-rendering/anti-aliasing variance between environments, not a correctness defect). The hashes recorded below are this CI artifact's own, independently re-verified in this session: all 698 files of this run's artifact (not just the 186 W4 ones) were downloaded fresh via the GitHub API and every SHA-256 recomputed from the raw bytes — zero mismatches against both this file and the artifact's own self-reported manifest.json.",
-    "This run also confirms the capture-script fix (commit f4f751c41) and the new reopened-already-applied interaction (commit 8fa4956c7): a prior run against commit 42afe4240 failed with a 30s locator.click timeout because the R2 remediation removed the lineup-proposal-row the capture script tried to click for a blocked (stale) proposal — fixed by removing that now-invalid interaction, not by working around the timeout."
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit \u2014 same precedent as every prior wave/round. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+    "Gate A W4 scenarios (scenario slugs prefixed gate-a-w4-) are CANDIDATE only \u2014 see docs/ui-lab/gate-a-w4-candidates/.",
+    "GitHub Actions artifact retention is temporary (expires ciArtifact.expiresAt) \u2014 a durable GitHub Release (07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md D7 strategy) has not been attempted; same disclosed gap as every prior wave/round.",
+    "The hashes recorded below are this CI artifact's own, independently re-verified in this session: all 698 files of this run's artifact (not just the 186 W4 ones) were downloaded fresh via the GitHub API (never `gh run download`) and every SHA-256 recomputed from the raw bytes \u2014 zero mismatches against both this file and the artifact's own self-reported manifest.json. The downloaded zip's own size (58304241 bytes) also matched the GitHub API's artifact listing exactly.",
+    "This run captures round 2's N1-N4/A11-F1 fixes faithfully: the review-alternative-success scenario's editor-open/draft-preview states show the separated 'Select proposal' button and the complete before/after diff text; the coach-text-and-parsed-evidence scenario shows the corrected GENERAL phase. No new interaction-state slug was added this round (unlike round 1's reopened-already-applied) \u2014 N1-N4 changed presentation within the SAME existing states, so the capture count (186) is unchanged from round 1."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -949,7 +949,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-editor-open.png",
-      "sha256": "d0b9f05eeaa4d98834b4cee475cbce9c722cf5f263731a1f1b23236160ae40b7"
+      "sha256": "b838b6fdf12d4a88d320288999ec74b83a12ebe4734f1ef659c0bbe5051b0f8a"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -961,7 +961,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-draft-preview.png",
-      "sha256": "10ea5196862080b4428d9791378c4e75a077394bc58aced1413e3597f5559b5b"
+      "sha256": "86d5c2f13a9f9e583d24fd5030a08be1f96e8865ac6417da73e242cf666f15fb"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -973,7 +973,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-pending.png",
-      "sha256": "0691d063a5b9512b35b26054910d2f8f1f88f3c76b87f5c91fa5251c97d8e101"
+      "sha256": "77c3b22ebfac8b74f58e45b318b26a71db02043efeaed8076c251eecf4f11e3b"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1033,7 +1033,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-editor-open.png",
-      "sha256": "96118d720c59d30f0aa34131c0c2fd2774f552b90556f9e6b8814b4453d553b8"
+      "sha256": "948c217c64b657267d7cc0afd7c75ee75d3057cf680d8292de376018b42dbd11"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1045,7 +1045,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-draft-preview.png",
-      "sha256": "88ee35d4496e0b8543d028f3e3a3e8076b96e3028f974731a49af7e64c4a4493"
+      "sha256": "6e30e4500267ac883fbd878c3c7dc349d43e02a858503dddd8754f6261f07db6"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1057,7 +1057,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-pending.png",
-      "sha256": "5df27f85bce0399f24661e036173bfebf370ae5cd526d99fcd4332bbc45afc1c"
+      "sha256": "0d5f05aee190a47f4a69befee3b88e329354abdd62dcb71a823482a05f95f634"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1069,7 +1069,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-saved.png",
-      "sha256": "1cc4fb48cfedd35fd63c2d1356289d92c6c4bd8a73140fc95b0b45898648b2dd"
+      "sha256": "592213b103de06a01558e111bc14027b7539954a34e3bd69df0547967400b2e7"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1117,7 +1117,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-editor-open.png",
-      "sha256": "dc5dea4dbd644c7713748856570f0f001a44831df2785ca56770b76ad0c2469f"
+      "sha256": "85ab957e8f3f08af500f38d4059fa3ad6fd51be72973e41a83e1b79b2d295173"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1129,7 +1129,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-draft-preview.png",
-      "sha256": "58e3d6ad4b936e7d8eeb6ded512b00f42535b0ccfad8bd3bdb1b14935a561702"
+      "sha256": "133dc855c0b274ab7d27dff595a6ad1bcfbe4395a6ea84ecb96c2fcf95b87ed8"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1141,7 +1141,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-pending.png",
-      "sha256": "551284409bdc2e1f844b90135e5baeff0c50418726c77ffeea56ffefd7b3baf8"
+      "sha256": "1f707d96e96b2a2beb22de053760a74a5b9f663179ff0fa384f3da2c5e24613a"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1201,7 +1201,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-editor-open.png",
-      "sha256": "bab905bcd88f5a757ed6c11681aeb1c5c1e05335459133e40e1af3b37f18cc7e"
+      "sha256": "c0edbee2efedd6e2787c8c7fa089bd8e45fd55211f0fdfb398693e262c874175"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1213,7 +1213,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-draft-preview.png",
-      "sha256": "987f8a43c3bc4233d01b03e1b93906ca3e989fb97fb10afa11d877abaa12eb95"
+      "sha256": "02867517841ea31c680ee2c0678924216dbc2057aed504d08752e86652e70271"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1225,7 +1225,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-pending.png",
-      "sha256": "1044a2ad5378e50d9720302ad831af75cf62bfbe68538d5cabeed5c5caf365bf"
+      "sha256": "53ed60be3b992e5f61ddcdfbc072e7655dec41f241255ece264e1e5290428af1"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1681,7 +1681,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-desktop-dark.png",
-      "sha256": "9da5175d33a1dc706db48711f240733dacf5ef920c365f130008d4c6ba81314d"
+      "sha256": "fe33b9f6ec8782286f5cfee6a9e54c1a82435606c704724aca3902e177cd9b7c"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1693,7 +1693,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-desktop-light.png",
-      "sha256": "ccd6ab31fe37150d22b820b41a5fc98f81fbcb39a17562adc67e940a1007705c"
+      "sha256": "3ea58856ea697a62420b8f8c7e45af253e28d352864421275ff1c1b4f6e1279b"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1705,7 +1705,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-mobile-dark.png",
-      "sha256": "0c4916b16cf3433064f1171549cacc9c842779f01cf90a672b9d4f65488f505d"
+      "sha256": "92b5b8f20b9e8f19bc42a1e9f535f933e7d47077595aeb99195766c93cc59d31"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1717,7 +1717,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-mobile-light.png",
-      "sha256": "fe07bcdafc9275714c6da40005a8b9ebeaa893454962a10cf152c6e336b09a17"
+      "sha256": "70c58ae3b4f8c676f95b5af5f0a3056ea4acc422071a899fe2718e37128fad32"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1729,7 +1729,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-narrow-dark.png",
-      "sha256": "a7dec1a86b3b81eb5853fce014e9a4c9d81e5fc8b8696783300b097ed54b9d0c"
+      "sha256": "cb22eafe484f28b8825e6624b4bde7161128e936f52302a40f3368c05a0ca123"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1741,7 +1741,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-narrow-light.png",
-      "sha256": "710ad4d511b599ac8cc77e42fafaf7ccc1619acc7b7f6c9a3d196442e9a688bb"
+      "sha256": "abfa89a2080a089b2ea73f22896d5a876071d9fef8d20d5cd61e14c950d0a464"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1753,7 +1753,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-360-dark.png",
-      "sha256": "892f23f38ddc69c81e1aef2b15bf9984e5654da5c19acd273c4b911810e4e1a3"
+      "sha256": "2e2b65aac267221b6938f0adf3d021d38e306e0fea256560d9c395f8c8043b7f"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1765,7 +1765,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-360-light.png",
-      "sha256": "4b453da00e6ba9dc9883e20e623d114d55e65ae81675a8b69a4a6810ddd5f7d0"
+      "sha256": "c0818d1d34906c86258308b92b83db9164af1e3b87e6f48a6b7e1886ee753371"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1777,7 +1777,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-430-dark.png",
-      "sha256": "8fd36855c5778d57e1de421024eb2e633fccf06599845ef8d6bcb0bbaa151805"
+      "sha256": "8b3a462cf5ab297d9d3ed63b2aa15a5769c2a316fe250a288e16085f29141b60"
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
@@ -1789,7 +1789,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-430-light.png",
-      "sha256": "00bb5e7bfb79ef8675b645cf7c5177730f80e83b6939580941d1fc5ec7c467d9"
+      "sha256": "18744334dfc59193cc2e5e76dc71f7576b3ddca05cf81bd48fa24c8840d543ff"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
