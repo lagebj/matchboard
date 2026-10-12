@@ -1,24 +1,26 @@
 {
-  "description": "Gate A W4 (A05/A08/A10/A11) UI Lab visual-review evidence. Not an approved golden — requires human approval.",
-  "sourceCommitSha": "bbddc6ecac38c2e40d43531ab8f5a8774c683169",
-  "generatedAt": "2026-10-11T22:36:47.869Z",
+  "description": "Gate A W4 (A05/A08/A10/A11) UI Lab visual-review evidence, post-remediation (R1-R5). Not an approved golden — requires human approval.",
+  "sourceCommitSha": "8dee306b60f65d101908b43c47eeed9bfb950806",
+  "generatedAt": "2026-10-12T06:45:47.227Z",
   "environment": {
     "node": "v24.21.0",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38180483804",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38213344006",
   "ciArtifact": {
-    "id": 11717921313,
-    "name": "ui-lab-review-38180483804-1",
-    "expiresAt": "2026-10-18T22:36:48Z"
+    "id": 11731620317,
+    "name": "ui-lab-review-38213344006-1",
+    "expiresAt": "2026-10-19T06:45:47Z"
   },
-  "reviewedBranchHeadSha": "03683e34a1c66d0f47237c22b6fb3c79c933e0cb",
+  "reviewedBranchHeadSha": "8fa4956c7badceb4bba8fc8630e2660db787b641",
+  "supersedes": "The previous capture-attestation.json (CI run 38180483804, commit 03683e34a) predated the R1-R5 remediation and its visible-state changes (evidence inspector, already-applied state, authoritative profile-state outcomes) — see BLOCKERS.md W4-BLK-12 (now resolved).",
   "knownLimitations": [
     "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
     "Gate A W4 scenarios (scenario slugs prefixed gate-a-w4-) are CANDIDATE only — see docs/ui-lab/gate-a-w4-candidates/.",
     "GitHub Actions artifact retention is temporary (expires ciArtifact.expiresAt) — a durable GitHub Release (07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md D7 strategy) has not been attempted; same disclosed gap as every prior wave.",
-    "This session ALSO ran scripts/ui-lab-visual-review.mjs locally (local next dev -p 3333, not CI) against the same source and independently confirmed all 182 W4 interactions/states render and behave correctly (visually spot-checked) with zero console/page errors — but the local run's own PNG byte hashes differ from this CI artifact's hashes for every single file. This is expected environment-dependent rendering variance (font availability/anti-aliasing differ between this sandbox and the CI runner), not a correctness defect — confirmed by direct visual comparison of a sample, not assumed. The hashes recorded below are this CI artifact's own, the only ones independently re-verifiable by downloading the artifact and recomputing SHA-256 from the raw bytes (as was done in this session: all 182 downloaded fresh via the GitHub API and recomputed, zero mismatches against this file)."
+    "This session also ran scripts/ui-lab-visual-review.mjs locally (local next dev -p 3333, not CI) against the same source and got an identical capture count/scenario/interaction-state set, zero console/page errors — but the local run's own PNG byte hashes differ from this CI artifact's hashes for every file (expected font-rendering/anti-aliasing variance between environments, not a correctness defect). The hashes recorded below are this CI artifact's own, independently re-verified in this session: all 698 files of this run's artifact (not just the 186 W4 ones) were downloaded fresh via the GitHub API and every SHA-256 recomputed from the raw bytes — zero mismatches against both this file and the artifact's own self-reported manifest.json.",
+    "This run also confirms the capture-script fix (commit f4f751c41) and the new reopened-already-applied interaction (commit 8fa4956c7): a prior run against commit 42afe4240 failed with a 30s locator.click timeout because the R2 remediation removed the lineup-proposal-row the capture script tried to click for a blocked (stale) proposal — fixed by removing that now-invalid interaction, not by working around the timeout."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -29,8 +31,8 @@
     "gate-a-w4-a08-off": 10,
     "gate-a-w4-a08-on-strong-pattern": 10,
     "gate-a-w4-a08-on-no-insight": 10,
-    "gate-a-w4-a10-review-alternative-success": 26,
-    "gate-a-w4-a10-stale-proposal-blocked": 18,
+    "gate-a-w4-a10-review-alternative-success": 34,
+    "gate-a-w4-a10-stale-proposal-blocked": 14,
     "gate-a-w4-a10-disabled-or-failed": 14,
     "gate-a-w4-a11-coach-text-and-parsed-evidence": 10,
     "gate-a-w4-a11-profile-change-review-guarded": 20,
@@ -947,7 +949,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-editor-open.png",
-      "sha256": "e15bffd4b666ca86ab90f38c48382e75b8e7a2e3add0d69ca1c3088da301a023"
+      "sha256": "d0b9f05eeaa4d98834b4cee475cbce9c722cf5f263731a1f1b23236160ae40b7"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -959,7 +961,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-draft-preview.png",
-      "sha256": "b649bc4665fd0927b0a14e9473cc1a7b1f38372ebe00fb8425d4fddfd5199fbf"
+      "sha256": "10ea5196862080b4428d9791378c4e75a077394bc58aced1413e3597f5559b5b"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -971,7 +973,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-pending.png",
-      "sha256": "f0bab6237f96db7075a5dece63e49070ffaaa9150ef96cb4e7f68f72b596af68"
+      "sha256": "0691d063a5b9512b35b26054910d2f8f1f88f3c76b87f5c91fa5251c97d8e101"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -983,7 +985,31 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-saved.png",
-      "sha256": "3f77e01627c548c51d487efa03f3b181ce10860ed22bdc7836eaf4a3857bf882"
+      "sha256": "6ad9f706a4f8f21d1e7634da99281d6b574c43c804b7db24610a468413643183"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-closed-after-saved.png",
+      "sha256": "0c09880015baf5d6011c46f8e7adb835e925247217ecb1f7ad9c4f87bafe8f07"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "reopened-already-applied",
+      "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-reopened-already-applied.png",
+      "sha256": "a13ed86e0559fb5cc3fe6a2cc1d9e951b7b05bb0674e535732d3f1a50cbf0b7e"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1007,7 +1033,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-editor-open.png",
-      "sha256": "291a4d0e53df051eae6ce3c45ef9ce7088330cb849cae81da081ccd5b5f45457"
+      "sha256": "96118d720c59d30f0aa34131c0c2fd2774f552b90556f9e6b8814b4453d553b8"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1019,7 +1045,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-draft-preview.png",
-      "sha256": "49412e7fbccd4d712b261a8f0fe7220253969b8a081f8d2e39afde18a384a630"
+      "sha256": "88ee35d4496e0b8543d028f3e3a3e8076b96e3028f974731a49af7e64c4a4493"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1031,7 +1057,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-pending.png",
-      "sha256": "2870d39179f1037421120db535c4d018412e8234a267aebc3d0ed8288529a008"
+      "sha256": "5df27f85bce0399f24661e036173bfebf370ae5cd526d99fcd4332bbc45afc1c"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1043,7 +1069,31 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w4-a10-review-alternative-success-desktop-light-saved.png",
-      "sha256": "bfeba54d79d39b99cd4d112cfb26d252bec5ad11727f87323a3f75d281d09d77"
+      "sha256": "1cc4fb48cfedd35fd63c2d1356289d92c6c4bd8a73140fc95b0b45898648b2dd"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w4-a10-review-alternative-success-desktop-light-closed-after-saved.png",
+      "sha256": "7ef923fe02690d68fb5b129213fb66b7b6c9e00c656a90b208abca650f3380ac"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "reopened-already-applied",
+      "file": "gate-a-w4-a10-review-alternative-success-desktop-light-reopened-already-applied.png",
+      "sha256": "0f7be3f7e4fb1b6c073ae479185a2fdb16ce2cdc7dd675e12e22c1fdfb4edb0e"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1067,7 +1117,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-editor-open.png",
-      "sha256": "e5d61b437ca5f281ece06bc032524b7e02a5b4081634b09c44555d27066d011e"
+      "sha256": "dc5dea4dbd644c7713748856570f0f001a44831df2785ca56770b76ad0c2469f"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1079,7 +1129,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-draft-preview.png",
-      "sha256": "13e869d9def2bd043db214b006dde020f56b2f7f81fa4024c6f246a070f1914c"
+      "sha256": "58e3d6ad4b936e7d8eeb6ded512b00f42535b0ccfad8bd3bdb1b14935a561702"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1091,7 +1141,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-pending.png",
-      "sha256": "810f6eb9b83683a63dcdf624d00f92aa687e027064000b85e3e726a8cdcb4358"
+      "sha256": "551284409bdc2e1f844b90135e5baeff0c50418726c77ffeea56ffefd7b3baf8"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1103,7 +1153,31 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-saved.png",
-      "sha256": "8d29c22b7cf780683d406de60342b7dc73c36a075f9b3c18302a93eebdfd416c"
+      "sha256": "d42c086cb0bb985169fe88c57134c808a2731b6fe1b500ff2c068a2f3ed1c372"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-closed-after-saved.png",
+      "sha256": "d906507ce75c85fd0b07abf8b5241a61457450edfafaffc2b22872e86ca89567"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "reopened-already-applied",
+      "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-reopened-already-applied.png",
+      "sha256": "9574f20b0a07f987e458e5585f98c1b184896e7208f1adf32ac5a2246ce4ba2e"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1127,7 +1201,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-editor-open.png",
-      "sha256": "5c3b660eeef8981d5d42417f542f5b4c68ad3de5957f07fc9f1f437bed5bcb08"
+      "sha256": "bab905bcd88f5a757ed6c11681aeb1c5c1e05335459133e40e1af3b37f18cc7e"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1139,7 +1213,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-draft-preview.png",
-      "sha256": "e4cb01beb2f485fbe6aa0fc809efaeecd9033ac07dbd420587cb8833f5527ba9"
+      "sha256": "987f8a43c3bc4233d01b03e1b93906ca3e989fb97fb10afa11d877abaa12eb95"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1151,7 +1225,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-pending.png",
-      "sha256": "2493fee691b2703d1e418c8de37add091020322b2bdc17d6b05cd0af20b1c837"
+      "sha256": "1044a2ad5378e50d9720302ad831af75cf62bfbe68538d5cabeed5c5caf365bf"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1163,7 +1237,31 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-a-w4-a10-review-alternative-success-mobile-light-saved.png",
-      "sha256": "649aee7d215d7f9fa21761ea22f9759bd619c9b913898928e5cc5b4ae9e788a0"
+      "sha256": "d8899d5ba1e764ce9ca1f81839a0a9ae9c84c202f8edd25feab6fca0aa020c71"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "closed-after-saved",
+      "file": "gate-a-w4-a10-review-alternative-success-mobile-light-closed-after-saved.png",
+      "sha256": "6e4dbce13ceb6ecdd0cfc2adf9510679883994ea5ee270d9ebfc0e741ff7497a"
+    },
+    {
+      "scenarioId": "A10-review-alternative-success",
+      "scenario": "gate-a-w4-a10-review-alternative-success",
+      "route": "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "reopened-already-applied",
+      "file": "gate-a-w4-a10-review-alternative-success-mobile-light-reopened-already-applied.png",
+      "sha256": "fbceddb3e00a41418cb9a8bbb34bd7e2dc8cb84e950570c98c2c1a32718584f0"
     },
     {
       "scenarioId": "A10-review-alternative-success",
@@ -1259,19 +1357,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-dark-editor-open.png",
-      "sha256": "6ab73ab32b321ab5287a958bd28feb1917fd27531093acb8108ee3ef9f6adaef"
-    },
-    {
-      "scenarioId": "A10-stale-proposal-blocked",
-      "scenario": "gate-a-w4-a10-stale-proposal-blocked",
-      "route": "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "dark",
-      "interactionState": "draft-preview",
-      "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-dark-draft-preview.png",
-      "sha256": "6dc6e6816535800f6676db1a7d4d7944c66c29d2a99f40d5f686df4394819266"
+      "sha256": "b1f617ce56c9009bcd9eb487964ea6c5ee15c08693fdf38656d1f643b0dbc32e"
     },
     {
       "scenarioId": "A10-stale-proposal-blocked",
@@ -1295,19 +1381,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-light-editor-open.png",
-      "sha256": "950498847db0fb990cd4a65a4632384a7822f5026059a350b3c1a654c212b1ca"
-    },
-    {
-      "scenarioId": "A10-stale-proposal-blocked",
-      "scenario": "gate-a-w4-a10-stale-proposal-blocked",
-      "route": "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "light",
-      "interactionState": "draft-preview",
-      "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-light-draft-preview.png",
-      "sha256": "70c3976b95615f026cd6e5f7a1564e2669ef8662807d1de8994970356716dc01"
+      "sha256": "a3e6c02b73f2b9258ce7a11054b814d35798b71f6e9385867148a992312b8eeb"
     },
     {
       "scenarioId": "A10-stale-proposal-blocked",
@@ -1331,19 +1405,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-dark-editor-open.png",
-      "sha256": "d521a154a904df308f326bec0bb8b01de5879bede05c95e9c70ce8c259687a0d"
-    },
-    {
-      "scenarioId": "A10-stale-proposal-blocked",
-      "scenario": "gate-a-w4-a10-stale-proposal-blocked",
-      "route": "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "dark",
-      "interactionState": "draft-preview",
-      "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-dark-draft-preview.png",
-      "sha256": "e8cdcac45db19ca5f76f6bd14e7ab48086a62f762c1f075e6b0dfe8821800e51"
+      "sha256": "1780fde56ef8c2a67cc8c7ba15a70050e4bd31a6462e9672de50f076d96a64e5"
     },
     {
       "scenarioId": "A10-stale-proposal-blocked",
@@ -1367,19 +1429,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-light-editor-open.png",
-      "sha256": "63b542250ce427f9e8d0612b93a0fc9ca961c2788d7b0923e0bcc792fa26f228"
-    },
-    {
-      "scenarioId": "A10-stale-proposal-blocked",
-      "scenario": "gate-a-w4-a10-stale-proposal-blocked",
-      "route": "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "light",
-      "interactionState": "draft-preview",
-      "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-light-draft-preview.png",
-      "sha256": "f075702c47c2d424da5379a6f2fa7eb3cee8d45a3407475d245476d66503b167"
+      "sha256": "4113279e1d7cd9a0d97e8b6952198be93e78b9133065037c7073faa71d38bb01"
     },
     {
       "scenarioId": "A10-stale-proposal-blocked",
@@ -1763,7 +1813,7 @@
       "theme": "dark",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-desktop-dark-accepted.png",
-      "sha256": "5bf7de21cb188e63900f555c80343d0a6bddce6e2d142743fbeecedfb1fdb023"
+      "sha256": "ebd4402c0a23a8849a8f731a95b2d3aeb007f6797131a94de92ab060240c885f"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1787,7 +1837,7 @@
       "theme": "light",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-desktop-light-accepted.png",
-      "sha256": "8007e14872dfc23b4a123e89e67635f4a831c5e47115129fdb6eabd1cddb0de7"
+      "sha256": "0a57ac458411013285f30b93c5a158c51ccbbe88bdcaa25f61a9e3ab0fd4040c"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1811,7 +1861,7 @@
       "theme": "dark",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-mobile-dark-accepted.png",
-      "sha256": "37f5efe40dd6117914198acd6c853045132729b15845f35f00a7bbec9c274ace"
+      "sha256": "723ca77203926ce94cab01602c325dd97f41a6dc2ffa862d9cfe773c3bb26f64"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1835,7 +1885,7 @@
       "theme": "light",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-mobile-light-accepted.png",
-      "sha256": "14dfa6a6b649fcb9e3145aad75c52ec6dee0aea5c291ea8bb84a89a84848195c"
+      "sha256": "457793fc90708861f0232e1e85ca1e56d4dd829a81a729c363f1611e124db299"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1859,7 +1909,7 @@
       "theme": "dark",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-narrow-dark-accepted.png",
-      "sha256": "bc02bd59cc6db3b6d7819590c94e2db13bca1d578cce086eec9b4394f6472bbb"
+      "sha256": "87dddef29805d8fc2ec32677d95421cff620d4c968ab4ef223a41447822d82e7"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1883,7 +1933,7 @@
       "theme": "light",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-narrow-light-accepted.png",
-      "sha256": "4f4eaf87775b810be2a876902aa0624ab208039d4c5357e3abd6aa191f37005c"
+      "sha256": "6280af61870651dc809b93b176a633fbca215121150a5f1e880abe9c5021a22e"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1907,7 +1957,7 @@
       "theme": "dark",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-w4-360-dark-accepted.png",
-      "sha256": "bddb148745289855d76a101afa9cb3ae46fbc3d781d5550d84060f8b54358dae"
+      "sha256": "5989b2248ff6bbe7e8e848cb6fed29f01788900f61ebc782711fa7ff847b4aac"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1931,7 +1981,7 @@
       "theme": "light",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-w4-360-light-accepted.png",
-      "sha256": "b84d299eb3fc82f36c3291cf291f9cc2f9d3beac8a35719879f199df58332f82"
+      "sha256": "48338da2c9b7da76b3327f71fb7546083315bbd9876b9f91c3f4af417ff7876f"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1955,7 +2005,7 @@
       "theme": "dark",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-w4-430-dark-accepted.png",
-      "sha256": "5ae865ae6ff3e3170b82ecddbc4a997290af8ccfdea407c16d06fcfea34f1b0a"
+      "sha256": "517396dc8a0839ca4f1fde9ac63ea6364590567543b55ad7b0a229bfc65a486d"
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
@@ -1979,7 +2029,7 @@
       "theme": "light",
       "interactionState": "accepted",
       "file": "gate-a-w4-a11-profile-change-review-guarded-w4-430-light-accepted.png",
-      "sha256": "f3311c035749713426608863e15eb0825c383629a904c4be916a5b18356cf773"
+      "sha256": "81ad34c93f8716c48936f412ab03feb4ff974c93b365bb3577b13bb0e709b5d4"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2003,7 +2053,7 @@
       "theme": "dark",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-desktop-dark-rejected.png",
-      "sha256": "72c803d1629fdca86fdd311d1564748a867475f82b81d68119a99e27c42fef40"
+      "sha256": "5e03236d028aed363655fe39f449e228a68019947aaf1b89ea9b4c41c057cf09"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2027,7 +2077,7 @@
       "theme": "light",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-desktop-light-rejected.png",
-      "sha256": "ba251b0291cd786cd0552cfb8f70a87d67a20d5e3352496542de0fdc002c82a0"
+      "sha256": "cba8f83a485022f8c7c179081d98207f10f9557ac0517052df9ef761bf99d809"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2051,7 +2101,7 @@
       "theme": "dark",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-mobile-dark-rejected.png",
-      "sha256": "566ed7e0c17f7601112fe312ef8154240bab4f05f1317710f06872217195a7cf"
+      "sha256": "c056756e6ca227766660d32c3caeb813fc4f4ca80288dfacefa7ea1f6163ce92"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2075,7 +2125,7 @@
       "theme": "light",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-mobile-light-rejected.png",
-      "sha256": "4e1bc66dd4f5f26df192602eff3620dd3172c688df58ae2d80e29a1dd956f8d5"
+      "sha256": "25100e5df8cee6b47675736b67f52a12afe67e139b6fa0070afeb4130f57d635"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2099,7 +2149,7 @@
       "theme": "dark",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-narrow-dark-rejected.png",
-      "sha256": "8176161375ea3b2a346cf036ddcd74ce4ebeafef2aef11571cf51ae42a819e4f"
+      "sha256": "79f8485129b4a37abe5c8ed3f581e6363dddbac93dfe4e15558437161be41bb9"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2123,7 +2173,7 @@
       "theme": "light",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-narrow-light-rejected.png",
-      "sha256": "7d38b23d8b4d634b50213f73125b90f32762f3ff9399ee9c3d9dc9eceba17ae9"
+      "sha256": "e8f8d1507509017856298e7c7b577f4ec32c37b73642b2d5f4d18f35dc267032"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2147,7 +2197,7 @@
       "theme": "dark",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-w4-360-dark-rejected.png",
-      "sha256": "2e6b5471128a05ec67efccef767f732838b99733b49ffabff3d7062403a927ba"
+      "sha256": "28ea9903f4380482299cc137cf8aafa9e692ec3dcf4e00ed2948f67f61bd9ae6"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2171,7 +2221,7 @@
       "theme": "light",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-w4-360-light-rejected.png",
-      "sha256": "a629a7d31548a48c0af694d7eb0410fc1f18fc0501d01333f9f31adbc7d9ffbf"
+      "sha256": "45759f4a18beb5c7a3e967398a484aac5359a392fbb4b004a098c638411c742a"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2195,7 +2245,7 @@
       "theme": "dark",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-w4-430-dark-rejected.png",
-      "sha256": "aa1190358d3bebfa3126f4abf27de5f7461934dcfb8788569af3aa7fa54b2146"
+      "sha256": "08c0fbb830aad83b2cc622d4274ad491c465a3bcec8c18000e42b7cad7b5d81c"
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
@@ -2219,7 +2269,7 @@
       "theme": "light",
       "interactionState": "rejected",
       "file": "gate-a-w4-a11-profile-change-review-rejected-w4-430-light-rejected.png",
-      "sha256": "502ac5fe0fc530ba15bbf38190d118745b4f4f49ca17da8e05fdc77ea087aa12"
+      "sha256": "b7bb01b4c9b0594c3eecdc94cb2e0fc9729d5a4f048cc7c825d4141a7eeb6567"
     }
   ]
 }

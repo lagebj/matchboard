@@ -7,14 +7,19 @@ No owner review has occurred. Technical implementation, passing local tests, and
 `23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing screenshot pipeline is not approval." All 13
 scenario IDs remain `CANDIDATE` in `candidate_manifest.json`.
 
-**Capture evidence status:** real CI screenshot evidence exists — `capture-attestation.json` (182
-captures, all 13 scenarios × 5 viewports × 2 themes + interaction states, zero console/page
-errors), from CI run `38180483804` (`ui-lab-visual-review.yml`, against this PR's branch-tip
-commit `03683e34a1c66d0f47237c22b6fb3c79c933e0cb`), artifact `ui-lab-review-38180483804-1`. Every
-recorded hash was independently re-verified in this session: the artifact was downloaded fresh via
-the GitHub API and all 182 PNG files' SHA-256 recomputed from the raw bytes, zero mismatches. The
-artifact is a **temporary** GitHub Actions artifact (expires `2026-10-18T22:36:48Z`) — no durable
-GitHub Release has been created (see `BLOCKERS.md` W4-BLK-06, unchanged from every prior wave).
+**Capture evidence status:** real CI screenshot evidence exists for the REMEDIATED (R1–R5)
+implementation — `capture-attestation.json` (186 captures, all 13 scenarios × 5 viewports × 2
+themes + interaction states, including the new `reopened-already-applied` A10 state, zero
+console/page errors), from CI run `38213344006` (`ui-lab-visual-review.yml`, against this PR's
+branch-tip commit `8fa4956c7badceb4bba8fc8630e2660db787b641`), artifact
+`ui-lab-review-38213344006-1`. Every recorded hash was independently re-verified in this session:
+the artifact was downloaded fresh via the GitHub API and all 698 files of that run (not just the
+186 W4 ones) had their SHA-256 recomputed from the raw bytes, zero mismatches. An earlier capture
+attempt against the remediation's first commit failed outright (a capture-script bug, fixed — see
+`capture-attestation.json`'s `knownLimitations`), so this evidence was not accepted on a first
+green run alone. The artifact is a **temporary** GitHub Actions artifact (expires
+`2026-10-19T06:45:47Z`) — no durable GitHub Release has been created (see `BLOCKERS.md`
+W4-BLK-06, unchanged from every prior wave).
 
 ## What this candidate proves
 
@@ -63,10 +68,7 @@ GitHub Release has been created (see `BLOCKERS.md` W4-BLK-06, unchanged from eve
 - `approvedBy`, `approvedAt` — not set.
 - `scope`: design reference ONLY, same scope boundary as every prior Gate A wave.
 - Capture evidence: real CI `UI Lab Visual Review` evidence exists (`capture-attestation.json`,
-  182 captures, CI run `38180483804`) — see "Capture evidence status" above. An owner approval
-  must still cite the exact capture hashes it reviewed, and a fresh capture run is needed after
-  this remediation's visible-state changes (evidence inspector, already-applied state, authoritative
-  profile-state outcomes) before any approval can be based on current screenshots — the existing
-  182 captures predate this remediation's UI changes.
+  186 captures, CI run `38213344006`, post-remediation) — see "Capture evidence status" above. An
+  owner approval must still cite the exact capture hashes it reviewed.
 
 **No code merge, release, or further programme wave is implied or authorized by this candidate.**
