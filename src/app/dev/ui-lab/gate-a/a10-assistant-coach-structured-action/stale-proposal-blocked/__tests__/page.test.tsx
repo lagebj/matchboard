@@ -32,19 +32,27 @@ describe("A10-stale-proposal-blocked page", () => {
     expect(screen.queryByRole("button", { name: "Apply proposal" })).not.toBeInTheDocument();
   });
 
-  it("the proposal's evidence and rationale are still inspectable", () => {
+  it("the proposal's evidence sources remain inspectable even though Apply is unavailable", () => {
     mockViewport(true);
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
-    expect(screen.getByTestId("proposal-evidence-count").textContent).toMatch(/2 cited sources/);
+    const inspector = screen.getByTestId("proposal-evidence-inspector");
+    expect(inspector).toHaveTextContent("Based on 3 cited sources");
   });
 
-  it("does not alter the authoritative pitch — Tobias stays unassigned", () => {
+  it("renders no selectable proposal row at all for a blocked (stale) proposal", () => {
+    mockViewport(true);
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
+    expect(screen.queryByTestId("lineup-proposal-row")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lineup-proposal-card")).not.toBeInTheDocument();
+  });
+
+  it("does not alter the authoritative pitch", () => {
     mockViewport(true);
     renderPage();
     const pitch = screen.getAllByTestId("touchline-planning-pitch")[0];
     fireEvent.click(screen.getByRole("button", { name: "Review lineup" }));
-    fireEvent.click(screen.getByTestId("lineup-proposal-row"));
     expect(pitch.textContent).not.toMatch(/Tobias/);
   });
 });

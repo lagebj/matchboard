@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { AppearanceControl } from "@/components/touchline";
-import { ProfileChangeReviewCard, type ProfileChangeReviewOutcome } from "../shared/profile-change-review-card";
+import { ProfileChangeReviewCard, useProfileChangeReview } from "../shared/profile-change-review-card";
 import { identity, proposal, PLAYER_NAME, PLAYER_SHIRT_NUMBER } from "./fixtures";
 
-/** A11-profile-change-review-rejected — coach rejects the proposal; no change, no implicit write. */
+/**
+ * A11-profile-change-review-rejected — coach rejects the proposal; `useProfileChangeReview`'s
+ * authoritative declared-primary value stays at `proposal.currentPrimary` throughout (independent
+ * review finding R5), proving no change, no implicit write.
+ */
 export default function A11ProfileChangeReviewRejectedPage() {
-  const [outcome, setOutcome] = useState<ProfileChangeReviewOutcome>(null);
+  const review = useProfileChangeReview(proposal.currentPrimary, proposal.proposedPrimary);
 
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-8" data-ui-lab-ready="true">
@@ -29,7 +32,14 @@ export default function A11ProfileChangeReviewRejectedPage() {
         </p>
       </div>
 
-      <ProfileChangeReviewCard proposal={proposal} outcome={outcome} onAccept={() => setOutcome("ACCEPTED")} onReject={() => setOutcome("REJECTED")} onDefer={() => setOutcome("DEFERRED")} />
+      <ProfileChangeReviewCard
+        proposal={proposal}
+        authoritativePrimary={review.authoritativePrimary}
+        outcome={review.outcome}
+        onAccept={review.accept}
+        onReject={review.reject}
+        onDefer={review.defer}
+      />
     </div>
   );
 }

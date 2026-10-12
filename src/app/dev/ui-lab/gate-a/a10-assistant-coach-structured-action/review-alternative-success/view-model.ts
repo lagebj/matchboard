@@ -2,3 +2,5 @@ import { matchW3Identity, MATCH_W3_ROUND_LABEL } from "../../shared/match-w3-fix
 
 export const matchReference = `${matchW3Identity.homeTeam} vs ${matchW3Identity.awayTeam}`;
 export const roundLabel = MATCH_W3_ROUND_LABEL;
+export const candidateDisplayName = "Tobias";
+export const candidateShirtNumber = 12;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { StatusPill } from "@/components/ui/status-pill";
 import { TouchlineButton } from "@/components/touchline";
 import type { EvidenceRef } from "@/lib/development-context/types";
@@ -16,6 +17,12 @@ import type { EvidenceRef } from "@/lib/development-context/types";
  * decisions; see `docs/ui-lab/gate-a-w4-candidates/BLOCKERS.md` W4-BLK-09. This never claims
  * `docs/adr/0139-evolving-player-position-model.md`'s current auto-promotion already works this
  * way — it demonstrates the future, coach-approved target instead.
+ *
+ * Independent review finding R5: the original version only set an outcome STRING to "ACCEPTED"
+ * and the card's own copy then CLAIMED a state change ("declared primary updated") that no
+ * authoritative projection actually represented. `useProfileChangeReview` below is the minimal
+ * authoritative model that makes the claim true: `authoritativePrimary` genuinely changes exactly
+ * once, only on Accept, and the card renders that real value — never a canned success string.
  */
 export type ProfilePrimaryPositionProposal = {
   playerId: string;
@@ -29,18 +36,57 @@ export type ProfilePrimaryPositionProposal = {
 
 export type ProfileChangeReviewOutcome = "ACCEPTED" | "REJECTED" | "DEFERRED" | null;
 
+/**
+ * The authoritative (simulated) player-profile projection for this one fixture. A single state
+ * object updated through one pure functional updater — same Strict-Mode-safe shape as W3's
+ * `useFixtureOperation` (`shared/fixture-operation.ts`'s own doc comment explains why a nested
+ * `setState`-inside-`setState` would be impure and break under React's double-invoke). The
+ * `if (s.outcome) return s` guard makes a repeated Accept/Reject/Defer click idempotent: once
+ * reviewed, the decision is final for this fixture session — no second decision can silently
+ * reopen or re-apply it.
+ */
+export function useProfileChangeReview(currentPrimary: string, proposedPrimary: string) {
+  const [state, setState] = useState<{ authoritativePrimary: string; outcome: ProfileChangeReviewOutcome }>({
+    authoritativePrimary: currentPrimary,
+    outcome: null,
+  });
+
+  const decide = useCallback(
+    (next: Exclude<ProfileChangeReviewOutcome, null>) => {
+      setState((s) => {
+        if (s.outcome) return s;
+        return { authoritativePrimary: next === "ACCEPTED" ? proposedPrimary : s.authoritativePrimary, outcome: next };
+      });
+    },
+    [proposedPrimary],
+  );
+
+  return {
+    authoritativePrimary: state.authoritativePrimary,
+    outcome: state.outcome,
+    accept: useCallback(() => decide("ACCEPTED"), [decide]),
+    reject: useCallback(() => decide("REJECTED"), [decide]),
+    defer: useCallback(() => decide("DEFERRED"), [decide]),
+  };
+}
+
 function describeRefs(refs: EvidenceRef[]): string {
   return refs.map((ref) => ref.label ?? ref.kind).join(", ");
 }
 
 export function ProfileChangeReviewCard({
   proposal,
+  authoritativePrimary,
   outcome,
   onAccept,
   onReject,
   onDefer,
 }: {
   proposal: ProfilePrimaryPositionProposal;
+  /** The real (simulated) authoritative declared-primary value right now — equals
+   * `proposal.currentPrimary` before any decision, and `proposal.proposedPrimary` after
+   * `ACCEPTED`. Never a canned string; always read from `useProfileChangeReview`. */
+  authoritativePrimary: string;
   outcome: ProfileChangeReviewOutcome;
   onAccept: () => void;
   onReject: () => void;
@@ -50,11 +96,20 @@ export function ProfileChangeReviewCard({
     return (
       <div role="status" data-testid="profile-change-outcome" className="rounded-[var(--tl-radius-widget)] border border-[var(--border-soft)] bg-[var(--tl-widget)] p-4">
         <p className="text-[13px] font-[700] text-[var(--foreground)]">
-          {outcome === "ACCEPTED" && "Accepted (simulated) — declared primary updated for this fixture only"}
+          {outcome === "ACCEPTED" && "Accepted (simulated)"}
           {outcome === "REJECTED" && "Rejected (simulated) — no change made"}
           {outcome === "DEFERRED" && "Deferred (simulated) — revisit later, no change made"}
         </p>
-        <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">No real provider or database write occurred. Production authorization not verified.</p>
+        {outcome === "ACCEPTED" ? (
+          <p className="mt-0.5 text-[12px] text-[var(--foreground)]" data-testid="authoritative-primary-after">
+            Declared primary (this fixture only): {authoritativePrimary}
+          </p>
+        ) : (
+          <p className="mt-0.5 text-[12px] text-[var(--foreground)]" data-testid="authoritative-primary-after">
+            Declared primary (unchanged): {authoritativePrimary}
+          </p>
+        )}
+        <p className="mt-1 text-[11px] text-[var(--text-muted)]">No real provider or database write occurred. Production authorization not verified.</p>
       </div>
     );
   }
@@ -67,7 +122,7 @@ export function ProfileChangeReviewCard({
         </StatusPill>
       </div>
       <p className="mt-2 text-[13px] text-[var(--foreground)]" data-testid="profile-change-diff">
-        <span className="font-[650]">Declared primary:</span> {proposal.currentPrimary} → {proposal.proposedPrimary}
+        <span className="font-[650]">Declared primary:</span> {authoritativePrimary} → {proposal.proposedPrimary}
       </p>
       <p className="mt-2 text-[11px] text-[var(--text-muted)]">Evidence: {describeRefs(proposal.evidenceRefs)}</p>
       {proposal.limitations.length > 0 ? (

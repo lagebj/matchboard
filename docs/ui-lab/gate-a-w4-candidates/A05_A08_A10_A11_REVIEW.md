@@ -62,7 +62,11 @@ GitHub Release has been created (see `BLOCKERS.md` W4-BLK-06, unchanged from eve
 - `status`: CANDIDATE / APPROVED_GOLDEN / REVISE / REJECT — currently `CANDIDATE` for all 13.
 - `approvedBy`, `approvedAt` — not set.
 - `scope`: design reference ONLY, same scope boundary as every prior Gate A wave.
-- Capture evidence: **none exists yet** — a CI `UI Lab Visual Review` run against this PR's head
-  SHA is required before any approval can cite capture hashes.
+- Capture evidence: real CI `UI Lab Visual Review` evidence exists (`capture-attestation.json`,
+  182 captures, CI run `38180483804`) — see "Capture evidence status" above. An owner approval
+  must still cite the exact capture hashes it reviewed, and a fresh capture run is needed after
+  this remediation's visible-state changes (evidence inspector, already-applied state, authoritative
+  profile-state outcomes) before any approval can be based on current screenshots — the existing
+  182 captures predate this remediation's UI changes.
 
 **No code merge, release, or further programme wave is implied or authorized by this candidate.**

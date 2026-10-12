@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { AppearanceControl } from "@/components/touchline";
-import { ProfileChangeReviewCard, type ProfileChangeReviewOutcome } from "../shared/profile-change-review-card";
+import { ProfileChangeReviewCard, useProfileChangeReview } from "../shared/profile-change-review-card";
 import { identity, proposal, PLAYER_NAME, PLAYER_SHIRT_NUMBER } from "./fixtures";
 
 /**
  * A11-profile-change-review-guarded — coach reviews and ACCEPTS a primary-position proposal.
- * Acceptance is a local, simulated outcome only; no real provider or database write occurs
- * (`docs/ui-lab/gate-a-w4-candidates/BLOCKERS.md` W4-BLK-09).
+ * `useProfileChangeReview` models the authoritative declared-primary value explicitly (independent
+ * review finding R5); acceptance changes it exactly once, and no real provider or database write
+ * occurs (`docs/ui-lab/gate-a-w4-candidates/BLOCKERS.md` W4-BLK-09).
  */
 export default function A11ProfileChangeReviewGuardedPage() {
-  const [outcome, setOutcome] = useState<ProfileChangeReviewOutcome>(null);
+  const review = useProfileChangeReview(proposal.currentPrimary, proposal.proposedPrimary);
 
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-8" data-ui-lab-ready="true">
@@ -33,7 +33,14 @@ export default function A11ProfileChangeReviewGuardedPage() {
         </p>
       </div>
 
-      <ProfileChangeReviewCard proposal={proposal} outcome={outcome} onAccept={() => setOutcome("ACCEPTED")} onReject={() => setOutcome("REJECTED")} onDefer={() => setOutcome("DEFERRED")} />
+      <ProfileChangeReviewCard
+        proposal={proposal}
+        authoritativePrimary={review.authoritativePrimary}
+        outcome={review.outcome}
+        onAccept={review.accept}
+        onReject={review.reject}
+        onDefer={review.defer}
+      />
     </div>
   );
 }

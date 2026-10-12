@@ -9,13 +9,14 @@ import type { CanonicalTacticalPosition } from "@/domain/positions/roles";
 import { useFixtureOperation, useDirtyCloseGuard } from "../../shared/fixture-operation";
 import { matchW3Squad, matchW3PlanningPitchSlots, matchW3PlanningPitchAssignments, withTacticalAssignment, type MatchW3SquadMember } from "../../shared/match-w3-fixture";
 import { LineupProposalInspector, LineupProposalSheet, type LineupProposalSuccess } from "../shared/lineup-proposal-editor";
-import { identity, slotLabel, proposal, blockedReason } from "./fixtures";
-import { matchReference, roundLabel } from "./view-model";
+import { identity, slotLabel, proposal, evidence, blockedReason } from "./fixtures";
+import { matchReference, roundLabel, candidateDisplayName, candidateShirtNumber } from "./view-model";
 
 /**
- * A10-stale-proposal-blocked — the proposal is inspectable (evidence, rationale, diff preview),
- * but no Apply affordance renders at all: Apply is blocked structurally by a stale source
- * revision, discovered before any submit, never as a server CONFLICT after confirming.
+ * A10-stale-proposal-blocked — the proposal is inspectable (evidence sources, rationale, diff
+ * preview), but no Apply affordance renders at all: Apply is blocked structurally by a stale
+ * source revision (`validateLineupProposal` returns `applicability: "STALE"`), discovered before
+ * any submit, never as a server CONFLICT after confirming.
  */
 export default function A10StaleProposalBlockedPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +46,9 @@ export default function A10StaleProposalBlockedPage() {
     pitchSlots: matchW3PlanningPitchSlots(),
     pitchAssignments: matchW3PlanningPitchAssignments(op.authoritative),
     proposal,
+    candidateDisplayName,
+    candidateShirtNumber,
+    evidence,
     blockedReason,
     isDraftSelected: op.draft !== null,
     onSelectCandidate: () => op.setDraft(op.draft ? null : { playerId: proposal.playerId, position: slotLabel }),

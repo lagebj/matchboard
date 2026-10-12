@@ -9,13 +9,15 @@ import type { CanonicalTacticalPosition } from "@/domain/positions/roles";
 import { useFixtureOperation, useDirtyCloseGuard } from "../../shared/fixture-operation";
 import { matchW3Squad, matchW3PlanningPitchSlots, matchW3PlanningPitchAssignments, withTacticalAssignment, type MatchW3SquadMember } from "../../shared/match-w3-fixture";
 import { LineupProposalInspector, LineupProposalSheet, type LineupProposalSuccess } from "../shared/lineup-proposal-editor";
-import { identity, slotLabel, proposal, predeclaredOutcome } from "./fixtures";
-import { matchReference, roundLabel } from "./view-model";
+import { identity, slotLabel, proposal, evidence, predeclaredOutcome } from "./fixtures";
+import { matchReference, roundLabel, candidateDisplayName, candidateShirtNumber } from "./view-model";
 
 /**
- * A10-review-alternative-success — open "Review lineup", inspect the Assistant Coach proposal's
- * evidence/rationale/limitations, preview the diff, Apply, resolve to SUCCESS. The pitch
+ * A10-review-alternative-success — open "Review lineup", inspect the contract-validated proposal's
+ * evidence sources/rationale/limitations, preview the diff, Apply, resolve to SUCCESS. The pitch
  * re-renders from `useFixtureOperation`'s real `authoritative` squad, same invariant as A07.
+ * Reopening after close shows the "already applied" state, never a freshly-actionable proposal
+ * (independent review finding — see `lineup-proposal-editor.tsx`'s `deriveOperationControlPolicy`).
  */
 export default function A10ReviewAlternativeSuccessPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +47,9 @@ export default function A10ReviewAlternativeSuccessPage() {
     pitchSlots: matchW3PlanningPitchSlots(),
     pitchAssignments: matchW3PlanningPitchAssignments(op.authoritative),
     proposal,
+    candidateDisplayName,
+    candidateShirtNumber,
+    evidence,
     blockedReason: null,
     isDraftSelected: op.draft !== null,
     onSelectCandidate: () => op.setDraft(op.draft ? null : { playerId: proposal.playerId, position: slotLabel }),
