@@ -168,8 +168,11 @@ unchanged to `CONFLICT_AND_BLOCKER_REGISTER.md` and `PRODUCTION_OWNER_AND_GATE_B
 explicit open item, now with four concrete, currently-valid artifact IDs ready to use if/when
 authorized, rather than only a future promise.
 
-## Total capture counts (unchanged by this PR except the W2 attestation-file correction)
+## Total capture counts
 
-694 approved-or-candidate Gate A captures across W1-W4 (48+92+348+186 — excludes W1's 24 non-Gate-A
-baseline captures), all with internally-consistent hashes as of this PR. See `authority_
-inventory.csv` for the per-scenario breakdown.
+674 approved-or-candidate Gate A captures across W1-W4 (488 approved + 186 candidate — excludes
+W1's 24 non-Gate-A baseline captures), all with internally-consistent hashes as of this PR, plus
+the extra `squeeze-600/768/900` captures this PR added for A07/A10 (not part of any approved or
+candidate manifest count — see "New capture evidence" above). See `authority_inventory.csv` (now
+generated deterministically by `scripts/generate-gate-a-authority-inventory.mjs` — see `AUTHORITY_
+INVENTORY.md` and `CHANGED_FILES.md`'s W5-R2 entry) for the per-scenario breakdown.

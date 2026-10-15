@@ -34,8 +34,11 @@ export default function GateAIndexPage() {
       <TouchlineWordmark />
       <h1 className="mt-4 text-[28px] font-[650] text-[var(--foreground)]">Gate A W0-W4 candidates</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        Dev-only design candidates, not approved goldens. Real production Touchline components and
-        deterministic fixtures only — no production route, domain, or persistence change.
+        A01-A04, A06, A07, A09 and A12 are owner-approved <code>APPROVED_GOLDEN</code> design
+        references (see each wave&apos;s own <code>candidate_manifest.json</code>); A05, A08, A10
+        and A11 remain <code>CANDIDATE</code>, pending owner review. All dev-only — real production
+        Touchline components and deterministic fixtures only, no production route, domain, or
+        persistence change, and no approval here authorizes production implementation.
       </p>
 
       <div className="mt-6">

@@ -4,6 +4,89 @@ Field schema per `13_DOCUMENTATION_CONFLICT_AND_BLOCKER_REGISTER.md`: `ID, scena
 source/spec, expected, observed, reproduction, impact, severity, blockingFor, allowedInDesignOnly,
 resolution, decisionMaker, status, captureRefs`.
 
+## Independent technical review findings (round 1) — all resolved
+
+An independent technical review of this PR (head `6a143d1c8157a52070b670c82d1a8638851544d6`)
+confirmed alignment with the authoritative programme and that CI/Security/UI Lab Visual Review all
+passed, but found four remediation items before technical acceptance. All four are fixed in this
+PR; see each entry below and `CHANGED_FILES.md` for the exact commands/tests proving it.
+
+### W5-R1 (P1) — Authority audit could report false completion
+
+| Field | Value |
+|---|---|
+| scenarioIds | All 38 (affects the completion verdict itself, not any one scenario) |
+| owner | `scripts/audit-gate-a-golden-authority.mjs` |
+| source/spec | W5's own literal requirement ("confirm every scenario has... a human review record") implies a positive per-scenario completion check, not an absence-of-candidates check |
+| expected | `goldenAuthorityComplete` true only when every expected scenario is present, `APPROVED_GOLDEN`, with fully valid metadata and attestation-backed, hash-matching, structurally-complete capture evidence |
+| observed | The formula was `totalCandidate === 0 && noErrors` — a scenario marked `REVISE`/`REJECT`, or missing from a manifest entirely, was invisible to it; `APPROVED_FILE_NOT_IN_ATT` was only a `WARNING`, so an approved golden with no locatable evidence could still read as complete |
+| reproduction | Construct a fixture where every expected scenario is `REJECT`ed: the old formula reports `goldenAuthorityComplete: true` (zero `CANDIDATE` entries, zero errors) |
+| impact | Could cause a reviewer to trust a false "Gate A complete" signal | 
+| severity | P1 — authority-integrity defect in the audit tool itself |
+| blockingFor | W5 technical acceptance |
+| allowedInDesignOnly | N/A — tooling fix |
+| resolution | Rewrote completion as a positive requirement over an explicit `EXPECTED_SCENARIOS` registry (`scripts/lib/gate-a-authority.mjs`): every expected ID present (`MISSING_EXPECTED_SCENARIO`, new, error), every expected entry `APPROVED_GOLDEN` with valid metadata, `APPROVED_FILE_NOT_IN_ATT` promoted to error, an unrecognized status promoted to error (`UNRECOGNIZED_STATUS`), plus two new structural checks derived from the fixture contract's own symmetry requirement (`MISSING_REQUIRED_VIEWPORT`, `MISSING_THEME_PAIR`) — both validated against real repo data with zero false positives before being enabled. Output now also carries an explicit `scopeDisclaimer` listing what a clean result does/doesn't prove. 15 negative-test scenarios (plus 2 structural-check tests) added in `scripts/__tests__/audit-gate-a-golden-authority.test.ts`, using synthetic fixture directories, never the real approved manifests |
+| decisionMaker | N/A — tooling correction, no approval/design content changed |
+| status | `RESOLVED` |
+| captureRefs | N/A |
+
+### W5-R2 (P2) — Incorrect approved-capture total and W4 revision provenance
+
+| Field | Value |
+|---|---|
+| scenarioIds | All 38 |
+| owner | `AUTHORITY_INVENTORY.md`, `authority_inventory.csv` |
+| source/spec | Inventory must be derived from the committed manifests, not hand-maintained |
+| expected | 488 approved captures (`sum(approval.approvedCaptures.length)` across the 25 `APPROVED_GOLDEN` entries); W4's rows carry no fabricated approval revision |
+| observed | `AUTHORITY_INVENTORY.md` reported 494 (a manual, undifferentiated figure); the CSV's single `revisionSha` column held W4's historical base commit (`1a2b5095e...`) in a column a reader could mistake for an approval revision — W4 has never had one |
+| reproduction | `48+92+348 = 488`, not 494; `python3 -c "import json; m=json.load(open('docs/ui-lab/gate-a-w4-candidates/candidate_manifest.json')); print(m['candidates'][0].get('approval'))"` → `None` for every W4 entry |
+| impact | A reader trusting the written total would overcount approved evidence by 6 captures; the overloaded revision column risked a reader treating W4's base commit as an owner approval |
+| severity | P2 |
+| blockingFor | W5 technical acceptance |
+| allowedInDesignOnly | N/A — documentation/tooling fix |
+| resolution | New `scripts/generate-gate-a-authority-inventory.mjs` (sharing `scripts/lib/gate-a-authority.mjs` with the audit script) derives the CSV deterministically — verified byte-identical across repeated runs — with four separated provenance fields (`baseCommitSha`, `approvalRevisionSha`, `captureSourceCommitSha`, `reviewedBranchHeadSha`) instead of one overloaded column; W4's `approvalRevisionSha` is empty for all 13 rows. `AUTHORITY_INVENTORY.md` rewritten with the corrected 488/698 totals and the field-separation table. Read-only by default; `--write` required to touch the repository file |
+| decisionMaker | N/A |
+| status | `RESOLVED` |
+| captureRefs | N/A |
+
+### W5-R3 (P2) — UI Lab index misrepresented existing golden approvals
+
+| Field | Value |
+|---|---|
+| scenarioIds | None (index page) |
+| owner | `src/app/dev/ui-lab/gate-a/page.tsx` |
+| source/spec | Same `13_DOCUMENTATION_CONFLICT_AND_BLOCKER_REGISTER.md` carried-forward permission to correct dev-only index text, already used for `W5-F05` |
+| expected | The page's own visible copy should not contradict the fact that 8 of the 12 listed families (A01-A04, A06, A07, A09, A12) are owner-approved `APPROVED_GOLDEN` |
+| observed | The visible `<p>` read "Dev-only design candidates, **not approved goldens**" for the entire list — factually wrong for 25 of the 38 manifest entries, even though the file's own JSDoc comment above it correctly described the approved waves |
+| reproduction | Visit `/dev/ui-lab/gate-a` and read the subhead text, or `grep -n "not approved goldens" src/app/dev/ui-lab/gate-a/page.tsx` (pre-fix: 1 match) |
+| impact | A reviewer skimming only the visible page (not the JSDoc) would wrongly believe no Gate A golden has ever been approved |
+| severity | P2 |
+| blockingFor | W5 technical acceptance |
+| allowedInDesignOnly | Yes — dev-only route text |
+| resolution | **Fixed in this PR.** Visible copy now names which families are approved vs. candidate, matching the JSDoc and `candidate_manifest.json` reality, and states explicitly that no approval here authorizes production implementation |
+| decisionMaker | N/A — explicitly pre-authorized text correction |
+| status | `RESOLVED` |
+| captureRefs | N/A |
+
+### W5-R4 (P3) — Documentation referenced a nonexistent validation report
+
+| Field | Value |
+|---|---|
+| scenarioIds | None |
+| owner | `AUTHORITY_INVENTORY.md`, `CROSS_WAVE_CONSISTENCY.md` |
+| source/spec | Every file reference in a W5 deliverable should resolve to a real file |
+| expected | A cited file exists at the stated path |
+| observed | Two places referenced `` `AUTOMATED_VALIDATION_AND_REGRESSION.md` `` as if it were one of this PR's own deliverables under `docs/ui-lab/gate-a-w5-convergence/` — no such file was ever created there (the name was carried over from the *handoff bundle's* `12_AUTOMATED_VALIDATION_AND_REGRESSION.md` source contract, which lives outside the repo, without the `12_` prefix or bundle path) |
+| reproduction | `grep -rn "AUTOMATED_VALIDATION_AND_REGRESSION" docs/ui-lab/gate-a-w5-convergence/*.md` (pre-fix: 2 matches, both dangling) |
+| impact | A reader following the citation would find nothing — minor, since the actual command log/results live in `CHANGED_FILES.md` regardless |
+| severity | P3 |
+| blockingFor | W5 technical acceptance |
+| allowedInDesignOnly | N/A — documentation-only fix |
+| resolution | **Fixed in this PR.** Both references replaced with `CHANGED_FILES.md`, which is where the actual exact-command/exact-result log this PR produces actually lives |
+| decisionMaker | N/A |
+| status | `RESOLVED` |
+| captureRefs | N/A |
+
 ## New findings from this W5 pass
 
 ### W5-F01 — A07's approved golden shares A01's already-fixed responsive-squeeze defect

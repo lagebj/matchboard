@@ -45,6 +45,26 @@ per `14_IMPLEMENTATION_PHASES_AND_DELIVERABLES.md`'s Phase 5. Per-issue decision
 | A11 vs. ADR-0139 conflict | `CONFLICT_AND_BLOCKER_REGISTER.md` carry-forward | `DEFER_NON_BLOCKING_PRODUCTION_GAP` (real conflict, but a Gate B/ADR-amendment decision, not blocking Gate A design review) |
 | W4's 13 candidates (Decision A) | `APPROVAL_DEPENDENCIES.md` | Not a Decision B item — handled above |
 
+## Independent technical review — round 1: `REVISE` → remediated
+
+An independent technical review of head `6a143d1c8157a52070b670c82d1a8638851544d6` confirmed
+substantial alignment with the authoritative programme and that CI/Security/UI Lab Visual Review
+all passed, and returned four remediation findings (`W5-R1` P1, `W5-R2`/`W5-R3` P2, `W5-R4` P3)
+before technical acceptance — see `CONFLICT_AND_BLOCKER_REGISTER.md`'s "Independent technical
+review findings (round 1)" section for the full writeup of each, and `CHANGED_FILES.md` for the
+exact commands/tests proving each fix. Summary:
+
+| Finding | Fix |
+|---|---|
+| W5-R1 (P1) — audit completion formula could report false completion (ignored `REVISE`/`REJECT`/missing scenarios; `APPROVED_FILE_NOT_IN_ATT` was only a warning) | Rewrote as a positive requirement over an explicit 39-ID/38-entry expected-scenario registry, promoted the warning to an error, added two new structural checks (viewport/theme-pair completeness), and added a 15-scenario negative-test suite (`scripts/__tests__/audit-gate-a-golden-authority.test.ts`) |
+| W5-R2 (P2) — approved-capture total was wrong (494, should be 488); W4's inventory row conflated its base commit with a nonexistent approval revision | New deterministic `scripts/generate-gate-a-authority-inventory.mjs` (read-only by default, `--write` to touch the repo) with four separated provenance fields |
+| W5-R3 (P2) — UI Lab index's visible copy claimed no scenario was an approved golden | Corrected to name which families are approved vs. candidate |
+| W5-R4 (P3) — two dangling references to a nonexistent `AUTOMATED_VALIDATION_AND_REGRESSION.md` | Replaced with `CHANGED_FILES.md`, where that content actually lives |
+
+All four are `RESOLVED` as of this commit. No W1-W3 approved golden content was changed by any of
+these fixes — they correct the audit tooling and this PR's own documentation, not any approval
+record.
+
 ## Owner check questions (per `15_OWNER_APPROVAL_AND_REVIEW_SHEET.md`), answered where this audit
 ## can answer them from source/evidence, left open where only a human visual read can answer them
 

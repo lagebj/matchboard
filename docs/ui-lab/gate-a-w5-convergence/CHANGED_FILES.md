@@ -92,3 +92,78 @@ Release was created or attempted).
 4. Diff `docs/ui-lab/gate-a-w2-candidates/capture-attestation.json` against CI artifact
    `ui-lab-review-38040296558-1` (still valid through 2026-10-17) to independently re-verify the
    W5-F03 fix.
+
+## Independent technical review, round 1 — remediation (W5-R1 through W5-R4)
+
+See `CONFLICT_AND_BLOCKER_REGISTER.md`'s "Independent technical review findings (round 1)" section
+for the full per-finding writeup and `REVIEW_RECORD.md` for the review-status summary. File-by-file:
+
+| File | Change | Why |
+|---|---|---|
+| `scripts/lib/gate-a-authority.mjs` | New — shared loader/audit/inventory module, factored out of the old single-file `audit-gate-a-golden-authority.mjs` so the new generator script reuses the exact same manifest-parsing logic | W5-R1, W5-R2 |
+| `scripts/audit-gate-a-golden-authority.mjs` | Rewritten as a thin CLI over `scripts/lib/gate-a-authority.mjs`'s `auditGateA`; now accepts an optional `repoRoot` argv for testability; completion is a positive requirement over an explicit expected-scenario registry; `APPROVED_FILE_NOT_IN_ATT` and `UNRECOGNIZED_STATUS` promoted to errors; two new structural checks (`MISSING_REQUIRED_VIEWPORT`, `MISSING_THEME_PAIR`); output carries an explicit `scopeDisclaimer` | W5-R1 |
+| `scripts/generate-gate-a-authority-inventory.mjs` | New — deterministic inventory generator, read-only by default, `--write` required to touch the repo; four separated provenance fields instead of one overloaded `revisionSha` | W5-R2 |
+| `scripts/__tests__/audit-gate-a-golden-authority.test.ts` | New — 28 tests: the 15 required negative-test scenarios (plus 2 structural-check tests, 3 provenance-field tests, 4 CLI-behavior tests, 4 generator tests), using synthetic fixture directories built with `mkdtempSync`, following the repo's existing `scripts/__tests__/check-prisma-query-fields.test.ts` pattern (`scripts/**/*.test.ts` is already in `vitest.config.ts`'s `include`) | W5-R1 |
+| `docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv` | Regenerated via `node scripts/generate-gate-a-authority-inventory.mjs --write` — 488 approved captures (was 494), new provenance columns | W5-R2 |
+| `docs/ui-lab/gate-a-w5-convergence/AUTHORITY_INVENTORY.md` | Rewritten: corrected totals, new provenance-field table, new "Golden-authority completion semantics" section documenting the W5-R1 rewrite | W5-R1, W5-R2 |
+| `docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md` | Fixed a separate arithmetic error in the closing "Total capture counts" section (694 → the correct 674 = 488 + 186) found while reconciling totals for W5-R2 | W5-R2 (adjacent fix, same root cause class) |
+| `docs/ui-lab/gate-a-w5-convergence/CROSS_WAVE_CONSISTENCY.md` | Dangling `` `AUTOMATED_VALIDATION_AND_REGRESSION.md` `` reference replaced with `` `CHANGED_FILES.md` `` | W5-R4 |
+| `docs/ui-lab/gate-a-w5-convergence/CONFLICT_AND_BLOCKER_REGISTER.md` | New "Independent technical review findings (round 1)" section (W5-R1 through W5-R4, all `RESOLVED`) | All four |
+| `docs/ui-lab/gate-a-w5-convergence/REVIEW_RECORD.md` | New "Independent technical review — round 1" section summarizing the findings and fixes | All four |
+| `src/app/dev/ui-lab/gate-a/page.tsx` | Visible subhead copy corrected from "not approved goldens" (false for 25/38 entries) to naming which families are approved vs. candidate | W5-R3 |
+
+### Commands run and results (this remediation round)
+
+```
+$ git fetch origin design/gate-a-w5-golden-consistency-convergence
+6a143d1c8157a52070b670c82d1a8638851544d6 — confirmed matches the review's last-reviewed head
+exactly; nothing had changed on the branch since review, so none of the four findings were
+already corrected by an intervening commit.
+
+$ node scripts/audit-gate-a-golden-authority.mjs   (rewritten script, against this branch)
+exit 0 — expectedScenarios: {totalManifestEntries: 38, totalLogicalScenarioIds: 39, approved: 25,
+pending: 13, missing: []}; completionCriteria: {allExpectedScenariosPresent: true,
+allApprovedGolden: false, zeroIntegrityErrors: true}; goldenAuthorityComplete: false; issues: []
+(zero — the two new structural checks, MISSING_REQUIRED_VIEWPORT and MISSING_THEME_PAIR, were
+validated against the real 25 approved entries BEFORE being enabled, specifically to avoid
+repeating the W5-R1-class mistake of shipping a check with undiscovered false positives)
+
+$ node scripts/generate-gate-a-authority-inventory.mjs | python3 -c "import csv,sys;
+r=list(csv.DictReader(sys.stdin)); print(len(r), sum(int(x['approvedCaptureCount']) for x in r
+if x['status']=='APPROVED_GOLDEN'))"
+38 488
+
+$ node scripts/generate-gate-a-authority-inventory.mjs > /tmp/inv1.csv &&
+  node scripts/generate-gate-a-authority-inventory.mjs > /tmp/inv2.csv && diff /tmp/inv1.csv /tmp/inv2.csv
+(no output — byte-identical across repeated runs)
+
+$ node scripts/generate-gate-a-authority-inventory.mjs --write
+Wrote 38 rows to docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv
+
+$ npx vitest run scripts/__tests__/audit-gate-a-golden-authority.test.ts
+28 tests, all passing (15 required negative-test scenarios + structural/provenance/CLI coverage)
+
+$ npx vitest run src/app/dev/ui-lab/gate-a scripts/__tests__/audit-gate-a-golden-authority.test.ts
+43 files, 259 tests, all passing
+
+$ npx tsc --noEmit -p tsconfig.json
+exit 0, clean
+
+$ npx eslint scripts/ src/app/dev/ui-lab/gate-a
+exit 0, clean
+
+$ npm run terminology:check
+✓ No terminology violations found
+
+$ npm run policy:verify
+PASSED (arm64 wasm-rebuild DRIFT is the known, expected sandbox-architecture advisory)
+
+$ npm run docs:check
+same single pre-existing, unrelated, untracked-local-directory notice as before — nothing new
+
+$ grep -rn "AUTOMATED_VALIDATION_AND_REGRESSION" docs/ui-lab/gate-a-w5-convergence/*.md
+(no output — both dangling references removed)
+
+$ grep -n "not approved goldens" src/app/dev/ui-lab/gate-a/page.tsx
+(no output — misleading copy removed)
+```

@@ -125,8 +125,8 @@ equivalent defect there.
   `expanded:w-[480px] expanded:shrink-0` for the left column, and pass `className="expanded:flex-1"`
   to the inspector — the identical fix A01 already has, applied consistently rather than
   reinterpreted. `npx tsc --noEmit`, the Gate A node and component vitest suites (231 + 227 tests),
-  and `npx eslint src/app/dev/ui-lab/gate-a` all pass after this change (see `AUTOMATED_
-  VALIDATION_AND_REGRESSION.md`). This is a layout-only change — no fixture, data, or interaction-
+  and `npx eslint src/app/dev/ui-lab/gate-a` all pass after this change (see `CHANGED_FILES.md`
+  for the exact command log). This is a layout-only change — no fixture, data, or interaction-
   state-machine file was touched, so no `fixtureVersion` bump was warranted or made.
 - **A07 (5 scenarios, `APPROVED_GOLDEN` since 2026-10-11): left untouched. `OWNER_DECISION_
   REQUIRED`, logged in `CONFLICT_AND_BLOCKER_REGISTER.md` as finding `W5-F01`.** Per every prior
