@@ -146,11 +146,23 @@ $ npx vitest run scripts/__tests__/audit-gate-a-golden-authority.test.ts
 $ npx vitest run src/app/dev/ui-lab/gate-a scripts/__tests__/audit-gate-a-golden-authority.test.ts
 43 files, 259 tests, all passing
 
-$ npx tsc --noEmit -p tsconfig.json
-exit 0, clean
+$ npm run typecheck   (tsc --noEmit, exact CI command)
+exit 0, clean. CI's own "TypeScript Check" job caught a real error this local run initially
+missed (a stale incremental .tsbuildinfo cache masked two TS2739 errors in the new test file —
+EXPECTED_SCENARIOS/WAVES needed explicit `@type {Record<string, string[]>}` JSDoc annotations so
+a synthetic test override covering fewer than all 4 waves type-checks against the shared module's
+default-parameter inference). Fixed in scripts/lib/gate-a-authority.mjs, re-verified locally with
+a cleared cache before re-pushing.
 
-$ npx eslint scripts/ src/app/dev/ui-lab/gate-a
-exit 0, clean
+$ npx eslint scripts/__tests__/audit-gate-a-golden-authority.test.ts scripts/lib/gate-a-authority.mjs
+  scripts/audit-gate-a-golden-authority.mjs scripts/generate-gate-a-authority-inventory.mjs
+  scripts/ui-lab-visual-review.mjs
+exit 0, clean (scoped to exactly this PR's own files — `scripts/` broadly has 68 pre-existing
+lint errors in unrelated files this PR never touches, e.g. seed-test-dataset.ts; `scripts/` is not
+part of `npm run lint`'s actual target list in package.json, so none of that is a regression or a
+CI gate). All 25 `no-explicit-any` violations the stricter scoped lint found in this PR's own new
+test file were fixed properly (explicit `Issue`/`Capture`/`Approval`/`ManifestEntry` types and
+non-null assertions in place of `any` casts), not suppressed.
 
 $ npm run terminology:check
 ✓ No terminology violations found

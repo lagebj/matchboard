@@ -9,6 +9,13 @@ const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const AUDIT_SCRIPT = join(REPO_ROOT, "scripts", "audit-gate-a-golden-authority.mjs");
 const GENERATE_SCRIPT = join(REPO_ROOT, "scripts", "generate-gate-a-authority-inventory.mjs");
 
+/** `auditGateA`'s issue records — loosely typed here since `scripts/lib/gate-a-authority.mjs` is
+ * plain JS; every issue carries `severity`/`kind` plus kind-specific extra fields. */
+type Issue = { severity: string; kind: string; [key: string]: unknown };
+type Capture = { viewport: string; theme: string; interactionState: string; file: string; sha256: string };
+type Approval = { state: string; approvedAt?: string; approvedBy?: string; revisionSha: string; approvedCaptures: Capture[] };
+type ManifestEntry = { scenarioId: string; status: string; fixtureId: string; fixtureVersion: number; approval?: Approval | null };
+
 const tmpDirs: string[] = [];
 afterAll(() => tmpDirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
 
@@ -52,7 +59,7 @@ function minimalCaptureSet(filePrefix: string, shas: [string, string, string, st
   ];
 }
 
-function approvedEntry(scenarioId: string, filePrefix: string, overrides: Record<string, unknown> = {}) {
+function approvedEntry(scenarioId: string, filePrefix: string): ManifestEntry {
   const captures = minimalCaptureSet(filePrefix);
   return {
     scenarioId,
@@ -66,19 +73,18 @@ function approvedEntry(scenarioId: string, filePrefix: string, overrides: Record
       revisionSha: SHA40_A,
       approvedCaptures: captures.map(({ viewport, theme, interactionState, file, sha256 }) => ({ viewport, theme, interactionState, file, sha256 })),
     },
-    ...overrides,
   };
 }
 
-function candidateEntry(scenarioId: string, overrides: Record<string, unknown> = {}) {
-  return { scenarioId, status: "CANDIDATE", fixtureId: `fixture-${scenarioId}`, fixtureVersion: 1, ...overrides };
+function candidateEntry(scenarioId: string): ManifestEntry {
+  return { scenarioId, status: "CANDIDATE", fixtureId: `fixture-${scenarioId}`, fixtureVersion: 1, approval: null };
 }
 
-function attestationFor(...entries: Array<ReturnType<typeof approvedEntry>>) {
+function attestationFor(...entries: ManifestEntry[]): { sourceCommitSha: string; generatedAt: string; captures: Capture[] } {
   // Deep-copy each capture record — the attestation and the manifest's approval are separate
   // files in reality, so a test that mutates one (e.g. to simulate a hash mismatch) must not
   // silently mutate the other via a shared object reference.
-  const captures = entries.flatMap((e) => (e.approval ? e.approval.approvedCaptures.map((c: unknown) => ({ ...(c as object) })) : []));
+  const captures = entries.flatMap((e) => (e.approval ? e.approval.approvedCaptures.map((c) => ({ ...c })) : []));
   return { sourceCommitSha: SHA40_B, generatedAt: "2026-10-09T00:00:00.000Z", captures };
 }
 
@@ -115,11 +121,11 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1", "X2"] };
     const entries = [approvedEntry("X1", "x1"), candidateEntry("X2")];
-    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0] as any));
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0]));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
     expect(result.goldenAuthorityComplete).toBe(false);
-    expect(result.issues.some((i: any) => i.severity === "ERROR")).toBe(false);
+    expect(result.issues.some((i: Issue) => i.severity === "ERROR")).toBe(false);
     expect(result.completionCriteria.allApprovedGolden).toBe(false);
   });
 
@@ -128,11 +134,11 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1", "X2"] };
     const entries = [approvedEntry("X1", "x1"), { scenarioId: "X2", status: "REVISE", fixtureId: "f", fixtureVersion: 1 }];
-    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0] as any));
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0]));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
     expect(result.goldenAuthorityComplete).toBe(false);
-    expect(result.issues.some((i: any) => i.severity === "ERROR")).toBe(false);
+    expect(result.issues.some((i: Issue) => i.severity === "ERROR")).toBe(false);
   });
 
   it("4. one REJECT among otherwise-complete scenarios: incomplete, not an integrity error", () => {
@@ -140,11 +146,11 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1", "X2"] };
     const entries = [approvedEntry("X1", "x1"), { scenarioId: "X2", status: "REJECT", fixtureId: "f", fixtureVersion: 1 }];
-    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0] as any));
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0]));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
     expect(result.goldenAuthorityComplete).toBe(false);
-    expect(result.issues.some((i: any) => i.severity === "ERROR")).toBe(false);
+    expect(result.issues.some((i: Issue) => i.severity === "ERROR")).toBe(false);
   });
 
   it("5. one missing expected scenario (absent from the manifest entirely): incomplete, flagged as an error, not silently accepted", () => {
@@ -152,7 +158,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1", "X2"] };
     const entries = [approvedEntry("X1", "x1")]; // X2 never appears
-    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0] as any));
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0]));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
     expect(result.goldenAuthorityComplete).toBe(false);
@@ -166,7 +172,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
-    delete (entry.approval as any).approvedBy;
+    delete entry.approval!.approvedBy;
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, attestationFor(entry));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -179,7 +185,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
-    (entry.approval as any).approvedCaptures = [];
+    entry.approval!.approvedCaptures = [];
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, { sourceCommitSha: SHA40_B, generatedAt: "2026-10-09T00:00:00.000Z", captures: [] });
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -196,7 +202,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
     expect(result.goldenAuthorityComplete).toBe(false);
-    const missing = result.issues.filter((i: any) => i.kind === "APPROVED_FILE_NOT_IN_ATT");
+    const missing = result.issues.filter((i: Issue) => i.kind === "APPROVED_FILE_NOT_IN_ATT");
     expect(missing.length).toBeGreaterThan(0);
     expect(missing[0].severity).toBe("ERROR");
   });
@@ -207,7 +213,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
     const att = attestationFor(entry);
-    (att.captures[0] as any).sha256 = "9".repeat(64); // diverges from the approval's recorded hash
+    att.captures[0].sha256 = "9".repeat(64); // diverges from the approval's recorded hash
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, att);
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -220,7 +226,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
-    (entry.approval as any).approvedCaptures[0].sha256 = "not-a-hash";
+    entry.approval!.approvedCaptures[0].sha256 = "not-a-hash";
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, attestationFor(entry));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -233,7 +239,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
-    (entry.approval as any).revisionSha = SHA64_1; // 64-hex SHA-256, not a 40-hex git SHA — the original bug class
+    entry.approval!.revisionSha = SHA64_1; // 64-hex SHA-256, not a 40-hex git SHA — the original bug class
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, attestationFor(entry));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -262,8 +268,8 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
     expect(result.expectedScenarios.missing).toEqual([]);
-    expect(result.issues.filter((i: any) => i.kind === "MISSING_EXPECTED_SCENARIO")).toEqual([]);
-    expect(result.issues.filter((i: any) => i.kind === "DUPLICATE_SCENARIO")).toEqual([]);
+    expect(result.issues.filter((i: Issue) => i.kind === "MISSING_EXPECTED_SCENARIO")).toEqual([]);
+    expect(result.issues.filter((i: Issue) => i.kind === "DUPLICATE_SCENARIO")).toEqual([]);
     // 15 manifest entries (A07-S1/A07-S2 is one), matching the real W3 shape
     expect(entries.length).toBe(15);
   });
@@ -276,7 +282,7 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, { sourceCommitSha: SHA40_B, generatedAt: "2026-10-09T00:00:00.000Z", captures: [] });
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
-    expect(result.issues.some((i: any) => i.severity === "ERROR")).toBe(false);
+    expect(result.issues.some((i: Issue) => i.severity === "ERROR")).toBe(false);
     expect(result.goldenAuthorityComplete).toBe(false);
     expect(result.pendingEntries).toBe(1);
   });
@@ -311,7 +317,7 @@ describe("structural capture-contract checks", () => {
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
     // Drop the mobile captures entirely
-    (entry.approval as any).approvedCaptures = (entry.approval as any).approvedCaptures.filter((c: any) => c.viewport === "desktop");
+    entry.approval!.approvedCaptures = entry.approval!.approvedCaptures.filter((c: Capture) => c.viewport === "desktop");
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, attestationFor(entry));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -323,7 +329,7 @@ describe("structural capture-contract checks", () => {
     const waves = { W1: "fixture/W1" };
     const expected = { W1: ["X1"] };
     const entry = approvedEntry("X1", "x1");
-    (entry.approval as any).approvedCaptures = (entry.approval as any).approvedCaptures.filter((c: any) => c.theme === "dark");
+    entry.approval!.approvedCaptures = entry.approval!.approvedCaptures.filter((c: Capture) => c.theme === "dark");
     writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [entry] }, attestationFor(entry));
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
@@ -340,7 +346,7 @@ describe("buildInventoryRows (W5-R2 provenance fields)", () => {
       repoRoot,
       waves.W1,
       { baseCommitSha: SHA40_A, candidates: [entry] },
-      { sourceCommitSha: SHA40_B, reviewedBranchHeadSha: "c".repeat(40), generatedAt: "2026-10-09T00:00:00.000Z", captures: (entry.approval as any).approvedCaptures },
+      { sourceCommitSha: SHA40_B, reviewedBranchHeadSha: "c".repeat(40), generatedAt: "2026-10-09T00:00:00.000Z", captures: entry.approval!.approvedCaptures },
     );
 
     const rows = buildInventoryRows(repoRoot, { waves });
@@ -370,7 +376,7 @@ describe("buildInventoryRows (W5-R2 provenance fields)", () => {
     const rows = buildInventoryRows(REPO_ROOT);
     const approvedTotal = rows.filter((r) => r.status === "APPROVED_GOLDEN").reduce((n, r) => n + r.approvedCaptureCount, 0);
     expect(approvedTotal).toBe(488);
-    const attestedTotal = Object.values(waveData).reduce((n: number, w: any) => n + (w.attestation?.captures?.length ?? 0), 0);
+    const attestedTotal = Object.values(waveData).reduce((n: number, w: { attestation?: { captures?: unknown[] } }) => n + (w.attestation?.captures?.length ?? 0), 0);
     expect(attestedTotal).toBe(698);
     expect(rows.filter((r) => r.status === "APPROVED_GOLDEN")).toHaveLength(25);
     expect(rows.filter((r) => r.status === "CANDIDATE")).toHaveLength(13);
@@ -407,7 +413,7 @@ describe("CLI: audit-gate-a-golden-authority.mjs", () => {
     const { code, out } = runCli(AUDIT_SCRIPT, [repoRoot]);
     expect(code).toBe(1);
     const parsed = JSON.parse(out);
-    expect(parsed.issues.some((i: any) => i.kind === "EMPTY_SCENARIO")).toBe(true);
+    expect(parsed.issues.some((i: Issue) => i.kind === "EMPTY_SCENARIO")).toBe(true);
   });
 });
 

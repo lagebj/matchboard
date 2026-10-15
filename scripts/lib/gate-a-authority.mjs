@@ -14,6 +14,15 @@ import { join } from "path";
 export const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 export const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
+/**
+ * @type {Record<string, string>}
+ *
+ * Typed as a general string-keyed record (not inferred as the exact 4-key literal shape) so that
+ * callers — in particular this module's own tests — can pass a smaller synthetic `waves` override
+ * (e.g. `{ W1: "fixture/W1" }`) through `loadWaveData`/`auditGateA`/`buildInventoryRows`'s default
+ * parameter without a TS2739 "missing properties" error. The real CLI scripts always use this
+ * exact 4-wave default.
+ */
 export const WAVES = {
   W1: "docs/ui-lab/gate-a-w1-candidates",
   W2: "docs/ui-lab/gate-a-w2-candidates",
@@ -22,6 +31,8 @@ export const WAVES = {
 };
 
 /**
+ * @type {Record<string, string[]>}
+ *
  * Authoritative expected-scenario registry (`25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv` +
  * `20_UI_LAB_CANDIDATE_WAVES.md`, cross-checked against the W1-W4 `*_REVIEW.md` records this
  * session verified against GitHub — see `docs/ui-lab/gate-a-w5-convergence/SOURCE_RECONCILIATION.md`).
@@ -31,6 +42,9 @@ export const WAVES = {
  * not silently-accepted scope reduction — if a future authoritative programme revision changes
  * this set, this registry must be updated explicitly as part of that change, not inferred from
  * whatever a manifest happens to contain.
+ *
+ * Typed as a general string-keyed record (see `WAVES`'s own comment above) so synthetic test
+ * overrides covering only one or two waves type-check against this module's default parameters.
  */
 export const EXPECTED_SCENARIOS = {
   W1: ["A01", "A02", "A06", "A12"],
@@ -111,7 +125,7 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
   let totalApproved = 0;
   let totalPending = 0;
 
-  for (const [wave, rel] of Object.entries(waves)) {
+  for (const wave of Object.keys(waves)) {
     const { manifest, attestation, entries, attByFile } = waveData[wave];
     if (manifest === null || entries === null) {
       summary.push({ wave, entries: 0, approved: 0, pending: 0, other: 0, attestedCaptures: null, captureSourceCommitSha: null });
