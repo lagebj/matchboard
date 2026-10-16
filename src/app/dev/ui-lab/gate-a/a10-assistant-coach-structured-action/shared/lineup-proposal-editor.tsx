@@ -297,6 +297,7 @@ type ChromeProps = LineupProposalEditorBodyProps & {
   onRequestClose: () => void;
   onConfirmDiscardAndClose: () => void;
   onCancelClose: () => void;
+  className?: string;
 };
 
 function DiscardConfirmPrompt({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
@@ -316,7 +317,7 @@ function DiscardConfirmPrompt({ onConfirm, onCancel }: { onConfirm: () => void; 
   );
 }
 
-export function LineupProposalInspector({ confirmingClose, onRequestClose, onConfirmDiscardAndClose, onCancelClose, ...body }: ChromeProps) {
+export function LineupProposalInspector({ confirmingClose, onRequestClose, onConfirmDiscardAndClose, onCancelClose, className, ...body }: ChromeProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -336,7 +337,7 @@ export function LineupProposalInspector({ confirmingClose, onRequestClose, onCon
       aria-label="Review lineup"
       role="dialog"
       aria-modal="false"
-      className="flex w-full flex-col gap-4 rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4 shadow-[var(--tl-widget-shadow)]"
+      className={cn("flex w-full flex-col gap-4 rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4 shadow-[var(--tl-widget-shadow)]", className)}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -359,7 +360,7 @@ export function LineupProposalInspector({ confirmingClose, onRequestClose, onCon
   );
 }
 
-export function LineupProposalSheet({ isOpen, confirmingClose, onRequestClose, onConfirmDiscardAndClose, onCancelClose, ...body }: ChromeProps & { isOpen: boolean }) {
+export function LineupProposalSheet({ isOpen, confirmingClose, onRequestClose, onConfirmDiscardAndClose, onCancelClose, className: _className, ...body }: ChromeProps & { isOpen: boolean }) {
   return (
     <TouchlineBottomSheet isOpen={isOpen} onClose={onRequestClose} title="Review lineup" description={`${body.slotLabel} slot — ${body.matchReference}`} tone="context" ariaLabel="Review lineup">
       {confirmingClose ? <DiscardConfirmPrompt onConfirm={onConfirmDiscardAndClose} onCancel={onCancelClose} /> : <LineupProposalEditorBody {...body} />}

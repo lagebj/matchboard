@@ -83,6 +83,20 @@ const w4ExtraSmokeViewports = [
   { name: "w4-430", width: 430, height: 900 },
 ];
 
+// Gate A W5 finding: A07 and A10 both reuse A01's `max-w-[920px] ... flex-row` two-column
+// inspector-beside-content layout, and (A07 still; A10 fixed in this PR) reused A01's pre-round-4
+// `medium:flex-row` (600px) engagement — the same threshold used to decide inspector-vs-sheet at
+// all, leaving almost no room for the inspector between ~600-840px. A01's own round-4 remediation
+// added these same three tablet widths to prove the fix; applying the identical set here is the
+// only way to get real capture evidence for this exact squeeze range (W3/W4 only had 360/430px
+// smoke widths, which are below the 600px inspector threshold and so never exercised this layout
+// state at all). See docs/ui-lab/gate-a-w5-convergence/INTERACTION_STATE_AUDIT.md.
+const inspectorSqueezeSmokeViewports = [
+  { name: "squeeze-600", width: 600, height: 900 },
+  { name: "squeeze-768", width: 768, height: 1024 },
+  { name: "squeeze-900", width: 900, height: 1024 },
+];
+
 /**
  * Gate A W3 interaction helpers (`04_TESTS_AND_CAPTURE_MATRIX.md`: "no random timers/network; use
  * a deterministic fixture-step controller/test gate"). A07/A09's shared editor renders its own
@@ -326,8 +340,8 @@ const scenarios = [
   {
     slug: "gate-a-w3-a07-assign-reserve-success",
     route: "gate-a/a07-match-details-edit-lineup/assign-reserve-success",
-    extraViewports: w3ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w3ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
@@ -338,8 +352,8 @@ const scenarios = [
   {
     slug: "gate-a-w3-a07-assign-reserve-denied",
     route: "gate-a/a07-match-details-edit-lineup/assign-reserve-denied",
-    extraViewports: w3ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w3ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
@@ -350,8 +364,8 @@ const scenarios = [
   {
     slug: "gate-a-w3-a07-server-conflict",
     route: "gate-a/a07-match-details-edit-lineup/server-conflict",
-    extraViewports: w3ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w3ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
@@ -362,8 +376,8 @@ const scenarios = [
   {
     slug: "gate-a-w3-a07-planning-closed-after-opening",
     route: "gate-a/a07-match-details-edit-lineup/planning-closed-after-opening",
-    extraViewports: w3ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w3ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
@@ -374,8 +388,8 @@ const scenarios = [
   {
     slug: "gate-a-w3-a07-dirty-draft-close",
     route: "gate-a/a07-match-details-edit-lineup/dirty-draft-close",
-    extraViewports: w3ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w3ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [
       { id: "editor-open", perform: clickByName("Edit lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
@@ -497,8 +511,8 @@ const scenarios = [
   {
     slug: "gate-a-w4-a10-review-alternative-success",
     route: "gate-a/a10-assistant-coach-structured-action/review-alternative-success",
-    extraViewports: w4ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w4ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [
       { id: "editor-open", perform: clickByName("Review lineup") },
       { id: "draft-preview", perform: clickTestId("lineup-proposal-row") },
@@ -514,8 +528,8 @@ const scenarios = [
   {
     slug: "gate-a-w4-a10-stale-proposal-blocked",
     route: "gate-a/a10-assistant-coach-structured-action/stale-proposal-blocked",
-    extraViewports: w4ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w4ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     // Remediation finding R2: a blocked (stale) proposal no longer renders a selectable
     // `lineup-proposal-row` at all — only the inspectable rationale/evidence inside the blocked-
     // reason banner. "editor-open" alone already captures that settled state; there is no further
@@ -525,8 +539,8 @@ const scenarios = [
   {
     slug: "gate-a-w4-a10-disabled-or-failed",
     route: "gate-a/a10-assistant-coach-structured-action/disabled-or-failed",
-    extraViewports: w4ExtraSmokeViewports,
-    interactionViewports: ["desktop", "mobile"],
+    extraViewports: [...w4ExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [{ id: "editor-open", perform: clickByName("Review lineup") }],
   },
   {
