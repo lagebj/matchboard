@@ -234,9 +234,10 @@ type ChromeProps = LineupSlotEditorBodyProps & {
   onRequestClose: () => void;
   onConfirmDiscardAndClose: () => void;
   onCancelClose: () => void;
+  className?: string;
 };
 
-export function LineupSlotInspector({ confirmingClose, onRequestClose, onConfirmDiscardAndClose, onCancelClose, ...body }: ChromeProps) {
+export function LineupSlotInspector({ confirmingClose, onRequestClose, onConfirmDiscardAndClose, onCancelClose, className, ...body }: ChromeProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -256,7 +257,7 @@ export function LineupSlotInspector({ confirmingClose, onRequestClose, onConfirm
       aria-label="Edit lineup"
       role="dialog"
       aria-modal="false"
-      className="flex w-full flex-col gap-4 rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4 shadow-[var(--tl-widget-shadow)]"
+      className={cn("flex w-full flex-col gap-4 rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-4 shadow-[var(--tl-widget-shadow)]", className)}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -285,6 +286,7 @@ export function LineupSlotSheet({
   onRequestClose,
   onConfirmDiscardAndClose,
   onCancelClose,
+  className: _className,
   ...body
 }: ChromeProps & { isOpen: boolean }) {
   return (

@@ -60,8 +60,8 @@ export default function DirtyDraftClosePage() {
   };
 
   return (
-    <div className="touchline mx-auto flex max-w-[920px] flex-col gap-6 px-4 py-8 medium:flex-row medium:items-start" data-ui-lab-ready="true">
-      <div className="flex min-w-0 flex-1 flex-col gap-6">
+    <div className="touchline mx-auto flex max-w-[920px] flex-col gap-6 px-4 py-8 expanded:flex-row expanded:items-start" data-ui-lab-ready="true">
+      <div className="flex min-w-0 flex-col gap-6 expanded:w-[480px] expanded:shrink-0">
         <div>
           <Link href="/dev/ui-lab/gate-a/a07-match-details-edit-lineup" className="text-[12px] text-[var(--text-muted)] hover:underline">
             &larr; A07 Match Details edit lineup
@@ -96,7 +96,7 @@ export default function DirtyDraftClosePage() {
         </div>
       </div>
 
-      {isOpen && isDesktop ? <LineupSlotInspector {...sharedProps} /> : null}
+      {isOpen && isDesktop ? <LineupSlotInspector {...sharedProps} className="expanded:flex-1" /> : null}
       {isOpen && !isDesktop ? <LineupSlotSheet isOpen={isOpen} {...sharedProps} /> : null}
     </div>
   );
