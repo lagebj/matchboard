@@ -328,17 +328,17 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     expect(result.issues).toContainEqual(expect.objectContaining({ severity: "ERROR", kind: "UNRECOGNIZED_STATUS", scenario: "X1", status: "SOMETHING_ELSE" }));
   });
 
-  it("15. the real repository state: incomplete authority (W4 pending), but zero unintended integrity errors", () => {
+  it("15. the real repository state: Gate A complete as of the 2026-10-16 final closeout (A07 revision + 13 W4 approvals), zero integrity errors", () => {
     const result = auditGateA(REPO_ROOT);
     expect(result.expectedScenarios.totalManifestEntries).toBe(38);
     expect(result.expectedScenarios.totalLogicalScenarioIds).toBe(39);
     expect(result.expectedScenarios.missing).toEqual([]);
     expect(result.expectedScenarios.unexpected).toEqual([]);
-    expect(result.approvedEntries).toBe(25);
-    expect(result.pendingEntries).toBe(13);
+    expect(result.approvedEntries).toBe(38);
+    expect(result.pendingEntries).toBe(0);
     expect(result.unexpectedEntries).toBe(0);
     expect(result.issues).toEqual([]);
-    expect(result.goldenAuthorityComplete).toBe(false);
+    expect(result.goldenAuthorityComplete).toBe(true);
   });
 });
 
@@ -421,17 +421,17 @@ describe("auditGateA — identity-based completion, hardened (W5-R5)", () => {
     expect(result.goldenAuthorityComplete).toBe(true);
   });
 
-  it("F. real repository regression: matches the required summary exactly", () => {
+  it("F. real repository regression: Gate A complete as of the 2026-10-16 final closeout", () => {
     const result = auditGateA(REPO_ROOT);
     expect(result.expectedScenarios.totalManifestEntries).toBe(38);
     expect(result.expectedScenarios.totalLogicalScenarioIds).toBe(39);
-    expect(result.approvedEntries).toBe(25);
-    expect(result.pendingEntries).toBe(13);
+    expect(result.approvedEntries).toBe(38);
+    expect(result.pendingEntries).toBe(0);
     expect(result.expectedScenarios.missing).toEqual([]);
     expect(result.expectedScenarios.unexpected).toEqual([]);
     expect(result.unexpectedEntries).toBe(0);
     expect(result.issues).toEqual([]);
-    expect(result.goldenAuthorityComplete).toBe(false);
+    expect(result.goldenAuthorityComplete).toBe(true);
   });
 });
 
@@ -496,36 +496,36 @@ describe("buildInventoryRows (W5-R2 provenance fields)", () => {
     expect(rows[0].approvedAt).toBeNull();
   });
 
-  it("real repository: approved-capture total is 488, attested total is 698 (W5-R2)", () => {
+  it("real repository: approved-capture total is 890, attested total is 914, as of the 2026-10-16 final closeout", () => {
     const { waveData } = loadWaveData(REPO_ROOT);
     const rows = buildInventoryRows(REPO_ROOT);
     const approvedTotal = rows.filter((r) => r.status === "APPROVED_GOLDEN").reduce((n, r) => n + r.approvedCaptureCount, 0);
-    expect(approvedTotal).toBe(488);
+    expect(approvedTotal).toBe(890);
     const attestedTotal = Object.values(waveData).reduce((n: number, w: { attestation?: { captures?: unknown[] } }) => n + (w.attestation?.captures?.length ?? 0), 0);
-    expect(attestedTotal).toBe(698);
-    expect(rows.filter((r) => r.status === "APPROVED_GOLDEN")).toHaveLength(25);
-    expect(rows.filter((r) => r.status === "CANDIDATE")).toHaveLength(13);
+    expect(attestedTotal).toBe(914);
+    expect(rows.filter((r) => r.status === "APPROVED_GOLDEN")).toHaveLength(38);
+    expect(rows.filter((r) => r.status === "CANDIDATE")).toHaveLength(0);
     expect(rows).toHaveLength(38);
     expect(expectedLogicalScenarioCount()).toBe(39);
   });
 
-  it("every W4 row has an empty approvalRevisionSha in the real repository (no fabricated approval revision)", () => {
+  it("every W4 row carries the real approval revision in the real repository, post-closeout (no fabricated or null revision)", () => {
     const rows = buildInventoryRows(REPO_ROOT);
     const w4Rows = rows.filter((r) => r.wave === "W4");
     expect(w4Rows).toHaveLength(13);
     for (const row of w4Rows) {
-      expect(row.approvalRevisionSha).toBeNull();
-      expect(row.status).toBe("CANDIDATE");
+      expect(row.approvalRevisionSha).toMatch(/^[0-9a-f]{40}$/);
+      expect(row.status).toBe("APPROVED_GOLDEN");
     }
   });
 });
 
 describe("CLI: audit-gate-a-golden-authority.mjs", () => {
-  it("exits 0 with goldenAuthorityComplete: false against the real repo (pending approvals are not an integrity failure)", () => {
+  it("exits 0 with goldenAuthorityComplete: true against the real repo, post Gate A closeout", () => {
     const { code, out } = runCli(AUDIT_SCRIPT, [REPO_ROOT]);
     expect(code).toBe(0);
     const parsed = JSON.parse(out);
-    expect(parsed.goldenAuthorityComplete).toBe(false);
+    expect(parsed.goldenAuthorityComplete).toBe(true);
     expect(parsed.issues).toEqual([]);
   });
 

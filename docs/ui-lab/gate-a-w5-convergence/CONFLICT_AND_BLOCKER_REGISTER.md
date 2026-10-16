@@ -159,10 +159,10 @@ this same remediation.
 | severity | Review decision (not a Blocker by the bundle's own rubric — no hidden mutation, wrong entity, or permission bypass; a layout defect at a specific width range) |
 | blockingFor | Re-confirming A07's golden at full confidence; does not block Gate A audit completion or Gate B handoff preparation |
 | allowedInDesignOnly | Yes |
-| resolution | **Not applied in this PR.** A07 is `APPROVED_GOLDEN` — per every prior wave's own non-negotiable, an approved golden's component/capture set is not silently revised. Proposed resolution: apply the identical fix A10 received in this PR, recapture, and record as a reviewed revision bump — but only on explicit owner instruction |
+| resolution | **RESOLVED 2026-10-16.** Owner authorized `REVISE_REFERENCE`; the identical A01/A10 fix was applied to all 5 A07 pages, recaptured, and recorded as a new reviewed revision (`03a57e9beb7eccfd30e8aaedc766f8561ce6370a`, 56 captures/scenario, prior revision preserved under `approval.supersedes`). Owner reviewed the before/after evidence directly and approved. See `GATE_A_FINAL_ACCEPTANCE.md` |
 | decisionMaker | Repository owner (Lage Berger-Brendryen) |
-| status | `OWNER_DECISION_REQUIRED` |
-| captureRefs | `ui-lab-review-38287815867-1` (run `38287815867`, commit `6faf8d3d2f754ce0aca3c533e63f7af75b55fd16`) — `gate-a-w3-a07-assign-reserve-success-squeeze-{600,768,900}-{dark,light}-editor-open.png` (and the other 4 A07 scenarios' equivalents) visually confirm the defect is still present, unfixed |
+| status | `RESOLVED` |
+| captureRefs | `ui-lab-review-38861930463-1` (run `38861930463`, commit `03a57e9beb7eccfd30e8aaedc766f8561ce6370a`) — `gate-a-w3-a07-assign-reserve-success-squeeze-768-dark-editor-open.png` (and equivalents) confirm the fix; independently re-verified byte-exact against the approved manifest this session |
 
 ### W5-F02 — A10's identical defect (now fixed, unapproved family)
 
@@ -244,18 +244,55 @@ this same remediation.
 
 | Item | Status this session | Blocks |
 |---|---|---|
-| W4 owner golden approvals missing | Unchanged — still 0/13, re-confirmed | Final Gate A design-authority completion (`APPROVAL_DEPENDENCIES.md`) |
-| Durable screenshot PNG storage (D7, GitHub Release) not implemented | Unchanged — `gh release list` still returns zero releases, re-confirmed this session; all 4 cited CI artifacts remain valid right now (`VISUAL_COVERAGE_AND_CAPTURE.md`) | Long-term capture retrievability, not Gate A audit completion |
+| W4 owner golden approvals missing | **RESOLVED 2026-10-16** — all 13 approved, see `GATE_A_FINAL_ACCEPTANCE.md` | Was blocking final Gate A design-authority completion; no longer blocks |
+| Durable screenshot PNG storage (D7, GitHub Release) not implemented | **Partially resolved** — storage/retrieval mechanism tested successfully via a draft, non-public test release (`design-ref-gate-a-storage-TEST-2026-10-16`); the official 38-scenario collection is still not published, pending the W1 byte-gap and a separate explicit publish decision | Long-term capture retrievability for the official collection; does not block Gate A design-authority completion |
 | A10 structured proposal / optimistic-concurrency server validation absent in production | Unchanged — `assignPlayerToSlot` (`lineup-actions.ts`) still has no revision field, re-confirmed by source read this session | Gate B production implementation, not this PR |
 | A11 guarded primary-position review vs. ADR-0139 automatic promotion | Unchanged, real policy conflict — `docs/adr/0139-evolving-player-position-model.md` is `Accepted` and still auto-promotes without coach approval, re-confirmed by source read this session | Any real A11 implementation (Gate B+), not W5 |
 | A10 League/Event parity unverified (only League fixture built) | Unchanged | Gate B scope decision for Event-context equivalence |
 | W3's RSVP-deadline auto-decline is illustrative, not shipped | Unchanged, re-confirmed: `AvailabilityStatus`/`PlannedAbsenceReason` remain manually coach-selected, no deadline computation exists in source | Gate B product-policy decision |
 | ADR-0151's `Status: Proposed` field is stale vs. shipped code | Unchanged (W3-BLK-06); out of this PR's file scope — recommend a separate narrow documentation-alignment issue, not bundled here | None (documentation-only) |
 
+## Final closeout findings (2026-10-16)
+
+### W1's approved capture bytes are not independently recoverable from any current CI artifact
+
+| Field | Value |
+|---|---|
+| scenarioIds | A01, A02, A06, A12 (all 4 W1 `APPROVED_GOLDEN` entries, 48 captures) |
+| owner | `docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json` |
+| source/spec | `07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md` byte-recoverability requirement; the closeout mandate's own instruction to investigate W1's local-capture origin |
+| expected | Approved hash's exact bytes reproducible from some durable or re-derivable source |
+| observed | W1 was approved 2026-10-09 against a **local** capture (per `A01_A02_A06_A12_REVIEW.md`, never uploaded to CI). Two independent GitHub Actions runs this session (re-downloaded, zip digests verified against the API) that happened to re-capture the same W1 routes produce bytes that are **pixel-identical to each other** but **byte-different from the approved hash** — consistent with a different PNG encoder between local Playwright/Chromium and GitHub Actions' build |
+| reproduction | Download artifact `11664869825` (run `38040296558`) or `11751493087` (run `38258456189`); `sha256sum gate-a-a01-sports-first-desktop-dark.png` differs from the approved hash in `candidate_manifest.json`; `PIL.ImageChops.difference` on the decoded pixels shows zero diff between the two CI runs, confirming visual identity despite the byte difference |
+| impact | The approval record itself is sound (a human approved specific named hashes on a specific date); what is not possible today is re-deriving those exact bytes for independent verification or durable republication |
+| severity | Important (evidence-durability gap, not a design or approval-validity defect) |
+| blockingFor | Official D7 release publication for the full 38-scenario collection (would need to either include non-matching-hash W1 bytes with disclosure, or omit W1, or recapture W1 as a new disclosed revision) |
+| allowedInDesignOnly | N/A |
+| resolution | **Not resolved — disclosed.** No hash was altered or silently replaced. See `GATE_A_FINAL_ACCEPTANCE.md`'s verification-tier table |
+| decisionMaker | Repository owner, at a future wave if durable W1 bytes are needed |
+| status | `DISCLOSED_OPEN` |
+| captureRefs | Artifacts `11664869825`, `11751493087` (both independently downloaded and digest-verified this session) |
+
+### Self-caused: new approvals initially cited capture hashes their own attestation files didn't contain
+
+| Field | Value |
+|---|---|
+| scenarioIds | A07-S1/S2 through S6, A10's 3 scenarios |
+| owner | `docs/ui-lab/gate-a-w3-candidates/capture-attestation.json`, `docs/ui-lab/gate-a-w4-candidates/capture-attestation.json` |
+| source/spec | An approved golden's capture hashes must be locatable in its own wave's attestation file (the exact W5-F03/W5-R1 `APPROVED_FILE_NOT_IN_ATT` check) |
+| observed | When recording A07's revised approval and W4's 13 approvals in this closeout, the fresh capture hashes were written into `candidate_manifest.json` but the companion `capture-attestation.json` files were not updated to match — reproducing the exact class of bug W5-F03 found and fixed in W2's data earlier, this time in this session's own work. Caught immediately by `node scripts/audit-gate-a-golden-authority.mjs` (302 `APPROVED_FILE_NOT_IN_ATT`/`HASH_MISMATCH_WITH_ATTESTATION` errors) before anything was pushed as final |
+| reproduction | N/A — fixed before being left in any pushed, reviewed state |
+| impact | Would have been a real, if quickly self-detected, evidence-integrity gap had it shipped |
+| severity | Important, self-caught |
+| resolution | **RESOLVED same session.** Both attestation files regenerated from the actual CI artifact data the approvals cite; re-ran the audit script, 0 issues; independently re-verified all 890 approved hashes against real downloaded PNG bytes (not just the attestation files) as a second, independent check |
+| status | `RESOLVED` |
+| captureRefs | Runs `38861930463` (A07 full set, A10) |
+
 ## Resolution controls honored
 
 No item above with a real release-blocking truth or interaction defect (W5-F01/F02) was dismissed
-as cosmetic. No approved W1-W3 reference was silently overwritten — W5-F01 (A07) is explicitly left
-to the owner; W5-F03 (W2 attestation) replaces unapproved supporting evidence, not the approval
-itself, with content independently re-verified byte-for-byte against the same CI run the approval
-was already recorded against.
+as cosmetic. No approved W1-W3 reference was silently overwritten — W5-F01 (A07) went through an
+explicit owner decision and evidence review before any revision was recorded; W5-F03 (W2
+attestation) and this closeout's self-caught attestation gap both replaced unapproved supporting
+evidence, never an approval record itself, with content independently re-verified byte-for-byte.
+W1's byte-recoverability gap is disclosed, not silently worked around with non-matching bytes.

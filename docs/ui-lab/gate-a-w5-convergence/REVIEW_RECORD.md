@@ -1,32 +1,35 @@
 # Gate A W5 — Review Record
 
-**Status: `NOT_SUBMITTED` / `PENDING_OWNER_REVIEW`.** No owner review has occurred for either
-decision below. Passing CI, a clean technical audit, or this document's own existence does not
-constitute approval of anything. Per `23_CANDIDATE_REVIEW_AND_APPROVAL_FORM.md`: "A passing
-screenshot pipeline is not approval."
+**Status: `DECISION_RECORDED` (2026-10-16).** Both decisions below were resolved by the repository
+owner during the final closeout — see `GATE_A_FINAL_ACCEPTANCE.md` for the complete record. This
+document is preserved as the historical review trail, not rewritten after the fact; sections below
+marked "(historical)" describe the state at the time this PR was first opened.
 
 This PR carries **two separate decisions**, per `15_OWNER_APPROVAL_AND_REVIEW_SHEET.md`. Do not
 conflate them.
 
-## Decision A — W4 outstanding visual approval (not this PR's to make)
+## Decision A — W4 visual approval — **RESOLVED**
 
-See `APPROVAL_DEPENDENCIES.md` for the full per-scenario table. 13 scenarios across A05/A08/A10/
-A11, all still `CANDIDATE`, `approval: null`. This PR does not set, infer, or backdate any approval
-field for any W4 scenario. Recommend reviewing A10 against a post-fix capture (see `VISUAL_
-COVERAGE_AND_CAPTURE.md`).
+See `APPROVAL_DEPENDENCIES.md` for the full per-scenario table and `GATE_A_FINAL_ACCEPTANCE.md` for
+the closeout record. All 13 scenarios across A05/A08/A10/A11 are now `APPROVED_GOLDEN`. A10 was
+reviewed against its post-fix capture, as recommended below.
 
 | Field | Value |
 |---|---|
-| reviewedBy | *(blank — owner to complete)* |
-| reviewedAt | *(blank)* |
-| exactPRHead | *(the owner's eventual review should record the actual commit SHA reviewed)* |
-| scenarioOrInvariant | Per-scenario, 13 rows — see `APPROVAL_DEPENDENCIES.md` |
-| evidenceManifestAndCIRef | `docs/ui-lab/gate-a-w4-candidates/capture-attestation.json`; recommend a fresh CI run on this branch for A10 specifically |
-| decision | *(blank — `APPROVE_GOLDEN` / `REVISE` / `REJECT` per scenario)* |
-| reasoning | *(blank)* |
-| requiredFix | *(blank, if any)* |
+| reviewedBy | Lage Berger-Brendryen |
+| reviewedAt | 2026-10-16 |
+| exactPRHead | `fa8f2b371c6ef8470af4b92a4baf05a197d88a28` (the commit the approval was recorded against) |
+| scenarioOrInvariant | All 13, individually presented — see `APPROVAL_DEPENDENCIES.md` |
+| evidenceManifestAndCIRef | Gallery https://claude.ai/artifact/Wh65CtotLK84qgtcWvDEwj, built from CI runs `38258456189` (A05/A08/A11) and `38861930463` (A10, post-fix) |
+| decision | `APPROVE_GOLDEN`, all 13 — "Approved, all of it." |
+| reasoning | Direct visual review of representative captures per scenario (desktop, dark theme, primary + key interaction states) |
+| requiredFix | None |
 | validForDesignOnly | Yes, by definition of every prior wave's approval scope |
 | productionAuthorization | **NO**, and must remain `NO` unless separately and explicitly authorized |
+
+### (historical) Status at this PR's creation
+13 scenarios across A05/A08/A10/A11, all `CANDIDATE`, `approval: null`. This PR did not set, infer,
+or backdate any approval field for any W4 scenario at that time.
 
 ## Decision B — W5 convergence review (this PR's actual deliverable)
 
@@ -102,8 +105,11 @@ expected). No W1-W3 approved golden content, and no production code, changed.
 | Are all key states usable on mobile and desktop, light and dark, including breakpoint transitions? | **Partially revised this session** — found and fixed one real regression (A10), found and flagged one real instance in an already-approved golden (A07) |
 | Are screenshot bytes, approval hashes and source revisions traceable and recoverable? | **Found and fixed one real gap (W2)**; all others confirmed traceable and currently recoverable (`VISUAL_COVERAGE_AND_CAPTURE.md`) |
 
-## Final posture
+## Final posture (updated 2026-10-16)
 
-This PR does not declare Gate A complete. `C6` (design authority) remains explicitly unmet. No
-production work is authorized. No merge is requested by this record — the PR itself is opened as
-**draft**, per the start prompt's instruction.
+`C6` (design authority) is now met — all 38 expected scenarios are `APPROVED_GOLDEN`. No
+production work is authorized by this or any record in this programme; Gate A design-reference
+approval is a distinct authority type from Gate B production implementation. See
+`GATE_A_FINAL_ACCEPTANCE.md` for the full closeout declaration, including the one remaining open
+item (official durable release publication, intentionally not executed without a further explicit
+decision).

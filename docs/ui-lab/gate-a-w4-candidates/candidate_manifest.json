@@ -6,7 +6,7 @@
   "candidates": [
     {
       "scenarioId": "A05-disabled",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-disabled",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -25,11 +25,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-desktop-dark.png",
+            "sha256": "06b9706fdd0fc4cb40023d5f79261b9844d7d8455d95bef1461060a311fb0ddf"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-desktop-light.png",
+            "sha256": "f6292b91ab121d061e2a3b30c0e482888cee12c49704883c7a8e59ef2ff21050"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-mobile-dark.png",
+            "sha256": "34eab6a1c92e3be02d0f17bc5c488c241d559bd2ea61a09c6e18522952193119"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-mobile-light.png",
+            "sha256": "f2f84d1ff16da42fc334124b7d1a2cb84caec9b519d3d441c9290027d2317668"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-narrow-dark.png",
+            "sha256": "cc1b569c4be7ae9cb18bd00a2b665b780748315deacc6626617996e3cd72d58b"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-narrow-light.png",
+            "sha256": "591b94fe3058487dc64e1e69d11317e84e389d17a9bb410695babce730e1c1f7"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-w4-360-dark.png",
+            "sha256": "968b1a1ef45719ae49f3ffd3265115c63a9e30b2d3f52657713bf0d2b494f0f1"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-w4-360-light.png",
+            "sha256": "d55d787914b28759980ad8c8c39c09a7f11ed32d7315ce80da8d86292377992a"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-w4-430-dark.png",
+            "sha256": "f2d7d05184f896fc87a28f408b8c0718c232f4442ca955e194b05423f1b35086"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-disabled-w4-430-light.png",
+            "sha256": "908c7a2d60773b0f08c17ba1f916715e45472c5d6d02ae0ffa97a78e2ca9e7bb"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A05-enabled-with-pattern",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-enabled-with-pattern",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -51,11 +131,119 @@
       "knownGaps": [
         "Promote/dismiss are simulated locally, not the real server actions \u2014 see BLOCKERS.md W4-BLK-10"
       ],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-desktop-dark.png",
+            "sha256": "4a3ad4061164edc68561f67fba748a5b59f1b4ad39fec041226fe23e5db14091"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "promoted",
+            "file": "gate-a-w4-a05-enabled-with-pattern-desktop-dark-promoted.png",
+            "sha256": "c3fdef4e806e8a1d08e21e619253f99b75a277bda689c40e79b8a67796dd0a09"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-desktop-light.png",
+            "sha256": "ceb78539059881ea1ee2ae0b907774fc888637287294d8f0bcc384f8f6bc195d"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "promoted",
+            "file": "gate-a-w4-a05-enabled-with-pattern-desktop-light-promoted.png",
+            "sha256": "a36dae5bd2d33a87f710f4f419f1da2fc2865863f1e4dd02e91be5d518b1761b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-mobile-dark.png",
+            "sha256": "a6a0a862aebad32783c8f072e877ab69d00ff35863b9e24db85497e5edd3ad7f"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "promoted",
+            "file": "gate-a-w4-a05-enabled-with-pattern-mobile-dark-promoted.png",
+            "sha256": "e7c08b72f54cf902ddf49080223a237ae25f594ee10e9c75891266be2a5f376c"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-mobile-light.png",
+            "sha256": "b3948ef554c63280c2d087ddbcb18ec29d2c01d953d955c22c946f7fa522214b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "promoted",
+            "file": "gate-a-w4-a05-enabled-with-pattern-mobile-light-promoted.png",
+            "sha256": "25afbc3f9fff14db100f1832b0f14f41726fa74873be6e66b3b5eb9bbaa7cf1c"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-narrow-dark.png",
+            "sha256": "d7fd45a0bf98b17ce30261b923e96afe1bec5a917092b4bfa574b7e50adc7ab8"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-narrow-light.png",
+            "sha256": "59186ef11189fcc0461d317f13530190870e01ec2fa9c68d58a4ed4f503977ec"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-w4-360-dark.png",
+            "sha256": "af213c8be72620e10b75689279e0c294228c973a4ca35ef9f7b9e3055a70f04d"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-w4-360-light.png",
+            "sha256": "210a0be3fe9db98e6fd0e09f17d44feb1350237a68ef67d544de09b9ba30d656"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-w4-430-dark.png",
+            "sha256": "679481b6d870583ff6b8f45105552d72df87b75d907179dc9027bf132dc1a6e2"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-with-pattern-w4-430-light.png",
+            "sha256": "306009acb8efafdd54926cb15b97f91644af4ffe842c0ffbc2e6759a9639730b"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A05-enabled-without-pattern",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-enabled-without-pattern",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -74,11 +262,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-desktop-dark.png",
+            "sha256": "30e3d1292b77f789520f1fa80235017470093d4f87a831f553b03f45b99cad51"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-desktop-light.png",
+            "sha256": "93b38336925d03e487618a8558c3ac9cf14bf66a3895292dbc21d3d2793e049b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-mobile-dark.png",
+            "sha256": "7189d7aba0a1a1625376d990ad5166d33a3fa3bdbbcdc5698ae0ab9d029e3d3a"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-mobile-light.png",
+            "sha256": "e9abbf479dd74971c3ad7290dafce3c948da865c9590b864e0c5398004c80170"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-narrow-dark.png",
+            "sha256": "841f83935e7f513e39ce9be22461189f9f6d98c225f5ffae6726593b216f00ae"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-narrow-light.png",
+            "sha256": "c6e806e55d7799f7e1f6bef996de82258b0b68541f86935f38e4bc8a5a2d5d9e"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-w4-360-dark.png",
+            "sha256": "929f477a5acee0dd62e2c1e7a6662b10541f85d5dd41def75545aabe39989e89"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-w4-360-light.png",
+            "sha256": "be8f6efb44c7d4f27c803887dcbd73e37a06e58a0aeff420e6f4953f092b485a"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-w4-430-dark.png",
+            "sha256": "54541eb9f338f033a7bae956a3eb26a14b233cfabfe62aefbc5a46c48f96d164"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-enabled-without-pattern-w4-430-light.png",
+            "sha256": "dae03ca326007aceffe0910255e3a6751f12ad8c7b4f1efa5eb0c2c52e880417"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A05-unavailable",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-unavailable",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -97,11 +365,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 6",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-desktop-dark.png",
+            "sha256": "901e9ecde49f1e3b6ea5c88259e9856764561f5cc6d37483da48c6865f2922bc"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-desktop-light.png",
+            "sha256": "651213a43f9dd8977965fe5d727bbae5c7af1c060f28b149618888557a043eec"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-mobile-dark.png",
+            "sha256": "196e052d61a3d614c66c9c0ee042c9273f5108adf7950665432a80d46099f47a"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-mobile-light.png",
+            "sha256": "0fa9489ffb183ac3ca335b326900eb6f1a8a4959f21e5218560de6d39cd4114b"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-narrow-dark.png",
+            "sha256": "dcb6c94e34deb7e62675462d7268eb835570afee70c3b8d145ca15d893fe7179"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-narrow-light.png",
+            "sha256": "bf883304ada0726bdabfe966c6be4a4b48a292692d16ed5fb0f02f19d2f2d52c"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-w4-360-dark.png",
+            "sha256": "af3c565af6193d9eb9481e41f89edf69f2ade518c56f3529e9ec618010d70f24"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-w4-360-light.png",
+            "sha256": "430d8aae06e78a82c3e0c604aaa213a2ddcadcfc4a89b1113a7747c3ae5bbacf"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-w4-430-dark.png",
+            "sha256": "626fdab720176a3ffe59b7db14e4599c52d6d3840d71398ccd5ef26223abf06b"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a05-unavailable-w4-430-light.png",
+            "sha256": "152c1521406d1708ade35649d111d4713d1895772674da7eeb2ba3c12c4e9f70"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A08-off",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a08-off",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -119,11 +467,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 31",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-desktop-dark.png",
+            "sha256": "81d64bd1d3572195577d11e52db4fe9caaa7ce32a86db4233f42bf3edb3d5eb7"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-desktop-light.png",
+            "sha256": "aafce27412268bdb6a2704e2cfa3aa74d20c05202a7e3bab41aef9955e802cab"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-mobile-dark.png",
+            "sha256": "edaf7f49f59fb632f103976e74b509908add542495482d80623bfde78c381396"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-mobile-light.png",
+            "sha256": "328532837e69359c086a452445e58992d71c40410d455271860fd47b308bb4b9"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-narrow-dark.png",
+            "sha256": "842848ebb15c80c50721ed7f0fe676780a8255a355c890d84ebcca06cfa05b37"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-narrow-light.png",
+            "sha256": "02a94709eacbe16068a99a3c8ae3d4108ca48191c1973b48188198caccd97b4e"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-w4-360-dark.png",
+            "sha256": "bd51f8d55c9f40ae321e223f120e24e282648964b7c103992455aa944f83cae8"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-w4-360-light.png",
+            "sha256": "3401749be01bba19aef9942a5611e28039f9080e92cb3ca9366b50516c4cb3f3"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-w4-430-dark.png",
+            "sha256": "ca1828bde57ea08b76243123d163fa61b30e705a1638edbf424d937ed568bbd8"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-off-w4-430-light.png",
+            "sha256": "c16ab35d48adf1eef5d5bd6ffa60a949f556fc1e8f46fd0c796c5da0f3372af2"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A08-on-strong-pattern",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a08-on-strong-pattern",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -142,11 +570,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 31",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-desktop-dark.png",
+            "sha256": "1f4ce4bdb83017d47184c6efab0b58c8d28312462ce3c6b7a8dca232aad2e424"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-desktop-light.png",
+            "sha256": "408cc3fb5acc3a2908703470418d7583747b7316cf33fbfbf52e817a7e63ff55"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-mobile-dark.png",
+            "sha256": "eaabab7aca8bb200be7ba44798344c997e95ba9acf0f01749461eeec46f7930c"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-mobile-light.png",
+            "sha256": "76b304201b245aed1aea45152a934759815aef2280e01c1280e980fc320250a6"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-narrow-dark.png",
+            "sha256": "c8d76fec1c63bdc942138ec5ef953df998685a626b400f0560dad3469eb46252"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-narrow-light.png",
+            "sha256": "b54067aead70561cb1d2e00686ba4399e114ced274f7e766420351a4fcbff4fa"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-w4-360-dark.png",
+            "sha256": "1b583a802bd5bdd11632f40f4f5f42be09633f1b7c929d4aa02bc7a673c37308"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-w4-360-light.png",
+            "sha256": "ee26e606bdd5163237ff1e1ab25de1f5749aa539d26b751df58027e09a6596a5"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-w4-430-dark.png",
+            "sha256": "14dac18131eb293e5e3a575c4da93cc805b80e1a4e9d3e3c149e4ed9180551fb"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-strong-pattern-w4-430-light.png",
+            "sha256": "9eeb0453b999ed5be21780eaf7bfc25f4b86406a3027af842aef3b3e7f1be5d8"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A08-on-no-insight",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a08-on-no-insight",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -165,11 +673,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 31",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A05_A08.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-desktop-dark.png",
+            "sha256": "51b9d6443c62547a59a9c2a652cb0554f121e0fb716276d739ac2a4908e34cdf"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-desktop-light.png",
+            "sha256": "28b8d3ad1b1451a4e928414fa3e2bbba795184f5484ef3e23738046a60cf2950"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-mobile-dark.png",
+            "sha256": "3949981a488773240410267bb6855caa24e1fe4e048a6afb7c3700161d041601"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-mobile-light.png",
+            "sha256": "257f9e1841d7815a9720c6661b0106be2a15df7afc28d9eb1409a4cc60c22bd9"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-narrow-dark.png",
+            "sha256": "3405a796322e5b9fa608adb1775eae5af87332be6c0d85a6da68710f6f744fa0"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-narrow-light.png",
+            "sha256": "bebfabff7e80a3d13c7944d2a3f6188ad585ddae202d1f8096f7733abef9b141"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-w4-360-dark.png",
+            "sha256": "6aa5ba46ade3e4c4adfe8b426da67d016206bdb7635fc957a1db98812ec7d2c9"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-w4-360-light.png",
+            "sha256": "623f67e29552190a2c1c90cb5d1d8b1ec71452e4723c83c9a3ba1e29c28870dd"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-w4-430-dark.png",
+            "sha256": "1996184173b8196e60b79a4e0a38ea534fc8b6d067230cdf2f6451a1c2a8bc08"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a08-on-no-insight-w4-430-light.png",
+            "sha256": "696509e1b990245e713994eb8548c89b89d4ac8ee042f9cd5844487932a4d302"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A10-review-alternative-success",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a10-review-alternative-success",
       "fixtureVersion": 2,
       "componentOwners": [
@@ -196,11 +784,553 @@
       "knownGaps": [
         "No production structured-proposal capability exists yet \u2014 see BLOCKERS.md W4-BLK-03/04"
       ],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark.png",
+            "sha256": "deb55266876e4f2cee1374419ec6babf1e7de977474e2635bad1502e32c71052"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-editor-open.png",
+            "sha256": "9ca1483d4b639a9e82076ced8733d32f167833421e6db0a52af8da5f0aa76711"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-draft-preview.png",
+            "sha256": "2ca7aa607082762ee74cade1c6a5ca8e8e82cb1e26a56ce5295c8287087bdbe5"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-pending.png",
+            "sha256": "b2ecbe2fe1f58202d3bd46b6d152e15e1e481f1e9d6478a79bf7e93ae214fd89"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-saved.png",
+            "sha256": "21dd063fd2870d6d22064ae651798e2cd502e7f476bf7b8b732f71134cd57008"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-closed-after-saved.png",
+            "sha256": "4244ff4d0a9023593f167f08527f7eb72a1b7c72f1c8577d9e1040b99ebaaa40"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-dark-reopened-already-applied.png",
+            "sha256": "5aec3b733d87a032abe6ec8d766171d8db62de0530b15c5404e5c6d060ff2ca7"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light.png",
+            "sha256": "ac51342a3578a2072e3f49312787b3f8e4a4ceffe205bf74af8c6624e56eb9f9"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light-editor-open.png",
+            "sha256": "a93c16b941072d82da606ae25e6aaa8acf7c0ce8ba7854f06eeb988fbe0c34a7"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light-draft-preview.png",
+            "sha256": "820dbc88762f5dfbb57c1c6fa296ccc81d54da6c0aa6f66be101b7e405d240e3"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light-pending.png",
+            "sha256": "c2707d83b9769ab131978a735cfee38c531a0b72063152021157eb39c4b43e6a"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light-saved.png",
+            "sha256": "127f0e291a0e4f7e518263c51cbdeb77a146aea5bc2ab9d2366fbbfce7e077c1"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light-closed-after-saved.png",
+            "sha256": "4c0f19570ad23605536fd560e734301f8bf4ff376a70eb60d09a679aee64237c"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-desktop-light-reopened-already-applied.png",
+            "sha256": "2db95e4cf3917ce9b785e47f0e1dee70929fe94cfb483b7a6b052b9b0fd142e4"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark.png",
+            "sha256": "fc7bdcd5a8b65c6a82bbf1fa40cc498f72dcf9e656545a3d8b0e42b24ab2c0c5"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-editor-open.png",
+            "sha256": "85ab957e8f3f08af500f38d4059fa3ad6fd51be72973e41a83e1b79b2d295173"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-draft-preview.png",
+            "sha256": "25cf5d0cbc0b70d35eb6275ac489c0c1bf6091291ef2eb927f4537635587d7ae"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-pending.png",
+            "sha256": "c4d71d5cda369e00486a4b22dba0ad40a94d4f6c60322b1c606296a43b715015"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-saved.png",
+            "sha256": "b1d56b7dc5910cccf800e1f3db8bb2fd9ee8efc6a491cad7fad9c697d5526db7"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-closed-after-saved.png",
+            "sha256": "d906507ce75c85fd0b07abf8b5241a61457450edfafaffc2b22872e86ca89567"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-dark-reopened-already-applied.png",
+            "sha256": "9574f20b0a07f987e458e5585f98c1b184896e7208f1adf32ac5a2246ce4ba2e"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light.png",
+            "sha256": "7a91d2da7c3b06a3e62786c3a3e0fea9cc249c576fda30435505dd63bdf3c5a4"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light-editor-open.png",
+            "sha256": "c0edbee2efedd6e2787c8c7fa089bd8e45fd55211f0fdfb398693e262c874175"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light-draft-preview.png",
+            "sha256": "02867517841ea31c680ee2c0678924216dbc2057aed504d08752e86652e70271"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light-pending.png",
+            "sha256": "53ed60be3b992e5f61ddcdfbc072e7655dec41f241255ece264e1e5290428af1"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light-saved.png",
+            "sha256": "d8899d5ba1e764ce9ca1f81839a0a9ae9c84c202f8edd25feab6fca0aa020c71"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light-closed-after-saved.png",
+            "sha256": "6e4dbce13ceb6ecdd0cfc2adf9510679883994ea5ee270d9ebfc0e741ff7497a"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-mobile-light-reopened-already-applied.png",
+            "sha256": "fbceddb3e00a41418cb9a8bbb34bd7e2dc8cb84e950570c98c2c1a32718584f0"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-narrow-dark.png",
+            "sha256": "8388283d4db531677bcffe68264a0adab7596b0d9c26e17e1386ed0be5e96dd1"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-narrow-light.png",
+            "sha256": "ea25990f2661a29dea613f3c400cdb37b76cc8270dd27f76fc614b2cf5899cda"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-w4-360-dark.png",
+            "sha256": "2b5bacc61dacf5fb1117e2e0bfe587b0eefc0ef0c779dae9fceec085b3ed47a1"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-w4-360-light.png",
+            "sha256": "b33c53085d4b4d8c7deed1f059262b50ed3faf03c8f3a278265006f22c2b6d71"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-w4-430-dark.png",
+            "sha256": "ebb738accddd71a64267a5e154f678e0a55bb4857df0a10643018695ea738bc2"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-w4-430-light.png",
+            "sha256": "e32c61edc418fe547ff00ed965641ce85bd5bf9975a33b716a0aa10d12b02aee"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark.png",
+            "sha256": "55af75e770d4b1f9e46b156c66f6a9967e91991d813c1ff8fe58a8bc278de438"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark-editor-open.png",
+            "sha256": "5ae9f5667181ceb08d15bcb31cd96deaca047b0259b33df782be3eeae0ca3fdd"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark-draft-preview.png",
+            "sha256": "0f950a694e630481bfd04bc5eac8ba330ab63121d7e1801efead8070bf9724ea"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark-pending.png",
+            "sha256": "72ca9c8de9fed2e25bfc5192174df392620c716b0b1f7fff9fad78af85c9ec3a"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark-saved.png",
+            "sha256": "ea612c62d5cbb9a64ebe553e2f162bde746429bf4798a4ab209f2ac423ee519d"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark-closed-after-saved.png",
+            "sha256": "bb40d464f3579c13e97cd270fafe282b9704c30a5c7f0d91a3bd5d19729eff76"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-dark-reopened-already-applied.png",
+            "sha256": "13d0acc01a353a218786f2120cdb7844c5d93a15dda85d6e4421bb02c5b7e737"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light.png",
+            "sha256": "ecf2902d13b5100add84d8181e41cb0f4b9bd52eb4b8f9dda8d4e7bb42fd668d"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light-editor-open.png",
+            "sha256": "a1de85793cbd2bdb0b8008b4eb84993aad60d61371543050a9e2112989d480c4"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light-draft-preview.png",
+            "sha256": "fc45b0ea0acb2a61ad031e9dfeefa21503eb0dee849b358eadf890c486552fdb"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light-pending.png",
+            "sha256": "87d027636fa0f32843a426d576a8c054955de74585f532da37daa25132c84911"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light-saved.png",
+            "sha256": "55461fde35a0f50f3158495b6e3b9b0d5312de306fac9596520f159bc2a1066a"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light-closed-after-saved.png",
+            "sha256": "4a7cf7209e3d33ebb8fa2d2c335aafb2a2dfc4fe0283e1935d8a379c4b28a70a"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-600-light-reopened-already-applied.png",
+            "sha256": "65b25ea00b09ecfbfc08d80be4370325ca3a84df854102a9de7b93b7a8f48054"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark.png",
+            "sha256": "9e6b706d63e73e7ee70628ca264f8ac86d422ab8b334de4dc525888e1c11f859"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark-editor-open.png",
+            "sha256": "e66dbe288b9fd88785a0d61e0784d29b2dfb80e6816658ef051441cfe818b5e4"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark-draft-preview.png",
+            "sha256": "0787cba116399954c187a811ee30ab27aa4622171f35e9ba2a1884d24d56daf6"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark-pending.png",
+            "sha256": "2b1c45ea8840adc435da3a473092110a20d87dd8152f98eaa97a9a76a9cc7ca8"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark-saved.png",
+            "sha256": "d3cbc2384b8033eade6c60f626697e41ee8e18b9eeb6336f288daa83b66b82bc"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark-closed-after-saved.png",
+            "sha256": "e64d88959303bb0a83a31bba4a540615d7c92c40e16a7b736d96448f5e1b913a"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-dark-reopened-already-applied.png",
+            "sha256": "2689e9c2944ceb4dadebf030a78bcd8912602faf4e1675580a9c7a144504b9db"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light.png",
+            "sha256": "6abd4eec4a81136777e32e65751380c67628d531f837836f20accac8b07f85d1"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light-editor-open.png",
+            "sha256": "ab4994e57a61da5543c4da8a7cb26156d286e0fcc5cd850ac003bef35a6d32c9"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light-draft-preview.png",
+            "sha256": "f8bcca0aabf77a7883c32f224d7c2205321cbb193a9aa0eed22a8c6dabb428cc"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light-pending.png",
+            "sha256": "2af1909c6fd7cb36d6d3691fb86f40cab996eb34e14ec98e456dd32a3617ae0e"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light-saved.png",
+            "sha256": "f9cc579b7d0c33bfb782968108fc05279c2bfeccb052c9241193bebf9f82d6d7"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light-closed-after-saved.png",
+            "sha256": "7f2c9bbda0fc2e19318d6f283435da6e19b8976e1a3656b27b4338361cdf182a"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-768-light-reopened-already-applied.png",
+            "sha256": "0bed50cd83762d52f55d5da40e3243e285df8963e3b2282fbd9707f770303233"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark.png",
+            "sha256": "9fee53a5adc0d20885792ae00b4c55f719ddad5d5d08c0c0b4ffa8646fd3b153"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark-editor-open.png",
+            "sha256": "fb56b140b7b9a54f9f1ef9df2669ac79df1b5a42c34d7aa8edc5cde6baa6af8e"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark-draft-preview.png",
+            "sha256": "d27e9bb3558b578d4f0510aac672243b281db39da64dfadebd6e0719c5a4850d"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark-pending.png",
+            "sha256": "849d87293581b6e65bde719880e78f8df5f934e552f2af30b670bd5a2f7e9caa"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark-saved.png",
+            "sha256": "8aaa78d13bf633937910785a4e91d5c5b342f62cd8b2ae99d24cdcea445db76c"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark-closed-after-saved.png",
+            "sha256": "8017c128eb9ffb18bc534eb7b3c178f95b1e93add94345f3389bb4c607c9d97c"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-dark-reopened-already-applied.png",
+            "sha256": "6d3b41146cc1a56b48594e0d18f812ab51bc5770e9c302ff6e011a95967e568f"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light.png",
+            "sha256": "7b729bc613c2d9f774df1908e19e6393028c2dc4d033fbb4caf1a859943f109b"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light-editor-open.png",
+            "sha256": "d2a31776c620252a1ce3c9a0ee193e972c2895f54d44a46a187ce586fd1bdf8c"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light-draft-preview.png",
+            "sha256": "048582d277c31550c6827358c5e38a8744e42e7566d1742393ac6721f39315b5"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light-pending.png",
+            "sha256": "671ad89caa90904a1f17813e43f0b3881c1cb2eec4093b93d98f06bf574a545e"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light-saved.png",
+            "sha256": "257a2c627248fd8b713b4849ccbb18c1441f0d24816f10029dd250369162ec2d"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "closed-after-saved",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light-closed-after-saved.png",
+            "sha256": "d679e73e369ff9f3123e06f52eed954a74c7591d3a27a1b5ceee8de7381d920d"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "reopened-already-applied",
+            "file": "gate-a-w4-a10-review-alternative-success-squeeze-900-light-reopened-already-applied.png",
+            "sha256": "bb122c97380e161c772afe3ae03b7cb70e5ba29aefd563c8a934e7091f44e1be"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A10-stale-proposal-blocked",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a10-stale-proposal-blocked",
       "fixtureVersion": 2,
       "componentOwners": [
@@ -223,11 +1353,203 @@
       "knownGaps": [
         "No production structured-proposal capability exists yet \u2014 see BLOCKERS.md W4-BLK-03/04"
       ],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-dark.png",
+            "sha256": "c9966fc33a3fd014612130582a1f3d61a0c016bf0f1755e95b18f0138044389d"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-dark-editor-open.png",
+            "sha256": "697222691be67a4f7ba8f50a5d2edf94743d3ec6221369344e25806cc373e650"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-light.png",
+            "sha256": "a1bc94d0da493dcc67d6b5cbba5ac1b98aae219fc8e5df0f4bb90eb4044e1f42"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-desktop-light-editor-open.png",
+            "sha256": "d36ee75bfeeac7d72a343ca0535498afbaac69d6f6cfc053a24bc4a93a365231"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-dark.png",
+            "sha256": "de3c552ed1a1b7fa4ce8b2b1eeed2114082974eefe2f31519ae968addae9af78"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-dark-editor-open.png",
+            "sha256": "1780fde56ef8c2a67cc8c7ba15a70050e4bd31a6462e9672de50f076d96a64e5"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-light.png",
+            "sha256": "291f94eb3a1ea04bcef1109741d245ec689351ffeee455571524e09d82e18db6"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-mobile-light-editor-open.png",
+            "sha256": "4113279e1d7cd9a0d97e8b6952198be93e78b9133065037c7073faa71d38bb01"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-narrow-dark.png",
+            "sha256": "26d5b954f1ad9c2acdafbf052042b9713a20db4e8216d9b29506da1e762ecd6f"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-narrow-light.png",
+            "sha256": "1ed439c09af48f4ac1c0fa91b6ae23c189097d5f1ad246773fd9c9831df9f21e"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-w4-360-dark.png",
+            "sha256": "bd2754fcb273f292a45267fe462c896d4f0b6ce85625e5f085ec8183864e630c"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-w4-360-light.png",
+            "sha256": "1ee31674f94a76a1b4fb5a7a7c1b2e2c2d39835409165815283365d2b3541bbe"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-w4-430-dark.png",
+            "sha256": "6fea41a0fa422fae2700d21584f595267981b2569d923197fa3af19bf813329d"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-w4-430-light.png",
+            "sha256": "3e14df1996ccad953c170afb0cd37ec96a82c77145b3748072a8daf4012ca940"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-600-dark.png",
+            "sha256": "9e9df3b5f47c017581ab0c2bd157402028c82943bf929dd87e1cc9f4f6f1c3d0"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-600-dark-editor-open.png",
+            "sha256": "4fbe9a86c200e55b53c2fff7d2ee18add387ed039a4ad6423853af4f2f8ea7f6"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-600-light.png",
+            "sha256": "accfdb3981ffa553ccfa90b463c8d6544393ee1eae48e45653e62eb95839c026"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-600-light-editor-open.png",
+            "sha256": "c281ba1a0131ae3fcc81e5ee54d73b6eed1f0640eb6a4d36211feacfb5aac3fb"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-768-dark.png",
+            "sha256": "e5b59030bd6134562790aee1c3659b28dffac552ec80221a5e02f1cbdb5adb12"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-768-dark-editor-open.png",
+            "sha256": "6ac50a88f697df20460a6d04a128a19d02855d190d4f73e82bb46b815057b78c"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-768-light.png",
+            "sha256": "eae4ae9c719bd39d47dbbef09f92db427e072bc5c6faa8568470705b9ab3e301"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-768-light-editor-open.png",
+            "sha256": "05a6e86e4c158623268564e801a9e098b13766c71afe921aa66bbb6510339db0"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-900-dark.png",
+            "sha256": "3aae441c191e83d9648a50234dcc0c877f4a1c858998b828d9e273c41225e0e8"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-900-dark-editor-open.png",
+            "sha256": "620836e160541af2868a1b20c7ce686e8954ff81be3dfbeb21ce45f948b1af29"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-900-light.png",
+            "sha256": "fdbaafee52e487ed78f7f4392fdbdf99429435ef4e9243c532b85816a067628b"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-stale-proposal-blocked-squeeze-900-light-editor-open.png",
+            "sha256": "24c3ec85e94504a6de4b3ab6379eb0b30526f2fc8b35326433bd238674c96d38"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A10-disabled-or-failed",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a10-disabled-or-failed",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -248,11 +1570,203 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 37",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY \u2014 see visual_vs_current/A10.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-desktop-dark.png",
+            "sha256": "fc2ae673e290a9b412d7d85aa4dee93333cdd525f183bb6be9efdf6e2766c948"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-desktop-dark-editor-open.png",
+            "sha256": "ece1c782361437fca262ece9e0d8500884fb43c9e7b0d5fd5517ed67cb3d7dcc"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-desktop-light.png",
+            "sha256": "d3b755d02d3438aa975c5ca1417e018b8a30b943c6e9eec82d71d6b82b48f0b9"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-desktop-light-editor-open.png",
+            "sha256": "ef771f4aa43cfa417432a1beab2fd8d1547b45957e0af24232018f2988cd9a14"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-mobile-dark.png",
+            "sha256": "a19b7033faf6429bccc3991f6fe29c11786eb2873abe84441f52bfc46df0a949"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-mobile-dark-editor-open.png",
+            "sha256": "f8cfea0c5b04dcb901f746283a582eb1f7fa064f763a2e5d57c680400a32706b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-mobile-light.png",
+            "sha256": "989d17db39101ca32f660101a1da6801a31e03549c7ba2382ce71cd5c3899f71"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-mobile-light-editor-open.png",
+            "sha256": "efecc5b0c221d80566c8f6bc3f612d8141a6d82b4dfa6f38ebd9a0b2e80200ac"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-narrow-dark.png",
+            "sha256": "a8c8837af485ccb8c024f7c7ab63041f80ea8b2c597a66d3c34589667de24e45"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-narrow-light.png",
+            "sha256": "5e76f4245cf29a677c81cd6651262729fd7d5a607598929808dea09409239a6f"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-w4-360-dark.png",
+            "sha256": "7c534e32b4e5ba2bd783d568f936b4a4c7b0add6e5d463f437e104778de74a1d"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-w4-360-light.png",
+            "sha256": "50d379cecf4a076bcab56915523592822bcbc4988c20707d05a25d238cd0e616"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-w4-430-dark.png",
+            "sha256": "89eedaf54a3c2371a4d148109c684cf1fb521668b9aece7aac1d1dd7a93ea918"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-w4-430-light.png",
+            "sha256": "416cea48d424e753e7da1387cc00459cbb92558a1f7c2277e860945682a511df"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-600-dark.png",
+            "sha256": "569add94dab1b7881423322670ff7aceea645e9a55e65250fc4d03a8cacfb257"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-600-dark-editor-open.png",
+            "sha256": "4d0a2c39d7e0af9385eb7528ad84bf523e5e708a66eca426fd78d16f5b478768"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-600-light.png",
+            "sha256": "62ba6b4d83e39148fca5ce045f62d442348cd928b97d1145ed9729ae309c0840"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-600-light-editor-open.png",
+            "sha256": "9fdf1358c282d84f56a59f47b5a80561c37ab0dfe05bb7a1bd988eb184975d82"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-768-dark.png",
+            "sha256": "97fec6423e601037f2f1194bf739f0a4a6597b9fe9b7fb203142b3f9c824255c"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-768-dark-editor-open.png",
+            "sha256": "49927927f25abfec6a34cecfce5fc49db2a2c7bdf4635e01bdafd6e722c1da0c"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-768-light.png",
+            "sha256": "3115171d6258f4ad65af04cc9dfa6e0dfd866c76aedb8237139085e8299b30ec"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-768-light-editor-open.png",
+            "sha256": "ec30458d914437a8a5e4c567169b27550fdca72e9aa4759e0326c415fcf08f82"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-900-dark.png",
+            "sha256": "d8c21d4c2733e8d54fca2f0fed1b4a0e89229db6e743ab3c1c23093637d61b75"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-900-dark-editor-open.png",
+            "sha256": "6b9ef9135d0d7a7ca3545ab5338d52276848500d26a789d7d50e3ac7e47a40dd"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-900-light.png",
+            "sha256": "8d7f1c29f110d1cf7dbb4dd439fcabcdefc85355a188b79451fd4576677c3b47"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-a-w4-a10-disabled-or-failed-squeeze-900-light-editor-open.png",
+            "sha256": "0739d58ea9074ba087408c6e27b786a12ad441fec582679c013ca3fb1f49e8bd"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a11-coach-text-and-parsed-evidence",
       "fixtureVersion": 3,
       "componentOwners": [
@@ -270,11 +1784,91 @@
       "dataContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row 38",
       "baselineAssetRef": "PARTIAL_BASELINE \u2014 see visual_vs_current/A11.md",
       "knownGaps": [],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-desktop-dark.png",
+            "sha256": "fe33b9f6ec8782286f5cfee6a9e54c1a82435606c704724aca3902e177cd9b7c"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-desktop-light.png",
+            "sha256": "3ea58856ea697a62420b8f8c7e45af253e28d352864421275ff1c1b4f6e1279b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-mobile-dark.png",
+            "sha256": "92b5b8f20b9e8f19bc42a1e9f535f933e7d47077595aeb99195766c93cc59d31"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-mobile-light.png",
+            "sha256": "70c58ae3b4f8c676f95b5af5f0a3056ea4acc422071a899fe2718e37128fad32"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-narrow-dark.png",
+            "sha256": "cb22eafe484f28b8825e6624b4bde7161128e936f52302a40f3368c05a0ca123"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-narrow-light.png",
+            "sha256": "abfa89a2080a089b2ea73f22896d5a876071d9fef8d20d5cd61e14c950d0a464"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-360-dark.png",
+            "sha256": "2e2b65aac267221b6938f0adf3d021d38e306e0fea256560d9c395f8c8043b7f"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-360-light.png",
+            "sha256": "c0818d1d34906c86258308b92b83db9164af1e3b87e6f48a6b7e1886ee753371"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-430-dark.png",
+            "sha256": "8b3a462cf5ab297d9d3ed63b2aa15a5769c2a316fe250a288e16085f29141b60"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-coach-text-and-parsed-evidence-w4-430-light.png",
+            "sha256": "18744334dfc59193cc2e5e76dc71f7576b3ddca05cf81bd48fa24c8840d543ff"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a11-profile-change-review-guarded",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -294,11 +1888,161 @@
       "knownGaps": [
         "Materiality threshold is explicitly hypothetical, not an approved policy \u2014 see BLOCKERS.md W4-BLK-09"
       ],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-desktop-dark.png",
+            "sha256": "3b92b0626a65b73ad9cb6d5089b352dd3b5e6d2b189a3afec65623f8e0588db4"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-desktop-dark-accepted.png",
+            "sha256": "ebd4402c0a23a8849a8f731a95b2d3aeb007f6797131a94de92ab060240c885f"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-desktop-light.png",
+            "sha256": "537fd80306f85ab03ff9fdd0dd5ef5879c5a2ea97e3a8a489be3ef3c9cd4c816"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-desktop-light-accepted.png",
+            "sha256": "0a57ac458411013285f30b93c5a158c51ccbbe88bdcaa25f61a9e3ab0fd4040c"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-mobile-dark.png",
+            "sha256": "6518d5ddb9930171c5f238153c41a658970c05cda0a7722793d33c286f6cb38f"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-mobile-dark-accepted.png",
+            "sha256": "723ca77203926ce94cab01602c325dd97f41a6dc2ffa862d9cfe773c3bb26f64"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-mobile-light.png",
+            "sha256": "05a70a9b4f35938fbecc41361073aa1cb48f191782394af2def1ca7a2c540388"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-mobile-light-accepted.png",
+            "sha256": "457793fc90708861f0232e1e85ca1e56d4dd829a81a729c363f1611e124db299"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-narrow-dark.png",
+            "sha256": "ace2dc2f52fa3eb11647356aa2b19b07fa420fa967f03fb8685135628f02f6b3"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-narrow-dark-accepted.png",
+            "sha256": "87dddef29805d8fc2ec32677d95421cff620d4c968ab4ef223a41447822d82e7"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-narrow-light.png",
+            "sha256": "54ca45a06cd92906c886174947090fce8c42fe6bd4425422652f33bc1033494e"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-narrow-light-accepted.png",
+            "sha256": "6280af61870651dc809b93b176a633fbca215121150a5f1e880abe9c5021a22e"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-360-dark.png",
+            "sha256": "0797528a1f969b509bc92c6a71b8cd5499958fddd9fc92cddfeac39cf51bfeba"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-360-dark-accepted.png",
+            "sha256": "5989b2248ff6bbe7e8e848cb6fed29f01788900f61ebc782711fa7ff847b4aac"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-360-light.png",
+            "sha256": "41da71b5304a9debb94a610dabd4bbed15f17bfd9f9d5fc95f55048d3fccd0fd"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-360-light-accepted.png",
+            "sha256": "48338da2c9b7da76b3327f71fb7546083315bbd9876b9f91c3f4af417ff7876f"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-430-dark.png",
+            "sha256": "1a207c24f82e488eae9181a0ef5d3e033d9dec1f80242076227ddf1f94c5e286"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-430-dark-accepted.png",
+            "sha256": "517396dc8a0839ca4f1fde9ac63ea6364590567543b55ad7b0a229bfc65a486d"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-430-light.png",
+            "sha256": "ebe4088407808a90d0afcf4ab5192a5f764face759bed079e07c706066362fb1"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "accepted",
+            "file": "gate-a-w4-a11-profile-change-review-guarded-w4-430-light-accepted.png",
+            "sha256": "81ad34c93f8716c48936f412ab03feb4ff974c93b365bb3577b13bb0e709b5d4"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
-      "status": "CANDIDATE",
+      "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a11-profile-change-review-rejected",
       "fixtureVersion": 1,
       "componentOwners": [
@@ -318,7 +2062,157 @@
       "knownGaps": [
         "Materiality threshold is explicitly hypothetical, not an approved policy \u2014 see BLOCKERS.md W4-BLK-09"
       ],
-      "approval": null
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN \u2014 design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-16",
+        "approvedBy": "Lage Berger-Brendryen",
+        "revisionSha": "03a57e9beb7eccfd30e8aaedc766f8561ce6370a",
+        "releaseTag": null,
+        "releaseStatus": "PENDING \u2014 durable GitHub Release creation (D7 storage strategy) not yet attempted; see docs/ui-lab/gate-a-w5-convergence/VISUAL_COVERAGE_AND_CAPTURE.md",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-desktop-dark.png",
+            "sha256": "f01bfd4a92e16198aced473790cfc38c1fc4ed8d721f1e4292f21e9e93dfc4a3"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-desktop-dark-rejected.png",
+            "sha256": "5e03236d028aed363655fe39f449e228a68019947aaf1b89ea9b4c41c057cf09"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-desktop-light.png",
+            "sha256": "f5a5c18a0d20125ec0f966b65ba19ba19c1749e223b3779703cf9a79b98b069e"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-desktop-light-rejected.png",
+            "sha256": "cba8f83a485022f8c7c179081d98207f10f9557ac0517052df9ef761bf99d809"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-mobile-dark.png",
+            "sha256": "fffdb07b6a2c32bf4b9ac33ca3042ac81220fd5a02522ce2936449daa0ab43c3"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-mobile-dark-rejected.png",
+            "sha256": "c056756e6ca227766660d32c3caeb813fc4f4ca80288dfacefa7ea1f6163ce92"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-mobile-light.png",
+            "sha256": "3f1d0fb31897d7f2962a76bc20d055eff24bc05e605484c11135d36de5790603"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-mobile-light-rejected.png",
+            "sha256": "25100e5df8cee6b47675736b67f52a12afe67e139b6fa0070afeb4130f57d635"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-narrow-dark.png",
+            "sha256": "60029635d348c04d75b8ac188cc2592b646688de07900d344e3fe9b0ad268eb9"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-narrow-dark-rejected.png",
+            "sha256": "79f8485129b4a37abe5c8ed3f581e6363dddbac93dfe4e15558437161be41bb9"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-narrow-light.png",
+            "sha256": "418167d437d6214a85411ee2325a40610af113001105fad11108a2a8395e762d"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-narrow-light-rejected.png",
+            "sha256": "e8f8d1507509017856298e7c7b577f4ec32c37b73642b2d5f4d18f35dc267032"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-360-dark.png",
+            "sha256": "e97e1ef11e9db1fb5ed3bf4d0d939b1cc09df9a76ad54e204af8e8a74f2e7551"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "dark",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-360-dark-rejected.png",
+            "sha256": "28ea9903f4380482299cc137cf8aafa9e692ec3dcf4e00ed2948f67f61bd9ae6"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-360-light.png",
+            "sha256": "421b534fe96b303f16c23be41c58ecb5c09c42db38ab560e87c4e9b366a08a08"
+          },
+          {
+            "viewport": "w4-360",
+            "theme": "light",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-360-light-rejected.png",
+            "sha256": "45759f4a18beb5c7a3e967398a484aac5359a392fbb4b004a098c638411c742a"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-430-dark.png",
+            "sha256": "7fa13286fa3559ce9329f7981c44a916bd6c440ef786aedbb16a7053045c3772"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "dark",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-430-dark-rejected.png",
+            "sha256": "08c0fbb830aad83b2cc622d4274ad491c465a3bcec8c18000e42b7cad7b5d81c"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-430-light.png",
+            "sha256": "0b06c758284572337b86c31e107b1c0c6698361baf36c736fe0fb3b61b75f2e8"
+          },
+          {
+            "viewport": "w4-430",
+            "theme": "light",
+            "interactionState": "rejected",
+            "file": "gate-a-w4-a11-profile-change-review-rejected-w4-430-light-rejected.png",
+            "sha256": "b7bb01b4c9b0594c3eecdc94cb2e0fc9729d5a4f048cc7c825d4141a7eeb6567"
+          }
+        ]
+      }
     }
   ]
 }
