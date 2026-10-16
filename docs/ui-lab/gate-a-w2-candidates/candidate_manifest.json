@@ -41,8 +41,8 @@
         "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
         "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
         "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-golden-captures-byte-verified.zip. This scenario's approved capture bytes were independently re-verified (SHA-256 recomputed from the actual released asset bytes) to match every hash recorded in approval.approvedCaptures below.",
         "approvedCaptures": [
           {
             "viewport": "desktop",
@@ -205,8 +205,8 @@
         "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
         "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
         "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-golden-captures-byte-verified.zip. This scenario's approved capture bytes were independently re-verified (SHA-256 recomputed from the actual released asset bytes) to match every hash recorded in approval.approvedCaptures below.",
         "approvedCaptures": [
           {
             "viewport": "desktop",
@@ -313,8 +313,8 @@
         "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
         "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
         "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-golden-captures-byte-verified.zip. This scenario's approved capture bytes were independently re-verified (SHA-256 recomputed from the actual released asset bytes) to match every hash recorded in approval.approvedCaptures below.",
         "approvedCaptures": [
           {
             "viewport": "desktop",
@@ -449,8 +449,8 @@
         "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
         "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
         "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-golden-captures-byte-verified.zip. This scenario's approved capture bytes were independently re-verified (SHA-256 recomputed from the actual released asset bytes) to match every hash recorded in approval.approvedCaptures below.",
         "approvedCaptures": [
           {
             "viewport": "desktop",
@@ -612,8 +612,8 @@
         "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
         "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
         "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-golden-captures-byte-verified.zip. This scenario's approved capture bytes were independently re-verified (SHA-256 recomputed from the actual released asset bytes) to match every hash recorded in approval.approvedCaptures below.",
         "approvedCaptures": [
           {
             "viewport": "desktop",
@@ -749,8 +749,8 @@
         "revisionSha": "35a6ee48cbe7cbe7a1c349630d72ca0a2104e0c8",
         "ciSyntheticMergeSha": "18b4efbe109bc9d583f37dcd2b0e9174e608d476",
         "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/38040296558",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) not yet attempted in this session; same disclosed gap as W1 (docs/ui-lab/gate-a-w1-candidates/candidate_manifest.json). Approval hashes below are independently verified against the CI artifact (ui-lab-review-38040296558-1, artifact ID 11664869825) and capture-attestation.json in the meantime.",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-golden-captures-byte-verified.zip. This scenario's approved capture bytes were independently re-verified (SHA-256 recomputed from the actual released asset bytes) to match every hash recorded in approval.approvedCaptures below.",
         "approvedCaptures": [
           {
             "viewport": "desktop",

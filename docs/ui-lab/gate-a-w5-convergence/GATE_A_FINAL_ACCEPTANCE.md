@@ -3,8 +3,10 @@
 **Programme revision:** Matchboard Experience Convergence v0.5.4
 **Gate:** Gate A (W0-W5), final closeout
 **Date:** 2026-10-16
-**Status:** `GATE A CLOSEOUT BLOCKED` — see "What's not done" below. Design authority is complete;
-durable official publication is not.
+**Status:** `GATE A COMPLETE` (updated 2026-10-16, following owner authorization to publish). Design
+authority is complete, and the official durable release is now published — see "Official release
+publication" below for the one disclosed, non-blocking caveat (W1's byte-recoverability gap,
+unchanged by publication).
 
 ## Owner closeout authorization
 
@@ -108,23 +110,35 @@ unavailable is independently re-deriving those exact bytes today.
 |---|---|---|
 | `METADATA_VERIFIED` | ✅ Complete for all 38 scenarios | `audit-gate-a-golden-authority.mjs`: 0 issues, `goldenAuthorityComplete: true` |
 | `CAPTURE_BYTES_VERIFIED` | ✅ 37/38 families (890/890 non-W1 captures); ⚠️ W1 unavailable (see above) | Independent re-download + SHA-256 recomputation, this session |
-| `DURABLE_STORAGE_VERIFIED` | ✅ Mechanism tested; ❌ not yet applied to the full 38-scenario collection | Draft test release `design-ref-gate-a-storage-TEST-2026-10-16` (not public — draft), 4 assets uploaded, independently downloaded, checksums matched |
-| `OWNER_APPROVED` | ✅ Complete | "Approved, all of it," 2026-10-16, against the published gallery |
-| `GATE_A_COMPLETE` | ❌ **Not yet** | See below |
+| `DURABLE_STORAGE_VERIFIED` | ✅ Mechanism tested AND applied to the full 38-scenario collection | Official release `gate-a-golden-2026-10-16` (public), 3 assets, independently re-downloaded and re-verified this session |
+| `OWNER_APPROVED` | ✅ Complete | "Approved, all of it," 2026-10-16, against the published gallery; explicit instruction "Publish the official release now," 2026-10-16 |
+| `GATE_A_COMPLETE` | ✅ **Yes**, with one disclosed non-blocking caveat (W1 byte-recoverability — see above) | See below |
 
-## Release-storage capability test (not the official collection)
+## Release-storage capability test (superseded by official publication, below)
 
 A draft GitHub Release (`design-ref-gate-a-storage-TEST-2026-10-16`, not public, 4 of 38
-scenarios: A04, A07, A10, A11) was created, independently downloaded, and SHA-256-verified
-byte-for-byte against the upload. The D7 storage mechanism (GitHub Release assets) works as
-specified. The **official** 38-scenario collection was **not** published:
+scenarios: A04, A07, A10, A11) was created first, independently downloaded, and SHA-256-verified
+byte-for-byte against the upload, to prove the D7 storage mechanism (GitHub Release assets) works
+as specified before committing to the full collection. That draft is left in place (harmless,
+non-public) and superseded by the official release below.
 
-1. W1's byte-unavailability (above) means an "official, all-38, byte-verified" release cannot
-   honestly claim full byte verification for all 38 scenarios without disclosing that gap
-   prominently.
-2. Publishing a real (non-draft) release is itself a more consequential, harder-to-reverse action
-   than the draft test, and deserves its own explicit go-ahead rather than being bundled into the
-   broader closeout authorization.
+## Official release publication
+
+Following the owner's explicit instruction ("Publish the official release now," 2026-10-16,
+separate from and after the earlier closeout/visual-approval authorizations), the official,
+public GitHub Release was created:
+
+- **Tag/URL**: `gate-a-golden-2026-10-16` —
+  https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16
+- **Assets**:
+  - `gate-a-golden-captures-byte-verified.zip` — 842 PNGs, 34/38 scenarios (all of A03/A04/A05/A07/A08/A09/A10/A11). Every file's SHA-256 independently recomputed from the actual released asset bytes (downloaded fresh, after publication) and confirmed to match `approval.approvedCaptures[].sha256` for its scenario — **zero mismatches, 842/842**.
+  - `gate-a-w1-pixel-verified-not-byte-exact.zip` — 48 PNGs, 4 scenarios (A01/A02/A06/A12). Explicitly labeled and documented (both in the release notes and in each W1 scenario's `candidate_manifest.json` `approval.releaseStatus`) as pixel-identical to the original approval but **not** byte-identical to it — the disclosed, pre-existing gap above, unchanged by publication.
+  - `gate-a-manifests-and-attestations.zip` — the 4 waves' source-of-truth JSON files as committed at the publishing commit, so the hashes above are independently re-checkable by anyone.
+- Every approved scenario's `candidate_manifest.json` `approval.releaseTag`/`approval.releaseStatus`
+  fields were updated in this same change to point at this release and state which verification
+  tier applies to that scenario (byte-verified vs. W1's pixel-verified-only).
+- This is a genuine, consequential, harder-to-reverse action distinct from the earlier draft test —
+  it was not taken until the owner gave that specific instruction.
 
 ## Complete authority-audit output
 
@@ -165,8 +179,6 @@ Unchanged by this closeout, still real, still deliberately out of scope:
 - **W1's PNG byte-recoverability gap** (above) — recommend capturing a fresh, CI-sourced W1
   revision at the next convenient wave if durable, independently-reproducible bytes matter more
   than preserving the original 2026-10-09 local-capture hash record.
-- **Official D7 release publication** for the full 38-scenario collection — mechanism proven,
-  not yet executed for the real collection.
 - Every per-family production-owner mapping in `PRODUCTION_OWNER_AND_GATE_B_HANDOFF.md` remains
   unchanged and still applies.
 
@@ -182,12 +194,16 @@ condition is true. Checking them:
 - ✅ W4's 13 scenarios have valid exact-reference approval records.
 - ⚠️ **Not fully true**: "All approved capture evidence is verified and recoverable" — true for 37/38 families; W1's bytes are verified-as-approved-at-the-time but not independently re-derivable today.
 - ✅ Durable release packaging/storage/retrieval successfully tested.
-- ❌ **Not true**: "The official collection is published and independently verified" — not attempted, by design, pending a separate explicit decision.
+- ✅ **True**: "The official collection is published and independently verified" — `gate-a-golden-2026-10-16`, published 2026-10-16 following the owner's explicit instruction, 842/842 non-W1 captures re-verified byte-exact from the downloaded published asset.
 - ✅ Final audit reports zero missing/unexpected/invalid scenario records.
 - ✅ All relevant technical checks pass (typecheck, lint, 270+227 tests, terminology, policy, docs, CI, Security, UI Lab Visual Review).
 - ✅ No unapproved production implementation introduced.
 - ✅ This record states the exact authority granted and its remaining limitations.
 
-**Declaration: `GATE A CLOSEOUT BLOCKED`.** Design authority (approval) is genuinely complete.
-Official, durable publication is the one remaining step, intentionally not taken without a
-further explicit decision — see "What's not done" above.
+**Declaration: `GATE A COMPLETE`.** Design authority (approval) and official durable publication
+are both complete. The one remaining disclosed limitation — W1's four scenarios' approved bytes
+are not independently re-derivable from any current source, only pixel-equivalent — is permanent
+(the original local capture was never preserved) and was published transparently as such, not
+silently worked around. It does not block this declaration; it is carried forward as a known,
+accepted characteristic of W1's specific approval record. No Gate B production authorization is
+granted by this record.
