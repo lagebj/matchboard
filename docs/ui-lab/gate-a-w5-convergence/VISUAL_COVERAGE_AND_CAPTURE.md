@@ -1,5 +1,11 @@
 # Gate A W5 — Visual Coverage and Capture Audit
 
+**2026-10-16 update:** A07 was revised and re-approved, and all 13 W4 scenarios were approved —
+see `GATE_A_FINAL_ACCEPTANCE.md` for the closeout record, the full independent byte-verification
+results (890 approved captures checked against real downloaded PNGs, zero mismatches outside W1),
+and W1's now-precisely-characterized byte-recoverability gap (pixel-identical, not byte-identical,
+across any available CI render — a local-capture-origin limitation, not a new defect).
+
 Per `10_DESIGN_REFERENCE_AUTHORITY_AND_STORAGE.md` and `11_VISUAL_CAPTURE_TEST_PLAN.md`. This is
 the exact algorithm those documents specify, actually run — not assumed.
 

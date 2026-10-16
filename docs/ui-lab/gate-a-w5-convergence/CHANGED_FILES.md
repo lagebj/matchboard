@@ -266,3 +266,61 @@ produced without that mistake.
    `false` — covered by test "A. original reported failure".
 4. `node scripts/generate-gate-a-authority-inventory.mjs --write` against this branch, then
    `git diff docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv` — should show no diff.
+
+## Final Gate A closeout (2026-10-16)
+
+Owner authorized the full closeout sequence; PR #783 merged (`d7c7a001c`); A07's responsive fix
+applied and owner-approved as a new revision; all 13 W4 scenarios owner-approved; release-storage
+capability tested. See `GATE_A_FINAL_ACCEPTANCE.md` for the complete record.
+
+### Files changed this round
+
+| File | Change |
+|---|---|
+| `docs/ui-lab/gate-a-w3-candidates/candidate_manifest.json` | A07's 5 scenarios: new approval revision (`03a57e9b`), prior revision preserved under `approval.supersedes`, 56 captures/scenario |
+| `docs/ui-lab/gate-a-w3-candidates/capture-attestation.json` | A07's 280 captures replaced with the fresh post-fix set; A03/A09's 218 unchanged |
+| `docs/ui-lab/gate-a-w4-candidates/candidate_manifest.json` | All 13 scenarios: `CANDIDATE` → `APPROVED_GOLDEN` |
+| `docs/ui-lab/gate-a-w4-candidates/capture-attestation.json` | A10's 128 captures replaced with the fresh post-fix set; A05/A08/A11's 124 unchanged |
+| `docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv` | Regenerated — 38/38 approved, 890 approved captures |
+| `docs/ui-lab/gate-a-w5-convergence/GATE_A_FINAL_ACCEPTANCE.md` | New — the closeout record |
+| `docs/ui-lab/gate-a-w5-convergence/{AUTHORITY_INVENTORY,APPROVAL_DEPENDENCIES,CONFLICT_AND_BLOCKER_REGISTER,REVIEW_RECORD,VISUAL_COVERAGE_AND_CAPTURE}.md` | Updated to reflect the resolved approvals; historical sections preserved, not rewritten |
+| `scripts/__tests__/audit-gate-a-golden-authority.test.ts` | 5 assertions updated from the prior "incomplete" repository state to the new, correct, complete state (38/0/890/914, `goldenAuthorityComplete: true`) |
+
+### Commands run and results
+
+```
+$ node scripts/audit-gate-a-golden-authority.mjs
+goldenAuthorityComplete: true, 38 approved, 0 pending, 0 missing, 0 unexpected, 0 issues
+
+$ node scripts/generate-gate-a-authority-inventory.mjs --write
+Wrote 38 rows
+
+$ npx vitest run scripts/__tests__/audit-gate-a-golden-authority.test.ts
+39 tests, all passing
+
+$ npx vitest run src/app/dev/ui-lab/gate-a scripts/__tests__/audit-gate-a-golden-authority.test.ts
+43 files, 270 tests, all passing
+
+$ npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a
+40 files, 227 tests, all passing
+
+$ npm run typecheck / npx eslint (scoped to this PR's files) / npm run terminology:check / npm run policy:verify
+all exit 0, clean
+
+$ npm run docs:check
+same single pre-existing, unrelated, untracked-local-directory notice as every prior round
+
+# Independent byte verification (not just the audit script's internal consistency check)
+890 approved captures checked directly against downloaded CI artifact bytes: 0 mismatches outside
+W1 (W1's gap is pre-existing and disclosed, not caused by this round — see GATE_A_FINAL_ACCEPTANCE.md)
+
+# Release storage capability test
+$ gh release create design-ref-gate-a-storage-TEST-2026-10-16 --draft ...
+$ gh release download design-ref-gate-a-storage-TEST-2026-10-16 ...
+$ sha256sum -c CHECKSUMS.txt
+all 4 files: OK (draft release, not publicly visible)
+```
+
+A real, self-caught bug in this round's own first attempt (both attestation files initially didn't
+contain the hashes the new approvals cited) was found via the audit script before being left in
+any pushed state, and fixed — see `CONFLICT_AND_BLOCKER_REGISTER.md`'s "Final closeout findings".

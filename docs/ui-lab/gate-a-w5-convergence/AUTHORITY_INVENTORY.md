@@ -1,5 +1,10 @@
 # Gate A W5 — Authority Inventory
 
+**Superseded by the 2026-10-16 final closeout** — A07 was revised and re-approved, and all 13 W4
+scenarios were approved. See `GATE_A_FINAL_ACCEPTANCE.md` for the authoritative current state; the
+table below is updated to match it, but the surrounding narrative (W5-R1/R2 completion-semantics
+discussion) describes this document's own history and is left as written.
+
 Machine-readable form: `authority_inventory.csv` (38 rows, one per manifest entry), generated
 deterministically by `node scripts/generate-gate-a-authority-inventory.mjs --write` directly from
 the four committed `candidate_manifest.json`/`capture-attestation.json` pairs — never hand-edited.
@@ -27,11 +32,14 @@ COVERAGE_AND_CAPTURE.md`).
 
 | Wave | Families | Manifest entries | Logical scenario IDs | Status | Approved captures | Attested captures | Owner approval |
 |---|---|---:|---:|---|---:|---:|---|
-| W1 | A01, A02, A06, A12 | 4 | 4 | 4 `APPROVED_GOLDEN` | 48 | 72 (24 extra are `CURRENT_STATE_AUDIT` baseline captures of shipped `completed-match`/`match-preparation`/`player-detail`/`position-map`, not Gate A goldens — see `VISUAL_COVERAGE_AND_CAPTURE.md`) | 2026-10-09, Lage Berger-Brendryen |
-| W2 | A04 | 6 | 6 | 6 `APPROVED_GOLDEN` | 92 | 92 (1:1 after this PR's attestation-file fix — was 0:92 before, see `VISUAL_COVERAGE_AND_CAPTURE.md`) | 2026-10-10, Lage Berger-Brendryen |
-| W3 | A03, A07, A09 | 15 | 16 (A07-S1/A07-S2 share one manifest entry) | 15 `APPROVED_GOLDEN` | 348 | 348 | 2026-10-11, Lage Berger-Brendryen |
-| W4 | A05, A08, A10, A11 | 13 | 13 | 13 `CANDIDATE` | 0 | 186 (candidate evidence only) | **Not recorded** — see `APPROVAL_DEPENDENCIES.md` |
-| **Total** | 12 families (A01-A12) | **38** | **39** | **25 `APPROVED_GOLDEN`, 13 `CANDIDATE`** | **488** | **698** | 25/38 approved |
+| W1 | A01, A02, A06, A12 | 4 | 4 | 4 `APPROVED_GOLDEN` | 48 | 72 (24 extra are `CURRENT_STATE_AUDIT` baseline captures, not Gate A goldens) | 2026-10-09, Lage Berger-Brendryen |
+| W2 | A04 | 6 | 6 | 6 `APPROVED_GOLDEN` | 92 | 92 | 2026-10-10, Lage Berger-Brendryen |
+| W3 | A03, A07, A09 | 15 | 16 (A07-S1/A07-S2 share one manifest entry) | 15 `APPROVED_GOLDEN` | 442 (A03 104, A07 **280 — revised 2026-10-16**, A09 unchanged) | 498 | A03/A09: 2026-10-11; **A07: 2026-10-16** (revision, Lage Berger-Brendryen) |
+| W4 | A05, A08, A10, A11 | 13 | 13 | 13 `APPROVED_GOLDEN` **(2026-10-16)** | 252 | 252 | 2026-10-16, Lage Berger-Brendryen |
+| **Total** | 12 families (A01-A12) | **38** | **39** | **38 `APPROVED_GOLDEN`** | **890** | **914** | **38/38 approved** |
+
+Full closeout detail, independent byte-verification results, and the one known open item (W1's
+byte-recoverability gap) are in `GATE_A_FINAL_ACCEPTANCE.md`.
 
 These two columns are **different evidence categories and must not be summed together**:
 "Approved captures" (488) counts only screenshots a manifest's `approval.approvedCaptures` array

@@ -1,10 +1,16 @@
 # Gate A W5 — Approval Dependencies (W4 Outstanding Owner Decision)
 
+**RESOLVED 2026-10-16.** The owner reviewed the actual capture evidence (published gallery,
+https://claude.ai/artifact/Wh65CtotLK84qgtcWvDEwj) and responded, verbatim: "Approved, all of it."
+All 13 W4 scenarios are now `APPROVED_GOLDEN` — see `GATE_A_FINAL_ACCEPTANCE.md` for the complete
+closeout record. The enumeration below is preserved as the historical record of what was presented
+for that decision, not rewritten after the fact.
+
 Per `15_OWNER_APPROVAL_AND_REVIEW_SHEET.md`'s "Decision A". This is **not** an approval — it is the
 enumeration the owner needs to make that decision, kept separate from this PR's own Decision B
 (W5 convergence findings, see `REVIEW_RECORD.md`).
 
-## Status at this PR's creation
+## Status at this PR's creation (historical — see resolution above)
 
 All 13 W4 manifest entries remain `status: "CANDIDATE"`, `approval: null`. PR #780 merging W4's
 code into `main` on 2026-10-12 did **not** record human golden approval — code merge and design
