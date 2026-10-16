@@ -32,7 +32,7 @@ export default function GateAIndexPage() {
   return (
     <div className="touchline mx-auto max-w-[720px] px-6 py-10">
       <TouchlineWordmark />
-      <h1 className="mt-4 text-[28px] font-[650] text-[var(--foreground)]">Gate A W0-W4 candidates</h1>
+      <h1 className="mt-4 text-[28px] font-[650] text-[var(--foreground)]">Gate A W0-W4 design references</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
         A01-A04, A06, A07, A09 and A12 are owner-approved <code>APPROVED_GOLDEN</code> design
         references (see each wave&apos;s own <code>candidate_manifest.json</code>); A05, A08, A10

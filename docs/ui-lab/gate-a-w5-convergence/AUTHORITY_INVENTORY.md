@@ -55,36 +55,47 @@ false`** — W4 blocks C6 (see `APPROVAL_DEPENDENCIES.md`).
 | `APPROVED_GOLDEN` | All 25 W1-W3 entries |
 | `VERIFIED_IMPLEMENTATION` | **None exist.** No Gate A candidate has been adopted into a production route; this level requires a Gate B authorization this PR does not grant |
 
-## Golden-authority completion semantics (W5-R1)
+## Golden-authority completion semantics (W5-R1, hardened by W5-R5)
 
 `node scripts/audit-gate-a-golden-authority.mjs` no longer defines completion as "zero `CANDIDATE`
 entries and zero errors" — that formula could report completion with every candidate `REJECT`ed, a
 scenario silently absent from a manifest, or an approved capture missing from its own attestation
-(previously a `WARNING`). Completion is now a **positive requirement**, checked against an explicit
-39-entry/38-ID expected-scenario registry (`scripts/lib/gate-a-authority.mjs`'s
-`EXPECTED_SCENARIOS`, cross-checked against the programme register in `SOURCE_RECONCILIATION.md`):
+(previously a `WARNING`). Completion is now a **positive, identity-based requirement**, checked
+against an explicit 38-entry/39-logical-ID expected-scenario registry (`scripts/lib/gate-a-
+authority.mjs`'s `EXPECTED_SCENARIOS`, cross-checked against the programme register in `SOURCE_
+RECONCILIATION.md`):
 
-1. Every expected scenario ID is present in its wave's manifest (`MISSING_EXPECTED_SCENARIO` is now
-   an error, not silent omission).
-2. Every expected scenario's `status` is `APPROVED_GOLDEN` — `CANDIDATE`, `REVISE`, `REJECT`, and
+1. Every expected scenario ID is present **in its own wave's** manifest (`MISSING_EXPECTED_
+   SCENARIO` is now an error, not silent omission; an expected W1 ID placed in W2's manifest
+   instead produces both a missing-in-W1 and an unexpected-in-W2 error, never a silent pass).
+2. No manifest entry exists outside the expected-scenario registry for its wave (`UNEXPECTED_
+   SCENARIO`, new in this round — **W5-R5**). This is the field that makes completion genuinely
+   identity-based: `allApprovedGolden` is computed as "every expected ID has its own valid
+   `APPROVED_GOLDEN` record," never as a count comparison — a count comparison (`approved ===
+   expected`) let an unexpected approved entry anywhere silently compensate for a still-pending
+   expected entry elsewhere whenever the totals happened to match by coincidence.
+3. Every expected scenario's `status` is `APPROVED_GOLDEN` — `CANDIDATE`, `REVISE`, `REJECT`, and
    any unrecognized status all correctly prevent completion (an unrecognized status is now an
    error, not a harmless warning).
-3. Every `APPROVED_GOLDEN` entry has complete, valid `approval` metadata (reviewer, date, a 40-hex
+4. Every `APPROVED_GOLDEN` entry has complete, valid `approval` metadata (reviewer, date, a 40-hex
    git revision SHA, at least one approved capture).
-4. Every approved entry has at least one capture for each of `desktop`/`mobile` (`MISSING_
+5. Every approved entry has at least one capture for each of `desktop`/`mobile` (`MISSING_
    REQUIRED_VIEWPORT`) and both `dark`/`light` for every `(viewport, interactionState)` combination
    it does capture (`MISSING_THEME_PAIR`) — both newly-added structural checks, verified against
    the real repository data in this session with zero false positives.
-5. Every approved screenshot reference exists in the wave's own attestation file (`APPROVED_
+6. Every approved screenshot reference exists in the wave's own attestation file (`APPROVED_
    FILE_NOT_IN_ATT`, **now an error**, was a warning).
-6. Every referenced screenshot's SHA-256 matches the attestation's recorded value for that file.
-7. No duplicate or empty scenario identifiers exist.
+7. Every referenced screenshot's SHA-256 matches the attestation's recorded value for that file.
+8. No duplicate or empty scenario identifiers exist.
 
 Current result against this branch: `goldenAuthorityComplete: false` (13 W4 scenarios are
-`CANDIDATE`), with **zero** integrity issues of any severity — the metadata itself is fully
-consistent; only governance (W4's outstanding owner decision) is incomplete. See `scripts/__tests__/
-audit-gate-a-golden-authority.test.ts` for the negative-test matrix proving each of the above
-actually blocks completion, and `CHANGED_FILES.md` for the full command output.
+`CANDIDATE`), with **zero** integrity issues of any severity, **zero** unexpected scenarios, and
+**zero** missing scenarios — the metadata itself is fully consistent; only governance (W4's
+outstanding owner decision) is incomplete. See `scripts/__tests__/
+audit-gate-a-golden-authority.test.ts` for the negative-test matrix (including the W5-R5
+reproduction and its generalizations: wrong-wave placement, unexpected-approval-with-everything-
+else-approved, and the real-repository regression) proving each of the above actually blocks
+completion, and `CHANGED_FILES.md` for the full command output.
 
 **What a clean, complete result would and would not mean**, per the script's own `scopeDisclaimer`
 output field (kept machine-readable, not just prose, so a consumer can't miss it): a passing

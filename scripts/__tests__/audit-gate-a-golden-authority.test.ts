@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { auditGateA, buildInventoryRows, EXPECTED_SCENARIOS, expectedLogicalScenarioCount, loadWaveData } from "../lib/gate-a-authority.mjs";
+import { auditGateA, buildInventoryRows, EXPECTED_SCENARIOS, WAVES, expectedLogicalScenarioCount, loadWaveData } from "../lib/gate-a-authority.mjs";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const AUDIT_SCRIPT = join(REPO_ROOT, "scripts", "audit-gate-a-golden-authority.mjs");
@@ -88,29 +88,59 @@ function attestationFor(...entries: ManifestEntry[]): { sourceCommitSha: string;
   return { sourceCommitSha: SHA40_B, generatedAt: "2026-10-09T00:00:00.000Z", captures };
 }
 
+/**
+ * Builds a complete, fully-valid fixture repository covering every ID in the REAL
+ * `EXPECTED_SCENARIOS` registry (all 38 manifest entries / 39 logical IDs, all `APPROVED_GOLDEN`
+ * with valid metadata and evidence) under synthetic `fixture/W{1..4}` directories. Used by the
+ * "all approved, golden authority complete" tests and as a base other tests perturb (add an
+ * unexpected entry, drop an expected one, corrupt a hash) rather than hand-building 38 entries
+ * per test.
+ */
+function buildFullValidFixture(repoRoot: string): { waves: Record<string, string>; manifestEntries: Record<string, ManifestEntry[]> } {
+  const waves: Record<string, string> = {};
+  const manifestEntries: Record<string, ManifestEntry[]> = {};
+  for (const [wave, ids] of Object.entries(EXPECTED_SCENARIOS)) {
+    waves[wave] = `fixture/${wave}`;
+    manifestEntries[wave] = ids.map((id) => approvedEntry(id, id.replace(/[/\\]/g, "-")));
+  }
+  for (const wave of Object.keys(EXPECTED_SCENARIOS)) {
+    const entries = manifestEntries[wave];
+    writeWave(repoRoot, waves[wave], { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(...entries));
+  }
+  return { waves, manifestEntries };
+}
+
+/**
+ * Same as `buildFullValidFixture`, but written at the REAL `docs/ui-lab/gate-a-wN-candidates`
+ * paths (`WAVES`, imported from the shared module) rather than synthetic `fixture/WN` ones — the
+ * generator CLI hardcodes `WAVES` with no override, so testing its own semantic-validation gate
+ * requires a fixture repo at those exact real-shaped paths. Returns the built entries so a test
+ * can perturb one (corrupt a hash, drop an entry, add an unexpected one) before the caller
+ * re-writes that single wave's files.
+ */
+function buildFullValidFixtureAtRealPaths(repoRoot: string): Record<string, ManifestEntry[]> {
+  const manifestEntries: Record<string, ManifestEntry[]> = {};
+  for (const [wave, ids] of Object.entries(EXPECTED_SCENARIOS)) {
+    manifestEntries[wave] = ids.map((id) => approvedEntry(id, id.replace(/[/\\]/g, "-")));
+  }
+  for (const wave of Object.keys(EXPECTED_SCENARIOS)) {
+    const entries = manifestEntries[wave];
+    writeWave(repoRoot, WAVES[wave], { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(...entries));
+  }
+  return manifestEntries;
+}
+
 describe("auditGateA — completion semantics (W5-R1)", () => {
   it("1. all expected scenarios approved with complete valid records: metadata audit passes and golden authority is complete", () => {
     const repoRoot = makeRepoRoot();
-    const waves: Record<string, string> = {};
-    const manifestEntries: Record<string, ReturnType<typeof approvedEntry>[]> = {};
-    for (const [wave, ids] of Object.entries(EXPECTED_SCENARIOS)) {
-      waves[wave] = `fixture/${wave}`;
-      manifestEntries[wave] = ids.map((id) => approvedEntry(id, id.replace(/[/\\]/g, "-")));
-    }
-    for (const wave of Object.keys(EXPECTED_SCENARIOS)) {
-      const entries = manifestEntries[wave];
-      writeWave(
-        repoRoot,
-        waves[wave],
-        { baseCommitSha: SHA40_A, candidates: entries },
-        attestationFor(...entries),
-      );
-    }
+    const { waves } = buildFullValidFixture(repoRoot);
 
     const result = auditGateA(repoRoot, { waves, expectedScenarios: EXPECTED_SCENARIOS });
     expect(result.issues).toEqual([]);
     expect(result.expectedScenarios.missing).toEqual([]);
+    expect(result.expectedScenarios.unexpected).toEqual([]);
     expect(result.completionCriteria.allExpectedScenariosPresent).toBe(true);
+    expect(result.completionCriteria.noUnexpectedScenarios).toBe(true);
     expect(result.completionCriteria.allApprovedGolden).toBe(true);
     expect(result.completionCriteria.zeroIntegrityErrors).toBe(true);
     expect(result.goldenAuthorityComplete).toBe(true);
@@ -303,8 +333,103 @@ describe("auditGateA — completion semantics (W5-R1)", () => {
     expect(result.expectedScenarios.totalManifestEntries).toBe(38);
     expect(result.expectedScenarios.totalLogicalScenarioIds).toBe(39);
     expect(result.expectedScenarios.missing).toEqual([]);
+    expect(result.expectedScenarios.unexpected).toEqual([]);
     expect(result.approvedEntries).toBe(25);
     expect(result.pendingEntries).toBe(13);
+    expect(result.unexpectedEntries).toBe(0);
+    expect(result.issues).toEqual([]);
+    expect(result.goldenAuthorityComplete).toBe(false);
+  });
+});
+
+describe("auditGateA — identity-based completion, hardened (W5-R5)", () => {
+  // Second independent technical review finding: `totalApproved === expectedTotal` is a count
+  // comparison, not an identity check — an unexpected approved entry anywhere could silently
+  // compensate for a still-pending expected entry elsewhere as long as the totals happened to
+  // match. Every test below is keyed to that exact defect class.
+
+  it("A. original reported failure: an unexpected approved X3 does not compensate for pending expected X2", () => {
+    const repoRoot = makeRepoRoot();
+    const waves = { W1: "fixture/W1" };
+    const expected = { W1: ["X1", "X2"] };
+    const entries = [approvedEntry("X1", "x1"), candidateEntry("X2"), approvedEntry("X3", "x3")];
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0], entries[2]));
+
+    const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
+    expect(result.goldenAuthorityComplete).toBe(false);
+    expect(result.completionCriteria.allApprovedGolden).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: "ERROR", kind: "UNEXPECTED_SCENARIO", wave: "W1", scenario: "X3" }));
+    // X2 is still correctly reported as pending, not silently dropped
+    expect(result.pendingEntries).toBe(1);
+    // The old count-based bug: 2 approved (X1, X3) === 2 expected (X1, X2) would have read as
+    // complete. Confirm the aggregate count alone is NOT what decided the (correct) outcome here.
+    expect(result.approvedEntries).toBe(2);
+  });
+
+  it("B. all expected approved, but an unexpected entry still exists: not complete, registry not silently expanded", () => {
+    const repoRoot = makeRepoRoot();
+    const waves = { W1: "fixture/W1" };
+    const expected = { W1: ["X1", "X2"] };
+    const entries = [approvedEntry("X1", "x1"), approvedEntry("X2", "x2"), approvedEntry("X3", "x3")];
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(...entries));
+
+    const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
+    expect(result.goldenAuthorityComplete).toBe(false);
+    expect(result.completionCriteria.noUnexpectedScenarios).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: "ERROR", kind: "UNEXPECTED_SCENARIO", wave: "W1", scenario: "X3" }));
+    expect(result.expectedScenarios.unexpected).toEqual(["W1:X3"]);
+  });
+
+  it("C. an expected scenario appears in the wrong wave: missing from its own wave AND unexpected in the other", () => {
+    const repoRoot = makeRepoRoot();
+    const waves = { W1: "fixture/W1", W2: "fixture/W2" };
+    const expected = { W1: ["X1"], W2: ["Y1"] };
+    // X1 is expected in W1 but was actually placed in W2's manifest instead.
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: [] }, attestationFor());
+    const misplaced = approvedEntry("X1", "x1-misplaced");
+    writeWave(repoRoot, waves.W2, { baseCommitSha: SHA40_A, candidates: [misplaced] }, attestationFor(misplaced));
+
+    const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
+    expect(result.goldenAuthorityComplete).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: "ERROR", kind: "MISSING_EXPECTED_SCENARIO", wave: "W1", scenario: "X1" }));
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: "ERROR", kind: "UNEXPECTED_SCENARIO", wave: "W2", scenario: "X1" }));
+  });
+
+  it("D. valid pending scenario with no unexpected entries: no integrity error, CLI can still exit 0", () => {
+    const repoRoot = makeRepoRoot();
+    const waves = { W1: "fixture/W1" };
+    const expected = { W1: ["X1", "X2"] };
+    const entries = [approvedEntry("X1", "x1"), candidateEntry("X2")];
+    writeWave(repoRoot, waves.W1, { baseCommitSha: SHA40_A, candidates: entries }, attestationFor(entries[0]));
+
+    const result = auditGateA(repoRoot, { waves, expectedScenarios: expected });
+    expect(result.issues.some((i: Issue) => i.severity === "ERROR")).toBe(false);
+    expect(result.goldenAuthorityComplete).toBe(false);
+    expect(result.pendingEntries).toBe(1);
+    expect(result.unexpectedEntries).toBe(0);
+  });
+
+  it("E. complete expected inventory (full synthetic registry): zero errors, no unexpected/missing IDs, complete", () => {
+    const repoRoot = makeRepoRoot();
+    const { waves } = buildFullValidFixture(repoRoot);
+
+    const result = auditGateA(repoRoot, { waves, expectedScenarios: EXPECTED_SCENARIOS });
+    expect(result.issues).toEqual([]);
+    expect(result.expectedScenarios.missing).toEqual([]);
+    expect(result.expectedScenarios.unexpected).toEqual([]);
+    expect(result.completionCriteria.allApprovedGolden).toBe(true);
+    expect(result.goldenAuthorityComplete).toBe(true);
+  });
+
+  it("F. real repository regression: matches the required summary exactly", () => {
+    const result = auditGateA(REPO_ROOT);
+    expect(result.expectedScenarios.totalManifestEntries).toBe(38);
+    expect(result.expectedScenarios.totalLogicalScenarioIds).toBe(39);
+    expect(result.approvedEntries).toBe(25);
+    expect(result.pendingEntries).toBe(13);
+    expect(result.expectedScenarios.missing).toEqual([]);
+    expect(result.expectedScenarios.unexpected).toEqual([]);
+    expect(result.unexpectedEntries).toBe(0);
     expect(result.issues).toEqual([]);
     expect(result.goldenAuthorityComplete).toBe(false);
   });
@@ -444,10 +569,10 @@ describe("CLI: generate-gate-a-authority-inventory.mjs", () => {
 
   it("only writes docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv when --write is passed", () => {
     const repoRoot = makeRepoRoot();
-    // Minimal valid empty-but-structurally-sound fixture set for all four waves.
-    for (const wave of ["w1", "w2", "w3", "w4"]) {
-      writeWave(repoRoot, `docs/ui-lab/gate-a-${wave}-candidates`, { baseCommitSha: SHA40_A, candidates: [] }, { sourceCommitSha: SHA40_B, generatedAt: "2026-10-09T00:00:00.000Z", captures: [] });
-    }
+    // A full, semantically-valid fixture (every real expected ID present and approved) — an
+    // all-empty fixture is no longer accepted here since W5-R5's semantic gate correctly rejects
+    // it (every one of the 38 real expected IDs would be missing).
+    buildFullValidFixtureAtRealPaths(repoRoot);
     const outPath = join(repoRoot, "docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv");
     const before = runCli(GENERATE_SCRIPT, [repoRoot]);
     expect(before.code).toBe(0);
@@ -456,5 +581,70 @@ describe("CLI: generate-gate-a-authority-inventory.mjs", () => {
     const after = runCli(GENERATE_SCRIPT, ["--write", repoRoot]);
     expect(after.code).toBe(0);
     expect(readFileSync(outPath, "utf8").split("\n")[0]).toMatch(/^wave,scenarioId/);
+  });
+
+  it("a valid pending candidate (status: CANDIDATE, approval: null) does not block generation", () => {
+    const repoRoot = makeRepoRoot();
+    const entries = buildFullValidFixtureAtRealPaths(repoRoot);
+    // Demote one otherwise-valid W4 entry to a genuine pending candidate.
+    const w4 = entries.W4.map((e, i) => (i === 0 ? candidateEntry(e.scenarioId) : e));
+    writeWave(repoRoot, WAVES.W4, { baseCommitSha: SHA40_A, candidates: w4 }, attestationFor(...w4.filter((e) => e.approval)));
+
+    const { code, out } = runCli(GENERATE_SCRIPT, [repoRoot]);
+    expect(code).toBe(0);
+    const rows = out.trim().split("\n");
+    expect(rows.find((r) => r.startsWith(`W4,${entries.W4[0].scenarioId},`))).toMatch(/,CANDIDATE,/);
+  });
+
+  it("an unexpected scenario ID blocks generation", () => {
+    const repoRoot = makeRepoRoot();
+    const entries = buildFullValidFixtureAtRealPaths(repoRoot);
+    const w1 = [...entries.W1, approvedEntry("A99-not-in-registry", "a99")];
+    writeWave(repoRoot, WAVES.W1, { baseCommitSha: SHA40_A, candidates: w1 }, attestationFor(...w1));
+
+    const { code, err } = runCli(GENERATE_SCRIPT, [repoRoot]);
+    expect(code).toBe(1);
+    expect(err).toMatch(/UNEXPECTED_SCENARIO/);
+  });
+
+  it("a missing expected scenario ID blocks generation", () => {
+    const repoRoot = makeRepoRoot();
+    const entries = buildFullValidFixtureAtRealPaths(repoRoot);
+    const w1 = entries.W1.slice(1); // drop the first expected W1 entry entirely
+    writeWave(repoRoot, WAVES.W1, { baseCommitSha: SHA40_A, candidates: w1 }, attestationFor(...w1));
+
+    const { code, err } = runCli(GENERATE_SCRIPT, [repoRoot]);
+    expect(code).toBe(1);
+    expect(err).toMatch(/MISSING_EXPECTED_SCENARIO/);
+  });
+
+  it("invalid approval evidence (a hash mismatch) blocks generation", () => {
+    const repoRoot = makeRepoRoot();
+    const entries = buildFullValidFixtureAtRealPaths(repoRoot);
+    const corrupted = { ...entries.W1[0], approval: { ...entries.W1[0].approval!, approvedCaptures: entries.W1[0].approval!.approvedCaptures.map((c) => ({ ...c })) } };
+    corrupted.approval.approvedCaptures[0].sha256 = "9".repeat(64);
+    const w1 = [corrupted, ...entries.W1.slice(1)];
+    // Attestation still carries the ORIGINAL (uncorrupted) hash for that file — a genuine mismatch.
+    writeWave(repoRoot, WAVES.W1, { baseCommitSha: SHA40_A, candidates: w1 }, attestationFor(...entries.W1));
+
+    const { code, err } = runCli(GENERATE_SCRIPT, [repoRoot]);
+    expect(code).toBe(1);
+    expect(err).toMatch(/HASH_MISMATCH_WITH_ATTESTATION/);
+  });
+
+  it("a rejected (invalid-input) generation never overwrites an existing committed CSV", () => {
+    const repoRoot = makeRepoRoot();
+    buildFullValidFixtureAtRealPaths(repoRoot);
+    // Seed a pre-existing CSV with a sentinel the real generated content would never contain.
+    const outPath = join(repoRoot, "docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv");
+    mkdirSync(join(repoRoot, "docs/ui-lab/gate-a-w5-convergence"), { recursive: true });
+    writeFileSync(outPath, "SENTINEL-DO-NOT-OVERWRITE\n");
+
+    // Now corrupt the input so generation is rejected.
+    writeWave(repoRoot, WAVES.W1, { baseCommitSha: SHA40_A, candidates: [{ scenarioId: "", fixtureVersion: 1 }] }, { sourceCommitSha: SHA40_B, generatedAt: "x", captures: [] });
+
+    const { code } = runCli(GENERATE_SCRIPT, ["--write", repoRoot]);
+    expect(code).toBe(1);
+    expect(readFileSync(outPath, "utf8")).toBe("SENTINEL-DO-NOT-OVERWRITE\n");
   });
 });

@@ -14,6 +14,13 @@
  * scenario silently missing from a manifest, or an approved capture absent from its own
  * attestation (previously only a WARNING, now an ERROR).
  *
+ * Hardened again for the W5 second independent technical review (finding W5-R5): completion is
+ * now identity-based, not count-based — `totalApproved === expectedTotal` let an unexpected
+ * approved entry anywhere compensate for a still-pending expected entry elsewhere whenever the
+ * totals happened to match. A manifest entry outside the authoritative `EXPECTED_SCENARIOS`
+ * registry for its own wave is now an `UNEXPECTED_SCENARIO` error, and `allApprovedGolden` is
+ * computed per-scenario-ID, never from a raw count.
+ *
  * This is metadata-only: it never fetches raw PNG bytes and never approves a golden. It does not
  * replace the normative programme contracts, an owner's explicit visual review, or a separate
  * byte-level CI-artifact re-verification (see VISUAL_COVERAGE_AND_CAPTURE.md for that). See the

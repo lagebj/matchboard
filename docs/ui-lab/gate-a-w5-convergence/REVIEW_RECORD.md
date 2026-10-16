@@ -65,6 +65,27 @@ All four are `RESOLVED` as of this commit. No W1-W3 approved golden content was 
 these fixes — they correct the audit tooling and this PR's own documentation, not any approval
 record.
 
+## Independent technical review — round 2: `REVISE` → remediated
+
+A second independent technical review of round 1's fix (head
+`b276590a82ab66f3ca3fbbcfd99d83ad61594391`) confirmed W5-R1 through W5-R4 substantially resolved
+and that CI/Security/UI Lab Visual Review all passed, and returned one remaining P1 defect plus
+two documentation/safety items — see `CONFLICT_AND_BLOCKER_REGISTER.md`'s "Independent technical
+review findings (round 2)" section for the full writeup, and `CHANGED_FILES.md` for the exact
+commands/tests proving each fix. Summary:
+
+| Finding | Fix |
+|---|---|
+| W5-R5 (P1) — the completion formula compared aggregate counts (`totalApproved === expectedTotal`), so an unexpected approved scenario anywhere could silently compensate for a still-pending expected scenario elsewhere whenever the totals happened to match | Rewrote `allApprovedGolden` as a per-scenario-identity check (`every expected ID has its own valid APPROVED_GOLDEN record`), independent of any other entry; added a new `UNEXPECTED_SCENARIO` error for any manifest entry outside its wave's expected-scenario registry, including cross-wave misplacement; 11 new regression tests |
+| Documentation: one inverted "39-entry/38-ID" reference in `AUTHORITY_INVENTORY.md` | Corrected to "38-entry/39-logical-ID"; searched the rest of the W5 doc set, no other instance found |
+| UI Lab index heading implied uniform approval state | `<h1>` changed from "Gate A W0-W4 candidates" to "Gate A W0-W4 design references" (the body copy already correctly distinguished approved vs. candidate families) |
+| Inventory generator only checked file-loading errors, not the full semantic audit, before writing | Generator now runs the shared `auditGateA()` and refuses to write on any integrity error, while still permitting generation for valid, explicitly pending `CANDIDATE` records |
+
+All four are `RESOLVED` as of this commit. `node scripts/audit-gate-a-golden-authority.mjs`
+against this branch: 38 manifest entries, 39 logical scenario IDs, 25 approved, 13 pending, 0
+missing, 0 unexpected, 0 integrity errors, `goldenAuthorityComplete: false` (W4 pending, as
+expected). No W1-W3 approved golden content, and no production code, changed.
+
 ## Owner check questions (per `15_OWNER_APPROVAL_AND_REVIEW_SHEET.md`), answered where this audit
 ## can answer them from source/evidence, left open where only a human visual read can answer them
 

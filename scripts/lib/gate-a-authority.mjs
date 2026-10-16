@@ -5,7 +5,13 @@
  * `scripts/generate-gate-a-authority-inventory.mjs` (deterministic inventory file writer). Kept in
  * one module so both tools parse the same four `candidate_manifest.json`/`capture-attestation.json`
  * pairs the same way — see `docs/ui-lab/gate-a-w5-convergence/CHANGED_FILES.md` for the W5
- * technical-review findings (W5-R1/R2) this module exists to fix.
+ * technical-review findings (W5-R1/R2, hardened by W5-R5) this module exists to fix.
+ *
+ * W5-R5: `goldenAuthorityComplete` is computed from per-scenario IDENTITY (every expected ID has
+ * its own valid `APPROVED_GOLDEN` record), never from aggregate counts — a count comparison let an
+ * unexpected approved entry anywhere compensate for a still-pending expected entry elsewhere
+ * whenever the totals happened to match. An `UNEXPECTED_SCENARIO` error now blocks completion for
+ * any manifest entry outside the authoritative per-wave `EXPECTED_SCENARIOS` registry.
  */
 
 import { readFileSync, existsSync } from "fs";
@@ -122,13 +128,16 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
   const issues = [...loadIssues];
   const summary = [];
   const allIds = new Set();
+  // Per-wave "every expected ID in this wave has a valid APPROVED_GOLDEN record" booleans —
+  // `allApprovedGolden` below is `.every(Boolean)` over this, not a global count comparison.
+  const waveAllExpectedApproved = [];
   let totalApproved = 0;
   let totalPending = 0;
 
   for (const wave of Object.keys(waves)) {
     const { manifest, attestation, entries, attByFile } = waveData[wave];
     if (manifest === null || entries === null) {
-      summary.push({ wave, entries: 0, approved: 0, pending: 0, other: 0, attestedCaptures: null, captureSourceCommitSha: null });
+      summary.push({ wave, entries: 0, approved: 0, pending: 0, other: 0, unexpected: 0, attestedCaptures: null, captureSourceCommitSha: null });
       continue;
     }
 
@@ -143,10 +152,21 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
       for (const file of duplicateFiles) issues.push({ severity: "ERROR", kind: "AMBIGUOUS_ATTESTED_FILE", wave, file });
     }
 
+    // Identity-based completion (W5-R5): the expected-scenario registry is the authority
+    // boundary for THIS wave specifically — an ID expected in a different wave does not count
+    // here, so moving a scenario from W1 into W2's manifest correctly produces both a
+    // MISSING_EXPECTED_SCENARIO (W1) and an UNEXPECTED_SCENARIO (W2), never a silent pass.
+    const expectedIdsThisWave = new Set(expectedScenarios[wave] ?? []);
     const seenInWave = new Set();
+    // Scenario IDs actually APPROVED_GOLDEN with valid metadata, keyed by identity — this, not
+    // an aggregate count, is what `allApprovedGolden` below is computed from. An unexpected
+    // entry (not in `expectedIdsThisWave`) is flagged separately and never added here, so it can
+    // never substitute for a pending expected scenario no matter how the counts happen to line up.
+    const approvedExpectedIds = new Set();
     let approved = 0;
     let pending = 0; // CANDIDATE, REVISE, REJECT — anything not APPROVED_GOLDEN but a recognized state
     let other = 0; // unrecognized status — always an integrity error, never "harmless"
+    let unexpected = 0; // present in the manifest but outside this wave's expected-scenario registry
 
     for (const entry of entries) {
       const sid = entry.scenarioId;
@@ -157,6 +177,16 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
       if (allIds.has(sid)) issues.push({ severity: "ERROR", kind: "DUPLICATE_SCENARIO", wave, scenario: sid });
       allIds.add(sid);
       seenInWave.add(sid);
+
+      if (!expectedIdsThisWave.has(sid)) {
+        // W5-R5: a manifest entry outside the authoritative expected-scenario registry for this
+        // wave — whatever its own status, it can never count toward `allApprovedGolden` below,
+        // and it must never be silently accepted as an implicit registry extension. A legitimate
+        // new scenario requires an explicit `EXPECTED_SCENARIOS` update, not inference from what
+        // a manifest happens to contain.
+        issues.push({ severity: "ERROR", kind: "UNEXPECTED_SCENARIO", wave, scenario: sid });
+        unexpected += 1;
+      }
 
       const version = entry.fixtureVersion;
       if (typeof version !== "number" || !Number.isInteger(version) || version < 1) {
@@ -179,6 +209,11 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
           issues.push({ severity: "ERROR", kind: "INCOMPLETE_APPROVAL", wave, scenario: sid });
           continue;
         }
+        // Identity-based completion input (W5-R5): only an expected ID with a validly-shaped
+        // APPROVED_GOLDEN record counts here. An unexpected entry's approval — however
+        // well-formed — was already flagged as UNEXPECTED_SCENARIO above and is deliberately
+        // never added, so it can never stand in for a still-pending expected scenario.
+        if (expectedIdsThisWave.has(sid)) approvedExpectedIds.add(sid);
         const caps = Array.isArray(approval.approvedCaptures) ? approval.approvedCaptures : [];
         if (caps.length === 0) {
           issues.push({ severity: "ERROR", kind: "NO_APPROVED_CAPTURES", wave, scenario: sid });
@@ -234,11 +269,16 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
       }
     }
 
-    for (const expectedId of expectedScenarios[wave] ?? []) {
+    for (const expectedId of expectedIdsThisWave) {
       if (!seenInWave.has(expectedId)) {
         issues.push({ severity: "ERROR", kind: "MISSING_EXPECTED_SCENARIO", wave, scenario: expectedId });
       }
     }
+
+    // W5-R5: whether THIS wave's expected set is fully, validly approved — computed from scenario
+    // identity (`approvedExpectedIds`), never from a count that an unexpected entry could inflate.
+    const allExpectedApprovedThisWave = [...expectedIdsThisWave].every((id) => approvedExpectedIds.has(id));
+    waveAllExpectedApproved.push(allExpectedApprovedThisWave);
 
     totalApproved += approved;
     totalPending += pending + other;
@@ -248,29 +288,35 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
       approved,
       pending,
       other,
+      unexpected,
       attestedCaptures: attestation && Array.isArray(attestation.captures) ? attestation.captures.length : null,
       captureSourceCommitSha: attestation ? attestation.sourceCommitSha ?? null : null,
     });
   }
 
   // `expectedTotal` counts manifest ENTRIES (38) — A07-S1/A07-S2's shared entry is one element of
-  // its wave's array — which is the correct denominator for completion math below, since
-  // `totalApproved` likewise increments once per manifest entry. `expectedLogicalIds` (39) is
-  // reported separately, purely informational (matches the baseline's "39 logical scenario IDs").
+  // its wave's array — which is the correct denominator for reporting below, since `totalApproved`
+  // likewise increments once per manifest entry. `expectedLogicalIds` (39) is reported separately,
+  // purely informational (matches the baseline's "39 logical scenario IDs"). Neither total is used
+  // to DECIDE completion any more — see `allApprovedGolden` below.
   const expectedTotal = Object.values(expectedScenarios).reduce((n, ids) => n + ids.length, 0);
   const expectedLogicalIds = Object.values(expectedScenarios).reduce(
     (n, ids) => n + ids.reduce((m, id) => m + (id.includes("/") ? id.split("/").length : 1), 0),
     0,
   );
   const hasErrors = issues.some((i) => i.severity === "ERROR");
+  const unexpectedScenarios = issues.filter((i) => i.kind === "UNEXPECTED_SCENARIO").map((i) => `${i.wave}:${i.scenario}`);
 
-  // Positive-requirement completion (W5-R1): every expected scenario present AND APPROVED_GOLDEN
-  // AND zero integrity errors of ANY kind. A CANDIDATE/REVISE/REJECT entry is correctly excluded
-  // from `approved`, so `approved === expectedTotal` already fails whenever any expected scenario
-  // isn't APPROVED_GOLDEN — no separate "totalCandidate === 0" check is needed or sufficient on
-  // its own (that was W5-R1's root cause: it ignored REVISE/REJECT/missing entirely).
+  // Positive, IDENTITY-based completion (W5-R1, hardened by W5-R5): every expected scenario ID is
+  // present in its own wave AND has a validly-shaped APPROVED_GOLDEN record for THAT SAME
+  // identity, AND zero integrity errors of any kind remain. This is deliberately not a count
+  // comparison (`totalApproved === expectedTotal`) — that formula let an unexpected approved
+  // entry in any wave compensate for a still-pending expected entry elsewhere, as long as the
+  // totals happened to match (W5-R5's reproduction: X1 approved, X2 pending, unexpected X3
+  // approved — old formula: 2 approved === 2 expected → wrongly "complete"; this formula: X2 is
+  // expected and not in `approvedExpectedIds` → `allApprovedGolden: false`, independent of X3).
   const allExpectedScenariosPresent = !issues.some((i) => i.kind === "MISSING_EXPECTED_SCENARIO");
-  const allApprovedGolden = allExpectedScenariosPresent && totalApproved === expectedTotal;
+  const allApprovedGolden = allExpectedScenariosPresent && waveAllExpectedApproved.every(Boolean);
   const goldenAuthorityComplete = allApprovedGolden && !hasErrors;
 
   return {
@@ -283,11 +329,14 @@ export function auditGateA(repoRoot, { waves = WAVES, expectedScenarios = EXPECT
       approved: totalApproved,
       pending: totalPending,
       missing: issues.filter((i) => i.kind === "MISSING_EXPECTED_SCENARIO").map((i) => `${i.wave}:${i.scenario}`),
+      unexpected: unexpectedScenarios,
     },
     approvedEntries: totalApproved,
     pendingEntries: totalPending,
+    unexpectedEntries: unexpectedScenarios.length,
     completionCriteria: {
       allExpectedScenariosPresent,
+      noUnexpectedScenarios: unexpectedScenarios.length === 0,
       allApprovedGolden,
       zeroIntegrityErrors: !hasErrors,
     },

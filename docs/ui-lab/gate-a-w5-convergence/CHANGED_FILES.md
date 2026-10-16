@@ -179,3 +179,90 @@ $ grep -rn "AUTOMATED_VALIDATION_AND_REGRESSION" docs/ui-lab/gate-a-w5-convergen
 $ grep -n "not approved goldens" src/app/dev/ui-lab/gate-a/page.tsx
 (no output — misleading copy removed)
 ```
+
+## Independent technical review, round 2 — remediation (W5-R5 + documentation/safety cleanup)
+
+See `CONFLICT_AND_BLOCKER_REGISTER.md`'s "Independent technical review findings (round 2)" section
+for the full per-finding writeup and `REVIEW_RECORD.md` for the review-status summary. File-by-file:
+
+| File | Change | Why |
+|---|---|---|
+| `scripts/lib/gate-a-authority.mjs` | `auditGateA()` rewritten to compute `allApprovedGolden` from per-scenario identity (a per-wave `approvedExpectedIds` set), not an aggregate count; new `UNEXPECTED_SCENARIO` error (ERROR severity) for any manifest entry outside its wave's expected-scenario registry; new `expectedScenarios.unexpected` / `unexpectedEntries` / `completionCriteria.noUnexpectedScenarios` output fields; per-wave `unexpected` count added to the `waves` summary | W5-R5 |
+| `scripts/audit-gate-a-golden-authority.mjs` | Header comment updated to document the W5-R5 hardening; no behavioral change beyond what the shared module now does | W5-R5 |
+| `scripts/generate-gate-a-authority-inventory.mjs` | Now calls the shared `auditGateA()` (not just `loadWaveData()`'s file-loading checks) and refuses to generate on any ERROR-severity issue — including `UNEXPECTED_SCENARIO`, `MISSING_EXPECTED_SCENARIO`, `DUPLICATE_SCENARIO`, invalid approval metadata, and hash mismatches — while still permitting generation when the only "incompleteness" is a valid, explicitly pending `CANDIDATE` record | W5-R5, inventory generator safety gap |
+| `scripts/__tests__/audit-gate-a-golden-authority.test.ts` | 11 new tests: a new "identity-based completion, hardened (W5-R5)" describe block (6 tests, A-F from the task spec) plus 5 new generator semantic-validation tests (valid pending candidate passes; unexpected/missing/hash-mismatch each block; a rejected run never overwrites an existing CSV). One pre-existing test ("only writes ... when --write is passed") updated to use a full valid fixture instead of an all-empty one, which the new semantic gate now correctly rejects. All pre-existing assertions preserved unchanged | W5-R5 |
+| `docs/ui-lab/gate-a-w5-convergence/AUTHORITY_INVENTORY.md` | "Golden-authority completion semantics" section rewritten to document identity-based completion and the new `UNEXPECTED_SCENARIO` check; fixed one inverted "39-entry/38-ID" reference to "38-entry/39-logical-ID" | W5-R5, documentation terminology |
+| `docs/ui-lab/gate-a-w5-convergence/CONFLICT_AND_BLOCKER_REGISTER.md` | New "Independent technical review findings (round 2)" section (W5-R5, plus the terminology and generator-safety items, all `RESOLVED`) | All findings this round |
+| `docs/ui-lab/gate-a-w5-convergence/REVIEW_RECORD.md` | New "Independent technical review — round 2" section | All findings this round |
+| `src/app/dev/ui-lab/gate-a/page.tsx` | `<h1>` changed from "Gate A W0-W4 candidates" to "Gate A W0-W4 design references" (approval-neutral heading; body copy already correctly distinguished approved vs. candidate families) | UI Lab heading correction |
+
+### Commands run and results (this remediation round)
+
+```
+$ git fetch origin design/gate-a-w5-golden-consistency-convergence
+b276590a82ab66f3ca3fbbcfd99d83ad61594391 — confirmed matches the second review's last-reviewed
+head exactly; nothing had changed on the branch since review.
+
+$ node scripts/audit-gate-a-golden-authority.mjs   (pre-fix, reproducing W5-R5 conceptually via a
+  synthetic fixture in scripts/__tests__/ — the real repo's own manifests never exhibited this
+  exact bug, since no wave actually has an unexpected scenario; the defect was in the audit
+  FORMULA, confirmed by constructing the X1/X2/X3 fixture the review described)
+
+$ npx vitest run scripts/__tests__/audit-gate-a-golden-authority.test.ts
+28 tests → 39 tests after this round's additions, all passing (11 new: 6 identity-based completion
+tests A-F, 5 generator semantic-validation tests)
+
+$ npx vitest run src/app/dev/ui-lab/gate-a scripts/__tests__/audit-gate-a-golden-authority.test.ts
+43 files, 270 tests, all passing
+
+$ npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-a
+40 files, 227 tests, all passing (unchanged)
+
+$ npm run typecheck
+exit 0, clean
+
+$ npx eslint scripts/__tests__/audit-gate-a-golden-authority.test.ts scripts/lib/gate-a-authority.mjs
+  scripts/audit-gate-a-golden-authority.mjs scripts/generate-gate-a-authority-inventory.mjs
+  scripts/ui-lab-visual-review.mjs src/app/dev/ui-lab/gate-a
+exit 0, clean
+
+$ npm run terminology:check
+✓ No terminology violations found
+
+$ npm run policy:verify
+PASSED (arm64 wasm-rebuild DRIFT is the known, expected sandbox-architecture advisory)
+
+$ npm run docs:check
+same single pre-existing, unrelated, untracked-local-directory notice as every prior round —
+nothing new
+
+$ npm run deadcode:check / npm run legacy-visual:check
+✓ clean
+
+$ node scripts/audit-gate-a-golden-authority.mjs
+exit 0 — expectedScenarios: {totalManifestEntries: 38, totalLogicalScenarioIds: 39, approved: 25,
+pending: 13, missing: [], unexpected: []}; unexpectedEntries: 0; completionCriteria:
+{allExpectedScenariosPresent: true, noUnexpectedScenarios: true, allApprovedGolden: false,
+zeroIntegrityErrors: true}; goldenAuthorityComplete: false; issues: [] (zero)
+
+$ node scripts/generate-gate-a-authority-inventory.mjs | diff - docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv
+(no output — generated output matches the committed CSV exactly, confirming the new semantic
+validation gate does not change the real repository's generated inventory)
+```
+
+Every exit code above was captured directly (`command; echo "exit: $?"` with no intermediate
+pipe) — a prior round of this same PR had several "exit=0, clean" claims that were actually
+reporting a downstream `tail`'s exit code instead of the real command's; this round's log was
+produced without that mistake.
+
+### Test plan for a reviewer (this round)
+
+1. `npx vitest run scripts/__tests__/audit-gate-a-golden-authority.test.ts` — 39 tests, all should
+   pass, including the new "W5-R5" describe block and the 5 new generator tests.
+2. `node scripts/audit-gate-a-golden-authority.mjs` — should report `unexpectedEntries: 0` and
+   `goldenAuthorityComplete: false` against this branch.
+3. Manually construct the review's own reproduction (`EXPECTED_SCENARIOS.W1 = ["X1","X2"]`;
+   X1 approved, X2 candidate, unexpected X3 approved) and confirm `goldenAuthorityComplete` reads
+   `false` — covered by test "A. original reported failure".
+4. `node scripts/generate-gate-a-authority-inventory.mjs --write` against this branch, then
+   `git diff docs/ui-lab/gate-a-w5-convergence/authority_inventory.csv` — should show no diff.

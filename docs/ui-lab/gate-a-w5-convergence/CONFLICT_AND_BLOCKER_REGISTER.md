@@ -87,6 +87,62 @@ PR; see each entry below and `CHANGED_FILES.md` for the exact commands/tests pro
 | status | `RESOLVED` |
 | captureRefs | N/A |
 
+## Independent technical review findings (round 2) — resolved
+
+A second independent technical review of round 1's fix (head `b276590a82ab66f3ca3fbbcfd99d83ad61594391`)
+confirmed W5-R1 through W5-R4 substantially resolved — shared audit module, expected-scenario
+registry, deterministic inventory generation, strict approval-evidence checks, negative regression
+tests, corrected totals/provenance, corrected UI Lab text; CI/Security/UI Lab Visual Review all
+passed — but found one remaining P1 defect in the completion formula itself, plus two
+documentation terminology inconsistencies and one inventory-generator safety gap, all addressed in
+this same remediation.
+
+### W5-R5 (P1) — Unexpected approved scenario could mask a pending expected scenario
+
+| Field | Value |
+|---|---|
+| scenarioIds | All 38 (affects the completion verdict itself, the same class of defect as W5-R1) |
+| owner | `scripts/lib/gate-a-authority.mjs`'s `auditGateA()` |
+| source/spec | Identity-based authority: every expected scenario's OWN approval status decides completion, never an aggregate that an unrelated entry can influence |
+| expected | `allApprovedGolden` computed from "does every expected scenario ID have its own valid `APPROVED_GOLDEN` record," independent of any other entry's existence or status |
+| observed | The formula was `totalApproved === expectedTotal` — a pure count comparison. Given `EXPECTED_SCENARIOS.W1 = ["X1","X2"]` with `X1: APPROVED_GOLDEN`, `X2: CANDIDATE`, and an **unexpected** `X3: APPROVED_GOLDEN`, `totalApproved` (2, counting X1 and X3) happened to equal `expectedTotal` (2), so `allApprovedGolden` — and therefore `goldenAuthorityComplete` — read `true`, even though X2, an explicitly expected scenario, had never been approved. No check existed for a manifest entry outside the expected-scenario registry at all |
+| reproduction | `scripts/__tests__/audit-gate-a-golden-authority.test.ts`, test "A. original reported failure" — reconstructs exactly this fixture; against the pre-fix formula it would assert `goldenAuthorityComplete === true` (wrongly); against the fix it correctly asserts `false` |
+| impact | Could cause a reviewer to trust a false "Gate A complete" signal — the same class of risk as W5-R1, surviving round 1's fix because round 1 correctly handled *missing* and *non-approved* expected scenarios but never validated manifest entries *outside* the expected set |
+| severity | P1 — authority-integrity defect in the audit tool itself |
+| blockingFor | W5 technical acceptance |
+| allowedInDesignOnly | N/A — tooling fix |
+| resolution | Replaced the count comparison with identity-based tracking: a per-wave `approvedExpectedIds` set, populated only when a scenario ID is both in the wave's `EXPECTED_SCENARIOS` list AND validly `APPROVED_GOLDEN`; `allApprovedGolden = [...expectedIds].every(id => approvedExpectedIds.has(id))` across every wave. A new `UNEXPECTED_SCENARIO` error (severity `ERROR`) flags any manifest entry outside its wave's expected registry — including cross-wave misplacement (an ID expected in W1 but actually present in W2 produces both `MISSING_EXPECTED_SCENARIO` for W1 and `UNEXPECTED_SCENARIO` for W2). `scripts/generate-gate-a-authority-inventory.mjs` now runs the full shared `auditGateA()` (not just file-loading checks) before writing, and refuses to generate when any `ERROR`-severity issue — including `UNEXPECTED_SCENARIO` — is present, while still permitting generation when the only "incompleteness" is a valid, explicitly pending `CANDIDATE` (W4's 13 scenarios continue to generate successfully). 11 new tests added (6 identity-based completion tests A-F, 5 generator semantic-validation tests), all existing tests preserved and still passing |
+| decisionMaker | N/A — tooling correction, no approval/design content changed |
+| status | `RESOLVED` |
+| captureRefs | N/A |
+
+### Documentation terminology: entry/logical-ID count inversion
+
+| Field | Value |
+|---|---|
+| scenarioIds | None |
+| owner | `AUTHORITY_INVENTORY.md` |
+| source/spec | 38 manifest entries, 39 logical scenario IDs (A07-S1/A07-S2 share one entry) |
+| observed | One prose reference read "39-entry/38-ID", inverting the two counts; the document's own summary table (38 manifest entries, 39 logical scenario IDs) and every other reference were already correct |
+| reproduction | `grep -n "39-entry/38-ID" docs/ui-lab/gate-a-w5-convergence/*.md` (pre-fix: 1 match) |
+| impact | Minor — a reader comparing just that one sentence against the table two sections earlier would see a contradiction |
+| severity | P3 |
+| resolution | **Fixed in this PR.** Corrected to "38-entry/39-logical-ID", matching the table and every other reference. Searched the full W5 doc set for the same inversion pattern — no other instance found (`REVIEW_RECORD.md`'s "39-ID/38-entry" states the two counts in the opposite listing order but was already numerically correct, so left unchanged) |
+| status | `RESOLVED` |
+
+### Inventory generator safety gap
+
+| Field | Value |
+|---|---|
+| scenarioIds | All 38 (whatever `generate-gate-a-authority-inventory.mjs` is pointed at) |
+| owner | `scripts/generate-gate-a-authority-inventory.mjs` |
+| source/spec | The generator must not write a semantically invalid inventory |
+| observed | The generator only checked for file-loading errors (`MISSING_FILE`/`BAD_JSON`/`INVALID_MANIFEST_ENTRIES`) before writing — it never ran the full semantic audit, so it could have generated (and, with `--write`, committed) an inventory built from manifests containing duplicate IDs, unexpected scenarios, invalid approval metadata, or hash mismatches without reporting any of it |
+| impact | A generated CSV could silently encode invalid data as if it were a clean inventory |
+| severity | Important (safety gap, not an active defect against the current committed manifests, which were already clean) |
+| resolution | **Fixed in this PR.** The generator now calls the shared `auditGateA()` and refuses to generate (exit 1, existing CSV untouched) on any `ERROR`-severity issue, while still permitting generation for valid, explicitly pending `CANDIDATE` records — incomplete golden authority is not the same as an invalid inventory. 6 new tests cover this directly: a valid pending candidate does not block generation; an unexpected scenario, a missing expected scenario, and a hash mismatch each do; a rejected run never overwrites an existing committed CSV; repeated generation remains byte-identical |
+| status | `RESOLVED` |
+
 ## New findings from this W5 pass
 
 ### W5-F01 — A07's approved golden shares A01's already-fixed responsive-squeeze defect
