@@ -25,17 +25,26 @@ export async function markMatchAbsenceAction(
   reason: PlannedAbsenceReason,
   note?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  await requireMatchGroupAccess(ctx, matchId);
-  await requirePlayerGroupAccess(ctx, playerId);
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    requireMutationRole(ctx);
+    await requireMatchGroupAccess(ctx, matchId);
+    await requirePlayerGroupAccess(ctx, playerId);
 
-  const result = await markMatchAbsence(matchId, { playerId, reason, note }, ctx.orgFilter);
-  if (!result.success) return { success: false, error: result.error };
+    const result = await markMatchAbsence(matchId, { playerId, reason, note }, ctx.orgFilter);
+    if (!result.success) return { success: false, error: result.error };
 
-  revalidateMatchPaths(matchId);
-  return { success: true };
+    revalidateMatchPaths(matchId);
+    return { success: true };
+  } catch (error) {
+    // A planned player can fall out of access between the squad plan rendering and the coach
+    // acting on it -- most commonly because they were removed from the roster after being
+    // finalized into a future match's plan (requirePlayerGroupAccess then throws). Honour this
+    // function's own Promise<{ success, error }> contract instead of letting that escape as an
+    // uncaught server-action rejection with no feedback for the coach.
+    return { success: false, error: error instanceof Error ? error.message : "Failed to mark player absent." };
+  }
 }
 
 /** Restores a player marked absent back to participating, before the report is locked. */
@@ -43,15 +52,19 @@ export async function clearMatchAbsenceAction(
   matchId: string,
   playerId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = await requirePageActorContext();
-  setTenantOrganisationId(ctx.organisationId);
-  requireMutationRole(ctx);
-  await requireMatchGroupAccess(ctx, matchId);
-  await requirePlayerGroupAccess(ctx, playerId);
+  try {
+    const ctx = await requirePageActorContext();
+    setTenantOrganisationId(ctx.organisationId);
+    requireMutationRole(ctx);
+    await requireMatchGroupAccess(ctx, matchId);
+    await requirePlayerGroupAccess(ctx, playerId);
 
-  const result = await clearMatchAbsence(matchId, playerId, ctx.orgFilter);
-  if (!result.success) return { success: false, error: result.error };
+    const result = await clearMatchAbsence(matchId, playerId, ctx.orgFilter);
+    if (!result.success) return { success: false, error: result.error };
 
-  revalidateMatchPaths(matchId);
-  return { success: true };
+    revalidateMatchPaths(matchId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to clear absence." };
+  }
 }
