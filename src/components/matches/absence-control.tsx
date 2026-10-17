@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { PlannedAbsenceReason } from "@/generated/prisma/client";
 
 type AbsenceControlProps = {
@@ -33,17 +33,27 @@ const ABSENCE_REASONS: PlannedAbsenceReason[] = ["AWAY", "SICK", "NO_SHOW", "DEC
  */
 export function AbsenceControl({ matchId, playerId, currentReason, isLocked, onChanged }: AbsenceControlProps) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleChange(value: string) {
+    setError(null);
     startTransition(async () => {
       if (!value) {
         const { clearMatchAbsenceAction } = await import("@/app/(app)/matches/absence-actions");
-        await clearMatchAbsenceAction(matchId, playerId);
+        const result = await clearMatchAbsenceAction(matchId, playerId);
+        if (!result.success) {
+          setError(result.error ?? "Failed to clear absence.");
+          return;
+        }
         onChanged?.();
         return;
       }
       const { markMatchAbsenceAction } = await import("@/app/(app)/matches/absence-actions");
-      await markMatchAbsenceAction(matchId, playerId, value as PlannedAbsenceReason);
+      const result = await markMatchAbsenceAction(matchId, playerId, value as PlannedAbsenceReason);
+      if (!result.success) {
+        setError(result.error ?? "Failed to mark player absent.");
+        return;
+      }
       onChanged?.();
     });
   }
@@ -58,17 +68,20 @@ export function AbsenceControl({ matchId, playerId, currentReason, isLocked, onC
   }
 
   return (
-    <select
-      className="text-[9px] bg-transparent border border-zinc-700/50 rounded px-0.5 py-0 text-[var(--danger)] hover:border-red-500/50 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 disabled:opacity-50 max-w-[80px]"
-      value={currentReason ?? ""}
-      onChange={(e) => handleChange(e.target.value)}
-      disabled={isPending}
-      title={currentReason ? `Marked ${ABSENCE_REASON_LABELS[currentReason] ?? currentReason} for this match` : "Mark absent for this match"}
-    >
-      <option value="">Present</option>
-      {ABSENCE_REASONS.map((r) => (
-        <option key={r} value={r}>{ABSENCE_REASON_LABELS[r]}</option>
-      ))}
-    </select>
+    <span className="inline-flex flex-col items-end">
+      <select
+        className="text-[9px] bg-transparent border border-zinc-700/50 rounded px-0.5 py-0 text-[var(--danger)] hover:border-red-500/50 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 disabled:opacity-50 max-w-[80px]"
+        value={currentReason ?? ""}
+        onChange={(e) => handleChange(e.target.value)}
+        disabled={isPending}
+        title={currentReason ? `Marked ${ABSENCE_REASON_LABELS[currentReason] ?? currentReason} for this match` : "Mark absent for this match"}
+      >
+        <option value="">Present</option>
+        {ABSENCE_REASONS.map((r) => (
+          <option key={r} value={r}>{ABSENCE_REASON_LABELS[r]}</option>
+        ))}
+      </select>
+      {error && <span className="mt-0.5 max-w-[100px] text-right text-[9px] text-[var(--danger)]">{error}</span>}
+    </span>
   );
 }
