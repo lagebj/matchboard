@@ -1,0 +1,90 @@
+{
+  "programmeRevision": "0.5.4",
+  "baseCommitSha": "568da6fff06be65ce7ef5fe4910c0d99e2ab4ca0",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate B W1 (B01 planned ready, B02 planned incomplete, B03 completed sparse, B04 completed rich). All four entries are CANDIDATE — no owner approval has happened yet. No capture-attestation.json is committed in this PR; local browser capture could not be run in this sandbox (HMR WebSocket upgrade failure, same disclosed Gate A W1 limitation). Real captures and their SHA-256 attestation must come from this PR's own CI run of ui-lab-visual-review.yml.",
+  "candidates": [
+    {
+      "scenarioId": "B01",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-b-w1-b01-planned-ready",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-b/b01-planned-ready/fixtures.ts",
+        "src/app/dev/ui-lab/gate-b/b01-planned-ready/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
+        "src/app/dev/ui-lab/gate-a/shared/fixture-operation.ts",
+        "src/app/dev/ui-lab/gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "CURRENT",
+      "requirementRefs": ["XR-S01", "XR-V01", "XR-I01"],
+      "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B01",
+      "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — before-match-overview.tsx (ADR-0157 C3, PR #760); see VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "MatchTacticsPanel/PlannedPlayingTimePanel/CoachingIntentSelector/MatchFormatOverrideControls not reused — self-fetching/mutating, not fixture-injectable; see DATA_TRUTH_AND_FIXTURES.md"
+      ]
+    },
+    {
+      "scenarioId": "B02",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-b-w1-b02-planned-incomplete",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-b/b02-planned-incomplete/fixtures.ts",
+        "src/app/dev/ui-lab/gate-b/b02-planned-incomplete/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "CURRENT",
+      "requirementRefs": ["XR-S01"],
+      "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B02",
+      "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — MatchPreparationWidget/MatchOpponentMemory/MatchInsights honest-empty states; see VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "No lineup-editing interaction offered — there is no lineup yet to edit, the honest state"
+      ]
+    },
+    {
+      "scenarioId": "B03",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-b-w1-b03-completed-sparse",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-b/b03-completed-sparse/fixtures.ts",
+        "src/app/dev/ui-lab/gate-b/b03-completed-sparse/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+      ],
+      "lifecycle": "done",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-T02", "XR-S01"],
+      "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B03",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — completed-match-story.ts/MatchFlowPanel sparse-chronology degradation (ADR-0157 C6, PR #764); see VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Final lineup, PlanVsRealityPanel, coaching-intent review, reflection/notes rows omitted — see DATA_TRUTH_AND_FIXTURES.md"
+      ]
+    },
+    {
+      "scenarioId": "B04",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-b-w1-b04-completed-rich",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-b/b04-completed-rich/fixtures.ts",
+        "src/app/dev/ui-lab/gate-b/b04-completed-rich/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+      ],
+      "lifecycle": "done",
+      "assistantCoachState": "CURRENT",
+      "requirementRefs": ["XR-T02", "XR-A01", "XR-A04"],
+      "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B04",
+      "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — completed-match-story.ts rich chronology + MatchInsights earned-finding drilldown; see VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "CompletedMatchAdvisorPanel not reused (useOrgSlug dependency, real mutating actions) — MatchInsights used instead; see BLOCKERS.md"
+      ]
+    }
+  ]
+}
