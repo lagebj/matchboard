@@ -83,6 +83,13 @@ const w4ExtraSmokeViewports = [
   { name: "w4-430", width: 430, height: 900 },
 ];
 
+// Gate B W1 (B01-B04 Match Details) smoke widths, same 360/430px rationale as Gate A's — own
+// named set per this script's established "no hidden coupling between waves" convention.
+const gbExtraSmokeViewports = [
+  { name: "gb-360", width: 360, height: 800 },
+  { name: "gb-430", width: 430, height: 900 },
+];
+
 // Gate A W5 finding: A07 and A10 both reuse A01's `max-w-[920px] ... flex-row` two-column
 // inspector-beside-content layout, and (A07 still; A10 fixed in this PR) reused A01's pre-round-4
 // `medium:flex-row` (600px) engagement — the same threshold used to decide inspector-vs-sheet at
@@ -559,6 +566,38 @@ const scenarios = [
     route: "gate-a/a11-qualitative-evidence-and-mutation/profile-change-review-rejected",
     extraViewports: w4ExtraSmokeViewports,
     interactions: [{ id: "rejected", perform: clickByName("Reject") }],
+  },
+  // Gate B W1 candidates (official register `25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv` B01-B04) —
+  // CANDIDATE, not approved. B01 reuses A07's two-column inspector-beside-content layout and the
+  // same A07 fixture-operation grammar, so it gets the same squeeze-width coverage; B02-B04 are
+  // static read-only compositions with no responsive inspector threshold, so only the 360/430px
+  // smoke widths apply.
+  {
+    slug: "gate-b-w1-b01-planned-ready",
+    route: "gate-b/b01-planned-ready",
+    extraViewports: [...gbExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Confirm assignment") },
+      { id: "saved", perform: clickResolvePending() },
+    ],
+  },
+  {
+    slug: "gate-b-w1-b02-planned-incomplete",
+    route: "gate-b/b02-planned-incomplete",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w1-b03-completed-sparse",
+    route: "gate-b/b03-completed-sparse",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w1-b04-completed-rich",
+    route: "gate-b/b04-completed-rich",
+    extraViewports: gbExtraSmokeViewports,
   },
 ];
 const viewports = [
