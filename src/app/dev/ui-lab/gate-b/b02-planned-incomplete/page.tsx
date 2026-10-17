@@ -24,7 +24,7 @@ export default function B02PlannedIncompletePage() {
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Gate B — B02 Before match, planned incomplete</p>
+        <h1 className="text-[22px] font-[650] text-[var(--foreground)]">Gate B — B02 Before match, planned incomplete</h1>
         <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
       </div>
 

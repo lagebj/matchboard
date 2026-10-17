@@ -5,6 +5,15 @@ component, data loader, or schema file is touched — every `src/` change is new
 under `src/app/dev/ui-lab/gate-b/` (dev-only, 404s in production) plus one additive extension of
 the existing visual-review capture script.
 
+## Phase 3 (CI fix) — additional changes
+
+- `b01-planned-ready/page.tsx`, `b02-planned-incomplete/page.tsx`, `b03-completed-sparse/page.tsx`,
+  `b04-completed-rich/page.tsx` — added a real `<h1>` (was a styled `<p>` eyebrow only). The CI
+  `ui-lab-visual-review.yml` job's capture script requires every `/dev/ui-lab/**` scenario page to
+  expose a visible `<h1>` as its readiness signal (`scripts/ui-lab-visual-review.mjs:655`, the same
+  convention every Gate A scenario page already follows) and timed out waiting for one on these
+  four pages, failing the job. No visual/behavioral change beyond the heading tag.
+
 ## Phase 2 (design audit, owner-requested) — additional changes
 
 - `b01-planned-ready/page.tsx`, `b02-planned-incomplete/page.tsx` — removed an invented

@@ -91,7 +91,7 @@ export default function B01PlannedReadyPage() {
     <div className="touchline mx-auto flex max-w-[920px] flex-col gap-6 px-4 py-8 expanded:flex-row expanded:items-start" data-ui-lab-ready="true">
       <div className="flex min-w-0 flex-col gap-4 expanded:w-[560px] expanded:shrink-0">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Gate B — B01 Before match, planned ready</p>
+          <h1 className="text-[22px] font-[650] text-[var(--foreground)]">Gate B — B01 Before match, planned ready</h1>
           <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
         </div>
 
