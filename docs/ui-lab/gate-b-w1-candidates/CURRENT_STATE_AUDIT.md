@@ -29,7 +29,7 @@
 | `MatchTimelineList` | `src/components/matches/match-detail/match-timeline-list.tsx` | Yes — pure |
 | `MatchFlowPanel` | `src/components/matches/match-detail/match-flow-panel.tsx` | Yes — pure, over `buildMatchFlowChronology()` |
 | `WhatThisMatchAddedPanel` | `src/components/matches/match-detail/what-this-match-added-panel.tsx` | Yes — pure, over `buildWhatThisMatchAddedRows()` |
-| `DecisionBanner` | `src/components/ui/decision-banner.tsx` | Yes — pure |
+| `DecisionBanner` | `src/components/ui/decision-banner.tsx` | **No (Phase 2)** — an earlier revision used it on B01/B02 to restate `MatchPreparationWidget`'s own readiness verdict; removed as duplicate information. See `VISUAL_VS_CURRENT.md` design-audit finding #1. |
 | A07's `useFixtureOperation`/`useDirtyCloseGuard`/`LineupSlotInspector`/`LineupSlotSheet` | `src/app/dev/ui-lab/gate-a/{shared/fixture-operation.ts,a07-match-details-edit-lineup/shared/lineup-slot-editor.tsx}` | Yes — B01's Edit Lineup demo imports these directly rather than duplicating them |
 | `MatchTacticsPanel` | `src/components/matches/match-tactics-panel.tsx` | **No** — self-fetches lineup + Match Insights client-side and mutates via server actions; not fixture-injectable (same gap class as A05/A08's `AssistantCoachHypothesisPanel`, W4-BLK-10) |
 | `PlanVsRealityPanel` | `src/components/matches/match-detail/plan-vs-reality-panel.tsx` | **No** — self-fetches via `getRotationVsActualAction` server action |

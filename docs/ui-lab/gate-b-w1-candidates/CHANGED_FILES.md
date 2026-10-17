@@ -5,6 +5,20 @@ component, data loader, or schema file is touched — every `src/` change is new
 under `src/app/dev/ui-lab/gate-b/` (dev-only, 404s in production) plus one additive extension of
 the existing visual-review capture script.
 
+## Phase 2 (design audit, owner-requested) — additional changes
+
+- `b01-planned-ready/page.tsx`, `b02-planned-incomplete/page.tsx` — removed an invented
+  `DecisionBanner` duplicating `MatchPreparationWidget`'s own output; updated doc comments.
+- `b03-completed-sparse/page.tsx` — added the Match Flow reconciliation note (additive,
+  UI-Lab-local); updated doc comment to `PROPOSED_REFINEMENT`.
+- `b04-completed-rich/page.tsx` — added the same reconciliation check for symmetry/regression
+  coverage (confirmed `true`, renders nothing); updated doc comment.
+- `shared/chronology-reconciliation.ts` — new helper, `chronologyReconcilesWithFinalScore()`.
+- `shared/__tests__/chronology-reconciliation.test.ts` — new unit tests for the helper.
+- Each scenario's `__tests__/page.test.tsx` — updated to assert the fixed/added behavior.
+- `candidate_manifest.json`, `VISUAL_VS_CURRENT.md`, `SOURCE_RECONCILIATION.md`, `BLOCKERS.md`,
+  `REVIEW_RECORD.md` — updated to record the audit and its findings.
+
 ## Documentation (this directory)
 
 - `BLOCKERS.md`, `CURRENT_STATE_AUDIT.md`, `DATA_TRUTH_AND_FIXTURES.md`,

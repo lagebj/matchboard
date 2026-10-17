@@ -2,10 +2,20 @@
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B01 | `CANDIDATE` | Pending owner review. |
-| B02 | `CANDIDATE` | Pending owner review. |
-| B03 | `CANDIDATE` | Pending owner review. |
-| B04 | `CANDIDATE` | Pending owner review. |
+| B01 | `CANDIDATE` | Pending owner review. Phase 2: invented duplicate `DecisionBanner` found and removed — now genuinely confirms baseline. |
+| B02 | `CANDIDATE` | Pending owner review. Phase 2: same `DecisionBanner` duplication found and removed. |
+| B03 | `CANDIDATE` | Pending owner review. Phase 2: reclassified `CONFIRMS_SHIPPED_BASELINE` → `PROPOSED_REFINEMENT` — a genuine `MatchFlowPanel` gap was found and demonstrated (not shipped to production). |
+| B04 | `CANDIDATE` | Pending owner review. Phase 2: re-audited against the same question as B03, confirmed — no change needed. |
+
+## Phase 2 — design-audit outcome (owner-requested genuine exploration)
+
+The owner asked this wave to pursue real design exploration for decision 1, assess real value for
+decision 2 (fixture-injectability), and asked for advice on decision 3 (Event/League parity). See
+`SOURCE_RECONCILIATION.md` for the full writeup. Outcome: two real issues found and fixed in the
+existing candidates (B01/B02 duplicate banner), one genuine refinement proposed (B03's Match Flow
+reconciliation note), one scenario re-confirmed rather than assumed (B04), decision 2 recommended
+deferred (not needed by either finding), decision 3 grounded in `docs/agents/event-and-league-behavior.md`
++ ADR-0011 (real gap, not an intentional boundary) in `BLOCKERS.md`.
 
 **No `APPROVED_GOLDEN` status is claimed anywhere in this wave.** Promotion to `APPROVED_GOLDEN`
 requires explicit owner review of the exact evidence and revision — the same gate Gate A used

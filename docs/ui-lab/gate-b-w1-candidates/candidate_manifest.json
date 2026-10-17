@@ -2,7 +2,7 @@
   "programmeRevision": "0.5.4",
   "baseCommitSha": "568da6fff06be65ce7ef5fe4910c0d99e2ab4ca0",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W1 (B01 planned ready, B02 planned incomplete, B03 completed sparse, B04 completed rich). All four entries are CANDIDATE — no owner approval has happened yet. No capture-attestation.json is committed in this PR; local browser capture could not be run in this sandbox (HMR WebSocket upgrade failure, same disclosed Gate A W1 limitation). Real captures and their SHA-256 attestation must come from this PR's own CI run of ui-lab-visual-review.yml.",
+  "note": "Gate B W1 (B01 planned ready, B02 planned incomplete, B03 completed sparse, B04 completed rich). All four entries are CANDIDATE — no owner approval has happened yet. No capture-attestation.json is committed in this PR; local browser capture could not be run in this sandbox (HMR WebSocket upgrade failure, same disclosed Gate A W1 limitation). Real captures and their SHA-256 attestation must come from this PR's own CI run of ui-lab-visual-review.yml. Phase 2 design audit (owner-requested): removed an invented DecisionBanner from B01/B02 that duplicated MatchPreparationWidget's own output; found and proposed a genuine refinement for B03 (Match Flow reconciliation disclosure); re-confirmed B04 against the same question. See VISUAL_VS_CURRENT.md.",
   "candidates": [
     {
       "scenarioId": "B01",
@@ -23,7 +23,8 @@
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — before-match-overview.tsx (ADR-0157 C3, PR #760); see VISUAL_VS_CURRENT.md",
       "knownGaps": [
-        "MatchTacticsPanel/PlannedPlayingTimePanel/CoachingIntentSelector/MatchFormatOverrideControls not reused — self-fetching/mutating, not fixture-injectable; see DATA_TRUTH_AND_FIXTURES.md"
+        "MatchTacticsPanel/PlannedPlayingTimePanel/CoachingIntentSelector/MatchFormatOverrideControls not reused — self-fetching/mutating, not fixture-injectable; see DATA_TRUTH_AND_FIXTURES.md",
+        "RESOLVED (Phase 2): an invented DecisionBanner duplicating MatchPreparationWidget's own readiness output was removed; see VISUAL_VS_CURRENT.md design-audit finding #1"
       ]
     },
     {
@@ -43,7 +44,8 @@
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — MatchPreparationWidget/MatchOpponentMemory/MatchInsights honest-empty states; see VISUAL_VS_CURRENT.md",
       "knownGaps": [
-        "No lineup-editing interaction offered — there is no lineup yet to edit, the honest state"
+        "No lineup-editing interaction offered — there is no lineup yet to edit, the honest state",
+        "RESOLVED (Phase 2): an invented DecisionBanner duplicating MatchPreparationWidget's own readiness output was removed; see VISUAL_VS_CURRENT.md design-audit finding #1"
       ]
     },
     {
@@ -61,9 +63,10 @@
       "requirementRefs": ["XR-T02", "XR-S01"],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B03",
       "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — completed-match-story.ts/MatchFlowPanel sparse-chronology degradation (ADR-0157 C6, PR #764); see VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (was mislabeled CONFIRMS_SHIPPED_BASELINE) — adds a Match Flow final-score reconciliation disclosure not present in real match-flow-panel.tsx; demonstrated via additive UI-Lab-local markup, not a production edit; see VISUAL_VS_CURRENT.md and BLOCKERS.md",
       "knownGaps": [
-        "Final lineup, PlanVsRealityPanel, coaching-intent review, reflection/notes rows omitted — see DATA_TRUTH_AND_FIXTURES.md"
+        "Final lineup, PlanVsRealityPanel, coaching-intent review, reflection/notes rows omitted — see DATA_TRUTH_AND_FIXTURES.md",
+        "Proposed MatchFlowPanel reconciliation disclosure (design-audit finding #2) not yet implemented in the real component — see BLOCKERS.md for the exact proposed change"
       ]
     },
     {
@@ -81,7 +84,7 @@
       "requirementRefs": ["XR-T02", "XR-A01", "XR-A04"],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B04",
       "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — completed-match-story.ts rich chronology + MatchInsights earned-finding drilldown; see VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE (re-audited against the Phase 2 design-audit question, not just assumed) — completed-match-story.ts rich chronology + MatchInsights earned-finding drilldown; see VISUAL_VS_CURRENT.md",
       "knownGaps": [
         "CompletedMatchAdvisorPanel not reused (useOrgSlug dependency, real mutating actions) — MatchInsights used instead; see BLOCKERS.md"
       ]

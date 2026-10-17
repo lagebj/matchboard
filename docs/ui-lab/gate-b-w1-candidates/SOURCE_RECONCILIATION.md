@@ -57,6 +57,28 @@ composition could not be reused as-is (self-fetching/mutating mid-level panels �
 framing is correct, or redirect toward genuine compositional proposals for B01-B04 instead. Every
 other decision in this wave follows from this one.
 
+## Phase 2 — the owner chose genuine exploration; here is what it found
+
+The owner asked this wave to pursue genuine design exploration rather than pure confirmation,
+explicitly accepting that the exploration might still conclude current production is already
+good. Reading the real component source directly (not relying on the earlier summary above) found:
+
+- B01 and B02's first revision had each quietly **added** an invented `DecisionBanner` duplicating
+  `MatchPreparationWidget`'s own output — a real violation, now fixed by removing it. Once fixed,
+  B01/B02 **do** genuinely confirm the shipped baseline, this time for real (the audit checked,
+  not assumed).
+- B03/B04 surfaced one genuine, narrow, well-grounded refinement: `MatchFlowPanel` never discloses
+  when a trustworthy-but-sparse chronology's running tally disagrees with the real final score.
+  B03 now demonstrates the disclosure (additive, UI-Lab-local, not a production edit); B04 was
+  re-checked against the same question and confirmed to need nothing.
+- Fixture-injectability (decision 2) turned out not to be needed for either finding — recommended
+  deferred to a wave that actually needs to manipulate a self-fetching panel (B07 is the natural
+  candidate).
+
+Full detail in `VISUAL_VS_CURRENT.md` and `BLOCKERS.md`. The owner's Event/League-parity question
+(decision 3) is answered in `BLOCKERS.md` as well, grounded in `docs/agents/event-and-league-behavior.md`
+and ADR-0011 rather than guessed.
+
 ## What this PR does not decide
 
 - B05 (Post-Match Report draft/final), B06 (League/Event parity), B07 (Assistant Coach

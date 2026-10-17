@@ -19,13 +19,19 @@ run of `.github/workflows/ui-lab-visual-review.yml` (triggers automatically — 
 `REVIEW_RECORD.md`) and added once that run completes. `candidate_manifest.json` in this directory
 is deliberately `status: "CANDIDATE"` with no `approval` block, for the same reason.
 
-## Event Match Details has no non-live route (relevant to deferred B06)
+## Event Match Details has no non-live route (relevant to deferred B06) — resolved to a real gap, not an intentional boundary
 
 `src/app/(app)/o/[orgSlug]/events/[eventId]/matches/[eventMatchId]/` has only `/live` and
-`/live/follow` — no plain before/after details page analogous to League's. Whoever picks up B06
-(League/Event parity) should confirm whether that gap needs a new production route before
-attempting parity, or whether Event matches are intentionally live-only today. Not investigated
-further here — B06 is out of scope for this wave.
+`/live/follow` — no plain before/after details page analogous to League's. Checked the documented
+product intent rather than guessing: `docs/agents/event-and-league-behavior.md` states "Event
+planning has parity with league planning" as a stated product principle, and ADR-0011 already
+defines `EventPostMatchReport`/`EventPostMatchPlayer`/`EventGoalEvent` mirroring the league report
+structure specifically so event matches get post-match results. **This is a real implementation
+gap relative to documented intent, not an intentional live-only design.** When B06 is picked up,
+reusing the same real components (`MatchIdentityCard`, `before/after-match-overview` building
+blocks) against `EventMatch` data is the cheaper path precisely because the schema already
+anticipates it — parity doesn't need to be chased beyond that. B06 itself stays deferred; this
+note just removes the ambiguity for whoever picks it up.
 
 ## `getRotationVsActual()` `plannedMinutes: 0` — re-verify before reusing `PlanVsRealityPanel`
 
@@ -45,6 +51,23 @@ finding with source drilldown" requirement instead. B07 (Assistant Coach longitu
 context, deferred) is this panel's real territory and should make it fixture-injectable there,
 following the same adoption pattern Gate A W4 already proposed for `AssistantCoachHypothesisPanel`
 (W4-BLK-10).
+
+## Proposed real-component change: `MatchFlowPanel` final-score reconciliation (design-audit finding #2, not implemented here)
+
+`buildMatchFlowChronology()`'s `trustworthy` flag (`src/lib/matches/completed-match-story.ts`)
+only checks whether every goal event has a known minute — it never checks whether the resulting
+cumulative tally actually reconciles with the match's real final score. A fully trustworthy but
+sparse chronology (B03's exact case: one 23' goal, final score 6-4) renders a `MatchFlowPanel`
+ending at a silent "1-0" with no indication that 9 other goals are unaccounted for.
+
+If the owner wants this productionized, the proposed shape is additive and backward-compatible:
+give `MatchFlowPanel` an optional `finalScore: { own: number; opponent: number } | null` prop
+(defaulting to `null`, current behavior unchanged). When provided and the chronology is
+`trustworthy`, compare the last point's `ownGoals`/`opponentGoals` to `finalScore` and render a
+short disclosure line when they differ — exactly what this wave's B03 candidate demonstrates via
+`src/app/dev/ui-lab/gate-b/shared/chronology-reconciliation.ts` (UI-Lab-local only; not wired into
+the real component in this PR). This would be a separate, small production PR, not part of this
+Gate B UI Lab wave.
 
 ## Known scope reductions (not gaps — logged choices)
 

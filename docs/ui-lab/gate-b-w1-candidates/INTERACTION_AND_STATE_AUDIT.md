@@ -40,9 +40,21 @@ a completed match's Overview is read-only in production too).
 
 ## Context-local vs. non-actionable states
 
-B01 is the only scenario with a legitimate action (Edit Lineup) — its `DecisionBanner` uses
-`variant="note"` (not `"decision"`) because the plan is already complete; nothing is actually
-blocking kickoff. B02's `DecisionBanner` correctly uses `variant="decision"` (amber, `role="alert"`)
-because selecting the remaining squad and lineup is a genuine open requirement. B03/B04 render no
-decision banner at all — a completed match has no outstanding coach decision, and a banner
-implying one would be dishonest.
+B01 is the only scenario with a legitimate action (Edit Lineup). B03/B04 render no decision
+banner at all — a completed match has no outstanding coach decision.
+
+**Design-audit correction (Phase 2)**: B01 and B02's first revision each added a `DecisionBanner`
+here to restate the plan's readiness verdict ("complete"/"select the remaining squad") —
+duplicate information, since `MatchPreparationWidget` already renders the exact same verdict as
+its own "Ready for match" item. Both banners are removed. `MatchPreparationWidget` alone is now
+the single real readiness/non-actionable-state surface for B01/B02; no replacement banner was
+added, since nothing non-duplicative was missing.
+
+## Match Flow reconciliation disclosure (B03 only — design-audit finding #2, PROPOSED_REFINEMENT)
+
+B03 renders an additive note after `MatchFlowPanel` when `chronologyReconcilesWithFinalScore()`
+(`src/app/dev/ui-lab/gate-b/shared/chronology-reconciliation.ts`) returns `false` — i.e. the
+chronology is fully trustworthy (every goal has a known minute) but its cumulative tally still
+disagrees with the real final score. This is a genuinely new state this wave demonstrates that the
+real `match-flow-panel.tsx` does not disclose today; see `BLOCKERS.md` for the proposed real
+change. B04 computes the same check and confirms it is `true` (nothing renders) — covered by test.
