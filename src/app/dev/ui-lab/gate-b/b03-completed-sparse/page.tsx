@@ -6,6 +6,8 @@ import { WhatThisMatchAddedPanel } from "@/components/matches/match-detail/what-
 import { TouchlineWidget } from "@/components/touchline/widget/touchline-widget";
 import { WidgetHeader } from "@/components/touchline/widget/widget-header";
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
+import { buildMatchFlowChronology } from "@/lib/matches/completed-match-story";
+import { chronologyReconcilesWithFinalScore } from "../shared/chronology-reconciliation";
 import { identity, matchIdentity, timeline, whatThisMatchAddedInput } from "./fixtures";
 
 /**
@@ -15,6 +17,14 @@ import { identity, matchIdentity, timeline, whatThisMatchAddedInput } from "./fi
  * — demonstrating the real "result vs. partial chronology" split, not a simulated one.
  * `MatchTacticsPanel`/`PlanVsRealityPanel` (final lineup, plan-vs-reality) are not reused here —
  * see DATA_TRUTH_AND_FIXTURES.md for why.
+ *
+ * Design-audit finding (Phase 2) -- PROPOSED_REFINEMENT, not a baseline confirmation: the real
+ * `MatchFlowPanel`/`buildMatchFlowChronology()` only disclose an *untrustworthy* chronology
+ * (unknown goal minute); they never disclose a *trustworthy-but-sparse* one, where every recorded
+ * goal has a known minute but the chronology's own running tally still ends short of the real
+ * final score (exactly this fixture: one 23' goal reconciles to a running "1-0", never 6-4). The
+ * note below is additive, UI-Lab-local markup demonstrating the disclosure -- it does not edit the
+ * real `match-flow-panel.tsx`. See BLOCKERS.md for the proposed real-component change.
  */
 export default function B03CompletedSparsePage() {
   const factsItems: MetricStripItem[] = [
@@ -22,6 +32,9 @@ export default function B03CompletedSparsePage() {
     { id: "recorded-events", label: "Recorded events", value: String(timeline.length) },
     { id: "assists", label: "Assists", value: "0" },
   ];
+
+  const chronology = buildMatchFlowChronology(timeline);
+  const chronologyReconciles = chronologyReconcilesWithFinalScore(matchIdentity, chronology);
 
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
@@ -50,6 +63,14 @@ export default function B03CompletedSparsePage() {
       </TouchlineWidget>
 
       <MatchFlowPanel timeline={timeline} ownTeamName={matchIdentity.homeTeam} opponentName={matchIdentity.awayTeam} />
+      {!chronologyReconciles && (
+        <p className="text-xs text-[var(--text-muted)]" data-testid="match-flow-reconciliation-note">
+          This chronology ends at {chronology.points.at(-1)?.ownGoals}-{chronology.points.at(-1)?.opponentGoals}, not
+          the final {matchIdentity.score?.home}-{matchIdentity.score?.away} — it only tracks the {timeline.length} individually
+          logged event{timeline.length === 1 ? "" : "s"} above, not the rest of the match. Proposed refinement to
+          `MatchFlowPanel`, not yet in production — see BLOCKERS.md.
+        </p>
+      )}
 
       <WhatThisMatchAddedPanel input={whatThisMatchAddedInput} />
     </div>

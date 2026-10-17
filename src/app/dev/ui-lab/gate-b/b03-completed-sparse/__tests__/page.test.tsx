@@ -28,4 +28,11 @@ describe("B03 completed-sparse page", () => {
     renderPage();
     expect(screen.queryByText("What this match added")).not.toBeInTheDocument();
   });
+
+  it("discloses that the trustworthy-but-sparse Match Flow chronology (1-0) does not reconcile with the real final score (6-4) — design-audit finding, PROPOSED_REFINEMENT", () => {
+    renderPage();
+    const note = screen.getByTestId("match-flow-reconciliation-note");
+    expect(note.textContent).toMatch(/1-0/);
+    expect(note.textContent).toMatch(/6-4/);
+  });
 });

@@ -12,10 +12,15 @@ function renderPage() {
 }
 
 describe("B02 planned-incomplete page", () => {
-  it("shows honest missing-planning state, not an invented checklist or percentage", () => {
+  it("shows honest missing-planning state via the real MatchPreparationWidget, not an invented checklist, percentage, or duplicate banner", () => {
     renderPage();
-    expect(screen.getByText("Select the remaining squad and set a lineup")).toBeInTheDocument();
+    // Design-audit correction: an earlier revision added a DecisionBanner restating this same
+    // "5/8 selected, lineup not set" state in different words — removed as duplicate information.
+    expect(screen.getByText("1/3 complete")).toBeInTheDocument();
+    expect(screen.getByText("5/8")).toBeInTheDocument();
+    expect(screen.getAllByText("Not set").length).toBeGreaterThan(0);
     expect(screen.getByText("Lineup not set — no positions have been assigned yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Select the remaining squad and set a lineup")).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/\d+%/);
   });
 
@@ -33,6 +38,6 @@ describe("B02 planned-incomplete page", () => {
     renderPage();
     expect(screen.queryByText("Permission denied")).not.toBeInTheDocument();
     expect(screen.queryByText("Could not save")).not.toBeInTheDocument();
-    expect(screen.getByText("Select the remaining squad and set a lineup")).toBeInTheDocument();
+    expect(screen.getByText("Not yet")).toBeInTheDocument();
   });
 });

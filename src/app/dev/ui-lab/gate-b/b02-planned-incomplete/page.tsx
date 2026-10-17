@@ -2,7 +2,6 @@
 
 import { AppearanceControl } from "@/components/touchline";
 import { TouchlinePlanningPitch } from "@/components/touchline/pitch/touchline-planning-pitch";
-import { DecisionBanner } from "@/components/ui/decision-banner";
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
 import { MatchPreparationWidget } from "@/components/matches/match-detail/match-preparation-widget";
 import { MatchOpponentMemory } from "@/components/matches/match-detail/match-opponent-memory";
@@ -15,6 +14,11 @@ import { identity, matchIdentity, squad, preparationInput, opponentMemory, match
  * `MatchPreparationWidget`, `MatchOpponentMemory`, `MatchInsights`) fed a genuinely incomplete
  * fixture. No Edit Lineup interaction is offered here — there is no lineup yet to edit, which is
  * itself the honest state, not a disabled/greyed-out button pretending one exists.
+ *
+ * Design-audit correction (Phase 2): an earlier revision added a `DecisionBanner` restating
+ * `MatchPreparationWidget`'s own "Squad selected 5/8" / "Lineup set: Not set" / "Ready for match:
+ * Not yet" output in different words — a duplicate-information violation. `MatchPreparationWidget`
+ * is the single real readiness surface; nothing is added beside it. See VISUAL_VS_CURRENT.md.
  */
 export default function B02PlannedIncompletePage() {
   return (
@@ -42,12 +46,6 @@ export default function B02PlannedIncompletePage() {
         <TouchlinePlanningPitch slots={matchBPlanningPitchSlots()} assignments={matchBPlanningPitchAssignments(squad)} readOnly compact className="max-w-[320px]" />
         <p className="text-[13px] text-[var(--text-muted)]">Lineup not set — no positions have been assigned yet.</p>
       </div>
-
-      <DecisionBanner
-        variant="decision"
-        title="Select the remaining squad and set a lineup"
-        description="5 of 8 planned players selected, no positions assigned. This is missing planning, not a permission or data error."
-      />
     </div>
   );
 }

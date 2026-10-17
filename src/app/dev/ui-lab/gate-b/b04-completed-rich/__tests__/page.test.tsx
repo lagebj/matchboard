@@ -32,6 +32,11 @@ describe("B04 completed-rich page", () => {
     expect(screen.getByText("What this match added")).toBeInTheDocument();
   });
 
+  it("never shows the B03 reconciliation note — its chronology already reconciles with the final score by construction (design audit, confirmed)", () => {
+    renderPage();
+    expect(screen.queryByTestId("match-flow-reconciliation-note")).not.toBeInTheDocument();
+  });
+
   it("every interactive element has an accessible name (keyboard/overflow smoke)", () => {
     renderPage();
     const buttons = screen.queryAllByRole("button");

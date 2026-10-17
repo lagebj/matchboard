@@ -20,10 +20,15 @@ function openAndSelect() {
 }
 
 describe("B01 planned-ready page", () => {
-  it("shows stable match identity and no duplicated 'ready' status across widgets", () => {
+  it("shows stable match identity and the single real readiness signal, not a duplicate banner", () => {
     mockViewport(true);
     renderPage();
-    expect(screen.getByText("Squad and lineup are complete")).toBeInTheDocument();
+    // MatchPreparationWidget's own computed output is the only readiness surface on the page —
+    // design-audit correction: an earlier revision duplicated it with a DecisionBanner restating
+    // the same "ready" verdict in different words.
+    expect(screen.getByText("3/3 complete")).toBeInTheDocument();
+    expect(screen.getAllByText("Ready for match").length).toBe(1);
+    expect(screen.queryByText("Squad and lineup are complete")).not.toBeInTheDocument();
     expect(screen.getAllByText(/Slemmestad Rød/).length).toBeGreaterThan(0);
   });
 

@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { AppearanceControl } from "@/components/touchline";
 import { TouchlinePlanningPitch } from "@/components/touchline/pitch/touchline-planning-pitch";
-import { DecisionBanner } from "@/components/ui/decision-banner";
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
 import { MatchPreparationWidget } from "@/components/matches/match-detail/match-preparation-widget";
 import { MatchOpponentMemory } from "@/components/matches/match-detail/match-opponent-memory";
@@ -34,6 +33,12 @@ import {
  * `CoachingIntentSelector` are NOT reused directly here — they self-fetch/mutate against the real
  * DB via server actions and are not fixture-injectable (same gap Gate A's A05/A08 already
  * disclosed for `AssistantCoachHypothesisPanel`, W4-BLK-10). See DATA_TRUTH_AND_FIXTURES.md.
+ *
+ * Design-audit correction (Phase 2): an earlier revision added a `DecisionBanner` restating
+ * `MatchPreparationWidget`'s own "Ready for match: Ready" output in different words — a
+ * duplicate-information violation. `MatchPreparationWidget` is the single real readiness surface;
+ * the optional LCM swap is only ever surfaced inside the Edit lineup editor itself, not repeated
+ * on the page. See VISUAL_VS_CURRENT.md.
  */
 export default function B01PlannedReadyPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -112,12 +117,6 @@ export default function B01PlannedReadyPage() {
             Edit lineup
           </button>
         </div>
-
-        <DecisionBanner
-          variant="note"
-          title="Squad and lineup are complete"
-          description="Nothing is blocking kickoff. Vetle remains an available swap at LCM via Edit lineup, if wanted — not a required decision."
-        />
       </div>
 
       {isOpen && isDesktop ? <LineupSlotInspector {...editorProps} className="expanded:flex-1" /> : null}
