@@ -29,10 +29,27 @@ describe("B03 completed-sparse page", () => {
     expect(screen.queryByText("What this match added")).not.toBeInTheDocument();
   });
 
-  it("discloses that the trustworthy-but-sparse Match Flow chronology (1-0) does not reconcile with the real final score (6-4) — design-audit finding, PROPOSED_REFINEMENT", () => {
+  it("discloses that the trustworthy-but-sparse Match Flow chronology (1-0) does not reconcile with the real final score (6-4), in purely coach-facing language (B1-R5)", () => {
     renderPage();
     const note = screen.getByTestId("match-flow-reconciliation-note");
     expect(note.textContent).toMatch(/1-0/);
     expect(note.textContent).toMatch(/6-4/);
+  });
+
+  it("never exposes implementation commentary in the reconciliation note", () => {
+    renderPage();
+    const note = screen.getByTestId("match-flow-reconciliation-note");
+    expect(note.textContent).not.toMatch(/MatchFlowPanel/i);
+    expect(note.textContent).not.toMatch(/BLOCKERS/i);
+    expect(note.textContent).not.toMatch(/production/i);
+    expect(note.textContent).not.toContain("`");
+  });
+
+  it("never implies the recorded 6-4 result itself is wrong", () => {
+    renderPage();
+    const note = screen.getByTestId("match-flow-reconciliation-note");
+    expect(note.textContent).not.toMatch(/incorrect/i);
+    expect(note.textContent).not.toMatch(/\bwrong\b/i);
+    expect(note.textContent).not.toMatch(/\berror\b/i);
   });
 });

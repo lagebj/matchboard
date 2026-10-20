@@ -65,10 +65,9 @@ export default function B03CompletedSparsePage() {
       <MatchFlowPanel timeline={timeline} ownTeamName={matchIdentity.homeTeam} opponentName={matchIdentity.awayTeam} />
       {!chronologyReconciles && (
         <p className="text-xs text-[var(--text-muted)]" data-testid="match-flow-reconciliation-note">
-          This chronology ends at {chronology.points.at(-1)?.ownGoals}-{chronology.points.at(-1)?.opponentGoals}, not
-          the final {matchIdentity.score?.home}-{matchIdentity.score?.away} — it only tracks the {timeline.length} individually
-          logged event{timeline.length === 1 ? "" : "s"} above, not the rest of the match. Proposed refinement to
-          `MatchFlowPanel`, not yet in production — see BLOCKERS.md.
+          The recorded event timeline accounts for {chronology.points.at(-1)?.ownGoals}-{chronology.points.at(-1)?.opponentGoals} of
+          the final {matchIdentity.score?.home}-{matchIdentity.score?.away} result. The other goals were not recorded
+          individually, so this timeline does not show the full match. The final score remains the official result.
         </p>
       )}
 
