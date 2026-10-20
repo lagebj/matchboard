@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
-import { identity, rawRecordsForHash, matchInsights, squad } from "../fixtures";
+import { identity, rawRecordsForHash, matchInsights, squad, opponentMemory } from "../fixtures";
+import { b01TobiasRcmAppearanceRecords } from "../../shared/match-b-fixture";
 
 describe("B01 planned-ready fixture", () => {
   it("fixtureSha256 matches an independent recomputation from the raw records, not a copied literal", () => {
@@ -26,5 +27,16 @@ describe("B01 planned-ready fixture", () => {
     const unassigned = squad.filter((m) => m.tacticalPosition === null);
     expect(unassigned).toHaveLength(1);
     expect(unassigned[0]?.role).toBe("reserve");
+  });
+
+  it("every evidenceRef on both Match Insights resolves to a real recorded source (B1-R3)", () => {
+    const recentEncounterIds = new Set((opponentMemory?.recentEncounters ?? []).map((e) => e.matchId));
+    const tobiasAppearanceIds = new Set(b01TobiasRcmAppearanceRecords.map((r) => r.sourceId));
+    for (const ref of matchInsights.insights[0]!.evidenceRefs) {
+      expect(recentEncounterIds.has(ref)).toBe(true);
+    }
+    for (const ref of matchInsights.insights[1]!.evidenceRefs) {
+      expect(tobiasAppearanceIds.has(ref)).toBe(true);
+    }
   });
 });

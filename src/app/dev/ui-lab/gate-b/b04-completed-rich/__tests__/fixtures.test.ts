@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
-import { identity, rawRecordsForHash, matchIdentity, timeline, matchInsights } from "../fixtures";
+import { identity, rawRecordsForHash, matchIdentity, timeline, matchInsights, whatThisMatchAddedInput } from "../fixtures";
+import { b04CombinationSourceRecords, b04FootballObservations } from "../../shared/match-b-fixture";
 
 describe("B04 completed-rich fixture", () => {
   it("fixtureSha256 matches an independent recomputation from the raw records, not a copied literal", () => {
@@ -35,5 +36,36 @@ describe("B04 completed-rich fixture", () => {
     for (const forbidden of ["possession", "xg", "shots", "cards", "rating", "playerofthematch", "momentum"]) {
       expect(serialized).not.toContain(forbidden);
     }
+  });
+
+  it("every evidenceRef on the combination insight resolves to a real recorded source (B1-R3)", () => {
+    const timelineIds = new Set(timeline.map((i) => i.id));
+    const sourceIds = new Set(b04CombinationSourceRecords.map((s) => s.sourceId));
+    for (const ref of matchInsights.insights[0]!.evidenceRefs) {
+      expect(timelineIds.has(ref) || sourceIds.has(ref)).toBe(true);
+    }
+  });
+
+  it("the '2 matches' claim is backed by 2 genuinely distinct recorded matches, not one source counted twice", () => {
+    const scopes = new Set(b04CombinationSourceRecords.map((s) => s.scope));
+    expect(scopes.size).toBe(2);
+    expect(b04CombinationSourceRecords).toHaveLength(2);
+  });
+
+  it("the insight title claims only what's provable — '2 matches', never '2 goals' as its framing", () => {
+    expect(matchInsights.insights[0]!.title).toMatch(/2 matches/i);
+    expect(matchInsights.insights[0]!.title).not.toMatch(/2 goals/i);
+  });
+
+  it("observationCount is backed by real observation records, not a bare number", () => {
+    expect(whatThisMatchAddedInput.observationCount).toBe(b04FootballObservations.length);
+  });
+
+  it("firstTimeCanonicalPositions traces back to a real ROTATION event in the timeline", () => {
+    const claimedPlayerName = whatThisMatchAddedInput.firstTimeCanonicalPositions[0]?.playerName;
+    const tracedInTimeline = timeline.some(
+      (item) => item.kind === "ROTATION" && item.secondaryPlayerName === claimedPlayerName,
+    );
+    expect(tracedInTimeline).toBe(true);
   });
 });

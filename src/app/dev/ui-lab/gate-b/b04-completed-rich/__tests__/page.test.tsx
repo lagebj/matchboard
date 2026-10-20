@@ -24,7 +24,32 @@ describe("B04 completed-rich page", () => {
     expect(summary).not.toBeNull();
     expect(summary?.textContent).toBe("Evidence");
     fireEvent.click(summary as Element);
-    expect(screen.getByText(/Based on 3 recorded facts/)).toBeInTheDocument();
+    expect(screen.getByText(/Based on 2 recorded facts/)).toBeInTheDocument();
+  });
+
+  it("never uses the pre-match 'planning this match' heading — this is a completed match (B1-R3)", () => {
+    renderPage();
+    expect(document.body.textContent).not.toMatch(/planning this match/i);
+  });
+
+  it("opening the evidence inspector shows both genuinely distinct recorded source records", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Inspect combination evidence/i }));
+    expect(screen.getAllByTestId("source-record-row")).toHaveLength(2);
+  });
+
+  it("draws an explicit line between the recorded facts and the AI's own interpretation", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Inspect combination evidence/i }));
+    expect(screen.getByText(/AI's combined-pairing claim/i)).toBeInTheDocument();
+  });
+
+  it("evidence inspection is read-only — opening and closing it never mutates the insight content", () => {
+    renderPage();
+    const titleBefore = screen.getByText(/Noah and Sindre have combined/i).textContent;
+    fireEvent.click(screen.getByRole("button", { name: /Inspect combination evidence/i }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getByText(/Noah and Sindre have combined/i).textContent).toBe(titleBefore);
   });
 
   it("renders a real 'What this match added' panel — the opposite of B03's honestly-empty one", () => {

@@ -1,7 +1,7 @@
 import type { FixtureIdentity } from "../../gate-a/shared/fixture-identity";
 import type { FixtureOperationOutcome } from "../../gate-a/shared/fixture-operation";
 import type { LineupAssignmentSuccess } from "../../gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor";
-import { b01MatchIdentity, b01Squad, b01OpponentMemory, B01_EDIT_SLOT, B01_EDIT_CANDIDATE, B01_NOW } from "../shared/match-b-fixture";
+import { b01MatchIdentity, b01Squad, b01OpponentMemory, B01_EDIT_SLOT, B01_EDIT_CANDIDATE, B01_NOW, B01_OPPONENT_NAME } from "../shared/match-b-fixture";
 import type { MatchPreparationInput } from "@/lib/matches/match-detail-view-model";
 import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-match-insights";
 
@@ -17,7 +17,7 @@ export const identity: FixtureIdentity = {
   scenarioId: "B01",
   fixtureId: "gate-b-w1-b01-planned-ready",
   fixtureVersion: 1,
-  fixtureSha256: "5d003fc1aaec0189307f20255183d7870ff1b2bc79390b3313b06a8598529213",
+  fixtureSha256: "cdbca2830e9d9d3cac362e7ff679b53462b5cadac8ded465a2858b01694e0798",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B01_NOW.toISOString(),
   viewerTimeZone: "Europe/Oslo",
@@ -43,13 +43,13 @@ export const matchInsights: MatchInsightsViewModel = {
       id: "insight-gb1-1",
       category: "OPPONENT_HISTORY",
       relevance: "HIGH",
-      title: `${B01_EDIT_CANDIDATE.displayName} has started every recorded meeting with this opponent`,
-      observation: "Recorded in both of the last two encounters, both as a starter.",
-      implication: "Worth confirming the same role again for this match.",
-      subjectRefs: [B01_EDIT_CANDIDATE.playerId],
-      factRefs: ["fact-starting-pattern-vetle"],
-      evidenceRefs: ["fact-starting-pattern-vetle", "fact-opponent-encounter-1", "fact-opponent-encounter-2"],
-      confidence: "MEDIUM",
+      title: "Won the most recent meeting with this opponent 3-1, after a 2-2 draw before that",
+      observation: `Two recorded meetings with ${B01_OPPONENT_NAME}: a 3-1 win and a 2-2 draw.`,
+      implication: "A team with a competitive recent history — worth full focus despite squad depth.",
+      subjectRefs: [],
+      factRefs: ["fact-opponent-recent-results"],
+      evidenceRefs: ["match-gate-b-prev-1", "match-gate-b-prev-2"],
+      confidence: "HIGH",
       source: "DETERMINISTIC",
     },
     {
@@ -60,7 +60,7 @@ export const matchInsights: MatchInsightsViewModel = {
       observation: "Tobias has 2 recorded appearances at RCM this season, both under 30 minutes.",
       subjectRefs: ["player-gb-tobias"],
       factRefs: ["fact-position-exposure-tobias"],
-      evidenceRefs: ["fact-position-exposure-tobias"],
+      evidenceRefs: ["appearance-gb1-tobias-rcm-1", "appearance-gb1-tobias-rcm-2"],
       confidence: "LOW",
       source: "DETERMINISTIC",
     },

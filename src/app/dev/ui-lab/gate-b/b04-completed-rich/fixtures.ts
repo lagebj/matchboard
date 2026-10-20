@@ -1,5 +1,5 @@
 import type { FixtureIdentity } from "../../gate-a/shared/fixture-identity";
-import { b04MatchIdentity, b04Timeline, B04_KICKOFF_AT } from "../shared/match-b-fixture";
+import { b04MatchIdentity, b04Timeline, B04_KICKOFF_AT, b04FootballObservations } from "../shared/match-b-fixture";
 import type { WhatThisMatchAddedInput } from "@/lib/matches/completed-match-story";
 import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-match-insights";
 
@@ -14,7 +14,7 @@ export const identity: FixtureIdentity = {
   scenarioId: "B04",
   fixtureId: "gate-b-w1-b04-completed-rich",
   fixtureVersion: 1,
-  fixtureSha256: "24612280a0e5c8721cb0a0d30a3994fddf977294183cd2736926f3e3a5718616",
+  fixtureSha256: "6317d9ebeed907f537217bd9b71048964bec919a5401030df827621613eb7de0",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B04_KICKOFF_AT.toISOString(),
   viewerTimeZone: "Europe/Oslo",
@@ -32,12 +32,12 @@ export const matchInsights: MatchInsightsViewModel = {
       id: "insight-gb4-1",
       category: "COMBINATION",
       relevance: "HIGH",
-      title: "Noah and Sindre have combined for 2 goals in the last 2 matches",
-      observation: "Noah scored from a Sindre assist in the 8th minute, and Kasper assisted Noah's second in the 52nd — a real, recorded link, not a projection.",
+      title: "Noah and Sindre have combined for a goal in each of the last 2 matches",
+      observation: "Sindre assisted Noah's 8th-minute goal in this match — the same pairing recorded in the prior match on 20 Sep 2026 against Krokstadelva IL.",
       implication: "A pairing worth preserving in the next lineup.",
-      subjectRefs: ["player-gb4-noah", "player-gb4-sindre", "player-gb4-kasper"],
-      factRefs: ["fact-goal-combination-noah-sindre"],
-      evidenceRefs: ["evt-gb4-goal-1", "evt-gb4-goal-2", "fact-goal-combination-noah-sindre"],
+      subjectRefs: ["player-gb4-noah", "player-gb4-sindre"],
+      factRefs: ["fact-goal-combination-noah-sindre-2-matches"],
+      evidenceRefs: ["evt-gb4-goal-1", "evt-gb4-prev-1-goal-1"],
       confidence: "HIGH",
       source: "AI",
     },
@@ -46,10 +46,10 @@ export const matchInsights: MatchInsightsViewModel = {
 
 export const whatThisMatchAddedInput: WhatThisMatchAddedInput = {
   hasNewObservations: true,
-  observationCount: 2,
+  observationCount: b04FootballObservations.length,
   hasNewOpponentEncounter: true,
   opponentName: matchIdentity.awayTeam,
   firstTimeCanonicalPositions: [{ playerId: "player-gb4-tobias", playerName: "Tobias", position: "RCM" }],
 };
 
-export const rawRecordsForHash = { matchIdentity, timeline, matchInsights, whatThisMatchAddedInput };
+export const rawRecordsForHash = { matchIdentity, timeline, matchInsights, whatThisMatchAddedInput, b04FootballObservations };
