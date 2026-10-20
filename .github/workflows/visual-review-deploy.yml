@@ -1,0 +1,162 @@
+name: Visual Review Deploy
+
+# ADR-0159: explicit, comment-triggered lightweight deploy of a PR's exact revision into the
+# existing `test` Custom Environment — never on PR open/push (that invariant is what keeps
+# ordinary PR iteration costing zero Vercel/Neon spend; see docs/adr/0153-...md). Only
+# `/visual-review deploy` and `/visual-review release` PR comments do anything here.
+#
+# SECURITY: the decision logic (permission check, fork check, required-checks-green check,
+# lightweight-eligibility check, Test-slot lease check) always runs from this repository's own
+# trusted `main` branch, checked out explicitly before any PR code is touched — never the PR's
+# own ref — so a PR cannot rewrite its own eligibility decision. Only once that trusted logic
+# approves does this workflow check out the PR's own resolved head SHA, and only to run
+# `vercel deploy`, which uploads source for a remote Vercel build; this runner never executes the
+# PR's own build. Fork PRs are refused outright before any checkout of PR code happens.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: write # required to read/write the TEST_SLOT_LEASE repository variable
+
+concurrency:
+  group: test-slot
+  cancel-in-progress: false
+
+jobs:
+  handle-comment:
+    name: Handle /visual-review comment
+    if: github.event.issue.pull_request != null
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      COMMENT_ACTOR: ${{ github.event.comment.user.login }}
+    steps:
+      - name: Check required secrets are configured
+        id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ] || [ -z "$NEON_API_KEY" ]; then
+            echo "Required secrets not fully configured; skipping /visual-review handling."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # SECURITY: pinned to main, not any PR ref. See the workflow's own top comment.
+      - name: Checkout trusted decision logic (main)
+        if: steps.check.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          sparse-checkout: |
+            scripts/visual-authority
+            scripts/test-acceptance
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.check.outputs.configured == 'true'
+        with:
+          node-version: "24"
+
+      - name: Evaluate the /visual-review request
+        id: decide
+        if: steps.check.outputs.configured == 'true'
+        run: node scripts/visual-authority/run-deploy-request.mjs
+
+      - name: Release the Test-slot lease (only if held by this PR)
+        if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'release'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value 2>/dev/null || echo '{}')"
+          LEASE_PR="$(echo "$CURRENT_LEASE" | jq -r '.prNumber // empty')"
+          if [ "$LEASE_PR" != "$PR_NUMBER" ]; then
+            gh pr comment "$PR_NUMBER" --body "No active Test-slot lease is held by this PR (current holder: ${LEASE_PR:-none}) — nothing to release."
+            exit 0
+          fi
+          gh variable delete TEST_SLOT_LEASE || true
+          bash scripts/test-acceptance/restore-baseline-alias.sh
+          gh pr comment "$PR_NUMBER" --body "Test-slot lease released and \`test.matchboard.football\` restored to the \`main\` baseline."
+
+      - name: Acquire the Test-slot lease
+        id: lease
+        if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy'
+        run: |
+          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value 2>/dev/null || echo '{}')"
+          LEASE_PR="$(echo "$CURRENT_LEASE" | jq -r '.prNumber // empty')"
+          LEASE_STATUS="$(echo "$CURRENT_LEASE" | jq -r '.status // empty')"
+          if [ -n "$LEASE_PR" ] && [ "$LEASE_PR" != "$PR_NUMBER" ] && [ "$LEASE_STATUS" = "active" ]; then
+            LEASE_ACTOR="$(echo "$CURRENT_LEASE" | jq -r '.actor // "unknown"')"
+            LEASE_TIME="$(echo "$CURRENT_LEASE" | jq -r '.acquiredAt // "unknown"')"
+            gh pr comment "$PR_NUMBER" --body "The shared Test slot is currently held by PR #${LEASE_PR} (requested by @${LEASE_ACTOR} at ${LEASE_TIME}). Ask them to run \`/visual-review release\` first, or wait for that PR to close."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          NEW_LEASE="$(jq -n --arg pr "$PR_NUMBER" --arg sha "${{ steps.decide.outputs.head_sha }}" --arg actor "$COMMENT_ACTOR" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{prNumber: $pr, sha: $sha, actor: $actor, acquiredAt: $at, status: "active", deploymentUrl: null}')"
+          gh variable set TEST_SLOT_LEASE --body "$NEW_LEASE"
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      # Separate, full checkout of the PR's own resolved head SHA — only reached once the trusted
+      # logic above has approved. ARR-0024: explicit ref, never the event-default detached merge
+      # ref (issue_comment has no pull_request ref context at all in any case).
+      - name: Checkout PR revision for deploy
+        if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.decide.outputs.head_sha }}
+
+      - name: Deploy PR revision to the Test slot
+        id: deploy
+        if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          bash scripts/visual-authority/deploy-pr-revision.sh "PR #${PR_NUMBER} (${{ steps.decide.outputs.head_sha }})" | tee /tmp/deploy-output.log
+          DEPLOY_URL="$(grep '^DEPLOY_URL=' /tmp/deploy-output.log | cut -d= -f2-)"
+          echo "deploy_url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Record the deployment URL on the lease and reply
+        if: steps.deploy.outcome == 'success' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
+        run: |
+          DEPLOY_URL="${{ steps.deploy.outputs.deploy_url }}"
+          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value)"
+          UPDATED_LEASE="$(echo "$CURRENT_LEASE" | jq --arg url "$DEPLOY_URL" '.deploymentUrl = $url')"
+          gh variable set TEST_SLOT_LEASE --body "$UPDATED_LEASE"
+          HEAD_SHA="${{ steps.decide.outputs.head_sha }}"
+          printf '%s\n' \
+            "Deployed PR #${PR_NUMBER} (\`${HEAD_SHA}\`) to the Test slot: https://test.matchboard.football" \
+            "" \
+            "- This PR now holds the shared Test slot — release it with \`/visual-review release\` when you're done, or it'll release automatically when this PR closes." \
+            "- Once you've reviewed the rendered output, an actor with write access can resolve the Visual Authority Gate with \`/visual-approve ${HEAD_SHA}\` (or \`/visual-reject ${HEAD_SHA}\`)." \
+            "- No Neon branch, Cloudflare Worker, or functional acceptance suite was provisioned for this — it's the lightweight visual-review path only." \
+            > /tmp/visual-review-comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/visual-review-comment.md
+
+      - name: On deploy failure, restore baseline and release the lease
+        if: failure() && steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          gh variable delete TEST_SLOT_LEASE || true
+          bash scripts/test-acceptance/restore-baseline-alias.sh
+          gh pr comment "$PR_NUMBER" --body "\`/visual-review deploy\` failed — the Test slot has been restored to the \`main\` baseline and the lease released. Check the workflow run for details."
