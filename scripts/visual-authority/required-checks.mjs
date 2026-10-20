@@ -21,16 +21,28 @@ export async function getRequiredContexts({ owner, repo, fetchImpl }) {
   return Array.isArray(contexts) && contexts.length > 0 ? contexts : null;
 }
 
-export async function paginateAll(path, fetchImpl) {
+/**
+ * @param {string} path
+ * @param {typeof fetch} fetchImpl
+ * @param {string | null} listKey - GitHub's list endpoints are inconsistent: `/pulls/{n}/files`
+ *   and `/issues/{n}/comments` return a bare JSON array, but `/commits/{sha}/check-runs` returns
+ *   a wrapped object `{total_count, check_runs: [...]}`. Passing the wrong shape here previously
+ *   caused every required check to silently read as "has not run yet" (an empty array, not an
+ *   error) — found via this repo's own first real `/visual-review deploy` request, not caught by
+ *   unit tests whose mocks encoded the same wrong assumption. Pass the key to unwrap (e.g.
+ *   "check_runs"), or `null` for a bare-array response.
+ */
+export async function paginateAll(path, fetchImpl, listKey = null) {
   const results = [];
   let page = 1;
   for (;;) {
     const response = await fetchImpl(`${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`);
     if (!response.ok) return { results, complete: false };
-    const json = await response.json();
-    if (!Array.isArray(json) || json.length === 0) break;
-    results.push(...json);
-    if (json.length < 100) break;
+    const body = await response.json();
+    const page_items = listKey ? body?.[listKey] : body;
+    if (!Array.isArray(page_items) || page_items.length === 0) break;
+    results.push(...page_items);
+    if (page_items.length < 100) break;
     page += 1;
   }
   return { results, complete: true };
@@ -56,7 +68,7 @@ export async function requiredChecksGreen({ owner, repo, sha, fetchImpl }) {
   const requiredContexts = await getRequiredContexts({ owner, repo, fetchImpl });
   if (!requiredContexts) return { allGreen: false, reason: "could not resolve the required-checks list from the ruleset" };
 
-  const { results: checkRuns, complete } = await paginateAll(`/repos/${owner}/${repo}/commits/${sha}/check-runs`, fetchImpl);
+  const { results: checkRuns, complete } = await paginateAll(`/repos/${owner}/${repo}/commits/${sha}/check-runs`, fetchImpl, "check_runs");
   if (!complete) return { allGreen: false, reason: "could not retrieve the complete check-run list" };
 
   return evaluateRequiredChecks(requiredContexts, checkRuns);
