@@ -18,7 +18,11 @@
       ],
       "lifecycle": "planning_open",
       "assistantCoachState": "CURRENT",
-      "requirementRefs": ["XR-S01", "XR-V01", "XR-I01"],
+      "requirementRefs": [
+        "XR-S01",
+        "XR-V01",
+        "XR-I01"
+      ],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B01",
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — before-match-overview.tsx (ADR-0157 C3, PR #760); see VISUAL_VS_CURRENT.md",
@@ -29,7 +33,410 @@
         "RESOLVED (B1-R3): both Match Insights had unresolvable evidenceRefs — reclassified/re-backed with real records",
         "RESOLVED (B1-R4): added b01-planned-ready/after/, a same-match AFTER-state companion, to demonstrate the register-required before/after continuity",
         "RESOLVED (B1-R6/B1-R7, fixtureVersion 1→2): removed an unsupported opponent-pressing-pattern claim (result-only recentEncounters cannot support a tactical claim); widened fixtureSha256's hash input to include b01TobiasRcmAppearanceRecords, which was previously excluded despite backing insight-gb1-2's evidenceRefs"
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-20",
+        "approvedBy": "lagebj",
+        "revisionSha": "3c3476af790437e30c26fc719ef7e2a8d0cea8da",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-desktop-dark.png",
+            "sha256": "466caadfcf42126a1b9d8eba039fd094ee0369e829c91ec966e221e5bd70916f"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-desktop-dark-editor-open.png",
+            "sha256": "62cf5db635181d0a18bd9566e5d9fda53201e3ed4f1b8ef969174c3ea757e0f3"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-desktop-dark-draft-preview.png",
+            "sha256": "e23e31ad9dc03a61075c2a05acc0a71b210ef6c2211eae23a36ba54854e2b505"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-desktop-dark-pending.png",
+            "sha256": "bc8a99e3ebb0570113d6471dafe00e054ffa68f2a2c946d5654fff92b4bd9433"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-desktop-dark-saved.png",
+            "sha256": "5540f09b35f5dcb43d1267e8016b38283ecfadabfde184400cdc1dc66239cb9d"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-desktop-light.png",
+            "sha256": "5804ef75ca8b1fabe7fefe55a18ac3e920c8016a61a5a25f509bcc88bfbce989"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-desktop-light-editor-open.png",
+            "sha256": "a5f03798f68f941dacb1134d6a159c8e599840497e4ce63c7f335021b653ad5b"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-desktop-light-draft-preview.png",
+            "sha256": "c95c6dc87eccf4856286fdcc24db51e89706d5cb0c55fa4330398f69fc3fff2f"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-desktop-light-pending.png",
+            "sha256": "a4ddcd4583acc3618ebfbe91ff3c0d4f47ea815a8bacd97e07230e3b3d160229"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-desktop-light-saved.png",
+            "sha256": "e511889ad21a36fc65cc398aea3e0b11a1741e6037ccc7d42a53e06e011e4f68"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-mobile-dark.png",
+            "sha256": "14ee4990603d3dd844f3ca2fb81dde17013e820cbe83dd39082f75c499509dcb"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-mobile-dark-editor-open.png",
+            "sha256": "d32c5ec0bbae4556eeca5322e4b7f3cabb2bcdb7a817b658a565b12a88cf74b9"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-mobile-dark-draft-preview.png",
+            "sha256": "5202529a90360963858107a1036f8a2bd25a33179d11c76f0e19958dd7bd81dd"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-mobile-dark-pending.png",
+            "sha256": "374d8ef6d3db068b89f2cfc09d8e5153e859974dfdecef1b316f3ce0772853e7"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-mobile-dark-saved.png",
+            "sha256": "255760f6d003eb64c4e7a9400ce7210833e5bd13901eefa5250fa0dd420776f4"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-mobile-light.png",
+            "sha256": "5ac573304741d644eee7c805879a7eecb2c4969961c6cc74b6e786522a48c582"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-mobile-light-editor-open.png",
+            "sha256": "f6c4a31e39ab0467b412ed0b3c811a03d429d103b1492c464bf5d4fc8c363d5c"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-mobile-light-draft-preview.png",
+            "sha256": "d893c256cfabe23ae3a625077468b7adf54948ba80913f787c82b4e5f9807428"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-mobile-light-pending.png",
+            "sha256": "437602423f19cbbcf8650f8a5ab7665a2c4f212c0b9df74b93539284b151b384"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-mobile-light-saved.png",
+            "sha256": "f182a283703e9ca01fcf52432e5444814f8a974ec8984e66175b912048edc58f"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-narrow-dark.png",
+            "sha256": "8065708fd8c6c672df74d8fec2e58d53b1ebcceeecedaa923b985d07a57e4ad7"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-narrow-light.png",
+            "sha256": "676a1887daacf5d82cdc982c7b79cc996bafc7293a4bc4e8284df4f7f3d42456"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-gb-360-dark.png",
+            "sha256": "426a7b82df3c9442eefb071e308c61359543847b5b42bd8e900ab1aee6c0ef17"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-gb-360-light.png",
+            "sha256": "4a16b09683eb11e2238eb5ab9de84aaf89a94f2824359795d9aa58eb56275c71"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-gb-430-dark.png",
+            "sha256": "41502ceb815e533a77da5f5b495b19e0d22f4700cd5c268f1c4ab75d4adc21f7"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-gb-430-light.png",
+            "sha256": "6b5c34a78e0e5cf92db51a95b3830e11149f43607eaea1e46555f9a7a050ac4c"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark.png",
+            "sha256": "569de75a5bfe7e25dfa984e1ef565adb8ea9e5a229c33f7092e37d4a248d96ab"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-editor-open.png",
+            "sha256": "553ede015fefd7f2a3d294c63c29b9f40bd8fe5fc726c1d5a6a9e38197e02572"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-draft-preview.png",
+            "sha256": "de4b3308c4be891a1b235377824ef1c76195dfc58308d2e9fa93d3d7f10ae8ac"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-pending.png",
+            "sha256": "8b180859e34a237d71ead7f5f7e927a6889a305a78a2fa4035cb40cb736e54a1"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-saved.png",
+            "sha256": "7badc387cb9a48722fd3ba6585deb4dd5b4e3307ba3eecb06dea7e86f6add170"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-light.png",
+            "sha256": "8fdf013a332f85b6c4156b8ea0ddb2c1c3133dbc7fe474978d9bbffd65e8157e"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-editor-open.png",
+            "sha256": "3311c283e04b237f093002fb34ee85c68a0decbae8b219eb6c7cfa611a04cb67"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-draft-preview.png",
+            "sha256": "e01b688fc741d574598af0a289a71923777a45800f1eb1e6dc204b327ec7ea53"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-pending.png",
+            "sha256": "859660245c2eee8ea9b558acb1cc23c693bfcb39b8b263e29ca286a2382dad51"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-saved.png",
+            "sha256": "5e473498ac4e92570bacc07e9f80a9a95726b327ddb8d42d9113f5dc33847470"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark.png",
+            "sha256": "c6bbbd7d6b7a49c01afab0a6c811ed3fc5de019db4759eed97bb6881813e6980"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-editor-open.png",
+            "sha256": "da25a26a12a517adc5f902b35400cf7e26255a771876b021cc532dbbeec5e53b"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-draft-preview.png",
+            "sha256": "8d85f58d67831394821b8ed24491642b1bb0c632fa1ad2ea187556e534ee9592"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-pending.png",
+            "sha256": "19804cf0ee3daaf049573fae4d5bd429197e692640398f08704d21076c63d489"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-saved.png",
+            "sha256": "53d44fa6c789d0be31c67473831b8ccf7fcff729fcc603e706f46adaf175bdcb"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-light.png",
+            "sha256": "a4456025f01e8e5391ee5eca8a9b0b710d12504fadc8ca193ec607edf6f65b0b"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-editor-open.png",
+            "sha256": "79d9ae87e443894df0f0789746ccb9e5df9445a6fd4b596fb29acddcb72697b0"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-draft-preview.png",
+            "sha256": "bd468fc09cac3c7525567bc1691d2ec3b5914250c78d543ba93372f1290ac7b6"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-pending.png",
+            "sha256": "20daf8dde9bd166d8615f862447cf684e3dea6c0d88cdfe979aecf56ffe01d74"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-saved.png",
+            "sha256": "2e4ace7f8f9fd20e3e70d6210fb28bf94a10107a6f0a6eabab47fa32a3ec70c1"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark.png",
+            "sha256": "ef66d924d74ba2d7a3029e5301027ff7505f973ad8e99e9d74a1185108e48ed9"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-editor-open.png",
+            "sha256": "0facce509409f1e764fab96936511e7fe1857bc72ef4e0e72ad47689ab3c56a9"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-draft-preview.png",
+            "sha256": "b8b1be085ecf61c3b1c151dabba7b1b480b6985daf082ddd06240acdd929c27e"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-pending.png",
+            "sha256": "b98750f84f4b7cd0e6ce178ecef7ac9247a67f05aa04467617a4f00262429d65"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-saved.png",
+            "sha256": "ad352109ca00106e2e7222360616caf40945ceb898854d91ed7f538d1b54583c"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-light.png",
+            "sha256": "05bfce5ae0ae90405634524b07f0180986648c9ad14dd08f32d8dd1b5933ab8e"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "editor-open",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-editor-open.png",
+            "sha256": "217f24bf84ea1cf78e1d165060a7ec086e3c4691212783e20393df2fb9d152aa"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "draft-preview",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-draft-preview.png",
+            "sha256": "05954ac7097dec625a2d56d0e2c1cf06814492829e0ea326adcafb818129aeae"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "pending",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-pending.png",
+            "sha256": "443587d4ad5db65ad09e7c49949ab2a0b7a1cfffeaa2b3493a58e65b335171e2"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "saved",
+            "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-saved.png",
+            "sha256": "fb82dd2e4cd76598923b4bd5f8e2edda803e7511157ed9aa13e5191438a8bd44"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "B01-AFTER",
@@ -43,11 +450,95 @@
       ],
       "lifecycle": "done",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-S01", "XR-V01"],
+      "requirementRefs": [
+        "XR-S01",
+        "XR-V01"
+      ],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B01 (before/after comparison requirement)",
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "NOT_A_NEW_SCENARIO — companion to B01, added under independent review finding B1-R4; see SCENARIO_REGISTER.md",
-      "knownGaps": []
+      "knownGaps": [],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-20",
+        "approvedBy": "lagebj",
+        "revisionSha": "3c3476af790437e30c26fc719ef7e2a8d0cea8da",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-desktop-dark.png",
+            "sha256": "bbedf08c29705b268d9aff6facbb45143d9d99965abeb7fdfac86030b02273a9"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-desktop-light.png",
+            "sha256": "9ef95cc39466533fa2d89b6574fe0eea50fa3a88a9afe4b8978ac7eb83d0e601"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-mobile-dark.png",
+            "sha256": "d0c681558ebe6dcda4e087826c40c06a13c3ee982ca4ae87a9da04e1c1c5b365"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-mobile-light.png",
+            "sha256": "dbcc61767c02af92ee9ba462060f97f6b9b334231e6f834608f6a7c2ef60d1a4"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-narrow-dark.png",
+            "sha256": "26df9e7eed41637ce52eab616686b65120d12129289c2e562e4eb56e325996ea"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-narrow-light.png",
+            "sha256": "98ae34fc9f171c7356a684606fae77903ab1072748cfab5b1cb8746ef41376fa"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-gb-360-dark.png",
+            "sha256": "611e3d3e1c4a5134e99256c81ecd8442469b4d9a62732bda3fd108ae71023258"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-gb-360-light.png",
+            "sha256": "1146324200825a4d9886965226e8b9f9f93942def9594c56c7c809650d37c263"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-gb-430-dark.png",
+            "sha256": "153183afdb7681462bfbda521e21f837e049d4e5a6445354dbb51a5940de4589"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b01-after-gb-430-light.png",
+            "sha256": "acadfa3f5f75f0fde838c032d740489eafc42ca56e28bb38151c3875b8ad79fd"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "B02",
@@ -61,14 +552,97 @@
       ],
       "lifecycle": "planning_open",
       "assistantCoachState": "CURRENT",
-      "requirementRefs": ["XR-S01"],
+      "requirementRefs": [
+        "XR-S01"
+      ],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B02",
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — MatchPreparationWidget/MatchOpponentMemory/MatchInsights honest-empty states; see VISUAL_VS_CURRENT.md",
       "knownGaps": [
         "No lineup-editing interaction offered — there is no lineup yet to edit, the honest state",
         "RESOLVED (Phase 2): an invented DecisionBanner duplicating MatchPreparationWidget's own readiness output was removed; see VISUAL_VS_CURRENT.md design-audit finding #1"
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-20",
+        "approvedBy": "lagebj",
+        "revisionSha": "3c3476af790437e30c26fc719ef7e2a8d0cea8da",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-desktop-dark.png",
+            "sha256": "2cb3bb26d65abaa022c905c127889dee6474998f1e95c6207d06c945862e6a2c"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-desktop-light.png",
+            "sha256": "6af850ff98159a2916d81ee99c2d99720f1a5193125a78403014b624857f7d45"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-mobile-dark.png",
+            "sha256": "f7ed011c609f03d5e064bc2f0297b750e6b07bea5c9d5c750adc39cd2c97552b"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-mobile-light.png",
+            "sha256": "aacaa5ad5ff3314e5e45228a284d71dad46063d2b4a15ec6bc90eded192f6d96"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-narrow-dark.png",
+            "sha256": "e4c5f9db4acec9130d6609194510dc42ab3f2aa75e762d035cd3026287fca79b"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-narrow-light.png",
+            "sha256": "a0676730b73ba03e4226a8b9b083521a0043fe03247fe0c49e3bac8ec0361aae"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-gb-360-dark.png",
+            "sha256": "54ca7a013de6ddea2aab5a485c302d310353415cc60b90797ff5b2243ae9b586"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-gb-360-light.png",
+            "sha256": "b101053bac4cabfaddc6f4dfb12eaa65ec18b98828553352eff140d01c01c355"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-gb-430-dark.png",
+            "sha256": "e8aac9899df60013cc2eb3408d4cbce78456e8a875cca513d861e05694348ceb"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b02-planned-incomplete-gb-430-light.png",
+            "sha256": "3115a16f18efe3a4023a53c622185a4fd28731f8109a0d493bb7c714b93d3e39"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "B03",
@@ -82,7 +656,10 @@
       ],
       "lifecycle": "done",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-T02", "XR-S01"],
+      "requirementRefs": [
+        "XR-T02",
+        "XR-S01"
+      ],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B03",
       "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md",
       "baselineAssetRef": "PROPOSED_REFINEMENT (was mislabeled CONFIRMS_SHIPPED_BASELINE) — adds a Match Flow final-score reconciliation disclosure not present in real match-flow-panel.tsx; demonstrated via additive UI-Lab-local markup, not a production edit; see VISUAL_VS_CURRENT.md and BLOCKERS.md",
@@ -90,7 +667,88 @@
         "Final lineup, PlanVsRealityPanel, coaching-intent review, reflection/notes rows omitted — see DATA_TRUTH_AND_FIXTURES.md",
         "Proposed MatchFlowPanel reconciliation disclosure (design-audit finding #2) not yet implemented in the real component — see BLOCKERS.md for the exact proposed change",
         "RESOLVED (B1-R5): the rendered note exposed implementation commentary (MatchFlowPanel, BLOCKERS.md, production) — rewritten to purely coach-facing language"
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-20",
+        "approvedBy": "lagebj",
+        "revisionSha": "3c3476af790437e30c26fc719ef7e2a8d0cea8da",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-desktop-dark.png",
+            "sha256": "d801b0b3c9a066b4a851e281c304ca1a9df65e0777077a0cd6ed9877a104fdc1"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-desktop-light.png",
+            "sha256": "7edd57179b07230430d37522a6cc896b9ef12cb8db2c54dd9934f396fb8e16da"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-mobile-dark.png",
+            "sha256": "a17b852f0d2c1ee1a544edc1068ed99b8c0fad6c32150a89d52dd883f11c5238"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-mobile-light.png",
+            "sha256": "ff355481d7c825a429516920baffa319ab9bbe61a5dc13a646a8ffb323252af4"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-narrow-dark.png",
+            "sha256": "bf850f96f4f3ce4cf07ba6e1a6cc1624587e3231c053d4ee6215128d89e02d58"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-narrow-light.png",
+            "sha256": "7fdb788815bc8174bd74b7728e0d8dabbbb54f1a99b75ceb3a4eae67529ba5c0"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-gb-360-dark.png",
+            "sha256": "024770b56d4dd25d0dc495862ee7bd526d9e909ae604f414f47da722a315cd36"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-gb-360-light.png",
+            "sha256": "8004a07fa9214f5b6697b04f74d1606c6adb694a5c1fe3479748e44694dbc8ac"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-gb-430-dark.png",
+            "sha256": "766ce39eb22792c758768090f1ee9182e3abb8ca3a35927d4058fb24f6023fe0"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b03-completed-sparse-gb-430-light.png",
+            "sha256": "ae5900dbece81c4572a1af36ca184447ecf7aecc066d8a5dd8be5949184713fc"
+          }
+        ]
+      }
     },
     {
       "scenarioId": "B04",
@@ -104,7 +762,11 @@
       ],
       "lifecycle": "done",
       "assistantCoachState": "CURRENT",
-      "requirementRefs": ["XR-T02", "XR-A01", "XR-A04"],
+      "requirementRefs": [
+        "XR-T02",
+        "XR-A01",
+        "XR-A04"
+      ],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B04",
       "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE (re-audited against the Phase 2 design-audit question, not just assumed) — completed-match-story.ts rich chronology + real MatchInsightCard with genuine evidence inspection (B1-R3); see VISUAL_VS_CURRENT.md",
@@ -113,7 +775,200 @@
         "RESOLVED (B1-R3): the insight claimed an unsupported cross-match pattern (2 goals in 1 match miscounted as 2 matches) and evidence inspection only showed a reference count — rebuilt with a genuine second-match source record and a real SourceInspector-based drilldown",
         "RESOLVED (B1-R6/B1-R7, fixtureVersion 1→2): removed the unsupported 'first-time RCM' positional claim (a ROTATION event's secondaryPlayerName records a player leaving the match, not arriving at a new position, and carries no position data at all); widened fixtureSha256's hash input to include b04CombinationSourceRecords, which was previously excluded despite being the material second-match evidence for the Noah/Sindre insight",
         "RESOLVED (B1-R8): the evidence-inspector's open state had no screenshot coverage (every prior capture was interactionState 'initial' only) — capture script now exercises an 'evidence-open' interaction across desktop/mobile/squeeze-600/768/900, both themes (16 new captures)"
-      ]
+      ],
+      "approval": {
+        "state": "APPROVED",
+        "scope": "APPROVED_GOLDEN — design reference only; NOT production implementation authorization",
+        "approvedAt": "2026-10-20",
+        "approvedBy": "lagebj",
+        "revisionSha": "3c3476af790437e30c26fc719ef7e2a8d0cea8da",
+        "releaseTag": null,
+        "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
+        "approvedCaptures": [
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-desktop-dark.png",
+            "sha256": "719bfff5fb09a708b372947bd733ff18ea5d734e866c60608fcebb67a4ade9ad"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-desktop-dark-evidence-open.png",
+            "sha256": "a4aa89a4240af5330e382408ebecf1c55f1ff3a30b56f238a2a7cc1132c17794"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-desktop-light.png",
+            "sha256": "b9c9c16a616be74a75b68fb693efa65ccbe53a16c030c61d482817f208c97cec"
+          },
+          {
+            "viewport": "desktop",
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-desktop-light-evidence-open.png",
+            "sha256": "0910fb8955f0b4e42ebe9823d4a47135d9f911d9dd0acfb7b1f28f1610884f2e"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-mobile-dark.png",
+            "sha256": "d3a8df8dbec6f96e452fca5afa119767b735e988b0184e45302130efb00d9fce"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-mobile-dark-evidence-open.png",
+            "sha256": "ac7e4c0023029f6fd4623efdd14d84b2ceeb13fb92cdcc408ff4393a94e2a326"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-mobile-light.png",
+            "sha256": "39c22f75e316109591f8fd978d7ea89b53bc95c4f60ef0669949c27b38fef51e"
+          },
+          {
+            "viewport": "mobile",
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-mobile-light-evidence-open.png",
+            "sha256": "1ad95578f3c99ce08683cf735940df08f28ac144c4e8b957cd1a8b7c14792e46"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-narrow-dark.png",
+            "sha256": "47f3aff458302f87d5fee5d3788b577fc6597f2b2056b56f1daff4875f35e091"
+          },
+          {
+            "viewport": "narrow",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-narrow-light.png",
+            "sha256": "4b584ceb127a970880470efb5036eb8966d7ee85b76670ac4943f76af3c7899b"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-gb-360-dark.png",
+            "sha256": "577f86d3aa007c925c055cd8e3fa67534466d945b70b0d68be672cd75e927c83"
+          },
+          {
+            "viewport": "gb-360",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-gb-360-light.png",
+            "sha256": "509dc63d4bbe4c414b41dc74f15b1ff2bd7cfcde40850164ac55892a6fdabbfe"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-gb-430-dark.png",
+            "sha256": "88b76d28746b6e0d85fdfc0a854d8a9f3b50ba7335480495639749246841942d"
+          },
+          {
+            "viewport": "gb-430",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-gb-430-light.png",
+            "sha256": "9c0e1743675b8ee74860c0f9b234862d2f6796e57ff52949fe7109151a849681"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-600-dark.png",
+            "sha256": "72bd98f0ea144e20c870f6417843d8718390a8930a169925133fa0b7c561dd54"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-600-dark-evidence-open.png",
+            "sha256": "39519402b083e256c6521c3a365d8eeac3fea711807768ea37ce84dd2178c608"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-600-light.png",
+            "sha256": "bcae4682e8f7092a00c56f3fea0c7f33b40f246e0b106c8ad496615077e51b91"
+          },
+          {
+            "viewport": "squeeze-600",
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-600-light-evidence-open.png",
+            "sha256": "d2757a5b82a4eb73484e0d1a773404b3bb45dccdc6f21554bf1fa866a24f7862"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-768-dark.png",
+            "sha256": "e69ae2188d062093f358163cd044049324124eb3e88827a07cc98d4d8e900899"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-768-dark-evidence-open.png",
+            "sha256": "b3a083b1c865d4da3b5dc90098c8cb703c3bcf269c19fe435ae0028cb6f01210"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-768-light.png",
+            "sha256": "cf603ece8aecb72510cf4debdab65ecfc6bd47ead0a7e271f510fc24aeaa4204"
+          },
+          {
+            "viewport": "squeeze-768",
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-768-light-evidence-open.png",
+            "sha256": "662e06afb6d899121ccbfec65e7127ddea4089b69355f01765829e34c9326da7"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-900-dark.png",
+            "sha256": "ec355a6ac0e43279d43d430b705c65d07ca0b7a761cf3889c51ea75c6a6ac226"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-900-dark-evidence-open.png",
+            "sha256": "a758d608d19e430f21f2df236ea88ccaa2f231da620971909dfc05fb0762d314"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-900-light.png",
+            "sha256": "d695dc44a2a26f42f7f78dc744139db94462f9657f12fdbbcf753f8dba95226d"
+          },
+          {
+            "viewport": "squeeze-900",
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w1-b04-completed-rich-squeeze-900-light-evidence-open.png",
+            "sha256": "6ed5e67cae11fb395f0c6ca56a3936820a38d77a6400e84180923aaa00794a28"
+          }
+        ]
+      }
     }
   ]
 }
