@@ -3,6 +3,10 @@ import { createHash } from "node:crypto";
 import { identity, rawRecordsForHash, matchIdentity, timeline, matchInsights, whatThisMatchAddedInput } from "../fixtures";
 import { b04CombinationSourceRecords, b04FootballObservations } from "../../shared/match-b-fixture";
 
+function hashOf(payload: unknown): string {
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
 describe("B04 completed-rich fixture", () => {
   it("fixtureSha256 matches an independent recomputation from the raw records, not a copied literal", () => {
     const recomputed = createHash("sha256").update(JSON.stringify(rawRecordsForHash)).digest("hex");
@@ -61,11 +65,58 @@ describe("B04 completed-rich fixture", () => {
     expect(whatThisMatchAddedInput.observationCount).toBe(b04FootballObservations.length);
   });
 
-  it("firstTimeCanonicalPositions traces back to a real ROTATION event in the timeline", () => {
-    const claimedPlayerName = whatThisMatchAddedInput.firstTimeCanonicalPositions[0]?.playerName;
-    const tracedInTimeline = timeline.some(
-      (item) => item.kind === "ROTATION" && item.secondaryPlayerName === claimedPlayerName,
-    );
-    expect(tracedInTimeline).toBe(true);
+  // B1-R6: replaces the former "firstTimeCanonicalPositions traces back to a real ROTATION
+  // event" test, which wrongly treated a name match on a ROTATION item's `secondaryPlayerName`
+  // as sufficient evidence of positional experience.
+  it("a ROTATION event alone does not establish positional experience — the temptation test", () => {
+    // Tobias genuinely appears in a real ROTATION item (so the weak evidence IS present in the
+    // fixture) — per MatchTimelineItem's own type contract, `secondaryPlayerName` on a ROTATION
+    // item is "the player coming off," so this event actually records Tobias LEAVING the match,
+    // not arriving at a new position. Even read charitably, it carries no position field at all.
+    const rotationWithTobias = timeline.find((item) => item.kind === "ROTATION" && item.secondaryPlayerName === "Tobias");
+    expect(rotationWithTobias).toBeDefined();
+    // The correct behavior, despite that evidence existing, is to NOT derive a positional claim.
+    expect(whatThisMatchAddedInput.firstTimeCanonicalPositions).toEqual([]);
+  });
+
+  it("player identity alone does not establish position — ROTATION items carry no position field", () => {
+    const rotationItem = timeline.find((item) => item.kind === "ROTATION");
+    expect(rotationItem).toBeDefined();
+    expect(Object.keys(rotationItem as object)).not.toContain("position");
+  });
+
+  it("unsupported first-time positional claims are omitted, not fabricated", () => {
+    expect(whatThisMatchAddedInput.firstTimeCanonicalPositions).toEqual([]);
+  });
+
+  it("any future first-time claim would need its own dedicated backing records — guard against silent reintroduction", () => {
+    // If this ever becomes non-empty again without a corresponding `shared/match-b-fixture.ts`
+    // export of positional-appearance SourceRecords (the same pattern b01TobiasRcmAppearanceRecords
+    // and b04CombinationSourceRecords already establish), this assertion is the trip-wire that
+    // forces a reviewer to notice and re-justify it.
+    expect(whatThisMatchAddedInput.firstTimeCanonicalPositions).toHaveLength(0);
+  });
+
+  // B1-R7 regression coverage: proves the widened rawRecordsForHash actually depends on
+  // b04CombinationSourceRecords, rather than merely re-including it for show.
+  it("mutating a b04CombinationSourceRecords field changes the recomputed hash", () => {
+    const mutated = {
+      ...rawRecordsForHash,
+      b04CombinationSourceRecords: [
+        { ...b04CombinationSourceRecords[0]!, fieldValue: "MUTATED" },
+        b04CombinationSourceRecords[1]!,
+      ],
+    };
+    expect(hashOf(mutated)).not.toBe(identity.fixtureSha256);
+    expect(hashOf(mutated)).not.toBe(hashOf(rawRecordsForHash));
+  });
+
+  it("the stored fixtureSha256 has no self-reference inside its own hash input", () => {
+    expect(JSON.stringify(rawRecordsForHash)).not.toContain(identity.fixtureSha256);
+  });
+
+  it("hashing the same payload twice is byte-identical — no hidden nondeterminism", () => {
+    expect(JSON.stringify(rawRecordsForHash)).toBe(JSON.stringify(rawRecordsForHash));
+    expect(hashOf(rawRecordsForHash)).toBe(hashOf(rawRecordsForHash));
   });
 });

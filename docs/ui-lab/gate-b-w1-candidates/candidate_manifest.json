@@ -8,7 +8,7 @@
       "scenarioId": "B01",
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b01-planned-ready",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b01-planned-ready/fixtures.ts",
         "src/app/dev/ui-lab/gate-b/b01-planned-ready/page.tsx",
@@ -27,7 +27,8 @@
         "RESOLVED (Phase 2): an invented DecisionBanner duplicating MatchPreparationWidget's own readiness output was removed; see VISUAL_VS_CURRENT.md design-audit finding #1",
         "RESOLVED (B1-R2): withTacticalAssignment() left both Sindre and Vetle occupying LCM after a successful assignment — reducer now displaces the incumbent",
         "RESOLVED (B1-R3): both Match Insights had unresolvable evidenceRefs — reclassified/re-backed with real records",
-        "RESOLVED (B1-R4): added b01-planned-ready/after/, a same-match AFTER-state companion, to demonstrate the register-required before/after continuity"
+        "RESOLVED (B1-R4): added b01-planned-ready/after/, a same-match AFTER-state companion, to demonstrate the register-required before/after continuity",
+        "RESOLVED (B1-R6/B1-R7, fixtureVersion 1→2): removed an unsupported opponent-pressing-pattern claim (result-only recentEncounters cannot support a tactical claim); widened fixtureSha256's hash input to include b01TobiasRcmAppearanceRecords, which was previously excluded despite backing insight-gb1-2's evidenceRefs"
       ]
     },
     {
@@ -95,7 +96,7 @@
       "scenarioId": "B04",
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b04-completed-rich",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b04-completed-rich/fixtures.ts",
         "src/app/dev/ui-lab/gate-b/b04-completed-rich/page.tsx",
@@ -109,7 +110,8 @@
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE (re-audited against the Phase 2 design-audit question, not just assumed) — completed-match-story.ts rich chronology + real MatchInsightCard with genuine evidence inspection (B1-R3); see VISUAL_VS_CURRENT.md",
       "knownGaps": [
         "CompletedMatchAdvisorPanel not reused (useOrgSlug dependency, real mutating actions) — MatchInsightCard used instead; see BLOCKERS.md",
-        "RESOLVED (B1-R3): the insight claimed an unsupported cross-match pattern (2 goals in 1 match miscounted as 2 matches) and evidence inspection only showed a reference count — rebuilt with a genuine second-match source record and a real SourceInspector-based drilldown"
+        "RESOLVED (B1-R3): the insight claimed an unsupported cross-match pattern (2 goals in 1 match miscounted as 2 matches) and evidence inspection only showed a reference count — rebuilt with a genuine second-match source record and a real SourceInspector-based drilldown",
+        "RESOLVED (B1-R6/B1-R7, fixtureVersion 1→2): removed the unsupported 'first-time RCM' positional claim (a ROTATION event's secondaryPlayerName records a player leaving the match, not arriving at a new position, and carries no position data at all); widened fixtureSha256's hash input to include b04CombinationSourceRecords, which was previously excluded despite being the material second-match evidence for the Noah/Sindre insight"
       ]
     }
   ]

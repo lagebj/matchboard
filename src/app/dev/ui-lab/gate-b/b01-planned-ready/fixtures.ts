@@ -1,7 +1,7 @@
 import type { FixtureIdentity } from "../../gate-a/shared/fixture-identity";
 import type { FixtureOperationOutcome } from "../../gate-a/shared/fixture-operation";
 import type { LineupAssignmentSuccess } from "../../gate-a/a07-match-details-edit-lineup/shared/lineup-slot-editor";
-import { b01MatchIdentity, b01Squad, b01OpponentMemory, B01_EDIT_SLOT, B01_EDIT_CANDIDATE, B01_NOW, B01_OPPONENT_NAME } from "../shared/match-b-fixture";
+import { b01MatchIdentity, b01Squad, b01OpponentMemory, B01_EDIT_SLOT, B01_EDIT_CANDIDATE, B01_NOW, B01_OPPONENT_NAME, b01TobiasRcmAppearanceRecords } from "../shared/match-b-fixture";
 import type { MatchPreparationInput } from "@/lib/matches/match-detail-view-model";
 import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-match-insights";
 
@@ -16,8 +16,8 @@ import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-ma
 export const identity: FixtureIdentity = {
   scenarioId: "B01",
   fixtureId: "gate-b-w1-b01-planned-ready",
-  fixtureVersion: 1,
-  fixtureSha256: "cdbca2830e9d9d3cac362e7ff679b53462b5cadac8ded465a2858b01694e0798",
+  fixtureVersion: 2,
+  fixtureSha256: "70de34f57b78f92c55172af258aa88c515bb38b0a09ee65fc8697bce1359002a",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B01_NOW.toISOString(),
   viewerTimeZone: "Europe/Oslo",
@@ -76,4 +76,19 @@ export const predeclaredOutcome: FixtureOperationOutcome<LineupAssignmentSuccess
   result: { assignedPlayerId: B01_EDIT_CANDIDATE.playerId, slotLabel: editSlotLabel },
 };
 
-export const rawRecordsForHash = { matchIdentity, squad, opponentMemory, preparationInput, matchInsights, editCandidate, predeclaredOutcome };
+/**
+ * B1-R7: widened to include `b01TobiasRcmAppearanceRecords` — the material source records
+ * backing `insight-gb1-2`'s evidenceRefs. Previously excluded, so that evidence could change
+ * without changing `fixtureSha256`; see `__tests__/fixtures.test.ts` for the regression test that
+ * proves this field now actually participates in the hash.
+ */
+export const rawRecordsForHash = {
+  matchIdentity,
+  squad,
+  opponentMemory,
+  preparationInput,
+  matchInsights,
+  b01TobiasRcmAppearanceRecords,
+  editCandidate,
+  predeclaredOutcome,
+};

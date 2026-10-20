@@ -1,5 +1,5 @@
 import type { FixtureIdentity } from "../../gate-a/shared/fixture-identity";
-import { b04MatchIdentity, b04Timeline, B04_KICKOFF_AT, b04FootballObservations } from "../shared/match-b-fixture";
+import { b04MatchIdentity, b04Timeline, B04_KICKOFF_AT, b04FootballObservations, b04CombinationSourceRecords } from "../shared/match-b-fixture";
 import type { WhatThisMatchAddedInput } from "@/lib/matches/completed-match-story";
 import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-match-insights";
 
@@ -13,8 +13,8 @@ import type { MatchInsightsViewModel } from "@/lib/matches/match-insights/get-ma
 export const identity: FixtureIdentity = {
   scenarioId: "B04",
   fixtureId: "gate-b-w1-b04-completed-rich",
-  fixtureVersion: 1,
-  fixtureSha256: "6317d9ebeed907f537217bd9b71048964bec919a5401030df827621613eb7de0",
+  fixtureVersion: 2,
+  fixtureSha256: "6c6b599ed40d44c718f952c7f032230f7bf5f298b4e7442f5e816dad2f9f6faf",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B04_KICKOFF_AT.toISOString(),
   viewerTimeZone: "Europe/Oslo",
@@ -44,12 +44,32 @@ export const matchInsights: MatchInsightsViewModel = {
   ],
 };
 
+/**
+ * B1-R6: `firstTimeCanonicalPositions` is deliberately empty. `b04Timeline`'s `ROTATION` item
+ * (`evt-gb4-rotation-1`) names Tobias as `secondaryPlayerName` — per `MatchTimelineItem`'s own
+ * type contract (`src/lib/matches/match-detail-view-model.ts`), that field is "the player coming
+ * off," i.e. Tobias is recorded leaving the match at 40', not arriving at a new position. Even
+ * read charitably, a rotation event carries no position field at all — it cannot establish which
+ * position a player occupied, for how long, or whether it was a first occurrence. Building a real
+ * positional-history evidence model (minutes, season boundary, prior appearances) is out of scope
+ * for this fixture; `buildWhatThisMatchAddedRows()` (`src/lib/matches/completed-match-story.ts`)
+ * already returns `[]` safely for an empty array — see
+ * `shared/__tests__/match-b-fixture.test.ts` / this file's own tests for the regression coverage
+ * that keeps this claim from being silently reintroduced without real backing.
+ */
 export const whatThisMatchAddedInput: WhatThisMatchAddedInput = {
   hasNewObservations: true,
   observationCount: b04FootballObservations.length,
   hasNewOpponentEncounter: true,
   opponentName: matchIdentity.awayTeam,
-  firstTimeCanonicalPositions: [{ playerId: "player-gb4-tobias", playerName: "Tobias", position: "RCM" }],
+  firstTimeCanonicalPositions: [],
 };
 
-export const rawRecordsForHash = { matchIdentity, timeline, matchInsights, whatThisMatchAddedInput, b04FootballObservations };
+export const rawRecordsForHash = {
+  matchIdentity,
+  timeline,
+  matchInsights,
+  b04CombinationSourceRecords,
+  b04FootballObservations,
+  whatThisMatchAddedInput,
+};

@@ -80,4 +80,10 @@ describe("B01 planned-ready page", () => {
     renderPage();
     expect(screen.getByText("High relevance")).toBeInTheDocument();
   });
+
+  it("never claims opponent pressing behavior — result-only encounter records cannot support a tactical claim (B1-R6)", () => {
+    mockViewport(true);
+    renderPage();
+    expect(document.body.textContent).not.toMatch(/press/i);
+  });
 });

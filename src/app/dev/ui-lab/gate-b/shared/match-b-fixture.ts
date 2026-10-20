@@ -136,13 +136,24 @@ export const b01Squad: readonly MatchBSquadMember[] = [
 export const B01_EDIT_SLOT: CanonicalTacticalPosition = "LCM";
 export const B01_EDIT_CANDIDATE = { playerId: "player-gb-vetle", displayName: "Vetle", shirtNumber: 14, reasons: ["Already in the matchday squad", "Eligible for LCM — central midfield cover"] };
 
+/**
+ * B1-R6: `patterns` is deliberately empty. `recentEncounters` records only `matchId`/
+ * `occurredAt`/`resultLabel` — match identity, date, and result. None of that is evidence of a
+ * tactical behavior (e.g. "presses high in the first 15 minutes"); a result-only record cannot
+ * support a tactical-behavior claim, and no observation record exists anywhere in this fixture to
+ * back one. The real `MatchOpponentMemory` component (`src/components/matches/match-detail/
+ * match-opponent-memory.tsx`) already renders gracefully when `patterns.length === 0` — its
+ * "Recurring patterns" column simply doesn't render. The absence of a pressing claim here is not
+ * itself evidence that the opponent doesn't press — it's simply that this fixture records no
+ * observation either way, and silence is the honest state.
+ */
 export const b01OpponentMemory: OpponentMemoryViewModel = {
   hasHistory: true,
   recentEncounters: [
     { matchId: "match-gate-b-prev-1", occurredAt: new Date("2026-05-10T10:00:00.000Z"), resultLabel: "Won 3-1" },
     { matchId: "match-gate-b-prev-2", occurredAt: new Date("2025-09-27T10:00:00.000Z"), resultLabel: "Drew 2-2" },
   ],
-  patterns: [{ summary: `${B01_OPPONENT_NAME} press high in the first 15 minutes of every recorded meeting`, qualifier: "seen in 2 of 2 recent meetings" }],
+  patterns: [],
 };
 
 /** Backs B01's RCM-exposure insight (`insight-gb1-2`) with genuinely resolvable records — two
