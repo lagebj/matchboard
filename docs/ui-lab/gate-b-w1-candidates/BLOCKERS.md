@@ -29,15 +29,18 @@ given 2026-10-17, to begin Gate B** — not an inference from any `HANDOFF_READY
 recovered documents. Recorded here so a future reader does not mistake the bundle's own
 `NOT_READY`/`DIRECTIONAL_ONLY` CSV statuses for "Gate B was never authorized."
 
-## No pre-existing CI capture — attestation not generated in this session
+## CI capture attestation — now generated and committed
 
 Same disclosed limitation Gate A's W1 recorded: this sandbox's local `next dev` + browser
 automation cannot complete hydration here (HMR WebSocket upgrade failure — reproduces on an
-untouched page too, see project memory `project_devcontainer_hmr_websocket_blocks_playwright`).
-No `capture-attestation.json` is committed in this PR; it must be generated from this PR's own CI
-run of `.github/workflows/ui-lab-visual-review.yml` (triggers automatically — see
-`REVIEW_RECORD.md`) and added once that run completes. `candidate_manifest.json` in this directory
-is deliberately `status: "CANDIDATE"` with no `approval` block, for the same reason.
+untouched page too, see project memory `project_devcontainer_hmr_websocket_blocks_playwright`), so
+no local capture was ever attempted. `capture-attestation.json` in this directory is now real,
+generated from this PR's own passing CI run of `.github/workflows/ui-lab-visual-review.yml`
+(run `39386349849`, branch head `50ae5485e66894aa74f0e4de3381bee23969fd2f`): 96 captures across
+B01/B01-AFTER/B02/B03/B04, downloaded via `gh run download`, every SHA-256 independently
+recomputed from the raw PNG bytes and cross-checked against the artifact's own self-reported
+`manifest.json` — zero mismatches, no missing files. `candidate_manifest.json` remains
+`status: "CANDIDATE"` with no `approval` block — a passing capture is evidence, not owner sign-off.
 
 ## Event Match Details has no non-live route (relevant to deferred B06) — resolved to a real gap, not an intentional boundary
 

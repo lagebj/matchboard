@@ -32,12 +32,14 @@ schema this wave's manifest will adopt once/if approval happens).
 ## Required before any approval
 
 1. Owner answers `SOURCE_RECONCILIATION.md`'s framing question (confirm-via-fixture vs.
-   propose-new).
-2. `.github/workflows/ui-lab-visual-review.yml` runs on this PR and produces a real
-   `capture-attestation.json` (not committed yet — see `BLOCKERS.md`).
+   propose-new) — resolved by the owner in Phase 2 as genuine exploration; see that file.
+2. `.github/workflows/ui-lab-visual-review.yml` has run on this PR and produced a real
+   `capture-attestation.json` — **done**: committed in this directory, 96 captures, run
+   `39386349849`, every hash independently re-verified (see `BLOCKERS.md`).
 3. Owner reviews the resulting captures across all required viewports/themes/interaction states
    (1440×900, 390×844, 360px/430px smoke, plus 600/768/900px squeeze widths for B01 only) against
-   `VISUAL_VS_CURRENT.md`'s stated identical/differs breakdown.
+   `VISUAL_VS_CURRENT.md`'s stated identical/differs breakdown. Still outstanding — captures exist
+   and are attested, but no human has reviewed them yet.
 
 ## Technical review checklist (self-assessed by the implementer; independent review still needed)
 
@@ -49,5 +51,7 @@ schema this wave's manifest will adopt once/if approval happens).
       anywhere in fixtures or rendered output (enforced by test).
 - [x] No fabricated assist pairing (enforced by test).
 - [x] No production route, component, data loader, or schema file modified.
-- [ ] `npm run build` — not run locally (known pre-existing OOM in this sandbox; relies on CI).
-- [ ] Real CI visual capture — pending this PR's own workflow run.
+- [x] `npm run build` — not run locally (known pre-existing OOM in this sandbox), but CI's own
+      `Build` job passed on this branch head.
+- [x] Real CI visual capture — passed (`Capture fixture-backed UI Lab views`, run `39386349849`,
+      11m15s); `capture-attestation.json` committed with all 96 hashes independently re-verified.

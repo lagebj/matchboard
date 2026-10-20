@@ -5,6 +5,16 @@ component, data loader, or schema file is touched — every `src/` change is new
 under `src/app/dev/ui-lab/gate-b/` (dev-only, 404s in production) plus one additive extension of
 the existing visual-review capture script.
 
+## Phase 5 (real CI capture attestation) — additional changes
+
+- `docs/ui-lab/gate-b-w1-candidates/capture-attestation.json` — new. Generated from this PR's own
+  passing CI run (`39386349849`, branch head `50ae5485e`), 96 captures, every SHA-256 independently
+  re-verified against the artifact's self-reported `manifest.json` in this session — zero
+  mismatches. Scenario-scoped filter of that run's full 1010-capture manifest, following the exact
+  precedent `docs/ui-lab/gate-a-w4-candidates/capture-attestation.json` established.
+- `candidate_manifest.json`, `BLOCKERS.md`, `REVIEW_RECORD.md` — updated to record the attestation
+  as committed (was previously disclosed as missing).
+
 ## Phase 4 (independent technical review remediation, B1-R1 through B1-R5) — additional changes
 
 - `scripts/ui-lab-visual-review.mjs` — B1-R1: extended the `data-ui-lab-ready`/console-error gates
