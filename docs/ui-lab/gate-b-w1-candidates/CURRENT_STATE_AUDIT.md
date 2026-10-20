@@ -25,7 +25,9 @@
 | `MatchIdentityCard` | `src/components/matches/match-detail/match-identity-card.tsx` | Yes — pure, prop-driven |
 | `MatchPreparationWidget` | `src/components/matches/match-detail/match-preparation-widget.tsx` | Yes — pure, over `buildMatchPreparationDisplayItems()` |
 | `MatchOpponentMemory` | `src/components/matches/match-detail/match-opponent-memory.tsx` | Yes — pure, returns `null` on no history (B02's honest empty state) |
-| `MatchInsights` / `MatchInsightCard` | `src/components/matches/match-insights/{match-insights,match-insight-card}.tsx` | Yes — confirmed real/deterministic/prop-driven in `PRODUCTION_OWNER_AND_GATE_B_HANDOFF.md` |
+| `MatchInsights` | `src/components/matches/match-insights/match-insights.tsx` | **B01/B02 only** — confirmed real/deterministic/prop-driven in `PRODUCTION_OWNER_AND_GATE_B_HANDOFF.md`. **Not used by B04** (B1-R3): it hardcodes the pre-match heading "What's useful to know when planning this match.", wrong for a completed match. |
+| `MatchInsightCard` | `src/components/matches/match-insights/match-insight-card.tsx` | Yes — B04 composes this real, separately-exported per-insight card directly, under its own completed-match-appropriate heading (B1-R3) |
+| A04's `SourceInspector`/`SourceRecordList`/`useSourceInspector` | `src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/{source-inspector,source-record-list,use-source-inspector}.tsx` | Yes — B04's genuine evidence-inspection trigger reuses this approved grammar rather than inventing a new one (B1-R3) |
 | `MatchTimelineList` | `src/components/matches/match-detail/match-timeline-list.tsx` | Yes — pure |
 | `MatchFlowPanel` | `src/components/matches/match-detail/match-flow-panel.tsx` | Yes — pure, over `buildMatchFlowChronology()` |
 | `WhatThisMatchAddedPanel` | `src/components/matches/match-detail/what-this-match-added-panel.tsx` | Yes — pure, over `buildWhatThisMatchAddedRows()` |
@@ -38,6 +40,14 @@
 | `CompletedMatchAdvisorPanel` | `src/components/ai/completed-match-advisor-panel.tsx` | **No** — requires `useOrgSlug()` context and wires real mutating server actions for clarification/development-suggestion cards; `MatchInsights`/`MatchInsightCard` already satisfies B01/B04's "earned finding with source drilldown" requirement without this dependency. B07 (Assistant Coach longitudinal, deferred) is this panel's real territory. |
 
 See `DATA_TRUTH_AND_FIXTURES.md` for why each "No" is a real constraint, not a shortcut.
+
+## New route (B1-R4): B01 same-match AFTER-state companion
+
+`src/app/dev/ui-lab/gate-b/b01-planned-ready/after/` — read-only, same match identity as B01
+(`B01_MATCH_ID`), now `done` with a recorded result. Demonstrates the register-required
+before/after lifecycle continuity for the same fixture family. Linked bidirectionally from the
+BEFORE page. No production route is affected — this is a second dev-only UI Lab page, same
+isolation mechanism as every other Gate B page.
 
 ## ADRs and ARRs consulted
 

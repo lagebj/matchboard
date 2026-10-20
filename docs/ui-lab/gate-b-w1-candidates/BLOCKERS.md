@@ -1,5 +1,25 @@
 # Gate B W1 — Blockers and Open Items
 
+## Independent technical review remediation (B1-R1 through B1-R5) — resolved
+
+An independent technical review of this PR found five findings, all now fixed on this branch:
+
+- **B1-R1** (P1) — CI screenshot capture failed for every Gate B scenario: the `<h1>` fix (already
+  landed) plus extending the `data-ui-lab-ready`/console-error gates to `gate-b/` routes (matching
+  the exact A04/W3/W4 pattern).
+- **B1-R2** (P1) — B01's successful lineup assignment created duplicate tactical occupancy
+  (Vetle assigned to LCM without removing Sindre, who already occupied it). `withTacticalAssignment()`
+  now explicitly displaces the slot's current occupant; see `shared/__tests__/match-b-fixture.test.ts`.
+- **B1-R3** (P1) — B04's insight claimed an unsupported cross-match pattern, and evidence
+  inspection only showed a reference count. Fixed with a genuine second-match source record and a
+  real evidence-inspection composition reusing Gate A's A04 grammar (see `VISUAL_VS_CURRENT.md`).
+  B01's two insights were also audited and reclassified/re-backed with resolvable evidence.
+- **B1-R4** (P2) — B01 didn't demonstrate same-match before/after lifecycle continuity. Added a
+  read-only AFTER-state companion at `b01-planned-ready/after/` sharing B01's exact match identity.
+- **B1-R5** (P2) — B03's reconciliation note exposed implementation commentary
+  ("MatchFlowPanel", "BLOCKERS.md", "production") to the coach. Rewritten to purely factual,
+  coach-facing language; the engineering explanation now lives only in the doc-comment and here.
+
 ## Gate B authorization basis
 
 The programme bundle states twice (`00_START_HERE.md`, `07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md`)
@@ -46,13 +66,14 @@ not assume it from this document.
 
 `CompletedMatchAdvisorPanel` requires `useOrgSlug()` (a React context not present in the dev-only
 UI Lab layout) and wires real mutating server actions for its clarification/development-suggestion
-cards. This wave avoids it entirely by using `MatchInsights`/`MatchInsightCard` for B04's "earned
-finding with source drilldown" requirement instead. B07 (Assistant Coach longitudinal match
+cards. This wave avoids it entirely by using the real, separately-exported `MatchInsightCard`
+(not the `MatchInsights` wrapper, which hardcodes a pre-match heading — see B1-R3 below) for B04's
+"earned finding with source drilldown" requirement instead. B07 (Assistant Coach longitudinal match
 context, deferred) is this panel's real territory and should make it fixture-injectable there,
 following the same adoption pattern Gate A W4 already proposed for `AssistantCoachHypothesisPanel`
 (W4-BLK-10).
 
-## Proposed real-component change: `MatchFlowPanel` final-score reconciliation (design-audit finding #2, not implemented here)
+## Proposed real-component change: `MatchFlowPanel` final-score reconciliation (design-audit finding #2, not implemented here, not rendered in the UI per B1-R5)
 
 `buildMatchFlowChronology()`'s `trustworthy` flag (`src/lib/matches/completed-match-story.ts`)
 only checks whether every goal event has a known minute — it never checks whether the resulting

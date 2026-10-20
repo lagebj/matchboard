@@ -5,6 +5,30 @@ component, data loader, or schema file is touched — every `src/` change is new
 under `src/app/dev/ui-lab/gate-b/` (dev-only, 404s in production) plus one additive extension of
 the existing visual-review capture script.
 
+## Phase 4 (independent technical review remediation, B1-R1 through B1-R5) — additional changes
+
+- `scripts/ui-lab-visual-review.mjs` — B1-R1: extended the `data-ui-lab-ready`/console-error gates
+  to `gate-b/` routes; B1-R4: added the `gate-b-w1-b01-after` scenario entry.
+- `shared/match-b-fixture.ts` — B1-R2: fixed `withTacticalAssignment()` to displace the target
+  slot's incumbent. B1-R3: added `B04_PRIOR_*`, `b04CombinationSourceRecords`,
+  `b04FootballObservations`, `b01TobiasRcmAppearanceRecords`. B1-R4: added `b01AfterMatchIdentity`,
+  `b01AfterTimeline`.
+- `shared/__tests__/match-b-fixture.test.ts` — new, 13 tests directly exercising the fixed reducer.
+- `b01-planned-ready/fixtures.ts` — B1-R3: both insights reclassified/re-backed with resolvable
+  evidence.
+- `b01-planned-ready/page.tsx` — B1-R4: added a "Compare to AFTER state" link.
+- `b01-planned-ready/after/{fixtures.ts,page.tsx,__tests__/{fixtures,page}.test.{ts,tsx}}` — new,
+  B1-R4's read-only AFTER-state companion.
+- `b04-completed-rich/{fixtures.ts,page.tsx}` — B1-R3: rewritten insight claim; replaced the
+  `MatchInsights` wrapper with a completed-match-appropriate `MatchInsightCard` composition plus a
+  genuine evidence-inspection trigger.
+- `b01-planned-ready/__tests__/{fixtures,page}.test.tsx`,
+  `b04-completed-rich/__tests__/{fixtures,page}.test.tsx` — updated/extended for B1-R2/R3.
+- `b03-completed-sparse/{page.tsx,__tests__/page.test.tsx}` — B1-R5: rewritten reconciliation note
+  text; updated test.
+- `docs/ui-lab/gate-b-w1-candidates/*` — updated throughout to record the remediation (this file
+  included).
+
 ## Phase 3 (CI fix) — additional changes
 
 - `b01-planned-ready/page.tsx`, `b02-planned-incomplete/page.tsx`, `b03-completed-sparse/page.tsx`,

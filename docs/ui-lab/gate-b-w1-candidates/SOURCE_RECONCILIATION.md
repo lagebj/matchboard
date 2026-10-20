@@ -79,6 +79,17 @@ Full detail in `VISUAL_VS_CURRENT.md` and `BLOCKERS.md`. The owner's Event/Leagu
 (decision 3) is answered in `BLOCKERS.md` as well, grounded in `docs/agents/event-and-league-behavior.md`
 and ADR-0011 rather than guessed.
 
+## Phase 3 — independent technical review remediation (B1-R1 through B1-R5)
+
+An independent technical review of this PR (reviewing head `f71bfc628`) found five findings
+requiring correction before technical acceptance — two P1 (CI capture failure; B01's lineup
+assignment producing duplicate tactical occupancy), one P1 (B04's insight claiming an unsupported
+cross-match pattern with only a reference count for evidence), and two P2 (B01 not demonstrating
+same-match before/after continuity; B03 exposing implementation commentary in coach-facing text).
+All five are fixed on this branch — see `BLOCKERS.md`'s remediation summary, `VISUAL_VS_CURRENT.md`
+for the per-scenario detail, and the commit history for the exact changes. This was a correction
+pass on the existing wave, not a new design proposal or a new Gate B wave.
+
 ## What this PR does not decide
 
 - B05 (Post-Match Report draft/final), B06 (League/Event parity), B07 (Assistant Coach

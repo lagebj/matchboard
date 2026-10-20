@@ -13,6 +13,19 @@ simulation →" control, never a timer. `PERMISSION_DENIED`/`CONFLICT`/`PLANNING
 "Edit Lineup opens local tactical editor," not a full re-run of A07's own S3-S6 denial/conflict
 matrix. Covered by `b01-planned-ready/__tests__/page.test.tsx`.
 
+**B1-R2 fix**: the `SUCCESS` outcome's applicator (`withTacticalAssignment`) now explicitly
+displaces whoever occupies the target slot — resolving to `SUCCESS` moves Vetle onto LCM *and*
+removes Sindre from it, never leaves both occupying it. Covered by
+`shared/__tests__/match-b-fixture.test.ts` (reducer-level) and the updated page test (rendered-pitch
+level).
+
+## B01 same-match AFTER-state companion (B1-R4)
+
+`b01-planned-ready/after/` is read-only — no `useFixtureOperation`, no Edit Lineup button, no
+mutation entry point at all, matching the real completed-match Overview's own read-only contract.
+It exists purely to prove lifecycle continuity (same match id/identity/kickoff/orientation as the
+BEFORE page), not to add a second interactive surface.
+
 B02-B04 have no fixture-operation interaction at all — they are static read-only renders of their
 respective lifecycle/completeness state, which is itself the honest representation (there is
 nothing to edit in an incomplete plan beyond "select players," which is out of this wave's scope;
@@ -22,13 +35,23 @@ a completed match's Overview is read-only in production too).
 
 | Scenario | `MatchInsightsStatus` | Insight count | `source` |
 |---|---|---|---|
-| B01 | `CURRENT` | 2 | both `DETERMINISTIC` |
+| B01 | `CURRENT` | 2 | both `DETERMINISTIC` (both reclassified under B1-R3 to real, resolvable claims) |
 | B02 | `CURRENT` | 0 (honest empty) | n/a |
-| B03 | n/a — no `MatchInsights` rendered (focused on result/chronology only) | — | — |
-| B04 | `CURRENT` | 1 | `AI` |
+| B03 | n/a — no insights rendered (focused on result/chronology only) | — | — |
+| B04 | n/a — the `MatchInsights` wrapper isn't used (B1-R3: its pre-match heading is wrong here); the real `MatchInsightCard` is composed directly | 1 | `AI` |
 
 `UPDATING`/`STALE_AI_WITHHELD`/`AI_UNAVAILABLE` are not exercised in this wave — see
 `THREE_PART_EXPERIENCE_CONTRACT.md`.
+
+## Evidence inspection (B1-R3, B04 only)
+
+B04 adds a context-local "Inspect combination evidence" trigger, reusing Gate A's A04
+`useSourceInspector()`/`SourceInspector` grammar (inline inspector on desktop, bottom sheet on
+mobile — same responsive rule as every other A04/A07/B01 inspector in this programme). Opens two
+real `SourceRecord`s (this match's goal event, the prior match's) — read-only, no mutation, no
+decision applied by inspecting. This is the one place in Gate B W1 that genuinely exposes source
+records beyond a reference count, closing the gap the independent review flagged in B04's original
+"Based on N recorded facts" count-only disclosure.
 
 ## Keyboard/focus/accessibility smoke coverage
 

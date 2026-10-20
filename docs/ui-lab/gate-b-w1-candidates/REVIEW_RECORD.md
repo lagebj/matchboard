@@ -2,10 +2,17 @@
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B01 | `CANDIDATE` | Pending owner review. Phase 2: invented duplicate `DecisionBanner` found and removed — now genuinely confirms baseline. |
+| B01 | `CANDIDATE` | Pending owner review. Phase 2: invented duplicate `DecisionBanner` found and removed. Phase 3 (B1-R2/R3/R4): lineup-replacement bug fixed, insight evidence reclassified/re-backed, same-match AFTER companion added. |
 | B02 | `CANDIDATE` | Pending owner review. Phase 2: same `DecisionBanner` duplication found and removed. |
-| B03 | `CANDIDATE` | Pending owner review. Phase 2: reclassified `CONFIRMS_SHIPPED_BASELINE` → `PROPOSED_REFINEMENT` — a genuine `MatchFlowPanel` gap was found and demonstrated (not shipped to production). |
-| B04 | `CANDIDATE` | Pending owner review. Phase 2: re-audited against the same question as B03, confirmed — no change needed. |
+| B03 | `CANDIDATE` | Pending owner review. Phase 2: reclassified `CONFIRMS_SHIPPED_BASELINE` → `PROPOSED_REFINEMENT`. Phase 3 (B1-R5): reconciliation note rewritten to remove implementation commentary. |
+| B04 | `CANDIDATE` | Pending owner review. Phase 2: re-audited, confirmed. Phase 3 (B1-R3): insight evidence model rebuilt with a genuine second-match source and a real evidence-inspection composition. |
+
+## Phase 3 — independent technical review remediation
+
+An independent technical review (reviewing head `f71bfc628`) raised five findings — B1-R1 through
+B1-R5, two P1 and one P1 plus two P2 — all fixed on this branch. See `BLOCKERS.md` for the full
+summary and `VISUAL_VS_CURRENT.md` for per-scenario detail. This was a correction pass on the
+existing candidates, not a new design proposal.
 
 ## Phase 2 — design-audit outcome (owner-requested genuine exploration)
 

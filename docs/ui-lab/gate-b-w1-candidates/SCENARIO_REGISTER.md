@@ -29,3 +29,9 @@ other seven rows (`family=Match Details`) — reproduced exactly as the CSV has 
 No Gate B sub-wave numbering (e.g. "W1"/"W2") exists in the official register itself; "W1" in
 this wave's directory name (`gate-b-w1-candidates`) is this PR's own label for "the first Gate B
 PR," following the Gate A directory-naming convention, not a recovered register field.
+
+## B01's AFTER-state companion (B1-R4, independent review remediation)
+
+`b01-planned-ready/after/` is not a new Bxx scenario — it's an implementation detail of B01's own
+row, which requires "compare to same fixture AFTER (XR-S01 XR-V01)." It shares B01's exact match
+identity, just with the lifecycle-legitimate fields updated to `done`/recorded result.

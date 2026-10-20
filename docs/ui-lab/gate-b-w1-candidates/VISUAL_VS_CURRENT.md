@@ -37,6 +37,29 @@ the banner fix needs nothing, and the Match Flow note sits beside an already pro
 Recommend deferring that work to whichever future wave (B07 is the natural one) actually needs to
 manipulate one of those panels, rather than building it speculatively now.
 
+## Phase 3 — independent technical review remediation (B1-R1 through B1-R5)
+
+An independent review found five findings, all fixed on this branch. Full writeup in `BLOCKERS.md`;
+summary here:
+
+- **B1-R2**: B01's Edit Lineup "successful" assignment left both Sindre and Vetle occupying LCM —
+  `withTacticalAssignment()` assigned the incoming player without vacating the slot's incumbent.
+  Fixed: the reducer now explicitly displaces the current occupant (role updated coherently both
+  ways), never mutates its input, and is self-healing against repeated calls.
+- **B1-R3**: B04's "Noah and Sindre have combined for 2 goals in the last 2 matches" claimed a
+  cross-match pattern with no second-match record anywhere in the fixture. Fixed with a genuine
+  second match record and a rewritten, provable claim ("a goal in each of the last 2 matches").
+  Also replaced B04's use of the real `MatchInsights` wrapper (which hardcodes a pre-match heading)
+  with a completed-match-appropriate composition over the real `MatchInsightCard`, and added a
+  genuine evidence-inspection trigger reusing Gate A's A04 `SourceInspector` grammar — the coach can
+  now see the two actual recorded goal events, not just a reference count. B01's two insights were
+  separately audited: the opponent "started every meeting" claim and the Tobias RCM-exposure claim
+  both had unresolvable `evidenceRefs`; both are now backed by real records.
+- **B1-R4**: B01 is the only scenario demonstrating same-match before/after continuity — added a
+  read-only AFTER companion at `b01-planned-ready/after/`, sharing B01's exact identity.
+- **B1-R5**: B03's reconciliation note exposed implementation commentary to the coach. Rewritten
+  to purely factual language.
+
 ## B01 — planned, ready — `CONFIRMS_SHIPPED_BASELINE`
 
 - **Identical to production**: composition order (`MatchIdentityCard` → `MatchPreparationWidget`
@@ -44,6 +67,9 @@ manipulate one of those panels, rather than building it speculatively now.
   `before-match-overview.tsx`'s real, shipped order (ADR-0157 §6). The single readiness signal
   (`MatchPreparationWidget`'s own "X/Y complete" output) is not duplicated anywhere else on the
   page (design-audit finding #1, fixed).
+- **New (B1-R4)**: a read-only AFTER-state companion at `b01-planned-ready/after/` shares B01's
+  exact match id/identity/kickoff/orientation, now `done` with a recorded 2-1 result — demonstrates
+  the register-required before/after lifecycle continuity within one fixture family.
 - **Differs**: the real page renders `MatchTacticsPanel` (self-fetching, with its own internal
   Match Insights fetch and mutation surface) where this candidate renders `MatchInsights` directly
   plus a read-only `TouchlinePlanningPitch` + the A07 local-editor pattern. The visual result is
@@ -67,9 +93,10 @@ manipulate one of those panels, rather than building it speculatively now.
   components; the sparse-chronology degradation behavior they exhibit here is identical to how
   they would behave in production given the same input.
 - **Genuinely differs (proposed, not shipped)**: a reconciliation note rendered immediately after
-  `MatchFlowPanel` ("This chronology ends at 1-0, not the final 6-4...") — real production has no
-  such disclosure today (design-audit finding #2). It is additive, UI-Lab-local markup computed by
-  `chronologyReconcilesWithFinalScore()` (`src/app/dev/ui-lab/gate-b/shared/chronology-reconciliation.ts`),
+  `MatchFlowPanel` (coach-facing text: "The recorded event timeline accounts for 1-0 of the final
+  6-4 result...", rewritten per B1-R5 to remove implementation commentary) — real production has
+  no such disclosure today (design-audit finding #2). It is additive, UI-Lab-local markup computed
+  by `chronologyReconcilesWithFinalScore()` (`src/app/dev/ui-lab/gate-b/shared/chronology-reconciliation.ts`),
   not a change to `match-flow-panel.tsx` itself. See `BLOCKERS.md` for the exact proposed real
   change if the owner wants it productionized.
 - **Also differs**: `after-match-overview.tsx`'s player-involvement list, final-lineup pitch,
@@ -79,12 +106,19 @@ manipulate one of those panels, rather than building it speculatively now.
 
 ## B04 — completed, rich — `CONFIRMS_SHIPPED_BASELINE` (re-audited, not just assumed)
 
-- **Identical to production**: same real components as B03, fed richer data; `MatchInsights`'s
-  rendering of an `AI`-sourced, evidence-backed finding is identical to how production would
-  render the same view-model shape. `chronologyReconcilesWithFinalScore()` is run against this
+- **Identical to production**: `MatchFlowPanel`/`MatchTimelineList`/`WhatThisMatchAddedPanel` are
+  the real, unmodified components. `chronologyReconcilesWithFinalScore()` is run against this
   fixture too and is `true` by construction, so B03's proposed note correctly never renders here —
   confirmed, not assumed.
-- **Differs**: same omissions as B03, plus no `CompletedMatchAdvisorPanel` (see
+- **Differs (B1-R3)**: production's before-match `MatchInsights` wrapper is NOT reused here — it
+  hardcodes the pre-match heading "What's useful to know when planning this match.", wrong for a
+  completed match. Instead composes the real, separately-exported `MatchInsightCard` under a
+  completed-match-appropriate heading, plus a genuine evidence-inspection trigger (reusing Gate A's
+  A04 `SourceInspector` grammar) that production's own "Evidence" `<details>` disclosure doesn't
+  offer (it only shows a reference count). The underlying insight claim was also rewritten —
+  "Noah and Sindre have combined for a goal in each of the last 2 matches" — to match what the
+  fixture's two real, distinct source records actually prove.
+- **Also differs**: same omissions as B03, plus no `CompletedMatchAdvisorPanel` (see
   `CURRENT_STATE_AUDIT.md` for why).
 
 ## Baseline asset reference

@@ -2,7 +2,7 @@
   "programmeRevision": "0.5.4",
   "baseCommitSha": "568da6fff06be65ce7ef5fe4910c0d99e2ab4ca0",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W1 (B01 planned ready, B02 planned incomplete, B03 completed sparse, B04 completed rich). All four entries are CANDIDATE — no owner approval has happened yet. No capture-attestation.json is committed in this PR; local browser capture could not be run in this sandbox (HMR WebSocket upgrade failure, same disclosed Gate A W1 limitation). Real captures and their SHA-256 attestation must come from this PR's own CI run of ui-lab-visual-review.yml. Phase 2 design audit (owner-requested): removed an invented DecisionBanner from B01/B02 that duplicated MatchPreparationWidget's own output; found and proposed a genuine refinement for B03 (Match Flow reconciliation disclosure); re-confirmed B04 against the same question. See VISUAL_VS_CURRENT.md.",
+  "note": "Gate B W1 (B01 planned ready, B02 planned incomplete, B03 completed sparse, B04 completed rich). All four entries are CANDIDATE — no owner approval has happened yet. No capture-attestation.json is committed in this PR; local browser capture could not be run in this sandbox (HMR WebSocket upgrade failure, same disclosed Gate A W1 limitation). Real captures and their SHA-256 attestation must come from this PR's own CI run of ui-lab-visual-review.yml. Phase 2 design audit (owner-requested): removed an invented DecisionBanner from B01/B02 that duplicated MatchPreparationWidget's own output; found and proposed a genuine refinement for B03 (Match Flow reconciliation disclosure); re-confirmed B04 against the same question. See VISUAL_VS_CURRENT.md. Phase 3 independent technical review remediation (B1-R1 through B1-R5): fixed the CI capture readiness gate for Gate B routes, fixed B01's lineup-assignment duplicate-occupancy bug, rebuilt B04's insight evidence model with a genuine second-match source and real evidence inspection, added a same-match AFTER-state companion for B01, and removed implementation commentary from B03's rendered note. See BLOCKERS.md.",
   "candidates": [
     {
       "scenarioId": "B01",
@@ -24,8 +24,29 @@
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — before-match-overview.tsx (ADR-0157 C3, PR #760); see VISUAL_VS_CURRENT.md",
       "knownGaps": [
         "MatchTacticsPanel/PlannedPlayingTimePanel/CoachingIntentSelector/MatchFormatOverrideControls not reused — self-fetching/mutating, not fixture-injectable; see DATA_TRUTH_AND_FIXTURES.md",
-        "RESOLVED (Phase 2): an invented DecisionBanner duplicating MatchPreparationWidget's own readiness output was removed; see VISUAL_VS_CURRENT.md design-audit finding #1"
+        "RESOLVED (Phase 2): an invented DecisionBanner duplicating MatchPreparationWidget's own readiness output was removed; see VISUAL_VS_CURRENT.md design-audit finding #1",
+        "RESOLVED (B1-R2): withTacticalAssignment() left both Sindre and Vetle occupying LCM after a successful assignment — reducer now displaces the incumbent",
+        "RESOLVED (B1-R3): both Match Insights had unresolvable evidenceRefs — reclassified/re-backed with real records",
+        "RESOLVED (B1-R4): added b01-planned-ready/after/, a same-match AFTER-state companion, to demonstrate the register-required before/after continuity"
       ]
+    },
+    {
+      "scenarioId": "B01-AFTER",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-b-w1-b01-after",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-b/b01-planned-ready/after/fixtures.ts",
+        "src/app/dev/ui-lab/gate-b/b01-planned-ready/after/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+      ],
+      "lifecycle": "done",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-S01", "XR-V01"],
+      "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B01 (before/after comparison requirement)",
+      "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
+      "baselineAssetRef": "NOT_A_NEW_SCENARIO — companion to B01, added under independent review finding B1-R4; see SCENARIO_REGISTER.md",
+      "knownGaps": []
     },
     {
       "scenarioId": "B02",
@@ -66,7 +87,8 @@
       "baselineAssetRef": "PROPOSED_REFINEMENT (was mislabeled CONFIRMS_SHIPPED_BASELINE) — adds a Match Flow final-score reconciliation disclosure not present in real match-flow-panel.tsx; demonstrated via additive UI-Lab-local markup, not a production edit; see VISUAL_VS_CURRENT.md and BLOCKERS.md",
       "knownGaps": [
         "Final lineup, PlanVsRealityPanel, coaching-intent review, reflection/notes rows omitted — see DATA_TRUTH_AND_FIXTURES.md",
-        "Proposed MatchFlowPanel reconciliation disclosure (design-audit finding #2) not yet implemented in the real component — see BLOCKERS.md for the exact proposed change"
+        "Proposed MatchFlowPanel reconciliation disclosure (design-audit finding #2) not yet implemented in the real component — see BLOCKERS.md for the exact proposed change",
+        "RESOLVED (B1-R5): the rendered note exposed implementation commentary (MatchFlowPanel, BLOCKERS.md, production) — rewritten to purely coach-facing language"
       ]
     },
     {
@@ -84,9 +106,10 @@
       "requirementRefs": ["XR-T02", "XR-A01", "XR-A04"],
       "experienceContractRef": "programme_v054/25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv row B04",
       "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE (re-audited against the Phase 2 design-audit question, not just assumed) — completed-match-story.ts rich chronology + MatchInsights earned-finding drilldown; see VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE (re-audited against the Phase 2 design-audit question, not just assumed) — completed-match-story.ts rich chronology + real MatchInsightCard with genuine evidence inspection (B1-R3); see VISUAL_VS_CURRENT.md",
       "knownGaps": [
-        "CompletedMatchAdvisorPanel not reused (useOrgSlug dependency, real mutating actions) — MatchInsights used instead; see BLOCKERS.md"
+        "CompletedMatchAdvisorPanel not reused (useOrgSlug dependency, real mutating actions) — MatchInsightCard used instead; see BLOCKERS.md",
+        "RESOLVED (B1-R3): the insight claimed an unsupported cross-match pattern (2 goals in 1 match miscounted as 2 matches) and evidence inspection only showed a reference count — rebuilt with a genuine second-match source record and a real SourceInspector-based drilldown"
       ]
     }
   ]
