@@ -79,14 +79,32 @@ describe("requiredChecksGreen (network wrapper, mocked fetch)", () => {
   });
 
   it("resolves the required-context list from the live ruleset and checks it against check-runs", async () => {
+    // Response shape here is the REAL GitHub Check Runs API shape ({total_count, check_runs: [...]}),
+    // not a bare array — this exact fixture is a regression test for a real bug found via this
+    // repo's own first live /visual-review deploy request: an earlier version of paginateAll
+    // assumed every list endpoint returns a bare array, so this wrapped shape silently produced
+    // zero results (not an error), making every required check falsely read as "has not run yet".
     const fetchImpl = fakeFetch({
       "/repos/o/r/rulesets/21317362": {
         rules: [{ type: "required_status_checks", parameters: { required_status_checks: [{ context: "Lint" }, { context: "Tests" }] } }],
       },
-      "/repos/o/r/commits/abc123/check-runs": [checkRun("Lint", "success"), checkRun("Tests", "success")],
+      "/repos/o/r/commits/abc123/check-runs": { total_count: 2, check_runs: [checkRun("Lint", "success"), checkRun("Tests", "success")] },
     });
     const result = await requiredChecksGreen({ owner: "o", repo: "r", sha: "abc123", fetchImpl });
     expect(result).toEqual({ allGreen: true });
+  });
+
+  it("fails closed (never silently reports allGreen) if the check-runs response isn't the expected wrapped shape", async () => {
+    const fetchImpl = fakeFetch({
+      "/repos/o/r/rulesets/21317362": {
+        rules: [{ type: "required_status_checks", parameters: { required_status_checks: [{ context: "Lint" }] } }],
+      },
+      // A bare array here (the old, wrong assumption) must not be silently treated as zero
+      // required checks having run — it must still fail closed with a clear reason, not crash.
+      "/repos/o/r/commits/abc123/check-runs": [checkRun("Lint", "success")],
+    });
+    const result = await requiredChecksGreen({ owner: "o", repo: "r", sha: "abc123", fetchImpl });
+    expect(result.allGreen).toBe(false);
   });
 
   it("fails closed when check-run pagination doesn't complete", async () => {
