@@ -52,6 +52,17 @@ describe("B04 completed-rich page", () => {
     expect(screen.getByText(/Noah and Sindre have combined/i).textContent).toBe(titleBefore);
   });
 
+  it("closes the evidence inspector on Escape and restores focus to the trigger (B1-R8)", () => {
+    renderPage();
+    const trigger = screen.getByRole("button", { name: "Inspect combination evidence" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("renders a real 'What this match added' panel — the opposite of B03's honestly-empty one", () => {
     renderPage();
     expect(screen.getByText("What this match added")).toBeInTheDocument();

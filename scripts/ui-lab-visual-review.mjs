@@ -602,10 +602,16 @@ const scenarios = [
     route: "gate-b/b03-completed-sparse",
     extraViewports: gbExtraSmokeViewports,
   },
+  // B1-R8 remediation: B04's evidence-inspection trigger ("Inspect combination evidence") was
+  // reachable and component-tested, but no capture ever opened it — every prior B04 capture was
+  // `initial` only. Reuses A01/A04's exact responsive squeeze set so the inline-inspector-vs-sheet
+  // transition gets the same real evidence B01's Edit Lineup already has.
   {
     slug: "gate-b-w1-b04-completed-rich",
     route: "gate-b/b04-completed-rich",
-    extraViewports: gbExtraSmokeViewports,
+    extraViewports: [...gbExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
+    interactions: [{ id: "evidence-open", perform: clickByName("Inspect combination evidence") }],
   },
 ];
 const viewports = [
