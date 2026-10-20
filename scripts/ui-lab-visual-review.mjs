@@ -584,6 +584,14 @@ const scenarios = [
       { id: "saved", perform: clickResolvePending() },
     ],
   },
+  // B1-R4 remediation: B01's same-match AFTER-state companion — proves the register-required
+  // before/after lifecycle identity continuity. Read-only, no inspector, so only the 360/430px
+  // smoke widths apply (same as B02-B04).
+  {
+    slug: "gate-b-w1-b01-after",
+    route: "gate-b/b01-planned-ready/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
   {
     slug: "gate-b-w1-b02-planned-incomplete",
     route: "gate-b/b02-planned-incomplete",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 import { TouchlinePlanningPitch } from "@/components/touchline/pitch/touchline-planning-pitch";
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
@@ -93,6 +94,9 @@ export default function B01PlannedReadyPage() {
         <div>
           <h1 className="text-[22px] font-[650] text-[var(--foreground)]">Gate B — B01 Before match, planned ready</h1>
           <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
+          <Link href="/dev/ui-lab/gate-b/b01-planned-ready/after" className="mt-1 inline-block text-[12px] text-[var(--accent)] hover:underline">
+            Compare to AFTER state <span aria-hidden="true">→</span>
+          </Link>
         </div>
 
         <AppearanceControl />
