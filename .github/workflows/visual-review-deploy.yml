@@ -135,8 +135,18 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           bash scripts/visual-authority/deploy-pr-revision.sh "${{ steps.decide.outputs.head_sha }}" | tee /tmp/deploy-output.log
+          DEPLOY_STATUS="${PIPESTATUS[0]}"
           DEPLOY_URL="$(grep '^DEPLOY_URL=' /tmp/deploy-output.log | cut -d= -f2-)"
           echo "deploy_url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+          # Piping deploy-pr-revision.sh through `tee` means this step's own exit status would
+          # otherwise be `tee`'s (always 0), silently swallowing a real deploy failure (found live,
+          # 2026-10-20: a CANCELED Vercel deployment still reported this step — and the "Deployed
+          # PR #790" PR comment two steps later — as a false success, because the alias was never
+          # actually updated). Read the real exit code back via PIPESTATUS and propagate it.
+          if [ "$DEPLOY_STATUS" -ne 0 ]; then
+            echo "deploy-pr-revision.sh failed (exit ${DEPLOY_STATUS}) — see the readyState/error logged above." >&2
+            exit "$DEPLOY_STATUS"
+          fi
 
       - name: Record the deployment URL on the lease and reply
         if: steps.deploy.outcome == 'success' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
