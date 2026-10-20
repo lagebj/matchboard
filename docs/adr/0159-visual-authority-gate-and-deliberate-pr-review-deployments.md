@@ -92,11 +92,21 @@ repository (no fork deploys on this path); verifies the ruleset's required check
 green for the exact head SHA; runs the stricter eligibility classifier; joins the existing
 `test-slot` concurrency group (shared with `test-acceptance.yml`/`test-db-migrate.yml`, so it can
 never race either); checks the `TEST_SLOT_LEASE` repository variable for a conflicting active
-lease from a different PR; if clear, checks out the PR's resolved head SHA explicitly (never a
-default event-derived ref, again per ARR-0024) and runs
-`scripts/visual-authority/deploy-pr-revision.sh <ref>` — a thin variant of the already-proven
-`scripts/test-acceptance/deploy-test-baseline.sh` (`vercel deploy --target=test ... --yes` +
-`vercel alias set`), with **no** Neon branch, no migration, no Worker deploy, no Playwright suite.
+lease from a different PR; if clear, runs `scripts/visual-authority/deploy-pr-revision.sh <sha>`.
+
+**This workflow never checks out the PR's own code** — found and fixed during this PR's own
+review, not assumed safe: an earlier draft did check out the PR's resolved head SHA (explicitly,
+never a default event-derived ref, per ARR-0024) before running `vercel deploy` from that
+directory, mirroring `scripts/test-acceptance/deploy-test-baseline.sh`'s pattern. CodeQL's
+`actions/untrusted-checkout` query correctly flagged this as **critical**: unlike
+`deploy-test-baseline.sh` (which only ever checks out `main`, trusted content), this workflow is
+triggered by `issue_comment` and would have been checking out PR-controlled content with Vercel
+secrets in scope. `deploy-pr-revision.sh` instead creates the deployment via Vercel's REST API
+`gitSource` mechanism (`POST /v13/deployments` with `gitSource: {type: "github", ref: <sha>, org,
+repo}`) — Vercel's own infrastructure fetches the exact commit directly from GitHub and builds it
+remotely, polls until `readyState` is `READY`, then aliases via `POST /v2/deployments/{id}/aliases`.
+The privileged runner never has the PR's own files on disk at all. **No** Neon branch, no
+migration, no Worker deploy, no Playwright suite.
 A release request, or PR close, or `test-db-migrate.yml`'s own baseline redeploy, clears the lease
 and restores the baseline alias via the existing `restore-baseline-alias.sh`, unchanged.
 

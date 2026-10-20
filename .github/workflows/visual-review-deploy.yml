@@ -7,11 +7,13 @@ name: Visual Review Deploy
 #
 # SECURITY: the decision logic (permission check, fork check, required-checks-green check,
 # lightweight-eligibility check, Test-slot lease check) always runs from this repository's own
-# trusted `main` branch, checked out explicitly before any PR code is touched — never the PR's
-# own ref — so a PR cannot rewrite its own eligibility decision. Only once that trusted logic
-# approves does this workflow check out the PR's own resolved head SHA, and only to run
-# `vercel deploy`, which uploads source for a remote Vercel build; this runner never executes the
-# PR's own build. Fork PRs are refused outright before any checkout of PR code happens.
+# trusted `main` branch, checked out explicitly from a literal ref — never the PR's own ref — so a
+# PR cannot rewrite its own eligibility decision. This workflow never checks out the PR's own code
+# at all: deploy-pr-revision.sh creates the deployment via Vercel's REST API `gitSource` mechanism,
+# so Vercel's own infrastructure fetches the exact commit directly from GitHub and builds it
+# remotely (found and fixed during this PR's own review — CodeQL's actions/untrusted-checkout
+# query correctly flagged an earlier draft that DID check out the PR's ref here). Fork PRs are
+# refused outright regardless, before any deployment decision is made.
 
 on:
   issue_comment:
@@ -51,12 +53,14 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # SECURITY: pinned to main, not any PR ref. See the workflow's own top comment.
+      # SECURITY: pinned to a literal `main`, not any PR ref or event-derived expression. See the
+      # workflow's own top comment.
       - name: Checkout trusted decision logic (main)
         if: steps.check.outputs.configured == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+          persist-credentials: false
           sparse-checkout: |
             scripts/visual-authority
             scripts/test-acceptance
@@ -110,15 +114,12 @@ jobs:
           gh variable set TEST_SLOT_LEASE --body "$NEW_LEASE"
           echo "proceed=true" >> "$GITHUB_OUTPUT"
 
-      # Separate, full checkout of the PR's own resolved head SHA — only reached once the trusted
-      # logic above has approved. ARR-0024: explicit ref, never the event-default detached merge
-      # ref (issue_comment has no pull_request ref context at all in any case).
-      - name: Checkout PR revision for deploy
-        if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ steps.decide.outputs.head_sha }}
-
+      # SECURITY (CodeQL actions/untrusted-checkout/critical, found during this PR's own review,
+      # not assumed away): there is deliberately NO checkout of the PR's own ref anywhere in this
+      # workflow. deploy-pr-revision.sh below creates the deployment via Vercel's REST API
+      # `gitSource` mechanism — Vercel's own infrastructure fetches the exact commit directly from
+      # GitHub and builds it remotely. This privileged runner (holding VERCEL_TOKEN) never has the
+      # PR's own, potentially attacker-authored files in its working directory at all.
       - name: Deploy PR revision to the Test slot
         id: deploy
         if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
@@ -126,8 +127,9 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          bash scripts/visual-authority/deploy-pr-revision.sh "PR #${PR_NUMBER} (${{ steps.decide.outputs.head_sha }})" | tee /tmp/deploy-output.log
+          bash scripts/visual-authority/deploy-pr-revision.sh "${{ steps.decide.outputs.head_sha }}" | tee /tmp/deploy-output.log
           DEPLOY_URL="$(grep '^DEPLOY_URL=' /tmp/deploy-output.log | cut -d= -f2-)"
           echo "deploy_url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
 

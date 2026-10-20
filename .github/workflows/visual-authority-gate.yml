@@ -36,16 +36,14 @@ jobs:
       is_pr: ${{ steps.resolve.outputs.is_pr }}
       pr_number: ${{ steps.resolve.outputs.pr_number }}
       head_sha: ${{ steps.resolve.outputs.head_sha }}
-      base_ref: ${{ steps.resolve.outputs.base_ref }}
     steps:
-      - name: Resolve PR number, head SHA and base ref for either trigger
+      - name: Resolve PR number and head SHA for either trigger
         id: resolve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           PR_NUMBER_FROM_PULL_REQUEST: ${{ github.event.pull_request.number }}
           HEAD_SHA_FROM_PULL_REQUEST: ${{ github.event.pull_request.head.sha }}
-          BASE_REF_FROM_PULL_REQUEST: ${{ github.event.pull_request.base.ref }}
           ISSUE_PR_URL: ${{ github.event.issue.pull_request.url }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
@@ -53,17 +51,15 @@ jobs:
             echo "is_pr=true" >> "$GITHUB_OUTPUT"
             echo "pr_number=$PR_NUMBER_FROM_PULL_REQUEST" >> "$GITHUB_OUTPUT"
             echo "head_sha=$HEAD_SHA_FROM_PULL_REQUEST" >> "$GITHUB_OUTPUT"
-            echo "base_ref=$BASE_REF_FROM_PULL_REQUEST" >> "$GITHUB_OUTPUT"
           elif [ -n "$ISSUE_PR_URL" ]; then
             # issue_comment fires for both issues and PR comments; github.event.pull_request does
             # not exist on this event at all — only github.event.issue.pull_request's presence
-            # tells us this comment is on a PR, and we must look up the PR's own head SHA/base ref
-            # fresh via the API.
+            # tells us this comment is on a PR, and we must look up the PR's own head SHA fresh
+            # via the API.
             PR_JSON="$(gh api "repos/${{ github.repository }}/pulls/$ISSUE_NUMBER")"
             echo "is_pr=true" >> "$GITHUB_OUTPUT"
             echo "pr_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
             echo "head_sha=$(echo "$PR_JSON" | jq -r '.head.sha')" >> "$GITHUB_OUTPUT"
-            echo "base_ref=$(echo "$PR_JSON" | jq -r '.base.ref')" >> "$GITHUB_OUTPUT"
           else
             echo "is_pr=false" >> "$GITHUB_OUTPUT"
           fi
@@ -74,16 +70,20 @@ jobs:
     if: always() && needs.resolve-pr.outputs.is_pr == 'true'
     runs-on: ubuntu-24.04
     steps:
-      # SECURITY: this checkout is pinned to the PR's BASE ref (e.g. main), never the PR's own
-      # head/merge ref. This job exercises checks:write against the exact PR head SHA using the
-      # decision logic in scripts/visual-authority/ — that logic must always be the repository's
-      # own trusted version, never a PR-controlled version. Checking out the PR's own ref here
-      # would let any PR simply rewrite evaluate-gate.mjs to self-report APPROVED. All actual PR
-      # data (changed files, comments, file contents at the PR's head SHA) is read exclusively via
-      # the GitHub API from within run-gate.mjs, never from this checkout.
+      # SECURITY: this checkout uses a LITERAL `main`, never an expression derived from PR/event
+      # data (CodeQL's actions/untrusted-checkout query flagged the previous `base_ref`-expression
+      # form — a literal string has no taint flow from untrusted input for it to flag, and this
+      # repo's ruleset only ever governs `main` regardless of what branch any given PR targets).
+      # This job exercises checks:write against the exact PR head SHA using the decision logic in
+      # scripts/visual-authority/ — that logic must always be the repository's own trusted
+      # version, never a PR-controlled version. Checking out the PR's own ref here would let any
+      # PR simply rewrite evaluate-gate.mjs to self-report APPROVED. All actual PR data (changed
+      # files, comments, file contents at the PR's head SHA) is read exclusively via the GitHub
+      # API from within run-gate.mjs, never from this checkout.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.resolve-pr.outputs.base_ref }}
+          ref: main
+          persist-credentials: false
           sparse-checkout: |
             scripts/visual-authority
           sparse-checkout-cone-mode: false
