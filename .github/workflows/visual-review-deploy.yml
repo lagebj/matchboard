@@ -22,7 +22,9 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  actions: write # required to read/write the TEST_SLOT_LEASE repository variable
+  issues: write # required for the Test-slot lease issue (ADR-0159) — see test-slot-lease.mjs:
+                # the default GITHUB_TOKEN cannot write repository Variables at all, confirmed by
+                # a real HTTP 403 during this mechanism's own first live use
 
 concurrency:
   group: test-slot
@@ -84,22 +86,25 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value 2>/dev/null || echo '{}')"
+          CURRENT_LEASE="$(node scripts/visual-authority/lease-cli.mjs get)"
           LEASE_PR="$(echo "$CURRENT_LEASE" | jq -r '.prNumber // empty')"
           if [ "$LEASE_PR" != "$PR_NUMBER" ]; then
             gh pr comment "$PR_NUMBER" --body "No active Test-slot lease is held by this PR (current holder: ${LEASE_PR:-none}) — nothing to release."
             exit 0
           fi
-          gh variable delete TEST_SLOT_LEASE || true
+          node scripts/visual-authority/lease-cli.mjs clear
           bash scripts/test-acceptance/restore-baseline-alias.sh
           gh pr comment "$PR_NUMBER" --body "Test-slot lease released and \`test.matchboard.football\` restored to the \`main\` baseline."
 
       - name: Acquire the Test-slot lease
         id: lease
         if: steps.check.outputs.configured == 'true' && steps.decide.outputs.decision == 'deploy'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value 2>/dev/null || echo '{}')"
+          CURRENT_LEASE="$(node scripts/visual-authority/lease-cli.mjs get)"
           LEASE_PR="$(echo "$CURRENT_LEASE" | jq -r '.prNumber // empty')"
           LEASE_STATUS="$(echo "$CURRENT_LEASE" | jq -r '.status // empty')"
           if [ -n "$LEASE_PR" ] && [ "$LEASE_PR" != "$PR_NUMBER" ] && [ "$LEASE_STATUS" = "active" ]; then
@@ -111,7 +116,7 @@ jobs:
           fi
           NEW_LEASE="$(jq -n --arg pr "$PR_NUMBER" --arg sha "${{ steps.decide.outputs.head_sha }}" --arg actor "$COMMENT_ACTOR" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{prNumber: $pr, sha: $sha, actor: $actor, acquiredAt: $at, status: "active", deploymentUrl: null}')"
-          gh variable set TEST_SLOT_LEASE --body "$NEW_LEASE"
+          node scripts/visual-authority/lease-cli.mjs set "$NEW_LEASE"
           echo "proceed=true" >> "$GITHUB_OUTPUT"
 
       # SECURITY (CodeQL actions/untrusted-checkout/critical, found during this PR's own review,
@@ -135,11 +140,13 @@ jobs:
 
       - name: Record the deployment URL on the lease and reply
         if: steps.deploy.outcome == 'success' && steps.decide.outputs.decision == 'deploy' && steps.lease.outputs.proceed == 'true'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           DEPLOY_URL="${{ steps.deploy.outputs.deploy_url }}"
-          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value)"
+          CURRENT_LEASE="$(node scripts/visual-authority/lease-cli.mjs get)"
           UPDATED_LEASE="$(echo "$CURRENT_LEASE" | jq --arg url "$DEPLOY_URL" '.deploymentUrl = $url')"
-          gh variable set TEST_SLOT_LEASE --body "$UPDATED_LEASE"
+          node scripts/visual-authority/lease-cli.mjs set "$UPDATED_LEASE"
           HEAD_SHA="${{ steps.decide.outputs.head_sha }}"
           printf '%s\n' \
             "Deployed PR #${PR_NUMBER} (\`${HEAD_SHA}\`) to the Test slot: https://test.matchboard.football" \
@@ -158,7 +165,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          gh variable delete TEST_SLOT_LEASE || true
+          node scripts/visual-authority/lease-cli.mjs clear || true
           bash scripts/test-acceptance/restore-baseline-alias.sh
           gh pr comment "$PR_NUMBER" --body "\`/visual-review deploy\` failed — the Test slot has been restored to the \`main\` baseline and the lease released. Check the workflow run for details."

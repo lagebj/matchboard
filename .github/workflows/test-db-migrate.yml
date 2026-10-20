@@ -112,12 +112,15 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
-      actions: write # ADR-0159: clears TEST_SLOT_LEASE unconditionally before redeploying
+      issues: write # ADR-0159: clears the Test-slot lease issue unconditionally before
+                    # redeploying (see test-slot-lease.mjs — GITHUB_TOKEN cannot write repository
+                    # Variables at all, which is what this used before)
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
     steps:
       - name: Check required secrets are configured
         id: check
@@ -128,18 +131,19 @@ jobs:
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
-      # ADR-0159: a baseline redeploy legitimately preempts any held Visual Authority Gate
-      # Test-slot lease — main's own schema/code just changed, so the Test slot reverts to
-      # baseline regardless of who held it. Unconditional, not scoped to any one PR.
-      - name: Clear any held Visual Authority Gate Test-slot lease
-        if: steps.check.outputs.configured == 'true'
-        run: gh variable delete TEST_SLOT_LEASE || true
       - name: Checkout
         if: steps.check.outputs.configured == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.migrate.outputs.ref }}
           persist-credentials: false
+      # ADR-0159: a baseline redeploy legitimately preempts any held Visual Authority Gate
+      # Test-slot lease — main's own schema/code just changed, so the Test slot reverts to
+      # baseline regardless of who held it. Unconditional, not scoped to any one PR. Needs
+      # scripts/visual-authority/ from the checkout above.
+      - name: Clear any held Visual Authority Gate Test-slot lease
+        if: steps.check.outputs.configured == 'true'
+        run: node scripts/visual-authority/lease-cli.mjs clear || true
       - name: Install Vercel CLI
         if: steps.check.outputs.configured == 'true'
         run: npm install -g vercel
