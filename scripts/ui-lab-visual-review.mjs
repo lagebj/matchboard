@@ -83,6 +83,13 @@ const w4ExtraSmokeViewports = [
   { name: "w4-430", width: 430, height: 900 },
 ];
 
+// Gate B W1 (B01-B04 Match Details) smoke widths, same 360/430px rationale as Gate A's — own
+// named set per this script's established "no hidden coupling between waves" convention.
+const gbExtraSmokeViewports = [
+  { name: "gb-360", width: 360, height: 800 },
+  { name: "gb-430", width: 430, height: 900 },
+];
+
 // Gate A W5 finding: A07 and A10 both reuse A01's `max-w-[920px] ... flex-row` two-column
 // inspector-beside-content layout, and (A07 still; A10 fixed in this PR) reused A01's pre-round-4
 // `medium:flex-row` (600px) engagement — the same threshold used to decide inspector-vs-sheet at
@@ -560,6 +567,52 @@ const scenarios = [
     extraViewports: w4ExtraSmokeViewports,
     interactions: [{ id: "rejected", perform: clickByName("Reject") }],
   },
+  // Gate B W1 candidates (official register `25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv` B01-B04) —
+  // CANDIDATE, not approved. B01 reuses A07's two-column inspector-beside-content layout and the
+  // same A07 fixture-operation grammar, so it gets the same squeeze-width coverage; B02-B04 are
+  // static read-only compositions with no responsive inspector threshold, so only the 360/430px
+  // smoke widths apply.
+  {
+    slug: "gate-b-w1-b01-planned-ready",
+    route: "gate-b/b01-planned-ready",
+    extraViewports: [...gbExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
+    interactions: [
+      { id: "editor-open", perform: clickByName("Edit lineup") },
+      { id: "draft-preview", perform: clickTestId("lineup-candidate-row") },
+      { id: "pending", perform: clickWithinDialog("Confirm assignment") },
+      { id: "saved", perform: clickResolvePending() },
+    ],
+  },
+  // B1-R4 remediation: B01's same-match AFTER-state companion — proves the register-required
+  // before/after lifecycle identity continuity. Read-only, no inspector, so only the 360/430px
+  // smoke widths apply (same as B02-B04).
+  {
+    slug: "gate-b-w1-b01-after",
+    route: "gate-b/b01-planned-ready/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w1-b02-planned-incomplete",
+    route: "gate-b/b02-planned-incomplete",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w1-b03-completed-sparse",
+    route: "gate-b/b03-completed-sparse",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  // B1-R8 remediation: B04's evidence-inspection trigger ("Inspect combination evidence") was
+  // reachable and component-tested, but no capture ever opened it — every prior B04 capture was
+  // `initial` only. Reuses A01/A04's exact responsive squeeze set so the inline-inspector-vs-sheet
+  // transition gets the same real evidence B01's Edit Lineup already has.
+  {
+    slug: "gate-b-w1-b04-completed-rich",
+    route: "gate-b/b04-completed-rich",
+    extraViewports: [...gbExtraSmokeViewports, ...inspectorSqueezeSmokeViewports],
+    interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
+    interactions: [{ id: "evidence-open", perform: clickByName("Inspect combination evidence") }],
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
@@ -589,6 +642,10 @@ try {
     route.startsWith("gate-a/a08-assistant-coach-activation-parity/") ||
     route.startsWith("gate-a/a10-assistant-coach-structured-action/") ||
     route.startsWith("gate-a/a11-qualitative-evidence-and-mutation/");
+  // Same gate, extended additively to Gate B W1 (B01-B04) — every Gate B page also marks its
+  // root with `data-ui-lab-ready="true"`. Scoped to the gate-b/ prefix only, so every Gate A wave
+  // is provably unaffected by this addition.
+  const isGateBRoute = (route) => route.startsWith("gate-b/");
 
   for (const scenario of scenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
     // Width-based, not name-based: correct for any current or future viewport, including the
@@ -618,7 +675,7 @@ try {
       // A04 candidate-ready signal (04_TEST_AND_CAPTURE_MATRIX.md: "Wait for an explicit
       // candidate-ready indicator"), independent review round 1 verification gap — every A04
       // scenario page marks its root with `data-ui-lab-ready="true"` once mounted.
-      if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route)) {
+      if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route) || isGateBRoute(scenario.route)) {
         await page.locator('[data-ui-lab-ready="true"]').first().waitFor({state:"attached",timeout:30000});
       }
       await page.evaluate(()=>document.fonts.ready);
@@ -672,7 +729,7 @@ try {
       // scenario's CI result can change as a side effect of this addition.
       if (consoleErrors.length > 0) {
         const message = scenario.slug+" "+viewport.name+"/"+theme+": "+consoleErrors.length+" console/page error(s): "+consoleErrors.slice(0,3).join(" | ");
-        if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route)) throw new Error(message);
+        if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route) || isGateBRoute(scenario.route)) throw new Error(message);
         console.warn("WARNING (non-A04 scenario, not failing the run): "+message);
       }
     } finally { await context.close(); }
