@@ -22,6 +22,7 @@ import { appendFileSync } from "node:fs";
 import { parseCommand } from "./parse-comment.mjs";
 import { hasWriteAccess } from "./check-actor-permission.mjs";
 import { classifyLightweightDeployEligibility } from "./classify.mjs";
+import { requiredChecksGreen } from "./required-checks.mjs";
 
 const token = requireEnv("GH_TOKEN");
 const [owner, repo] = requireEnv("GITHUB_REPOSITORY").split("/");
@@ -112,12 +113,9 @@ async function main() {
   // deploy-request from here on
   const headSha = pr.head.sha;
 
-  const statusResponse = await ghFetch(`/repos/${owner}/${repo}/commits/${headSha}/status`);
-  const status = statusResponse.ok ? await statusResponse.json() : null;
-  if (!status || status.state !== "success") {
-    return reject(
-      `required technical/security checks are not all green yet for ${headSha} (combined status: ${status?.state ?? "unknown"}). Wait for CI before requesting a visual-review deploy.`,
-    );
+  const checksResult = await requiredChecksGreen({ owner, repo, sha: headSha, fetchImpl: ghFetch });
+  if (!checksResult.allGreen) {
+    return reject(`required checks are not all green yet for ${headSha} — ${checksResult.reason}. Wait for CI before requesting a visual-review deploy.`);
   }
 
   const { results: files, complete: filesComplete } = await paginateAll(`/repos/${owner}/${repo}/pulls/${prNumber}/files`);

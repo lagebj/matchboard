@@ -180,8 +180,19 @@ prevented by the gate itself.
 ### Stage A (this PR)
 
 Implement everything above. The `Visual Authority Gate` check reports real statuses on real PRs
-(including this one) but is **not** added to ruleset `21317362`'s required checks — it cannot
-block any merge yet. Verify, before considering Stage A complete:
+but is **not** added to ruleset `21317362`'s required checks — it cannot block any merge yet.
+
+**Bootstrap note**: both new workflows deliberately check out their trusted decision logic from
+the PR's *base* ref (`main`), never the PR's own ref — see the security rationale in both workflow
+files' header comments. That means **this governance PR's own gate run cannot produce a real
+verdict**: `main` does not contain `scripts/visual-authority/` until this PR merges, so the
+checkout finds nothing and the evaluation step fails with a module-not-found error. That failure is
+expected, harmless (Stage A is not yet a required check), and is not a sign the mechanism is
+broken — it is the direct, correct consequence of refusing to trust a PR's own copy of its own
+gatekeeping code. Real Stage A observation (an ordinary PR reporting `NOT_APPLICABLE`, a UI-Lab PR
+reporting `AWAITING_APPROVAL`, a real `/visual-approve` resolving it, `/visual-review deploy`
+behaving correctly) only becomes possible once this PR is merged, and must be performed against a
+*subsequent* PR, not this one. Verify, before considering Stage A complete:
 
 - An ordinary PR (no UI-Lab-relevant files touched) reports `NOT_APPLICABLE`.
 - A PR touching a UI Lab candidate reports `AWAITING_APPROVAL` until a real approval comment
