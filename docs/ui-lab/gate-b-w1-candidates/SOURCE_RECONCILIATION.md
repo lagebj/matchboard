@@ -90,6 +90,21 @@ All five are fixed on this branch — see `BLOCKERS.md`'s remediation summary, `
 for the per-scenario detail, and the commit history for the exact changes. This was a correction
 pass on the existing wave, not a new design proposal or a new Gate B wave.
 
+## Phase 4 — second independent technical review remediation (B1-R6 through B1-R8)
+
+A second independent technical review confirmed B1-R1 through B1-R5 were substantially resolved,
+then found three further findings — B1-R6 (two football claims exceeding their available fixture
+evidence: B04's "first-time RCM" claim derived from a rotation event that actually records the
+named player *leaving*, not arriving, and carries no position data regardless; B01's "opponent
+presses high" claim derived from result-only encounter records that prove nothing about tactical
+behavior), B1-R7 (both B01 and B04's `fixtureSha256` excluded material evidence records from their
+hash input, so that evidence could change without changing the fixture's own identity — fixed by
+widening the hash input, bumping `fixtureVersion` 1→2 for both, and adding mutation-based
+regression tests), and B1-R8 (B04's evidence-inspector open state had never been screenshot-
+captured — fixed by extending the capture script, same pattern B01's Edit Lineup already uses).
+All three fixed on this branch; see `BLOCKERS.md` for the full writeup. Narrow correction pass only
+— no redesign, no new PR, no B05-B08 work, no production change.
+
 ## What this PR does not decide
 
 - B05 (Post-Match Report draft/final), B06 (League/Event parity), B07 (Assistant Coach

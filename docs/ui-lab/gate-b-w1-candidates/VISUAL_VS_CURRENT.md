@@ -60,6 +60,24 @@ summary here:
 - **B1-R5**: B03's reconciliation note exposed implementation commentary to the coach. Rewritten
   to purely factual language.
 
+## Phase 4 — second independent technical review remediation (B1-R6 through B1-R8)
+
+- **B1-R6**: two football claims exceeded their available fixture evidence. B04's
+  `firstTimeCanonicalPositions` claimed Tobias's first-time RCM experience from a `ROTATION`
+  timeline event naming him — but that field (`secondaryPlayerName`) records him *leaving* the
+  match at 40', not arriving at a new position, and a `ROTATION` item carries no position field at
+  all either way. B01's `opponentMemory.patterns` claimed a tactical pressing pattern backed only
+  by two result-only `recentEncounters` records (matchId/date/result — no tactical data). Both
+  removed rather than backed with an invented positional-history/tactical-observation model.
+- **B1-R7**: both B01's and B04's `fixtureSha256` were computed from a hash input that excluded
+  material supporting evidence (`b01TobiasRcmAppearanceRecords`, `b04CombinationSourceRecords`),
+  so that evidence could silently change without changing the fixture's own identity hash. Fixed
+  by widening both hash inputs and bumping `fixtureVersion` 1→2 for both scenarios — see
+  `DATA_TRUTH_AND_FIXTURES.md`.
+- **B1-R8**: B04's "Inspect combination evidence" trigger had no screenshot coverage of its open
+  state. Fixed — the capture-attestation now includes 16 new `evidence-open` captures for B04
+  across desktop, mobile, and the three inspector-squeeze breakpoints, both themes.
+
 ## B01 — planned, ready — `CONFIRMS_SHIPPED_BASELINE`
 
 - **Identical to production**: composition order (`MatchIdentityCard` → `MatchPreparationWidget`
@@ -70,6 +88,11 @@ summary here:
 - **New (B1-R4)**: a read-only AFTER-state companion at `b01-planned-ready/after/` shares B01's
   exact match id/identity/kickoff/orientation, now `done` with a recorded 2-1 result — demonstrates
   the register-required before/after lifecycle continuity within one fixture family.
+- **Fixed (B1-R6)**: `MatchOpponentMemory`'s "Recurring patterns" column no longer renders an
+  unsupported tactical claim — `opponentMemory.patterns` is now `[]`, since the only underlying
+  records (`recentEncounters`) prove match identity/date/result, never tactical behavior. The
+  component already handles this gracefully (that column simply doesn't render); no production
+  change.
 - **Differs**: the real page renders `MatchTacticsPanel` (self-fetching, with its own internal
   Match Insights fetch and mutation surface) where this candidate renders `MatchInsights` directly
   plus a read-only `TouchlinePlanningPitch` + the A07 local-editor pattern. The visual result is
@@ -118,6 +141,15 @@ summary here:
   offer (it only shows a reference count). The underlying insight claim was also rewritten —
   "Noah and Sindre have combined for a goal in each of the last 2 matches" — to match what the
   fixture's two real, distinct source records actually prove.
+- **Fixed (B1-R6)**: `WhatThisMatchAddedPanel`'s `firstTimeCanonicalPositions` no longer claims
+  Tobias's "first-time RCM" experience — the only underlying evidence (a `ROTATION` timeline item
+  naming him) actually records him leaving the match, not arriving at a position, and carries no
+  position field regardless. The panel still renders its other two real rows (new observations,
+  new opponent encounter).
+- **New (B1-R8)**: the evidence-inspector's open state (desktop inline + mobile bottom sheet,
+  across the 600/768/900px squeeze breakpoints) now has real screenshot coverage — previously only
+  its `initial` (closed) state was ever captured, despite the inspector being fully
+  component-tested.
 - **Also differs**: same omissions as B03, plus no `CompletedMatchAdvisorPanel` (see
   `CURRENT_STATE_AUDIT.md` for why).
 

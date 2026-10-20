@@ -1,25 +1,27 @@
 {
-  "description": "Gate B W1 (B01/B01-AFTER/B02/B03/B04) UI Lab visual-review evidence, post-remediation (B1-R1 through B1-R5). Not an approved golden — requires human approval.",
-  "sourceCommitSha": "f1a42bbb73a4630fa1f31b9c92183268b915dc45",
-  "generatedAt": "2026-10-20T07:36:06.099Z",
+  "description": "Gate B W1 (B01/B01-AFTER/B02/B03/B04) UI Lab visual-review evidence, post-remediation through B1-R8 (B1-R6 unsupported football claims removed, B1-R7 fixture hashes widened + versions bumped, B1-R8 B04 evidence-inspector interaction captured). Not an approved golden — requires human approval.",
+  "sourceCommitSha": "8b9022bc17c167e11dbe16af51b25ec92ffbec80",
+  "generatedAt": "2026-10-20T08:43:45.211Z",
   "environment": {
     "node": "v24.22.0",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39386349849",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39394010475",
   "ciArtifact": {
-    "id": 12248181385,
-    "name": "ui-lab-review-39386349849-1",
-    "expiresAt": "2026-10-27T07:36:06Z"
+    "id": 12251895839,
+    "name": "ui-lab-review-39394010475-1",
+    "expiresAt": "2026-10-27T08:43:45Z"
   },
-  "reviewedBranchHeadSha": "50ae5485e66894aa74f0e4de3381bee23969fd2f",
+  "reviewedBranchHeadSha": "9e83501f37efe8029eb49b708498c65f2e4d0b4f",
+  "supersedes": "Replaces the capture-attestation.json committed at commit 00a608225 (CI run 39386349849, 96 captures, B01 fixtureVersion 1, B04 fixtureVersion 1). That attestation predates B1-R6 (B04's unsupported firstTimeCanonicalPositions claim and B01's unsupported opponent-pressing pattern removed), B1-R7 (B01/B04 fixtureVersion bumped to 2, fixtureSha256 recomputed to cover previously-excluded evidence records), and B1-R8 (B04's evidence-inspector open state now captured). Every Gate B scenario's pixels are expected to have changed since the prior attestation (fixture content changed for B01/B04; B04 gained 16 new evidence-open captures) — this is not a no-op re-run.",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior Gate A wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
     "Gate B W1 scenarios (scenario slugs prefixed gate-b-w1-) are CANDIDATE only — see docs/ui-lab/gate-b-w1-candidates/.",
     "GitHub Actions artifact retention is temporary (expires ciArtifact.expiresAt) — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "The 96 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
-    "This file is a filtered, Gate-B-scoped view of the run's full manifest.json (1010 captures across every Gate A and Gate B scenario) — only the 96 gate-b-w1-* entries are included here."
+    "All 112 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+    "This file is a filtered, Gate-B-scoped view of the run's full manifest.json (every Gate A and Gate B scenario) — only the 112 gate-b-w1-* entries are included here.",
+    "This attestation file itself is committed in a documentation-only commit after reviewedBranchHeadSha (the capture-triggering commit) — both identities are recorded explicitly above and in BLOCKERS.md/REVIEW_RECORD.md, per the same precedent the prior Gate B attestation and every Gate A wave established."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -27,7 +29,29 @@
     "gate-b-w1-b01-after": 10,
     "gate-b-w1-b02-planned-incomplete": 10,
     "gate-b-w1-b03-completed-sparse": 10,
-    "gate-b-w1-b04-completed-rich": 10
+    "gate-b-w1-b04-completed-rich": 26
+  },
+  "interactionStateCountsByScenario": {
+    "gate-b-w1-b01-planned-ready": {
+      "initial": 16,
+      "editor-open": 10,
+      "draft-preview": 10,
+      "pending": 10,
+      "saved": 10
+    },
+    "gate-b-w1-b01-after": {
+      "initial": 10
+    },
+    "gate-b-w1-b02-planned-incomplete": {
+      "initial": 10
+    },
+    "gate-b-w1-b03-completed-sparse": {
+      "initial": 10
+    },
+    "gate-b-w1-b04-completed-rich": {
+      "initial": 16,
+      "evidence-open": 10
+    }
   },
   "captures": [
     {
@@ -40,7 +64,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-desktop-dark.png",
-      "sha256": "371475e837f134091d8a69626911f70923abe36b4420d2c9434a486979193d59"
+      "sha256": "466caadfcf42126a1b9d8eba039fd094ee0369e829c91ec966e221e5bd70916f"
     },
     {
       "scenarioId": "B01",
@@ -52,7 +76,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-desktop-dark-editor-open.png",
-      "sha256": "72569f86e45c3cfbaa3f341dbc761a05f9697aa2dbc60fb43cfaca98b1b143fe"
+      "sha256": "62cf5db635181d0a18bd9566e5d9fda53201e3ed4f1b8ef969174c3ea757e0f3"
     },
     {
       "scenarioId": "B01",
@@ -64,7 +88,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-desktop-dark-draft-preview.png",
-      "sha256": "5f5dcd17bb10c6bb9989903cac4fa95d919a6f7b774e7da9e6d35fc8d06777ff"
+      "sha256": "e23e31ad9dc03a61075c2a05acc0a71b210ef6c2211eae23a36ba54854e2b505"
     },
     {
       "scenarioId": "B01",
@@ -76,7 +100,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-desktop-dark-pending.png",
-      "sha256": "1e72aeaf5fe733fd1406d3d51965ccacac13f13eab995e97141089698156eb1e"
+      "sha256": "bc8a99e3ebb0570113d6471dafe00e054ffa68f2a2c946d5654fff92b4bd9433"
     },
     {
       "scenarioId": "B01",
@@ -88,7 +112,7 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-desktop-dark-saved.png",
-      "sha256": "c0ef65e220d817262e2722c14c7edd15a5e77c11ffc734bb0ccd8185574d2e2e"
+      "sha256": "5540f09b35f5dcb43d1267e8016b38283ecfadabfde184400cdc1dc66239cb9d"
     },
     {
       "scenarioId": "B01",
@@ -100,7 +124,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-desktop-light.png",
-      "sha256": "678ffb83f0d5d7c0a8aa18a639bd3eea496475ca337700660e25a60ceda1996e"
+      "sha256": "5804ef75ca8b1fabe7fefe55a18ac3e920c8016a61a5a25f509bcc88bfbce989"
     },
     {
       "scenarioId": "B01",
@@ -112,7 +136,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-desktop-light-editor-open.png",
-      "sha256": "86eefe8d37c332c456cb75b4454e75427077867738a8691d14aea575c771f507"
+      "sha256": "a5f03798f68f941dacb1134d6a159c8e599840497e4ce63c7f335021b653ad5b"
     },
     {
       "scenarioId": "B01",
@@ -124,7 +148,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-desktop-light-draft-preview.png",
-      "sha256": "fd33994628def5fa68c27c99795cb57f06d1caaf0771db730658782f93941a6f"
+      "sha256": "c95c6dc87eccf4856286fdcc24db51e89706d5cb0c55fa4330398f69fc3fff2f"
     },
     {
       "scenarioId": "B01",
@@ -136,7 +160,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-desktop-light-pending.png",
-      "sha256": "f4623fc15f9f430ee1e27032ef4682a4d7989dbfdada404f0f8b3a72a81e7646"
+      "sha256": "a4ddcd4583acc3618ebfbe91ff3c0d4f47ea815a8bacd97e07230e3b3d160229"
     },
     {
       "scenarioId": "B01",
@@ -148,7 +172,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-desktop-light-saved.png",
-      "sha256": "97daa1f373de018bd62129bbaf6750e8a29194933ed3f8d209f28e55a21dbc95"
+      "sha256": "e511889ad21a36fc65cc398aea3e0b11a1741e6037ccc7d42a53e06e011e4f68"
     },
     {
       "scenarioId": "B01",
@@ -160,7 +184,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-mobile-dark.png",
-      "sha256": "93a3929140c0c25829570b1cf9f7edfa4212073b725cef5a71a1690be3e33d8c"
+      "sha256": "14ee4990603d3dd844f3ca2fb81dde17013e820cbe83dd39082f75c499509dcb"
     },
     {
       "scenarioId": "B01",
@@ -172,7 +196,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-mobile-dark-editor-open.png",
-      "sha256": "84d5edd790a0ebda119c4e1fd6c8b9112f4b1926142c4483f220eab1ba9bafcc"
+      "sha256": "d32c5ec0bbae4556eeca5322e4b7f3cabb2bcdb7a817b658a565b12a88cf74b9"
     },
     {
       "scenarioId": "B01",
@@ -184,7 +208,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-mobile-dark-draft-preview.png",
-      "sha256": "b7b6db09048428e82ddf9732cc83a7df7d4043b207dbd682899aee613dfeec27"
+      "sha256": "5202529a90360963858107a1036f8a2bd25a33179d11c76f0e19958dd7bd81dd"
     },
     {
       "scenarioId": "B01",
@@ -196,7 +220,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-mobile-dark-pending.png",
-      "sha256": "c354b1b995ee1a251b8464893cc904c2c3de332757e41d9f4fcf2ed51933368d"
+      "sha256": "374d8ef6d3db068b89f2cfc09d8e5153e859974dfdecef1b316f3ce0772853e7"
     },
     {
       "scenarioId": "B01",
@@ -208,7 +232,7 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-mobile-dark-saved.png",
-      "sha256": "5d11ab074715baf415b9b191d46c0aa379b7782f51b3ac23ef50f17206011410"
+      "sha256": "255760f6d003eb64c4e7a9400ce7210833e5bd13901eefa5250fa0dd420776f4"
     },
     {
       "scenarioId": "B01",
@@ -220,7 +244,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-mobile-light.png",
-      "sha256": "e8503c7a5734db538dfb81f933d1132c686ce0eb8590586c8aaee2e405f6c726"
+      "sha256": "5ac573304741d644eee7c805879a7eecb2c4969961c6cc74b6e786522a48c582"
     },
     {
       "scenarioId": "B01",
@@ -232,7 +256,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-mobile-light-editor-open.png",
-      "sha256": "2cf2c5996227d2a2c211636922da6523a16955bf1a8cbb2671fd5994fa064496"
+      "sha256": "f6c4a31e39ab0467b412ed0b3c811a03d429d103b1492c464bf5d4fc8c363d5c"
     },
     {
       "scenarioId": "B01",
@@ -244,7 +268,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-mobile-light-draft-preview.png",
-      "sha256": "f789191d2d8414c8c0e6a33428de9cd20a3d380bf50d7d2c5b9bd2482f4cd070"
+      "sha256": "d893c256cfabe23ae3a625077468b7adf54948ba80913f787c82b4e5f9807428"
     },
     {
       "scenarioId": "B01",
@@ -256,7 +280,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-mobile-light-pending.png",
-      "sha256": "a0fcbcf9b4c6ddb4102ec9c3ac82bf25f197ecb515f4f21a789c5a5a4a68ff8a"
+      "sha256": "437602423f19cbbcf8650f8a5ab7665a2c4f212c0b9df74b93539284b151b384"
     },
     {
       "scenarioId": "B01",
@@ -268,7 +292,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-mobile-light-saved.png",
-      "sha256": "3e55ecd7b441fee0e7e6df70fb6de0c5432b8345d9c6fa75dad75fe7c5ee4d9d"
+      "sha256": "f182a283703e9ca01fcf52432e5444814f8a974ec8984e66175b912048edc58f"
     },
     {
       "scenarioId": "B01",
@@ -280,7 +304,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-narrow-dark.png",
-      "sha256": "698a4f089a3fa65297797cbffdceb6f8f878f7da4be9bd7f194ac08ae6b64a7a"
+      "sha256": "8065708fd8c6c672df74d8fec2e58d53b1ebcceeecedaa923b985d07a57e4ad7"
     },
     {
       "scenarioId": "B01",
@@ -292,7 +316,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-narrow-light.png",
-      "sha256": "1c973dfb4052d863a467a42ff2bf00785c7964cd3d386fe64b9af599c554bee6"
+      "sha256": "676a1887daacf5d82cdc982c7b79cc996bafc7293a4bc4e8284df4f7f3d42456"
     },
     {
       "scenarioId": "B01",
@@ -304,7 +328,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-gb-360-dark.png",
-      "sha256": "bdb28e9b60cdc1947f481c3d9752ffce2131b5b05a8c0b95750500e0f7230bbc"
+      "sha256": "426a7b82df3c9442eefb071e308c61359543847b5b42bd8e900ab1aee6c0ef17"
     },
     {
       "scenarioId": "B01",
@@ -316,7 +340,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-gb-360-light.png",
-      "sha256": "1006510e95e06039a76dce666d90167ea5fce29b8da58b23631cd2fff2774f05"
+      "sha256": "4a16b09683eb11e2238eb5ab9de84aaf89a94f2824359795d9aa58eb56275c71"
     },
     {
       "scenarioId": "B01",
@@ -328,7 +352,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-gb-430-dark.png",
-      "sha256": "a06144bfae630a6bfe8b9e769e993dce76644051e2c13bcd9627cea55b8591a1"
+      "sha256": "41502ceb815e533a77da5f5b495b19e0d22f4700cd5c268f1c4ab75d4adc21f7"
     },
     {
       "scenarioId": "B01",
@@ -340,7 +364,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-gb-430-light.png",
-      "sha256": "a60c166bff9250155fc7da5e02e57ef99fc1cb1cedcb5807154db2f563a10d95"
+      "sha256": "6b5c34a78e0e5cf92db51a95b3830e11149f43607eaea1e46555f9a7a050ac4c"
     },
     {
       "scenarioId": "B01",
@@ -352,7 +376,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark.png",
-      "sha256": "e60be1649ac5c96175b7de6a8795805fbdd57761c90f699a0e9d8a06ab61b503"
+      "sha256": "569de75a5bfe7e25dfa984e1ef565adb8ea9e5a229c33f7092e37d4a248d96ab"
     },
     {
       "scenarioId": "B01",
@@ -364,7 +388,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-editor-open.png",
-      "sha256": "32ae96d10e1776fb098aead5d1639ef7dee1c78e3bd617714fa9e50de10ad5ec"
+      "sha256": "553ede015fefd7f2a3d294c63c29b9f40bd8fe5fc726c1d5a6a9e38197e02572"
     },
     {
       "scenarioId": "B01",
@@ -376,7 +400,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-draft-preview.png",
-      "sha256": "a52fc07683c40ac69f5fe20c9e8ef4ece00ab283a86bc68e857cc27374694370"
+      "sha256": "de4b3308c4be891a1b235377824ef1c76195dfc58308d2e9fa93d3d7f10ae8ac"
     },
     {
       "scenarioId": "B01",
@@ -388,7 +412,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-pending.png",
-      "sha256": "69038613ab35c23734626cf5483323bfe1853cd1286ecaaedcb5ee243f1c48c0"
+      "sha256": "8b180859e34a237d71ead7f5f7e927a6889a305a78a2fa4035cb40cb736e54a1"
     },
     {
       "scenarioId": "B01",
@@ -400,7 +424,7 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-dark-saved.png",
-      "sha256": "640bbdc30f6ed9ee49b39a4b04b4a70ef68ba4ec59f053f882c97717cf166143"
+      "sha256": "7badc387cb9a48722fd3ba6585deb4dd5b4e3307ba3eecb06dea7e86f6add170"
     },
     {
       "scenarioId": "B01",
@@ -412,7 +436,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-light.png",
-      "sha256": "cdaaf202e512a4db428afb51e8fd3ceb0ab349df2d85dc2fdde2053bc57d699b"
+      "sha256": "8fdf013a332f85b6c4156b8ea0ddb2c1c3133dbc7fe474978d9bbffd65e8157e"
     },
     {
       "scenarioId": "B01",
@@ -424,7 +448,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-editor-open.png",
-      "sha256": "811fc14b9a75c06f1c5db6e4460af53b1cfdb84f20df3a29348f796a277128ce"
+      "sha256": "3311c283e04b237f093002fb34ee85c68a0decbae8b219eb6c7cfa611a04cb67"
     },
     {
       "scenarioId": "B01",
@@ -436,7 +460,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-draft-preview.png",
-      "sha256": "18cf9e72aaf3a8127abc2e642f0ebaeaeddb1e6d869b9e60dd79cfee0e440b32"
+      "sha256": "e01b688fc741d574598af0a289a71923777a45800f1eb1e6dc204b327ec7ea53"
     },
     {
       "scenarioId": "B01",
@@ -448,7 +472,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-pending.png",
-      "sha256": "07d0990239f2b193b30e82ad65ae55fc4d4e850df90411e3b9170d86cbc32c62"
+      "sha256": "859660245c2eee8ea9b558acb1cc23c693bfcb39b8b263e29ca286a2382dad51"
     },
     {
       "scenarioId": "B01",
@@ -460,7 +484,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-squeeze-600-light-saved.png",
-      "sha256": "a8ca4d09d06f6211989e1a6efffa39eb48db83f28477dacb0f7017b95287841d"
+      "sha256": "5e473498ac4e92570bacc07e9f80a9a95726b327ddb8d42d9113f5dc33847470"
     },
     {
       "scenarioId": "B01",
@@ -472,7 +496,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark.png",
-      "sha256": "48a947d718cca4f5ee3a4eb89e64c4d871e166562e496e3f35f947c9fd6da710"
+      "sha256": "c6bbbd7d6b7a49c01afab0a6c811ed3fc5de019db4759eed97bb6881813e6980"
     },
     {
       "scenarioId": "B01",
@@ -484,7 +508,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-editor-open.png",
-      "sha256": "2a38b21877e7ac020e963213a959b093bd3081f275d05c4c765d3b18fa5489a7"
+      "sha256": "da25a26a12a517adc5f902b35400cf7e26255a771876b021cc532dbbeec5e53b"
     },
     {
       "scenarioId": "B01",
@@ -496,7 +520,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-draft-preview.png",
-      "sha256": "2c1a599d6414fda39c36c88692c028f6a54fc1b89b5e703e3386f501b6e66ee4"
+      "sha256": "8d85f58d67831394821b8ed24491642b1bb0c632fa1ad2ea187556e534ee9592"
     },
     {
       "scenarioId": "B01",
@@ -508,7 +532,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-pending.png",
-      "sha256": "06ec015b3b2724096981bf5cce5a6c70cc9cd9071d569672b513305508da21fb"
+      "sha256": "19804cf0ee3daaf049573fae4d5bd429197e692640398f08704d21076c63d489"
     },
     {
       "scenarioId": "B01",
@@ -520,7 +544,7 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-dark-saved.png",
-      "sha256": "e196011c94ee13ac8fb936b04a8cb30983a2820f0eaaf5a97a829190744518f0"
+      "sha256": "53d44fa6c789d0be31c67473831b8ccf7fcff729fcc603e706f46adaf175bdcb"
     },
     {
       "scenarioId": "B01",
@@ -532,7 +556,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-light.png",
-      "sha256": "09422273f2ed0bcb9883095bcb7221375b9cedbdd682bb895a0c9c08f20b9b89"
+      "sha256": "a4456025f01e8e5391ee5eca8a9b0b710d12504fadc8ca193ec607edf6f65b0b"
     },
     {
       "scenarioId": "B01",
@@ -544,7 +568,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-editor-open.png",
-      "sha256": "0f99b6838563f694aa8a296da83ef3b365dee8f4ad6cc5b8c88f2970eb03eb75"
+      "sha256": "79d9ae87e443894df0f0789746ccb9e5df9445a6fd4b596fb29acddcb72697b0"
     },
     {
       "scenarioId": "B01",
@@ -556,7 +580,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-draft-preview.png",
-      "sha256": "5fae69706d15d18a29673b3ee368c8fd741d484faa047184f238ddf61ae3f2c8"
+      "sha256": "bd468fc09cac3c7525567bc1691d2ec3b5914250c78d543ba93372f1290ac7b6"
     },
     {
       "scenarioId": "B01",
@@ -568,7 +592,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-pending.png",
-      "sha256": "8117b6fbe72bd24a4bab536e9ed7ba42d399e63ac9d2ecc8be53938f92bc5f63"
+      "sha256": "20daf8dde9bd166d8615f862447cf684e3dea6c0d88cdfe979aecf56ffe01d74"
     },
     {
       "scenarioId": "B01",
@@ -580,7 +604,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-squeeze-768-light-saved.png",
-      "sha256": "c6856bbb10759b6210a43ef79636b39ac22ca70c2c176fdb41733ae24612e69d"
+      "sha256": "2e4ace7f8f9fd20e3e70d6210fb28bf94a10107a6f0a6eabab47fa32a3ec70c1"
     },
     {
       "scenarioId": "B01",
@@ -592,7 +616,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark.png",
-      "sha256": "6ef0812f31584a166316c7c0518cebc70089de3ca2ad5d0f219b136a45c4ae30"
+      "sha256": "ef66d924d74ba2d7a3029e5301027ff7505f973ad8e99e9d74a1185108e48ed9"
     },
     {
       "scenarioId": "B01",
@@ -604,7 +628,7 @@
       "theme": "dark",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-editor-open.png",
-      "sha256": "548c812999be36fedbc3f54dc92892aa4ae05675c5ce0b1ee3c666df0efcad74"
+      "sha256": "0facce509409f1e764fab96936511e7fe1857bc72ef4e0e72ad47689ab3c56a9"
     },
     {
       "scenarioId": "B01",
@@ -616,7 +640,7 @@
       "theme": "dark",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-draft-preview.png",
-      "sha256": "69cc7b3c9578f94ec844213e151ce5aa1889683815c05e7d42801c86ef10c879"
+      "sha256": "b8b1be085ecf61c3b1c151dabba7b1b480b6985daf082ddd06240acdd929c27e"
     },
     {
       "scenarioId": "B01",
@@ -628,7 +652,7 @@
       "theme": "dark",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-pending.png",
-      "sha256": "6582ff5e5a71f0a0b90d422f9ff53e6872d7aa0920a5314959c3efa4001c072a"
+      "sha256": "b98750f84f4b7cd0e6ce178ecef7ac9247a67f05aa04467617a4f00262429d65"
     },
     {
       "scenarioId": "B01",
@@ -640,7 +664,7 @@
       "theme": "dark",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-dark-saved.png",
-      "sha256": "8cb0832e61810022dd66cb5f8b925d361c125a1036e1f0559aa1a3b251d00b5a"
+      "sha256": "ad352109ca00106e2e7222360616caf40945ceb898854d91ed7f538d1b54583c"
     },
     {
       "scenarioId": "B01",
@@ -652,7 +676,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-light.png",
-      "sha256": "090f83ebd5ab823aaba3e06517ac7b1e87083856341eacee1d8f0975d6e47a0f"
+      "sha256": "05bfce5ae0ae90405634524b07f0180986648c9ad14dd08f32d8dd1b5933ab8e"
     },
     {
       "scenarioId": "B01",
@@ -664,7 +688,7 @@
       "theme": "light",
       "interactionState": "editor-open",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-editor-open.png",
-      "sha256": "b109a4a09b6bc305467da0c9a3de3b3d903cf295eeb945e9f07086c1c6f44c82"
+      "sha256": "217f24bf84ea1cf78e1d165060a7ec086e3c4691212783e20393df2fb9d152aa"
     },
     {
       "scenarioId": "B01",
@@ -676,7 +700,7 @@
       "theme": "light",
       "interactionState": "draft-preview",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-draft-preview.png",
-      "sha256": "8aab7e463ae0260598f0ba9e1a0b58d71d5287ffcb8b917589c9856a7bb4c022"
+      "sha256": "05954ac7097dec625a2d56d0e2c1cf06814492829e0ea326adcafb818129aeae"
     },
     {
       "scenarioId": "B01",
@@ -688,7 +712,7 @@
       "theme": "light",
       "interactionState": "pending",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-pending.png",
-      "sha256": "f9b359d700bbbf18ba713bcb724f2651aeb7fc6632506e452440b9dae9b983cb"
+      "sha256": "443587d4ad5db65ad09e7c49949ab2a0b7a1cfffeaa2b3493a58e65b335171e2"
     },
     {
       "scenarioId": "B01",
@@ -700,7 +724,7 @@
       "theme": "light",
       "interactionState": "saved",
       "file": "gate-b-w1-b01-planned-ready-squeeze-900-light-saved.png",
-      "sha256": "861436853b434bf7e329413ac8d52a3d0f8f23bc71c19917babbe748fc0cb596"
+      "sha256": "fb82dd2e4cd76598923b4bd5f8e2edda803e7511157ed9aa13e5191438a8bd44"
     },
     {
       "scenarioId": "B01-AFTER",
@@ -1072,7 +1096,19 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-desktop-dark.png",
-      "sha256": "5aef03e149eb68f273894e4f4ff83936c6e7ef8325c37f157e05e62f67ab3b2c"
+      "sha256": "719bfff5fb09a708b372947bd733ff18ea5d734e866c60608fcebb67a4ade9ad"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-desktop-dark-evidence-open.png",
+      "sha256": "a4aa89a4240af5330e382408ebecf1c55f1ff3a30b56f238a2a7cc1132c17794"
     },
     {
       "scenarioId": "B04",
@@ -1084,7 +1120,19 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-desktop-light.png",
-      "sha256": "122853e6d3a41fc865469c857f11c936aee85c9bb23123367b35a301737ff06b"
+      "sha256": "b9c9c16a616be74a75b68fb693efa65ccbe53a16c030c61d482817f208c97cec"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-desktop-light-evidence-open.png",
+      "sha256": "0910fb8955f0b4e42ebe9823d4a47135d9f911d9dd0acfb7b1f28f1610884f2e"
     },
     {
       "scenarioId": "B04",
@@ -1096,7 +1144,19 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-mobile-dark.png",
-      "sha256": "36cf5eae568d2c376f98dd9e28aae9180fc2190d99fd3bbe2a66026c23eb9d81"
+      "sha256": "d3a8df8dbec6f96e452fca5afa119767b735e988b0184e45302130efb00d9fce"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-mobile-dark-evidence-open.png",
+      "sha256": "ac7e4c0023029f6fd4623efdd14d84b2ceeb13fb92cdcc408ff4393a94e2a326"
     },
     {
       "scenarioId": "B04",
@@ -1108,7 +1168,19 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-mobile-light.png",
-      "sha256": "c6a1f1eb6561700ed1a9db8bd6d7d5b4fabb1f7cbb2bfe0bc96ac7561bcf0528"
+      "sha256": "39c22f75e316109591f8fd978d7ea89b53bc95c4f60ef0669949c27b38fef51e"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-mobile-light-evidence-open.png",
+      "sha256": "1ad95578f3c99ce08683cf735940df08f28ac144c4e8b957cd1a8b7c14792e46"
     },
     {
       "scenarioId": "B04",
@@ -1120,7 +1192,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-narrow-dark.png",
-      "sha256": "c29d41d7b42e3db754311b74acb9afac7159d6c694fd59bc9325e97f507fcf49"
+      "sha256": "47f3aff458302f87d5fee5d3788b577fc6597f2b2056b56f1daff4875f35e091"
     },
     {
       "scenarioId": "B04",
@@ -1132,7 +1204,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-narrow-light.png",
-      "sha256": "ef5135ebd6e0c8a3707a55b9d9f6894b0dce44d48afeaedc4ce5eea0f02f932f"
+      "sha256": "4b584ceb127a970880470efb5036eb8966d7ee85b76670ac4943f76af3c7899b"
     },
     {
       "scenarioId": "B04",
@@ -1144,7 +1216,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-gb-360-dark.png",
-      "sha256": "09095b0a79a9791f966ec943e02faa491475888395a8a3a2cd60447af4c719c6"
+      "sha256": "577f86d3aa007c925c055cd8e3fa67534466d945b70b0d68be672cd75e927c83"
     },
     {
       "scenarioId": "B04",
@@ -1156,7 +1228,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-gb-360-light.png",
-      "sha256": "cd33822483ebae2d73b9d979263d8b3a2104b740c0ae529c822181cf099c27c0"
+      "sha256": "509dc63d4bbe4c414b41dc74f15b1ff2bd7cfcde40850164ac55892a6fdabbfe"
     },
     {
       "scenarioId": "B04",
@@ -1168,7 +1240,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-gb-430-dark.png",
-      "sha256": "b9912c632097931bfb62385c07cb063f705cb574f360e1602e77f97637953d60"
+      "sha256": "88b76d28746b6e0d85fdfc0a854d8a9f3b50ba7335480495639749246841942d"
     },
     {
       "scenarioId": "B04",
@@ -1180,7 +1252,151 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w1-b04-completed-rich-gb-430-light.png",
-      "sha256": "26d058a9afc3b62f5c9e2e67c68af27dd4b92c417d469dbf73595e662484e34c"
+      "sha256": "9c0e1743675b8ee74860c0f9b234862d2f6796e57ff52949fe7109151a849681"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-600-dark.png",
+      "sha256": "72bd98f0ea144e20c870f6417843d8718390a8930a169925133fa0b7c561dd54"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-600-dark-evidence-open.png",
+      "sha256": "39519402b083e256c6521c3a365d8eeac3fea711807768ea37ce84dd2178c608"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-600-light.png",
+      "sha256": "bcae4682e8f7092a00c56f3fea0c7f33b40f246e0b106c8ad496615077e51b91"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-600",
+      "viewportWidth": 600,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-600-light-evidence-open.png",
+      "sha256": "d2757a5b82a4eb73484e0d1a773404b3bb45dccdc6f21554bf1fa866a24f7862"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-768-dark.png",
+      "sha256": "e69ae2188d062093f358163cd044049324124eb3e88827a07cc98d4d8e900899"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-768-dark-evidence-open.png",
+      "sha256": "b3a083b1c865d4da3b5dc90098c8cb703c3bcf269c19fe435ae0028cb6f01210"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-768-light.png",
+      "sha256": "cf603ece8aecb72510cf4debdab65ecfc6bd47ead0a7e271f510fc24aeaa4204"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-768",
+      "viewportWidth": 768,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-768-light-evidence-open.png",
+      "sha256": "662e06afb6d899121ccbfec65e7127ddea4089b69355f01765829e34c9326da7"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-900-dark.png",
+      "sha256": "ec355a6ac0e43279d43d430b705c65d07ca0b7a761cf3889c51ea75c6a6ac226"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "dark",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-900-dark-evidence-open.png",
+      "sha256": "a758d608d19e430f21f2df236ea88ccaa2f231da620971909dfc05fb0762d314"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-900-light.png",
+      "sha256": "d695dc44a2a26f42f7f78dc744139db94462f9657f12fdbbcf753f8dba95226d"
+    },
+    {
+      "scenarioId": "B04",
+      "scenario": "gate-b-w1-b04-completed-rich",
+      "route": "gate-b/b04-completed-rich",
+      "viewport": "squeeze-900",
+      "viewportWidth": 900,
+      "viewportHeight": 1024,
+      "theme": "light",
+      "interactionState": "evidence-open",
+      "file": "gate-b-w1-b04-completed-rich-squeeze-900-light-evidence-open.png",
+      "sha256": "6ed5e67cae11fb395f0c6ca56a3936820a38d77a6400e84180923aaa00794a28"
     }
   ]
 }

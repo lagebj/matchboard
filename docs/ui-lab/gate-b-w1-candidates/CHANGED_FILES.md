@@ -5,6 +5,37 @@ component, data loader, or schema file is touched — every `src/` change is new
 under `src/app/dev/ui-lab/gate-b/` (dev-only, 404s in production) plus one additive extension of
 the existing visual-review capture script.
 
+## Phase 6 (second independent review remediation, B1-R6 through B1-R8, + fresh attestation) — additional changes
+
+- `shared/match-b-fixture.ts` — B1-R6: `b01OpponentMemory.patterns` emptied (unsupported pressing
+  claim removed). B1-R7: no new exports, `b01TobiasRcmAppearanceRecords`/`b04CombinationSourceRecords`
+  (already existed) are now actually consumed by the widened `rawRecordsForHash` objects below.
+- `shared/__tests__/match-b-fixture.test.ts` — new `describe` block for `b01OpponentMemory`
+  (B1-R6 regression coverage).
+- `b01-planned-ready/fixtures.ts` — B1-R7: `rawRecordsForHash` widened to include
+  `b01TobiasRcmAppearanceRecords`; `fixtureVersion` 1→2; `fixtureSha256` recomputed.
+- `b01-planned-ready/__tests__/fixtures.test.ts` — B1-R7: mutation-based hash-completeness,
+  no-self-reference, and determinism regression tests.
+- `b01-planned-ready/__tests__/page.test.tsx` — B1-R6: asserts the rendered page never claims
+  opponent pressing behavior.
+- `b04-completed-rich/fixtures.ts` — B1-R6: `firstTimeCanonicalPositions` emptied. B1-R7:
+  `rawRecordsForHash` widened to include `b04CombinationSourceRecords`; `fixtureVersion` 1→2;
+  `fixtureSha256` recomputed.
+- `b04-completed-rich/__tests__/fixtures.test.ts` — B1-R6: replaced the weak
+  name-matching test with real positional-evidence-semantics tests (including a "temptation test"
+  proving the weak evidence exists but is correctly unused). B1-R7: mutation-based hash-completeness,
+  no-self-reference, and determinism regression tests.
+- `b04-completed-rich/__tests__/page.test.tsx` — B1-R8: focus-restoration test for the evidence
+  inspector.
+- `scripts/ui-lab-visual-review.mjs` — B1-R8: extended the `gate-b-w1-b04-completed-rich` scenario
+  entry with an `evidence-open` interaction across desktop/mobile/squeeze-600/768/900.
+- `docs/ui-lab/gate-b-w1-candidates/capture-attestation.json` — regenerated from a fresh CI run
+  (`39394010475`, branch head `9e83501f3`) after all of the above landed: 112 captures (was 96),
+  every hash independently re-verified. Supersedes the prior attestation; see its own `supersedes`
+  field.
+- `candidate_manifest.json`, `BLOCKERS.md`, `REVIEW_RECORD.md`, `SOURCE_RECONCILIATION.md`,
+  `VISUAL_VS_CURRENT.md`, `DATA_TRUTH_AND_FIXTURES.md` — updated throughout to record B1-R6/R7/R8.
+
 ## Phase 5 (real CI capture attestation) — additional changes
 
 - `docs/ui-lab/gate-b-w1-candidates/capture-attestation.json` — new. Generated from this PR's own

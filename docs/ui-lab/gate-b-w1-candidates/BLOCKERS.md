@@ -20,6 +20,50 @@ An independent technical review of this PR found five findings, all now fixed on
   ("MatchFlowPanel", "BLOCKERS.md", "production") to the coach. Rewritten to purely factual,
   coach-facing language; the engineering explanation now lives only in the doc-comment and here.
 
+## Second independent technical review remediation (B1-R6 through B1-R8) — resolved
+
+A second independent technical review confirmed B1-R1 through B1-R5 were substantially resolved,
+then found three further findings, all now fixed on this branch:
+
+- **B1-R6** (P1) — two football claims exceeded their available fixture evidence. (1) B04's
+  `firstTimeCanonicalPositions` claimed Tobias's "first-time RCM" experience from a `ROTATION`
+  timeline event naming him — but `MatchTimelineItem`'s own type contract documents
+  `secondaryPlayerName` on a `ROTATION` item as "the player coming off," so the event actually
+  records Tobias *leaving* the match at 40', not arriving at a new position, and carries no
+  position field at all either way. Fixed by removing the claim (`firstTimeCanonicalPositions: []`)
+  rather than inventing a positional-history evidence model — `buildWhatThisMatchAddedRows()`
+  already returns `[]` safely for an empty array, so the panel still renders its other two real
+  rows. (2) B01's `opponentMemory.patterns` claimed Nesbru IL "presses high in the first 15
+  minutes of every recorded meeting," backed only by two `recentEncounters` records that contain
+  `matchId`/`occurredAt`/`resultLabel` — a result-only record cannot support a tactical-behavior
+  claim. Fixed by emptying `patterns`; the real `MatchOpponentMemory` component already renders
+  gracefully when `patterns.length === 0`. A focused audit of four adjacent claims (B01's RCM
+  appearance evidence, B01's opponent-history insight, B04's Noah/Sindre combination, B04's
+  observation count and new-opponent-encounter claim) found all four already properly supported —
+  no further change needed there.
+- **B1-R7** (P2) — `fixtureSha256` for both B01 and B04 was computed from a `rawRecordsForHash`
+  that excluded material evidence: `b01TobiasRcmAppearanceRecords` (backing `insight-gb1-2`'s
+  evidenceRefs) and `b04CombinationSourceRecords` (the second-match evidence for the Noah/Sindre
+  insight) could both change without changing the fixture's own identity hash. Fixed by widening
+  both `rawRecordsForHash` objects to include the excluded records, bumping both `fixtureVersion`
+  1→2, and recomputing `fixtureSha256` for real (verified against the existing self-check test, not
+  guessed). New mutation-based regression tests prove each field actually participates in the hash
+  (mutate a previously-excluded record's field → hash must change), plus no-self-reference and
+  determinism checks. The existing hashing mechanism itself (`sha256(JSON.stringify(...))`) was
+  already deterministic — no canonicalization rewrite was needed, only completeness.
+- **B1-R8** (P2) — B04's "Inspect combination evidence" trigger was reachable and
+  component-tested, but every prior capture of B04 was `interactionState: "initial"` only — no
+  screenshot ever showed the source inspector open, on desktop or mobile. Fixed by extending the
+  capture script's `gate-b-w1-b04-completed-rich` scenario entry with an `evidence-open`
+  interaction (`clickByName("Inspect combination evidence")` — the exact accessible name was
+  verified via a throwaway exact-match test before being wired into the capture script, not
+  assumed), exercised across desktop, mobile, and the three inspector-squeeze breakpoints
+  (600/768/900px), the same pattern B01's Edit Lineup capture already established. Also added a
+  focus-restoration test (Escape closes the inspector, focus returns to the trigger) — the one
+  B1-R8 interaction-validation item not yet covered by a component test. A fresh CI run (see below)
+  produced real `evidence-open` captures; B04 now has 26 captures total (was 10), across both
+  `initial` and `evidence-open` states.
+
 ## Gate B authorization basis
 
 The programme bundle states twice (`00_START_HERE.md`, `07_GOLDEN_AUTHORITY_STORAGE_AND_RELEASE.md`)
@@ -29,18 +73,27 @@ given 2026-10-17, to begin Gate B** — not an inference from any `HANDOFF_READY
 recovered documents. Recorded here so a future reader does not mistake the bundle's own
 `NOT_READY`/`DIRECTIONAL_ONLY` CSV statuses for "Gate B was never authorized."
 
-## CI capture attestation — now generated and committed
+## CI capture attestation — now generated and committed (regenerated after B1-R6/R7/R8)
 
 Same disclosed limitation Gate A's W1 recorded: this sandbox's local `next dev` + browser
 automation cannot complete hydration here (HMR WebSocket upgrade failure — reproduces on an
 untouched page too, see project memory `project_devcontainer_hmr_websocket_blocks_playwright`), so
-no local capture was ever attempted. `capture-attestation.json` in this directory is now real,
-generated from this PR's own passing CI run of `.github/workflows/ui-lab-visual-review.yml`
-(run `39386349849`, branch head `50ae5485e66894aa74f0e4de3381bee23969fd2f`): 96 captures across
-B01/B01-AFTER/B02/B03/B04, downloaded via `gh run download`, every SHA-256 independently
-recomputed from the raw PNG bytes and cross-checked against the artifact's own self-reported
-`manifest.json` — zero mismatches, no missing files. `candidate_manifest.json` remains
-`status: "CANDIDATE"` with no `approval` block — a passing capture is evidence, not owner sign-off.
+no local capture was ever attempted. `capture-attestation.json` in this directory is real,
+regenerated from this PR's own passing CI run of `.github/workflows/ui-lab-visual-review.yml`
+after the B1-R6/R7/R8 fixes landed (run `39394010475`, branch head
+`9e83501f37efe8029eb49b708498c65f2e4d0b4f`): **112 captures** across B01/B01-AFTER/B02/B03/B04
+(up from 96 — B04 gained 16 `evidence-open` captures), downloaded via `gh run download`, every
+SHA-256 independently recomputed from the raw PNG bytes and cross-checked against the artifact's
+own self-reported `manifest.json` — zero mismatches, no missing files. This supersedes the
+attestation from run `39386349849`/commit `00a608225`, which predates the B1-R6/R7 fixture
+revisions (both B01 and B04's pixels are expected to have changed) and B1-R8's new interaction
+state — see `capture-attestation.json`'s own `supersedes` field for the full explanation.
+`candidate_manifest.json` remains `status: "CANDIDATE"` with no `approval` block — a passing
+capture is evidence, not owner sign-off.
+
+This attestation is committed in a documentation-only commit after `9e83501f3` (the capture-
+triggering commit) — both identities (`reviewedBranchHeadSha` = the code commit CI actually ran
+against, and this doc commit's own hash) are recorded explicitly rather than conflated.
 
 ## Event Match Details has no non-live route (relevant to deferred B06) — resolved to a real gap, not an intentional boundary
 
