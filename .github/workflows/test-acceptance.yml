@@ -221,6 +221,10 @@ jobs:
     name: Clean up PR's Test slot resources
     if: github.event.action == 'closed'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: write # ADR-0159: may need to clear this PR's TEST_SLOT_LEASE variable
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
@@ -228,6 +232,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check required secrets are configured
         id: check
@@ -237,6 +242,16 @@ jobs:
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      # ADR-0159: if this closing PR currently holds the Visual Authority Gate's Test-slot lease
+      # (TEST_SLOT_LEASE repository variable), clear it here too — this job already restores the
+      # baseline alias below, so a held lease must not survive the PR it was scoped to.
+      - name: Clear this PR's Visual Authority Gate Test-slot lease, if held
+        run: |
+          CURRENT_LEASE="$(gh variable get TEST_SLOT_LEASE --json value -q .value 2>/dev/null || echo '{}')"
+          LEASE_PR="$(echo "$CURRENT_LEASE" | jq -r '.prNumber // empty')"
+          if [ "$LEASE_PR" = "$PR_NUMBER" ]; then
+            gh variable delete TEST_SLOT_LEASE || true
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.check.outputs.configured == 'true'
