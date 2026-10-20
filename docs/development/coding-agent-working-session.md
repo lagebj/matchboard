@@ -153,6 +153,37 @@ A push to an already-labeled PR removes the `acceptance` label automatically —
 acceptance no longer covers the new commit. Re-apply the label deliberately when the new commit
 is actually ready, not reflexively.
 
+## Visual Authority Gate (ADR-0159)
+
+A PR touching a UI Lab candidate, a shared Touchline/match-detail/match-insights component, or a
+`candidate_manifest.json`/`capture-attestation.json` carries a `Visual Authority Gate` status
+check. The process:
+
+1. Implement and test locally, as above.
+2. Open the PR; let the normal required checks (`ci-checks.yml`, `security.yml`) go green.
+3. Complete technical review as usual.
+4. Let CI produce real capture evidence (the existing `ui-lab-visual-review.yml` job) if the PR
+   is a UI Lab candidate wave.
+5. Request a live preview **only when actually needed** — comment `/visual-review deploy` on the
+   PR. This is explicit and deliberate, exactly like the `acceptance` label above: it deploys the
+   PR's exact revision into the existing `test` Custom Environment (no Neon branch, no migration,
+   no Worker, no Playwright suite), and only succeeds if the PR's required checks are already
+   green and the PR is UI-Lab-only (otherwise it's refused in favor of the full `acceptance`
+   path). Release it afterward with `/visual-review release`, or it releases automatically when
+   the PR closes.
+6. The repository owner (or anyone with write access to the repo — checked in real time, never
+   cached) reviews the rendered output and comments `/visual-approve <sha>` or
+   `/visual-reject <sha>`. **A coding agent must never post this comment itself, under any task
+   framing** — see ADR-0159's "Self-approval / credential-indistinguishability limitation" for
+   why this can only be a behavioral rule, not a technical one, when an agent session holds the
+   owner's own credential.
+7. Once approved, a golden record can be written via `scripts/visual-authority/promote-to-golden.mjs`,
+   reusing the exact `approval` schema Gate A already established.
+8. The `Visual Authority Gate` check must be green (once Stage B adds it to the required-checks
+   ruleset — see ADR-0159's Rollout; until then it reports informationally only).
+9. Merge.
+10. Release the Test slot (`/visual-review release`) if still held.
+
 ## Version management (mandatory)
 
 Every substantive Matchboard change must include a version-impact assessment before completion, per `docs/VERSIONING.md` (see ADR-0059).

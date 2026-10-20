@@ -3,21 +3,37 @@
 # `matchboard` project, which now also hosts the `test` Custom Environment (ADR-0153 superseded
 # the old two-linked-projects architecture this file's previous header described).
 #
-# Exit 0 = skip this deployment. Exit non-zero = build normally. Only a Git-triggered deployment
-# (a real push) ever reaches this script — ignoreCommand does not gate explicit `vercel deploy`/
-# REST-API-triggered deployments (confirmed against Vercel's docs), which is exactly what lets
-# the Test-acceptance pipeline's own explicit `vercel deploy --target=test` calls
-# (scripts/test-acceptance/deploy.sh, and the post-merge test-db-migrate.yml baseline job) keep
-# working unconditionally below.
+# Exit 0 = skip this deployment. Exit non-zero = build normally.
 #
-# First check: skip outright unless this is a push to `main`. A normal push to any other branch
+# CORRECTION (found live, 2026-10-20, ADR-0159's first real `/visual-review deploy` attempts on
+# PR #790): this build step runs for EVERY deployment that reaches Vercel's build pipeline,
+# including a `gitSource`-based REST API deployment targeting a named Custom Environment — not
+# only ordinary git-push-triggered ones. The previous comment here ("ignoreCommand does not gate
+# explicit ... REST-API-triggered deployments, confirmed against Vercel's docs") was wrong: two
+# separate real `deploy-pr-revision.sh` attempts (dpl_5u7G2HBY5XWveRMLKTdBjg2rYDKB,
+# dpl_F71c14Hyvi6PbSreDNLW4Jph91hM) were silently CANCELED by this exact "not main" check below,
+# because `VERCEL_GIT_COMMIT_REF` reflects the real git branch of the deployed commit (per
+# Vercel's system-environment-variables docs), which for a PR revision is never `main` even though
+# `gitSource.ref` was a bare commit SHA.
+#
+# First check: always build when this deployment targets the `test` Custom Environment
+# (`VERCEL_TARGET_ENV == "test"`), regardless of branch. The ONLY way a deployment reaches this
+# project's `test` Custom Environment is an explicit, already-governed action — either the
+# post-merge `main` baseline redeploy (test-db-migrate.yml) or a comment-gated, permission- and
+# required-checks-checked `/visual-review deploy` request (visual-review-deploy.yml) — never an
+# automatic branch push, since ordinary PR/feature/fix branch pushes deploy to the standard
+# `preview` environment, not `test`. The skip-eligibility heuristic below exists purely to avoid
+# needless *automatic* `main` rebuilds; it has no bearing on these already-deliberate requests, so
+# it's bypassed entirely here rather than risked against a `test`-target PR revision.
+#
+# Second check: skip outright unless this is a push to `main`. A normal push to any other branch
 # (feature/*, fix/*, chore/*, Dependabot branches, arbitrary PR branches) must never trigger an
 # automatic Vercel build — the coding-agent development loop should cost zero remote
 # infrastructure (ADR-0153). This is the one and only place that rule is enforced; it is not
 # equivalent to the docs-only skip-eligibility check below, which only applies once a push to
 # `main` has already passed this gate.
 #
-# Second check (main only): skip only when every file changed since the last deployed commit is
+# Third check (main only): skip only when every file changed since the last deployed commit is
 # classified skip-eligible by scripts/is-build-skip-eligible.sh (the shared predicate also used
 # by test-acceptance.yml's own Neon/Test-slot skip check — see that script's own doc comment for
 # the full path list and why it exists as one file rather than two independently-maintained
@@ -27,6 +43,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+if [ "${VERCEL_TARGET_ENV:-}" = "test" ] && [ "${VERCEL_GIT_COMMIT_REF:-}" != "main" ]; then
+  echo "Deploying a non-main ref into the 'test' Custom Environment (ADR-0159 lightweight visual-review deploy, or an equivalent already-governed request) — building unconditionally."
+  exit 1
+fi
 
 if [ "${VERCEL_GIT_COMMIT_REF:-}" != "main" ]; then
   echo "Branch '${VERCEL_GIT_COMMIT_REF:-<unknown>}' is not main — skipping automatic build (ADR-0153: only main auto-deploys)."

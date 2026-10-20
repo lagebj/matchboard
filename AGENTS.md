@@ -94,6 +94,7 @@ filing mechanics.
 - Never add `@` imports of large documents back into auto-loaded instruction files; this reintroduces the static-context problem.
 - Work pull requests sequentially, never in parallel: open at most one PR at a time, wait for its CI checks to go green, squash-merge (or get it merged) and sync local `main`, and only then branch for the next unit of work. Do not open a second PR while an earlier one is still open/unmerged.
 - `main` is closed to direct pushes: every change, including documentation-only and instruction-file edits, must go through a feature branch and pull request (see the `git-branch-commit-pr` skill for the full delivery workflow). Never commit or push directly to `main`.
+- A change touching a UI Lab candidate, a shared Touchline/match-detail component, or a `candidate_manifest.json`/`capture-attestation.json` requires the Visual Authority Gate (ADR-0159) — see `docs/development/coding-agent-working-session.md` for the full process. A coding agent must never post the `/visual-approve` (or reject) comment itself, under any framing; that is the owner's action alone.
 
 ## Detailed guidance is task-local
 
