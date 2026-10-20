@@ -61,9 +61,32 @@ resolve_test_custom_environment_id() {
 # because `matchboard-test` was a separate, always-auto-deploying project — the single-project
 # `test` Custom Environment never auto-deploys from a push (no branch matcher, by design), so
 # there is no equivalent static alias to point at; the baseline deployment must be looked up.
+#
+# CORRECTION (found live, 2026-10-20, during PR #790's own post-merge cleanup): this filter was
+# broken in two independent ways and had likely never actually resolved a baseline deployment
+# since ADR-0153.
+#
+# 1. `target=test` silently matched zero deployments, always — confirmed against Vercel's own
+#    List Deployments schema, the `target` query param (and response field) is an enum of exactly
+#    `production | staging | null`, never a named Custom Environment's slug (which only ever
+#    appears in the separate `customEnvironment.slug` field — the same target-vs-customEnvironment
+#    distinction ADR-0159's vercel-ignore-build-step.sh fix hit).
+# 2. `branch=main` was also always false for this script's own deployments: deploy-test-baseline.sh
+#    runs from an `actions/checkout` at a bare commit SHA (detached HEAD, not a checked-out branch
+#    named "main"), so Vercel CLI's git auto-detection records `meta.githubCommitRef` as the
+#    literal string "HEAD" — confirmed empirically against every real baseline deployment. The
+#    `branch=main` comment in deploy.sh (this file's sibling) describes a *different* deployment
+#    path (the full-acceptance pipeline's own PR-branch checkout), not this one.
+#
+# Fixed by dropping both filters (keeping only the real, documented `state=READY` param) and
+# filtering client-side for `customEnvironment.slug == "test" AND meta.githubCommitRef == "HEAD"`
+# — the latter is exactly what distinguishes a main-baseline CLI deploy from a PR's own
+# acceptance-pipeline deploy (real branch name) or an ADR-0159 gitSource PR-revision deploy
+# (the PR's raw commit SHA), over enough recent deployments (limit=20) that the right one is
+# virtually always present even with other deployments interleaved.
 resolve_test_baseline_deployment_url() {
-  vercel_api GET "/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=test&state=READY&branch=main&limit=1" \
-    | jq -r '.deployments[0].url // empty'
+  vercel_api GET "/v6/deployments?projectId=${VERCEL_PROJECT_ID}&state=READY&limit=20" \
+    | jq -r '[.deployments[]? | select(.customEnvironment.slug == "test" and .meta.githubCommitRef == "HEAD")][0].url // empty'
 }
 
 # Upserts a `test`-Custom-Environment-scoped env var (sensitive type — these are always DB
