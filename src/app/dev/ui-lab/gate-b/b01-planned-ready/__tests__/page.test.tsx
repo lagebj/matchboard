@@ -60,6 +60,7 @@ describe("B01 planned-ready page", () => {
     expect(screen.getByText("Saved (simulated)")).toBeInTheDocument();
     const mainPitch = screen.getAllByTestId("touchline-planning-pitch")[0];
     expect(within(mainPitch).getByText("Vetle")).toBeInTheDocument();
+    expect(within(mainPitch).queryByText("Sindre")).not.toBeInTheDocument();
   });
 
   it("closes on Escape and restores focus to the trigger (keyboard smoke)", () => {

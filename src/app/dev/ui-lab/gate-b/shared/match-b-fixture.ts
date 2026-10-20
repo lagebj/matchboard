@@ -70,16 +70,34 @@ export function matchBPlanningPitchAssignments(squad: readonly MatchBSquadMember
     }));
 }
 
-/** Pure reducer for a proposed lineup draft — never mutates the input squad (B01's Edit Lineup demo). */
+/**
+ * Pure reducer for a proposed lineup draft (B01's Edit Lineup demo) — explicitly REPLACES
+ * whoever currently occupies the target tactical slot (never produces duplicate occupancy: two
+ * players can never end up with the same non-null `tacticalPosition`), and never mutates the
+ * input squad. Re-displacing from the authoritative squad on every call (rather than tracking
+ * incremental deltas) means repeating the same operation can never accumulate a second duplicate.
+ */
 export function withTacticalAssignment(
   squad: readonly MatchBSquadMember[],
   playerId: string,
   position: CanonicalTacticalPosition,
 ): MatchBSquadMember[] {
-  if (!squad.some((m) => m.playerId === playerId)) {
+  const incoming = squad.find((m) => m.playerId === playerId);
+  if (!incoming) {
     throw new Error(`withTacticalAssignment: "${playerId}" is not a squad member.`);
   }
-  return squad.map((m) => (m.playerId === playerId ? { ...m, tacticalPosition: position } : m));
+  if (!LINEUP_POSITIONS.includes(position)) {
+    throw new Error(`withTacticalAssignment: "${position}" is not a recognized tactical slot.`);
+  }
+  return squad.map((member) => {
+    if (member.playerId === playerId) {
+      return { ...member, tacticalPosition: position, role: "starter" as const };
+    }
+    if (member.tacticalPosition === position) {
+      return { ...member, tacticalPosition: null, role: "reserve" as const };
+    }
+    return member;
+  });
 }
 
 // ---------------------------------------------------------------------------
