@@ -46,5 +46,9 @@ fixture modules.
   `THREE_PART_EXPERIENCE_CONTRACT.md`, `VISUAL_VS_CURRENT.md`, `CHANGED_FILES.md` (this file),
   `REVIEW_RECORD.md`, `candidate_manifest.json`.
 
-`capture-attestation.json` is not yet present — added once this PR's own CI capture run
-succeeds, following Gate B W1's own Phase 5 precedent.
+## CI capture attestation (new, added after the B2-R1 fix)
+
+- `capture-attestation.json` — generated from this PR's own passing CI run (`39593337123`,
+  branch head `1b91b7cb6`), 24 captures, every SHA-256 independently re-verified. Scenario-scoped
+  filter of that run's full 1050-capture manifest, following the exact precedent Gate B W1's own
+  `capture-attestation.json` established.

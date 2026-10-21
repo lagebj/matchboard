@@ -27,11 +27,10 @@ owner review of the exact evidence and revision — the same gate Gate A and Gat
 
 1. Owner answers `SOURCE_RECONCILIATION.md`'s framing question (confirm-via-fixture vs.
    propose-new) — open, not yet answered for this wave.
-2. `.github/workflows/ui-lab-visual-review.yml` runs on this PR and produces a real
-   `capture-attestation.json`. **Not yet done at the time this file was written** — this
-   sandbox's local `next dev` + Playwright cannot complete hydration (see `BLOCKERS.md`); the
-   attestation is added once this PR's own CI run succeeds, following Gate B W1's own Phase 5
-   precedent exactly.
+2. `.github/workflows/ui-lab-visual-review.yml` has run on this PR and produced a real
+   `capture-attestation.json` — **done**: committed in this directory, **24 captures** (run
+   `39593337123`, branch head `1b91b7cb6`, after the B2-R1 fix), every hash independently
+   re-verified (see `BLOCKERS.md`).
 3. **ADR-0159's `Visual Authority Gate` is a real, required, merge-blocking check on this PR** —
    the first Gate B wave subject to it (Stage B was activated in this same session, after
    PR #802/#804). This PR cannot merge without a real `/visual-approve <sha>` comment from the
@@ -66,6 +65,7 @@ owner review of the exact evidence and revision — the same gate Gate A and Gat
       `BLOCKERS.md`.
 - [x] `npm run build` / `npm test` (full suite) re-run locally after the B2-R1 fix — no
       regressions.
-- [x] Real CI visual capture — first run failed on the B2-R1 finding; fixed, re-pushed, awaiting
-      the re-run's result.
+- [x] Real CI visual capture — first run failed on the B2-R1 finding; fixed, re-pushed, re-run
+      passed (`39593337123`, 13m22s). `capture-attestation.json` committed with all 24 hashes
+      independently re-verified.
 - [ ] Independent technical review — not yet performed on this wave.

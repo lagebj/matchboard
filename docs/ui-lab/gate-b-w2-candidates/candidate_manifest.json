@@ -2,7 +2,7 @@
   "programmeRevision": "0.169.2",
   "baseCommitSha": "e6244b7ac6019216de4a5497f6f15a5236a65463",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b05-post-match-report/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W2 (B05 Post-match Report, draft and completed). Both entries are CANDIDATE — no owner approval has happened yet. capture-attestation.json is not yet present; added once this PR's own CI run of ui-lab-visual-review.yml succeeds, following Gate B W1's own Phase 5 precedent. This is the first Gate B wave subject to ADR-0159's Visual Authority Gate as a real, required, merge-blocking check (Stage B activated in this same session). See SOURCE_RECONCILIATION.md for the framing decision and BLOCKERS.md for the full disclosure list.",
+  "note": "Gate B W2 (B05 Post-match Report, draft and completed). Both entries are CANDIDATE — no owner approval has happened yet. capture-attestation.json IS committed in this directory: 24 real captures from this PR's own passing CI run (run 39593337123, branch head 1b91b7cb6), every SHA-256 independently re-verified — zero mismatches. The first CI attempt failed on a real pre-existing bug this wave's own fixture surfaced in RecoveredTimingCallout (B2-R1, fixed on this branch). This is the first Gate B wave subject to ADR-0159's Visual Authority Gate as a real, required, merge-blocking check (Stage B activated in this same session). See SOURCE_RECONCILIATION.md for the framing decision and BLOCKERS.md for the full disclosure list.",
   "candidates": [
     {
       "scenarioId": "B05",
@@ -24,7 +24,7 @@
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — the real PostMatchReportPageShell/PostMatchReportShell/PostMatchDebrief composition; see VISUAL_VS_CURRENT.md",
       "knownGaps": [
         "PostMatchPage, FootballObservationSection, and ObservationSection are mocked in this wave's own Vitest component tests (an environment-level next-auth module-resolution failure, reproduced directly) — all three are real and unmodified in the actual rendered page; see BLOCKERS.md",
-        "No capture-attestation.json yet — added once this PR's own CI run succeeds"
+        "RecoveredTimingCallout (a real production component) got a narrow markup-only bug fix (B2-R1) after this wave's own CI capture found a real pre-existing invalid-HTML-nesting defect in it; see BLOCKERS.md"
       ],
       "approval": null
     },
@@ -47,8 +47,7 @@
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md; docs/adr/0152-coach-learning-loop.md",
       "baselineAssetRef": "NOT_A_NEW_SCENARIO — same real match/report identity as B05, now locked; see VISUAL_VS_CURRENT.md",
       "knownGaps": [
-        "Same mocking disclosure as B05 — see BLOCKERS.md",
-        "No capture-attestation.json yet — added once this PR's own CI run succeeds"
+        "Same mocking disclosure as B05 — see BLOCKERS.md"
       ],
       "approval": null
     }

@@ -23,9 +23,18 @@ register row as freshly re-verified against the original CSV.
 This sandbox's local `next dev` + browser automation cannot complete hydration (HMR WebSocket
 upgrade failure, reproduces on an untouched page too — project memory
 `project_devcontainer_hmr_websocket_blocks_playwright`), so no local capture was ever attempted.
-Real capture evidence comes from this PR's own CI run of `ui-lab-visual-review.yml`, added once
-CI is green — see `REVIEW_RECORD.md` for the plan and `candidate_manifest.json`/
-`capture-attestation.json` once committed.
+
+## Real CI capture — now generated and committed (after the B2-R1 fix)
+
+`capture-attestation.json` in this directory is real, generated from this PR's own passing CI
+run of `.github/workflows/ui-lab-visual-review.yml` (run `39593337123`, branch head `1b91b7cb6` —
+the commit after the B2-R1 fix; the first attempt, run `39590822709` against commit `059b857ea`,
+failed on exactly that finding): **24 captures** across B05 (draft, 14 — 10 initial + 4
+`completed-transition` on desktop/mobile) and B05-COMPLETED (10, all `initial`), downloaded via
+`gh run download`, every SHA-256 independently recomputed from the raw PNG bytes and cross-checked
+against the artifact's own self-reported `manifest.json` — zero mismatches, no missing files.
+`candidate_manifest.json` remains `status: "CANDIDATE"` with `approval: null` for both entries —
+a passing capture is evidence, not owner sign-off.
 
 ## Three real production components substituted with a stub inside this wave's own Vitest tests
 
