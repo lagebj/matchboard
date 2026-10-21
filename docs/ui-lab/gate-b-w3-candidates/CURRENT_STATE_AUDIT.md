@@ -64,7 +64,7 @@ this wave's own production source audit — not invented.
 | Nav entry point | `/o/[orgSlug]/matches/[matchId]` (Overview, BEFORE) | None dedicated — inline widget on Event Detail's own Overview tab |
 | Primary action | Edit squad/lineup/rotation | Add/assign players to the squad |
 | Editable | Yes, gated by `isMatchPlanningEditable()` | Yes |
-| Data present / missing | Selections, helpers, guests, lineup existence; no report/timeline | Roster size vs. target, GK presence; no match-specific lineup yet |
+| Data present / missing | Selections, helpers, guests, lineup existence; no report/timeline | Squad size vs. target, GK presence; no match-specific lineup yet |
 | Return destination | Same page | Event Detail |
 | Owner | `before-match-overview.tsx` | `event-detail.tsx` |
 | Parity | **Not directly comparable** — League's is match-scoped, Event's is squad-scoped (roster, not lineup). This wave's "Before" candidates compare the match-scoped lineup stage instead (row 2), which is where both origins genuinely operate on the same match. |
