@@ -41,8 +41,8 @@
         "approvedAt": "2026-10-09",
         "approvedBy": "Lage Berger-Brendryen",
         "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-w1-pixel-verified-not-byte-exact.zip. Disclosed gap, unchanged by this release: the released file for this scenario is visually/pixel-identical to the original 2026-10-09 capture but NOT byte-identical to it — the original capture's exact bytes were never placed in durable storage, only their SHA-256 (recorded in approval.approvedCaptures below). Every available CI render since (including the one this release asset is drawn from) reproduces the same visual content with different compressed PNG bytes (encoder non-determinism between the original local capture environment and GitHub Actions). See GATE_A_FINAL_ACCEPTANCE.md.",
         "approvedCaptures": [
           { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a01-sports-first-desktop-dark.png", "sha256": "396e2a3430e9dd30a40c4764b3cbbd1ff4fca315e4e74a75e39b1ab361284f3c" },
           { "viewport": "desktop", "theme": "dark", "interactionState": "lineup-open", "file": "gate-a-a01-sports-first-desktop-dark-lineup-open.png", "sha256": "c16663d9c3b4dd91aa2e229dfee3e84d093c496cc574935fcd8cc8bde7670840" },
@@ -98,8 +98,8 @@
         "approvedAt": "2026-10-09",
         "approvedBy": "Lage Berger-Brendryen",
         "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-w1-pixel-verified-not-byte-exact.zip. Disclosed gap, unchanged by this release: the released file for this scenario is visually/pixel-identical to the original 2026-10-09 capture but NOT byte-identical to it — the original capture's exact bytes were never placed in durable storage, only their SHA-256 (recorded in approval.approvedCaptures below). Every available CI render since (including the one this release asset is drawn from) reproduces the same visual content with different compressed PNG bytes (encoder non-determinism between the original local capture environment and GitHub Actions). See GATE_A_FINAL_ACCEPTANCE.md.",
         "approvedCaptures": [
           { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-desktop-dark.png", "sha256": "c463b89c48c13bc8d40a47e424ce38d968d0eb63e21e265e055c4b8e130c8459" },
           { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-a-a02-match-lifecycle-desktop-light.png", "sha256": "9f0ac275e0e6b2c33cc8492becc351ae08a9cc92859fb48b91181ceed2ba52b4" },
@@ -146,8 +146,8 @@
         "approvedAt": "2026-10-09",
         "approvedBy": "Lage Berger-Brendryen",
         "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-w1-pixel-verified-not-byte-exact.zip. Disclosed gap, unchanged by this release: the released file for this scenario is visually/pixel-identical to the original 2026-10-09 capture but NOT byte-identical to it — the original capture's exact bytes were never placed in durable storage, only their SHA-256 (recorded in approval.approvedCaptures below). Every available CI render since (including the one this release asset is drawn from) reproduces the same visual content with different compressed PNG bytes (encoder non-determinism between the original local capture environment and GitHub Actions). See GATE_A_FINAL_ACCEPTANCE.md.",
         "approvedCaptures": [
           { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a06-position-pitches-desktop-dark.png", "sha256": "5e1f5ed9871b29f4324d9e541f98fbca3b94ab8aac207e41984ecca684fedc6e" },
           { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-a-a06-position-pitches-desktop-light.png", "sha256": "f1d11647e30df2f9a1efc8cc9581220fd21e1da5c220ba4bb24641d881fc7001" },
@@ -191,8 +191,8 @@
         "approvedAt": "2026-10-09",
         "approvedBy": "Lage Berger-Brendryen",
         "revisionSha": "7dbdf85ccfceb65fcb3fc19ca6428e567c858876",
-        "releaseTag": null,
-        "releaseStatus": "PENDING — durable GitHub Release creation (D7 storage strategy) was attempted and blocked by this session's sandbox permission classifier ('Create Public Surface'); approval hashes below are independently verified against docs/ui-lab/gate-a-w1-candidates/capture-attestation.json in the meantime",
+        "releaseTag": "gate-a-golden-2026-10-16",
+        "releaseStatus": "PUBLISHED — durable GitHub Release created 2026-10-16 (https://github.com/lagebj/matchboard/releases/tag/gate-a-golden-2026-10-16), asset gate-a-w1-pixel-verified-not-byte-exact.zip. Disclosed gap, unchanged by this release: the released file for this scenario is visually/pixel-identical to the original 2026-10-09 capture but NOT byte-identical to it — the original capture's exact bytes were never placed in durable storage, only their SHA-256 (recorded in approval.approvedCaptures below). Every available CI render since (including the one this release asset is drawn from) reproduces the same visual content with different compressed PNG bytes (encoder non-determinism between the original local capture environment and GitHub Actions). See GATE_A_FINAL_ACCEPTANCE.md.",
         "approvedCaptures": [
           { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-a-a12-profile-editor-desktop-dark.png", "sha256": "6113aaf15247c2f97d87bc45fcde4c9e6e0b2cee333a427b08b9abea834c2204" },
           { "viewport": "desktop", "theme": "dark", "interactionState": "editor-expanded", "file": "gate-a-a12-profile-editor-desktop-dark-editor-expanded.png", "sha256": "1b2eb2f2fad8f47b2258da03b03f55e02d27ff4ec03ba36f1f8339781045de59" },
