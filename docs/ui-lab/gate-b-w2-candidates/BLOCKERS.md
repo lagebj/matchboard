@@ -36,6 +36,13 @@ against the artifact's own self-reported `manifest.json` — zero mismatches, no
 `candidate_manifest.json` remains `status: "CANDIDATE"` with `approval: null` for both entries —
 a passing capture is evidence, not owner sign-off.
 
+**Superseded by the fixtureVersion 2 remediation below.** This section describes capture evidence
+for fixtureVersion 1's now-corrected content; it is preserved unmodified under
+`capture-attestation.json`'s own `priorVersions[0]` for traceability of the approval record it
+belongs to (see the fixtureVersion 2 section). The file's top-level content is now fixtureVersion
+2's own real capture: run `39657393171` (branch head `568096efc`), still 24 captures, same
+independent-verification process, zero mismatches, zero missing files.
+
 ## Three real production components substituted with a stub inside this wave's own Vitest tests
 
 `PostMatchPage`, `FootballObservationSection`, and `ObservationSection` each statically import

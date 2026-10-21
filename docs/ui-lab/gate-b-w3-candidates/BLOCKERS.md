@@ -30,6 +30,17 @@ https://github.com/lagebj/matchboard/actions/runs/39637600700, `reviewedBranchHe
 mobile/narrow/gb-360/gb-430 × dark/light each), every SHA-256 independently recomputed from the
 downloaded artifact's raw PNG bytes — zero mismatches against the artifact's own manifest.json.
 
+**Superseded by the B06 remediation (B3-R1 through B3-R7) below.** That run's 40 captures
+reflected the pre-remediation fixture content; they are preserved unmodified under
+`capture-attestation.json`'s own `priorVersions[0]` for traceability (never approved, so nothing
+is inherited from them). The file's top-level content is now the remediated revision's own real
+capture: run https://github.com/lagebj/matchboard/actions/runs/39657393171,
+`reviewedBranchHeadSha` `568096efc0f2d89b85eaaa90ad4b2fedf0b16612`, still 40 captures across the
+same four scenarios, same independent re-verification process, zero mismatches, zero missing
+files. This run also exercises B3-R1's new coverage-completeness check
+(`scripts/ui-lab-visual-review.mjs`'s `completedAllScenarios` guard) — all registered Gate A and
+Gate B scenarios (53 total) produced at least one capture.
+
 ## Two real bugs found by this wave's own CI capture — fixed
 
 - **Capture script never registered B06** (`scripts/ui-lab-visual-review.mjs`): the script's
