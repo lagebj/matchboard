@@ -2,16 +2,19 @@ import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 
 /**
- * `/dev/ui-lab/gate-b` index — Gate B W1 candidates (B01-B04 Match Details, official register
+ * `/dev/ui-lab/gate-b` index — Gate B candidates (official register
  * `25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv`). Dev-only, fixture-backed, `CANDIDATE` only — no
- * production route, component, or data loader is changed by this wave. See
- * `docs/ui-lab/gate-b-w1-candidates/` for the full review record.
+ * production route, component, or data loader is changed by this programme. See
+ * `docs/ui-lab/gate-b-w1-candidates/` (B01-B04) and `docs/ui-lab/gate-b-w2-candidates/` (B05)
+ * for the full review records.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b01-planned-ready", id: "B01", title: "Before match, planned ready" },
   { href: "/dev/ui-lab/gate-b/b02-planned-incomplete", id: "B02", title: "Before match, planned incomplete" },
   { href: "/dev/ui-lab/gate-b/b03-completed-sparse", id: "B03", title: "Completed match, sparse events (6-4, one recorded event)" },
   { href: "/dev/ui-lab/gate-b/b04-completed-rich", id: "B04", title: "Completed match, richer evidence" },
+  { href: "/dev/ui-lab/gate-b/b05-post-match-report/draft", id: "B05", title: "Post-match report, draft (editable, with a fixture-simulated completion)" },
+  { href: "/dev/ui-lab/gate-b/b05-post-match-report/completed", id: "B05-COMPLETED", title: "Post-match report, completed (locked, read-only)" },
 ];
 
 export default function GateBIndexPage() {
@@ -20,11 +23,11 @@ export default function GateBIndexPage() {
       <Link href="/dev/ui-lab" className="text-[12px] text-[var(--text-muted)] hover:underline">
         &larr; UI Lab
       </Link>
-      <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Gate B W1 — Match Details</h1>
+      <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Gate B — Match Details &amp; Post-Match Report</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        B01-B04 only. B05 (Post-Match Report), B06 (League/Event parity), B07 (Assistant Coach
-        longitudinal) and B08 (information ownership/transitions) are deferred to later waves, not
-        deleted from scope. Dev-only, synthetic fixtures only.
+        B01-B04 (W1) and B05 (W2). B06 (League/Event parity), B07 (Assistant Coach longitudinal)
+        and B08 (information ownership/transitions) are deferred to later waves, not deleted from
+        scope. Dev-only, synthetic fixtures only.
       </p>
 
       <div className="mt-6">
