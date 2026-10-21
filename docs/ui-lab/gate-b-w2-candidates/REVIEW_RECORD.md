@@ -2,8 +2,16 @@
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B05 | `CANDIDATE` | Pending owner review. First pass: confirms the real shipped Post-Match Report composition against the register's "finish/report actions versus read-only knowledge" requirement — no fabricated gap found, no design proposal made. |
+| B05 | `CANDIDATE` | Pending owner review. First pass: confirms the real shipped Post-Match Report composition against the register's "finish/report actions versus read-only knowledge" requirement — no fabricated gap found, no design proposal made. B2-R1: this PR's own first CI capture run found and fixed a real pre-existing bug in `RecoveredTimingCallout` (invalid HTML nesting). |
 | B05-COMPLETED | `CANDIDATE` | Pending owner review. Same pass; shares B05's real match identity and debrief. |
+
+## Phase B2-R1 — CI capture finding, fixed
+
+This PR's first CI run of `ui-lab-visual-review.yml` failed: the draft scenario's real,
+browser-rendered page produced real React console errors from invalid HTML nesting inside
+`src/components/matches/recovered-timing-callout.tsx` (a genuinely pre-existing bug — B01-B04
+never exercised this component). Fixed on this branch; full detail in `BLOCKERS.md`. This is the
+one real production file this PR touches.
 
 ## This wave's own design-audit outcome
 
@@ -53,8 +61,11 @@ owner review of the exact evidence and revision — the same gate Gate A and Gat
 - [x] `afterData.playerMinutes` (a `Map`, which `JSON.stringify` silently drops) is explicitly
       spread into `rawRecordsForHash` as entries — checked directly against the B1-R7 lesson
       rather than reproducing the same class of bug.
-- [x] No production route, component, data loader, or schema file modified.
-- [ ] `npm run build` — not run locally yet (known pre-existing OOM in this sandbox); relies on
-      CI's own `Build` job.
-- [ ] Real CI visual capture — pending this PR's own CI run.
+- [x] No production route, data loader, or schema file modified. One production component
+      (`recovered-timing-callout.tsx`) got a narrow markup-only bug fix — B2-R1, see
+      `BLOCKERS.md`.
+- [x] `npm run build` / `npm test` (full suite) re-run locally after the B2-R1 fix — no
+      regressions.
+- [x] Real CI visual capture — first run failed on the B2-R1 finding; fixed, re-pushed, awaiting
+      the re-run's result.
 - [ ] Independent technical review — not yet performed on this wave.

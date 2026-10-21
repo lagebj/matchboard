@@ -54,6 +54,27 @@ alias/mock for the `next-auth` import chain (if the owner wants `PostMatchPage`/
 cross-cutting test-infrastructure changes — out of scope for a UI Lab candidate PR to make on its
 own initiative.
 
+## Real pre-existing bug found by this wave's own CI capture — fixed (B2-R1)
+
+This PR's own first CI run of `ui-lab-visual-review.yml` failed: the draft scenario's real,
+browser-rendered page produced 5 React console errors — "In HTML, `<div>` cannot be a descendant
+of `<p>`" and "`<p>` cannot be a descendant of `<p>`" — a genuine invalid-HTML-nesting hydration
+warning in **real production code**, `src/components/matches/recovered-timing-callout.tsx`.
+Root cause: `DecisionBanner` renders its `description` prop inside its own `<p>`
+(`decision-banner.tsx`), but `TimingReviewItemBanner`'s `description` passed a `<div>` wrapping
+two `<p>` elements — invalid HTML regardless of framework, and a real React hydration mismatch.
+This is a genuinely pre-existing bug (not introduced by this wave): `recovered-timing-callout.tsx`
+was never previously exercised, in a real browser, with a non-empty `needsReview` item by any
+prior UI Lab wave (B01-B04 never rendered this component at all) — the component's own Vitest
+test (`recovered-timing-callout.test.tsx`) never asserted on console output, so it never caught
+this. **Fixed on this branch**: `description`'s inner `<div>`/`<p>` elements changed to `<span>`
+(valid phrasing content inside a `<p>`), preserving the exact same visual layout/copy —
+`recovered-timing-callout.test.tsx`'s own existing assertions (text-content based, not tag-based)
+pass unchanged, confirming no behavior change beyond the fixed nesting. This is the one real
+production file this wave touches — correcting the "no production code touched" framing in the
+PR description/commit message, which was accurate at the time it was written but not after this
+fix.
+
 ## Design exploration found no gap to fix (recorded, not silently assumed)
 
 Unlike Gate B W1 (two real findings: an invented `DecisionBanner`, and a genuine `MatchFlowPanel`

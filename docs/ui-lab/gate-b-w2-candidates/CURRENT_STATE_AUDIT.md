@@ -22,15 +22,16 @@
 | `PostMatchReportShell` | `src/components/matches/post-match-report-shell.tsx` | Yes, via `PostMatchPage` — the real `Complete report`/`Reopen report`/goal/assist/attendance editor, unmodified |
 | `PostMatchDebrief` | `src/components/post-match/debrief/post-match-debrief.tsx` | Yes — real, unmodified; renders its own real read-only view since `status: "SUBMITTED"` in both fixtures |
 | `GoalAttributionGapBanner` | `src/components/matches/goal-attribution-gap-banner.tsx` | Yes — real, pure, rendered directly by the shell |
-| `RecoveredTimingCallout` | `src/components/matches/recovered-timing-callout.tsx` | Yes, via `PostMatchPage` → `PostMatchReportShell`; real in the CI capture render, not independently unit-tested in this wave (same mocking boundary) |
+| `RecoveredTimingCallout` | `src/components/matches/recovered-timing-callout.tsx` | Yes, via `PostMatchPage` → `PostMatchReportShell`. **Fixed, not reused unmodified** — this wave's own CI capture found and fixed a real pre-existing invalid-HTML-nesting bug in it (B2-R1, see `BLOCKERS.md`); the fix is a markup-only change (`<div>`/`<p>` → `<span>` inside `DecisionBanner`'s `description` slot), no copy/behavior change |
 | `PostMatchUnresolvedBanner` | `src/components/live-match/post-match-unresolved-banner.tsx` | Yes in the real render (renders nothing — no local IndexedDB outbox for a fixture match); **mocked in Vitest component tests** — see `BLOCKERS.md` |
 | `FootballObservationSection` / `ObservationSection` | `src/components/player-development/football-observation-section.tsx` / `src/components/opponents/observation-section.tsx` | Yes in the real render; **mocked in Vitest component tests** — see `BLOCKERS.md` |
 | `LegacyMatchFeedbackSection` | `src/components/matches/legacy-match-feedback-section.tsx` | Yes — real; renders `null` for this fixture's empty `feedback: []` (honest "nothing here", same as Gate B W1's own empty-state components) |
 | `MatchCombinationEvidencePanel` | `src/components/matches/match-combination-evidence-panel.tsx` | Yes — real, pure (Combinations tab, COMPLETED only) |
 
-Every component above is reused **completely unmodified** — this wave adds zero production
-code, matching Gate B W1's own "no production route, component, data loader, or schema file is
-touched" discipline.
+Every component above is reused unmodified **except one**: `RecoveredTimingCallout` required a
+real, narrow bug fix found by this wave's own CI capture — see `BLOCKERS.md` (B2-R1). This is a
+one-file markup fix to a real pre-existing defect, not a design/behavior change, and not this
+wave's own route/fixture code.
 
 ## ADRs consulted
 

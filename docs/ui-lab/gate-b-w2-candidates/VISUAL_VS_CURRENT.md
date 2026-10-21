@@ -5,15 +5,18 @@ composition rather than proposing a different one.
 
 ## B05 (draft) — `CONFIRMS_SHIPPED_BASELINE`
 
-- **Identical to production**: every rendered component is the real, unmodified production
-  component (`PostMatchReportPageShell`, `PostMatchReportHeader`, `PostMatchSummaryTab`,
+- **Identical to production**: every rendered component is the real production component
+  (`PostMatchReportPageShell`, `PostMatchReportHeader`, `PostMatchSummaryTab`,
   `PostMatchReviewTab`, `MatchTimelineList`, `PostMatchPage`/`PostMatchReportShell`,
-  `PostMatchDebrief`, `GoalAttributionGapBanner`, `RecoveredTimingCallout`,
-  `PostMatchUnresolvedBanner`, `FootballObservationSection`, `ObservationSection`,
-  `LegacyMatchFeedbackSection`), composed exactly as `/post-match` composes them, fed a
-  synthetic report in a real intermediate lifecycle moment (REPORTED, debrief SUBMITTED, two
-  real unresolved items). The default tab (`players`), its URL pin, and the tab set
-  (Summary/Timeline/Players/Debrief/Review) are the real `match-detail-tabs.ts` output.
+  `PostMatchDebrief`, `GoalAttributionGapBanner`, `PostMatchUnresolvedBanner`,
+  `FootballObservationSection`, `ObservationSection`, `LegacyMatchFeedbackSection`), composed
+  exactly as `/post-match` composes them, fed a synthetic report in a real intermediate
+  lifecycle moment (REPORTED, debrief SUBMITTED, two real unresolved items). The default tab
+  (`players`), its URL pin, and the tab set (Summary/Timeline/Players/Debrief/Review) are the
+  real `match-detail-tabs.ts` output. **One exception**: `RecoveredTimingCallout` got a real,
+  narrow bug fix (B2-R1 — see `BLOCKERS.md`) after this wave's own CI capture found a genuine
+  pre-existing invalid-HTML-nesting defect in it; the fix changes markup tags only, not copy or
+  behavior.
 - **Genuinely new, but UI-Lab-local, never a production change**: the "Continue fixture
   simulation → Complete report" control (see `INTERACTION_AND_STATE_AUDIT.md`) and the small
   "Surface state: DRAFT/COMPLETED" text indicator next to it. Both are this wave's own additive

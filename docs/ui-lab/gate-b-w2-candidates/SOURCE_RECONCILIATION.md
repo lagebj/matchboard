@@ -65,7 +65,9 @@ composition — ADR-0147 and ADR-0152 already implement exactly this draft/locke
 production. **Decision made in this wave, following Gate B W1's own precedent**: B05 **confirms,
 via fixtures, that the real shipped composition satisfies the register row's normative
 requirement**, rather than proposing a new composition. Every real component this wave's pages
-compose is reused completely unmodified; see `DATA_TRUTH_AND_FIXTURES.md` for the one disclosed
+compose is reused unmodified, except one real pre-existing bug fixed in
+`recovered-timing-callout.tsx` (B2-R1, found by this wave's own CI capture — see `BLOCKERS.md`);
+see `DATA_TRUTH_AND_FIXTURES.md` for the one disclosed
 scope reduction and `VISUAL_VS_CURRENT.md` for the full identical-vs-differs breakdown.
 
 This is the first and most consequential owner-review question for this PR, same as Gate B W1's

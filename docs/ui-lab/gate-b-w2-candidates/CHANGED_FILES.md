@@ -1,10 +1,18 @@
 # Gate B W2 — Changed Files
 
-Generated from `git status --short` at implementation time. No production route, component, data
-loader, or schema file is touched — every `src/` change is new, additive content under
+Generated from `git status --short` at implementation time. No production route, data loader, or
+schema file is touched. One real production component got a narrow bug fix (B2-R1, below) after
+this wave's own CI capture found it; every other `src/` change is new, additive content under
 `src/app/dev/ui-lab/gate-b/b05-post-match-report/` (dev-only, 404s in production) plus one
 additive extension of the existing visual-review capture script and the existing Gate B/shared
 fixture modules.
+
+## Phase B2-R1 (CI capture finding) — production bug fix
+
+- `src/components/matches/recovered-timing-callout.tsx` — fixed a real, pre-existing
+  invalid-HTML-nesting bug (`<div>`/`<p>` nested inside `DecisionBanner`'s own `<p>`), found by
+  this PR's own first CI capture run. Changed the offending elements to `<span>` (valid phrasing
+  content) — markup only, no copy or behavior change. See `BLOCKERS.md`.
 
 ## Gate B candidate routes and fixtures (all new)
 
