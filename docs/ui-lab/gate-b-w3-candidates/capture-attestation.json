@@ -1,33 +1,36 @@
 {
-  "description": "Gate B W3 (B06 league/event parity) UI Lab visual-review evidence, fixtureVersion 2 (B06 remediation). Not an approved golden — requires human approval.",
-  "sourceCommitSha": "d79abdc80ed42f0dd693fd3aaa5780093bd86d8a",
-  "generatedAt": "2026-10-21T19:11:33.518Z",
+  "description": "Gate B W3 (B06 league/event parity) UI Lab visual-review evidence. Not an approved golden — requires human approval.",
+  "sourceCommitSha": "5f5c369b4e24517bf814618e35b5011f39a83de4",
+  "generatedAt": "2026-10-21T23:55:28.962Z",
   "environment": {
     "node": "v24.21.0",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39657393171",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39695163167",
   "ciArtifact": {
-    "id": 12372901696,
-    "name": "ui-lab-review-39657393171-1",
-    "expiresAt": "2026-10-28T19:11:33Z"
+    "id": 12390647457,
+    "name": "ui-lab-review-39695163167-1",
+    "expiresAt": "2026-10-28T23:55:29Z"
   },
-  "reviewedBranchHeadSha": "568096efc0f2d89b85eaaa90ad4b2fedf0b16612",
+  "reviewedBranchHeadSha": "fcac097a140c4c80205b809326f294eb401e8415",
   "knownLimitations": [
     "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
-    "Scenario slugs prefixed gate-b-w3-b06- are CANDIDATE only.",
-    "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave. ciArtifact.expiresAt is this run's own reported value, not independently re-verified against a second source this session.",
-    "All 40 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39657393171) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
-    "This file is a filtered, scoped view of the run's full manifest.json (every Gate A and Gate B scenario, 1090 captures total across 53 scenarios) — only the 40 gate-b-w3-b06-* entries are included here.",
-    "fixtureVersion 1 of this scenario set was CANDIDATE only and was never submitted for or granted owner approval. Preserved under priorVersions[0] purely for traceability of what the real CI capture looked like before the B3-Rx remediation (register coverage completeness, Event per-match evidence/clock correction, football-observation reassignment, navigation/documentation corrections, two new real origin pages). No approval is inherited from it."
+    "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+    "All 60 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39695163167) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+    "This file is a filtered, scoped view of the run's full manifest.json (1124 captures total across 56 scenarios) — only the entries listed below are included here.",
+    "This run includes two new scenarios not present in the immediately prior attestation: gate-b-w3-b06-league-match-details and gate-b-w3-b06-event-detail (B3-R5's navigation pages, registered for capture only now — B5/R7 found they had never been registered at all), 10 captures each.",
+    "B06-EVENT-AFTER's own fixtureVersion bumped 2 -> 3 for this run (B5/R2 Guest Player reassignment, B5/R6 partnership subtype correction) — new fixtureSha256 in fixtures.ts. The other three B06 candidates are unaffected and keep their own existing fixtureVersion.",
+    "No approval has been recorded for any B06 scenario at any point — nothing is inherited by this revision either."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
     "gate-b-w3-b06-event-after": 10,
     "gate-b-w3-b06-event-before": 10,
+    "gate-b-w3-b06-event-detail": 10,
     "gate-b-w3-b06-league-after": 10,
-    "gate-b-w3-b06-league-before": 10
+    "gate-b-w3-b06-league-before": 10,
+    "gate-b-w3-b06-league-match-details": 10
   },
   "interactionStateCountsByScenario": {
     "gate-b-w3-b06-event-after": {
@@ -36,10 +39,16 @@
     "gate-b-w3-b06-event-before": {
       "initial": 10
     },
+    "gate-b-w3-b06-event-detail": {
+      "initial": 10
+    },
     "gate-b-w3-b06-league-after": {
       "initial": 10
     },
     "gate-b-w3-b06-league-before": {
+      "initial": 10
+    },
+    "gate-b-w3-b06-league-match-details": {
       "initial": 10
     }
   },
@@ -54,7 +63,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-desktop-dark.png",
-      "sha256": "46637abe4bf5f23f1ee6c31b2ebf257fe60f08c6d4f3b9a7955f1b0617fa4d3a"
+      "sha256": "c927132421aaa0b49c12bff6d5d92b79a96a4d8a3eb72d93610922a187c7a99c"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -66,7 +75,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-desktop-light.png",
-      "sha256": "f9499ea3f7f734cf1a0d70e2ca555872d98d6d57432ae5261520c435a3d803c5"
+      "sha256": "8979b04cc8454247d34d7e3779c232f79fc0f592f8535e92f00f63c8501ab051"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -78,7 +87,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-gb-360-dark.png",
-      "sha256": "e6462cbada78941a7170b01ee516ad3efc7e21ec93351b2055fb33b725dc15f0"
+      "sha256": "2a920589536b5a19c185d66492baf1734ab3b137e800418e5d0837ec8b04519c"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -90,7 +99,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-gb-360-light.png",
-      "sha256": "097d5d8a653782d29e87e6b9b121c322ea34c024619cc80fc5fd455c8f4cf3cc"
+      "sha256": "bd8392fb3da8ac3e3cbdb0033232644da96265bf1d048fc4b484d99ce6ee9c1c"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -102,7 +111,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-gb-430-dark.png",
-      "sha256": "7595aae1c81590556fa60a878c5e980589929243aae08113bea4d6209784729c"
+      "sha256": "8d6eb0fe74db9069d516c54b4de440ad28c6d6593389aa200a86d317b13b882b"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -114,7 +123,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-gb-430-light.png",
-      "sha256": "af60c1e65f1130253c0ff7bbd86fd5f850650d91f7364566ae7a2260b9598b24"
+      "sha256": "46d0467c1e887ded5f581196ed057ff609dc45f40b4ed2feac1b2d4acd4bc3de"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -126,7 +135,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-mobile-dark.png",
-      "sha256": "6dd015a3c230dea2ebd252c91bc7c2bbab29d572bc07d381f96c80e5d6ff8458"
+      "sha256": "ff727a09846daceade88bb11d8121337889562c6439e8e5b01f2625d3d4613de"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -138,7 +147,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-mobile-light.png",
-      "sha256": "51c5a973d4e830617ad69e2d0adc06cf87ff4b8ffdf4c6fa19faa76bfa9e224d"
+      "sha256": "1ea7fe906b5c1ff814886cc1298184cff32e5d51814697b9e6f701bf673fac3c"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -150,7 +159,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-narrow-dark.png",
-      "sha256": "008a122043d2434a5e4606287d1b864a6c72f180fbb0aa83f9528c31c6f148b2"
+      "sha256": "cb1857f697f8f190fce4abbde1bd47817f899b2f8ccb176d56e20901065e74e4"
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
@@ -162,7 +171,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-after-narrow-light.png",
-      "sha256": "73bb7fe221f9f3bd7cfe7c5daaaf6b35739b9a82d5e1f0e9146d70da76399aa8"
+      "sha256": "dce622f4b31d68ea805b62a78507e0d62103fe574c4ce65d497102ccac042d5c"
     },
     {
       "scenarioId": "B06-EVENT-BEFORE",
@@ -283,6 +292,126 @@
       "interactionState": "initial",
       "file": "gate-b-w3-b06-event-before-narrow-light.png",
       "sha256": "5a02fb24d9b41fdc10c68e1066e8c94e2794e7d4a791c9e2cf3d2ca89a1a9263"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-desktop-dark.png",
+      "sha256": "1afd2d1adb0aa6fc7297a292f3d9ad9f59d468938ebd0bee93fc51c5c6ee4d23"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-desktop-light.png",
+      "sha256": "703bb4d6fe1727b7b59ad3b964f9f193f39307435ee48d4819fad4eeea6bcb67"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "gb-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-gb-360-dark.png",
+      "sha256": "8fb0f82b35bf97da2044f23260db9207c40097b6715f4096057744915fab9fb5"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "gb-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-gb-360-light.png",
+      "sha256": "2e2682565f785014c3458721fb748df9373b388b66ab19bc9f06efde5921beae"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "gb-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-gb-430-dark.png",
+      "sha256": "7237d20c3c17f89b9160d5ab81fb4af49a24d97887276faa4268588588a158ed"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "gb-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-gb-430-light.png",
+      "sha256": "e3f1f793c9db28c23edf7eac08f4ca79937294b34b89d6b9cd86255ac4ce22f0"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-mobile-dark.png",
+      "sha256": "185e1264aace235ea315215291147896fb420c3b56303e99517ba6876fc1cea7"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-mobile-light.png",
+      "sha256": "f16664fb0e5c95151095623fd133b53b913fe444d06b966f3d4f46aafccc7102"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-narrow-dark.png",
+      "sha256": "2dc7307b229cd7710460a9145eb8b1f24c662a563e4d8fb8b0658ed661d1a35e"
+    },
+    {
+      "scenarioId": "B06-EVENT-DETAIL",
+      "scenario": "gate-b-w3-b06-event-detail",
+      "route": "gate-b/b06-league-event-parity/event/event-detail",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-event-detail-narrow-light.png",
+      "sha256": "65048d90a20e062e46b896b5f4177980ffb49408e62320932ae986d831beb745"
     },
     {
       "scenarioId": "B06-LEAGUE-AFTER",
@@ -523,9 +652,660 @@
       "interactionState": "initial",
       "file": "gate-b-w3-b06-league-before-narrow-light.png",
       "sha256": "b8ad68e791f6dd75628c6d7c1461b3e92f8131787e76015bdc1617275ce8d43c"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-desktop-dark.png",
+      "sha256": "7046283d167ab9e543f03dd5ebb3513783170176e41c1ebed8daa428f099e679"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-desktop-light.png",
+      "sha256": "aa8428eadcf07cb8c1d026ef8ea406e111518a6065c3a0f7bd6942dcd20e93fe"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "gb-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-gb-360-dark.png",
+      "sha256": "e22ea0905997e8297af0c19c890d7eda30c6482f3fb4b9a01d79eb7497a590a2"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "gb-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-gb-360-light.png",
+      "sha256": "225a10173366d3eb846f5f448959582b64efbe80b39172867ca93789a121b717"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "gb-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-gb-430-dark.png",
+      "sha256": "9d7eccd34b11aa024e1253bef1f0104008a32757b12facbd2356feaeba44e182"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "gb-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-gb-430-light.png",
+      "sha256": "379f530401027baf434876d79f18dc4c34d3daa0fd0bb7faf357cd2e5a47cb2c"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-mobile-dark.png",
+      "sha256": "7305f1b06f07712a2a94139a0084c9e93e40c00d5dd46857c730479731f89bec"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-mobile-light.png",
+      "sha256": "f1595f3d5af1961a296d177d633ac5a86acfcd35780788ed06505ebd6091a3b8"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-narrow-dark.png",
+      "sha256": "edf3db2e13b9096cdbcf1bd58b7cbe88f663d8da07b56afcbe92a0a5042fd5e1"
+    },
+    {
+      "scenarioId": "B06-LEAGUE-MATCH-DETAILS",
+      "scenario": "gate-b-w3-b06-league-match-details",
+      "route": "gate-b/b06-league-event-parity/league/match-details",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w3-b06-league-match-details-narrow-light.png",
+      "sha256": "fba1650477c344a49d319611ed980e9bebb9a72500db373145403cdef2198c18"
     }
   ],
   "priorVersions": [
+    {
+      "note": "Historical fact, preserved unmodified: the real CI capture evidence for the revision immediately before this one (commit 568096efc / run 39657393171), which this revision's own B5/Rx fixes supersede.",
+      "attestation": {
+        "description": "Gate B W3 (B06 league/event parity) UI Lab visual-review evidence, fixtureVersion 2 (B06 remediation). Not an approved golden — requires human approval.",
+        "sourceCommitSha": "d79abdc80ed42f0dd693fd3aaa5780093bd86d8a",
+        "generatedAt": "2026-10-21T19:11:33.518Z",
+        "environment": {
+          "node": "v24.21.0",
+          "platform": "linux",
+          "ci": true
+        },
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39657393171",
+        "ciArtifact": {
+          "id": 12372901696,
+          "name": "ui-lab-review-39657393171-1",
+          "expiresAt": "2026-10-28T19:11:33Z"
+        },
+        "reviewedBranchHeadSha": "568096efc0f2d89b85eaaa90ad4b2fedf0b16612",
+        "knownLimitations": [
+          "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+          "Scenario slugs prefixed gate-b-w3-b06- are CANDIDATE only.",
+          "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave. ciArtifact.expiresAt is this run's own reported value, not independently re-verified against a second source this session.",
+          "All 40 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39657393171) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+          "This file is a filtered, scoped view of the run's full manifest.json (every Gate A and Gate B scenario, 1090 captures total across 53 scenarios) — only the 40 gate-b-w3-b06-* entries are included here.",
+          "fixtureVersion 1 of this scenario set was CANDIDATE only and was never submitted for or granted owner approval. Preserved under priorVersions[0] purely for traceability of what the real CI capture looked like before the B3-Rx remediation (register coverage completeness, Event per-match evidence/clock correction, football-observation reassignment, navigation/documentation corrections, two new real origin pages). No approval is inherited from it."
+        ],
+        "approvalStatus": "CANDIDATE",
+        "captureCountsByScenario": {
+          "gate-b-w3-b06-event-after": 10,
+          "gate-b-w3-b06-event-before": 10,
+          "gate-b-w3-b06-league-after": 10,
+          "gate-b-w3-b06-league-before": 10
+        },
+        "interactionStateCountsByScenario": {
+          "gate-b-w3-b06-event-after": {
+            "initial": 10
+          },
+          "gate-b-w3-b06-event-before": {
+            "initial": 10
+          },
+          "gate-b-w3-b06-league-after": {
+            "initial": 10
+          },
+          "gate-b-w3-b06-league-before": {
+            "initial": 10
+          }
+        },
+        "captures": [
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-desktop-dark.png",
+            "sha256": "46637abe4bf5f23f1ee6c31b2ebf257fe60f08c6d4f3b9a7955f1b0617fa4d3a"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-desktop-light.png",
+            "sha256": "f9499ea3f7f734cf1a0d70e2ca555872d98d6d57432ae5261520c435a3d803c5"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-gb-360-dark.png",
+            "sha256": "e6462cbada78941a7170b01ee516ad3efc7e21ec93351b2055fb33b725dc15f0"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-gb-360-light.png",
+            "sha256": "097d5d8a653782d29e87e6b9b121c322ea34c024619cc80fc5fd455c8f4cf3cc"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-gb-430-dark.png",
+            "sha256": "7595aae1c81590556fa60a878c5e980589929243aae08113bea4d6209784729c"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-gb-430-light.png",
+            "sha256": "af60c1e65f1130253c0ff7bbd86fd5f850650d91f7364566ae7a2260b9598b24"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-mobile-dark.png",
+            "sha256": "6dd015a3c230dea2ebd252c91bc7c2bbab29d572bc07d381f96c80e5d6ff8458"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-mobile-light.png",
+            "sha256": "51c5a973d4e830617ad69e2d0adc06cf87ff4b8ffdf4c6fa19faa76bfa9e224d"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-narrow-dark.png",
+            "sha256": "008a122043d2434a5e4606287d1b864a6c72f180fbb0aa83f9528c31c6f148b2"
+          },
+          {
+            "scenarioId": "B06-EVENT-AFTER",
+            "scenario": "gate-b-w3-b06-event-after",
+            "route": "gate-b/b06-league-event-parity/event/after",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-after-narrow-light.png",
+            "sha256": "73bb7fe221f9f3bd7cfe7c5daaaf6b35739b9a82d5e1f0e9146d70da76399aa8"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-desktop-dark.png",
+            "sha256": "649e19883716f0fb6feac2cd4ce9f0e304e9e1fed7358c9b5ff13e87789db75d"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-desktop-light.png",
+            "sha256": "98e37b1b3a331a7889d4b08243eb079f7cf3226284c5ab155d373b820743356c"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-gb-360-dark.png",
+            "sha256": "7d572cb82ea4aeb09f1bc752389f7cfdc7a4138dd1d01ce150a076fb0de4810a"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-gb-360-light.png",
+            "sha256": "6fd38f0ef47854befc59502c96169f1ad02e8d8f39dc95ee43f657f19c5cb1e8"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-gb-430-dark.png",
+            "sha256": "109f7eb824ed9d473194eecc148acc6112bc785aebb7506eb3f8f563c97e2b3a"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-gb-430-light.png",
+            "sha256": "3c1d20f7a0a959c15546c0c02b65b56e478f73b3b6ee4b073fcea221054386be"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-mobile-dark.png",
+            "sha256": "14c1f3ad81fcc40c556d2bf8c999a3680d289c7080438d0728a0de009cf93a4a"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-mobile-light.png",
+            "sha256": "98c919e1902e179fa7f90cbdbeb547265e82431a40bdfce6b0ad784da79424e3"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-narrow-dark.png",
+            "sha256": "ee1480e9b34cacd516fc101a082a5b5978b51074b0f6a54d6eb460aa8ff8c764"
+          },
+          {
+            "scenarioId": "B06-EVENT-BEFORE",
+            "scenario": "gate-b-w3-b06-event-before",
+            "route": "gate-b/b06-league-event-parity/event/before",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-event-before-narrow-light.png",
+            "sha256": "5a02fb24d9b41fdc10c68e1066e8c94e2794e7d4a791c9e2cf3d2ca89a1a9263"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-desktop-dark.png",
+            "sha256": "4d84dbbb4ef14a5719799dc8e876b8d48bf409c33b62c14e9af91f04ae4696ff"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-desktop-light.png",
+            "sha256": "2d5b38f57ae2fea32740ac47d549e953c71c2e46e6c7eb84d441b7564ba4a0ab"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-gb-360-dark.png",
+            "sha256": "fc6e0ad52901d1a8f750ac6f9edc79253f6230615cc88839bc898ffedbd1f421"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-gb-360-light.png",
+            "sha256": "afa85da8784466b8e55f4962feadc2bed6ffc6ec846c6543fba08a18b2fbb325"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-gb-430-dark.png",
+            "sha256": "e32e5977e75588368de362b8a8f06333fa25742be572e20f668e5d3b389e2010"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-gb-430-light.png",
+            "sha256": "19fadbb4f15ac791d3484e245b0775fcb284761733326ab434d19d86aaf6b39f"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-mobile-dark.png",
+            "sha256": "38c2bcdc8f8146b2114b7236b7157b29f233f8f160c976a7104a0fd47da38dd4"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-mobile-light.png",
+            "sha256": "6efffe1405a3d5074bf3b24ae8151638b89feb9887065b8aa9b129cb2a7bc504"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-narrow-dark.png",
+            "sha256": "267624b0a1198a8d5dad66ef1477e6a91ad20070a94db25bc8ebd94e27e15f48"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-AFTER",
+            "scenario": "gate-b-w3-b06-league-after",
+            "route": "gate-b/b06-league-event-parity/league/after",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-after-narrow-light.png",
+            "sha256": "141a2d47065dcdd3b5204609199c36beb96fac9b3750d62f6a0ca97cf5032d54"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-desktop-dark.png",
+            "sha256": "951b7ca5ea03bca178c44073930a92fb49198887edaa621dbbd99a7d2a5a1834"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-desktop-light.png",
+            "sha256": "95e66bdf9b8dad1b546aea9f42108458b9cb0c67f27da561d2aab8de8d851b17"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-gb-360-dark.png",
+            "sha256": "b68ee39b9e0eb81f950d01cfa0253d0e32e06c054ab228b9bdf40024d38eed62"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-gb-360-light.png",
+            "sha256": "4d07eaf80ed92e0b2ab9cfc7012c34f73f8b9c0a396137b796ced07dc20b9bc0"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-gb-430-dark.png",
+            "sha256": "cafe6d07f7540d2cef81564f38fa1337d3e2f0604bb66f7a18547cb4bb00fc9e"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-gb-430-light.png",
+            "sha256": "f049d00d6372ea36c25e0d9651875cfcefebd0f4748b5763961d21d0d1db3863"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-mobile-dark.png",
+            "sha256": "8fc7a4584cbbf72b6810788b1d3c55a673417dc9e8fa4a7311dc7d2872612365"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-mobile-light.png",
+            "sha256": "ab0e661c8467658334d7b084443b9671920f69e3633acc643679516a48c23357"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-narrow-dark.png",
+            "sha256": "e774aee54fda2b8ff1958164e42c6783d033deb9a62ae6545ca34bb53a59adfd"
+          },
+          {
+            "scenarioId": "B06-LEAGUE-BEFORE",
+            "scenario": "gate-b-w3-b06-league-before",
+            "route": "gate-b/b06-league-event-parity/league/before",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w3-b06-league-before-narrow-light.png",
+            "sha256": "b8ad68e791f6dd75628c6d7c1461b3e92f8131787e76015bdc1617275ce8d43c"
+          }
+        ]
+      }
+    },
     {
       "note": "Historical fact, preserved unmodified: the real CI capture evidence that existed for the pre-remediation fixtureVersion 1 content. Superseded by this file's top-level content after the fixtureVersion 2 remediation changed the underlying fixtures/pages — does not carry any approval forward.",
       "attestation": {

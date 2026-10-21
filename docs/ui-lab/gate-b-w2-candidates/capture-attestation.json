@@ -1,32 +1,34 @@
 {
-  "description": "Gate B W2 (B05 draft, B05-COMPLETED) UI Lab visual-review evidence, fixtureVersion 2 (retrospective remediation). Not an approved golden — requires fresh human approval; does not inherit fixtureVersion 1's approval (see priorVersions and candidate_manifest.json).",
-  "sourceCommitSha": "d79abdc80ed42f0dd693fd3aaa5780093bd86d8a",
-  "generatedAt": "2026-10-21T19:11:33.518Z",
+  "description": "Gate B W2 (B05 draft, B05-COMPLETED, B05 Match Details) UI Lab visual-review evidence. Not an approved golden — requires fresh human approval; does not inherit any prior revision's approval (see priorVersions and candidate_manifest.json).",
+  "sourceCommitSha": "5f5c369b4e24517bf814618e35b5011f39a83de4",
+  "generatedAt": "2026-10-21T23:55:28.962Z",
   "environment": {
     "node": "v24.21.0",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39657393171",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39695163167",
   "ciArtifact": {
-    "id": 12372901696,
-    "name": "ui-lab-review-39657393171-1",
-    "expiresAt": "2026-10-28T19:11:33Z"
+    "id": 12390647457,
+    "name": "ui-lab-review-39695163167-1",
+    "expiresAt": "2026-10-28T23:55:29Z"
   },
-  "reviewedBranchHeadSha": "568096efc0f2d89b85eaaa90ad4b2fedf0b16612",
+  "reviewedBranchHeadSha": "fcac097a140c4c80205b809326f294eb401e8415",
   "knownLimitations": [
     "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
-    "Scenario slugs prefixed gate-b-w2-b05- are CANDIDATE only.",
-    "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave. ciArtifact.expiresAt is this run's own reported value, not independently re-verified against a second source this session.",
-    "All 24 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39657393171) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
-    "This file is a filtered, scoped view of the run's full manifest.json (every Gate A and Gate B scenario, 1090 captures total across 53 scenarios) — only the 24 gate-b-w2-b05-* entries are included here.",
-    "fixtureVersion 1 of this scenario pair was APPROVED_GOLDEN at revision b9a95c9dbf4289a2727a15bd73375a4dc6381e2e (PR #805/#807, 2026-10-21). That approval is historical fact about fixtureVersion 1's own content only — preserved unmodified under priorVersions[0] and in candidate_manifest.json's own priorVersions. It is NOT extended to fixtureVersion 2 (this file's top-level content), which corrects six verified findings (B2-R2 through B2-R7, see SOURCE_RECONCILIATION.md) and requires its own independent technical review and fresh owner approval.",
-    "This run's capture script required one additional fix beyond the B2-Rx fixture/source remediation: the gate-b-w2-b05-draft scenario's interaction script still referenced a UI control removed when draft/page.tsx's interaction model was rewritten for B2-R3/B2-R5. Replaced with completeB05DraftFlow(), which drives the real new flow (confirm duration → add a goal → complete report) — fixed on this branch before this successful run."
+    "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+    "All 38 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39695163167) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+    "This file is a filtered, scoped view of the run's full manifest.json (1124 captures total across 56 scenarios) — only the entries listed below are included here.",
+    "This run includes a new scenario not present in the immediately prior attestation: gate-b-w2-b05-match-details (B5/R5's new real navigation destination), 10 captures.",
+    "B05's own fixtureVersion/fixtureSha256 remain unchanged (2, same hashes) by the B5/Rx remediation this run captures — every B5/Rx fix affecting B05 is in shared component code (use-safe-report-lifecycle.ts, safe-post-match-report-shell.tsx), never report-data.ts's raw records.",
+    "gate-b-w2-b05-draft now has two real sequential interaction states per B5/R1 (completed-with-gap-transition, then completed-transition), replacing the single completed-transition state the prior revision had — both demonstrate real outcomes complete() actually allows.",
+    "fixtureVersion 1's own historical APPROVED_GOLDEN attestation (b9a95c9dbf4289a2727a15bd73375a4dc6381e2e) remains preserved, unmodified, at the end of this file's own priorVersions chain — not inherited by this or any later revision."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
     "gate-b-w2-b05-completed": 10,
-    "gate-b-w2-b05-draft": 14
+    "gate-b-w2-b05-draft": 18,
+    "gate-b-w2-b05-match-details": 10
   },
   "interactionStateCountsByScenario": {
     "gate-b-w2-b05-completed": {
@@ -34,6 +36,10 @@
     },
     "gate-b-w2-b05-draft": {
       "completed-transition": 4,
+      "completed-with-gap-transition": 4,
+      "initial": 10
+    },
+    "gate-b-w2-b05-match-details": {
       "initial": 10
     }
   },
@@ -168,7 +174,19 @@
       "theme": "dark",
       "interactionState": "completed-transition",
       "file": "gate-b-w2-b05-draft-desktop-dark-completed-transition.png",
-      "sha256": "34694e5384a1582bbc8477a3fb160d571a5a44415347fee9a0448a83ae8d2b29"
+      "sha256": "36a73dd93523a77d0395e5f389865372305042e111c8c437d38cb737919faaac"
+    },
+    {
+      "scenarioId": "B05-DRAFT",
+      "scenario": "gate-b-w2-b05-draft",
+      "route": "gate-b/b05-post-match-report/draft",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "completed-with-gap-transition",
+      "file": "gate-b-w2-b05-draft-desktop-dark-completed-with-gap-transition.png",
+      "sha256": "ab3bd34c295d81845986d50cf933364bb158d6f54803ad586de8a15b9a4e688b"
     },
     {
       "scenarioId": "B05-DRAFT",
@@ -192,7 +210,19 @@
       "theme": "light",
       "interactionState": "completed-transition",
       "file": "gate-b-w2-b05-draft-desktop-light-completed-transition.png",
-      "sha256": "141374583a0e0d5881cb3b3b1a452602a861ebeb7579df8b1e0ec54fb4a0d470"
+      "sha256": "6b5d5dec09ea1bc54c99cebb7ca19e253ee80633325c61b0f64ac3a9326292e4"
+    },
+    {
+      "scenarioId": "B05-DRAFT",
+      "scenario": "gate-b-w2-b05-draft",
+      "route": "gate-b/b05-post-match-report/draft",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "completed-with-gap-transition",
+      "file": "gate-b-w2-b05-draft-desktop-light-completed-with-gap-transition.png",
+      "sha256": "411dc368d722923bda1b6f6969c5bacabcc30dd62445b4cd3e469dcd669a2d04"
     },
     {
       "scenarioId": "B05-DRAFT",
@@ -264,7 +294,19 @@
       "theme": "dark",
       "interactionState": "completed-transition",
       "file": "gate-b-w2-b05-draft-mobile-dark-completed-transition.png",
-      "sha256": "8ccd0d97ec2319ca7bdb4c04058e14fd1820360ac0ebba553b8522e51e2a0374"
+      "sha256": "005448e8992adb5f6f90bc9c53e7260f884d4d7262914ce28ecbd7b59525a0ec"
+    },
+    {
+      "scenarioId": "B05-DRAFT",
+      "scenario": "gate-b-w2-b05-draft",
+      "route": "gate-b/b05-post-match-report/draft",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "completed-with-gap-transition",
+      "file": "gate-b-w2-b05-draft-mobile-dark-completed-with-gap-transition.png",
+      "sha256": "432a33c0d3f3493bb4b50d96b464e88cc92f927ec8e949ae8490374146aa73a0"
     },
     {
       "scenarioId": "B05-DRAFT",
@@ -288,7 +330,19 @@
       "theme": "light",
       "interactionState": "completed-transition",
       "file": "gate-b-w2-b05-draft-mobile-light-completed-transition.png",
-      "sha256": "539f537400dac07e0d77f115e2e440ee2b27261087433da288f31e6e246526e5"
+      "sha256": "9b5f5540c5eb50bec0f54f62da705519f256a4ce79988356c6cbc391c3128bd9"
+    },
+    {
+      "scenarioId": "B05-DRAFT",
+      "scenario": "gate-b-w2-b05-draft",
+      "route": "gate-b/b05-post-match-report/draft",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "completed-with-gap-transition",
+      "file": "gate-b-w2-b05-draft-mobile-light-completed-with-gap-transition.png",
+      "sha256": "d8d4da847e51c8a5c91636805d7b688beb7f73e58bbd81dacae8ce271a1321ec"
     },
     {
       "scenarioId": "B05-DRAFT",
@@ -325,9 +379,462 @@
       "interactionState": "initial",
       "file": "gate-b-w2-b05-draft-narrow-light.png",
       "sha256": "3939bb8a4652bdb4b53dbddd2cfc9ac936ceec3cbedd29a6b253f261e6e9aa3b"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-desktop-dark.png",
+      "sha256": "64928282e8d63f2840786cf72db85ea4dca824c47de38696f99812c19cd5bffb"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-desktop-light.png",
+      "sha256": "d85fd4bbfff21c9fb650cf9b100545d79570aba2f7a8cd05262c320bf4fd531e"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "gb-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-gb-360-dark.png",
+      "sha256": "af19f8c37df4798b84d5e1b3d6a96ee8a10a739dc6d565130b8c302f44c2096b"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "gb-360",
+      "viewportWidth": 360,
+      "viewportHeight": 800,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-gb-360-light.png",
+      "sha256": "56c4ba28244ec19d2d229db9764ace604a496445dd1099adcccd28e672e8d6e5"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "gb-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-gb-430-dark.png",
+      "sha256": "4637243638c38f3543726fc356002b98b81330af227110fb28f988cff4118533"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "gb-430",
+      "viewportWidth": 430,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-gb-430-light.png",
+      "sha256": "6aabe4e21bd6a68fe4ac686d2ec8df92d0e1d9210d87e875374c29fd52229deb"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-mobile-dark.png",
+      "sha256": "0abc410f2bedfbd07f17b40b685dacbd833c2903c5f88064cafc28daa5f59f51"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-mobile-light.png",
+      "sha256": "0d3e0988f486615722fbc4b862734ae172b46ba8c636ce273bcdd6a8e50a859d"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-narrow-dark.png",
+      "sha256": "ffd29d3f6cb3b72b6d5d61c6199481ae381727fe9b46b9acce3f604a0dc7ccc6"
+    },
+    {
+      "scenarioId": "B05-MATCH-DETAILS",
+      "scenario": "gate-b-w2-b05-match-details",
+      "route": "gate-b/b05-post-match-report/match-details",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-b-w2-b05-match-details-narrow-light.png",
+      "sha256": "31fdeabc4dbe17b27324217f274a2a9b7a0e844812ab71964af7d7d7015cecfc"
     }
   ],
   "priorVersions": [
+    {
+      "note": "Historical fact, preserved unmodified: the real CI capture evidence for the revision immediately before this one (commit 568096efc / run 39657393171), which this revision's own B5/Rx fixes supersede.",
+      "attestation": {
+        "description": "Gate B W2 (B05 draft, B05-COMPLETED) UI Lab visual-review evidence, fixtureVersion 2 (retrospective remediation). Not an approved golden — requires fresh human approval; does not inherit fixtureVersion 1's approval (see priorVersions and candidate_manifest.json).",
+        "sourceCommitSha": "d79abdc80ed42f0dd693fd3aaa5780093bd86d8a",
+        "generatedAt": "2026-10-21T19:11:33.518Z",
+        "environment": {
+          "node": "v24.21.0",
+          "platform": "linux",
+          "ci": true
+        },
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39657393171",
+        "ciArtifact": {
+          "id": 12372901696,
+          "name": "ui-lab-review-39657393171-1",
+          "expiresAt": "2026-10-28T19:11:33Z"
+        },
+        "reviewedBranchHeadSha": "568096efc0f2d89b85eaaa90ad4b2fedf0b16612",
+        "knownLimitations": [
+          "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+          "Scenario slugs prefixed gate-b-w2-b05- are CANDIDATE only.",
+          "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave. ciArtifact.expiresAt is this run's own reported value, not independently re-verified against a second source this session.",
+          "All 24 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39657393171) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+          "This file is a filtered, scoped view of the run's full manifest.json (every Gate A and Gate B scenario, 1090 captures total across 53 scenarios) — only the 24 gate-b-w2-b05-* entries are included here.",
+          "fixtureVersion 1 of this scenario pair was APPROVED_GOLDEN at revision b9a95c9dbf4289a2727a15bd73375a4dc6381e2e (PR #805/#807, 2026-10-21). That approval is historical fact about fixtureVersion 1's own content only — preserved unmodified under priorVersions[0] and in candidate_manifest.json's own priorVersions. It is NOT extended to fixtureVersion 2 (this file's top-level content), which corrects six verified findings (B2-R2 through B2-R7, see SOURCE_RECONCILIATION.md) and requires its own independent technical review and fresh owner approval.",
+          "This run's capture script required one additional fix beyond the B2-Rx fixture/source remediation: the gate-b-w2-b05-draft scenario's interaction script still referenced a UI control removed when draft/page.tsx's interaction model was rewritten for B2-R3/B2-R5. Replaced with completeB05DraftFlow(), which drives the real new flow (confirm duration → add a goal → complete report) — fixed on this branch before this successful run."
+        ],
+        "approvalStatus": "CANDIDATE",
+        "captureCountsByScenario": {
+          "gate-b-w2-b05-completed": 10,
+          "gate-b-w2-b05-draft": 14
+        },
+        "interactionStateCountsByScenario": {
+          "gate-b-w2-b05-completed": {
+            "initial": 10
+          },
+          "gate-b-w2-b05-draft": {
+            "completed-transition": 4,
+            "initial": 10
+          }
+        },
+        "captures": [
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-desktop-dark.png",
+            "sha256": "e0e0dd8b78c892def64954ffb8c401adb9b98d3bb40e9893d56a394e96c8e37a"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-desktop-light.png",
+            "sha256": "8ea361b288a65111628cc4b1deabb15a679f4a1bc7683732278a87b94feac6e1"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-360-dark.png",
+            "sha256": "1f11e3a6a61d980e61299da835f092d91e785b39d01465465dea1460cf97ddb8"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-360-light.png",
+            "sha256": "d853fb3a63b8e0a486669b0ac582e428c316ed1d74bb2cfc97c12208c7b2ba6b"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-430-dark.png",
+            "sha256": "689dc861fba31c1b3500492b410d997d37b2209578176282407eeb35a4a08505"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-430-light.png",
+            "sha256": "6675ff5827725597d4ea0a32e2c4ac3a1db2437fbe0fdf2028bb53c14360737d"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-mobile-dark.png",
+            "sha256": "8698a43479d291cebde34d33e1b7ed7964854dea7a2093fa3ec0718924a69a85"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-mobile-light.png",
+            "sha256": "2c2d66f93bc1e5f7201c3edf5f589dca39c8a26a54f0a56a6d09f45c6a787bac"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-narrow-dark.png",
+            "sha256": "2df6dc6714540afac153825c739485fd1838f9f933c0e8c91cfb7c438b3b8832"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-narrow-light.png",
+            "sha256": "a4fa867507877011f12ca2bcb888aa0a66967a9e8e7647491c3b800bd182b3f0"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-desktop-dark-completed-transition.png",
+            "sha256": "34694e5384a1582bbc8477a3fb160d571a5a44415347fee9a0448a83ae8d2b29"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-desktop-dark.png",
+            "sha256": "52f5784c4a7d5ac2cb8ffa70de2228987e35cf6d5a575b5b7e46a7c554727068"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-desktop-light-completed-transition.png",
+            "sha256": "141374583a0e0d5881cb3b3b1a452602a861ebeb7579df8b1e0ec54fb4a0d470"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-desktop-light.png",
+            "sha256": "93bf93fba26e448f4bcd4426cadf41238189194c9438192fcccabad05338a0e3"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-360-dark.png",
+            "sha256": "9aadc894f547760a70a62f5c635c2002421d5e518e33ef0d6d6de10dd0a35603"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-360-light.png",
+            "sha256": "dc1a7b10f2635a2b804f1baf22d6946fa8a5c34bd5980375a883050b36c110d2"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-430-dark.png",
+            "sha256": "c77f2f256302a1df0e1450ecc530857bb46e0eb5d318cffa8f65bb32273033cf"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-430-light.png",
+            "sha256": "9a62398e60bbb3fea5be3e76af12430d88048f0d10be6204aa8533a078ead0e9"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-mobile-dark-completed-transition.png",
+            "sha256": "8ccd0d97ec2319ca7bdb4c04058e14fd1820360ac0ebba553b8522e51e2a0374"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-mobile-dark.png",
+            "sha256": "b6c669c5b31c0251877a18cec442eff444135e0875070f032b5ff84866a292f6"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-mobile-light-completed-transition.png",
+            "sha256": "539f537400dac07e0d77f115e2e440ee2b27261087433da288f31e6e246526e5"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-mobile-light.png",
+            "sha256": "88681634f1f3373f17aca8030bf6643697b4836177800c92995c70e2d2c927d4"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-narrow-dark.png",
+            "sha256": "497dad4726a6a5e7d1a6ed50972c831eac2b9376c2011b3d26ee874fe48c99fc"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-narrow-light.png",
+            "sha256": "3939bb8a4652bdb4b53dbddd2cfc9ac936ceec3cbedd29a6b253f261e6e9aa3b"
+          }
+        ]
+      }
+    },
     {
       "note": "Historical fact, preserved unmodified: the real CI capture evidence that existed for the pre-remediation fixtureVersion 1 content, which fixtureVersion 1's own approval (b9a95c9dbf4289a2727a15bd73375a4dc6381e2e) was granted against. Superseded by this file's top-level content after the fixtureVersion 2 remediation changed the underlying fixtures/pages — that approval does not carry forward to fixtureVersion 2.",
       "attestation": {
