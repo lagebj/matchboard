@@ -107,10 +107,15 @@ defaulting to a detached `refs/pull/<PR>/merge` ref when no explicit `ref:` is g
 `/visual-review deploy` or `/visual-review release` — never on PR open/push. For a deploy request:
 verifies the commenter's permission; refuses outright if the PR's head repository isn't this same
 repository (no fork deploys on this path); verifies the ruleset's required checks are already
-green for the exact head SHA; runs the stricter eligibility classifier; joins the existing
-`test-slot` concurrency group (shared with `test-acceptance.yml`/`test-db-migrate.yml`, so it can
-never race either); checks the `TEST_SLOT_LEASE` repository variable for a conflicting active
-lease from a different PR; if clear, runs `scripts/visual-authority/deploy-pr-revision.sh <sha>`.
+green for the exact head SHA, **excluding `Visual Authority Gate` itself** (`required-checks.mjs`'s
+`excludeContexts` parameter — added when Stage B made that check required; without the exclusion,
+a UI-Lab PR's deploy request would require an approval that itself typically depends on the owner
+seeing this very deploy first, a circularity found and fixed the first time Stage B and this
+lightweight-deploy path were exercised together on a real UI-Lab PR, see History); runs the
+stricter eligibility classifier; joins the existing `test-slot` concurrency group (shared with
+`test-acceptance.yml`/`test-db-migrate.yml`, so it can never race either); checks the
+`TEST_SLOT_LEASE` repository variable for a conflicting active lease from a different PR; if
+clear, runs `scripts/visual-authority/deploy-pr-revision.sh <sha>`.
 
 **This workflow never checks out the PR's own code** — found and fixed during this PR's own
 review, not assumed safe: an earlier draft did check out the PR's resolved head SHA (explicitly,
@@ -311,3 +316,17 @@ repository-wide, merge-blocking change — never as a side effect of implementin
   Gate` to `required_status_checks`, read fresh immediately before the call and diffed to confirm
   only that one addition. `Visual Authority Gate` is now a required, merge-blocking check on every
   PR to `main` — see "Rollout" → "Stage B — performed 2026-10-21" for the verification detail.
+- 2026-10-21 (continued): the first real interaction between Stage B and the lightweight deploy
+  path, on a real UI-Lab PR (#805, Gate B B05), surfaced a genuine circularity: the repository
+  owner requested `/visual-review deploy`, and it was declined because `Visual Authority Gate`
+  itself — now a required check — was `failure`/`AWAITING_APPROVAL`. But that check can only turn
+  green via a real `/visual-approve`, and the owner's own stated reason for wanting the deploy was
+  to see the live render *before* deciding whether to approve — the deploy path had become
+  unusable for exactly the PRs it exists to serve, while remaining fully usable for ordinary PRs
+  (whose gate is `NOT_APPLICABLE`/success regardless). Fixed by adding an `excludeContexts`
+  parameter to `required-checks.mjs`'s `requiredChecksGreen()`, and having
+  `run-deploy-request.mjs` pass `excludeContexts: ["Visual Authority Gate"]` — every other
+  required check (Lint, Tests, Build, security scans, etc.) still gates the deploy; only the one
+  check whose own resolution the deploy is meant to inform is excluded. New tests cover both the
+  exclusion itself and that it never excuses a different, genuinely failing required check. See
+  `scripts/visual-authority/__tests__/required-checks.test.ts`.
