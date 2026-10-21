@@ -3,6 +3,7 @@ import { primaryDisplayCellFor } from "@/domain/positions/grid";
 import type { CanonicalTacticalPosition } from "@/domain/positions/roles";
 import { buildPlanningPitchSlotsFromFormationSlots } from "@/components/touchline/pitch/formation-slot-projection";
 import type { PlanningPitchSlot, PlanningPitchAssignment } from "@/components/touchline/pitch/touchline-planning-pitch";
+import { buildPlanningPitchAssignments } from "@/components/touchline/pitch/planning-pitch-assignment-projection";
 import type { FormationSlotRoleType } from "@/lib/formations/types";
 import type { MatchTimelineItem } from "@/lib/matches/match-detail-view-model";
 import type { OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
@@ -380,3 +381,157 @@ export const b05CompletedMatchIdentity: MatchPresentation = buildMatchPresentati
   opponentGoals: 2,
   outcome: "WON",
 });
+
+// ---------------------------------------------------------------------------
+// B06 — League/Event match comparison (same workflow stages, before+after)
+// ---------------------------------------------------------------------------
+
+/**
+ * League and Event matches are deliberately separate domain models (ADR-0011: separate
+ * `Match`/`EventMatch` tables, separate ownership chains, separate report tables) — so B06 does
+ * NOT share one match identity across origins the way B01 shares one identity across its own
+ * before/after. Each origin gets its own identity, held stable across its own before/after pair
+ * (same pattern B01 established), with "equivalent football circumstances" (same final score,
+ * comparable opponent framing) so presentation differences are easy to isolate from data
+ * differences. See docs/ui-lab/gate-b-w3-candidates/SOURCE_RECONCILIATION.md.
+ */
+
+// --- League side ---
+
+export const B06_LEAGUE_MATCH_ID = "match-gate-b-06-league";
+export const B06_LEAGUE_KICKOFF_AT = new Date("2026-10-29T10:00:00.000Z");
+export const B06_LEAGUE_NOW = new Date("2026-10-22T18:00:00.000Z");
+export const B06_LEAGUE_OPPONENT_NAME = "Hvalstad IL";
+
+export const b06LeagueBeforeIdentity: MatchPresentation = buildMatchPresentation({
+  id: B06_LEAGUE_MATCH_ID,
+  href: null,
+  teamName: MATCH_B_TEAM_NAME,
+  opponentName: B06_LEAGUE_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B06_LEAGUE_KICKOFF_AT,
+  lifecycleStatus: "planning_open",
+});
+
+/** Fully assigned 7-a-side squad, one reserve — the League "ready" state (same shape as B01). */
+export const b06LeagueSquad: readonly MatchBSquadMember[] = [
+  { playerId: "player-gb6l-oskar", displayName: "Oskar", shirtNumber: 1, tacticalPosition: "GK", role: "starter" },
+  { playerId: "player-gb6l-theodor", displayName: "Theodor", shirtNumber: 4, tacticalPosition: "LCB", role: "starter" },
+  { playerId: "player-gb6l-markus", displayName: "Markus", shirtNumber: 5, tacticalPosition: "RCB", role: "starter" },
+  { playerId: "player-gb6l-sindre", displayName: "Sindre", shirtNumber: 7, tacticalPosition: "LCM", role: "starter" },
+  { playerId: "player-gb6l-kasper", displayName: "Kasper", shirtNumber: 8, tacticalPosition: "CM", role: "starter" },
+  { playerId: "player-gb6l-tobias", displayName: "Tobias", shirtNumber: 12, tacticalPosition: "RCM", role: "starter" },
+  { playerId: "player-gb6l-noah", displayName: "Noah", shirtNumber: 9, tacticalPosition: "CF", role: "starter" },
+  { playerId: "player-gb6l-vetle", displayName: "Vetle", shirtNumber: 14, tacticalPosition: null, role: "reserve" },
+];
+
+/** Same match identity as `b06LeagueBeforeIdentity` (same id/teamName/opponentName/kickoffAt/
+ * isHome) — only the lifecycle-legitimate fields differ, matching B01's before/after identity
+ * continuity pattern (XR-S01). */
+export const b06LeagueAfterIdentity: MatchPresentation = buildMatchPresentation({
+  id: B06_LEAGUE_MATCH_ID,
+  href: null,
+  teamName: MATCH_B_TEAM_NAME,
+  opponentName: B06_LEAGUE_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B06_LEAGUE_KICKOFF_AT,
+  lifecycleStatus: "done",
+  ownGoals: 3,
+  opponentGoals: 1,
+  outcome: "WON",
+});
+
+export const b06LeagueAfterTimeline: MatchTimelineItem[] = [
+  { id: "evt-gb6l-goal-1", kind: "GOAL_FOR", minuteLabel: "12'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-gb6l-goal-against-1", kind: "GOAL_AGAINST", minuteLabel: "29'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-gb6l-goal-2", kind: "GOAL_FOR", minuteLabel: "34'", playerName: "Sindre", assistPlayerName: "Kasper", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-gb6l-goal-3", kind: "GOAL_FOR", minuteLabel: "70'", playerName: "Kasper", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-gb6l-end", kind: "MATCH_END", minuteLabel: "80'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+];
+
+// --- Event side ---
+
+export const B06_EVENT_ID = "event-gate-b-06";
+export const B06_EVENT_NAME = "Lillomarka Sommerturnering";
+export const B06_EVENT_SQUAD_ID = "event-squad-gate-b-06";
+export const B06_EVENT_SQUAD_NAME = "Slemmestad Rød — Cup Squad";
+export const B06_EVENT_MATCH_ID = "event-match-gate-b-06";
+export const B06_EVENT_KICKOFF_AT = new Date("2026-10-29T13:00:00.000Z");
+export const B06_EVENT_NOW = new Date("2026-10-22T18:00:00.000Z");
+export const B06_EVENT_OPPONENT_NAME = "Rykkinn Cup-lag";
+
+export const b06EventBeforeIdentity: MatchPresentation = buildMatchPresentation({
+  id: B06_EVENT_MATCH_ID,
+  href: null,
+  teamName: B06_EVENT_SQUAD_NAME,
+  opponentName: B06_EVENT_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B06_EVENT_KICKOFF_AT,
+  lifecycleStatus: "planning_open",
+});
+
+/** Same event-match identity as `b06EventBeforeIdentity`, now `done` with the same 3-1 result as
+ * the League side (deliberately matched final score, so visual differences aren't data
+ * differences). `lifecycleStatus` here reuses `buildMatchPresentation()`'s generic phase
+ * vocabulary (scheduled/live/final) only — EventMatch's own real lifecycle truth is a composite
+ * of `EventMatch.status` + `EventLiveMatchSession.status` + `EventPostMatchReport.status`, which
+ * has no 1:1 enum mapping to League's `MatchLifecycleStatus`; see DATA_TRUTH_AND_FIXTURES.md. */
+export const b06EventAfterIdentity: MatchPresentation = buildMatchPresentation({
+  id: B06_EVENT_MATCH_ID,
+  href: null,
+  teamName: B06_EVENT_SQUAD_NAME,
+  opponentName: B06_EVENT_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B06_EVENT_KICKOFF_AT,
+  lifecycleStatus: "done",
+  ownGoals: 3,
+  opponentGoals: 1,
+  outcome: "WON",
+});
+
+/**
+ * A narrower fixture shape than production's `EligibleEventMatchPlayer`
+ * (`src/lib/events/event-match-eligibility.ts`) — it covers exactly what a lineup-planning
+ * display needs (eligibility metadata + a tactical slot), since no single production type
+ * combines eligibility and lineup-assignment. `source`/`sourceSquadName`/`participantType`
+ * reproduce the real eligibility vocabulary verbatim (never invented labels).
+ */
+export type MatchBEventParticipant = {
+  participantId: string;
+  displayName: string;
+  tacticalPosition: CanonicalTacticalPosition | null;
+  source: "squad" | "helper";
+  sourceSquadName: string;
+  participantType: "PLAYER" | "GUEST_PLAYER";
+};
+
+/** 6 own-squad players, 1 approved helper (borrowed from another squad for this match), 1 guest
+ * player as the reserve — the three real eligibility categories `EventMatchLineupPanel` renders
+ * (squad badge-less, helper amber "H", guest "Guest" label). */
+export const b06EventParticipants: readonly MatchBEventParticipant[] = [
+  { participantId: "participant-gb6e-oskar", displayName: "Oskar", tacticalPosition: "GK", source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "PLAYER" },
+  { participantId: "participant-gb6e-theodor", displayName: "Theodor", tacticalPosition: "LCB", source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "PLAYER" },
+  { participantId: "participant-gb6e-markus", displayName: "Markus", tacticalPosition: "RCB", source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "PLAYER" },
+  { participantId: "participant-gb6e-sindre", displayName: "Sindre", tacticalPosition: "LCM", source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "PLAYER" },
+  { participantId: "participant-gb6e-kasper", displayName: "Kasper", tacticalPosition: "CM", source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "PLAYER" },
+  { participantId: "participant-gb6e-jonas", displayName: "Jonas", tacticalPosition: "RCM", source: "helper", sourceSquadName: "Slemmestad Blå — Cup Squad", participantType: "PLAYER" },
+  { participantId: "participant-gb6e-noah", displayName: "Noah", tacticalPosition: "CF", source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "PLAYER" },
+  { participantId: "participant-gb6e-william", displayName: "William (Guest)", tacticalPosition: null, source: "squad", sourceSquadName: B06_EVENT_SQUAD_NAME, participantType: "GUEST_PLAYER" },
+];
+
+/**
+ * Real production projection (`buildPlanningPitchAssignments`,
+ * `src/components/touchline/pitch/planning-pitch-assignment-projection.ts`) — called with
+ * `teamKitColor: null`, exactly as `EventMatchLineupPanel` always does ("Event squads have no
+ * kit-colour concept... always passes `null` for the neutral shirt", same file's own doc
+ * comment), never the League-only `matchBPlanningPitchAssignments` helper above.
+ */
+export function b06EventPlanningPitchAssignments(
+  participants: readonly MatchBEventParticipant[],
+): PlanningPitchAssignment[] {
+  const assignmentInputs = participants
+    .filter((p): p is MatchBEventParticipant & { tacticalPosition: CanonicalTacticalPosition } => p.tacticalPosition !== null)
+    .map((p) => ({ slotId: `slot-${p.tacticalPosition}`, playerId: p.participantId, locked: false }));
+  const playerInputs = participants.map((p) => ({ id: p.participantId, firstName: p.displayName, lastName: null }));
+  return buildPlanningPitchAssignments(assignmentInputs, playerInputs, null, null);
+}
