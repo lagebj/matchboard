@@ -185,19 +185,46 @@ function clickResolvePending() {
  * shared/use-safe-report-lifecycle.ts). Waits for "Reopen report" to confirm the transition
  * actually completed before the screenshot fires.
  */
-function completeB05DraftFlow() {
+// B5/R1 — the real `complete()` gate only blocks on timing review (`getTimingSubmissionBlockers()`
+// parity), never on goal-attribution reconciliation, matching production's own `completeReport()`
+// exactly (see BLOCKERS.md/DATA_TRUTH_AND_FIXTURES.md). That means a report CAN legally reach
+// LOCKED with the goal-attribution gap still open — a real, reachable path, not a hypothetical —
+// and the candidate must disclose it rather than silently let it look reconciled. Two sequential
+// interaction states demonstrate both real outcomes from the one draft page, in order:
+//   1. completeB05DraftWithUnresolvedGapFlow — confirm timing ONLY, then complete. Legal; the
+//      gap banner must still be visible once locked (B5/R1's visual correction).
+//   2. completeB05DraftReconciledFlow — reopen, add the real missing goal (Sindre, 34', via the
+//      actual minute input — B5/R1's capture fix), then complete again. The standard/golden
+//      completed reference path: fully reconciled, matching `completed/fixtures.ts` exactly.
+function completeB05DraftWithUnresolvedGapFlow() {
   return async function perform(page) {
     await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
     await page.getByText("Confirm duration", { exact: true }).waitFor({ state: "detached", timeout: 10000 });
 
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+    // The disclosure must still be showing — this state is legally LOCKED but NOT reconciled.
+    await page.getByText(/missing scorer attribution/i).waitFor({ state: "visible", timeout: 10000 });
+  };
+}
+
+function completeB05DraftReconciledFlow() {
+  return async function perform(page) {
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Reopen report", exact: true }).click();
+    await page.getByRole("button", { name: "Complete report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+
     const scorerSelect = page.locator("select").filter({ has: page.locator('option[value=""]', { hasText: "Select scorer" }) });
     await scorerSelect.selectOption({ value: "player-gb5-sindre" });
+    await page.getByPlaceholder("Min", { exact: true }).fill("34");
     await page.getByRole("button", { name: "Add goal", exact: true }).click();
     await page.getByText(/missing scorer attribution/i).waitFor({ state: "detached", timeout: 10000 });
 
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Complete report", exact: true }).click();
     await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+    await page.getByText(/missing scorer attribution/i).waitFor({ state: "detached", timeout: 10000 });
   };
 }
 
@@ -645,17 +672,30 @@ const scenarios = [
     route: "gate-b/b05-post-match-report/draft",
     extraViewports: gbExtraSmokeViewports,
     interactionViewports: ["desktop", "mobile"],
-    // fixtureVersion 2 (B2-R3/R5 remediation): drives the real fixture-local lifecycle (confirm
-    // timing, add the real missing goal, click the real "Complete report" button — a native
-    // confirm() dialog, auto-accepted) rather than a whole-fixture-swap button, and never
-    // reaches a production server action (shared/use-safe-report-lifecycle.ts). Proves the real
-    // DRAFT -> COMPLETED transition and the pinned-`?tab=players` regression
-    // (post-match-report-page-shell.test.tsx's own coverage) with real capture evidence.
-    interactions: [{ id: "completed-transition", perform: completeB05DraftFlow() }],
+    // fixtureVersion 2 (B2-R3/R5/B5-R1 remediation): drives the real fixture-local lifecycle
+    // (confirm timing, click the real "Complete report" button — a native confirm() dialog,
+    // auto-accepted) rather than a whole-fixture-swap button, and never reaches a production
+    // server action (shared/use-safe-report-lifecycle.ts). Two sequential states from the SAME
+    // page load (B5/R1): the real "legally locked but still unresolved" path first, then the
+    // real "reopen, add the missing goal, reconcile" path — proving both real outcomes the
+    // production completion gate actually allows, plus the pinned-`?tab=players` regression
+    // (post-match-report-page-shell.test.tsx's own coverage), with real capture evidence.
+    interactions: [
+      { id: "completed-with-gap-transition", perform: completeB05DraftWithUnresolvedGapFlow() },
+      { id: "completed-transition", perform: completeB05DraftReconciledFlow() },
+    ],
   },
   {
     slug: "gate-b-w2-b05-completed",
     route: "gate-b/b05-post-match-report/completed",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  // B5/R5/B5/R7 — the real navigation destination `breadcrumbHref`/"Back to match" now link to,
+  // registered for capture so it is not a silent coverage gap the way B06's own two nav pages
+  // were (found and fixed in the same pass — see below).
+  {
+    slug: "gate-b-w2-b05-match-details",
+    route: "gate-b/b05-post-match-report/match-details",
     extraViewports: gbExtraSmokeViewports,
   },
   // Gate B W3 candidate (official register B06, "League/Event match comparison") — CANDIDATE,
@@ -680,6 +720,19 @@ const scenarios = [
   {
     slug: "gate-b-w3-b06-event-after",
     route: "gate-b/b06-league-event-parity/event/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  // B5/R7 — these two real B3-R5 navigation-origin pages existed since the B06 remediation but
+  // were never registered here, so they had zero real CI capture evidence despite being linked
+  // from every League/Event Before/After page. Found and fixed in this same pass.
+  {
+    slug: "gate-b-w3-b06-league-match-details",
+    route: "gate-b/b06-league-event-parity/league/match-details",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-event-detail",
+    route: "gate-b/b06-league-event-parity/event/event-detail",
     extraViewports: gbExtraSmokeViewports,
   },
 ];
