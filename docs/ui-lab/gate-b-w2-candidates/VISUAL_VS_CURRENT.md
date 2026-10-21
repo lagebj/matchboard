@@ -1,5 +1,16 @@
 # Gate B W2 — Visual vs. Current Production
 
+## Second remediation pass (B5/R1, B5/R4, B5/R5) — visual-correction summary
+
+Three of the five B5/Rx findings changed what the candidate visually shows, beyond the first
+pass below: (1) the goal-attribution-gap banner now stays visible on a LOCKED-but-unresolved
+report — a candidate-only proposed correction, since real production's `PostMatchReportPageShell`
+still hides it the same way (B5/R1); (2) the header's `MatchIdentityCard` now tracks an edited
+Result score live instead of showing the original fixture score (B5/R4); (3) "Back to match"/the
+"Matches" breadcrumb now point at a new real `match-details/` page instead of a fragment, and the
+Review tab shows a plain disclosure instead of a working-looking link to nowhere (B5/R5). See
+`SOURCE_RECONCILIATION.md` for the full finding-by-finding record.
+
 ## fixtureVersion 2 — what the remediation changes here
 
 `PARTIALLY_CORRECTED_REFERENCE` as of fixtureVersion 2 (not `CONFIRMS_SHIPPED_BASELINE` for the

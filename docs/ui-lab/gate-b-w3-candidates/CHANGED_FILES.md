@@ -93,7 +93,33 @@
 - `docs/ui-lab/gate-b-w2-candidates/` — B05's own retrospective remediation; see that
   directory's own `CHANGED_FILES.md`.
 
-## CI capture attestation — fixtureVersion 2 (new, added after this remediation commit)
+## CI capture attestation — fixtureVersion 2 (regenerated after this remediation commit)
 
-Added once `ui-lab-visual-review.yml` produces a real run against this branch's remediated
-revision — see `BLOCKERS.md` for the exact run/commit once available.
+- `capture-attestation.json` — rewritten: top-level content is now the real CI run
+  `39657393171` (branch head `568096efc`), 40 captures, every SHA-256 independently re-verified.
+  The pre-remediation run (`39637600700`) is preserved unmodified under this file's own
+  `priorVersions[0]` for traceability only (never approved, nothing inherited from it).
+
+## Second retrospective remediation (B5/R2, B5/R6, B5/R7)
+
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/fixtures.ts` —
+  `debriefAnswers.player_observations` reassigned off William (the Guest Player) to Theodor,
+  matching `footballObservations` (B5/R2 — the B3-R3 reassignment covered only one of the two
+  real evidence paths into `createFootballObservations()`); combination row `subtype` corrected
+  from `HORIZONTAL` to `VERTICAL` (B5/R6 — Noah/CF and Sindre/LCM are different lines).
+  `fixtureVersion` bumped 2 -> 3; new `fixtureSha256` (the fixture content genuinely changed).
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/__tests__/fixtures.test.ts` —
+  extended: both evidence paths now asserted eligible-participant-only (B5/R2); the `VERTICAL`
+  subtype directly asserted (B5/R6).
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/__tests__/combination-evidence.test.ts`
+  (new) — verifies the fixture's combination row against the real, unmodified
+  `deriveCombinationsFromSegments()` with constructed segments/goal events for this exact match.
+- `scripts/ui-lab-visual-review.mjs` — registered `league/match-details` and `event/event-detail`
+  (B5/R7 — a real capture-coverage gap: both pages existed since B3-R5 but were never registered,
+  so they had zero real capture evidence despite being linked from every Before/After page);
+  also registered B05's own new `match-details` page (see
+  `docs/ui-lab/gate-b-w2-candidates/CHANGED_FILES.md`).
+- `docs/ui-lab/gate-b-w3-candidates/{BLOCKERS,SOURCE_RECONCILIATION,candidate_manifest}.*` —
+  B5/Rx remediation sections added.
+
+No production code is touched by this second pass.

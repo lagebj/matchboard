@@ -80,7 +80,46 @@ fixture modules.
 - `docs/ui-lab/gate-b-w3-candidates/` — B06's own remediation (B3-R1 through B3-R7); see that
   directory's own `CHANGED_FILES.md`.
 
-## CI capture attestation — fixtureVersion 2 (new, added after the remediation commit)
+## CI capture attestation — fixtureVersion 2 (regenerated after the remediation commit)
 
-Added once `ui-lab-visual-review.yml` produces a real run against this branch's remediated
-revision — see `BLOCKERS.md` for the exact run/commit once available.
+- `capture-attestation.json` — rewritten: top-level content is now the real CI run
+  `39657393171` (branch head `568096efc`), 24 captures, every SHA-256 independently re-verified.
+  fixtureVersion 1's own attestation (above) is preserved unmodified under this file's own
+  `priorVersions[0]`.
+
+## Second remediation pass (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts` —
+  rewritten: one central `reduce()` validation dispatcher for every mutation (B5/R3), state-scoped
+  deterministic local-id counter and caller-supplied `completedAt` (B5/R3), no change to
+  `SafeReportLocalState`'s externally-observed shape beyond the added `nextLocalId` field.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx` —
+  the goal-attribution-gap banner is no longer gated by `isDraft` (B5/R1); `attendanceSummary`/
+  `playerInvolvement`'s present-participant list/the header's own identity card are now all
+  derived live from current report state (B5/R4); "Back to match"/the "Matches" breadcrumb are
+  real links to the new `match-details/` page, and the Review tab no longer renders the real
+  `PostMatchReviewTab` with a fragment href (B5/R5); takes a new `completionTimestamp` prop.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/match-details/{page.tsx,__tests__/page.test.tsx}`
+  (new) — the real fixture-backed Match Details stand-in B5/R5 links to.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/{draft,completed}/page.tsx` — pass the new
+  `completionTimestamp`/`nextLocalId: 0` fields; no fixture DATA change.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/draft/__tests__/page.test.tsx` — extended with
+  B5/R1 (both real completion outcomes), B5/R5 (navigation), and B5/R4 (live identity card) cases.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/completed/__tests__/page.test.tsx` — extended
+  with the B5/R5 navigation case.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/use-safe-report-lifecycle.test.tsx`
+  (new) — direct action-interface coverage for B5/R3 (every rejection path, determinism, replay).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/combination-evidence.test.ts`
+  (new) — verifies B05's own combination row against the real `deriveCombinationsFromSegments()`
+  (same provenance standard as B06's B5/R6 fix, applied here for consistency — no value changed).
+- `src/app/dev/ui-lab/gate-b/page.tsx` — registered the new `match-details` nav entry.
+- `scripts/ui-lab-visual-review.mjs` — `completeB05DraftFlow()` split into
+  `completeB05DraftWithUnresolvedGapFlow()`/`completeB05DraftReconciledFlow()` (two real sequential
+  interaction states, B5/R1); the reconciled flow now fills the real "Min" input (B5/R1 capture
+  fix); registered `gate-b-w2-b05-match-details` and the two B06 nav pages that had never been
+  registered at all (found in this same pass — see `docs/ui-lab/gate-b-w3-candidates/BLOCKERS.md`).
+- `docs/ui-lab/gate-b-w2-candidates/{BLOCKERS,SOURCE_RECONCILIATION,DATA_TRUTH_AND_FIXTURES,
+  candidate_manifest}.{md,json}` — B5/Rx remediation sections added.
+
+No production code is touched by this second pass (contrast the first pass's one B2-R1
+production fix, above).

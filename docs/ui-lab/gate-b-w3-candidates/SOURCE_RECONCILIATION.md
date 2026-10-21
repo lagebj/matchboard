@@ -1,5 +1,35 @@
 `CANDIDATE` only.
 
+## fixtureVersion 3 (B06-EVENT-AFTER only) — second remediation pass (B5/Rx findings)
+
+A further independent technical review found two more real findings in Event · After's own
+fixture, beyond the first B3-Rx pass (see BLOCKERS.md for that record). Verified directly against
+source:
+
+- **B5/R2**: `debriefAnswers.player_observations` still named William
+  (`participant-gb6e-william`, a `GUEST_PLAYER`) with an individual structured observation. The
+  standalone `footballObservations` record had already been reassigned to Theodor (B3-R3), but
+  the debrief's OWN `player_observations` array is a SECOND real path into the identical
+  `createFootballObservations()` call (which requires an active canonical `Player` row — ADR-0106:
+  "structurally incapable of referencing a GuestPlayer") — never audited in the first pass.
+  Corrected: reassigned to Theodor, matching `footballObservations` exactly. William's real
+  participation (lineup slot, attendance, the `match_changes` narrative) is untouched; only the
+  structured, Player-backed observation moved. Both evidence paths now have a dedicated test
+  asserting every entry resolves to an eligible `PLAYER` participant.
+- **B5/R6**: the Noah+Sindre combination row's `subtype` was `HORIZONTAL`, but Noah plays CF
+  (`FormationSlotRoleType.FORWARD` -> line `"ATT"`) and Sindre plays LCM (`MIDFIELDER` -> `"MID"`)
+  — different lines, so the real `derivePartnershipSubtype()` (`combination-topology.ts`) returns
+  `VERTICAL`, never `HORIZONTAL` (same line only — e.g. two centre-backs). Corrected, and verified
+  against the real, unmodified `deriveCombinationsFromSegments()` with constructed segments/goal
+  events for this exact match in a new `__tests__/combination-evidence.test.ts` — every field on
+  this row now equals that function's own real output. The equivalent B05 row (Noah RCM + Sindre
+  LCM, same line -> correctly `HORIZONTAL`) is verified the same way for consistency, in
+  `b05-post-match-report/shared/__tests__/combination-evidence.test.ts`.
+
+Both findings changed this candidate's own fixture DATA — `fixtureVersion` bumped from 2 to 3,
+new `fixtureSha256`. The other three B06 candidates (League · Before/After, Event · Before) are
+unaffected by either finding and remain at their own existing fixtureVersion.
+
 ## Sources recovered
 
 - The B06 register row — recovered from `docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md`'s

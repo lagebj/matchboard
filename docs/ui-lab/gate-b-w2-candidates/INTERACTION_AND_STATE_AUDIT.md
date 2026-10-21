@@ -1,5 +1,20 @@
 # Gate B W2 — Interaction and State Audit
 
+## Second remediation pass (B5/R1, B5/R3) — the interaction model, corrected further
+
+Two real gaps found in the lifecycle simulation described below, beyond what B2-R3/R5 already
+fixed: (1) only `addGoal()` checked for `LOCKED` state — every other mutation (`updateResult`,
+`removeGoal`, `addAssist`, `removeAssist`, `updateAttendance`, `addPlayer`, `removePlayer`,
+`confirmPeriodTiming`, `correctPeriodTiming`) did not, reachable because the real shared
+`PostMatchReportShell` only hides their UI controls, not the action layer itself (B5/R3); (2) the
+interaction demonstrated only ONE of the two real outcomes `complete()` actually allows — a
+report can legally lock with the goal-attribution gap still open, and the capture script never
+exercised that path at all (B5/R1). Both corrected: one central validator now enforces every
+mutation's lifecycle rule, and the capture script drives two real sequential states from one page
+load (confirm-only-then-complete, producing the still-unresolved disclosure; then
+reopen-add-the-real-goal-then-complete-again, producing the reconciled state). See
+`SOURCE_RECONCILIATION.md` for the full record.
+
 ## fixtureVersion 2 — the interaction model is now a real lifecycle simulation (B2-R3/R5)
 
 The whole-fixture-swap interaction described below (section "The lifecycle-transition

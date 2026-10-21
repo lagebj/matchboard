@@ -1,5 +1,14 @@
 # B06 — Interaction and state audit
 
+## Second remediation pass — no interaction-model change
+
+B5/R2 and B5/R6 (Event · After's own fixture data) and B5/R7 (capture-coverage registration)
+change no interactive behavior on any B06 page — Event · After's reachable controls remain
+exactly as audited below (every mutation resolves to an honest, logged `notWired()` failure; the
+only real control is `reopen`'s own click, still non-functional by design). See
+`SOURCE_RECONCILIATION.md`'s own "second remediation pass" section for what did change (fixture
+data only).
+
 ## Retrospective remediation — real origin-aware navigation added (B3-R5)
 
 `CompareNav` (below) is reviewer navigation between the four comparison candidates — it was

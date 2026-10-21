@@ -1,5 +1,14 @@
 # B06 — Visual vs. current production
 
+## Second retrospective remediation (B5/R2, B5/R6) — Event · After only
+
+Two more real findings, both in Event · After's own fixture data, surviving the first pass
+below: the debrief's own `player_observations` still named the Guest Player (B5/R2, reassigned
+to Theodor, matching the already-fixed `footballObservations`); the Noah+Sindre combination
+row's `subtype` was `HORIZONTAL` when the real derivation returns `VERTICAL` for this CF+LCM pair
+(B5/R6). Neither changes which real production components the page reuses. See
+`SOURCE_RECONCILIATION.md`'s own "second remediation pass" section.
+
 ## Retrospective remediation (B3-R2/R3/R4/R6/R7)
 
 League · After and Event · After each received fixture-content corrections (clocks, Guest

@@ -149,3 +149,29 @@ comment for why.
    the Players tab. Confirmed by direct source reading, not merely by this wave's test mocks
    hiding it. Filed as issue #810 rather than fixed here, since `PostMatchReportPageShell` is
    production code this PR is not authorized to change.
+
+## Second retrospective remediation (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
+
+A further independent technical review found five more real findings in the FIRST remediation's
+own shared shell/hook components — see `SOURCE_RECONCILIATION.md`'s own "second remediation pass"
+section for the full finding-by-finding record. In brief:
+
+- **B5/R1**: the goal-attribution-gap disclosure could silently disappear on a report that
+  legally reached `LOCKED` while still unresolved (production's own completion gate never blocks
+  on this). Corrected with a candidate-only visual correction (show whenever `hasGap`, not gated
+  by draft state) and a two-step capture flow demonstrating both real outcomes.
+- **B5/R3**: only `addGoal()` enforced the locked-state guard; the local-id counter and
+  `complete()`'s timestamp were both non-deterministic. Corrected with one central validation
+  dispatcher and state-scoped determinism.
+- **B5/R4**: attendance totals, player involvement, and the header's own identity card could go
+  stale after a real edit (score/attendance/roster change). Corrected — all three are now
+  recomputed live from the current report state via the real production pure functions.
+- **B5/R5**: the breadcrumb and Review tab still used fragment hrefs. Corrected with a new real
+  `match-details/` page (mirroring B06's own B3-R5 precedent) and a non-interactive disclosure
+  for the Review tab (no real `/review` destination exists in this bundle).
+- **B5/R7**: `capture-attestation.json` is regenerated against this revision's own real CI
+  capture run.
+
+None of these changed B05's underlying fixture DATA — `fixtureVersion`/`fixtureSha256` for both
+candidates correctly remain unchanged, since every fix is in shared component code, not
+`report-data.ts`'s raw records.

@@ -130,3 +130,28 @@ and fixed seven further issues in this wave's own candidates:
 No production code was touched for any of these — all seven are UI-Lab-local fixture/page
 corrections. See `SOURCE_RECONCILIATION.md` for the verification detail behind B3-R3/R7 and
 `CHANGED_FILES.md` for the exact file list.
+
+## Second retrospective remediation (B5/R2, B5/R6, B5/R7)
+
+A further independent technical review found two more real findings — both in Event · After's
+own fixture, surviving the first B3-Rx pass above — plus one real capture-coverage gap:
+
+- **B5/R2**: the B3-R3 reassignment was incomplete. `footballObservations` had been moved off
+  William, but `debriefAnswers.player_observations` — a SECOND real path into the identical
+  `createFootballObservations()` call — still named him. Corrected (reassigned to Theodor,
+  matching `footballObservations`). See `SOURCE_RECONCILIATION.md`.
+- **B5/R6**: the Noah+Sindre combination row's `subtype` was `HORIZONTAL`; the real
+  `derivePartnershipSubtype()` returns `VERTICAL` for a CF (line `ATT`) + LCM (line `MID`) pair
+  (different lines). Corrected and verified against the real derivation function directly. See
+  `SOURCE_RECONCILIATION.md`.
+- **B5/R7 (real capture-coverage gap found and fixed)**: B3-R5's two new navigation pages
+  (`league/match-details`, `event/event-detail`) were never registered in
+  `scripts/ui-lab-visual-review.mjs`'s scenario list — they had zero real CI capture evidence
+  despite being linked from every Before/After page, and the B3-R1 coverage-completeness check
+  only catches a REGISTERED scenario producing zero captures, not a page that was never
+  registered at all. Fixed in this same pass: both pages (plus B05's own new `match-details/`
+  page) are now registered and captured.
+
+Both B5/R2 and B5/R6 changed Event · After's own fixture DATA — `fixtureVersion` bumped 2 -> 3,
+new `fixtureSha256`. The other three B06 candidates are unaffected and keep their own existing
+version.

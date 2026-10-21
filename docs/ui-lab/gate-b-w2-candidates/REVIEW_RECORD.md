@@ -24,6 +24,18 @@ than fixed inside this UI Lab PR.
 | B05 | `CANDIDATE`, `approval: null` (fixtureVersion 2) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
 | B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 2) | Same remediation and supersession as B05. |
 
+## Second remediation pass (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
+
+A further independent technical review found five more real defects, this time in the first
+pass's own shared shell/hook component code rather than the fixture data (B5/R1 — a completed
+report could silently look reconciled when it was not; B5/R3 — most mutations didn't enforce
+locked state, and the id counter/completion timestamp were non-deterministic; B5/R4 — attendance
+totals, player involvement, and the identity card could go stale after an edit; B5/R5 — remaining
+fragment hrefs; B5/R7 — stale capture evidence). `candidate_manifest.json` still correctly
+reads `approval: null` for both scenarios — this second pass does not change that, and does not
+inherit fixtureVersion 1's approval either. See `SOURCE_RECONCILIATION.md`'s own "second
+remediation pass" section for the full record and `BLOCKERS.md` for disclosures.
+
 ## Historical record — fixtureVersion 1 (preserved, not current)
 
 | Scenario | Status | Notes |

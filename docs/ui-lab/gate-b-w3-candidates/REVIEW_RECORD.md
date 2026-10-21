@@ -15,7 +15,18 @@ there is no historical approval to preserve here (contrast B05/W2).
 | B06-LEAGUE-BEFORE | CANDIDATE | Confirms shipped baseline |
 | B06-LEAGUE-AFTER | CANDIDATE | Confirms shipped baseline; no longer links to the unrelated B05 candidate (B3-R2); links to the real League Match Details navigation page instead (B3-R5) |
 | B06-EVENT-BEFORE | CANDIDATE | Design proposal — no production route exists |
-| B06-EVENT-AFTER | CANDIDATE | Confirms the real shared `PostMatchReportShell`; page itself is a proposal; football observation reassigned off the Guest Player (B3-R3) |
+| B06-EVENT-AFTER | CANDIDATE | Confirms the real shared `PostMatchReportShell`; page itself is a proposal; football observation reassigned off the Guest Player (B3-R3, B5-R2); combination subtype corrected to VERTICAL (B5-R6); fixtureVersion 3 |
+
+## Second retrospective remediation (B5/R2, B5/R6, B5/R7) — Event · After only
+
+A further independent technical review found two more real findings, both surviving the first
+pass above in Event · After's own fixture: the B3-R3 reassignment covered only one of two real
+evidence paths into `createFootballObservations()` — the debrief's own `player_observations`
+still named the Guest Player (B5/R2); the Noah+Sindre combination row's subtype was wrong for
+its actual positions (B5/R6). A real capture-coverage gap was also found and fixed (B5/R7 — two
+B3-R5 navigation pages were never registered for capture). No approval has been recorded for any
+B06 scenario at any point, so nothing is inherited or lost by this pass either. See
+`SOURCE_RECONCILIATION.md`'s own "second remediation pass" section for the full record.
 
 ## This wave's own design-audit outcome
 

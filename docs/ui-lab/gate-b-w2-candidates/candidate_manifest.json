@@ -2,7 +2,7 @@
   "programmeRevision": "0.169.3",
   "baseCommitSha": "e6244b7ac6019216de4a5497f6f15a5236a65463",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b05-post-match-report/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W2 (B05 Post-match Report, draft and completed). fixtureVersion 1 was APPROVED_GOLDEN at revision b9a95c9dbf4289a2727a15bd73375a4dc6381e2e (PR #805/#807, 2026-10-21) — that approval is historical fact, preserved byte-for-byte in each candidate's own `priorVersions[0]`, never overwritten. fixtureVersion 2 (this manifest's current state) is a remediation, picked up during Gate B W3's retrospective review: it does NOT inherit fixtureVersion 1's approval — every candidate's top-level `approval` is `null` again, pending fresh technical and owner review of the corrected revision. See docs/ui-lab/gate-b-w2-candidates/SOURCE_RECONCILIATION.md for the full finding-by-finding remediation record (B2-R2 through B2-R7) and BLOCKERS.md for disclosures.",
+  "note": "Gate B W2 (B05 Post-match Report, draft and completed). fixtureVersion 1 was APPROVED_GOLDEN at revision b9a95c9dbf4289a2727a15bd73375a4dc6381e2e (PR #805/#807, 2026-10-21) — that approval is historical fact, preserved byte-for-byte in each candidate's own `priorVersions[0]`, never overwritten. fixtureVersion 2 (this manifest's current state) is a remediation, picked up during Gate B W3's retrospective review: it does NOT inherit fixtureVersion 1's approval — every candidate's top-level `approval` is `null` again, pending fresh technical and owner review of the corrected revision. See docs/ui-lab/gate-b-w2-candidates/SOURCE_RECONCILIATION.md for the full finding-by-finding remediation record (B2-R2 through B2-R7) and BLOCKERS.md for disclosures. fixtureVersion 2 — B5 remediation session: five further findings (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7) corrected in the SHARED SHELL/HOOK COMPONENTS (use-safe-report-lifecycle.ts, safe-post-match-report-shell.tsx) and capture tooling, not the underlying fixture DATA records — fixtureVersion/fixtureSha256 for both candidates correctly remain unchanged (2, same hashes), since rawRecordsForHash is byte-identical. See SOURCE_RECONCILIATION.md for the full finding-by-finding record.",
   "candidates": [
     {
       "scenarioId": "B05",
@@ -16,7 +16,8 @@
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx",
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts",
         "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
-        "src/components/matches/post-match-report-shell.tsx"
+        "src/components/matches/post-match-report-shell.tsx",
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/match-details/page.tsx"
       ],
       "lifecycle": "report_incomplete",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -31,7 +32,12 @@
         "fixtureVersion 1 exposed combination evidence to the draft state and used season-aggregated opponentDiversity/confidence values on a per-match row (B2-R4) — corrected.",
         "fixtureVersion 1 used fragment hrefs (#matches/#match-detail/#review) as if they were working navigation, and used kickoff as the fixedDateTimeUtc for both lifecycle states (B2-R7) — corrected.",
         "The real production PostMatchReportPageShell + PostMatchPage composition independently renders PostMatchUnresolvedBanner/GoalAttributionGapBanner twice (B2-R6, filed as issue #810); this corrected candidate renders each banner once, which is not a claim that production itself is already fixed.",
-        "FootballObservationSection is mocked in this wave's own Vitest component tests (an environment-level next-auth module-resolution failure, reproduced directly) — real and unmodified in the actual rendered page; see BLOCKERS.md"
+        "FootballObservationSection is mocked in this wave's own Vitest component tests (an environment-level next-auth module-resolution failure, reproduced directly) — real and unmodified in the actual rendered page; see BLOCKERS.md",
+        "B5/R1: a report could reach LOCKED while the goal-attribution gap stayed open, and the disclosure banner (gated `isDraft &&`, matching real production's own PostMatchReportPageShell exactly) disappeared the moment it locked — looking fully reconciled when it was not. Corrected: the banner now shows whenever `hasGap` is true, regardless of lock state — a disclosed, candidate-only proposed visual correction, not a claim that production already does this. The standard/golden completed path (confirm timing, add the real missing goal with its real minute via the capture script's completeB05DraftReconciledFlow(), then complete) remains fully reconciled, matching completed/fixtures.ts exactly. See SOURCE_RECONCILIATION.md and DATA_TRUTH_AND_FIXTURES.md.",
+        "B5/R3: only addGoal() checked for LOCKED state; every other mutation (updateResult, removeGoal, addAssist, removeAssist, updateAttendance, addPlayer, removePlayer, confirmPeriodTiming, correctPeriodTiming) did not, and the local id counter was a module-level `let` (not deterministic across mounts), and `complete()` stamped `new Date().toISOString()` (not deterministic). Corrected: every mutation now routes through one central `reduce()` validator (use-safe-report-lifecycle.ts) that enforces lifecycle rules + input validation (player eligibility, score/minute bounds, period/duration bounds) before any state change; a rejected call leaves state byte-for-byte unchanged (verified by dedicated tests, including a replay-determinism test). The id counter lives in state; `complete()` now stamps a caller-supplied fixed timestamp (B05_COMPLETED_AT), never `Date.now()`.",
+        "B5/R4: `attendanceSummary` only patched `presentCount`/`noShowCount` over the static fixture snapshot (leaving `totalCount`/`noShowNames` stale after an add/remove/attendance edit); `playerInvolvement` derived its present-participant list from the static `b05PresentParticipants` constant, not the live roster; the header's own `MatchIdentityCard` never reflected an edited Result score, showing the original fixture score even after a real 'Save'. Corrected: `attendanceSummary` is fully recomputed live from `state.players` via the real `summarizeMatchAttendance()`; `playerInvolvement`'s present-participant list is derived live from `state.players`; the identity card is rebuilt live from `state.ourScore`/`opponentScore` (same WON/DRAWN/LOST comparison `buildMatchPresentation()` itself makes). Immutable match history (canonical live events, kickoff, match identity fields other than score) is deliberately left untouched — only genuinely report-derived presentation values are made live.",
+        "B5/R5: `breadcrumbHref=\"#matches\"` and `PostMatchReviewTab reviewHref=\"#review\"` remained fragment hrefs even after the top-level 'Back to match' link was fixed in the earlier remediation. Corrected: a new real fixture-backed `b05-post-match-report/match-details` page (mirroring B06's own B3-R5 precedent) is now the real destination for both 'Back to match' and the 'Matches' breadcrumb — verified against the real production destination (`breadcrumbHref={`/o/${orgSlug}/matches/${matchId}`}`, confirmed directly in `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`). The real `PostMatchReviewTab` component always renders a working-looking link with no way to omit it, so it is no longer rendered for this one tab at all — replaced with a plain, non-interactive disclosure (option 3: omit and disclose, not fake).",
+        "B5/R7: capture-attestation.json is regenerated against this revision's own real, passing CI capture run — see capture-attestation.json's own top-level content and this file's own 'fixtureVersion 2 — B5 remediation' note below."
       ],
       "approval": null,
       "priorVersions": [
@@ -47,20 +53,104 @@
             "releaseTag": null,
             "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
             "approvedCaptures": [
-              { "viewport": "desktop", "theme": "dark", "interactionState": "completed-transition", "file": "gate-b-w2-b05-draft-desktop-dark-completed-transition.png", "sha256": "573dd431d149f7a2b98c296e22c9ef07d46dc7c908aa23ffe8978be1c60a97f0" },
-              { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-draft-desktop-dark.png", "sha256": "4970c29a2f83df9463c656725b59db00fb705a0407747dac5878303eaa560d31" },
-              { "viewport": "desktop", "theme": "light", "interactionState": "completed-transition", "file": "gate-b-w2-b05-draft-desktop-light-completed-transition.png", "sha256": "e70bbcbb760fea610764c591ea7b1bf4c40c9540300469837b27830d6fe7cadc" },
-              { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-draft-desktop-light.png", "sha256": "16261eca1a4df18a1a66ad8bac381b0d0e629ecb214a8218423756a166a158de" },
-              { "viewport": "gb-360", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-draft-gb-360-dark.png", "sha256": "d12034cd0681f0b15d5b2ed631f6471140bd606e6a581c86a17ca7eeef4f00e6" },
-              { "viewport": "gb-360", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-draft-gb-360-light.png", "sha256": "f621e546cea007b2bad515b000d6184dbbfe1c1dc182c37f31b319aba2ff97af" },
-              { "viewport": "gb-430", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-draft-gb-430-dark.png", "sha256": "2ef79d51b47022fb5228aa20a6e7bfa215e559ccb54a645f2ee55e38de793434" },
-              { "viewport": "gb-430", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-draft-gb-430-light.png", "sha256": "bdc215b77df4c2cc6f64e78b41bcc6abf39ed57798a92c4930560f69eca73247" },
-              { "viewport": "mobile", "theme": "dark", "interactionState": "completed-transition", "file": "gate-b-w2-b05-draft-mobile-dark-completed-transition.png", "sha256": "241fd61e594bbc62f570d00aacddcc35fc7c958ce011b269e69541d2e126450a" },
-              { "viewport": "mobile", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-draft-mobile-dark.png", "sha256": "db05d4f0636099fb9409388f383f7411c32d1125a3536d01e6715e2f917220f3" },
-              { "viewport": "mobile", "theme": "light", "interactionState": "completed-transition", "file": "gate-b-w2-b05-draft-mobile-light-completed-transition.png", "sha256": "663eef81b54b3d19185dadc94828684f2e64e162cff158061dc241195e378d4c" },
-              { "viewport": "mobile", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-draft-mobile-light.png", "sha256": "4cf45cfe7022a6e9e389a8b852bbae17d57f6abfb10b88c403e414a352270cf9" },
-              { "viewport": "narrow", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-draft-narrow-dark.png", "sha256": "dc616a9875a8f3024e68571321d7db241279a7a9d7653fb6898124b97611ff29" },
-              { "viewport": "narrow", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-draft-narrow-light.png", "sha256": "76058f2bc2cf40839aa6947c49c46468f2750129b6d47452f450341406a65213" }
+              {
+                "viewport": "desktop",
+                "theme": "dark",
+                "interactionState": "completed-transition",
+                "file": "gate-b-w2-b05-draft-desktop-dark-completed-transition.png",
+                "sha256": "573dd431d149f7a2b98c296e22c9ef07d46dc7c908aa23ffe8978be1c60a97f0"
+              },
+              {
+                "viewport": "desktop",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-desktop-dark.png",
+                "sha256": "4970c29a2f83df9463c656725b59db00fb705a0407747dac5878303eaa560d31"
+              },
+              {
+                "viewport": "desktop",
+                "theme": "light",
+                "interactionState": "completed-transition",
+                "file": "gate-b-w2-b05-draft-desktop-light-completed-transition.png",
+                "sha256": "e70bbcbb760fea610764c591ea7b1bf4c40c9540300469837b27830d6fe7cadc"
+              },
+              {
+                "viewport": "desktop",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-desktop-light.png",
+                "sha256": "16261eca1a4df18a1a66ad8bac381b0d0e629ecb214a8218423756a166a158de"
+              },
+              {
+                "viewport": "gb-360",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-gb-360-dark.png",
+                "sha256": "d12034cd0681f0b15d5b2ed631f6471140bd606e6a581c86a17ca7eeef4f00e6"
+              },
+              {
+                "viewport": "gb-360",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-gb-360-light.png",
+                "sha256": "f621e546cea007b2bad515b000d6184dbbfe1c1dc182c37f31b319aba2ff97af"
+              },
+              {
+                "viewport": "gb-430",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-gb-430-dark.png",
+                "sha256": "2ef79d51b47022fb5228aa20a6e7bfa215e559ccb54a645f2ee55e38de793434"
+              },
+              {
+                "viewport": "gb-430",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-gb-430-light.png",
+                "sha256": "bdc215b77df4c2cc6f64e78b41bcc6abf39ed57798a92c4930560f69eca73247"
+              },
+              {
+                "viewport": "mobile",
+                "theme": "dark",
+                "interactionState": "completed-transition",
+                "file": "gate-b-w2-b05-draft-mobile-dark-completed-transition.png",
+                "sha256": "241fd61e594bbc62f570d00aacddcc35fc7c958ce011b269e69541d2e126450a"
+              },
+              {
+                "viewport": "mobile",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-mobile-dark.png",
+                "sha256": "db05d4f0636099fb9409388f383f7411c32d1125a3536d01e6715e2f917220f3"
+              },
+              {
+                "viewport": "mobile",
+                "theme": "light",
+                "interactionState": "completed-transition",
+                "file": "gate-b-w2-b05-draft-mobile-light-completed-transition.png",
+                "sha256": "663eef81b54b3d19185dadc94828684f2e64e162cff158061dc241195e378d4c"
+              },
+              {
+                "viewport": "mobile",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-mobile-light.png",
+                "sha256": "4cf45cfe7022a6e9e389a8b852bbae17d57f6abfb10b88c403e414a352270cf9"
+              },
+              {
+                "viewport": "narrow",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-narrow-dark.png",
+                "sha256": "dc616a9875a8f3024e68571321d7db241279a7a9d7653fb6898124b97611ff29"
+              },
+              {
+                "viewport": "narrow",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-draft-narrow-light.png",
+                "sha256": "76058f2bc2cf40839aa6947c49c46468f2750129b6d47452f450341406a65213"
+              }
             ]
           }
         }
@@ -78,7 +168,8 @@
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx",
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts",
         "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
-        "src/components/matches/post-match-report-shell.tsx"
+        "src/components/matches/post-match-report-shell.tsx",
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/match-details/page.tsx"
       ],
       "lifecycle": "done",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -88,7 +179,12 @@
       "baselineAssetRef": "NOT_A_NEW_SCENARIO — same real match/report identity as B05, now locked; see VISUAL_VS_CURRENT.md",
       "knownGaps": [
         "Same B2-R2/R3/R4/R5/R6/R7 remediation as B05 (draft) — see that entry's knownGaps and SOURCE_RECONCILIATION.md.",
-        "Same FootballObservationSection test-mocking disclosure as B05 (draft) — see BLOCKERS.md"
+        "Same FootballObservationSection test-mocking disclosure as B05 (draft) — see BLOCKERS.md",
+        "B5/R1: a report could reach LOCKED while the goal-attribution gap stayed open, and the disclosure banner (gated `isDraft &&`, matching real production's own PostMatchReportPageShell exactly) disappeared the moment it locked — looking fully reconciled when it was not. Corrected: the banner now shows whenever `hasGap` is true, regardless of lock state — a disclosed, candidate-only proposed visual correction, not a claim that production already does this. The standard/golden completed path (confirm timing, add the real missing goal with its real minute via the capture script's completeB05DraftReconciledFlow(), then complete) remains fully reconciled, matching completed/fixtures.ts exactly. See SOURCE_RECONCILIATION.md and DATA_TRUTH_AND_FIXTURES.md.",
+        "B5/R3: only addGoal() checked for LOCKED state; every other mutation (updateResult, removeGoal, addAssist, removeAssist, updateAttendance, addPlayer, removePlayer, confirmPeriodTiming, correctPeriodTiming) did not, and the local id counter was a module-level `let` (not deterministic across mounts), and `complete()` stamped `new Date().toISOString()` (not deterministic). Corrected: every mutation now routes through one central `reduce()` validator (use-safe-report-lifecycle.ts) that enforces lifecycle rules + input validation (player eligibility, score/minute bounds, period/duration bounds) before any state change; a rejected call leaves state byte-for-byte unchanged (verified by dedicated tests, including a replay-determinism test). The id counter lives in state; `complete()` now stamps a caller-supplied fixed timestamp (B05_COMPLETED_AT), never `Date.now()`.",
+        "B5/R4: `attendanceSummary` only patched `presentCount`/`noShowCount` over the static fixture snapshot (leaving `totalCount`/`noShowNames` stale after an add/remove/attendance edit); `playerInvolvement` derived its present-participant list from the static `b05PresentParticipants` constant, not the live roster; the header's own `MatchIdentityCard` never reflected an edited Result score, showing the original fixture score even after a real 'Save'. Corrected: `attendanceSummary` is fully recomputed live from `state.players` via the real `summarizeMatchAttendance()`; `playerInvolvement`'s present-participant list is derived live from `state.players`; the identity card is rebuilt live from `state.ourScore`/`opponentScore` (same WON/DRAWN/LOST comparison `buildMatchPresentation()` itself makes). Immutable match history (canonical live events, kickoff, match identity fields other than score) is deliberately left untouched — only genuinely report-derived presentation values are made live.",
+        "B5/R5: `breadcrumbHref=\"#matches\"` and `PostMatchReviewTab reviewHref=\"#review\"` remained fragment hrefs even after the top-level 'Back to match' link was fixed in the earlier remediation. Corrected: a new real fixture-backed `b05-post-match-report/match-details` page (mirroring B06's own B3-R5 precedent) is now the real destination for both 'Back to match' and the 'Matches' breadcrumb — verified against the real production destination (`breadcrumbHref={`/o/${orgSlug}/matches/${matchId}`}`, confirmed directly in `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`). The real `PostMatchReviewTab` component always renders a working-looking link with no way to omit it, so it is no longer rendered for this one tab at all — replaced with a plain, non-interactive disclosure (option 3: omit and disclose, not fake).",
+        "B5/R7: capture-attestation.json is regenerated against this revision's own real, passing CI capture run — see capture-attestation.json's own top-level content and this file's own 'fixtureVersion 2 — B5 remediation' note below."
       ],
       "approval": null,
       "priorVersions": [
@@ -104,16 +200,76 @@
             "releaseTag": null,
             "releaseStatus": "PENDING — durable GitHub Release creation not yet attempted; approval hashes verified against this PR's own capture-attestation.json in the meantime",
             "approvedCaptures": [
-              { "viewport": "desktop", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-completed-desktop-dark.png", "sha256": "71c264925f0e3ae149600e073cee5cea0629c2e686f5b48215673e081fc7d795" },
-              { "viewport": "desktop", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-completed-desktop-light.png", "sha256": "63c0605dfe32b554bebb1aebd36ae780ab841ca3e8e9ba3c9ec8159d4a8f648f" },
-              { "viewport": "gb-360", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-completed-gb-360-dark.png", "sha256": "9b701ced451810314b82c355dff528770c73a05796e8102e0874c3085ba12b49" },
-              { "viewport": "gb-360", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-completed-gb-360-light.png", "sha256": "09a9b43111057cd50c483c7e51765aca37ca76742a45d7fa54ddfca22b0f52fc" },
-              { "viewport": "gb-430", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-completed-gb-430-dark.png", "sha256": "62961a0711a7c54c44abb8b3f682c59126bd5951064f5a806cf199fedf3cf2f4" },
-              { "viewport": "gb-430", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-completed-gb-430-light.png", "sha256": "0afe4ce7622808dea7c53834161fc8b9caeca4c325f3af2cf7aa6381118ee07f" },
-              { "viewport": "mobile", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-completed-mobile-dark.png", "sha256": "9fe4f31adb51f5599ab6d2bae926c7c08c3df2641be6d3b12ca381a001af7c84" },
-              { "viewport": "mobile", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-completed-mobile-light.png", "sha256": "91bcee4b8aac6acdefe63631b69519835b3371701c834778a16992d834af1101" },
-              { "viewport": "narrow", "theme": "dark", "interactionState": "initial", "file": "gate-b-w2-b05-completed-narrow-dark.png", "sha256": "2a07fb9f8c5199225d079c95147332cc9dd5f0dc29770ef9399c5732f1ce8f6c" },
-              { "viewport": "narrow", "theme": "light", "interactionState": "initial", "file": "gate-b-w2-b05-completed-narrow-light.png", "sha256": "b9ce4454525237bfdc6d17f9299a73c67d299182289405071215f4801f5b6ad2" }
+              {
+                "viewport": "desktop",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-desktop-dark.png",
+                "sha256": "71c264925f0e3ae149600e073cee5cea0629c2e686f5b48215673e081fc7d795"
+              },
+              {
+                "viewport": "desktop",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-desktop-light.png",
+                "sha256": "63c0605dfe32b554bebb1aebd36ae780ab841ca3e8e9ba3c9ec8159d4a8f648f"
+              },
+              {
+                "viewport": "gb-360",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-gb-360-dark.png",
+                "sha256": "9b701ced451810314b82c355dff528770c73a05796e8102e0874c3085ba12b49"
+              },
+              {
+                "viewport": "gb-360",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-gb-360-light.png",
+                "sha256": "09a9b43111057cd50c483c7e51765aca37ca76742a45d7fa54ddfca22b0f52fc"
+              },
+              {
+                "viewport": "gb-430",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-gb-430-dark.png",
+                "sha256": "62961a0711a7c54c44abb8b3f682c59126bd5951064f5a806cf199fedf3cf2f4"
+              },
+              {
+                "viewport": "gb-430",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-gb-430-light.png",
+                "sha256": "0afe4ce7622808dea7c53834161fc8b9caeca4c325f3af2cf7aa6381118ee07f"
+              },
+              {
+                "viewport": "mobile",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-mobile-dark.png",
+                "sha256": "9fe4f31adb51f5599ab6d2bae926c7c08c3df2641be6d3b12ca381a001af7c84"
+              },
+              {
+                "viewport": "mobile",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-mobile-light.png",
+                "sha256": "91bcee4b8aac6acdefe63631b69519835b3371701c834778a16992d834af1101"
+              },
+              {
+                "viewport": "narrow",
+                "theme": "dark",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-narrow-dark.png",
+                "sha256": "2a07fb9f8c5199225d079c95147332cc9dd5f0dc29770ef9399c5732f1ce8f6c"
+              },
+              {
+                "viewport": "narrow",
+                "theme": "light",
+                "interactionState": "initial",
+                "file": "gate-b-w2-b05-completed-narrow-light.png",
+                "sha256": "b9ce4454525237bfdc6d17f9299a73c67d299182289405071215f4801f5b6ad2"
+              }
             ]
           }
         }

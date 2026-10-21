@@ -2,7 +2,7 @@
   "programmeRevision": "0.169.3",
   "baseCommitSha": "b0b45d031bc215d211039401e26245c4a667f9fc",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b06-league-event-parity/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W3 — B06 League/Event match comparison. Four candidates: League Before/After (confirms the shipped Match Details BEFORE/AFTER composition as the comparison baseline) and Event Before/After (a UI-Lab-local design proposal for a standalone Event Match Details layout, composed from real production pieces — not a production route). All four remain CANDIDATE pending owner review. A retrospective remediation (B3-R1 through B3-R7, same session as B05/W2's own retrospective fix) corrected League · After's and Event · After's fixtures/navigation (fixtureVersion 2) and League · Before's/Event · Before's coach-facing copy and navigation (no fixture data change, fixtureVersion unchanged), and added two new real origin pages (league/match-details, event/event-detail) — see docs/ui-lab/gate-b-w3-candidates/SOURCE_RECONCILIATION.md and BLOCKERS.md. Fresh real CI capture evidence against the remediated revision is committed in capture-attestation.json: run https://github.com/lagebj/matchboard/actions/runs/39657393171 (reviewedBranchHeadSha 568096efc0f2d89b85eaaa90ad4b2fedf0b16612), 40 captures, all 40 hashes independently re-verified. The pre-remediation run (39637600700, 1c185cc01f8a6ee46f958792e0b04e8105f86b05, also 40 captures) is preserved for traceability under capture-attestation.json's own priorVersions[0] — it was CANDIDATE only and never approved, so nothing is inherited from it.",
+  "note": "Gate B W3 — B06 League/Event match comparison. Four candidates: League Before/After (confirms the shipped Match Details BEFORE/AFTER composition as the comparison baseline) and Event Before/After (a UI-Lab-local design proposal for a standalone Event Match Details layout, composed from real production pieces — not a production route). All four remain CANDIDATE pending owner review. A retrospective remediation (B3-R1 through B3-R7, same session as B05/W2's own retrospective fix) corrected League · After's and Event · After's fixtures/navigation (fixtureVersion 2) and League · Before's/Event · Before's coach-facing copy and navigation (no fixture data change, fixtureVersion unchanged), and added two new real origin pages (league/match-details, event/event-detail) — see docs/ui-lab/gate-b-w3-candidates/SOURCE_RECONCILIATION.md and BLOCKERS.md. Fresh real CI capture evidence against the remediated revision is committed in capture-attestation.json: run https://github.com/lagebj/matchboard/actions/runs/39657393171 (reviewedBranchHeadSha 568096efc0f2d89b85eaaa90ad4b2fedf0b16612), 40 captures, all 40 hashes independently re-verified. The pre-remediation run (39637600700, 1c185cc01f8a6ee46f958792e0b04e8105f86b05, also 40 captures) is preserved for traceability under capture-attestation.json's own priorVersions[0] — it was CANDIDATE only and never approved, so nothing is inherited from it. fixtureVersion bumped to 3 for B06-EVENT-AFTER only (its own fixture DATA changed — debriefAnswers.player_observations, combinationEvidence.subtype; new fixtureSha256 in fixtures.ts). The other three candidates' underlying fixture data is unchanged by this session's B5/R2/B5/R6 findings. See SOURCE_RECONCILIATION.md for the full finding-by-finding record (B5/R2, B5/R6, B5/R7).",
   "candidates": [
     {
       "scenarioId": "B06-LEAGUE-BEFORE",
@@ -17,11 +17,19 @@
       ],
       "lifecycle": "planning_open",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B06",
       "dataContractRef": "docs/adr/0011-event-match-and-category-stats.md; docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real League Match Details BEFORE composition (MatchIdentityCard + MatchPreparationWidget + planning pitch); see VISUAL_VS_CURRENT.md",
-      "knownGaps": ["Live Reporting stage rendered as a disclosed fact, not reproduced (shared production surface)."],
+      "knownGaps": [
+        "Live Reporting stage rendered as a disclosed fact, not reproduced (shared production surface).",
+        "B5/R2: debriefAnswers.player_observations still named William (participant-gb6e-william, a GUEST_PLAYER) with an individual structured observation — the standalone footballObservations record had already been reassigned to Theodor (B3-R3), but the debrief's OWN player_observations array (a second real path production's debrief-submission flow can promote into the identical createFootballObservations() call, which requires an active canonical Player) was never audited. Corrected: reassigned to Theodor as well, matching footballObservations exactly. William's real participation (lineup slot, attendance, the match_changes narrative) is preserved; only the structured, Player-backed observation record moved. Both evidence paths are now covered by a dedicated test asserting every entry resolves to an eligible PLAYER participant.",
+        "B5/R6: the Noah+Sindre combination row's subtype was HORIZONTAL, but Noah plays CF (FORWARD -> line ATT) and Sindre plays LCM (MIDFIELDER -> line MID) — different lines, so the real derivePartnershipSubtype() (combination-topology.ts) returns VERTICAL, never HORIZONTAL (same line only). Corrected, and verified against the real, unmodified deriveCombinationsFromSegments() with constructed segments/goal events for this exact match in a new __tests__/combination-evidence.test.ts — every field on this row now equals that function's own real output, not a hand-picked value. The equivalent B05 row (Noah RCM + Sindre LCM, same line -> correctly HORIZONTAL) is verified the same way in b05-post-match-report/shared/__tests__/combination-evidence.test.ts.",
+        "B5/R7: capture-attestation.json is regenerated against this revision's own real, passing CI capture run. Two real navigation pages created during the earlier B3-R5 remediation (league/match-details, event/event-detail) were never registered in the capture script and had zero real capture evidence despite being linked from every Before/After page — found and fixed in this same pass (now registered; see BLOCKERS.md)."
+      ],
       "approval": null
     },
     {
@@ -38,11 +46,18 @@
       ],
       "lifecycle": "done",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B06",
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real League AFTER Overview composition. fixtureVersion 2 (B3-R2/R4/R6): no longer links to the B05 candidate (a different match); reference time corrected to after the final whistle; links to a real fixture-backed League Match Details page instead of generic Gate B navigation; see VISUAL_VS_CURRENT.md",
-      "knownGaps": [],
+      "knownGaps": [
+        "B5/R2: debriefAnswers.player_observations still named William (participant-gb6e-william, a GUEST_PLAYER) with an individual structured observation — the standalone footballObservations record had already been reassigned to Theodor (B3-R3), but the debrief's OWN player_observations array (a second real path production's debrief-submission flow can promote into the identical createFootballObservations() call, which requires an active canonical Player) was never audited. Corrected: reassigned to Theodor as well, matching footballObservations exactly. William's real participation (lineup slot, attendance, the match_changes narrative) is preserved; only the structured, Player-backed observation record moved. Both evidence paths are now covered by a dedicated test asserting every entry resolves to an eligible PLAYER participant.",
+        "B5/R6: the Noah+Sindre combination row's subtype was HORIZONTAL, but Noah plays CF (FORWARD -> line ATT) and Sindre plays LCM (MIDFIELDER -> line MID) — different lines, so the real derivePartnershipSubtype() (combination-topology.ts) returns VERTICAL, never HORIZONTAL (same line only). Corrected, and verified against the real, unmodified deriveCombinationsFromSegments() with constructed segments/goal events for this exact match in a new __tests__/combination-evidence.test.ts — every field on this row now equals that function's own real output, not a hand-picked value. The equivalent B05 row (Noah RCM + Sindre LCM, same line -> correctly HORIZONTAL) is verified the same way in b05-post-match-report/shared/__tests__/combination-evidence.test.ts.",
+        "B5/R7: capture-attestation.json is regenerated against this revision's own real, passing CI capture run. Two real navigation pages created during the earlier B3-R5 remediation (league/match-details, event/event-detail) were never registered in the capture script and had zero real capture evidence despite being linked from every Before/After page — found and fixed in this same pass (now registered; see BLOCKERS.md)."
+      ],
       "approval": null
     },
     {
@@ -58,13 +73,19 @@
       ],
       "lifecycle": "planning_open",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B06",
       "dataContractRef": "docs/adr/0011-event-match-and-category-stats.md; docs/adr/0158-convergence-bundle-residue-after-adr-0157.md",
       "baselineAssetRef": "DESIGN_PROPOSAL — no production baseline exists (Event has no dedicated Match Details route); composed from real EventMatchLineupPanel-equivalent building blocks, not a copy of EventMatchesTab; see VISUAL_VS_CURRENT.md and SOURCE_RECONCILIATION.md",
       "knownGaps": [
         "EventMatchLineupPanel itself is not fixture-injectable (self-fetches via server actions); a narrow adapter reusing its real buildPlanningPitchAssignments projection is used instead.",
-        "Whether a dedicated Event Match Details route should exist in production is left open — this candidate does not decide it."
+        "Whether a dedicated Event Match Details route should exist in production is left open — this candidate does not decide it.",
+        "B5/R2: debriefAnswers.player_observations still named William (participant-gb6e-william, a GUEST_PLAYER) with an individual structured observation — the standalone footballObservations record had already been reassigned to Theodor (B3-R3), but the debrief's OWN player_observations array (a second real path production's debrief-submission flow can promote into the identical createFootballObservations() call, which requires an active canonical Player) was never audited. Corrected: reassigned to Theodor as well, matching footballObservations exactly. William's real participation (lineup slot, attendance, the match_changes narrative) is preserved; only the structured, Player-backed observation record moved. Both evidence paths are now covered by a dedicated test asserting every entry resolves to an eligible PLAYER participant.",
+        "B5/R6: the Noah+Sindre combination row's subtype was HORIZONTAL, but Noah plays CF (FORWARD -> line ATT) and Sindre plays LCM (MIDFIELDER -> line MID) — different lines, so the real derivePartnershipSubtype() (combination-topology.ts) returns VERTICAL, never HORIZONTAL (same line only). Corrected, and verified against the real, unmodified deriveCombinationsFromSegments() with constructed segments/goal events for this exact match in a new __tests__/combination-evidence.test.ts — every field on this row now equals that function's own real output, not a hand-picked value. The equivalent B05 row (Noah RCM + Sindre LCM, same line -> correctly HORIZONTAL) is verified the same way in b05-post-match-report/shared/__tests__/combination-evidence.test.ts.",
+        "B5/R7: capture-attestation.json is regenerated against this revision's own real, passing CI capture run. Two real navigation pages created during the earlier B3-R5 remediation (league/match-details, event/event-detail) were never registered in the capture script and had zero real capture evidence despite being linked from every Before/After page — found and fixed in this same pass (now registered; see BLOCKERS.md)."
       ],
       "approval": null
     },
@@ -72,7 +93,7 @@
       "scenarioId": "B06-EVENT-AFTER",
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w3-b06-event-after",
-      "fixtureVersion": 2,
+      "fixtureVersion": 3,
       "componentOwners": [
         "src/components/matches/post-match-report-shell.tsx",
         "src/components/post-match/debrief/post-match-debrief.tsx",
@@ -83,11 +104,19 @@
       ],
       "lifecycle": "done",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B06",
       "dataContractRef": "docs/arr/0034-league-event-post-match-ui-not-consolidated.md; docs/adr/0106-guestplayer-and-shared-match-participant-model.md; docs/adr/0152-coach-learning-loop.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shared PostMatchReportShell (ARR-0034) fed with fixture data directly, the same shell EventMatchReportPanel wraps in production. fixtureVersion 2 (B3-R3/R4/R6/R7): football observation reassigned off the Guest Player (production requires an active canonical Player); reference time corrected to after real completion; combination evidence corrected to the real per-match derivation rules (opponentDiversity 1); links to a real fixture-backed Event Detail page instead of generic Gate B navigation; see VISUAL_VS_CURRENT.md",
-      "knownGaps": ["Deliberately locked-only (no draft variant) — the editable-vs-locked distinction is B05's territory, not re-demonstrated here."],
+      "knownGaps": [
+        "Deliberately locked-only (no draft variant) — the editable-vs-locked distinction is B05's territory, not re-demonstrated here.",
+        "B5/R2: debriefAnswers.player_observations still named William (participant-gb6e-william, a GUEST_PLAYER) with an individual structured observation — the standalone footballObservations record had already been reassigned to Theodor (B3-R3), but the debrief's OWN player_observations array (a second real path production's debrief-submission flow can promote into the identical createFootballObservations() call, which requires an active canonical Player) was never audited. Corrected: reassigned to Theodor as well, matching footballObservations exactly. William's real participation (lineup slot, attendance, the match_changes narrative) is preserved; only the structured, Player-backed observation record moved. Both evidence paths are now covered by a dedicated test asserting every entry resolves to an eligible PLAYER participant.",
+        "B5/R6: the Noah+Sindre combination row's subtype was HORIZONTAL, but Noah plays CF (FORWARD -> line ATT) and Sindre plays LCM (MIDFIELDER -> line MID) — different lines, so the real derivePartnershipSubtype() (combination-topology.ts) returns VERTICAL, never HORIZONTAL (same line only). Corrected, and verified against the real, unmodified deriveCombinationsFromSegments() with constructed segments/goal events for this exact match in a new __tests__/combination-evidence.test.ts — every field on this row now equals that function's own real output, not a hand-picked value. The equivalent B05 row (Noah RCM + Sindre LCM, same line -> correctly HORIZONTAL) is verified the same way in b05-post-match-report/shared/__tests__/combination-evidence.test.ts.",
+        "B5/R7: capture-attestation.json is regenerated against this revision's own real, passing CI capture run. Two real navigation pages created during the earlier B3-R5 remediation (league/match-details, event/event-detail) were never registered in the capture script and had zero real capture evidence despite being linked from every Before/After page — found and fixed in this same pass (now registered; see BLOCKERS.md)."
+      ],
       "approval": null
     }
   ]

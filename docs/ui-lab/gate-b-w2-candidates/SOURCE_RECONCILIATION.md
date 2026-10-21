@@ -1,5 +1,54 @@
 # Gate B W2 — Source Reconciliation
 
+## fixtureVersion 2 — second remediation pass (B5/Rx findings)
+
+A further independent technical review found five more real findings in the FIRST
+remediation's own shared shell/hook components (not the fixture data, which remains correct and
+unchanged — see "fixtureVersion 2 — retrospective remediation" below for that first pass's own
+B2-Rx record). Verified directly against source, not assumed from the review brief:
+
+- **B5/R1**: `GoalAttributionGapBanner` was gated `isDraft &&` — identical to real production's
+  own `PostMatchReportPageShell` — so a report that reached `LOCKED` while the goal-attribution
+  gap stayed open (a real, legally reachable path; `complete()` never blocks on this — see
+  `DATA_TRUTH_AND_FIXTURES.md`) showed no disclosure at all, looking fully reconciled when it was
+  not. Corrected: the banner now shows whenever `hasGap` is true, regardless of lock state — a
+  disclosed, candidate-only proposed visual correction, not a claim that production already does
+  this. The capture script's own interaction flow was also split into two real sequential states
+  from one page load (confirm timing only -> complete -> still-unresolved; then reopen -> add the
+  real missing goal with its real minute via the actual "Min" input -> complete again ->
+  reconciled) — the earlier flow never entered a minute at all.
+- **B5/R3**: only `addGoal()` checked for `LOCKED` state in `use-safe-report-lifecycle.ts`; every
+  other mutation did not (reachable, since the real shared `PostMatchReportShell` renders every
+  control unconditionally and only CSS/JSX visibility hid them, not the action layer itself); the
+  local-id counter was a module-level `let` (not deterministic across mounts/replays); `complete()`
+  stamped `new Date().toISOString()`. Corrected: one central `reduce()` validator now enforces
+  lifecycle + input rules for every mutation, a rejected call leaves state byte-for-byte
+  unchanged (verified directly, including a same-sequence replay-determinism test), the id
+  counter lives in state, and `complete()` stamps a caller-supplied fixed timestamp.
+- **B5/R4**: `attendanceSummary` only patched `presentCount`/`noShowCount` over a static snapshot
+  (leaving `totalCount`/`noShowNames` stale after an edit); `playerInvolvement`'s present-
+  participant list came from the static `b05PresentParticipants` constant, not the live roster;
+  the header's `MatchIdentityCard` never reflected an edited Result score. Corrected: all three
+  are now derived live from `state.players`/`state.ourScore`/`state.opponentScore` via the real
+  production pure functions (`summarizeMatchAttendance()`, `buildPlayerInvolvement()`,
+  `buildMatchPresentation()`'s own WON/DRAWN/LOST comparison) — immutable match history (kickoff,
+  canonical live events, match identity beyond score) is deliberately left untouched.
+- **B5/R5**: `breadcrumbHref="#matches"` and `PostMatchReviewTab reviewHref="#review"` remained
+  fragment hrefs. Corrected: a new real fixture-backed `match-details/` page (the same real
+  pattern B06's own B3-R5 remediation established) is the real destination for "Back to match"
+  and the "Matches" breadcrumb — verified against production's actual destination
+  (`breadcrumbHref={`/o/${orgSlug}/matches/${matchId}`}`, confirmed directly in
+  `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`). `PostMatchReviewTab` always
+  renders a working-looking link with no seam to omit it, so it is no longer rendered for the
+  Review tab at all — replaced with a plain, non-interactive disclosure.
+- **B5/R7**: `capture-attestation.json` is regenerated against this revision's own real CI
+  capture run — see that file's own `priorVersions` for the superseded run.
+
+**fixtureVersion/fixtureSha256 for both candidates correctly remain unchanged (2, same hashes)**:
+every fix above is in the shared SHELL/HOOK component code
+(`use-safe-report-lifecycle.ts`/`safe-post-match-report-shell.tsx`) and capture tooling, never in
+`report-data.ts`'s raw records — `rawRecordsForHash` is byte-identical before and after this pass.
+
 ## fixtureVersion 2 — retrospective remediation (Gate B W3 session)
 
 A later session's technical review (prompted by the B06/W3 work) re-read this wave's own

@@ -1,5 +1,27 @@
 # Gate B W2 — Data Truth and Fixtures
 
+## B5/R1 — the real production completion gate does NOT require goal-attribution reconciliation
+
+Stated explicitly, because an earlier draft of this document's own framing could be read the
+other way: `completeReport()`'s only real completion blocker is
+`getTimingSubmissionBlockers()` (any period still needing timing review, or an out-of-range
+event). The goal-attribution gap is **advisory only** — production has no rule that blocks
+`complete()` while it is open, and this candidate deliberately does not invent one (that would be
+a stricter, un-shipped rule, not a faithful simulation).
+
+That means a report CAN legally reach `LOCKED` with the goal-attribution gap still open — a real,
+reachable path, not a hypothetical. **Do not read "the report is LOCKED" as "the report has no
+remaining discrepancy."** Those are two independent facts. The standard/golden B05-COMPLETED
+fixture happens to also be reconciled (3 Goal rows, matching the 3 canonical `GOAL_FOR` events) —
+but that is because `completed/fixtures.ts` was deliberately authored that way, not because
+reaching `LOCKED` implies it. The interactive draft page's capture flow now demonstrates both real
+outcomes from one page load: confirm timing only -> complete -> still-unresolved disclosure
+(`completed-with-gap-transition`); then reopen -> add the real missing goal -> complete again ->
+reconciled (`completed-transition`, matching `completed/fixtures.ts`). See
+`SOURCE_RECONCILIATION.md`'s B5/R1 entry and `safe-post-match-report-shell.tsx`'s own doc comment
+for the exact visual-correction scope (a candidate-only disclosure improvement, not a claimed
+production fix — production's own `PostMatchReportPageShell` still hides this banner once locked).
+
 ## fixtureVersion 2 — what actually changed (remediation)
 
 The goal/timeline/gap model below is **superseded** by a corrected model — see
@@ -67,6 +89,11 @@ Both are real view-model shapes the real components already render from (`GoalAt
 values (the same pattern Gate B W1's own `matchInsights` fixture used), not derived from a
 synthetic live-event stream, since `computeGoalAttributionGap()`'s own real computation is a
 server-only, DB-backed comparison out of scope for a fixture to reproduce.
+
+This table describes the two STATIC fixture pages (`draft/`, `completed/`) only. It is not a
+general claim that "Completed" always means "resolved" — see the B5/R1 section above for the real
+completion gate's actual (narrower) contract and the interactive draft page's own two real
+outcomes.
 
 ## The debrief is already `SUBMITTED` in both states — the real completion gate is genuinely satisfiable
 
