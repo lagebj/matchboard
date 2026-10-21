@@ -211,8 +211,16 @@ function completeB05DraftWithUnresolvedGapFlow() {
 
 function completeB05DraftReconciledFlow() {
   return async function perform(page) {
+    const reopenButton = page.getByRole("button", { name: "Reopen report", exact: true });
+    // Defensive, explicit scroll before clicking — the harness already resets scroll/viewport
+    // between interactions (see the main capture loop), but this exact click was the one
+    // observed failing in a real CI run on the `mobile` viewport (an ancestor div intercepted
+    // the click), immediately after the prior interaction's own `fullPage` screenshot. The most
+    // likely cause is stale scroll/viewport geometry left over from that screenshot; this is a
+    // second, belt-and-suspenders mitigation on top of the harness-level reset.
+    await reopenButton.scrollIntoViewIfNeeded();
     page.once("dialog", (dialog) => dialog.accept());
-    await page.getByRole("button", { name: "Reopen report", exact: true }).click();
+    await reopenButton.click();
     await page.getByRole("button", { name: "Complete report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
 
     const scorerSelect = page.locator("select").filter({ has: page.locator('option[value=""]', { hasText: "Select scorer" }) });
@@ -848,6 +856,15 @@ try {
           sha256,
         });
         console.log("Captured "+name+" sha256="+sha256);
+        // A `fullPage` screenshot can temporarily resize the viewport to capture content taller
+        // than the configured window and leave scroll position wherever the last captured
+        // segment left it. A SECOND chained interaction (B5/R1's two-step B05 draft flow is the
+        // first Gate B scenario to do this) then clicks against coordinates computed from that
+        // stale geometry, which resolved to the whole-page wrapper div instead of the intended
+        // button on the narrow (`mobile`) viewport in CI. Reassert the real viewport size and
+        // reset scroll before any further interaction runs.
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.evaluate(() => window.scrollTo(0, 0));
       }
 
       // Console/page-error gate (independent review round 1, PR #778, verification gap): bounded

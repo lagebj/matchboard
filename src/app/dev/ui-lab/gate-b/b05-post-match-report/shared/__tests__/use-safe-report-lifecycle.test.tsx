@@ -84,7 +84,7 @@ describe("useSafeReportLifecycle (B5/R3)", () => {
       () => result.current.actions.updateAttendance("actual-noah", "NO_SHOW"),
       () => result.current.actions.addPlayer({ playerId: "player-new" }),
       () => result.current.actions.removePlayer("actual-noah"),
-      () => result.current.actions.confirmPeriodTiming("SECOND_HALF"),
+      () => result.current.actions.confirmPeriodTiming!("SECOND_HALF"),
       () => result.current.actions.correctPeriodTiming!("SECOND_HALF", 45),
     ];
 
@@ -107,7 +107,7 @@ describe("useSafeReportLifecycle (B5/R3)", () => {
     });
 
     await act(async () => {
-      await result.current.actions.confirmPeriodTiming("SECOND_HALF");
+      await result.current.actions.confirmPeriodTiming!("SECOND_HALF");
     });
     await act(async () => {
       await result.current.actions.complete();
@@ -189,7 +189,7 @@ describe("useSafeReportLifecycle (B5/R3)", () => {
     async function runSequence() {
       const { result } = renderHook(() => useSafeReportLifecycle(baseState({ goals: [] }), COMPLETED_BY, COMPLETED_AT));
       await act(async () => {
-        await result.current.actions.confirmPeriodTiming("SECOND_HALF");
+        await result.current.actions.confirmPeriodTiming!("SECOND_HALF");
         await result.current.actions.addGoal({ playerId: "player-noah", minute: 34 });
         await result.current.actions.complete();
       });
