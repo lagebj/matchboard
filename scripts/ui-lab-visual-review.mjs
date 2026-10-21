@@ -178,6 +178,30 @@ function clickResolvePending() {
 }
 
 /**
+ * B06/W3 remediation (B2-R3/R5) — drives B05 draft's real fixture-local lifecycle instead of the
+ * old whole-fixture-swap control this replaced: confirm the real timing blocker, add the real
+ * missing goal, then click the real "Complete report" button (native confirm() dialog
+ * auto-accepted — this never reaches a production server action, see
+ * shared/use-safe-report-lifecycle.ts). Waits for "Reopen report" to confirm the transition
+ * actually completed before the screenshot fires.
+ */
+function completeB05DraftFlow() {
+  return async function perform(page) {
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await page.getByText("Confirm duration", { exact: true }).waitFor({ state: "detached", timeout: 10000 });
+
+    const scorerSelect = page.locator("select").filter({ has: page.locator('option[value=""]', { hasText: "Select scorer" }) });
+    await scorerSelect.selectOption({ value: "player-gb5-sindre" });
+    await page.getByRole("button", { name: "Add goal", exact: true }).click();
+    await page.getByText(/missing scorer attribution/i).waitFor({ state: "detached", timeout: 10000 });
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+  };
+}
+
+/**
  * Gate A W4 (A05/A11) interaction helper: fills the AssistantCoachHypothesisCard's/
  * ProfileChangeReviewCard's text input (where present) before clicking a button whose
  * disabled/enabled state depends on it — a plain `clickByName` alone can't exercise the
@@ -621,12 +645,13 @@ const scenarios = [
     route: "gate-b/b05-post-match-report/draft",
     extraViewports: gbExtraSmokeViewports,
     interactionViewports: ["desktop", "mobile"],
-    // The real "Complete report" button is never clicked here (it would attempt a real server
-    // action with no real match in the database) — this clicks the UI-Lab-local fixture-
-    // simulation control instead, which swaps the page's local props to the completed fixture.
-    // Proves the real DRAFT -> COMPLETED transition and the pinned-`?tab=players` regression
+    // fixtureVersion 2 (B2-R3/R5 remediation): drives the real fixture-local lifecycle (confirm
+    // timing, add the real missing goal, click the real "Complete report" button — a native
+    // confirm() dialog, auto-accepted) rather than a whole-fixture-swap button, and never
+    // reaches a production server action (shared/use-safe-report-lifecycle.ts). Proves the real
+    // DRAFT -> COMPLETED transition and the pinned-`?tab=players` regression
     // (post-match-report-page-shell.test.tsx's own coverage) with real capture evidence.
-    interactions: [{ id: "completed-transition", perform: clickByName("Continue fixture simulation → Complete report") }],
+    interactions: [{ id: "completed-transition", perform: completeB05DraftFlow() }],
   },
   {
     slug: "gate-b-w2-b05-completed",
