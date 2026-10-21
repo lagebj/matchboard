@@ -25,7 +25,12 @@ describe("B06 Event · Before page", () => {
 
   it("renders a helper (amber H badge) and a guest player badge, distinct from squad players", () => {
     renderPage();
-    expect(screen.getByText(/Jonas/)).toBeInTheDocument();
+    // Jonas is placed on the pitch (RCM) and also listed in the eligible-participants badge
+    // row below it — a genuine, deliberate duplication (the same real
+    // buildPlanningPitchAssignments projection production uses), not a bug to query around.
+    expect(screen.getAllByText(/Jonas/).length).toBeGreaterThan(1);
+    // William is the reserve (no tacticalPosition), so he is not placed on the pitch and
+    // appears exactly once, in the badge row.
     expect(screen.getByText(/William \(Guest\)/)).toBeInTheDocument();
     expect(screen.getAllByText("Guest").length).toBeGreaterThan(0);
   });

@@ -15,7 +15,10 @@ describe("B06 League · Before page", () => {
   it("shows the real League team identity with its real kit colour", () => {
     renderPage();
     expect(screen.getAllByText(/Slemmestad Rød/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Hvalstad IL/)).toBeInTheDocument();
+    // "Hvalstad IL" appears both in MatchIdentityCard's own team label and in this page's
+    // explanatory footnote sentence — a genuine, deliberate duplication, not a bug to query
+    // around with getByText's single-match assumption.
+    expect(screen.getAllByText(/Hvalstad IL/).length).toBeGreaterThan(1);
   });
 
   it("renders the comparison nav with League · Before active", () => {
