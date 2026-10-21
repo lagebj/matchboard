@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 import { MatchIdentityCard } from "@/components/matches/match-detail/match-identity-card";
