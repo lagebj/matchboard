@@ -3,10 +3,12 @@
 ## Status
 
 Accepted. Stage A (this ADR, the applicability/decision-logic scripts, the two new workflows,
-Test-slot lease wiring, documentation updates) implemented and running in observation mode.
-**Stage B (adding `Visual Authority Gate` to ruleset `21317362`'s required checks) is a distinct,
-later, explicitly-authorized action — not performed by this ADR's introducing PR.** See "Rollout"
-below.
+Test-slot lease wiring, documentation updates) implemented. **Stage B is also now active**:
+`Visual Authority Gate` was added to ruleset `21317362`'s required status checks on 2026-10-21, at
+the repository owner's explicit direction, once PR #802 corrected the two Stage A bugs described
+in that ADR's History (the `neutral`-conclusion bug and the approval-record fingerprint
+self-invalidation bug) that would otherwise have made Stage B's enforcement ineffective. See
+"Rollout" below.
 
 ## Date
 
@@ -228,21 +230,30 @@ behaving correctly) only becomes possible once this PR is merged, and must be pe
 - `/visual-review release`, PR close, and a baseline redeploy all correctly clear the
   `TEST_SLOT_LEASE` and restore the baseline alias.
 
-### Stage B (separate, later, explicit action)
+### Stage B — performed 2026-10-21
 
-Only after Stage A's observation period is explicitly confirmed sufficient:
+Performed at the repository owner's explicit direction, after PR #802 fixed the two Stage A bugs
+that would otherwise have made this enforcement step ineffective (see History):
 
 ```
-gh api --method PUT repos/lagebj/matchboard/rulesets/21317362 \
-  --input - <<'JSON'
-{ ... existing ruleset body, with "Visual Authority Gate" added to required_status_checks ... }
+gh api --method PUT repos/lagebj/matchboard/rulesets/21317362 --input - <<'JSON'
+{ ...existing ruleset body (read fresh immediately before the call, per the original
+  plan below), with "Visual Authority Gate" appended to required_status_checks... }
 JSON
 ```
 
-(The exact body must be read fresh from `gh api repos/lagebj/matchboard/rulesets/21317362` at the
-time Stage B is actually performed, not assumed from this ADR's text — ruleset contents can change
-between Stage A landing and Stage B being authorized.) This is a live, repository-wide,
-merge-blocking change and must not be performed as a side effect of implementing Stage A.
+Confirmed via the PUT response's `updated_at` timestamp (`2026-10-21T10:34:34.264Z`) and a
+before/after diff of `required_status_checks` showing exactly one addition — every other rule
+(deletion/non-fast-forward/linear-history/pull-request parameters, and all 12 pre-existing required
+checks) was read fresh from the live ruleset immediately before the call and left byte-identical,
+per the original plan below. `Visual Authority Gate` is now a required check on every PR to `main`:
+`NOT_APPLICABLE`/`APPROVED` (`success`) merge normally; `AWAITING_APPROVAL`/`INVALID` (`failure`,
+since PR #802) block merge until a real `/visual-approve <sha>` resolves it.
+
+Original plan (preserved for the record): only after Stage A's observation period was explicitly
+confirmed sufficient, read the ruleset fresh immediately before the call (ruleset contents can
+change between Stage A landing and Stage B being authorized) and perform the PUT as a live,
+repository-wide, merge-blocking change — never as a side effect of implementing Stage A itself.
 
 ### Deferred, explicitly not in this PR
 
@@ -295,3 +306,8 @@ merge-blocking change and must not be performed as a side effect of implementing
   `gh api repos/lagebj/matchboard/rulesets/21317362`) still does not include `Visual Authority
   Gate` — Stage B remains a distinct, later, owner-authorized action; this correction does not
   perform it.
+- 2026-10-21 (continued): PR #802 merged. The repository owner then explicitly directed Stage B
+  to be performed. Ruleset `21317362` updated (`gh api --method PUT`) to add `Visual Authority
+  Gate` to `required_status_checks`, read fresh immediately before the call and diffed to confirm
+  only that one addition. `Visual Authority Gate` is now a required, merge-blocking check on every
+  PR to `main` — see "Rollout" → "Stage B — performed 2026-10-21" for the verification detail.
