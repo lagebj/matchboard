@@ -613,6 +613,26 @@ const scenarios = [
     interactionViewports: ["desktop", "mobile", "squeeze-600", "squeeze-768", "squeeze-900"],
     interactions: [{ id: "evidence-open", perform: clickByName("Inspect combination evidence") }],
   },
+  // Gate B W2 candidate (official register B05, deferred row — now picked up) — CANDIDATE, not
+  // approved. The real `PostMatchReportPageShell`/`PostMatchReportShell`/`PostMatchDebrief`, no
+  // responsive inspector threshold, so only the 360/430px smoke widths apply (same as B02-B04).
+  {
+    slug: "gate-b-w2-b05-draft",
+    route: "gate-b/b05-post-match-report/draft",
+    extraViewports: gbExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    // The real "Complete report" button is never clicked here (it would attempt a real server
+    // action with no real match in the database) — this clicks the UI-Lab-local fixture-
+    // simulation control instead, which swaps the page's local props to the completed fixture.
+    // Proves the real DRAFT -> COMPLETED transition and the pinned-`?tab=players` regression
+    // (post-match-report-page-shell.test.tsx's own coverage) with real capture evidence.
+    interactions: [{ id: "completed-transition", perform: clickByName("Continue fixture simulation → Complete report") }],
+  },
+  {
+    slug: "gate-b-w2-b05-completed",
+    route: "gate-b/b05-post-match-report/completed",
+    extraViewports: gbExtraSmokeViewports,
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },

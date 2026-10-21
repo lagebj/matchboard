@@ -102,13 +102,17 @@ function TimingReviewItemBanner({
       variant="decision"
       title={`${item.periodLabel} was still running when Live Reporting was completed`}
       description={
-        <div className="flex flex-col gap-2">
-          <p>
+        // `DecisionBanner` renders `description` inside its own <p> — only phrasing content
+        // (e.g. <span>) is valid there; a <div>/<p> here is invalid HTML nesting and triggers a
+        // real React hydration warning (found via this scenario's own real-browser CI capture,
+        // the first UI Lab wave to exercise this component with a non-empty needsReview item).
+        <span className="flex flex-col gap-2">
+          <span className="block">
             Matchboard limited the automatically resolved period time to {item.resolvedDurationMinutes} minute
             {item.resolvedDurationMinutes === 1 ? "" : "s"}. Review the period timing before submitting the report.
-          </p>
-          {error && <p className="text-[var(--danger)]">{error}</p>}
-        </div>
+          </span>
+          {error && <span className="block text-[var(--danger)]">{error}</span>}
+        </span>
       }
       action={
         editing ? (

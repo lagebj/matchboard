@@ -340,3 +340,43 @@ export const b04FootballObservations: readonly { id: string; summary: string }[]
   { id: "obs-gb4-1", summary: "First match this season at a 4-3-1 shape without the ball." },
   { id: "obs-gb4-2", summary: "Noah and Sindre's combination play was a recurring attacking outlet." },
 ];
+
+// ---------------------------------------------------------------------------
+// B05 — Post-match report, draft and completed (same match identity, two lifecycle moments)
+// ---------------------------------------------------------------------------
+
+/** One real match, two points in its own lifecycle (`draft/` and `completed/` under
+ * `b05-post-match-report/`) — unlike B01-B04 (four genuinely different matches), B05's register
+ * row ("Draft and completed / Editable vs locked") is specifically about the SAME report moving
+ * through its own lifecycle, so one shared identity is the honest fixture, not four. */
+export const B05_MATCH_ID = "match-gate-b-05";
+export const B05_REPORT_ID = "report-gate-b-05";
+export const B05_KICKOFF_AT = new Date("2026-10-11T10:00:00.000Z");
+export const B05_NOW = new Date("2026-10-22T18:00:00.000Z");
+export const B05_OPPONENT_NAME = "Kongsberg IL";
+
+export const b05DraftMatchIdentity: MatchPresentation = buildMatchPresentation({
+  id: B05_MATCH_ID,
+  href: null,
+  teamName: MATCH_B_TEAM_NAME,
+  opponentName: B05_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B05_KICKOFF_AT,
+  lifecycleStatus: "report_incomplete",
+  ownGoals: 3,
+  opponentGoals: 2,
+  outcome: "WON",
+});
+
+export const b05CompletedMatchIdentity: MatchPresentation = buildMatchPresentation({
+  id: B05_MATCH_ID,
+  href: null,
+  teamName: MATCH_B_TEAM_NAME,
+  opponentName: B05_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B05_KICKOFF_AT,
+  lifecycleStatus: "done",
+  ownGoals: 3,
+  opponentGoals: 2,
+  outcome: "WON",
+});
