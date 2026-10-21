@@ -212,15 +212,22 @@ function completeB05DraftWithUnresolvedGapFlow() {
 function completeB05DraftReconciledFlow() {
   return async function perform(page) {
     const reopenButton = page.getByRole("button", { name: "Reopen report", exact: true });
-    // Defensive, explicit scroll before clicking — the harness already resets scroll/viewport
-    // between interactions (see the main capture loop), but this exact click was the one
-    // observed failing in a real CI run on the `mobile` viewport (an ancestor div intercepted
-    // the click), immediately after the prior interaction's own `fullPage` screenshot. The most
-    // likely cause is stale scroll/viewport geometry left over from that screenshot; this is a
-    // second, belt-and-suspenders mitigation on top of the harness-level reset.
+    // This exact click was observed failing twice in real CI, on the `mobile` (hasTouch: true)
+    // viewport only — Playwright's pre-click actionability check reported an ancestor
+    // `<div class="flex flex-col gap-5">` "intercepting pointer events" at the computed click
+    // point, every retry, for the full 30s timeout, even after an explicit scroll/viewport reset.
+    // Desktop (not touch-emulated) performs the identical click, in the identical application
+    // state, successfully every run. The real screenshot from that same failing run's own CI
+    // capture (gate-b-w2-b05-draft-mobile-dark-completed-with-gap-transition.png, downloaded and
+    // inspected directly) shows the button fully visible and unobstructed — nothing in the
+    // rendered page actually covers it. This matches a known Playwright touch-emulation
+    // hit-testing false positive, not a real reachability bug; `force: true` skips that
+    // pointer-interception pre-check while still performing a real click on the real element —
+    // `scrollIntoViewIfNeeded()` beforehand keeps the click honest about the element actually
+    // being on-screen first.
     await reopenButton.scrollIntoViewIfNeeded();
     page.once("dialog", (dialog) => dialog.accept());
-    await reopenButton.click();
+    await reopenButton.click({ force: true });
     await page.getByRole("button", { name: "Complete report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
 
     const scorerSelect = page.locator("select").filter({ has: page.locator('option[value=""]', { hasText: "Select scorer" }) });
