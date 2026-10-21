@@ -102,6 +102,18 @@ describe("B05 completed page (fixtureVersion 2 — B2-R4/R5/R6/R7 remediation)",
     expect(screen.queryByText("Review")).not.toBeInTheDocument();
   });
 
+  it("B5/R5 — 'Back to match' and the 'Matches' breadcrumb are real working links to this match's own Match Details page", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: "‹ Back to match" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
+    );
+    expect(screen.getByRole("link", { name: "Matches" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
+    );
+  });
+
   it("never imports the real production post-match server action module (structural guarantee, not just behavioural)", () => {
     const forbidden = "/matches/[matchId]/post-match/actions";
     for (const file of ["../page.tsx", "../../shared/safe-post-match-report-shell.tsx", "../../shared/use-safe-report-lifecycle.ts"]) {

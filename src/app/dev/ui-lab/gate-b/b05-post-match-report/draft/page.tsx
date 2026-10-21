@@ -3,7 +3,7 @@
 import { AppearanceControl } from "@/components/touchline";
 import { MATCH_B_TEAM_NAME, MATCH_B_TEAM_KIT_COLOR } from "../../shared/match-b-fixture";
 import { SafePostMatchReportShell } from "../shared/safe-post-match-report-shell";
-import { B05_COMPLETED_BY, b05CombinationEvidence, b05FootballObservations } from "../shared/report-data";
+import { B05_COMPLETED_BY, B05_COMPLETED_AT, b05CombinationEvidence, b05FootballObservations } from "../shared/report-data";
 import type { SafeReportLocalState } from "../shared/use-safe-report-lifecycle";
 import { identity, matchId, opponentName, matchIdentity, afterData, initialReport, debriefAnswers, allPlayers, timingReview } from "./fixtures";
 
@@ -28,6 +28,7 @@ export default function B05DraftPage() {
     outOfRangeEventCount: afterData.outOfRangeEventCount,
     completedBy: initialReport.completedBy,
     completedAt: initialReport.completedAt,
+    nextLocalId: 0,
   };
 
   return (
@@ -50,6 +51,7 @@ export default function B05DraftPage() {
         staticAfterData={afterData}
         initialLocalState={initialLocalState}
         completedByLabel={B05_COMPLETED_BY}
+        completionTimestamp={B05_COMPLETED_AT}
         debriefAnswers={debriefAnswers}
         allPlayers={allPlayers}
         footballObservations={b05FootballObservations}

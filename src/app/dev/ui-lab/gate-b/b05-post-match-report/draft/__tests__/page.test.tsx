@@ -64,7 +64,7 @@ describe("B05 draft page (fixtureVersion 2 — B2-R3/R5/R6 remediation)", () => 
     expect(screen.queryByText("Reopen report")).not.toBeInTheDocument();
   });
 
-  it("confirming timing resolves the real hard blocker — completion then succeeds (matching production: the goal-attribution gap is advisory, never itself an enforced completion gate per the real completeReport()/getTimingSubmissionBlockers() contract)", async () => {
+  it("confirming timing resolves the real hard blocker — completion then succeeds (matching production: the goal-attribution gap is advisory, never itself an enforced completion gate per the real completeReport()/getTimingSubmissionBlockers() contract) — B5/R1: the resulting LOCKED report still discloses the unresolved gap, never silently looking reconciled", async () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Confirm duration" }));
     await waitFor(() => expect(screen.queryByText("Confirm duration")).not.toBeInTheDocument());
@@ -72,6 +72,32 @@ describe("B05 draft page (fixtureVersion 2 — B2-R3/R5/R6 remediation)", () => 
     fireEvent.click(screen.getByRole("button", { name: "Complete report" }));
     expect(await screen.findByText("Reopen report")).toBeInTheDocument();
     expect(screen.queryByText(/Cannot complete report/)).not.toBeInTheDocument();
+    // B5/R1 — legally LOCKED with the goal-attribution gap still open is a real, reachable
+    // production-faithful path (production never blocks completion on this); the disclosure
+    // must still be visible, not hidden the moment the report locks.
+    expect(screen.getByText(/missing scorer attribution/i)).toBeInTheDocument();
+  });
+
+  it("B5/R1 — reopening and adding the real missing goal reconciles the gap, and the disclosure clears once re-completed", async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm duration" }));
+    await waitFor(() => expect(screen.queryByText("Confirm duration")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Complete report" }));
+    await screen.findByText("Reopen report");
+    expect(screen.getByText(/missing scorer attribution/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reopen report" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Complete report" })).toBeInTheDocument());
+
+    const scorerSelect = screen.getByDisplayValue("Select scorer");
+    fireEvent.change(scorerSelect, { target: { value: "player-gb5-sindre" } });
+    fireEvent.change(screen.getByPlaceholderText("Min"), { target: { value: "34" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add goal" }));
+    await waitFor(() => expect(screen.queryByText(/missing scorer attribution/i)).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Complete report" }));
+    await screen.findByText("Reopen report");
+    expect(screen.queryByText(/missing scorer attribution/i)).not.toBeInTheDocument();
   });
 
   it("the goal/report discrepancy is independently resolvable via the real Add goal control — Sindre's 34' goal, local state only", async () => {
@@ -83,6 +109,42 @@ describe("B05 draft page (fixtureVersion 2 — B2-R3/R5/R6 remediation)", () => 
     fireEvent.click(screen.getByRole("button", { name: "Add goal" }));
 
     await waitFor(() => expect(screen.queryByText(/missing scorer attribution/i)).not.toBeInTheDocument());
+  });
+
+  it("B5/R5 — 'Back to match' and the 'Matches' breadcrumb are real working links to this match's own Match Details page, never a fragment or another match", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: "‹ Back to match" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
+    );
+    expect(screen.getByRole("link", { name: "Matches" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
+    );
+  });
+
+  it("B5/R5 — the Review tab discloses the missing real route rather than rendering a fake #review link", () => {
+    searchParamsState.value = new URLSearchParams("tab=review");
+    render(
+      <ThemeProvider>
+        <B05DraftPage />
+      </ThemeProvider>,
+    );
+    expect(screen.queryByRole("link", { name: /Open review/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open review/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/no working destination exists for it here/i)).toBeInTheDocument();
+  });
+
+  it("B5/R4 — the header's own match identity card tracks an edited result live, not the original fixture score", async () => {
+    renderPage();
+    expect(screen.getByText("3 - 2")).toBeInTheDocument();
+
+    const scoreInputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(scoreInputs[0]!, { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(screen.getByText("5 - 2")).toBeInTheDocument());
+    expect(screen.queryByText("3 - 2")).not.toBeInTheDocument();
   });
 
   it("never imports the real production post-match server action module (structural guarantee, not just behavioural)", () => {

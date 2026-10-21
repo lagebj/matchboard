@@ -15,6 +15,7 @@ const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b04-completed-rich", id: "B04", title: "Completed match, richer evidence" },
   { href: "/dev/ui-lab/gate-b/b05-post-match-report/draft", id: "B05", title: "Post-match report, draft (editable, with a fixture-simulated completion)" },
   { href: "/dev/ui-lab/gate-b/b05-post-match-report/completed", id: "B05-COMPLETED", title: "Post-match report, completed (locked, read-only)" },
+  { href: "/dev/ui-lab/gate-b/b05-post-match-report/match-details", id: "B05-NAV", title: "Post-match report — Match Details (navigation origin, not a comparison candidate)" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/before", id: "B06-LEAGUE-BEFORE", title: "League/Event parity — League, before" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/after", id: "B06-LEAGUE-AFTER", title: "League/Event parity — League, after" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/before", id: "B06-EVENT-BEFORE", title: "League/Event parity — Event, before (design proposal)" },

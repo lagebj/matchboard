@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { TabRail } from "@/components/ui/tab-rail";
@@ -9,7 +10,6 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { PostMatchReportHeader } from "@/components/matches/match-detail/post-match-report-header";
 import { PostMatchSummaryTab } from "@/components/matches/match-detail/post-match-summary-tab";
 import { MatchTimelineList } from "@/components/matches/match-detail/match-timeline-list";
-import { PostMatchReviewTab } from "@/components/matches/match-detail/post-match-review-tab";
 import { PostMatchReportShell } from "@/components/matches/post-match-report-shell";
 import { PostMatchUnresolvedBanner } from "@/components/live-match/post-match-unresolved-banner";
 import { GoalAttributionGapBanner } from "@/components/matches/goal-attribution-gap-banner";
@@ -17,7 +17,7 @@ import { PostMatchDebrief } from "@/components/post-match/debrief/post-match-deb
 import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
 import { getPostMatchReportTabs, resolvePostMatchReportTab, type PostMatchTabKey } from "@/lib/matches/match-detail-tabs";
-import { aggregateGoalScorers, aggregateAssistProviders, buildPlayerInvolvement } from "@/lib/matches/match-detail-view-model";
+import { aggregateGoalScorers, aggregateAssistProviders, buildPlayerInvolvement, summarizeMatchAttendance } from "@/lib/matches/match-detail-view-model";
 import { DEBRIEF_SCHEMA_VERSION } from "@/lib/post-match/debrief/v1";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
@@ -25,11 +25,7 @@ import type { PostMatchReportViewModel, PostMatchReportCapabilities, PostMatchAv
 import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
 import { useSafeReportLifecycle, type SafeReportLocalState } from "./use-safe-report-lifecycle";
-import {
-  b05PresentParticipants,
-  b05MinutesByParticipant,
-  b05ObservationCountByParticipant,
-} from "./report-data";
+import { b05MinutesByParticipant, b05ObservationCountByParticipant } from "./report-data";
 
 const CAPABILITIES: PostMatchReportCapabilities = { hasUnplannedReason: true };
 
@@ -57,6 +53,7 @@ export function SafePostMatchReportShell({
   staticAfterData,
   initialLocalState,
   completedByLabel: initialCompletedBy,
+  completionTimestamp,
   debriefAnswers,
   allPlayers,
   footballObservations,
@@ -71,6 +68,11 @@ export function SafePostMatchReportShell({
   staticAfterData: MatchDetailAfterData;
   initialLocalState: SafeReportLocalState;
   completedByLabel: string;
+  /** B5/R3 — the fixed, deterministic real-world completion instant to stamp if/when `complete()`
+   * succeeds from this page (never `Date.now()`). This match has exactly one true completion
+   * moment; reusing the same constant here as the static completed fixture uses is the honest
+   * choice, not a second invented one. */
+  completionTimestamp: string;
   debriefAnswers: DebriefAnswersSection;
   allPlayers: Array<{ id: string; name: string; teamName: string }>;
   footballObservations: Array<{ id: string; playerId: string; playerName: string; observationCode: string; polarity: string; note: string }>;
@@ -78,7 +80,7 @@ export function SafePostMatchReportShell({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { state, actions } = useSafeReportLifecycle(initialLocalState, initialCompletedBy);
+  const { state, actions } = useSafeReportLifecycle(initialLocalState, initialCompletedBy, completionTimestamp);
 
   const surfaceState = state.status === "LOCKED" ? "COMPLETED" : "DRAFT";
   const isDraft = surfaceState === "DRAFT";
@@ -120,20 +122,45 @@ export function SafePostMatchReportShell({
     }),
     [state.goals, staticAfterData.goalAttributionGap],
   );
+  // B5/R4 — derived live from the CURRENT roster (`state.players`), never the static fixture
+  // constant: an added/removed player or a toggled attendance status must be reflected here too,
+  // not just in the header's own `totalCount={state.players.length}`.
+  const livePresentParticipants = useMemo(
+    () => state.players.filter((p) => p.attendanceStatus === "PRESENT").map((p) => ({ participantKey: p.playerId, playerName: p.playerName })),
+    [state.players],
+  );
   const livePlayerInvolvement = useMemo(
     () =>
       buildPlayerInvolvement({
-        presentParticipants: b05PresentParticipants,
+        presentParticipants: livePresentParticipants,
         goals: state.goals.map((g) => ({ id: g.id, participantKey: g.playerId, playerName: g.playerName, minute: g.minute, type: "NORMAL" as const })),
         assists: state.assists.map((a) => ({ id: a.id, participantKey: a.playerId, playerName: a.playerName, type: "NORMAL" as const })),
         observationCountByParticipant: b05ObservationCountByParticipant,
         minutesByParticipant: b05MinutesByParticipant,
       }),
-    [state.goals, state.assists],
+    [livePresentParticipants, state.goals, state.assists],
   );
   const liveCombinationEvidence = surfaceState === "COMPLETED" ? combinationEvidence : [];
-  const presentCount = state.players.filter((p) => p.attendanceStatus === "PRESENT").length;
-  const noShowCount = state.players.filter((p) => p.attendanceStatus === "NO_SHOW").length;
+  // B5/R4 — the identity card's own score/outcome must track `state.ourScore`/`opponentScore`
+  // too: before this fix, editing the Result section's score (a real, reachable "Save" action)
+  // changed the Players tab and Summary tab but left the header's `MatchIdentityCard` showing
+  // the ORIGINAL fixture score — the exact "official match identity can display an old result"
+  // contradiction. Reuses `presentation`'s own `ownTeamSide` (never re-guesses home/away) and the
+  // same WON/DRAWN/LOST comparison `buildMatchPresentation()` itself would make from these scores.
+  const livePresentation = useMemo((): MatchPresentation => {
+    const isHome = presentation.ownTeamSide !== "away";
+    const score = isHome ? { home: state.ourScore, away: state.opponentScore } : { home: state.opponentScore, away: state.ourScore };
+    const resultOutcomeForOwnTeam = state.ourScore > state.opponentScore ? "win" : state.ourScore < state.opponentScore ? "loss" : "draw";
+    const outcomeLabel = state.ourScore > state.opponentScore ? "WON" : state.ourScore < state.opponentScore ? "LOST" : "DRAW";
+    return { ...presentation, score, resultOutcomeForOwnTeam, outcomeLabel };
+  }, [presentation, state.ourScore, state.opponentScore]);
+  // B5/R4 — the FULL attendance summary (including `totalCount`/`noShowNames`), recomputed from
+  // the current roster every time, not a partial `presentCount`/`noShowCount` patch over a
+  // static snapshot (which went stale the moment a player was added, removed, or re-marked).
+  const liveAttendanceSummary = useMemo(
+    () => summarizeMatchAttendance(state.players.map((p) => ({ attendanceStatus: p.attendanceStatus, playerName: p.playerName }))),
+    [state.players],
+  );
 
   const liveAfterData: MatchDetailAfterData = {
     ...staticAfterData,
@@ -147,8 +174,10 @@ export function SafePostMatchReportShell({
     goalAttributionGap: liveGoalAttributionGap,
     combinationEvidence: liveCombinationEvidence,
     timingNeedsReviewCount: state.timingReview.filter((t) => t.needsReview).length,
-    attendanceSummary: { ...staticAfterData.attendanceSummary, presentCount, noShowCount },
+    attendanceSummary: liveAttendanceSummary,
   };
+  const presentCount = liveAttendanceSummary.presentCount;
+  const noShowCount = liveAttendanceSummary.noShowCount;
 
   const playerNameById = Object.fromEntries(allPlayers.map((p) => [p.id, p.name]));
 
@@ -171,19 +200,25 @@ export function SafePostMatchReportShell({
 
   return (
     <div className="touchline flex flex-col gap-5">
-      {/* B2-R7: no real destination exists for this match's own Match Details page within this
-          UI Lab bundle (B01-B04 are different match identities) — a fragment href would be a
-          fake working link, so this is deliberately plain text, not an anchor. In production,
-          this always returns to the same match-scoped route this report belongs to. */}
-      <span className="inline-flex w-fit items-center gap-1.5 text-[13px] text-[var(--text-muted)]">&lsaquo; Back to match</span>
+      {/* B5/R5: a real `next/link` to this match's own Match Details stand-in
+          (`b05-post-match-report/match-details`), matching the real destination production's
+          `breadcrumbHref` actually points to (`/o/${orgSlug}/matches/${matchId}` — verified in
+          `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`), not a fragment and
+          not another match's identity. */}
+      <Link
+        href="/dev/ui-lab/gate-b/b05-post-match-report/match-details"
+        className="inline-flex w-fit items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+      >
+        &lsaquo; Back to match
+      </Link>
 
       <PostMatchReportHeader
         breadcrumbLabel="Matches"
-        breadcrumbHref="#matches"
+        breadcrumbHref="/dev/ui-lab/gate-b/b05-post-match-report/match-details"
         title={title}
         surfaceState={surfaceState}
         completedByLabel={state.completedBy ? `Completed by ${state.completedBy}` : null}
-        presentation={presentation}
+        presentation={livePresentation}
         ownKitColor={ownKitColor}
         presentCount={presentCount}
         totalCount={state.players.length}
@@ -193,7 +228,14 @@ export function SafePostMatchReportShell({
       />
 
       {isDraft && <PostMatchUnresolvedBanner subjectId={matchId} playerNameById={playerNameById} />}
-      {isDraft && <GoalAttributionGapBanner gap={liveGoalAttributionGap} />}
+      {/* B5/R1 — a proposed candidate-only visual correction, NOT already-shipped production
+          behavior: the real `PostMatchReportPageShell` gates this banner the identical
+          `isDraft &&` way (verified directly), so a report that reaches LOCKED with the
+          goal-attribution gap still open (a real, legally reachable path — `complete()` never
+          blocks on this) shows no disclosure in production today either. This candidate shows it
+          whenever `hasGap` is true, regardless of lock state, so a completed-but-unreconciled
+          report never looks silently fully reconciled. See DATA_TRUTH_AND_FIXTURES.md. */}
+      {liveGoalAttributionGap.hasGap && <GoalAttributionGapBanner gap={liveGoalAttributionGap} />}
 
       <TabRail items={tabs} activeKey={activeTab} variant="pill" ariaLabel="Report sections" onSelect={selectTab} />
 
@@ -249,15 +291,18 @@ export function SafePostMatchReportShell({
       )}
 
       {activeTab === "review" && (
-        <div className="flex flex-col gap-2">
-          <PostMatchReviewTab reviewHref="#review" />
-          {/* B2-R7: "Open review" is the real production component, but no `/review` route
-              exists for this match's own identity in this UI Lab bundle — disclosed rather than
-              left as a fake working link. */}
-          <p className="text-[11px] text-[var(--text-muted)]">
-            Design note: in production, &ldquo;Open review&rdquo; opens this match&apos;s own plan-integrity review route. Not reproduced in this candidate.
+        <Surface padding="md" className="flex flex-col gap-3">
+          <SectionHeader title="Plan integrity review" description="Compare the planned squad and rotations against what actually happened." />
+          {/* B5/R5: the real `PostMatchReviewTab` component always renders a working-looking
+              `<Link>`/button to `reviewHref` with no way to omit it — there is no real `/review`
+              route for this match's identity in this UI Lab bundle, and a fragment href would be
+              a fake link. Omitted rather than faked (option 3): this disclosure replaces the real
+              component entirely for this one tab, not an "Open review" control pointing nowhere. */}
+          <p className="text-[13px] text-[var(--text-muted)]">
+            &ldquo;Open review&rdquo; opens this match&apos;s own plan-integrity review route in production. Not reproduced in this
+            candidate — no working destination exists for it here.
           </p>
-        </div>
+        </Surface>
       )}
 
       {activeTab === "combinations" && (
