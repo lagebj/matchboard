@@ -633,6 +633,30 @@ const scenarios = [
     route: "gate-b/b05-post-match-report/completed",
     extraViewports: gbExtraSmokeViewports,
   },
+  // Gate B W3 candidate (official register B06, "League/Event match comparison") — CANDIDATE,
+  // not approved. Four static read-only compositions, no responsive inspector threshold, so only
+  // the 360/430px smoke widths apply (same as B02-B04/B05) — reuses `gbExtraSmokeViewports`
+  // directly, the same Gate B smoke-width concept every prior Gate B wave has used.
+  {
+    slug: "gate-b-w3-b06-league-before",
+    route: "gate-b/b06-league-event-parity/league/before",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-league-after",
+    route: "gate-b/b06-league-event-parity/league/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-event-before",
+    route: "gate-b/b06-league-event-parity/event/before",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-event-after",
+    route: "gate-b/b06-league-event-parity/event/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
