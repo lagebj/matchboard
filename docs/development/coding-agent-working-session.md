@@ -179,8 +179,9 @@ check. The process:
    owner's own credential.
 7. Once approved, a golden record can be written via `scripts/visual-authority/promote-to-golden.mjs`,
    reusing the exact `approval` schema Gate A already established.
-8. The `Visual Authority Gate` check must be green (once Stage B adds it to the required-checks
-   ruleset — see ADR-0159's Rollout; until then it reports informationally only).
+8. The `Visual Authority Gate` check must be green — it is a required, merge-blocking status
+   check on ruleset `21317362` as of 2026-10-21 (ADR-0159's Stage B). `NOT_APPLICABLE`/`APPROVED`
+   report `success`; `AWAITING_APPROVAL`/`INVALID` report `failure` and block merge.
 9. Merge.
 10. Release the Test slot (`/visual-review release`) if still held.
 
