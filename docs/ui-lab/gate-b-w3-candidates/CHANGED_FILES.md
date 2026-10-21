@@ -38,8 +38,20 @@
   own HEAD before touching it. No tracked content was removed. Not a code or doc change; recorded
   here only because it changed `npm run docs:check`'s local output.
 
-## CI capture attestation
+## Phase 2 fixes (CI capture findings — this wave's own code, not production)
 
-Not included in this commit — `capture-attestation.json` will be added once
-`ui-lab-visual-review.yml` produces a real run against this PR's revision, matching the
-established two-commit pattern (see BLOCKERS.md).
+- `scripts/ui-lab-visual-review.mjs` — registered the four B06 scenarios (the capture script's
+  scenario list is explicit, not auto-discovered); the first capture run silently produced zero
+  B06 captures without this.
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/page.tsx` — added the missing
+  `"use client"` directive (RSC serialization violation, crashed the second capture run on this
+  exact page). See BLOCKERS.md for both.
+
+## CI capture attestation (new, added after both fixes)
+
+- `docs/ui-lab/gate-b-w3-candidates/capture-attestation.json` — real run
+  https://github.com/lagebj/matchboard/actions/runs/39637600700, 40 captures, every SHA-256
+  independently re-verified against the downloaded artifact's raw bytes.
+- `docs/ui-lab/gate-b-w3-candidates/candidate_manifest.json` — updated the top-level `note` with
+  the real run/head-sha/capture-count reference (`approval` stays `null` on every scenario —
+  owner review has not happened yet).

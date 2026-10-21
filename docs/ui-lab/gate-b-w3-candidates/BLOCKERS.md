@@ -21,14 +21,38 @@ already-approved W1 pages too, not something introduced by this wave. Real visua
 from CI's `ui-lab-visual-review.yml` job once this PR is opened, matching every prior Gate A/B
 wave.
 
-## Real CI capture — not yet generated
+## Real CI capture — now generated and committed
 
-This commit does not include `capture-attestation.json`. Once this PR is pushed and
-`ui-lab-visual-review.yml` produces a real run, a follow-up commit will add
-`capture-attestation.json` with the real run id, artifact id, and independently re-verified
-SHA-256 hashes for every capture, and will fill in `candidate_manifest.json`'s
-`baselineAssetRef` with the real artifact reference where applicable — the same two-commit
-pattern B01-B05 already established (feature PR, then a capture/approval-recording follow-up).
+`capture-attestation.json` is committed, in a follow-up commit after the candidate code — the
+same two-commit pattern B01-B05 already established. Real run:
+https://github.com/lagebj/matchboard/actions/runs/39637600700, `reviewedBranchHeadSha`
+`1c185cc01f8a6ee46f958792e0b04e8105f86b05`, 40 captures across the four scenarios (desktop/
+mobile/narrow/gb-360/gb-430 × dark/light each), every SHA-256 independently recomputed from the
+downloaded artifact's raw PNG bytes — zero mismatches against the artifact's own manifest.json.
+
+## Two real bugs found by this wave's own CI capture — fixed
+
+- **Capture script never registered B06** (`scripts/ui-lab-visual-review.mjs`): the script's
+  scenario list is explicit, not auto-discovered from `gate-b/page.tsx`'s `SCENARIOS` array. The
+  first capture run (39621025751, commit 539baf7e4) completed successfully but produced zero B06
+  captures, silently. Fixed by registering the four B06 routes (commit 38e18abc5), reusing the
+  existing `gbExtraSmokeViewports` set.
+- **Event · After was missing `"use client"`**: it is a Server Component passing real functions
+  (`PostMatchReportShell`'s `actions` object, `onChanged`) to a Client Component — an RSC
+  serialization violation, invisible to Vitest+RTL component tests (which render React trees
+  directly with no RSC boundary enforcement) but fatal against a real Next.js server. The second
+  capture attempt (39635328177, commit 38e18abc5) crashed on this exact page after successfully
+  capturing League Before/After and Event Before, timing out the whole job. Fixed (commit
+  1c185cc01) by adding the directive, matching B05's own analogous `completed/page.tsx`.
+
+## Unrelated GitHub platform incident during this PR's CI
+
+Around 2026-10-21T15:00-16:30Z, githubstatus.com reported degraded Webhooks/Pull Requests/
+Actions. One push (38e18abc5, the capture-script registration) never triggered CI and never
+updated this PR's `head.sha` for roughly an hour, independently confirmed via the GitHub status
+API and via `repos/{owner}/{repo}/actions/runs?head_sha=...` returning zero runs for that commit
+despite the branch ref itself being correctly updated (`git ls-remote`). Resolved by closing and
+reopening the PR (no code or workflow change) to force GitHub to resync the stale PR object.
 
 ## Real/mocked component substitutions inside this wave's own Vitest tests
 

@@ -27,7 +27,7 @@ null`. No `/visual-review deploy` has been requested, no live preview has been r
 2. Let `ci-checks.yml` and `security.yml` go green.
 3. Independent technical review of this PR.
 4. Let `ui-lab-visual-review.yml` produce real capture evidence; add `capture-attestation.json`
-   in a follow-up commit (see BLOCKERS.md).
+   in a follow-up commit (see BLOCKERS.md). **Done** — run 39637600700, 40 captures, committed.
 5. Request a live preview only if actually needed, via `/visual-review deploy` — a deliberate,
    explicit request, not automatic.
 6. The repository owner reviews the rendered output and comments `/visual-approve <sha>` or
@@ -40,16 +40,28 @@ null`. No `/visual-review deploy` has been requested, no live preview has been r
 ## Technical review checklist (self-assessed by this wave's author, not a substitute for
 independent review)
 
-- [x] `npm run lint` passes on every file this PR touches.
+- [x] `npm run lint` passes on every file this PR touches (verified against CI's real `Lint` job,
+  which also runs `terminology:check`/`docs:check` — see BLOCKERS.md's terminology fix).
 - [x] `npx tsc --noEmit` passes project-wide.
-- [x] `npx vitest run` passes project-wide (6346 tests, no regressions).
+- [x] Both real test suites pass project-wide: the node-only suite (`vitest run`, 6346 tests) and
+  the component suite (`vitest run --config vitest.config.components.ts`, 824 tests) — CI's
+  `Tests` job runs both, matching `npm test`; a bare `npx vitest run` alone silently skips every
+  `.test.tsx` file and is not sufficient evidence by itself (caught this the hard way — see
+  BLOCKERS.md).
 - [x] `npm run terminology:check` passes.
 - [x] No fake editability — every interactive-looking control either really works (a `next/link`
   to a real route), is plain disclosure text, or resolves to an honest, logged failure.
 - [x] No cross-organisation/cross-squad data leakage in any fixture.
 - [x] No fabricated measures (possession/xG/shots/cards/rating/Player of the Match) — enforced by
   each scenario's own `fixtures.test.ts`.
-- [ ] `npm run build` — not run locally; this sandbox OOMs on `next build` even on a clean `main`
-  checkout (pre-existing, environment-specific; passes in real CI). Deferred to CI's Build job.
+- [x] `npm run build` — not run locally (this sandbox OOMs on `next build` even on a clean `main`
+  checkout, pre-existing/environment-specific); verified via CI's real `Build` job instead, which
+  passed.
+- [x] Real CI capture evidence exists and every scenario renders correctly against a real
+  Next.js server (`Capture fixture-backed UI Lab views` job, run 39637600700) — this is also what
+  caught the one real bug in this wave's own new code (a missing `"use client"` directive),
+  invisible to both local test suites.
 - [ ] Independent technical review — not yet performed on this wave.
-- [ ] Visual Authority Gate — not yet run against this PR's revision.
+- [x] Visual Authority Gate — evaluated against this PR's final revision
+  (`1c185cc01f8a6ee46f958792e0b04e8105f86b05`); reports the expected `AWAITING_APPROVAL`/`fail`
+  state pending the owner's own review and `/visual-approve` — this is correct, not a defect.
