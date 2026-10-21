@@ -66,6 +66,16 @@ approved SHA. This is what lets a documentation-only follow-up commit keep an ex
 while any substantive change to rendered content, fixture data, or interaction behavior correctly
 invalidates it.
 
+Each candidate's own `approval` block within `candidate_manifest.json` is excluded from that
+file's contribution to the fingerprint (corrected in History below; the original Stage A text
+said the opposite). The `approval` block is a *record* of a decision already made on the comment
+thread, not a new decision — hashing it created a self-invalidation loop: `promote-to-golden.mjs`
+writing the approval metadata into the manifest as a follow-up commit would change the manifest's
+fingerprint, making that very commit look like it carried a *different* visual-content fingerprint
+than the one just approved, falsely reporting `INVALID` for the commit that exists solely to
+record the approval. Every other field in the manifest (`status`, `fixtureVersion`,
+`componentOwners`, `knownGaps`, etc.) still counts toward the fingerprint as before.
+
 ### `Visual Authority Gate` status check
 
 `.github/workflows/visual-authority-gate.yml` runs on every PR to `main` (`opened`, `reopened`,
@@ -75,8 +85,14 @@ workflow with required-named jobs can leave those jobs permanently "expected" th
 requires them, with no path to resolution short of removing the rule. A `resolve-pr` job always
 runs first and computes whether the event is even PR-shaped; the `gate` job (`needs: resolve-pr`,
 `if: always()`) always reports a real Checks-API conclusion against the **exact PR head SHA** —
-`NOT_APPLICABLE` (success), `APPROVED` (success), `AWAITING_APPROVAL` (neutral), or `INVALID`
-(failure) — never leaves the check pending indefinitely.
+`NOT_APPLICABLE` (success), `APPROVED` (success), `AWAITING_APPROVAL` (failure), or `INVALID`
+(failure) — never leaves the check pending indefinitely. `AWAITING_APPROVAL` reports `failure`,
+not `neutral`: GitHub's required-status-checks merge gate treats a `neutral` conclusion as
+passing (identically to `success`/`skipped` — see `required-checks.mjs`'s own
+`evaluateRequiredChecks`), so a `neutral` conclusion here would let an unreviewed PR merge the
+instant Stage B makes this check required — exactly the outcome this gate exists to prevent. This
+correction (found before Stage B, so it never had a live blocking effect) is recorded in History
+below.
 
 This workflow never runs `actions/checkout` against PR content at all — every file it needs to
 read (to compute a fingerprint at a given SHA) is read via the GitHub Contents API, specifically
@@ -254,3 +270,28 @@ merge-blocking change and must not be performed as a side effect of implementing
   decision logic (53 unit tests), the two new workflows, Test-slot lease wiring into the existing
   lifecycle hooks, documentation updates. Stage B (ruleset enforcement) deliberately not performed
   in this PR — see "Rollout."
+- 2026-10-21: Two corrections found and fixed while preparing Stage B, before the check was ever
+  added to ruleset `21317362`'s required checks (so neither had a live blocking effect):
+  1. `evaluate-gate.mjs`'s `AWAITING_APPROVAL` state reported Checks-API conclusion `neutral`,
+     which GitHub's required-status-checks merge gate treats as passing — identically to
+     `success`/`skipped`. Left uncorrected, adding this check to the ruleset would not have
+     actually blocked merging an unreviewed UI-Lab PR. Changed to `failure`. `NOT_APPLICABLE` and
+     `APPROVED` remain `success`; `INVALID` was already `failure`.
+  2. `fingerprint.mjs` hashed each candidate's `approval` block as part of
+     `candidate_manifest.json`'s contribution to the fingerprint, as this ADR's original text
+     said was intentional. In practice this created a self-invalidation loop: writing a granted
+     approval's metadata into the manifest (`promote-to-golden.mjs`) changes the manifest's
+     fingerprint, which would make the very commit that records an approval look `INVALID`
+     against that same approval. The `approval` block is now excluded from the hash; every other
+     field is unaffected.
+
+  Reviewed the existing Gate B W1 (B01–B04) approval records
+  (`docs/ui-lab/gate-b-w1-candidates/candidate_manifest.json`) against both fixes: those
+  approvals were recorded directly in the merged PR rather than via a `promote-to-golden.mjs`
+  follow-up commit, so neither bug had actually corrupted them — left unchanged, no new approval
+  decision invented.
+
+  Verified ruleset `21317362`'s live required-status-checks list (read via
+  `gh api repos/lagebj/matchboard/rulesets/21317362`) still does not include `Visual Authority
+  Gate` — Stage B remains a distinct, later, owner-authorized action; this correction does not
+  perform it.

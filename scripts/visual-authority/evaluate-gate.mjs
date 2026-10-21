@@ -8,6 +8,14 @@
 // Re-deriving the decision from that thread on every evaluation (rather than caching a prior
 // verdict) is what makes invalidation (permission revoked, new reject posted, approval edited
 // away) work for free: there is no stale cache to forget to invalidate.
+//
+// AWAITING_APPROVAL reports GitHub Checks conclusion "failure", not "neutral": GitHub's own
+// required-status-checks merge gate treats a "neutral" conclusion as passing (see
+// required-checks.mjs's evaluateRequiredChecks, which accepts "success"/"skipped"/"neutral").
+// Once Stage B adds this check to ruleset 21317362's required checks, a "neutral" conclusion here
+// would let an unreviewed PR merge — the exact outcome this gate exists to prevent. "neutral" is
+// reserved for states that are correctly non-blocking (NOT_APPLICABLE is reported as "success"
+// instead, so "neutral" is unused by this gate entirely now).
 
 import { parseCommand } from "./parse-comment.mjs";
 
@@ -21,7 +29,7 @@ import { parseCommand } from "./parse-comment.mjs";
  * @param {(login: string) => boolean} args.isActorPrivileged
  * @param {string} args.currentFingerprint
  * @param {(sha: string) => string | null} args.fingerprintAtSha
- * @returns {{conclusion: "success"|"neutral"|"failure", state: "NOT_APPLICABLE"|"APPROVED"|"AWAITING_APPROVAL"|"INVALID", title: string, summary: string}}
+ * @returns {{conclusion: "success"|"failure", state: "NOT_APPLICABLE"|"APPROVED"|"AWAITING_APPROVAL"|"INVALID", title: string, summary: string}}
  */
 export function evaluateGate({ applicable, headSha, comments, isActorPrivileged, currentFingerprint, fingerprintAtSha }) {
   if (!applicable) {
@@ -44,7 +52,7 @@ export function evaluateGate({ applicable, headSha, comments, isActorPrivileged,
 
   if (privilegedCommands.length === 0) {
     return {
-      conclusion: "neutral",
+      conclusion: "failure",
       state: "AWAITING_APPROVAL",
       title: "Awaiting visual approval",
       summary: "This PR touches UI Lab/visual-authority-relevant content. Post `/visual-approve <sha>` (from an actor with write access) once the rendered output has been reviewed.",
