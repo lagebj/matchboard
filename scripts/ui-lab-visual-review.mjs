@@ -666,6 +666,10 @@ const viewports = [
 const records = [];
 await mkdir(output,{recursive:true});
 const browser = await chromium.launch();
+// B3-R1: set only once every registered scenario's loop iteration completes without throwing —
+// guards the coverage-completeness check below from masking a real mid-run crash with a less
+// useful "missing scenario" error (a crash already fails the run on its own).
+let completedAllScenarios = false;
 try {
   // A04's own route guard for the data-ui-lab-ready/console-error gates below — bounded to A04
   // only, so every W1/baseline scenario's capture behavior is provably unchanged (independent
@@ -778,6 +782,7 @@ try {
       }
     } finally { await context.close(); }
   }
+  completedAllScenarios = true;
 } finally {
   await browser.close();
   const sourceCommitSha = resolveCommitSha();
@@ -793,4 +798,21 @@ try {
     approvalStatus:"CANDIDATE",
     captures:records,
   },null,2)+"\n");
+
+  // B3-R1: coverage-completeness verifier. The original B06 capture run was green but silently
+  // produced zero B06 captures (the scenario simply wasn't registered in `scenarios` above) —
+  // this makes that exact class of regression a hard CI failure instead of something only a
+  // manual artifact inspection would ever catch. Only runs when the capture loop itself didn't
+  // already crash (a crash is already a failure on its own, and re-throwing from `finally`
+  // would mask the real error with this one).
+  if (completedAllScenarios) {
+    const capturedSlugs = new Set(records.map((r) => r.scenario));
+    const missing = scenarios.map((s) => s.slug).filter((slug) => !capturedSlugs.has(slug));
+    if (missing.length > 0) {
+      throw new Error(
+        "Capture coverage incomplete — "+missing.length+" registered scenario(s) produced zero captures: "+missing.join(", ")+
+        ". A scenario registered in `scenarios` must always produce at least one capture; see manifest.json for what was actually captured.",
+      );
+    }
+  }
 }
