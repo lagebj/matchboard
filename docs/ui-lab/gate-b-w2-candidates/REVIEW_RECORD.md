@@ -2,8 +2,8 @@
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B05 | `CANDIDATE` | Pending owner review. First pass: confirms the real shipped Post-Match Report composition against the register's "finish/report actions versus read-only knowledge" requirement — no fabricated gap found, no design proposal made. B2-R1: this PR's own first CI capture run found and fixed a real pre-existing bug in `RecoveredTimingCallout` (invalid HTML nesting). |
-| B05-COMPLETED | `CANDIDATE` | Pending owner review. Same pass; shares B05's real match identity and debrief. |
+| B05 | `CANDIDATE` / `APPROVED_GOLDEN` | **Approved.** Real owner review of the live Test-slot deploy (test.matchboard.football), resolved via `/visual-approve b9a95c9dbf4289a2727a15bd73375a4dc6381e2e`, 2026-10-21. PR #805 merged. First pass: confirms the real shipped Post-Match Report composition against the register's "finish/report actions versus read-only knowledge" requirement — no fabricated gap found, no design proposal made. B2-R1: this PR's own first CI capture run found and fixed a real pre-existing bug in `RecoveredTimingCallout` (invalid HTML nesting). |
+| B05-COMPLETED | `CANDIDATE` / `APPROVED_GOLDEN` | **Approved** — same approval event as B05 (one PR, one `/visual-approve` comment covers both scenarios). Shares B05's real match identity and debrief. |
 
 ## Phase B2-R1 — CI capture finding, fixed
 
@@ -20,25 +20,35 @@ directly against B05's register language (see `SOURCE_RECONCILIATION.md`'s frami
 Outcome: the real, already-shipped composition already satisfies the register row — no invented
 duplicate control, no missing disclosure, no proposed refinement. See `VISUAL_VS_CURRENT.md`.
 
-**No `APPROVED_GOLDEN` status is claimed anywhere in this wave.** Promotion requires explicit
-owner review of the exact evidence and revision — the same gate Gate A and Gate B W1 both used.
+## Approval — recorded
 
-## Required before any approval
+Both scenarios' `candidate_manifest.json` entries now carry a real `approval` block
+(`state: "APPROVED"`, `scope: "APPROVED_GOLDEN — design reference only; NOT production
+implementation authorization"`, `approvedBy: "lagebj"`, `revisionSha:
+"b9a95c9dbf4289a2727a15bd73375a4dc6381e2e"`), written by `scripts/visual-authority/
+promote-to-golden.mjs` in a follow-up commit after the real approval, using the exact schema Gate
+A and Gate B W1 both established. `approvedCaptures` for both entries are copied from, and match
+exactly, the committed `capture-attestation.json`'s own independently-re-verified hashes — no new
+hash was invented at promotion time. `releaseStatus` remains `PENDING` (no durable GitHub Release
+attempted yet), same as every other un-released Gate A/B wave.
 
-1. Owner answers `SOURCE_RECONCILIATION.md`'s framing question (confirm-via-fixture vs.
-   propose-new) — open, not yet answered for this wave.
-2. `.github/workflows/ui-lab-visual-review.yml` has run on this PR and produced a real
+## What was required before approval (all satisfied)
+
+1. Owner review of `SOURCE_RECONCILIATION.md`'s framing question (confirm-via-fixture vs.
+   propose-new) — resolved via the real `/visual-approve`.
+2. `.github/workflows/ui-lab-visual-review.yml` ran on this PR and produced a real
    `capture-attestation.json` — **done**: committed in this directory, **24 captures** (run
    `39593337123`, branch head `1b91b7cb6`, after the B2-R1 fix), every hash independently
    re-verified (see `BLOCKERS.md`).
-3. **ADR-0159's `Visual Authority Gate` is a real, required, merge-blocking check on this PR** —
-   the first Gate B wave subject to it (Stage B was activated in this same session, after
-   PR #802/#804). This PR cannot merge without a real `/visual-approve <sha>` comment from the
-   repository owner, regardless of CI/technical review outcome.
-4. Owner reviews the resulting captures across all required viewports/themes/interaction states
-   (1440×900, 390×844, 320×720 + 360/430px smoke, both themes; plus the `completed-transition`
-   interaction on desktop/mobile for the draft scenario) against `VISUAL_VS_CURRENT.md`'s stated
-   identical/differs breakdown.
+3. **ADR-0159's `Visual Authority Gate`** — the first Gate B wave subject to it as a real,
+   required, merge-blocking check (Stage B activated earlier in this same session). The first
+   `/visual-review deploy` request was itself declined by a real circularity bug, fixed in #806
+   (merged first); the second request succeeded and was then independently clobbered by
+   `test-db-migrate.yml`'s own (deliberate, documented) baseline-reclaim on an unrelated `main`
+   push, requiring a third, uncontested deploy before the owner could actually review it live.
+4. Owner reviewed the live Test-slot deploy at test.matchboard.football against
+   `VISUAL_VS_CURRENT.md`'s stated identical/differs breakdown and resolved
+   `/visual-approve b9a95c9dbf4289a2727a15bd73375a4dc6381e2e`.
 
 ## Technical review checklist (self-assessed by the implementer; independent review still needed)
 
