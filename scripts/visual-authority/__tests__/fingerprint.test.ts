@@ -49,3 +49,52 @@ describe("computeFingerprint", () => {
     expect(fp).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+describe("computeFingerprint — candidate_manifest.json approval-metadata exclusion", () => {
+  const manifestPath = "docs/ui-lab/gate-b-w1-candidates/candidate_manifest.json";
+
+  function manifest(overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      candidates: [{ scenarioId: "B01", status: "CANDIDATE", knownGaps: [], ...overrides }],
+    });
+  }
+
+  it("does not change when an `approval` block is added to a candidate that had none", () => {
+    const before = manifest();
+    const after = manifest({
+      approval: { state: "APPROVED", approvedBy: "lagebj", revisionSha: "abc123" },
+    });
+    const reader = (content: string) => (path: string) => (path === manifestPath ? content : null);
+    const fpBefore = computeFingerprint([manifestPath], reader(before));
+    const fpAfter = computeFingerprint([manifestPath], reader(after));
+    expect(fpBefore).toBe(fpAfter);
+  });
+
+  it("does not change when an existing `approval` block's own fields are edited", () => {
+    const withApproval = manifest({ approval: { state: "APPROVED", approvedBy: "lagebj" } });
+    const withDifferentApproval = manifest({ approval: { state: "APPROVED", approvedBy: "someone-else", revisionSha: "def456" } });
+    const reader = (content: string) => (path: string) => (path === manifestPath ? content : null);
+    const fp1 = computeFingerprint([manifestPath], reader(withApproval));
+    const fp2 = computeFingerprint([manifestPath], reader(withDifferentApproval));
+    expect(fp1).toBe(fp2);
+  });
+
+  it("still changes when a non-approval field changes — approval exclusion is narrowly scoped", () => {
+    const v1 = manifest({ fixtureVersion: 1 });
+    const v2 = manifest({ fixtureVersion: 2 });
+    const reader = (content: string) => (path: string) => (path === manifestPath ? content : null);
+    const fp1 = computeFingerprint([manifestPath], reader(v1));
+    const fp2 = computeFingerprint([manifestPath], reader(v2));
+    expect(fp1).not.toBe(fp2);
+  });
+
+  it("still changes for an ordinary source file (approval stripping is scoped to candidate_manifest.json paths)", () => {
+    const fp1 = computeFingerprint(["a.ts"], () => "content-a");
+    const fp2 = computeFingerprint(["a.ts"], () => JSON.stringify({ candidates: [{ approval: "whatever" }] }));
+    expect(fp1).not.toBe(fp2);
+  });
+
+  it("falls back to hashing raw content if the manifest is not valid JSON, rather than crashing", () => {
+    expect(() => computeFingerprint([manifestPath], () => "{not valid json")).not.toThrow();
+  });
+});
