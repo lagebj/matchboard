@@ -27,12 +27,20 @@ import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
  * League's B05 candidate reuses `PostMatchReportPageShell`. Deliberately the LOCKED state only
  * (not a draft/completed toggle like B05) — B06's job is lifecycle/navigation parity across
  * origins, not re-demonstrating the editable-vs-locked distinction B05 already covers.
+ *
+ * fixtureVersion 3 (B5/R2/B5/R6 remediation) — never approved at any prior version, so no
+ * historical-approval preservation is needed here (contrast B05, see candidate_manifest.json).
+ * Corrects two verified findings: William (`participant-gb6e-william`, a Guest Player) is no
+ * longer the subject of `debriefAnswers.player_observations` (B5/R2); the Noah+Sindre
+ * combination row's `subtype` is `VERTICAL`, not `HORIZONTAL` (B5/R6 — CF and LCM are different
+ * lines; verified against the real `deriveCombinationsFromSegments()` in
+ * `__tests__/combination-evidence.test.ts`).
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B06-EVENT-AFTER",
   fixtureId: "gate-b-w3-b06-event-after",
-  fixtureVersion: 2,
-  fixtureSha256: "4a16c36a30fd9dae4c8ca1cb02caae0f927212b0950fbdcdb146ca849cbfe8c6",
+  fixtureVersion: 3,
+  fixtureSha256: "104ff390917ea7bff65cfb324b8197c28e63486855b43b3a50b492fccaed81e0",
   sourceClass: "SYNTHETIC_LABELED",
   // B3-R4: after the real completion time, never before kickoff.
   fixedDateTimeUtc: B06_EVENT_AFTER_REFERENCE_AT.toISOString(),
@@ -108,6 +116,18 @@ export const actions: PostMatchReportActions = {
   correctPeriodTiming: notWired,
 };
 
+/**
+ * B5/R2 — `player_observations` never names William (`participant-gb6e-william`, a
+ * `GUEST_PLAYER`): production's debrief-submission path can promote a structured individual
+ * `player_observations` entry into `createFootballObservations()`, which requires an active
+ * canonical `Player` row (`db.player.findFirst(...)`) — `PlayerDevelopmentObservation.playerId`
+ * has no `GuestPlayer` counterpart at all (ADR-0106: "structurally incapable of referencing a
+ * GuestPlayer"). William's real, valid participation (lineup slot, attendance, the match-day
+ * narrative) stays intact in `match_changes.description` and `report.players` — only the
+ * structured, Player-backed observation record is reassigned, to Theodor (a real `PLAYER`
+ * participant), matching `footballObservations` below exactly rather than inventing a second,
+ * disconnected reassignment target.
+ */
 export const debriefAnswers: DebriefAnswersSection = {
   team_execution: {
     effort: { value: "STRONG" },
@@ -120,7 +140,7 @@ export const debriefAnswers: DebriefAnswersSection = {
   needs_attention: { selected: ["DEFENSIVE_TRANSITION"], comment: "Conceded from a turnover in our own half." },
   match_changes: { option: "WE_CHANGED", description: "Moved William forward to add width.", period: "Second half" },
   opponent_memory: { note: "Rykkinn sat deeper once behind — harder to break down late." },
-  player_observations: [{ playerId: "participant-gb6e-william", observationCode: "WORK_RATE_EFFECTIVE", direction: "POSITIVE", note: "Covered a lot of ground for a guest appearance." }],
+  player_observations: [{ playerId: "participant-gb6e-theodor", observationCode: "WORK_RATE_EFFECTIVE", direction: "POSITIVE", note: "Won every first-contact duel at centre-back through a difficult second half." }],
   anything_else: {},
 };
 
@@ -154,6 +174,16 @@ export const footballObservations = [
  * `opponentDiversity` is always exactly `1` for a single match, and `confidence` can never be
  * `ESTABLISHED` from one match alone (`deriveConfidence` requires `matchCount >= 3`, hardcoded
  * to `1` on the per-match path). `createdAt` is after the match completes, never before kickoff.
+ *
+ * B5/R6: `subtype` corrected from `HORIZONTAL` to `VERTICAL`. Noah plays CF (`FormationSlotRoleType
+ * FORWARD` -> `ROLE_TYPE_TO_LINE.FORWARD` = `"ATT"`) and Sindre plays LCM (`MIDFIELDER` ->
+ * `"MID"`) — two DIFFERENT lines, so the real `derivePartnershipSubtype()`
+ * (`src/lib/evidence/combination-topology.ts`) returns `VERTICAL`, never `HORIZONTAL` (that
+ * requires the SAME line, e.g. two centre-backs). Every field below is independently verified in
+ * `__tests__/combination-evidence.test.ts` by calling the real, unmodified
+ * `deriveCombinationsFromSegments()` against constructed segments/goal events for this exact
+ * match, not hand-derived — this row equals that function's own real output, not a value chosen
+ * to look plausible.
  */
 export const combinationEvidence: CombinationEvidenceRow[] = [
   {
@@ -162,7 +192,7 @@ export const combinationEvidence: CombinationEvidenceRow[] = [
     matchId: null,
     eventMatchId: B06_EVENT_MATCH_ID,
     family: "PARTNERSHIP",
-    subtype: "HORIZONTAL",
+    subtype: "VERTICAL",
     playerIds: ["participant-gb6e-noah", "participant-gb6e-sindre"],
     positions: ["CF", "LCM"],
     minutesTogether: 80,
