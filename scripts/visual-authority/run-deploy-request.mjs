@@ -113,7 +113,18 @@ async function main() {
   // deploy-request from here on
   const headSha = pr.head.sha;
 
-  const checksResult = await requiredChecksGreen({ owner, repo, sha: headSha, fetchImpl: ghFetch });
+  // `Visual Authority Gate` itself is excluded from this check (ADR-0159 Stage B made it a
+  // required check, which would otherwise make this gate circular for exactly the PRs it exists
+  // to serve: a UI-Lab PR's gate can only turn green via a real `/visual-approve`, which the
+  // owner typically wants to grant AFTER seeing this very live deploy, not before). Every other
+  // required check (Lint, Tests, Build, security scans, etc.) must still be green.
+  const checksResult = await requiredChecksGreen({
+    owner,
+    repo,
+    sha: headSha,
+    fetchImpl: ghFetch,
+    excludeContexts: ["Visual Authority Gate"],
+  });
   if (!checksResult.allGreen) {
     return reject(`required checks are not all green yet for ${headSha} — ${checksResult.reason}. Wait for CI before requesting a visual-review deploy.`);
   }

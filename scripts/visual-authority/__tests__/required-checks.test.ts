@@ -121,4 +121,58 @@ describe("requiredChecksGreen (network wrapper, mocked fetch)", () => {
     expect(result.allGreen).toBe(false);
     expect(result.reason).toMatch(/check-run/i);
   });
+
+  it("excludeContexts drops a named required check from evaluation — the ADR-0159 Stage B deploy-circularity fix", async () => {
+    // Visual Authority Gate is itself a required check (Stage B) but is failing/pending here —
+    // without excludeContexts this would report allGreen: false purely because of the one check
+    // the caller is deliberately excluding.
+    const fetchImpl = fakeFetch({
+      "/repos/o/r/rulesets/21317362": {
+        rules: [
+          {
+            type: "required_status_checks",
+            parameters: { required_status_checks: [{ context: "Lint" }, { context: "Visual Authority Gate" }] },
+          },
+        ],
+      },
+      "/repos/o/r/commits/abc123/check-runs": {
+        total_count: 2,
+        check_runs: [checkRun("Lint", "success"), checkRun("Visual Authority Gate", "failure")],
+      },
+    });
+    const result = await requiredChecksGreen({
+      owner: "o",
+      repo: "r",
+      sha: "abc123",
+      fetchImpl,
+      excludeContexts: ["Visual Authority Gate"],
+    });
+    expect(result).toEqual({ allGreen: true });
+  });
+
+  it("excludeContexts never excuses a different, genuinely failing required check", async () => {
+    const fetchImpl = fakeFetch({
+      "/repos/o/r/rulesets/21317362": {
+        rules: [
+          {
+            type: "required_status_checks",
+            parameters: { required_status_checks: [{ context: "Lint" }, { context: "Visual Authority Gate" }] },
+          },
+        ],
+      },
+      "/repos/o/r/commits/abc123/check-runs": {
+        total_count: 2,
+        check_runs: [checkRun("Lint", "failure"), checkRun("Visual Authority Gate", "failure")],
+      },
+    });
+    const result = await requiredChecksGreen({
+      owner: "o",
+      repo: "r",
+      sha: "abc123",
+      fetchImpl,
+      excludeContexts: ["Visual Authority Gate"],
+    });
+    expect(result.allGreen).toBe(false);
+    expect(result.reason).toMatch(/Lint/);
+  });
 });

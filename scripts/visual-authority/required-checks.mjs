@@ -64,12 +64,30 @@ export function evaluateRequiredChecks(requiredContexts, checkRuns) {
   return { allGreen: true };
 }
 
-export async function requiredChecksGreen({ owner, repo, sha, fetchImpl }) {
+/**
+ * @param {object} args
+ * @param {string} args.owner
+ * @param {string} args.repo
+ * @param {string} args.sha
+ * @param {(path: string, init?: object) => Promise<{ok: boolean, status?: number, json: () => Promise<any>}>} args.fetchImpl
+ * @param {string[]} [args.excludeContexts] - required-check names to drop from the live ruleset
+ *   list before evaluating, e.g. for a caller that is itself gating on "every required check is
+ *   green" as a *precondition* for an action that the excluded check's own green state depends
+ *   on (see visual-review-deploy.yml's use: `Visual Authority Gate` is now a required check
+ *   (ADR-0159 Stage B), but a UI-Lab PR's gate can only turn green via a real `/visual-approve`
+ *   — which the owner typically wants to grant *after* seeing a live deploy, not before. Without
+ *   this exclusion, requesting that live deploy would require the approval the deploy exists to
+ *   inform, a circular precondition this parameter breaks). Every other required check still
+ *   must be green — this never widens eligibility beyond the one named exclusion.
+ */
+export async function requiredChecksGreen({ owner, repo, sha, fetchImpl, excludeContexts = [] }) {
   const requiredContexts = await getRequiredContexts({ owner, repo, fetchImpl });
   if (!requiredContexts) return { allGreen: false, reason: "could not resolve the required-checks list from the ruleset" };
+
+  const contextsToCheck = requiredContexts.filter((context) => !excludeContexts.includes(context));
 
   const { results: checkRuns, complete } = await paginateAll(`/repos/${owner}/${repo}/commits/${sha}/check-runs`, fetchImpl, "check_runs");
   if (!complete) return { allGreen: false, reason: "could not retrieve the complete check-run list" };
 
-  return evaluateRequiredChecks(requiredContexts, checkRuns);
+  return evaluateRequiredChecks(contextsToCheck, checkRuns);
 }
