@@ -1,22 +1,21 @@
 import type { FixtureIdentity } from "../../../gate-a/shared/fixture-identity";
-import { b05CompletedMatchIdentity, B05_MATCH_ID, B05_OPPONENT_NAME, B05_KICKOFF_AT } from "../../shared/match-b-fixture";
-import { b05AfterData, b05InitialReport, b05DebriefAnswers, b05AllPlayers, b05CombinationEvidence, b05FootballObservations, b05TimingReview } from "../shared/report-data";
+import { b05CompletedMatchIdentity, B05_MATCH_ID, B05_OPPONENT_NAME, B05_NOW } from "../../shared/match-b-fixture";
+import { b05AfterData, b05InitialReport, b05DebriefAnswers, b05AllPlayers, b05CombinationEvidence, b05FootballObservations, b05TimingReview, b05CanonicalLiveEvents } from "../shared/report-data";
 
 /**
- * B05 "Post-match Report / Completed" (official Gate B register, deferred row — now picked up):
- * the same real match as `draft/`, now locked. Read-only: no draft mutation control is visible
- * (`PostMatchReportShell` renders neither "Complete report" nor any add/remove/edit control once
- * `status === "LOCKED"`), the previously-unattributed goal is now attributed, and the timing
- * review item is resolved — the same real unresolved items from the draft, now genuinely cleared,
- * not silently dropped.
+ * B05 "Post-match Report / Completed" — the same real match as `draft/`, now locked.
+ * fixtureVersion 2 — remediated per B2-R2/R3/R4/R5/R6/R7. See `draft/fixtures.ts`'s own doc
+ * comment for the historical-approval preservation note (same applies here).
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B05-COMPLETED",
   fixtureId: "gate-b-w2-b05-completed",
-  fixtureVersion: 1,
-  fixtureSha256: "99d00c34ab0d98b4fd88178946a0cbc1a7fb3dbb75965847d66d7666ff21678c",
+  fixtureVersion: 2,
+  fixtureSha256: "e1f4b269e0660c8435c7a5c8d575cf97f7463489943c662b9a16bc7b3c1c60d4",
   sourceClass: "SYNTHETIC_LABELED",
-  fixedDateTimeUtc: B05_KICKOFF_AT.toISOString(),
+  // B2-R7: an observation time after `B05_COMPLETED_AT` (12:05), not kickoff — `B05_NOW` is 11
+  // days later, a plausible "coach looking back at a completed report" moment.
+  fixedDateTimeUtc: B05_NOW.toISOString(),
   viewerTimeZone: "Europe/Oslo",
   locale: "en-GB",
 };
@@ -36,6 +35,7 @@ export const rawRecordsForHash = {
   playerMinutesEntries: [...afterData.playerMinutes.entries()],
   initialReport,
   debriefAnswers,
+  canonicalLiveEvents: b05CanonicalLiveEvents,
   combinationEvidence: b05CombinationEvidence,
   footballObservations: b05FootballObservations,
 };

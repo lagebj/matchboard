@@ -1,29 +1,27 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
 import B05DraftPage from "../page";
 
-// `PostMatchPage`, `FootballObservationSection`, and `ObservationSection` all statically import
-// real "use server" action modules that transitively pull in next-auth — which fails to resolve
-// in this project's Vitest+jsdom component-test environment (unrelated to this fixture; the same
-// reason `post-match-report-page-shell.test.tsx` mocks `PostMatchPage` away). Real coverage of
-// these three comes from the CI capture run (`ui-lab-visual-review.yml`) against the real dev
-// server, where next-auth resolves normally — see BLOCKERS.md. Everything else real:
-// `PostMatchReportHeader`, `PostMatchSummaryTab`, `PostMatchReviewTab`,
-// `MatchCombinationEvidencePanel`, `GoalAttributionGapBanner`, `PostMatchDebrief` (its own action
-// imports are dynamic, never triggered here).
+// `FootballObservationSection` statically imports a real "use server" action module that
+// transitively pulls in next-auth, which fails to resolve in this project's Vitest+jsdom
+// component-test environment — the same documented, unrelated blocker every prior Gate B wave's
+// own page test discloses and mocks around. Everything else here is real and unmocked:
+// `PostMatchReportShell`, `PostMatchDebrief` (its own action imports are dynamic, never
+// triggered since this scenario always passes `readOnly`), `GoalAttributionGapBanner`,
+// `RecoveredTimingCallout`, `PostMatchSummaryTab`, `MatchTimelineList`.
+vi.mock("@/components/player-development/football-observation-section", () => ({
+  FootballObservationSection: () => null,
+}));
+
 const replaceMock = vi.hoisted(() => vi.fn());
 const searchParamsState = vi.hoisted(() => ({ value: new URLSearchParams() }));
 
-// `replace` actually updates the mocked search params (mirroring what the real browser's URL
-// does after `router.replace`) — without this, the shell's own re-render after the fixture
-// simulation's state flip would see `requestedTab` still unset and silently recompute the
-// COMPLETED-surface default (`summary`) instead of staying pinned to `players`, which would make
-// this exact test unable to tell a passing pin from the real bug it exists to catch.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    replace: (url: string, opts?: unknown) => {
-      replaceMock(url, opts);
+    replace: (url: string) => {
+      replaceMock(url);
       searchParamsState.value = new URLSearchParams(url.split("?")[1] ?? "");
     },
     refresh: vi.fn(),
@@ -32,21 +30,9 @@ vi.mock("next/navigation", () => ({
   }),
   useSearchParams: () => searchParamsState.value,
 }));
-vi.mock("@/components/live-match/post-match-unresolved-banner", () => ({
-  PostMatchUnresolvedBanner: () => null,
-}));
-vi.mock("@/components/assistant/post-match-page", () => ({
-  PostMatchPage: ({ initialReport }: { initialReport: { status: string } | null }) => (
-    <div data-testid="players-tab">Players tab — status: {initialReport?.status ?? "NONE"}</div>
-  ),
-}));
-vi.mock("@/components/player-development/football-observation-section", () => ({
-  FootballObservationSection: () => null,
-}));
-vi.mock("@/components/opponents/observation-section", () => ({ ObservationSection: () => null }));
 
 function renderPage() {
-  searchParamsState.value = new URLSearchParams();
+  searchParamsState.value = new URLSearchParams("tab=players");
   replaceMock.mockClear();
   return render(
     <ThemeProvider>
@@ -55,55 +41,62 @@ function renderPage() {
   );
 }
 
-describe("B05 draft page", () => {
-  it("defaults to the Players tab (ADR-0147 §1a) and pins it into the URL", () => {
+beforeEach(() => {
+  // `PostMatchReportShell`'s "Complete report"/"Reopen report" controls gate on a native
+  // `confirm()` dialog before calling the action — jsdom has no real dialog, so without this
+  // stub every click would silently no-op (default `false`), never reaching the action at all.
+  vi.stubGlobal("confirm", () => true);
+});
+
+describe("B05 draft page (fixtureVersion 2 — B2-R3/R5/R6 remediation)", () => {
+  it("shows exactly one goal-attribution-gap banner and one unresolved-timing callout, never duplicated", () => {
     renderPage();
-    expect(replaceMock).toHaveBeenCalledWith("?tab=players", { scroll: false });
-    expect(screen.getByTestId("players-tab")).toHaveTextContent("status: REPORTED");
+    expect(screen.getAllByRole("alert").length + screen.getAllByText(/missing scorer attribution/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/missing scorer attribution/i)).toHaveLength(1);
+    expect(screen.getAllByText("Confirm duration")).toHaveLength(1);
   });
 
-  it("shows the real goal-attribution-gap banner for this draft's one real unresolved goal", () => {
+  it("rejects completion while timing still needs review, and does not change report state", async () => {
     renderPage();
-    expect(screen.getByRole("alert")).toHaveTextContent(/missing scorer attribution/i);
+    fireEvent.click(screen.getByRole("button", { name: "Complete report" }));
+    expect(await screen.findByText(/Cannot complete report/)).toBeInTheDocument();
+    expect(screen.getByText("Confirm duration")).toBeInTheDocument();
+    expect(screen.queryByText("Reopen report")).not.toBeInTheDocument();
   });
 
-  it("shows the debrief in its real read-only Submitted view, on the Debrief tab", () => {
-    // The mocked router doesn't re-render on tab-click the way real Next.js navigation does
-    // (see the header comment) — select the tab via the URL before mounting instead, exactly
-    // like `post-match-report-page-shell.test.tsx`'s own established pattern.
-    searchParamsState.value = new URLSearchParams("tab=reflection");
-    render(
-      <ThemeProvider>
-        <B05DraftPage />
-      </ThemeProvider>,
-    );
-    expect(screen.getByText("Submitted")).toBeInTheDocument();
-  });
-
-  it("shows the real Summary tab with this fixture's own facts", () => {
-    searchParamsState.value = new URLSearchParams("tab=summary");
-    render(
-      <ThemeProvider>
-        <B05DraftPage />
-      </ThemeProvider>,
-    );
-    expect(screen.getByText("7/8 present")).toBeInTheDocument();
-    // Only 2 of the 3 real goals are attributed in the draft — the third is this scenario's own
-    // unresolved goal-attribution gap (see the banner test above), not a miscount.
-    expect(screen.getByText("2 goals")).toBeInTheDocument();
-  });
-
-  it("demonstrates a real fixture-backed Draft -> Completed transition, staying on the Players tab, without any production mutation", () => {
+  it("confirming timing resolves the real hard blocker — completion then succeeds (matching production: the goal-attribution gap is advisory, never itself an enforced completion gate per the real completeReport()/getTimingSubmissionBlockers() contract)", async () => {
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Continue fixture simulation → Complete report" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm duration" }));
+    await waitFor(() => expect(screen.queryByText("Confirm duration")).not.toBeInTheDocument());
 
-    expect(screen.getByText(/Surface state: COMPLETED/)).toBeInTheDocument();
-    // Still on the pinned Players-tab content, now reflecting the locked report.
-    expect(screen.getByTestId("players-tab")).toHaveTextContent("status: LOCKED");
-    // The goal-attribution gap banner (DRAFT-only, per the shell's own `isDraft &&` guard) is gone.
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    // The replace mock was only ever called once, for the initial pin — the local fixture
-    // simulation never touches the URL or router again.
-    expect(replaceMock).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Complete report" }));
+    expect(await screen.findByText("Reopen report")).toBeInTheDocument();
+    expect(screen.queryByText(/Cannot complete report/)).not.toBeInTheDocument();
+  });
+
+  it("the goal/report discrepancy is independently resolvable via the real Add goal control — Sindre's 34' goal, local state only", async () => {
+    renderPage();
+    expect(screen.getByText(/missing scorer attribution/i)).toBeInTheDocument();
+
+    const scorerSelect = screen.getByDisplayValue("Select scorer");
+    fireEvent.change(scorerSelect, { target: { value: "player-gb5-sindre" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add goal" }));
+
+    await waitFor(() => expect(screen.queryByText(/missing scorer attribution/i)).not.toBeInTheDocument());
+  });
+
+  it("never imports the real production post-match server action module (structural guarantee, not just behavioural)", () => {
+    const forbidden = "/matches/[matchId]/post-match/actions";
+    for (const file of [
+      "../page.tsx",
+      "../../shared/safe-post-match-report-shell.tsx",
+      "../../shared/use-safe-report-lifecycle.ts",
+    ]) {
+      const source = readFileSync(new URL(file, import.meta.url), "utf8");
+      expect(source).not.toContain(forbidden);
+      expect(source).not.toContain("completeMatchReport");
+      expect(source).not.toContain("addGoalToReport");
+      expect(source).not.toContain("reopenMatchReport");
+    }
   });
 });

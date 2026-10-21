@@ -354,6 +354,9 @@ export const B05_MATCH_ID = "match-gate-b-05";
 export const B05_REPORT_ID = "report-gate-b-05";
 export const B05_KICKOFF_AT = new Date("2026-10-11T10:00:00.000Z");
 export const B05_NOW = new Date("2026-10-22T18:00:00.000Z");
+/** The draft's own observation time — after the final whistle (kickoff + ~2h for a 7v7 match
+ * plus a short delay), but before `B05_COMPLETED_AT` (12:05) — never kickoff itself (B2-R7). */
+export const B05_DRAFT_REFERENCE_AT = new Date("2026-10-11T12:00:00.000Z");
 export const B05_OPPONENT_NAME = "Kongsberg IL";
 
 export const b05DraftMatchIdentity: MatchPresentation = buildMatchPresentation({
@@ -401,6 +404,10 @@ export const b05CompletedMatchIdentity: MatchPresentation = buildMatchPresentati
 export const B06_LEAGUE_MATCH_ID = "match-gate-b-06-league";
 export const B06_LEAGUE_KICKOFF_AT = new Date("2026-10-29T10:00:00.000Z");
 export const B06_LEAGUE_NOW = new Date("2026-10-22T18:00:00.000Z");
+/** The AFTER page's own observation time — kickoff + ~105 minutes (7v7 running clock plus
+ * stoppage), not kickoff itself. A completed match's snapshot time must be after the final
+ * whistle, never the kickoff instant (B3-R4). */
+export const B06_LEAGUE_AFTER_REFERENCE_AT = new Date("2026-10-29T11:45:00.000Z");
 export const B06_LEAGUE_OPPONENT_NAME = "Hvalstad IL";
 
 export const b06LeagueBeforeIdentity: MatchPresentation = buildMatchPresentation({
@@ -458,6 +465,9 @@ export const B06_EVENT_SQUAD_NAME = "Slemmestad Rød — Cup Squad";
 export const B06_EVENT_MATCH_ID = "event-match-gate-b-06";
 export const B06_EVENT_KICKOFF_AT = new Date("2026-10-29T13:00:00.000Z");
 export const B06_EVENT_NOW = new Date("2026-10-22T18:00:00.000Z");
+/** The AFTER page's own observation time — after the real completion time (15:05), never
+ * kickoff or `B06_EVENT_NOW` (which is before kickoff, correct only for the Before page) (B3-R4). */
+export const B06_EVENT_AFTER_REFERENCE_AT = new Date("2026-10-29T15:10:00.000Z");
 export const B06_EVENT_OPPONENT_NAME = "Rykkinn Cup-lag";
 
 export const b06EventBeforeIdentity: MatchPresentation = buildMatchPresentation({

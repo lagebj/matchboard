@@ -7,6 +7,7 @@ import {
   type MatchAttendanceFact,
   type MatchGoalFact,
   type MatchAssistFact,
+  type MatchCanonicalLiveEventFact,
 } from "@/lib/matches/match-detail-view-model";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import type { MatchReportDetail } from "@/app/(app)/matches/[matchId]/post-match/actions";
@@ -14,27 +15,23 @@ import type { GoalAttributionGap } from "@/lib/reports/report-mutations";
 import type { PostMatchReportTimingReviewRow } from "@/lib/reports/post-match-report-view-model";
 import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
-import { MATCH_B_TEAM_NAME, B05_MATCH_ID, B05_REPORT_ID, B05_OPPONENT_NAME, B05_NOW } from "../../shared/match-b-fixture";
+import { MATCH_B_TEAM_NAME, B05_MATCH_ID, B05_REPORT_ID, B05_OPPONENT_NAME } from "../../shared/match-b-fixture";
 
 /**
- * B05 "Post-match Report / Draft and completed" (official Gate B register, deferred row):
- * "Finish/report actions versus read-only knowledge." Unlike B01-B04 (four different matches),
- * this is deliberately ONE match's own report moving through its real lifecycle — the register
- * row is specifically about the same report before and after completion, not four unrelated
- * scenarios. `draft/fixtures.ts` and `completed/fixtures.ts` both build their own
- * `MatchDetailAfterData`/`MatchReportDetail` from these shared raw records, differing only in
- * exactly the fields that genuinely differ between the two real lifecycle moments (report status,
- * the second goal's attribution, timing review, completedBy/completedAt) — everything else
- * (score, squad, the other two goals/both assists, the debrief) is identical, because it is the
- * same real match and the same real coach-submitted debrief, not a different one per state.
+ * B06 remediation (B2-R2/B2-R4/B2-R7) — fixtureVersion 2. Supersedes fixtureVersion 1's hand-
+ * written `{liveGoalsRecorded: 3, attributedGoals: 2, hasGap: true}` gap object, which did not
+ * follow production `computeGoalAttributionGap()` (`report-mutations.ts`): `attributedGoals` is
+ * a plain `db.goal.count()` — a row count, never filtered by scorer — so a 3-row report (even
+ * with one row's `playerId: null`) always yields `attributedGoals: 3`, not 2. See
+ * `docs/ui-lab/gate-b-w2-candidates/BLOCKERS.md` for the full history.
  *
- * All real production pure functions (`summarizeMatchAttendance`, `aggregateGoalScorers`,
- * `aggregateAssistProviders`, `buildMatchTimeline`, `buildPlayerInvolvement`) are called here,
- * exactly as Gate B W1's own fixtures call `buildMatchPreparationDisplayItems()` — the rendered
- * numbers are the real functions' own output over these raw facts, never a hand-rolled duplicate
- * of what those functions would compute.
+ * The honest, production-faithful version of this scenario: 3 canonical live `GOAL_FOR` events
+ * genuinely exist (this match WAS live-reported) and the coach's own Goal rows on the report
+ * lag behind that live truth by exactly one row in the draft — not a wrong attribution, a
+ * missing row entirely. `b05CanonicalLiveEvents` is the one true historical record, identical
+ * in both lifecycle states (live events are immutable once recorded); only `b05Goals()` — the
+ * report's own rows — differs by variant.
  */
-
 export const B05_COMPLETED_AT = new Date("2026-10-11T12:05:00.000Z").toISOString();
 export const B05_COMPLETED_BY = "Marte Johansen";
 
@@ -52,49 +49,71 @@ export const b05AttendanceFacts: MatchAttendanceFact[] = [
 export const b05AttendanceSummary = summarizeMatchAttendance(b05AttendanceFacts);
 
 /**
- * The second goal (34') is deliberately unattributed in the draft fixture and attributed to
- * Sindre in the completed one — this is the one fact this file does NOT share between the two
- * states, because it is the actual thing B05's "finish/report actions" contract demonstrates:
- * the coach resolves the real `GoalAttributionGapBanner` gap (ADR-0147 §4, the 2026-09-17
- * incident's own banner) before completing the report, not after.
+ * The one true live record for this match — 3 `GOAL_FOR`, 2 `GOAL_AGAINST` (matching the real
+ * 3-2 final score), with `SCORER_SET`/`ASSIST_SET` correction events pairing scorer/assist names
+ * to their goal via `correctsEventId` -> the goal's own `clientEventId`, exactly the real
+ * production linkage (`buildMatchTimelineFromLiveEvents()`, not by array index or proximity).
+ * Fixed for both draft and completed — a live event stream does not change when a coach edits
+ * their own report afterwards.
+ */
+export const b05CanonicalLiveEvents: MatchCanonicalLiveEventFact[] = [
+  { id: "live-gb5-goal-1", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-1", correctsEventId: null, minuteLabel: "12'", period: 1, matchSeconds: 720 },
+  { id: "live-gb5-scorer-1", eventType: "SCORER_SET", playerName: "Noah", clientEventId: null, correctsEventId: "client-gb5-goal-1", minuteLabel: null, period: 1, matchSeconds: 720 },
+  { id: "live-gb5-goal-against-1", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-1", correctsEventId: null, minuteLabel: "20'", period: 1, matchSeconds: 1200 },
+  { id: "live-gb5-goal-2", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-2", correctsEventId: null, minuteLabel: "34'", period: 1, matchSeconds: 2040 },
+  { id: "live-gb5-scorer-2", eventType: "SCORER_SET", playerName: "Sindre", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 1, matchSeconds: 2040 },
+  { id: "live-gb5-assist-2", eventType: "ASSIST_SET", playerName: "Vetle", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 1, matchSeconds: 2040 },
+  { id: "live-gb5-goal-against-2", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-2", correctsEventId: null, minuteLabel: "50'", period: 2, matchSeconds: 600 },
+  { id: "live-gb5-goal-3", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-3", correctsEventId: null, minuteLabel: "61'", period: 2, matchSeconds: 1260 },
+  { id: "live-gb5-scorer-3", eventType: "SCORER_SET", playerName: "Kasper", clientEventId: null, correctsEventId: "client-gb5-goal-3", minuteLabel: null, period: 2, matchSeconds: 1260 },
+];
+
+export const B05_LIVE_GOALS_RECORDED = b05CanonicalLiveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
+
+/**
+ * The report's OWN Goal rows — genuinely fewer in draft (2, not 3-with-a-null-scorer): the 34'
+ * goal has no report row at all yet, matching production's real `db.goal.count()` semantics
+ * (row count, not scorer-presence count). The final score (`b05InitialReport`'s
+ * `homeGoals`/`awayGoals`) stays 3-2 in both states, independent of how many Goal rows exist —
+ * the official result is never derived from counting report rows.
  */
 export function b05Goals(variant: "draft" | "completed"): MatchGoalFact[] {
-  return [
+  const base: MatchGoalFact[] = [
     { id: "goal-gb5-1", participantKey: "player-gb5-noah", playerName: "Noah", minute: 12, type: "NORMAL" },
-    {
-      id: "goal-gb5-2",
-      participantKey: variant === "completed" ? "player-gb5-sindre" : null,
-      playerName: variant === "completed" ? "Sindre" : null,
-      minute: 34,
-      type: "NORMAL",
-    },
     { id: "goal-gb5-3", participantKey: "player-gb5-kasper", playerName: "Kasper", minute: 61, type: "NORMAL" },
   ];
+  if (variant === "draft") return base;
+  return [...base, { id: "goal-gb5-2", participantKey: "player-gb5-sindre", playerName: "Sindre", minute: 34, type: "NORMAL" }];
 }
 
-export const b05Assists: MatchAssistFact[] = [
-  { id: "assist-gb5-1", participantKey: "player-gb5-sindre", playerName: "Sindre", type: "NORMAL" },
-  { id: "assist-gb5-2", participantKey: "player-gb5-vetle", playerName: "Vetle", type: "NORMAL" },
-];
+/** The 34' goal's assist — does not exist as a report row until the goal itself does. */
+export function b05Assists(variant: "draft" | "completed"): MatchAssistFact[] {
+  if (variant === "draft") return [];
+  return [{ id: "assist-gb5-1", participantKey: "player-gb5-vetle", playerName: "Vetle", type: "NORMAL" }];
+}
 
 export function b05GoalScorers(variant: "draft" | "completed") {
   return aggregateGoalScorers(b05Goals(variant));
 }
 
-export const b05AssistProviders = aggregateAssistProviders(b05Assists);
-
-/** Report-fallback timeline (no canonical live events for this match — a manually-created
- * report, the same real degraded path B03's sparse scenario exercises) — `buildMatchTimeline()`
- * itself decides this via the empty `canonicalLiveEvents` array, not a second branch this fixture
- * invents. */
-export function b05Timeline(variant: "draft" | "completed") {
-  return buildMatchTimeline({ canonicalLiveEvents: [], reportGoals: b05Goals(variant) });
+export function b05AssistProviders(variant: "draft" | "completed") {
+  return aggregateAssistProviders(b05Assists(variant));
 }
 
+/** Sourced from the real canonical live events (never empty here, since this match genuinely
+ * was live-reported) — identical in both lifecycle states, via the same real
+ * `buildMatchTimeline()` "live events are primary whenever any exist" rule. Deliberately NOT
+ * parameterized by variant: the match-day timeline is a historical fact independent of how far
+ * along the coach's own report is. */
+export const b05Timeline = buildMatchTimeline({ canonicalLiveEvents: b05CanonicalLiveEvents, reportGoals: [] });
+
+/** Follows the real `computeGoalAttributionGap()` contract exactly: `liveGoalsRecorded` is the
+ * count of real canonical `GOAL_FOR` events (never confused with report-row count or
+ * known-scorer count); `attributedGoals` is a plain count of report Goal rows (never filtered
+ * by scorer presence); `hasGap` is `attributedGoals < liveGoalsRecorded`. */
 export function b05GoalAttributionGap(variant: "draft" | "completed"): GoalAttributionGap {
-  return variant === "draft"
-    ? { liveGoalsRecorded: 3, attributedGoals: 2, hasGap: true }
-    : { liveGoalsRecorded: 3, attributedGoals: 3, hasGap: false };
+  const attributedGoals = b05Goals(variant).length;
+  return { liveGoalsRecorded: B05_LIVE_GOALS_RECORDED, attributedGoals, hasGap: attributedGoals < B05_LIVE_GOALS_RECORDED };
 }
 
 export function b05TimingReview(variant: "draft" | "completed"): PostMatchReportTimingReviewRow[] {
@@ -108,7 +127,7 @@ export function b05TimingReview(variant: "draft" | "completed"): PostMatchReport
   ];
 }
 
-const b05MinutesByParticipant = new Map<string, number>([
+export const b05MinutesByParticipant = new Map<string, number>([
   ["player-gb5-aksel", 90],
   ["player-gb5-tobias", 90],
   ["player-gb5-sindre", 90],
@@ -118,9 +137,9 @@ const b05MinutesByParticipant = new Map<string, number>([
   ["player-gb5-elias", 22],
 ]);
 
-const b05ObservationCountByParticipant = new Map<string, number>([["player-gb5-elias", 1]]);
+export const b05ObservationCountByParticipant = new Map<string, number>([["player-gb5-elias", 1]]);
 
-const b05PresentParticipants = b05AttendanceFacts
+export const b05PresentParticipants = b05AttendanceFacts
   .filter((a) => a.attendanceStatus === "PRESENT")
   .map((a) => ({ participantKey: `player-gb5-${a.playerName.toLowerCase()}`, playerName: a.playerName }));
 
@@ -128,7 +147,7 @@ export function b05PlayerInvolvement(variant: "draft" | "completed") {
   return buildPlayerInvolvement({
     presentParticipants: b05PresentParticipants,
     goals: b05Goals(variant),
-    assists: b05Assists,
+    assists: b05Assists(variant),
     observationCountByParticipant: b05ObservationCountByParticipant,
     minutesByParticipant: b05MinutesByParticipant,
   });
@@ -159,13 +178,18 @@ export const b05OpponentObservation = {
   factualSummary: "Kongsberg pressed high after falling behind, then sat deeper once trailing by two in the second half.",
 };
 
-/** Satisfies `MatchDetailAfterData`'s shared shape — these two fields are Match Details
- * AFTER-tab concepts (`WhatThisMatchAddedPanel`/positional history), not rendered by any
- * Post-Match Report component B05 composes. Always empty here, documented rather than omitted
- * silently. */
 export const b05ShapeChangeRows: MatchDetailAfterData["shapeChangeRows"] = [];
 export const b05FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCanonicalPositions"] = [];
 
+/**
+ * Per-match evidence (B2-R4) — corrected to the real `deriveCombinationsFromSegments()` /
+ * `computeMatchCombinationEvidence()` rules: `opponentDiversity` is always exactly `1` for a
+ * single match (one match, one opponent), and `confidence` can never reach `ESTABLISHED` from
+ * one match alone (`deriveConfidence(minutes, matchCount, opponentDiversity)` requires
+ * `matchCount >= 3`, hardcoded to `1` on the per-match path — `EMERGING` is the real ceiling).
+ * Recomputed against the new goal model: Noah (12') and Sindre (34', completed only) are the
+ * partnership; both present for the full match.
+ */
 export const b05CombinationEvidence: CombinationEvidenceRow[] = [
   {
     id: "comb-gb5-1",
@@ -176,44 +200,27 @@ export const b05CombinationEvidence: CombinationEvidenceRow[] = [
     subtype: "HORIZONTAL",
     playerIds: ["player-gb5-noah", "player-gb5-sindre"],
     positions: ["RCM", "LCM"],
-    minutesTogether: 83,
-    goalsForWhilePresent: 2,
-    goalsAgainstWhilePresent: 1,
-    directGoalContributions: 1,
-    directAssistContributions: 1,
-    opponentDiversity: 3,
-    confidence: "ESTABLISHED",
+    minutesTogether: 80,
+    goalsForWhilePresent: 3,
+    goalsAgainstWhilePresent: 2,
+    directGoalContributions: 2,
+    directAssistContributions: 0,
+    opponentDiversity: 1,
+    confidence: "EMERGING",
     approximateTiming: false,
     leagueSeasonId: "season-gate-b",
-    createdAt: B05_NOW,
-  },
-  {
-    id: "comb-gb5-2",
-    organisationId: "org-gate-b",
-    matchId: B05_MATCH_ID,
-    eventMatchId: null,
-    family: "TRIANGLE",
-    subtype: "ATTACKING",
-    playerIds: ["player-gb5-noah", "player-gb5-sindre", "player-gb5-kasper"],
-    positions: ["RCM", "LCM", "CF"],
-    minutesTogether: 68,
-    goalsForWhilePresent: 2,
-    goalsAgainstWhilePresent: 0,
-    directGoalContributions: 2,
-    directAssistContributions: 1,
-    opponentDiversity: 2,
-    confidence: "EMERGING",
-    approximateTiming: true,
-    leagueSeasonId: "season-gate-b",
-    createdAt: B05_NOW,
+    createdAt: new Date(B05_COMPLETED_AT),
   },
 ];
 
 /** The guided debrief (ADR-0152 §3) is already `SUBMITTED` in both the draft and completed
  * fixtures — the real completion gate (`completeReport()`'s `isDebriefSubmittedForReport` check)
  * requires exactly this before `Complete report` can succeed, so a draft report whose debrief
- * isn't yet submitted would be the moment *before* this scenario, not this one. Identical in both
- * states because it is the same real coach-submitted document either way. */
+ * isn't yet submitted would be the moment *before* this scenario, not this one. A submitted
+ * debrief is necessary but not sufficient, though — `completeReport()` also requires every
+ * timing-review blocker resolved (B2-R3); this fixture models both conditions as genuinely
+ * separate, independently-satisfiable gates. Identical in both states because it is the same
+ * real coach-submitted document either way. */
 export const b05DebriefAnswers: DebriefAnswersSection = {
   team_execution: {
     effort: { value: "STRONG" },
@@ -261,6 +268,7 @@ export const b05AllPlayers = B05_ROSTER.map((p) => ({ id: p.id, name: p.name, te
 
 export function b05InitialReport(variant: "draft" | "completed"): MatchReportDetail {
   const goals = b05Goals(variant);
+  const assists = b05Assists(variant);
   return {
     id: B05_REPORT_ID,
     matchId: B05_MATCH_ID,
@@ -276,14 +284,17 @@ export function b05InitialReport(variant: "draft" | "completed"): MatchReportDet
     plannedSelections: B05_ROSTER.map((p) => plannedSelection(p.id, p.name)),
     playerActuals: B05_ROSTER.map((p) => playerActual(p.id, p.name, p.status)),
     absences: [],
-    playerStats: [
-      { id: "stat-gb5-noah", playerId: "player-gb5-noah", playerName: "Noah", goals: 1, assists: 0 },
-      { id: "stat-gb5-sindre", playerId: "player-gb5-sindre", playerName: "Sindre", goals: variant === "completed" ? 1 : 0, assists: 1 },
-      { id: "stat-gb5-kasper", playerId: "player-gb5-kasper", playerName: "Kasper", goals: 1, assists: 0 },
-      { id: "stat-gb5-vetle", playerId: "player-gb5-vetle", playerName: "Vetle", goals: 0, assists: 1 },
-    ],
+    playerStats: goals.map((g) => ({
+      id: `stat-${g.id}`,
+      playerId: g.participantKey as string,
+      playerName: g.playerName ?? "",
+      goals: 1,
+      assists: 0,
+    })).concat(
+      assists.map((a) => ({ id: `stat-${a.id}`, playerId: a.participantKey as string, playerName: a.playerName ?? "", goals: 0, assists: 1 })),
+    ),
     goals: goals.map((g) => ({ id: g.id, playerId: g.participantKey, playerName: g.playerName ?? undefined, minute: g.minute, type: g.type })),
-    assists: b05Assists.map((a) => ({ id: a.id, playerId: a.participantKey as string, playerName: a.playerName ?? "", type: a.type })),
+    assists: assists.map((a) => ({ id: a.id, playerId: a.participantKey as string, playerName: a.playerName ?? "", type: a.type })),
   };
 }
 
@@ -299,14 +310,18 @@ export function b05AfterData(variant: "draft" | "completed"): MatchDetailAfterDa
     attendance: b05AttendanceFacts,
     attendanceSummary: b05AttendanceSummary,
     goalScorers: b05GoalScorers(variant),
-    assistProviders: b05AssistProviders,
-    timeline: b05Timeline(variant),
+    assistProviders: b05AssistProviders(variant),
+    timeline: b05Timeline,
     playerMinutes: b05MinutesByParticipant,
     playerInvolvement: b05PlayerInvolvement(variant),
     reflection: b05Reflection,
     footballObservations: b05FootballObservations,
     opponentObservation: b05OpponentObservation,
-    combinationEvidence: b05CombinationEvidence,
+    // B2-R4: `getMatchDetailAfterData()` only ever loads combination evidence for a LOCKED
+    // report (`report?.status === "LOCKED" ? getMatchCombinationEvidence(matchId) :
+    // Promise.resolve([])`) — a draft report never sees it, regardless of what the UI's
+    // "combinations" tab even exists to show (it isn't in the draft tab set at all).
+    combinationEvidence: variant === "completed" ? b05CombinationEvidence : [],
     goalAttributionGap: b05GoalAttributionGap(variant),
     timingNeedsReviewCount: variant === "draft" ? 1 : 0,
     outOfRangeEventCount: 0,
