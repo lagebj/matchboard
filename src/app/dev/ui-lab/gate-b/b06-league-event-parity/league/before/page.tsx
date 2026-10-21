@@ -13,9 +13,10 @@ import { identity, matchIdentity, squad, opponentName, preparationInput } from "
  * (`MatchIdentityCard`, `MatchPreparationWidget`, real planning pitch) — this candidate confirms
  * the shipped League Match Details BEFORE composition as the comparison baseline, not a redesign.
  * Primary action ("Start live reporting") is rendered as a labelled fact, not a clickable button —
- * League and Event share the exact same Live Reporting surface
- * (`src/components/live-match/live-match-client.tsx`), so reproducing it here would duplicate
- * already-shared production code rather than compare anything (see CURRENT_STATE_AUDIT.md).
+ * League and Event share the exact same Live Reporting surface, so reproducing it here would
+ * duplicate already-shared production code rather than compare anything. Coach-facing copy on
+ * this page is plain product language (B3-R6) — see CURRENT_STATE_AUDIT.md for the underlying
+ * file/function citations this design finding is based on.
  */
 export default function B06LeagueBeforePage() {
   const factsItems: MetricStripItem[] = [
@@ -27,9 +28,17 @@ export default function B06LeagueBeforePage() {
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
       <div>
-        <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
-          &larr; Gate B
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
+            &larr; Gate B
+          </Link>
+          <Link
+            href="/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details"
+            className="text-[12px] text-[var(--text-muted)] hover:underline"
+          >
+            &larr; League Match Details
+          </Link>
+        </div>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">B06 — League · Before match, planned ready</h1>
         <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
       </div>
@@ -62,10 +71,9 @@ export default function B06LeagueBeforePage() {
 
       <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 py-2.5">
         <p className="text-[12px] text-[var(--text-muted)]">
-          <span className="font-[650] text-[var(--foreground)]">Primary action in production:</span> &ldquo;Start live
-          reporting&rdquo; navigates to <code>/o/[orgSlug]/matches/[matchId]/live</code> once{" "}
-          <code>canStartLiveReporting()</code> passes — the same shared live-reporting surface Event uses. Not
-          reproduced in this candidate.
+          <span className="font-[650] text-[var(--foreground)]">Primary action:</span> once the squad and lineup are
+          ready, &ldquo;Start live reporting&rdquo; opens Live Reporting for this match — the same shared Live
+          Reporting workspace Event uses. Not reproduced in this candidate.
         </p>
       </div>
     </div>

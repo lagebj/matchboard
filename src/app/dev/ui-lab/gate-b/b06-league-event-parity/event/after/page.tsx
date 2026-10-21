@@ -40,9 +40,17 @@ export default function B06EventAfterPage() {
   return (
     <div className="touchline mx-auto flex max-w-[900px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
       <div>
-        <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
-          &larr; Gate B
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
+            &larr; Gate B
+          </Link>
+          <Link
+            href="/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail"
+            className="text-[12px] text-[var(--text-muted)] hover:underline"
+          >
+            &larr; Event Detail
+          </Link>
+        </div>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">B06 — Event · After, completed match</h1>
         <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
       </div>
@@ -50,16 +58,18 @@ export default function B06EventAfterPage() {
       <CompareNav active="event-after" />
       <AppearanceControl />
 
+      {/* B3-R6: this disclosure states the finding in plain language only — the deeper citation
+          and "design question, not a confirmed defect" framing live in SOURCE_RECONCILIATION.md,
+          not in coach-facing copy. */}
       <DecisionBanner
         variant="note"
         title="Return destination is Event-scoped, not match-scoped"
-        description={`Production returns the coach to this Event's own page (revalidatePath("/events/${"${eventId}"}")) after ending a live session or closing this report — not a dedicated route for this specific match the way League's "← Back to match" always resolves to /o/[orgSlug]/matches/[matchId]. See League · After for the comparison, and SOURCE_RECONCILIATION.md for why this is a design question B06 raises rather than a confirmed defect.`}
+        description="Leaving this report returns the coach to the Event's own page — not a page scoped to this specific match, the way League's &ldquo;Back to match&rdquo; always returns to this same match. See League · After for the comparison."
       />
 
       <p className="text-[12px] text-[var(--text-muted)]">
         Event: <span className="font-[600] text-[var(--foreground)]">{eventName}</span> · Squad:{" "}
-        <span className="font-[600] text-[var(--foreground)]">{eventSquadName}</span> · Match ID:{" "}
-        <code>{B06_EVENT_MATCH_ID}</code>
+        <span className="font-[600] text-[var(--foreground)]">{eventSquadName}</span>
       </p>
 
       <div className="flex items-center justify-center rounded-[var(--tl-radius-widget)] border border-[var(--tl-widget-border)] bg-[var(--tl-widget)] p-6">
@@ -97,8 +107,8 @@ export default function B06EventAfterPage() {
       />
 
       <p className="text-[12px] text-[var(--text-muted)]">
-        Every editing control above is genuinely disabled (report status LOCKED), not visually disabled while
-        secretly interactive — the only reachable action, &ldquo;Reopen report&rdquo;, resolves to an honest
+        Every editing control above is genuinely disabled now that this report is locked, not visually disabled
+        while secretly interactive — the only reachable action, &ldquo;Reopen report&rdquo;, resolves to an honest
         failure in this candidate rather than a silent production mutation.
       </p>
     </div>

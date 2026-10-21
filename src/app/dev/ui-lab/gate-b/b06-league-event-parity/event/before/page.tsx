@@ -28,9 +28,17 @@ export default function B06EventBeforePage() {
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
       <div>
-        <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
-          &larr; Gate B
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
+            &larr; Gate B
+          </Link>
+          <Link
+            href="/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail"
+            className="text-[12px] text-[var(--text-muted)] hover:underline"
+          >
+            &larr; Event Detail
+          </Link>
+        </div>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">B06 — Event · Before match, planned ready</h1>
         <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
       </div>
@@ -65,9 +73,8 @@ export default function B06EventBeforePage() {
           className="max-w-[320px]"
         />
         <p className="text-[12px] text-[var(--text-muted)]">
-          Neutral shirt, not a missing colour — Event squads have no kit-colour concept in the schema
-          (<code>event-match-lineup-panel.tsx</code>, &ldquo;always passes <code>null</code> for the neutral
-          shirt&rdquo;), unlike League&apos;s real kit colour above.
+          Neutral shirt, not a missing colour — Event squads have no kit colour at all, unlike League&apos;s real
+          kit colour above.
         </p>
       </div>
 
@@ -99,8 +106,7 @@ export default function B06EventBeforePage() {
         </div>
         <p className="mt-1 text-[12px] text-[var(--text-muted)]">
           {unassigned.length} reserve, {participants.length - unassigned.length} on the pitch — one approved helper
-          (Jonas, borrowed from Slemmestad Blå) and one guest player (William), matching the real eligibility
-          categories <code>getEligibleEventMatchPlayers()</code> returns.
+          (Jonas, borrowed from Slemmestad Blå) and one guest player (William).
         </p>
       </div>
 

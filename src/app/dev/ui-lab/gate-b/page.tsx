@@ -19,6 +19,8 @@ const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/after", id: "B06-LEAGUE-AFTER", title: "League/Event parity — League, after" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/before", id: "B06-EVENT-BEFORE", title: "League/Event parity — Event, before (design proposal)" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/after", id: "B06-EVENT-AFTER", title: "League/Event parity — Event, after (locked report)" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details", id: "B06-LEAGUE-NAV", title: "League/Event parity — League Match Details (navigation origin, not a comparison candidate)" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail", id: "B06-EVENT-NAV", title: "League/Event parity — Event Detail (navigation origin, not a comparison candidate)" },
 ];
 
 export default function GateBIndexPage() {

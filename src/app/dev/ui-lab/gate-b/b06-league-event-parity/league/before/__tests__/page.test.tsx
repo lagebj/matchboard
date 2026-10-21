@@ -34,4 +34,12 @@ describe("B06 League · Before page", () => {
     expect(screen.getByText(/Start live reporting/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Start live reporting/ })).not.toBeInTheDocument();
   });
+
+  it("links to League Match Details — the real origin/return point, not just Gate B (B3-R5)", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: /League Match Details/ })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details",
+    );
+  });
 });

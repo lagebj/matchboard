@@ -5,7 +5,7 @@ import {
   B06_EVENT_SQUAD_NAME,
   B06_EVENT_OPPONENT_NAME,
   B06_EVENT_MATCH_ID as SHARED_B06_EVENT_MATCH_ID,
-  B06_EVENT_NOW,
+  B06_EVENT_AFTER_REFERENCE_AT,
 } from "../../../shared/match-b-fixture";
 
 export const B06_EVENT_MATCH_ID = SHARED_B06_EVENT_MATCH_ID;
@@ -31,10 +31,11 @@ import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
 export const identity: FixtureIdentity = {
   scenarioId: "B06-EVENT-AFTER",
   fixtureId: "gate-b-w3-b06-event-after",
-  fixtureVersion: 1,
-  fixtureSha256: "1bd0d915689515896990822a6a5a36c8eb093b2beee6a29eaf976975025ee81b",
+  fixtureVersion: 2,
+  fixtureSha256: "4a16c36a30fd9dae4c8ca1cb02caae0f927212b0950fbdcdb146ca849cbfe8c6",
   sourceClass: "SYNTHETIC_LABELED",
-  fixedDateTimeUtc: B06_EVENT_NOW.toISOString(),
+  // B3-R4: after the real completion time, never before kickoff.
+  fixedDateTimeUtc: B06_EVENT_AFTER_REFERENCE_AT.toISOString(),
   viewerTimeZone: "Europe/Oslo",
   locale: "en-GB",
 };
@@ -123,21 +124,37 @@ export const debriefAnswers: DebriefAnswersSection = {
   anything_else: {},
 };
 
+/**
+ * B3-R3: never William — production `createFootballObservations()` requires an active
+ * canonical `Player` row (`db.player.findFirst(...)`); `PlayerDevelopmentObservation.playerId`
+ * is non-nullable with no `GuestPlayer` counterpart at all (ADR-0106 verifies this exact
+ * boundary: "structurally incapable of referencing a GuestPlayer"). William's real, valid
+ * participation (lineup slot, attendance, the debrief's own qualitative note about his game)
+ * is preserved elsewhere in this fixture — only the longitudinal development-evidence record is
+ * reassigned, to Theodor, a real Player-type participant.
+ */
 export const footballObservations = [
   {
     id: "obs-gb6e-1",
-    playerId: "participant-gb6e-william",
+    playerId: "participant-gb6e-theodor",
     observationCode: "WORK_RATE_EFFECTIVE",
     polarity: "POSITIVE" as const,
-    note: "Covered a lot of ground for a guest appearance.",
+    note: "Won every first-contact duel at centre-back through a difficult second half.",
     observedAt: B06_EVENT_COMPLETED_AT,
   },
 ];
 
-/** Same evidence system League's B04/B05 use (`CombinationEvidenceRow`) — `eventMatchId` set,
+/**
+ * Same evidence system League's B04/B05 use (`CombinationEvidenceRow`) — `eventMatchId` set,
  * `matchId` null, and `leagueSeasonId` still populated because Event matches resolve an evidence
  * season by date-range (`buildEventMatchRef()`, `src/lib/evidence/adapters/
- * event-evidence-adapter.ts`), not because Event has its own League season. */
+ * event-evidence-adapter.ts`), not because Event has its own League season.
+ *
+ * B3-R7: corrected to the real per-match derivation rules (same as B2-R4's League fix) —
+ * `opponentDiversity` is always exactly `1` for a single match, and `confidence` can never be
+ * `ESTABLISHED` from one match alone (`deriveConfidence` requires `matchCount >= 3`, hardcoded
+ * to `1` on the per-match path). `createdAt` is after the match completes, never before kickoff.
+ */
 export const combinationEvidence: CombinationEvidenceRow[] = [
   {
     id: "comb-gb6e-1",
@@ -149,15 +166,15 @@ export const combinationEvidence: CombinationEvidenceRow[] = [
     playerIds: ["participant-gb6e-noah", "participant-gb6e-sindre"],
     positions: ["CF", "LCM"],
     minutesTogether: 80,
-    goalsForWhilePresent: 2,
+    goalsForWhilePresent: 3,
     goalsAgainstWhilePresent: 1,
     directGoalContributions: 2,
     directAssistContributions: 0,
-    opponentDiversity: 2,
+    opponentDiversity: 1,
     confidence: "EMERGING",
-    approximateTiming: true,
+    approximateTiming: false,
     leagueSeasonId: "season-gate-b-06",
-    createdAt: B06_EVENT_NOW,
+    createdAt: B06_EVENT_AFTER_REFERENCE_AT,
   },
 ];
 

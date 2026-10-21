@@ -11,10 +11,12 @@ import { CompareNav } from "../../shared/compare-nav";
 import { identity, matchIdentity, timeline, opponentName } from "./fixtures";
 
 /**
- * B06 — League · After (completed, read-only Overview). "Continue report →" is a real link to
- * the existing B05 candidate (same real `PostMatchReportPageShell` composition) — League's AFTER
- * Overview never mutates the report itself; it only routes to the dedicated `/post-match` route,
- * which B05 already demonstrates. Reusing that candidate here avoids duplicating it.
+ * B06 — League · After (completed, read-only Overview). fixtureVersion 2 — B3-R2/R4/R6
+ * remediation. "Continue report" is deliberately NOT a link to the B05 candidate anymore — B05
+ * is a different match (`match-gate-b-05`), and linking to it from here would silently swap
+ * this match's own identity for an unrelated one under the guise of "continuing" it. League's
+ * AFTER Overview never mutates the report itself regardless; it only routes onward to the
+ * dedicated report workspace, disclosed here as a fact rather than a fake link.
  */
 export default function B06LeagueAfterPage() {
   const factsItems: MetricStripItem[] = [
@@ -26,9 +28,17 @@ export default function B06LeagueAfterPage() {
   return (
     <div className="touchline mx-auto flex max-w-[640px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
       <div>
-        <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
-          &larr; Gate B
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
+            &larr; Gate B
+          </Link>
+          <Link
+            href="/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details"
+            className="text-[12px] text-[var(--text-muted)] hover:underline"
+          >
+            &larr; League Match Details
+          </Link>
+        </div>
         <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">B06 — League · After, completed match</h1>
         <p className="mt-1 text-[12px] text-[var(--text-muted)]">{identity.fixedDateTimeUtc}</p>
       </div>
@@ -53,19 +63,22 @@ export default function B06LeagueAfterPage() {
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 py-2.5">
         <p className="text-[12px] text-[var(--text-muted)]">
-          This Overview is read-only — every report action routes to the dedicated Post-Match Report route.
+          This Overview is read-only. &ldquo;Continue report&rdquo; opens the dedicated Post-Match Report workspace for
+          this same match — not reproduced as a working link here, since the only existing candidate for that
+          workspace (B05) is a different match.
         </p>
-        <Link
-          href="/dev/ui-lab/gate-b/b05-post-match-report/completed"
-          className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-2 text-[12px] font-[700] text-[var(--tl-accent-on-fill)]"
-        >
+        <span className="shrink-0 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-[12px] font-[700] text-[var(--text-muted)]">
           Continue report &rarr;
-        </Link>
+        </span>
       </div>
 
       <p className="text-[12px] text-[var(--text-muted)]">
-        Return destination: <code>&larr; Back to match</code> always resolves to this same match-scoped route
-        (<code>/o/[orgSlug]/matches/[matchId]</code>) — see Event · After for the comparison.
+        Leaving this match always returns the coach to{" "}
+        <Link href="/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details" className="text-[var(--accent)] hover:underline">
+          this same match&apos;s own page
+        </Link>{" "}
+        — the return destination is scoped to this specific match, not a generic list. See Event · After for the
+        comparison.
       </p>
     </div>
   );

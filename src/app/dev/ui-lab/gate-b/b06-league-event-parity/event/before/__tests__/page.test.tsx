@@ -39,4 +39,12 @@ describe("B06 Event · Before page", () => {
     renderPage();
     expect(screen.getByRole("link", { name: "Event · Before" })).toHaveAttribute("aria-current", "page");
   });
+
+  it("links to Event Detail — the real origin/return point, not just Gate B (B3-R5)", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: /Event Detail/ })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail",
+    );
+  });
 });

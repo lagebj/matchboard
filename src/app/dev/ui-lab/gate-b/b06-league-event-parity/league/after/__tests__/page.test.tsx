@@ -18,14 +18,17 @@ describe("B06 League · After page", () => {
     expect(screen.getAllByText(/Slemmestad Rød/).length).toBeGreaterThan(0);
   });
 
-  it("links 'Continue report' to the real B05 completed candidate, not an inert button", () => {
+  // B3-R2: this is deliberately NOT a link anymore — B05 is a different match, and a working
+  // link to it would silently swap this match's identity for an unrelated one.
+  it("never links 'Continue report' to B05 or any other candidate — B05 is a different match", () => {
     renderPage();
-    const link = screen.getByRole("link", { name: /Continue report/ });
-    expect(link).toHaveAttribute("href", "/dev/ui-lab/gate-b/b05-post-match-report/completed");
+    expect(screen.queryByRole("link", { name: /Continue report/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Continue report/).length).toBeGreaterThan(0);
   });
 
-  it("states the match-scoped return destination explicitly", () => {
+  it("states the match-scoped return destination explicitly, with a real link to it (B3-R5)", () => {
     renderPage();
-    expect(screen.getByText(/always resolves to this same match-scoped route/)).toBeInTheDocument();
+    expect(screen.getByText(/return destination is scoped to this specific match/)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /League Match Details|this same match.s own page/ }).length).toBeGreaterThan(0);
   });
 });
