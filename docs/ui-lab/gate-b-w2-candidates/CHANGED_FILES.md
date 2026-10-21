@@ -51,4 +51,36 @@ fixture modules.
 - `capture-attestation.json` — generated from this PR's own passing CI run (`39593337123`,
   branch head `1b91b7cb6`), 24 captures, every SHA-256 independently re-verified. Scenario-scoped
   filter of that run's full 1050-capture manifest, following the exact precedent Gate B W1's own
-  `capture-attestation.json` established.
+  `capture-attestation.json` established. **Superseded as current evidence by fixtureVersion 2's
+  own real CI capture, added below — preserved here as the historical record of what
+  fixtureVersion 1 actually looked like when approved.**
+
+## fixtureVersion 2 — retrospective remediation (Gate B W3 session)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts` — rewritten: real
+  canonical live events, corrected goal/assist/gap/combination-evidence model (B2-R2/R4).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts` (new) —
+  the fixture-local lifecycle state machine (B2-R3/R5).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx`
+  (new) — the UI-Lab-local page shell replacing direct use of the real `PostMatchReportPageShell`
+  for the Players tab only (B2-R5/R6/R7).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/{draft,completed}/{page.tsx,fixtures.ts}` —
+  rewritten to use the new safe shell/lifecycle; `fixtureVersion` bumped to 2; new
+  `fixtureSha256`; corrected reference times (`B05_DRAFT_REFERENCE_AT`, `B05_NOW`).
+- `src/app/dev/ui-lab/gate-b/{draft,completed}/__tests__/{fixtures,page}.test.{ts,tsx}` —
+  rewritten/extended for the new model and the new interactive flow.
+- `src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts` — added `B05_DRAFT_REFERENCE_AT`.
+  No existing B01-B04/B06 export modified.
+- `docs/ui-lab/gate-b-w2-candidates/candidate_manifest.json` — `fixtureVersion: 2`,
+  `approval: null`, fixtureVersion 1's approval preserved unmodified in each entry's own
+  `priorVersions`.
+- `docs/ui-lab/gate-b-w2-candidates/{BLOCKERS,SOURCE_RECONCILIATION,DATA_TRUTH_AND_FIXTURES,
+  VISUAL_VS_CURRENT,REVIEW_RECORD}.md` — remediation sections added, historical content
+  preserved and marked superseded where relevant.
+- `docs/ui-lab/gate-b-w3-candidates/` — B06's own remediation (B3-R1 through B3-R7); see that
+  directory's own `CHANGED_FILES.md`.
+
+## CI capture attestation — fixtureVersion 2 (new, added after the remediation commit)
+
+Added once `ui-lab-visual-review.yml` produces a real run against this branch's remediated
+revision — see `BLOCKERS.md` for the exact run/commit once available.

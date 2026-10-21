@@ -1,5 +1,33 @@
 # Gate B W2 — Data Truth and Fixtures
 
+## fixtureVersion 2 — what actually changed (remediation)
+
+The goal/timeline/gap model below is **superseded** by a corrected model — see
+`SOURCE_RECONCILIATION.md`'s remediation section for the full finding list (B2-R2/R4/R7). The
+corrected shape, in brief:
+
+- **3 real synthetic canonical live events** now exist (`b05CanonicalLiveEvents`,
+  `report-data.ts`) — 3 `GOAL_FOR` + 2 `GOAL_AGAINST`, with `SCORER_SET`/`ASSIST_SET` correction
+  events paired by `correctsEventId` → the goal's own `clientEventId`, exactly the real
+  production linkage `buildMatchTimelineFromLiveEvents()` uses. `afterData.timeline` is now
+  sourced from these real events (via the real `buildMatchTimeline()`, "live events are primary
+  whenever any exist") — identical in both lifecycle states, because the live record is a
+  historical fact independent of how far along the coach's own report is.
+- **The draft report genuinely has only 2 Goal rows**, not 3 rows with one left unattributed —
+  `attributedGoals: 2` now follows from `b05Goals("draft").length`, matching the real
+  `computeGoalAttributionGap()`'s plain row-count semantics. The completed state adds the third
+  row (Sindre, 34', assisted by Vetle) — `b05Assists()` is also now `[]` in draft, since an
+  assist can't exist as a report row before its goal does.
+- **The official 3-2 final score never changes** and is never derived from counting Goal rows —
+  `homeGoals`/`awayGoals` stay fixed in `b05InitialReport()` regardless of lifecycle state.
+- **Combination evidence is `[]` in the draft fixture** (`b05AfterData("draft")`), matching the
+  real `getMatchDetailAfterData()` gate (`report?.status === "LOCKED"` only).
+- **Two reference-time constants replace the shared kickoff timestamp**: `B05_DRAFT_REFERENCE_AT`
+  (kickoff + ~2h, before `B05_COMPLETED_AT`) and the existing `B05_NOW` (11 days later, now used
+  for the completed state, after `B05_COMPLETED_AT`) — see `match-b-fixture.ts`.
+
+## Original wave (fixtureVersion 1) — the rest of this file, superseded where noted above
+
 Both candidates use deterministic, synthetic, in-memory fixtures — no database, no network call,
 no production mutation. Fixed UTC clocks only (never `Date.now()`). Fixture source:
 `src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts` (match identity, shared with B01-B04) plus

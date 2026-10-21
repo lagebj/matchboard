@@ -82,11 +82,16 @@ origins is the *information architecture*: League routes AFTER→dedicated tabbe
 page; Event keeps everything — lineup and report alike — inline on one page's Matches tab, with
 no match-scoped route at all. The return-destination consequence of that: League's "← Back to
 match" always resolves to a match-scoped route (`/o/[orgSlug]/matches/[matchId]`); Event's
-real handoff (`revalidatePath("/events/${eventId}")`, confirmed via this wave's own audit of
-`event-live-report-handoff.ts`) returns the coach to the Event's own page, not a route scoped to
-this specific match. Both candidates disclose this difference explicitly (`DecisionBanner`s on
-the League · After and Event · After pages) rather than hiding it behind a visually-consistent
-shell — see VISUAL_VS_CURRENT.md.
+real navigation (`LiveMatchClient`'s `window.location.href = actions.reportUrl(reportId)`, fed
+`reportUrl: (_reportId) => \`/events/${eventId}\`` by `event-live-match-client.tsx`) sends the
+coach to the Event's own page, not a route scoped to this specific match — contrast League's own
+`reportUrl: (_reportId) => \`/matches/${matchId}/post-match\`` (`league-live-match-client.tsx`),
+which is match-scoped. (Corrected citation — `event-live-report-handoff.ts`'s own
+`revalidatePath(...)` calls only invalidate Next.js's cache for those paths; they are not
+themselves a navigation operation, and do not determine where the coach actually ends up.) Both
+candidates disclose this difference explicitly (`DecisionBanner`s on the League · After and
+Event · After pages) rather than hiding it behind a visually-consistent shell — see
+VISUAL_VS_CURRENT.md.
 
 ## What this PR does not decide
 

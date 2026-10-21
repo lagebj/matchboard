@@ -47,11 +47,53 @@
   `"use client"` directive (RSC serialization violation, crashed the second capture run on this
   exact page). See BLOCKERS.md for both.
 
-## CI capture attestation (new, added after both fixes)
+## CI capture attestation (committed after the two fixes above — now historical, see below)
 
 - `docs/ui-lab/gate-b-w3-candidates/capture-attestation.json` — real run
   https://github.com/lagebj/matchboard/actions/runs/39637600700, 40 captures, every SHA-256
-  independently re-verified against the downloaded artifact's raw bytes.
-- `docs/ui-lab/gate-b-w3-candidates/candidate_manifest.json` — updated the top-level `note` with
-  the real run/head-sha/capture-count reference (`approval` stays `null` on every scenario —
-  owner review has not happened yet).
+  independently re-verified against the downloaded artifact's raw bytes. Superseded as current
+  evidence by the retrospective remediation below (League/Event · After's fixture content
+  changed); preserved as the historical record of that run.
+
+## Retrospective remediation (B3-R1 through B3-R7)
+
+- `scripts/ui-lab-visual-review.mjs` — added a coverage-completeness check (B3-R1): the capture
+  run now fails if any registered scenario produces zero captures, instead of silently
+  succeeding the way the original B06 capture attempt did.
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/league/after/{page.tsx,fixtures.ts}` —
+  removed the link to the B05 candidate (B3-R2, different match); corrected reference time
+  (B3-R4, `B06_LEAGUE_AFTER_REFERENCE_AT`); removed filenames/function names/route syntax from
+  rendered copy (B3-R6); added a real link to the new League Match Details page (B3-R5).
+  `fixtureVersion` bumped to 2 in `candidate_manifest.json` (hash unchanged — only `identity`'s
+  own clock field changed, which is outside `rawRecordsForHash`'s scope).
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/{page.tsx,fixtures.ts}` —
+  reassigned the football observation off the Guest Player (B3-R3); corrected reference time
+  (B3-R4, `B06_EVENT_AFTER_REFERENCE_AT`); corrected combination evidence to the real per-match
+  derivation rules (B3-R7, `opponentDiversity: 1`); removed filenames/function names/literal
+  code/route syntax from rendered copy, including the `revalidatePath()` mischaracterization
+  (B3-R6); added a real link to the new Event Detail page (B3-R5). `fixtureVersion` bumped to 2;
+  new `fixtureSha256` (the fixture content genuinely changed).
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/league/before/page.tsx`,
+  `event/before/page.tsx` — removed filenames/function names/route syntax from rendered copy
+  (B3-R6); added real links to the new navigation pages (B3-R5). No fixture data changed.
+- `src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts` — added
+  `B06_LEAGUE_AFTER_REFERENCE_AT`, `B06_EVENT_AFTER_REFERENCE_AT`. No existing export's value
+  changed.
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details/{page.tsx,__tests__/page.test.tsx}`
+  (new, B3-R5) — a real, fixture-backed stand-in for League Match Details: this match's own real
+  origin/return point, separate from `CompareNav`.
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail/{page.tsx,__tests__/page.test.tsx}`
+  (new, B3-R5) — the same for Event Detail's Matches tab.
+- `src/app/dev/ui-lab/gate-b/page.tsx` — registered the two new navigation pages, labelled
+  explicitly as "navigation origin, not a comparison candidate."
+- `docs/ui-lab/gate-b-w3-candidates/{BLOCKERS,SOURCE_RECONCILIATION,CURRENT_STATE_AUDIT,
+  candidate_manifest}.*` — remediation sections added; the `revalidatePath()`-as-navigation
+  documentation error corrected to the real mechanism (`LiveMatchClient`'s `reportUrl` callback +
+  `window.location.href`).
+- `docs/ui-lab/gate-b-w2-candidates/` — B05's own retrospective remediation; see that
+  directory's own `CHANGED_FILES.md`.
+
+## CI capture attestation — fixtureVersion 2 (new, added after this remediation commit)
+
+Added once `ui-lab-visual-review.yml` produces a real run against this branch's remediated
+revision — see `BLOCKERS.md` for the exact run/commit once available.

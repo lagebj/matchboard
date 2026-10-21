@@ -1,5 +1,16 @@
 # B06 — Interaction and state audit
 
+## Retrospective remediation — real origin-aware navigation added (B3-R5)
+
+`CompareNav` (below) is reviewer navigation between the four comparison candidates — it was
+never meant to demonstrate how a coach actually reaches or leaves a match. Two new real,
+fixture-backed pages now do that separately: `league/match-details` (League's own real
+origin/return point) and `event/event-detail` (the same for Event). Every Before/After page
+links to its own origin's page via a real `next/link` in its header, and League · After/Event ·
+After also link to it from their own return-destination disclosure — not only from `CompareNav`.
+See `CURRENT_STATE_AUDIT.md`'s six-stage matrix for what each origin's real return destination
+actually is in production.
+
 ## The comparison-nav interaction (all four pages)
 
 `shared/compare-nav.tsx` renders four real `next/link`s (League Before/After, Event

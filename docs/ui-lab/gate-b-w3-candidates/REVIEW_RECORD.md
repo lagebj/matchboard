@@ -1,11 +1,21 @@
 # B06 — Review record
 
+## Retrospective remediation (B3-R1 through B3-R7)
+
+A follow-up technical review found and fixed seven issues in the original candidates (capture
+coverage silently incomplete; a cross-match link to B05; an invalid Guest-Player evidence
+assignment; two backwards fixture clocks; engineering commentary in coach-facing copy; invalid
+per-match combination-evidence fields; a documentation error describing `revalidatePath()` as
+navigation) — see `BLOCKERS.md` and `SOURCE_RECONCILIATION.md` for the full detail. The table
+below reflects the corrected state; no approval has ever been recorded for any B06 scenario, so
+there is no historical approval to preserve here (contrast B05/W2).
+
 | Scenario | Status | Notes |
 |---|---|---|
 | B06-LEAGUE-BEFORE | CANDIDATE | Confirms shipped baseline |
-| B06-LEAGUE-AFTER | CANDIDATE | Confirms shipped baseline; links to the real B05 candidate |
+| B06-LEAGUE-AFTER | CANDIDATE | Confirms shipped baseline; no longer links to the unrelated B05 candidate (B3-R2); links to the real League Match Details navigation page instead (B3-R5) |
 | B06-EVENT-BEFORE | CANDIDATE | Design proposal — no production route exists |
-| B06-EVENT-AFTER | CANDIDATE | Confirms the real shared `PostMatchReportShell`; page itself is a proposal |
+| B06-EVENT-AFTER | CANDIDATE | Confirms the real shared `PostMatchReportShell`; page itself is a proposal; football observation reassigned off the Guest Player (B3-R3) |
 
 ## This wave's own design-audit outcome
 
@@ -61,7 +71,28 @@ independent review)
   Next.js server (`Capture fixture-backed UI Lab views` job, run 39637600700) — this is also what
   caught the one real bug in this wave's own new code (a missing `"use client"` directive),
   invisible to both local test suites.
-- [ ] Independent technical review — not yet performed on this wave.
-- [x] Visual Authority Gate — evaluated against this PR's final revision
-  (`1c185cc01f8a6ee46f958792e0b04e8105f86b05`); reports the expected `AWAITING_APPROVAL`/`fail`
-  state pending the owner's own review and `/visual-approve` — this is correct, not a defect.
+- [ ] Independent technical review — not yet performed on this wave (now including the
+  retrospective remediation below).
+- [x] Visual Authority Gate — evaluated against this PR's final revision prior to the
+  remediation (`1c185cc01f8a6ee46f958792e0b04e8105f86b05`); reports the expected
+  `AWAITING_APPROVAL`/`fail` state pending the owner's own review and `/visual-approve` — this is
+  correct, not a defect. Will re-evaluate against the remediated revision once pushed.
+
+## Technical review checklist — B3-R1 through B3-R7 remediation (self-assessed; independent review still needed)
+
+- [x] B3-R1: capture coverage is now a hard CI failure if any registered scenario produces zero
+  captures.
+- [x] B3-R2: no B06 page links to B05 or any other unrelated match's candidate.
+- [x] B3-R3: no football observation is assigned to a Guest Player (verified by test against the
+  real `b06EventParticipants` fixture).
+- [x] B3-R4: both AFTER candidates' reference times are after their own kickoff/completion, never
+  before (verified by test).
+- [x] B3-R5: every Before/After page links to and from a real, fixture-backed navigation page for
+  its own origin, not only `CompareNav`.
+- [x] B3-R6: no filename, function name, or documentation reference appears in any rendered
+  coach-facing text (verified by direct re-read of every page's JSX).
+- [x] B3-R7: Event · After's combination evidence follows the same real per-match rules as B05's
+  own B2-R4 fix (verified by test).
+- [x] `npx tsc --noEmit`, `npx eslint`, both Vitest suites (node + components) pass for the full
+  `gate-b/` tree, with no regressions.
+- [ ] Independent technical review of the remediation — not yet performed.

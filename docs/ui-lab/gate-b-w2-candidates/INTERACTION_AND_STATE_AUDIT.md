@@ -1,5 +1,29 @@
 # Gate B W2 — Interaction and State Audit
 
+## fixtureVersion 2 — the interaction model is now a real lifecycle simulation (B2-R3/R5)
+
+The whole-fixture-swap interaction described below (section "The lifecycle-transition
+interaction") is **superseded**. The remediated draft page's Players tab now exposes a genuine,
+deterministic, fixture-local lifecycle (`shared/use-safe-report-lifecycle.ts`):
+
+- "Complete report" genuinely rejects while the one timing-review period still needs review,
+  with the same error framing the real `completeReport()`/`getTimingSubmissionBlockers()` gate
+  produces — report state is unchanged on rejection.
+- "Confirm duration" (the real `RecoveredTimingCallout` control) resolves that blocker in place.
+- "Add goal" (the real `PostMatchReportShell` control) independently resolves the
+  goal-attribution gap — confirmed, by reading the real `completeReport()` source, that this gap
+  is advisory in real production, never itself a completion blocker; the simulation does not
+  invent a stricter gate than production actually enforces.
+- Only once the timing blocker is resolved does "Complete report" succeed, transitioning status
+  to LOCKED in place (no whole-fixture swap, no navigation) and revealing "Reopen report" — wired
+  to the same fixture-local lifecycle, never a real production action (B2-R5).
+
+Covered by `draft/__tests__/page.test.tsx`'s own new test cases. The Players-tab URL-pinning
+behavior (ADR-0147 §1b) is preserved by the new `shared/safe-post-match-report-shell.tsx`, which
+replicates the real shell's own pinning effect.
+
+## Original wave (fixtureVersion 1) — superseded by the above
+
 ## The lifecycle-transition interaction (draft only)
 
 `draft/page.tsx` renders a UI-Lab-local "Continue fixture simulation → Complete report" control

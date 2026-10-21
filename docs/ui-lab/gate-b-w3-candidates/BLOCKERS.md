@@ -84,3 +84,38 @@ B06's four candidates present Before/After only, not all six lifecycle stages as
 fact rather than reproduced; the editable-vs-locked distinction is B05's territory and is not
 re-demonstrated. See SCENARIO_REGISTER.md's "Scope note" and DATA_TRUTH_AND_FIXTURES.md's "Why
 editable-vs-locked is out of scope."
+
+## Retrospective remediation (B3-R1 through B3-R7)
+
+A follow-up technical review (same session that also retrospectively corrected B05/W2) found
+and fixed seven further issues in this wave's own candidates:
+
+- **B3-R1**: the capture script's scenario list is now covered by a hard coverage-completeness
+  check (`scripts/ui-lab-visual-review.mjs`'s `finally` block) — any registered scenario that
+  produces zero captures now fails the whole run, the same class of silent gap that let the
+  original B06 capture attempt go green with zero B06 screenshots.
+- **B3-R2**: League · After's "Continue report" no longer links to the B05 candidate — B05 is a
+  different match (`match-gate-b-05`), and a working link to it would silently swap this match's
+  own identity for an unrelated one. Replaced with a non-interactive disclosure.
+- **B3-R3**: the one football-development observation in Event · After was reassigned from
+  William (the Guest Player) to Theodor (a real `PLAYER`-type participant) — production
+  `createFootballObservations()` requires an active canonical `Player`; `PlayerDevelopmentObservation.
+  playerId` has no `GuestPlayer` counterpart at all, a boundary ADR-0106 independently verifies.
+  William's real, valid lineup/report participation is unchanged.
+- **B3-R4**: both AFTER candidates' own reference times were corrected — League · After now uses
+  a time after the final whistle (not kickoff); Event · After now uses a time after the real
+  completion timestamp (not the Before page's own pre-kickoff "now").
+- **B3-R5**: two new fixture-backed navigation pages (`league/match-details`, `event/
+  event-detail`) demonstrate the real origin/return context for each origin, separately from
+  `CompareNav`'s own reviewer-navigation strip — every Before/After page now links to and from
+  its own origin's real context page, not just a generic index.
+- **B3-R6**: removed internal filenames, function names, and documentation-file references from
+  every coach-facing page's rendered copy (DecisionBanner descriptions, inline notes). The
+  underlying citations remain in this doc set and in code comments, never in rendered text.
+- **B3-R7**: Event · After's combination evidence corrected to the same real per-match rules as
+  B05's own B2-R4 fix (`opponentDiversity: 1`, confidence capped below `ESTABLISHED`,
+  `createdAt` after real completion, not before kickoff).
+
+No production code was touched for any of these — all seven are UI-Lab-local fixture/page
+corrections. See `SOURCE_RECONCILIATION.md` for the verification detail behind B3-R3/R7 and
+`CHANGED_FILES.md` for the exact file list.

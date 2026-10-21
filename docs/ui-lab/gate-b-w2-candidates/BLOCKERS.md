@@ -96,3 +96,49 @@ not mistake the absence of a finding for the audit not having been performed.
 B05 does not exercise the Assistant Coach knowledge tier (see
 `THREE_PART_EXPERIENCE_CONTRACT.md`) — Post-Match Report's Summary tab has no such surface in
 real production today. B07 (deferred) is where that tier belongs for this family.
+
+## fixtureVersion 2 — retrospective remediation (Gate B W3 session)
+
+See `SOURCE_RECONCILIATION.md`'s own remediation section for the six verified findings
+(B2-R2 through B2-R7) and what was corrected. This section covers what's specific to this file's
+own scope: new test-mocking disclosures and the two findings tracked as separate production
+issues rather than fixed here.
+
+### Real/mocked component substitutions, updated
+
+`FootballObservationSection` is still mocked in this wave's own Vitest **component** tests, for
+the exact same reason already disclosed above (the `next-auth` resolution failure). `PostMatchPage`
+and `ObservationSection` no longer need to be mocked — they are no longer rendered at all by the
+remediated candidate (`PostMatchPage`'s replacement, `shared/safe-post-match-report-shell.tsx`,
+never imports either). `PostMatchUnresolvedBanner` is real and unmocked in the remediated page
+tests (the IndexedDB-on-mount issue previously disclosed did not reproduce against the current
+test setup; left as-is rather than re-disclosing a blocker that no longer blocks anything).
+
+Both `PostMatchDebrief` and `FootballObservationSection` are rendered with `readOnly`/`isLocked`
+always `true` in the remediated Players-tab-adjacent sections — neither this scenario's debrief
+nor its "Additional observations" disclosure is the focus of B05's own register row (goal
+attribution, timing blockers, safe completion), and both components independently wire their own
+save/submit controls to real production server actions when not locked — the same class of
+exposure B2-R5 closes for `PostMatchPage`. A disclosed, deliberate scope reduction, not an
+oversight.
+
+League-only secondary sections (team notes, planned squad, absences, player stats) are
+presented read-only in the remediated Players tab rather than reusing their real interactive
+sub-controls — see `shared/safe-post-match-report-shell.tsx`'s own `LeagueOnlyExtras` doc
+comment for why.
+
+### Two real production defects found, verified, and tracked separately (not fixed in this PR)
+
+1. **`PostMatchPage` has no actions-injection seam.** It imports its mutation functions directly
+   from the real post-match server-action module at module scope — there is no way for a caller
+   to substitute fixture-local functions. A precedented fix exists elsewhere in this codebase
+   (`LiveMatchClient` already accepts an `actions` prop, built by its own callers via
+   `createEventActions`/`createLeagueActions`); applying the same pattern to `PostMatchPage`
+   (and `EventMatchReportPanel`, which has the identical gap) would be a minimal, well-precedented
+   production change — but it IS a production change, out of this PR's authorized scope. Filed
+   as issue #809 rather than fixed here.
+2. **`PostMatchReportPageShell` + `PostMatchPage` render the unresolved-report and
+   goal-attribution-gap banners twice** (once in each component) for any DRAFT/REPORTED report on
+   the Players tab. Confirmed by direct source reading, not merely by this wave's test mocks
+   hiding it. Filed as issue #810 rather than fixed here, since `PostMatchReportPageShell` is
+   production code this PR is not authorized to change.

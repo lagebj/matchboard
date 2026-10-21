@@ -1,5 +1,24 @@
 # Gate B W2 — Visual vs. Current Production
 
+## fixtureVersion 2 — what the remediation changes here
+
+`PARTIALLY_CORRECTED_REFERENCE` as of fixtureVersion 2 (not `CONFIRMS_SHIPPED_BASELINE` for the
+Players tab specifically) — see `candidate_manifest.json`. The shared `PostMatchReportShell`
+core (Result/Goals/Assists/Attendance/Complete/Reopen) is still the exact real, unmodified
+production component. What is **no longer** identical to the currently-shipped page: the real
+`PostMatchPage` wrapper around it is not rendered at all (replaced by
+`shared/safe-post-match-report-shell.tsx` + `shared/use-safe-report-lifecycle.ts`), because it
+offers no seam to prevent real production mutations from this candidate's synthetic match id
+(B2-R5 — see `BLOCKERS.md` for the tracked production-issue follow-up). League-only secondary
+sections (team notes, planned squad, absences, player stats) are now read-only summaries rather
+than reusing their real interactive sub-controls — a disclosed, deliberate narrowing, not a
+claim that production itself is read-only there. The real production banner duplication
+(`PostMatchUnresolvedBanner`/`GoalAttributionGapBanner` rendered twice) is **not** reproduced by
+this corrected candidate — this is a disclosed divergence from the current shipped page, not a
+claim that production has already been fixed to match.
+
+## Original wave (fixtureVersion 1) — superseded where noted above
+
 Per `SOURCE_RECONCILIATION.md`'s framing decision: this wave **confirms** the real, already-shipped
 composition rather than proposing a different one.
 

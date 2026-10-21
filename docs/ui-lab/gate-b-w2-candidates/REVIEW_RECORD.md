@@ -1,5 +1,31 @@
 # Gate B W2 — Review Record
 
+## fixtureVersion 2 — remediation record (supersedes the approval status below for review purposes)
+
+A retrospective technical review (Gate B W3 session) found six real correctness/safety defects
+in fixtureVersion 1's fixtures and interactions (B2-R2 through B2-R7 — goal-attribution-gap math
+didn't follow the real `computeGoalAttributionGap()` contract; the completion simulation never
+enforced the real timing-submission-blocker gate; the real `PostMatchPage` it rendered could
+invoke real production server actions against a synthetic match id; combination evidence used
+season-aggregated values on a per-match row and leaked into the draft state; navigation used
+fragment hrefs as if they worked; fixture clocks used kickoff for both lifecycle snapshots).
+**fixtureVersion 1's historical approval (`/visual-approve b9a95c9dbf4289a2727a15bd73375a4dc6381e2e`,
+below) is preserved as fact and was not revoked or rewritten — it covered fixtureVersion 1's own
+content, which is exactly what it still means.** fixtureVersion 2 (the corrected candidate now in
+this directory) does **not** inherit that approval: `candidate_manifest.json` sets `approval:
+null` on both scenarios again, and fresh technical + owner review is required before any new
+approval is recorded. See `SOURCE_RECONCILIATION.md`'s remediation section and `BLOCKERS.md` for
+the full finding-by-finding detail, fixes, and the two verified production defects (duplicate
+banners; no actions-injection seam on `PostMatchPage`) tracked as separate GitHub issues rather
+than fixed inside this UI Lab PR.
+
+| Scenario | Status | Notes |
+|---|---|---|
+| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 2) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
+| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 2) | Same remediation and supersession as B05. |
+
+## Historical record — fixtureVersion 1 (preserved, not current)
+
 | Scenario | Status | Notes |
 |---|---|---|
 | B05 | `CANDIDATE` / `APPROVED_GOLDEN` | **Approved.** Real owner review of the live Test-slot deploy (test.matchboard.football), resolved via `/visual-approve b9a95c9dbf4289a2727a15bd73375a4dc6381e2e`, 2026-10-21. PR #805 merged. First pass: confirms the real shipped Post-Match Report composition against the register's "finish/report actions versus read-only knowledge" requirement — no fabricated gap found, no design proposal made. B2-R1: this PR's own first CI capture run found and fixed a real pre-existing bug in `RecoveredTimingCallout` (invalid HTML nesting). |
@@ -78,4 +104,30 @@ attempted yet), same as every other un-released Gate A/B wave.
 - [x] Real CI visual capture — first run failed on the B2-R1 finding; fixed, re-pushed, re-run
       passed (`39593337123`, 13m22s). `capture-attestation.json` committed with all 24 hashes
       independently re-verified.
-- [ ] Independent technical review — not yet performed on this wave.
+- [ ] Independent technical review — not yet performed on fixtureVersion 1 (superseded).
+
+## Technical review checklist — fixtureVersion 2 remediation (self-assessed; independent review still needed)
+
+- [x] B2-R2: goal-attribution-gap now follows the real `computeGoalAttributionGap()` contract —
+  `attributedGoals` is a report-row count, never filtered by scorer; the draft genuinely has one
+  fewer report row than live-recorded goals, not a row with a null scorer.
+- [x] B2-R3: completion genuinely rejects while a timing period needs review (real test coverage:
+  reject → confirm timing → succeeds), and the goal-attribution gap is independently resolvable
+  via the real "Add goal" control — confirmed NOT itself a completion blocker in real production
+  (`completeReport()` only calls `getTimingSubmissionBlockers()`), so the simulation does not
+  invent a stricter gate than production actually has.
+- [x] B2-R4: combination evidence uses `opponentDiversity: 1` and never `ESTABLISHED` confidence
+  (the real per-match derivation ceiling), and is empty in the draft state (never exposed before
+  LOCKED, matching `getMatchDetailAfterData()`'s real gate).
+- [x] B2-R5: the real `PostMatchPage` is no longer rendered; no file in this scenario imports the
+  real production post-match server-action module (enforced by a structural test reading the
+  source files directly, not just a behavioural assertion).
+- [x] B2-R6: the composed Players tab shows the unresolved-report banner and the
+  goal-attribution-gap banner exactly once each (verified by test) — the real production
+  duplication is disclosed as a separate, tracked defect, not silently claimed fixed.
+- [x] B2-R7: no fragment href is presented as working navigation; both lifecycle snapshots use a
+  reference time after kickoff (draft) / after completion (completed), never kickoff itself.
+- [x] `npx tsc --noEmit`, `npx eslint`, both Vitest suites (node + components) pass for this
+  scenario and project-wide, with no regressions.
+- [ ] Independent technical review of the remediation — not yet performed.
+- [ ] Fresh owner visual approval of fixtureVersion 2 — not yet requested or recorded.

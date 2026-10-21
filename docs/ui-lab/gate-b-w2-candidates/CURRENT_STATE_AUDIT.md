@@ -1,5 +1,21 @@
 # Gate B W2 — Current State Audit
 
+## fixtureVersion 2 — component inventory changes (remediation)
+
+`PostMatchPage` is **no longer rendered** by this candidate (replaced by
+`shared/safe-post-match-report-shell.tsx` + `shared/use-safe-report-lifecycle.ts`, B2-R5 — see
+`BLOCKERS.md`), because it imports its mutation functions directly from the real production
+server-action module with no override seam, making it capable of real database writes against
+this candidate's synthetic match id. `PostMatchReportPageShell` is likewise no longer used
+directly — it offers no way to substitute what it renders for the Players tab, so the
+remediation replicates its own layout for every other tab while swapping that one tab's content.
+`PostMatchReportShell` (the real, shared ARR-0034 component) IS still reused directly, fed by the
+new fixture-local lifecycle instead of `PostMatchPage`'s real actions. `ObservationSection` and
+`LegacyMatchFeedbackSection` are no longer rendered at all (a disclosed scope reduction, not a
+production change). `RecoveredTimingCallout`'s B2-R1 fix (below) still stands, unaffected.
+
+## Original wave (fixtureVersion 1) — superseded where noted above
+
 ## Route and data ownership
 
 - Canonical owner: `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`;

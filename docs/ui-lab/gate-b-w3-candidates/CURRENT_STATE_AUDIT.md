@@ -101,7 +101,7 @@ this wave's own production source audit — not invented.
 |---|---|---|
 | Source of truth | `report_incomplete` (kickoff passed, `PostMatchReport.status` DRAFT/REPORTED) | Session ended, `EventPostMatchReport` absent or freshly seeded |
 | Canonical ID | `matchId` → `reportId` | `eventMatchId` → `reportId` |
-| Nav entry point | Same Match Details route flips to AFTER composition automatically | None — handoff (`event-live-report-handoff.ts`) calls `revalidatePath("/events/${eventId}")`, returning to Event Detail; "Open report" button on the match card seeds the report |
+| Nav entry point | Same Match Details route flips to AFTER composition automatically | None — ending the live session navigates (`window.location.href`, via `LiveMatchClient`'s `reportUrl` callback) to `/events/${eventId}`, i.e. Event Detail, not a match-scoped route; "Open report" button on the match card seeds the report |
 | Primary action | "Continue report" → `/post-match` | "Open report" → inline expand |
 | Owner | `after-match-overview.tsx` | `event-matches-tab.tsx` |
 | Parity | **Mismatch in return-destination granularity** — the core finding this wave surfaces (see SOURCE_RECONCILIATION.md). |

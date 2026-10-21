@@ -1,5 +1,22 @@
 # B06 — Data truth and fixtures
 
+## Retrospective remediation (B3-R3/R4/R7)
+
+- Event · After's one football observation is assigned to Theodor (a real `PLAYER`-type
+  participant), never William (the Guest Player) — production `createFootballObservations()`
+  requires an active canonical `Player`; `PlayerDevelopmentObservation.playerId` has no
+  `GuestPlayer` counterpart at all (ADR-0106 independently verifies this boundary). William's
+  real lineup/report participation is unchanged.
+- Both AFTER candidates' `fixedDateTimeUtc` now use a dedicated reference-time constant
+  (`B06_LEAGUE_AFTER_REFERENCE_AT`, `B06_EVENT_AFTER_REFERENCE_AT`) set after the match actually
+  ends/completes — never kickoff, and never the BEFORE page's own pre-kickoff "now".
+- Event · After's combination evidence now follows the same real per-match derivation rules as
+  B05's own B2-R4 fix: `opponentDiversity: 1` always, confidence capped below `ESTABLISHED`
+  (`deriveConfidence` requires `matchCount >= 3`, hardcoded to `1` on the per-match path), and
+  `createdAt` after real completion, not before kickoff.
+
+## Original wave — the rest of this file, superseded where noted above
+
 Deterministic, synthetic, in-memory fixtures only — no database, no network, fixed UTC clocks
 (`B06_LEAGUE_NOW`/`B06_EVENT_NOW`, never `Date.now()`). Source files: `src/app/dev/ui-lab/gate-b/
 shared/match-b-fixture.ts` (B06 section) and each scenario's own `fixtures.ts`.

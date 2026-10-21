@@ -1,5 +1,58 @@
 # Gate B W2 — Source Reconciliation
 
+## fixtureVersion 2 — retrospective remediation (Gate B W3 session)
+
+A later session's technical review (prompted by the B06/W3 work) re-read this wave's own
+fixtures and interactions against the real production functions they claim to represent, rather
+than trusting fixtureVersion 1's passing CI as proof of semantic correctness. It verified six
+real findings directly against source (not assumed from the task brief that raised them):
+
+- `computeGoalAttributionGap()` (`src/lib/reports/report-mutations.ts`) counts report `Goal`
+  ROWS (`db.goal.count(...)`), never filtered by scorer presence — fixtureVersion 1's
+  `{liveGoalsRecorded: 3, attributedGoals: 2, hasGap: true}` did not follow from its own 3-row
+  goal array (one with a null scorer); the real function would have returned `attributedGoals: 3`
+  for that array, i.e. no gap. Corrected: the draft now genuinely has 2 report rows, not 3.
+- `completeReport()` calls `getTimingSubmissionBlockers()` and rejects completion while a period
+  needs timing review; fixtureVersion 1's "Continue fixture simulation" button swapped React
+  props directly, enforcing nothing.
+- `deriveCombinationsFromSegments()` (`src/lib/evidence/combination-topology.ts`) hardcodes
+  `opponentDiversity: 1` and effectively caps confidence below `ESTABLISHED` for any single-match
+  row (`deriveConfidence` requires `matchCount >= 3`, hardcoded to `1` on the per-match path).
+  fixtureVersion 1 used `opponentDiversity: 3`/`confidence: "ESTABLISHED"` on a per-match row, and
+  exposed it unconditionally in `b05AfterData()` regardless of draft/locked state, while
+  `getMatchDetailAfterData()` only ever loads it for a `LOCKED` report.
+- `PostMatchPage` (`src/components/assistant/post-match-page.tsx`) imports its mutation functions
+  directly from the real post-match server-action module at module scope, with no prop seam to
+  override them — fixtureVersion 1 rendered it directly, meaning its "Add goal"/"Complete
+  report"/etc. controls were wired to real production actions against the synthetic
+  `match-gate-b-05` id. Verified this is a real, reachable exposure (not already inert for some
+  other reason) before treating it as a finding.
+- The real `PostMatchReportPageShell` + nested `PostMatchPage` composition renders
+  `PostMatchUnresolvedBanner`/`GoalAttributionGapBanner` twice (once in each component) — a real
+  production duplication, confirmed directly, not merely hidden by this wave's own test mocks.
+- fixtureVersion 1 used `#matches`/`#match-detail`/`#review` fragment hrefs as if they were
+  working navigation, and the same kickoff timestamp as both the draft's and the completed
+  state's own observation time.
+
+**Remediation**: a new fixture-local lifecycle simulation (`shared/use-safe-report-lifecycle.ts`)
+and a UI-Lab-local page shell (`shared/safe-post-match-report-shell.tsx`) that replicates
+`PostMatchReportPageShell`'s real layout/composition for every tab except Players, where it
+renders the shared `PostMatchReportShell` (ARR-0034's real, already-shared component) fed by the
+fixture-local lifecycle instead of the real `PostMatchPage`. This is the narrowest available fix
+given `PostMatchReportPageShell` offers no seam to substitute what it renders for that one tab —
+seeking a narrower one (e.g. an `actions`-prop addition to `PostMatchPage` itself, mirroring the
+already-precedented pattern on `LiveMatchClient`) would be a production code change, out of scope
+for this PR; filed as issue #809 (see `BLOCKERS.md`). The real production banner duplication is
+likewise filed separately, as issue #810, not silently fixed inside this candidate.
+
+**Historical approval preserved, not inherited**: fixtureVersion 1's `/visual-approve
+b9a95c9dbf4289a2727a15bd73375a4dc6381e2e` remains true as a historical fact about fixtureVersion
+1's own content — preserved unmodified in `candidate_manifest.json`'s `priorVersions`.
+fixtureVersion 2 is a new, unapproved revision; it requires its own independent technical review
+and its own fresh owner approval before any `APPROVED_GOLDEN` claim can attach to it.
+
+## Original wave (fixtureVersion 1)
+
 `CANDIDATE` only. This wave implements the official Gate B register's **B05** (Post-match Report,
 draft and completed) as a dev-only, fixture-backed UI Lab scenario under
 `src/app/dev/ui-lab/gate-b/b05-post-match-report/`. No production route, component, data loader,

@@ -1,5 +1,14 @@
 # B06 — Visual vs. current production
 
+## Retrospective remediation (B3-R2/R3/R4/R6/R7)
+
+League · After and Event · After each received fixture-content corrections (clocks, Guest
+Player evidence, combination-evidence fields) and both AFTER pages plus both BEFORE pages had
+their coach-facing copy stripped of filenames/function names/route syntax and their cross-match
+"Continue report" link removed. None of this changes which real production components each page
+reuses — see `BLOCKERS.md`/`SOURCE_RECONCILIATION.md` for the full list. The sections below
+describe the pages as corrected.
+
 ## B06-LEAGUE-BEFORE — `CONFIRMS_SHIPPED_BASELINE`
 
 - Identical to production: `MatchIdentityCard` + `MatchPreparationWidget` + real planning pitch,
