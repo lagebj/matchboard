@@ -1,5 +1,12 @@
 # Gate B W2 — Visual vs. Current Production
 
+## Fourth remediation pass (R9-1) — one number corrected on the Combinations tab
+
+The completed candidate's Combinations tab shows "83 min this match" for the Noah+Sindre row,
+not the old "80 min this match" — the only rendered-text change from R9-1's participation-model
+correction (every other displayed field on that row is unchanged). See
+`SOURCE_RECONCILIATION.md`'s own "fourth remediation pass" section.
+
 ## Third remediation pass (R8-1) — visual-correction summary
 
 R8-1 corrects the B5/R1 disclosure's own wording: the locked-state message now reads "This

@@ -128,25 +128,39 @@ draft report whose debrief is still `DRAFT` would be the moment *before* this sc
 function) confirms the fixture's answers are genuinely complete — covered by test, not asserted
 and left unverified.
 
-## Combination evidence — real shape, real derivation, real filter (R8-3)
+## Combination evidence — real shape, real derivation, real filter, real participation (R8-3, R9-1)
 
-`b05CombinationEvidence` (`shared/report-data.ts`) is no longer hand-written. It is COMPUTED by
-calling the real, unmodified `deriveCombinationsFromSegments()` (`src/lib/evidence/
-combination-topology.ts`) against `shared/combination-source-data.ts`'s own canonical positional
-segment (the full present 7-a-side lineup, one continuous 80-minute segment, no substitutions
-modeled) and goal-attribution events (the same real events as `b05CanonicalLiveEvents`,
-re-expressed in the shape the derivation function consumes). That call produces many rows (every
-pairwise partnership, lines, triangles, the full-configuration row) for the whole squad — this
-fixture curates the result down to the single `PARTNERSHIP` row this scenario calls out
-(Noah + Sindre), the same way the real `MatchCombinationEvidencePanel` itself already filters a
-larger derived set down to what it displays (`MIN_MINUTES_TO_SHOW`/`MAX_ROWS_SHOWN`), not an
-invented narrowing. `createdAt` is the one field overridden after derivation (the real function
-stamps non-deterministic wall-clock `new Date()`; this fixture replaces it with the fixed
+`b05CombinationEvidence` (`shared/report-data.ts`) is a literal, but it is the real, unmodified
+`deriveCombinationsFromSegments()`'s (`src/lib/evidence/combination-topology.ts`) own verified
+output — not hand-picked, and not computed inline either (that pulls the server-only `db` client
+into this client-bundled file; see that constant's own doc comment). It is derived against
+`shared/combination-source-data.ts`'s own canonical positional segments and goal-attribution
+events (the same real events as `b05CanonicalLiveEvents`, re-expressed in the shape the
+derivation function consumes). That call produces many rows (every pairwise partnership, lines,
+triangles, the full-configuration row) for the whole squad across every segment — this fixture
+curates the result down to the single `PARTNERSHIP` row this scenario calls out (Noah + Sindre),
+the same way the real `MatchCombinationEvidencePanel` itself already filters a larger derived set
+down to what it displays (`MIN_MINUTES_TO_SHOW`/`MAX_ROWS_SHOWN`), not an invented narrowing.
+`createdAt` is the one field overridden after derivation (the real function stamps
+non-deterministic wall-clock `new Date()`; this fixture replaces it with the fixed
 `B05_COMPLETED_AT` moment — a real-world fact, not a derivation input).
+
+**R9-1 — the positional segments are real participation, not an invented 80-minute block.** This
+match's real duration is 90 minutes (two 45' halves — `b05TimingReview`'s own real second-half
+duration confirms this). Three chronological segments (0-68'/68-83'/83-90') represent: Kasper (CM)
+substituted off at 68' for Elias (into the same CM slot); Noah (RCM) departing at 83' with no
+replacement (team finishes with 6). Every one of `b05MinutesByParticipant`'s seven existing values
+(unchanged by this correction) is exactly explained by this model — see
+`combination-source-data.ts`'s own doc comment for the full reasoning. Noah and Sindre's own
+shared presence is 0-83' (83 minutes, not the old unsupported 80), which is why the displayed
+row's `minutesTogether` is `83`.
 
 `shared/__tests__/combination-evidence.test.ts` imports the SAME source records and asserts the
 fixture's own exported row equals the real function's own output field-for-field (except
-`createdAt`) — never a second, hand-maintained synthetic model backing a separate test.
+`createdAt`) — never a second, hand-maintained synthetic model backing a separate test. A
+dedicated participation-consistency suite in that same file verifies the positional segments
+against `b05MinutesByParticipant` directly (not merely that the segments are internally
+self-consistent), including a negative test proving a deliberately contradictory segment fails.
 
 ## Forbidden fields — never present
 

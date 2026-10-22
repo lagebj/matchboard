@@ -166,3 +166,25 @@ production fix, above).
 
 This pass DOES touch fixture DATA (R8-3) — contrast the second pass, which touched only shared
 component code. No production code is touched.
+
+## Fourth remediation pass (R9-1)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/combination-source-data.ts` —
+  `b05PositionalSegment` (singular, one 0-80' block) replaced with `b05PositionalSegments`
+  (plural, three real chronological segments: 0-68'/68-83'/83-90'); added
+  `computeMinutesByParticipant()` and `validateSegmentSequence()` pure helpers.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts` —
+  `b05CombinationEvidence`'s `minutesTogether` corrected 80 -> 83; added a doc comment on
+  `b05MinutesByParticipant` cross-referencing the now-consistent segment model.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/{draft,completed}/fixtures.ts` — renamed
+  `combinationPositionalSegment` to `combinationPositionalSegments` in `rawRecordsForHash`;
+  `fixtureVersion` bumped 3 -> 4; new `fixtureSha256` for both.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/combination-evidence.test.ts`
+  — updated for the plural segments export; added a dedicated "participation consistency" suite
+  (structural boundary checks, exact minute-total agreement against `b05MinutesByParticipant`,
+  scorer/assist on-pitch-at-event-time checks, draft/completed same-source checks) plus a
+  negative test using a deliberately contradictory single-segment sequence.
+- `docs/ui-lab/gate-b-w2-candidates/{BLOCKERS,SOURCE_RECONCILIATION,DATA_TRUTH_AND_FIXTURES,
+  candidate_manifest}.{md,json}` — R9-1 remediation sections added.
+
+B06 is untouched — not the target of R9-1. No production code is touched by this pass.

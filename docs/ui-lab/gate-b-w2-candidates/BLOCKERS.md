@@ -197,3 +197,34 @@ A fourth independent technical review found three more real findings — see
 
 This pass DOES change B05's underlying fixture DATA (R8-3's combination-evidence correction) —
 `fixtureVersion` bumped 2 -> 3 for both B05 candidates; new `fixtureSha256` for both.
+
+## Fourth retrospective remediation (R9-1)
+
+A fifth independent technical review found that the R8-3 pass's own new positional segment
+(`combination-source-data.ts`) contradicted `report-data.ts`'s pre-existing
+`b05MinutesByParticipant` — a fixture-integrity defect introduced by R8-3 itself, since that pass
+never checked the segment it invented against the minute records that already existed. A fixture
+defect, not a production/derivation-engine defect — `deriveCombinationsFromSegments()` itself is
+untouched and was never the problem.
+
+Corrected: established that this match's real duration is 90 minutes (`b05TimingReview`'s own
+real second-half duration is 45', so 2x45'=90, not the invented 80), under which every one of the
+seven existing minute values is exactly explained by one real substitution (Kasper off/Elias on
+at 68') plus one early departure with no replacement (Noah off at 83'). Replaced the single
+0-80' segment with three real chronological segments (0-68'/68-83'/83-90'). No minute value in
+`b05MinutesByParticipant` needed to change. The displayed Noah+Sindre row's `minutesTogether`
+corrected 80 -> 83 (Noah's own real departure time) as a direct, honest consequence — every other
+field is unchanged, since all five canonical goal events occur before either substitution. See
+`SOURCE_RECONCILIATION.md`'s own "fourth remediation pass" section for the full record.
+
+A new `validateSegmentSequence()`/`computeMinutesByParticipant()` pair of pure helpers
+(`combination-source-data.ts`) now backs a dedicated participation-consistency test suite
+(structural boundary checks, exact minute-total agreement, scorer/assist on-pitch-at-event-time
+checks, draft/completed sharing-the-same-source checks), including a negative test using a
+deliberately contradictory single-segment sequence — the exact R9-1 defect shape — which now
+fails the minute-total check, so this specific defect class cannot silently return.
+
+`fixtureVersion` bumped 3 -> 4 for both B05 candidates (the hashed combination source records
+changed); new `fixtureSha256` for both. B06 is unaffected and untouched — it is not the target of
+R9-1 and its own single-segment model has no competing minute record elsewhere in its fixture to
+contradict.

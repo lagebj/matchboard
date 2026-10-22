@@ -1,5 +1,12 @@
 # Gate B W2 — Interaction and State Audit
 
+## Fourth remediation pass (R9-1) — no interaction-model change
+
+R9-1 corrects the combination-evidence source data's own internal consistency (positional
+segments vs. pre-existing player minutes) — a fixture data correction, not an interaction-model
+change. Every reachable control remains exactly as audited below. See
+`SOURCE_RECONCILIATION.md`'s own "fourth remediation pass" section.
+
 ## Third remediation pass (R8-1, R8-2) — the interaction model, corrected further
 
 Two more real gaps, beyond what the second pass fixed: (1) the LOCKED-state disclosure

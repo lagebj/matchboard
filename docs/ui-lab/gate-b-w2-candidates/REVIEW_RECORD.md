@@ -21,8 +21,8 @@ than fixed inside this UI Lab PR.
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 3) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
-| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 3) | Same remediation and supersession as B05. |
+| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 4) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
+| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 4) | Same remediation and supersession as B05. |
 
 ## Second remediation pass (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
 
@@ -46,6 +46,16 @@ now 3 — the only one of these three findings that changed hashed fixture conte
 `candidate_manifest.json` still correctly reads `approval: null` for both scenarios; fixtureVersion
 1's historical approval remains preserved, unmodified, in `priorVersions`. See
 `SOURCE_RECONCILIATION.md`'s own "third remediation pass" section and `BLOCKERS.md`.
+
+## Fourth remediation pass (R9-1)
+
+A fifth independent technical review found that R8-3's own new positional segment contradicted
+the fixture's pre-existing `b05MinutesByParticipant` records — a fixture integrity defect
+introduced by R8-3 itself, not a production/derivation-engine defect. Corrected without changing
+any existing minute value (see `SOURCE_RECONCILIATION.md`'s own "fourth remediation pass"
+section); `fixtureVersion` bumped 3 -> 4 for both scenarios. `candidate_manifest.json` still
+correctly reads `approval: null` for both; fixtureVersion 1's historical approval remains
+preserved, unmodified, in `priorVersions`.
 
 ## Historical record — fixtureVersion 1 (preserved, not current)
 

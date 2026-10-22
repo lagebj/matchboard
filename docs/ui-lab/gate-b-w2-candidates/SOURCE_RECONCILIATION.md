@@ -1,5 +1,43 @@
 # Gate B W2 — Source Reconciliation
 
+## fixtureVersion 4 — fourth remediation pass (R9-1)
+
+A fifth independent technical review found one remaining real finding, a fixture integrity defect
+rather than a production/derivation-logic defect:
+
+- **R9-1**: `shared/combination-source-data.ts`'s R8-3-era positional segment modeled one
+  continuous 0-80' block with all seven present players on pitch throughout, directly
+  contradicting `shared/report-data.ts`'s own pre-existing `b05MinutesByParticipant` (Kasper 68,
+  Elias 22, Noah 83 — none of which fit an 80-minute uniform segment; only Aksel/Tobias/Sindre/
+  Vetle's 90-each happened not to contradict it outright, since 90 > 80 at least doesn't shrink
+  below it). The R8-3 derivation test used the segment as its own source of truth and never
+  checked it against `b05MinutesByParticipant`, so the mismatch went unnoticed.
+  **Authoritative participation model established before correcting anything**: `b05TimingReview
+  ("completed")` already records the real second half as `resolvedDurationMinutes: 45` — this
+  fixture's own match is a standard two-half game, so the real full match duration is 90 minutes
+  (2x45'), never 80 (80 was simply an invented endpoint with no supporting record anywhere else
+  in the fixture). With a 90-minute match, every one of the seven existing
+  `b05MinutesByParticipant` values is exactly explained by ONE clean substitution (Kasper off at
+  68', Elias on at 68' into the same CM slot, 68+22=90) plus one early departure with no
+  replacement (Noah off at 83' — this squad's 7 present players are already fully accounted for
+  elsewhere on the pitch at that moment, so the team finishes the final 7 minutes with 6) — **no
+  minute value needed to change**. Corrected: `combination-source-data.ts` now exports three
+  chronological, non-overlapping segments (0-68', 68-83', 83-90') instead of one; a new
+  `validateSegmentSequence()`/`computeMinutesByParticipant()` pair of pure helpers backs a
+  dedicated participation-consistency test suite (including a negative test using a deliberately
+  contradictory single-segment sequence, which fails the minute-total check exactly the way the
+  original defect would have). The displayed Noah+Sindre combination row's `minutesTogether`
+  corrected 80 -> 83 as a direct, real consequence (Noah's own actual departure time) — every
+  other field (goals/contributions/subtype/opponentDiversity/confidence) is unchanged, since all
+  five canonical goal events occur before either substitution. B06 is unaffected (not the target
+  of R9-1; its own single-segment model has no competing minute record anywhere else in its
+  fixture to contradict).
+
+`fixtureVersion` bumped 3 -> 4 for both B05 candidates (the hashed `combinationEvidence`/source
+records changed); new `fixtureSha256` for both. B05 fixtureVersion 1's historical approval
+remains preserved, unmodified, further down the `priorVersions` chain; both candidates remain
+`approval: null`.
+
 ## fixtureVersion 3 — third remediation pass (R8-1, R8-2, R8-3)
 
 A fourth independent technical review found three more real findings, this time spanning both
