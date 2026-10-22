@@ -12,7 +12,6 @@ import { PostMatchSummaryTab } from "@/components/matches/match-detail/post-matc
 import { MatchTimelineList } from "@/components/matches/match-detail/match-timeline-list";
 import { PostMatchReportShell } from "@/components/matches/post-match-report-shell";
 import { PostMatchUnresolvedBanner } from "@/components/live-match/post-match-unresolved-banner";
-import { GoalAttributionGapBanner } from "@/components/matches/goal-attribution-gap-banner";
 import { PostMatchDebrief } from "@/components/post-match/debrief/post-match-debrief";
 import { FootballObservationSection } from "@/components/player-development/football-observation-section";
 import { MatchCombinationEvidencePanel } from "@/components/matches/match-combination-evidence-panel";
@@ -25,6 +24,7 @@ import type { PostMatchReportViewModel, PostMatchReportCapabilities, PostMatchAv
 import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
 import { useSafeReportLifecycle, type SafeReportLocalState } from "./use-safe-report-lifecycle";
+import { GoalDiscrepancyDisclosure } from "./goal-discrepancy-disclosure";
 import { b05MinutesByParticipant, b05ObservationCountByParticipant } from "./report-data";
 
 const CAPABILITIES: PostMatchReportCapabilities = { hasUnplannedReason: true };
@@ -80,7 +80,11 @@ export function SafePostMatchReportShell({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { state, actions } = useSafeReportLifecycle(initialLocalState, initialCompletedBy, completionTimestamp);
+  // R8-2 — the eligible-player source `addPlayer()` validates against, reusing the same
+  // `allPlayers` data already supplied for the Players tab's own selection control rather than
+  // inventing a second roster.
+  const eligiblePlayers = useMemo(() => allPlayers.map((p) => ({ id: p.id, name: p.name })), [allPlayers]);
+  const { state, actions } = useSafeReportLifecycle(initialLocalState, initialCompletedBy, completionTimestamp, eligiblePlayers);
 
   const surfaceState = state.status === "LOCKED" ? "COMPLETED" : "DRAFT";
   const isDraft = surfaceState === "DRAFT";
@@ -228,14 +232,18 @@ export function SafePostMatchReportShell({
       />
 
       {isDraft && <PostMatchUnresolvedBanner subjectId={matchId} playerNameById={playerNameById} />}
-      {/* B5/R1 — a proposed candidate-only visual correction, NOT already-shipped production
-          behavior: the real `PostMatchReportPageShell` gates this banner the identical
-          `isDraft &&` way (verified directly), so a report that reaches LOCKED with the
-          goal-attribution gap still open (a real, legally reachable path — `complete()` never
-          blocks on this) shows no disclosure in production today either. This candidate shows it
-          whenever `hasGap` is true, regardless of lock state, so a completed-but-unreconciled
-          report never looks silently fully reconciled. See DATA_TRUTH_AND_FIXTURES.md. */}
-      {liveGoalAttributionGap.hasGap && <GoalAttributionGapBanner gap={liveGoalAttributionGap} />}
+      {/* B5/R1/R8-1 — a proposed candidate-only visual correction, NOT already-shipped production
+          behavior: the real `PostMatchReportPageShell` gates its own `GoalAttributionGapBanner`
+          `isDraft &&` (verified directly), so a report that reaches LOCKED with the gap still
+          open (a real, legally reachable path — `complete()` never blocks on this) shows no
+          disclosure in production today either. `GoalDiscrepancyDisclosure` shows whenever
+          `hasGap` is true, regardless of lock state, with wording that adapts to lock state
+          (locked: "reopen the report"; editable: "add the missing goal") and never instructs
+          completing an already-completed report — the real `GoalAttributionGapBanner`'s own
+          fixed wording ("...before completing this report") is invalid once LOCKED. The real
+          component itself is left unmodified; this candidate simply no longer renders it. See
+          DATA_TRUTH_AND_FIXTURES.md. */}
+      <GoalDiscrepancyDisclosure gap={liveGoalAttributionGap} isLocked={!isDraft} />
 
       <TabRail items={tabs} activeKey={activeTab} variant="pill" ariaLabel="Report sections" onSelect={selectTab} />
 

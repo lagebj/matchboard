@@ -44,6 +44,15 @@ export type SafeReportLocalState = {
 type Result = { success: boolean; error?: string };
 const MAX_MATCH_MINUTE = 120;
 const ATTENDANCE_STATUSES = new Set(["PRESENT", "NO_SHOW", "UNKNOWN"]);
+/** R8-2 — the only statuses `reopen()` may legitimately transition TO. `LOCKED` is deliberately
+ * excluded: `reopen("LOCKED")` would otherwise produce `{status: "LOCKED", completedBy: null,
+ * completedAt: null}` — neither a legitimate completed report nor a legitimate reopened one. */
+const REOPEN_TARGETS = new Set(["DRAFT", "REPORTED"]);
+
+/** R8-2 — the eligible-player source `addPlayer()` validates against. Reuses the same
+ * `allPlayers` data the fixture already supplies to `availablePlayers`/the Players tab's own
+ * selection control, rather than inventing a second roster. */
+export type EligiblePlayer = { id: string; name: string };
 
 function isNonNegativeInteger(value: number): boolean {
   return Number.isInteger(value) && value >= 0;
@@ -61,6 +70,7 @@ function reduce(
   action: { type: string; payload?: unknown },
   completedBy: string,
   completedAt: string,
+  eligiblePlayers: EligiblePlayer[],
 ): { nextState: SafeReportLocalState; result: Result } {
   const reject = (error: string): { nextState: SafeReportLocalState; result: Result } => ({
     nextState: state,
@@ -156,11 +166,16 @@ function reduce(
       if (lockedError) return reject(lockedError);
       const { playerId } = action.payload as { playerId: string };
       if (!playerId) return reject("No player selected.");
+      // R8-2 — `playerId` must resolve against the fixture's own eligible-player source; an
+      // arbitrary string that merely looks like an id is never treated as a valid Player, and
+      // the displayed name is always the eligible source's real name, never the raw id.
+      const eligible = eligiblePlayers.find((p) => p.id === playerId);
+      if (!eligible) return reject("Selected player is not eligible for this report.");
       if (state.players.some((p) => p.playerId === playerId)) return reject("Player is already in this report.");
       const { id, nextCounter } = takeLocalId("player");
       return accept({
         ...state,
-        players: [...state.players, { id, playerId, playerName: playerId, attendanceStatus: "PRESENT" }],
+        players: [...state.players, { id, playerId, playerName: eligible.name, attendanceStatus: "PRESENT" }],
         nextLocalId: nextCounter,
       });
     }
@@ -192,6 +207,10 @@ function reduce(
     case "reopen": {
       if (state.status !== "LOCKED") return reject("Report is not locked.");
       const target = (action.payload as SafeReportLocalState["status"] | undefined) ?? "DRAFT";
+      // R8-2 — only an editable status is a legitimate reopening target. `reopen("LOCKED")`
+      // would otherwise produce {status: "LOCKED", completedBy: null, completedAt: null}, a
+      // state that is neither a legitimate completed report nor a legitimate reopened one.
+      if (!REOPEN_TARGETS.has(target)) return reject(`"${target}" is not a valid reopening target.`);
       return accept({ ...state, status: target, completedBy: null, completedAt: null });
     }
 
@@ -225,7 +244,12 @@ function reduce(
   }
 }
 
-export function useSafeReportLifecycle(initial: SafeReportLocalState, completedBy: string, completedAt: string) {
+export function useSafeReportLifecycle(
+  initial: SafeReportLocalState,
+  completedBy: string,
+  completedAt: string,
+  eligiblePlayers: EligiblePlayer[] = [],
+) {
   const [state, setState] = useState<SafeReportLocalState>(initial);
   // React does not guarantee a setState updater function runs synchronously within the same
   // call frame (observed directly: under automatic batching, the "eager state" computation can
@@ -240,12 +264,12 @@ export function useSafeReportLifecycle(initial: SafeReportLocalState, completedB
 
   const dispatch = useCallback(
     (type: string, payload?: unknown): Promise<Result> => {
-      const outcome = reduce(stateRef.current, { type, payload }, completedBy, completedAt);
+      const outcome = reduce(stateRef.current, { type, payload }, completedBy, completedAt, eligiblePlayers);
       stateRef.current = outcome.nextState;
       setState(outcome.nextState);
       return Promise.resolve(outcome.result);
     },
-    [completedBy, completedAt],
+    [completedBy, completedAt, eligiblePlayers],
   );
 
   const actions: PostMatchReportActions = {

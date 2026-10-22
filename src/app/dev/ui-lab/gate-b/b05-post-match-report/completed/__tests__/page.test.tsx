@@ -46,10 +46,10 @@ describe("B05 completed page (fixtureVersion 2 — B2-R4/R5/R6/R7 remediation)",
     expect(replaceMock).toHaveBeenCalledWith("?tab=summary");
   });
 
-  it("shows no goal-attribution-gap or unresolved-timing banner once locked", () => {
+  it("shows no goal-discrepancy disclosure or unresolved-timing banner once locked and reconciled (R8-1 required case: locked, no discrepancy -> no warning)", () => {
     renderPage();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText(/missing scorer attribution/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/recorded during Live Reporting/i)).not.toBeInTheDocument();
   });
 
   it("Players tab shows the real shared shell, fully locked — no add/remove controls, Reopen is the only live control", () => {

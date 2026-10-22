@@ -4,6 +4,11 @@ import { useSafeReportLifecycle, type SafeReportLocalState } from "../use-safe-r
 
 const COMPLETED_BY = "Marte Johansen";
 const COMPLETED_AT = "2026-10-11T12:05:00.000Z";
+const ELIGIBLE_PLAYERS = [
+  { id: "player-noah", name: "Noah" },
+  { id: "player-magnus", name: "Magnus" },
+  { id: "player-elias", name: "Elias" },
+];
 
 function baseState(overrides: Partial<SafeReportLocalState> = {}): SafeReportLocalState {
   return {
@@ -144,13 +149,162 @@ describe("useSafeReportLifecycle (B5/R3)", () => {
   });
 
   it("rejects removing a nonexistent goal/assist/player, and rejects a duplicate addPlayer", async () => {
-    const { result } = renderHook(() => useSafeReportLifecycle(baseState(), COMPLETED_BY, COMPLETED_AT));
+    const { result } = renderHook(() => useSafeReportLifecycle(baseState(), COMPLETED_BY, COMPLETED_AT, ELIGIBLE_PLAYERS));
 
     await act(async () => {
       expect((await result.current.actions.removeGoal("no-such-goal")).success).toBe(false);
       expect((await result.current.actions.removeAssist("no-such-assist")).success).toBe(false);
       expect((await result.current.actions.removePlayer("no-such-player")).success).toBe(false);
-      expect((await result.current.actions.addPlayer({ playerId: "player-noah" })).success).toBe(false); // already present
+      const outcome = await result.current.actions.addPlayer({ playerId: "player-noah" }); // eligible, but already present
+      expect(outcome).toEqual({ success: false, error: "Player is already in this report." });
+    });
+  });
+
+  describe("R8-2 — addPlayer eligibility", () => {
+    it("rejects a player id that is not in the eligible-player source, and leaves state unchanged", async () => {
+      const { result } = renderHook(() => useSafeReportLifecycle(baseState(), COMPLETED_BY, COMPLETED_AT, ELIGIBLE_PLAYERS));
+      const before = result.current.state;
+
+      await act(async () => {
+        const outcome = await result.current.actions.addPlayer({ playerId: "player-does-not-exist" });
+        expect(outcome).toEqual({ success: false, error: "Selected player is not eligible for this report." });
+      });
+      expect(result.current.state).toEqual(before);
+    });
+
+    it("an arbitrary string that merely looks like an id is never treated as a valid Player when no eligible source is supplied", async () => {
+      const { result } = renderHook(() => useSafeReportLifecycle(baseState(), COMPLETED_BY, COMPLETED_AT)); // no eligiblePlayers arg -> defaults to []
+      await act(async () => {
+        const outcome = await result.current.actions.addPlayer({ playerId: "player-elias" });
+        expect(outcome.success).toBe(false);
+      });
+    });
+
+    it("accepts an eligible player id and resolves the real name from the eligible source, never the raw id", async () => {
+      const { result } = renderHook(() => useSafeReportLifecycle(baseState(), COMPLETED_BY, COMPLETED_AT, ELIGIBLE_PLAYERS));
+
+      await act(async () => {
+        const outcome = await result.current.actions.addPlayer({ playerId: "player-elias" });
+        expect(outcome.success).toBe(true);
+      });
+      const added = result.current.state.players.find((p) => p.playerId === "player-elias");
+      expect(added).toBeDefined();
+      expect(added!.playerName).toBe("Elias");
+      expect(added!.playerName).not.toBe("player-elias");
+      expect(added!.attendanceStatus).toBe("PRESENT");
+    });
+
+    it("locked report rejects adding even an eligible player, and consumes no local id", async () => {
+      const locked = baseState({ status: "LOCKED", completedBy: COMPLETED_BY, completedAt: COMPLETED_AT, timingReview: [] });
+      const { result } = renderHook(() => useSafeReportLifecycle(locked, COMPLETED_BY, COMPLETED_AT, ELIGIBLE_PLAYERS));
+
+      await act(async () => {
+        const outcome = await result.current.actions.addPlayer({ playerId: "player-elias" });
+        expect(outcome.success).toBe(false);
+      });
+      expect(result.current.state.nextLocalId).toBe(0);
+      expect(result.current.state.players.some((p) => p.playerId === "player-elias")).toBe(false);
+    });
+
+    it("a rejected (ineligible) addPlayer consumes no local id — the next successful call still gets the expected sequential id", async () => {
+      const { result } = renderHook(() => useSafeReportLifecycle(baseState(), COMPLETED_BY, COMPLETED_AT, ELIGIBLE_PLAYERS));
+
+      await act(async () => {
+        const rejected = await result.current.actions.addPlayer({ playerId: "player-does-not-exist" });
+        expect(rejected.success).toBe(false);
+      });
+      await act(async () => {
+        await result.current.actions.addPlayer({ playerId: "player-elias" });
+      });
+      const added = result.current.state.players.find((p) => p.playerId === "player-elias");
+      expect(added!.id).toBe("player-local-0");
+    });
+  });
+
+  describe("R8-2 — reopen target validation", () => {
+    it('reopen("LOCKED") is rejected — never produces a LOCKED report with cleared completion metadata', async () => {
+      const locked = baseState({ status: "LOCKED", completedBy: COMPLETED_BY, completedAt: COMPLETED_AT, timingReview: [] });
+      const { result } = renderHook(() => useSafeReportLifecycle(locked, COMPLETED_BY, COMPLETED_AT));
+
+      await act(async () => {
+        // @ts-expect-error — deliberately bypassing the public "DRAFT" | "REPORTED" type to
+        // exercise the reducer's own runtime guard, which is the actual protection (R8-2:
+        // "TypeScript alone is not sufficient").
+        const outcome = await result.current.actions.reopen("LOCKED");
+        expect(outcome).toEqual({ success: false, error: '"LOCKED" is not a valid reopening target.' });
+      });
+      // State must be completely unchanged — never {status: "LOCKED", completedBy: null, completedAt: null}.
+      expect(result.current.state.status).toBe("LOCKED");
+      expect(result.current.state.completedBy).toBe(COMPLETED_BY);
+      expect(result.current.state.completedAt).toBe(COMPLETED_AT);
+    });
+
+    it("reopen is rejected from DRAFT and REPORTED (not locked), leaving completion metadata unchanged", async () => {
+      for (const status of ["DRAFT", "REPORTED"] as const) {
+        const { result } = renderHook(() => useSafeReportLifecycle(baseState({ status }), COMPLETED_BY, COMPLETED_AT));
+        await act(async () => {
+          const outcome = await result.current.actions.reopen("DRAFT");
+          expect(outcome).toEqual({ success: false, error: "Report is not locked." });
+        });
+        expect(result.current.state.status).toBe(status);
+        expect(result.current.state.completedBy).toBeNull();
+        expect(result.current.state.completedAt).toBeNull();
+      }
+    });
+
+    it("legitimate reopening from LOCKED to DRAFT succeeds and clears completion metadata, preserving report records", async () => {
+      const locked = baseState({ status: "LOCKED", completedBy: COMPLETED_BY, completedAt: COMPLETED_AT, timingReview: [] });
+      const { result } = renderHook(() => useSafeReportLifecycle(locked, COMPLETED_BY, COMPLETED_AT));
+
+      await act(async () => {
+        const outcome = await result.current.actions.reopen("DRAFT");
+        expect(outcome.success).toBe(true);
+      });
+      expect(result.current.state.status).toBe("DRAFT");
+      expect(result.current.state.completedBy).toBeNull();
+      expect(result.current.state.completedAt).toBeNull();
+      // Report records (goals, players) are untouched by reopening.
+      expect(result.current.state.goals).toEqual(locked.goals);
+      expect(result.current.state.players).toEqual(locked.players);
+    });
+
+    it("legitimate reopening from LOCKED to REPORTED succeeds", async () => {
+      const locked = baseState({ status: "LOCKED", completedBy: COMPLETED_BY, completedAt: COMPLETED_AT, timingReview: [] });
+      const { result } = renderHook(() => useSafeReportLifecycle(locked, COMPLETED_BY, COMPLETED_AT));
+
+      await act(async () => {
+        const outcome = await result.current.actions.reopen("REPORTED");
+        expect(outcome.success).toBe(true);
+      });
+      expect(result.current.state.status).toBe("REPORTED");
+      expect(result.current.state.completedBy).toBeNull();
+      expect(result.current.state.completedAt).toBeNull();
+    });
+
+    it("no sequence of actions can ever produce LOCKED with missing completion metadata", async () => {
+      const { result } = renderHook(() =>
+        useSafeReportLifecycle(
+          baseState({ timingReview: [{ period: "SECOND_HALF", periodLabel: "Second half", resolvedDurationMinutes: 45, needsReview: false }] }),
+          COMPLETED_BY,
+          COMPLETED_AT,
+          ELIGIBLE_PLAYERS,
+        ),
+      );
+      await act(async () => {
+        await result.current.actions.complete();
+      });
+      expect(result.current.state.status).toBe("LOCKED");
+      expect(result.current.state.completedBy).not.toBeNull();
+      expect(result.current.state.completedAt).not.toBeNull();
+
+      await act(async () => {
+        // @ts-expect-error — same deliberate runtime-guard exercise as above.
+        await result.current.actions.reopen("LOCKED");
+      });
+      // Still LOCKED with intact metadata — the invalid call was rejected outright.
+      expect(result.current.state.status).toBe("LOCKED");
+      expect(result.current.state.completedBy).not.toBeNull();
+      expect(result.current.state.completedAt).not.toBeNull();
     });
   });
 
