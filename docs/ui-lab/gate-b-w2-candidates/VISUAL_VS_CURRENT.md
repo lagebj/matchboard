@@ -1,5 +1,37 @@
 # Gate B W2 — Visual vs. Current Production
 
+## Sixth remediation pass (R11-1, R11-2, R11-3) — Debrief tab text corrected; no other visual change
+
+R11-1 and R11-3 change no rendered output at all: R11-1 adds pure validation functions exercised
+only by tests (no UI control calls them), and R11-3 only adds two keys to `rawRecordsForHash`
+(a hashing input, never displayed).
+
+R11-2's narrative corrections DO change rendered text, but only on the Debrief tab, via the real,
+unmodified `DebriefReadOnly` component (`src/components/post-match/debrief/debrief-read-only.tsx`
+— rendered because this scenario's debrief is already `SUBMITTED`):
+
+- The "Team note" field under Team execution now reads "Strong response after both equalizers —
+  we regained the lead each time, but need to tighten our defensive transitions." instead of the
+  prior revision's "Slow start but good response after going behind twice."
+- The "What changed" field's label changes from "We changed something" to "No meaningful change"
+  (`MATCH_CHANGE_LABELS[answers.match_changes.option]`, a real production label this component has
+  always supported — never an invented string), and its description now reads "Stayed in the same
+  shape throughout and just asked the midfield to press higher after conceding." instead of
+  "Moved to a back three after conceding the second goal."
+- The "Opponent memory" field now reads "Kongsberg kept pushing after falling behind and found a
+  second equalizer with 10 minutes left — we had to respond quickly to regain the lead each time."
+  instead of "Kongsberg sat deeper once behind — harder to break down in the final 15 minutes."
+
+Two other narrative fields that the corrected text parallels — `b05Reflection.note` and
+`b05OpponentObservation.factualSummary` (`report-data.ts`) — are **not rendered anywhere in this
+UI Lab candidate's own page tree**: `post-match-summary-tab.tsx`'s `ReflectionRows` only displays
+the four rating pills (effort/cohesion/positional shape/recovery), never `.note`, and
+`opponentObservation` is not referenced by any component in the post-match-report composition at
+all (`after-match-overview.tsx`, which does render `factualSummary`, belongs to the separate
+match-detail page, not this candidate). Both corrections are real data-integrity fixes, but have
+zero visual effect on this candidate's own captures — confirmed by reading the actual rendering
+components directly, not assumed.
+
 ## Fifth remediation pass (R10-1) — one number corrected on the Combinations tab
 
 The completed candidate's Combinations tab shows "60 min this match" for the Noah+Sindre row,

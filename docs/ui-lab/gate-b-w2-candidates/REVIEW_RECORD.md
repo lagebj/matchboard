@@ -21,8 +21,8 @@ than fixed inside this UI Lab PR.
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 5) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
-| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 5) | Same remediation and supersession as B05. |
+| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 6) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
+| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 6) | Same remediation and supersession as B05. |
 
 ## Second remediation pass (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
 
@@ -69,6 +69,24 @@ departure entirely (all 7 present players play the full match, filling all 7 for
 and rebuilding the goal chronology against the real `matchSeconds` contract (moving the final
 goal's global minute 61' -> 55', now within regulation) — see `SOURCE_RECONCILIATION.md`'s own
 "fifth remediation pass" section; `fixtureVersion` bumped 4 -> 5 for both scenarios.
+`candidate_manifest.json` still correctly reads `approval: null` for both; fixtureVersion 1's
+historical approval remains preserved, unmodified, in `priorVersions`.
+
+## Sixth remediation pass (R11-1, R11-2, R11-3)
+
+A seventh independent technical review confirmed R10-1's G11 7v7 model is coherent but found
+three remaining defects: (R11-1, P1) the R10-1 pass's own negative test for an 8-player segment
+asserted it PASSED validation and mischaracterized this as proof of rejection —
+`validateSegmentSequence()` never enforced any on-field count ceiling; corrected with new
+`validateOnFieldCount()`/`validateExactParticipantCount()` functions and a genuinely-rejecting
+test. (R11-2, P2) retained narrative (`b05Reflection`, `b05OpponentObservation`,
+`b05DebriefAnswers`) contradicted the canonical score progression (Slemmestad never trails,
+neither team leads by two) and the unchanged single-segment positional history (no formation
+change occurred); corrected to agree with the record, with `match_changes.option` now the
+schema's own `NO_MEANINGFUL_CHANGE`. (R11-3, P2) `B05_MATCH_FORMAT` and `b05RotationEvents` were
+both excluded from `rawRecordsForHash` despite being authoritative; both now included under
+stable keys, with new hash-sensitivity regression tests. See `SOURCE_RECONCILIATION.md`'s own
+"sixth remediation pass" section; `fixtureVersion` bumped 5 -> 6 for both scenarios.
 `candidate_manifest.json` still correctly reads `approval: null` for both; fixtureVersion 1's
 historical approval remains preserved, unmodified, in `priorVersions`.
 
@@ -203,3 +221,56 @@ attempted yet), same as every other un-released Gate A/B wave.
 - [x] No production route, data loader, schema, or derivation-engine file modified.
 - [ ] Independent technical review of the R10-1 remediation — not yet performed.
 - [ ] Fresh owner visual approval of fixtureVersion 5 — not yet requested or recorded.
+
+## Technical review checklist — fixtureVersion 6 remediation (R11-1/R11-2/R11-3, self-assessed; independent review still needed)
+
+- [x] R11-1: `validateOnFieldCount()` (general 7v7 ceiling, maximum-only) and
+  `validateExactParticipantCount()` (B05's own scenario-specific exact-seven rule) are kept as
+  two separate functions, never one hardcoded 7-player check inside the generic structural
+  validator; the format/count is always passed in explicitly, never hardcoded inside either
+  function.
+- [x] R11-1: the previous negative test's backwards assertion (`validateSegmentSequence(tooMany)
+  .toEqual([])` presented as proof of rejection) is replaced with a test that genuinely asserts
+  rejection via `validateOnFieldCount()`; new tests cover duplicate occupancy, duplicate
+  position, a six-player segment passing the general ceiling, and that same six-player segment
+  failing B05's own exact-count rule.
+- [x] R11-1: a dedicated test confirms the validator module still imports only TYPES from
+  `combination-topology.ts` (never a value-level import of a database-adjacent module) —
+  client-bundle safety preserved.
+- [x] R11-2: every corrected narrative field was checked against the canonical chronology
+  (`b05CanonicalLiveEvents`) and the positional record (`b05PositionalSegments`) directly, not
+  assumed; no new canonical event was fabricated to justify any retained wording — the narrative
+  was corrected instead, per the mission's own explicit instruction.
+- [x] R11-2: `match_changes.option` uses the real, pre-existing `NO_MEANINGFUL_CHANGE` schema
+  value (`src/lib/post-match/debrief/v1.ts`'s own `MATCH_CHANGE_OPTIONS`) — never an invented enum
+  value.
+- [x] R11-2: genuinely subjective coaching observations not tied to an observable event (effort/
+  cohesion ratings, "winning the ball back high," "conceded twice from turnovers") were
+  identified and left untouched — the correction targets only statements that contradicted a
+  specific fact (score state, formation, event timing).
+- [x] R11-2: the submitted debrief still validates against `debriefAnswersSchema`
+  (`DebriefAnswersSection` v1); draft and completed confirmed to submit the identical debrief
+  object.
+- [x] R11-2: the actual rendering components (`debrief-read-only.tsx`, `post-match-summary-tab.tsx`,
+  `after-match-overview.tsx`) were read directly to determine which corrected fields are
+  genuinely visible on this candidate's own pages (Debrief tab's team note/match-changes/opponent
+  memory) versus which are not rendered here at all (`b05Reflection.note`,
+  `b05OpponentObservation.factualSummary`) — not assumed either way.
+- [x] R11-3: `B05_MATCH_FORMAT`/`b05RotationEvents` now participate in `rawRecordsForHash` under
+  stable keys in both lifecycle fixtures; new regression tests prove format/age-group/rotation/
+  positional-segment/player-minute changes each independently change the hash, an unchanged copy
+  reproduces the identical hash, and draft/completed reference the same source objects while
+  retaining separate fixture identities (different hashes).
+- [x] `npx tsc --noEmit`, `npx eslint`, `terminology:check`, `docs:check`, `policy:verify`, and
+  both Vitest suites (node + components, full `npm test`, run solo — not concurrently with any
+  other command) pass project-wide with no regressions (581 test files / 6422 tests node-only;
+  142 test files / 870 tests component). One failure observed during an earlier run where
+  `npm test` happened to execute concurrently with `policy:verify` — reproduced as the documented
+  shared-test-DB contention pattern, not a real regression, and confirmed absent on the clean
+  solo re-run.
+- [x] `fixtureSha256` independently recomputed from the raw records in both `fixtures.test.ts`
+  files for both candidates (not a copied literal).
+- [x] No production route, data loader, schema, or derivation-engine file modified — only this
+  fixture's own data, validators, and tests.
+- [ ] Independent technical review of the R11-1/R11-2/R11-3 remediation — not yet performed.
+- [ ] Fresh owner visual approval of fixtureVersion 6 — not yet requested or recorded.

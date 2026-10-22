@@ -274,3 +274,61 @@ overlapping segment pair, and the original R9-1-shaped minute mismatch are all r
 `fixtureVersion` bumped 4 -> 5 for both B05 candidates; new `fixtureSha256` for both. B06 remains
 unaffected — not the target of R10-1. See `SOURCE_RECONCILIATION.md`'s own "fifth remediation
 pass" section for the full record.
+
+## Sixth retrospective remediation (R11-1, R11-2, R11-3)
+
+A seventh independent technical review confirmed R10-1's own G11 7v7 match model is coherent
+(two 30-minute periods, 60 minutes regulation, seven players, one continuous participation
+interval, no substitutions, five canonical goals, 3-2 final result, valid period-relative event
+times, a 60-minute Noah/Sindre partnership) but found three remaining defects:
+
+**R11-1 (P1) — the eighth-player negative test asserted the WRONG outcome.** The R10-1 section
+above states its own negative test proved "an 8-player on-field count... rejected" — that
+description was inaccurate. The test actually asserted `validateSegmentSequence(tooMany).toEqual(
+[])`, i.e. that the 8-player segment PASSED validation, because `validateSegmentSequence()`'s
+structural checks (duplicate occupancy, duplicate position) never enforced any on-field player
+ceiling at all — an 8-player segment with 8 distinct ids and 8 distinct positions genuinely is
+structurally well-formed. Corrected: two new functions in `combination-source-data.ts` —
+`validateOnFieldCount(segments, format)` (the GENERAL 7v7 ceiling: at most `maxOnFieldPlayers`
+players, a new field on `B05_MATCH_FORMAT`; a segment with FEWER players is not itself an error,
+since a card/injury/late-withdrawal are all legitimate match situations a general rule must not
+reject) and `validateExactParticipantCount(segments, expectedCount)` (B05's own SCENARIO-SPECIFIC
+rule: this fixture declares no substitutions/withdrawals/disciplinary reductions, so its sole
+segment must contain EXACTLY 7, never fewer). The old test's backwards assertion is replaced with
+one that genuinely proves the 8-player segment is rejected by `validateOnFieldCount()`, alongside
+new negative tests for duplicate player occupancy, duplicate tactical position, and an unexplained
+six-player segment under B05's own no-exception rule — see
+`DATA_TRUTH_AND_FIXTURES.md`/`SOURCE_RECONCILIATION.md`'s own "sixth remediation pass" sections.
+
+**R11-2 (P2) — retained narrative contradicted the canonical chronology.** `b05Reflection.note`
+and `b05DebriefAnswers.team_execution.note` both said Slemmestad went "behind twice" — the
+canonical score progression (1-0, 1-1, 2-1, 2-2, 3-2) shows Slemmestad is tied twice but never
+trails. `b05OpponentObservation.factualSummary` said Kongsberg sat deeper "trailing by two in the
+second half" — neither team is ever two goals apart at any point. `b05DebriefAnswers.match_changes`
+claimed the team "moved to a back three" — the positional record (`combination-source-data.ts`'s
+single, unchanged 0-60' segment) has no formation change at all; this was a fabricated event with
+no canonical backing, exactly the class of defect R11-2's own instructions prohibit inventing a
+canonical event to "explain" rather than correcting the narrative. `opponent_memory.note` claimed
+Kongsberg "sat deeper... harder to break down in the final 15 minutes" — directly contradicted by
+Kongsberg's own second equalizer at 50' (inside that exact window). All four corrected to agree
+with the record; `match_changes.option` is now the schema's own `NO_MEANINGFUL_CHANGE` (never an
+invented enum value), with its `description` retained only as a clearly qualitative observation
+(pressing intensity) that does not claim a positional/formation transition. Genuinely subjective
+coaching observations not tied to an observable event (effort/cohesion ratings, "winning the ball
+back high," "conceded twice from turnovers") are left untouched — the correction targets factual
+contradictions only, not coaching opinion.
+
+**R11-3 (P2) — two authoritative source records were excluded from the fixture hash.**
+`B05_MATCH_FORMAT` and `b05RotationEvents` are both authoritative for this scenario (the format
+establishes age group/squad format/period count/durations; the rotation record establishes that
+no substitutions occurred) but neither participated in `rawRecordsForHash` — a future change to
+either would silently not change the fixture's own provenance hash. Corrected: both are now
+included under stable keys (`matchFormat`, `rotationEvents`) in both `draft/fixtures.ts` and
+`completed/fixtures.ts`; new hash-sensitivity regression tests prove that changing the format
+(period duration, age group), the rotation events, the positional segments, or player minutes
+each independently changes the hash, and that an unchanged copy reproduces the identical hash.
+
+`fixtureVersion` bumped 5 -> 6 for both B05 candidates (R11-1's new validators are code, not
+hashed data, but R11-3's own hash-input change alone requires the bump); new `fixtureSha256` for
+both. B06 is unaffected and untouched — not the target of any of R11-1/R11-2/R11-3. See
+`SOURCE_RECONCILIATION.md`'s own "sixth remediation pass" section for the full record.

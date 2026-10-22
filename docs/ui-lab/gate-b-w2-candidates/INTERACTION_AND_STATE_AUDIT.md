@@ -1,5 +1,16 @@
 # Gate B W2 — Interaction and State Audit
 
+## Sixth remediation pass (R11-1, R11-2, R11-3) — no interaction-model change
+
+R11-1 adds pure validation functions (`validateOnFieldCount`, `validateExactParticipantCount`)
+exercised only by tests — no UI control reaches them. R11-2 corrects static narrative/debrief
+text fields (`b05Reflection`, `b05OpponentObservation`, `b05DebriefAnswers`) rendered read-only by
+the real, unmodified `PostMatchDebrief`/`ObservationSection` components — the text displayed
+changes, but which controls exist, when they render, and what they do does not. R11-3 adds two
+keys to `rawRecordsForHash` — a hashing-input change only, invisible to any interaction. Every
+reachable control remains exactly as audited below. See `SOURCE_RECONCILIATION.md`'s own "sixth
+remediation pass" section.
+
 ## Fifth remediation pass (R10-1) — no interaction-model change
 
 R10-1 corrects the combination-evidence source data's own match-format and chronology

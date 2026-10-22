@@ -1,5 +1,93 @@
 # Gate B W2 — Data Truth and Fixtures
 
+## R11-1 — on-field player-count validation, closing a real gap in structural validation
+
+`validateSegmentSequence()`'s structural checks (duplicate occupancy, duplicate position,
+non-positive duration, chronological/non-overlapping ordering) never enforced any ceiling on how
+many players can occupy the pitch at once — an 8-player segment with 8 distinct ids and 8 distinct
+positions passes it cleanly, since none of those checks are about COUNT. R10-1's own negative test
+for exactly this case asserted the 8-player segment PASSED and mischaracterized that as proof it
+was rejected (see `BLOCKERS.md`'s "sixth retrospective remediation" section for the full history).
+
+Two new pure functions in `combination-source-data.ts` close the gap, deliberately kept separate
+because they encode two different kinds of rule:
+
+- `validateOnFieldCount(segments, format)` — the GENERAL 7v7 format ceiling (`B05_MATCH_FORMAT`'s
+  new `maxOnFieldPlayers: 7` field; the goalkeeper counts toward it). This is a MAXIMUM-only check:
+  a segment with fewer than 7 players is not itself flagged, since a card, injury, or
+  late-arriving squad are all legitimate situations a general format rule must never reject.
+- `validateExactParticipantCount(segments, expectedCount)` — B05's own SCENARIO-SPECIFIC rule.
+  This fixture's source model explicitly declares 7 eligible present participants, no
+  substitutions, no withdrawals, and no disciplinary reductions, so its one real segment must
+  contain EXACTLY 7 — never fewer. This function must never be reused as a general football rule;
+  it only applies to a scenario that has, like B05, explicitly declared it has no such exception.
+
+The current B05 segment passes both checks. New negative tests prove: an 8-player segment fails
+`validateOnFieldCount` with `TOO_MANY_ON_FIELD`; a duplicate player occupying two slots fails
+`validateSegmentSequence` with `DUPLICATE_OCCUPANCY`; two participants sharing one tactical
+position fail it with `DUPLICATE_POSITION`; a six-player segment does NOT fail the general
+ceiling (6 <= 7); that SAME six-player segment DOES fail B05's own exact-count rule with
+`UNEXPECTED_ON_FIELD_COUNT`. A final test confirms the validator module still imports only TYPES
+from `combination-topology.ts` (never its server-only `db`-adjacent value exports), preserving the
+client-bundle safety established in R8-3/R10-1.
+
+## R11-2 — match narrative corrected to agree with the canonical chronology
+
+The canonical score progression (`b05CanonicalLiveEvents`) is 1-0, 1-1, 2-1, 2-2, 3-2: Slemmestad
+leads after every one of its own goals and is tied — never behind — after each Kongsberg
+equalizer; neither team is ever two goals apart. The positional record
+(`combination-source-data.ts`'s single, unchanged 0-60' segment) has no formation change at all.
+
+Four retained narrative statements contradicted this record, not as subjective framing but as
+factual claims about events that did not happen: `b05Reflection.note`/`b05DebriefAnswers.
+team_execution.note` said Slemmestad went "behind twice"; `b05OpponentObservation.
+factualSummary` said Kongsberg sat deeper "trailing by two"; `b05DebriefAnswers.match_changes`
+said the team "moved to a back three"; `opponent_memory.note` said Kongsberg was "harder to break
+down in the final 15 minutes" (directly contradicted by their own 50' equalizer, inside that exact
+window). All four are corrected to describe what the record actually shows (two real equalizers,
+a lead regained each time, no formation change) rather than inventing a canonical event to justify
+the original wording — the one approach these corrections deliberately avoid.
+
+`match_changes.option` moves from `WE_CHANGED` to the schema's own `NO_MEANINGFUL_CHANGE`
+(`src/lib/post-match/debrief/v1.ts`'s own `MATCH_CHANGE_OPTIONS` — never an invented enum value),
+matching `b05ShapeChangeRows`'s own empty record exactly. Its `description` field is retained, but
+rewritten as a clearly qualitative observation (pressing intensity) that does not claim any
+positional/formation transition the record does not support.
+
+Genuinely subjective coaching observations not tied to a specific observable event — effort/
+cohesion/positional-shape/recovery ratings, "winning the ball back high led directly to the first
+goal," "conceded twice from turnovers in our own half" — are left untouched; none of them assert
+a fact (a score state, a formation, a substitution) that the canonical record contradicts.
+
+New tests verify the score progression itself, that Slemmestad never trails, that neither team
+ever leads by two, that `b05ShapeChangeRows` stays empty, that `match_changes.option` agrees with
+the single-segment positional history, that none of the known contradictory phrases ("back
+three," "going behind twice," "trailing by two," "sat deeper") remain anywhere in the narrative,
+that the submitted debrief still validates against `debriefAnswersSchema`, and that draft and
+completed submit the identical debrief object (one real coach-authored document, not two).
+
+## R11-3 — match format and rotation records now participate in fixture hashing
+
+`B05_MATCH_FORMAT` and `b05RotationEvents` are both authoritative for this scenario — the format
+establishes age group/squad format/period count/durations; the (explicitly empty) rotation record
+establishes that no substitutions occurred — but neither was included in `rawRecordsForHash` in
+either `draft/fixtures.ts` or `completed/fixtures.ts`. A future change to either would silently
+not change the fixture's own provenance hash, exactly the class of gap that let R9-1's own
+unverified positional segment go unnoticed for a full remediation pass.
+
+Corrected: both fixtures now include `matchFormat: B05_MATCH_FORMAT` and
+`rotationEvents: b05RotationEvents` under those stable keys. New regression tests prove that
+changing the format (period duration, age group), the rotation events, the positional segments, or
+player minutes each independently changes the recomputed hash, and that an unchanged copy of the
+raw records reproduces the identical hash — determinism, not just sensitivity, is tested. Draft
+and completed are confirmed to reference the exact same `matchFormat`/`rotationEvents` objects
+(one coherent match history) while still retaining separate fixture identities (different
+hashes, since report status/completedBy/etc. differ between the two lifecycle states).
+
+`fixtureVersion` bumped 5 -> 6 for both B05 candidates as a direct consequence of this hash-input
+change; new `fixtureSha256` for both. See `SOURCE_RECONCILIATION.md`'s own "sixth remediation
+pass" section for the full record.
+
 ## B5/R1 — the real production completion gate does NOT require goal-attribution reconciliation
 
 Stated explicitly, because an earlier draft of this document's own framing could be read the
@@ -128,7 +216,7 @@ draft report whose debrief is still `DRAFT` would be the moment *before* this sc
 function) confirms the fixture's answers are genuinely complete — covered by test, not asserted
 and left unverified.
 
-## Combination evidence — real shape, real derivation, real filter, real participation (R8-3, R9-1, R10-1)
+## Combination evidence — real shape, real derivation, real filter, real participation (R8-3, R9-1, R10-1, R11-1, R11-3)
 
 `b05CombinationEvidence` (`shared/report-data.ts`) is a literal, but it is the real, unmodified
 `deriveCombinationsFromSegments()`'s (`src/lib/evidence/combination-topology.ts`) own verified

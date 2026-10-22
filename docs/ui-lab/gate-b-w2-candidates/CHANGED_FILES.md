@@ -218,3 +218,38 @@ B06 is untouched — not the target of R9-1. No production code is touched by th
   candidate_manifest}.{md,json}` — R10-1 remediation sections added.
 
 B06 is untouched — not the target of R10-1. No production code is touched by this pass.
+
+## Sixth remediation pass (R11-1, R11-2, R11-3)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts` — `B05_MATCH_FORMAT`
+  gains a `maxOnFieldPlayers: 7` field (R11-1); corrected `b05Reflection.note`,
+  `b05OpponentObservation.factualSummary`, `b05DebriefAnswers.team_execution.note`,
+  `b05DebriefAnswers.match_changes` (now `NO_MEANINGFUL_CHANGE`, never `WE_CHANGED`), and
+  `b05DebriefAnswers.opponent_memory.note` to agree with the canonical chronology/positional
+  history (R11-2).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/combination-source-data.ts` — added
+  `validateOnFieldCount()` (general 7v7 ceiling) and `validateExactParticipantCount()` (B05's own
+  scenario-specific exact-seven rule) (R11-1).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/{draft,completed}/fixtures.ts` — added
+  `matchFormat: B05_MATCH_FORMAT` and `rotationEvents: b05RotationEvents` to `rawRecordsForHash`
+  (R11-3); `fixtureVersion` bumped 5 -> 6; new `fixtureSha256` for both.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/combination-evidence.test.ts`
+  — replaced the backwards-asserting 8-player negative test with one that genuinely proves
+  rejection via `validateOnFieldCount()`; added duplicate-occupancy/duplicate-position negative
+  tests, a general-ceiling six-player positive test, a B05-specific six-player negative test, a
+  client-bundle-safety import-boundary test (all R11-1); added a new "R11-2 — match narrative vs.
+  canonical history" suite (score progression, never-trails, never-leads-by-two, no
+  shape-change-claimed, match_changes-agrees-with-history, no-contradictory-phrases,
+  debrief-schema-valid, draft/completed-same-debrief); added an R11-3 draft/completed
+  same-matchFormat/rotationEvents test.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/draft/__tests__/fixtures.test.ts` — added
+  determinism, no-self-reference, and hash-sensitivity regression tests (format/age-group/
+  rotation-events/positional-segments/player-minutes each independently change the hash; an
+  unchanged copy reproduces the same hash; draft and completed retain separate hashes) (R11-3).
+- `docs/ui-lab/gate-b-w2-candidates/{BLOCKERS,SOURCE_RECONCILIATION,DATA_TRUTH_AND_FIXTURES,
+  CHANGED_FILES,VISUAL_VS_CURRENT,INTERACTION_AND_STATE_AUDIT,REVIEW_RECORD,
+  candidate_manifest}.{md,json}` — R11-1/R11-2/R11-3 remediation sections added.
+
+B06 is untouched — not the target of R11-1/R11-2/R11-3. No production code is touched by this
+pass (`debrief-read-only.tsx`'s own `MATCH_CHANGE_LABELS` mapping and `DebriefReadOnly` rendering
+are real, unmodified, pre-existing production code — only this fixture's own data changed).
