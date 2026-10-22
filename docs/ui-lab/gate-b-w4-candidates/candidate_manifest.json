@@ -1,0 +1,60 @@
+{
+  "programmeRevision": "0.169.3",
+  "baseCommitSha": "68eb32a69d3c73c316819d2865d99c2312d5b0f7",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate B W4 (B07 Assistant Coach longitudinal match context, historical pattern vs. trivial hat-trick fact). Both scenarios start CANDIDATE, approval null, official_golden_status NOT_READY. See docs/ui-lab/gate-b-w4-candidates/ for the full review record.",
+  "candidates": [
+    {
+      "scenarioId": "B07-HISTORICAL-PATTERN",
+      "status": "CANDIDATE",
+      "official_golden_status": "NOT_READY",
+      "fixtureId": "gate-b-w4-b07-historical-pattern",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/ai/completed-match-advisor-panel.tsx",
+        "src/lib/ai/presentation/completed-match-advisor.ts",
+        "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/source-inspector.tsx",
+        "src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+      ],
+      "lifecycle": "done",
+      "assistantCoachState": "fresh",
+      "requirementRefs": ["XR-S01", "XR-V02"],
+      "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B07",
+      "dataContractRef": "docs/adr/0152-coach-learning-loop.md; docs/adr/0157-contextual-coach-workspace-convergence.md; docs/adr/0159-visual-authority-gate-and-deliberate-pr-review-deployments.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real, unmodified CompletedMatchAdvisorPanel fed fixture data directly, the same component production's AfterMatchOverview mounts. First Gate B scenario to pair its evidence-source footer with Gate A's A04 SourceInspector. See VISUAL_VS_CURRENT.md and SOURCE_RECONCILIATION.md.",
+      "knownGaps": [
+        "W4-R1: this match's own cited goal-against event was missing from the source-record list in the first draft (only the two prior matches' events were included) — corrected before any review ran against it; see SOURCE_RECONCILIATION.md.",
+        "W4-R2: the primary insight's confidence hedging was tightened after a dedicated test was written first (TDD) to require it explicitly.",
+        "No Event-origin equivalent — real production constraint (post_match_review's cross-match sections are League-only, issue #696), not a choice this wave made.",
+        "No degraded (reviewing/unavailable) AI state captured for this scenario — deliberate scope decision, not required by the register row; see INTERACTION_AND_STATE_AUDIT.md.",
+        "Real CI capture evidence not yet committed as of this commit — capture-attestation.json here is a placeholder; the real attestation lands in a documentation-only follow-up once this PR's ui-lab-visual-review.yml run completes."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "B07-TRIVIAL-FACT",
+      "status": "CANDIDATE",
+      "official_golden_status": "NOT_READY",
+      "fixtureId": "gate-b-w4-b07-trivial-fact",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/ai/completed-match-advisor-panel.tsx",
+        "src/lib/ai/presentation/completed-match-advisor.ts",
+        "src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/trivial-fact/page.tsx",
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+      ],
+      "lifecycle": "done",
+      "assistantCoachState": "fresh",
+      "requirementRefs": ["XR-S01", "XR-V02"],
+      "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B07",
+      "dataContractRef": "docs/adr/0152-coach-learning-loop.md; docs/adr/0157-contextual-coach-workspace-convergence.md; docs/adr/0159-visual-authority-gate-and-deliberate-pr-review-deployments.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real, unmodified CompletedMatchAdvisorPanel fed a fixture whose insights is empty; the real component's own insight-list render gate (not a new empty-state component) is what keeps the hat-trick out of the Advisor section. See VISUAL_VS_CURRENT.md.",
+      "knownGaps": [
+        "The insufficient-evidence summary text (\"No historical pattern identified from the available evidence.\") is this fixture's own plausible AI-review content, not literal copy pulled from an existing shipped screen — disclosed in CURRENT_STATE_AUDIT.md item 6.",
+        "Real CI capture evidence not yet committed as of this commit — capture-attestation.json here is a placeholder; the real attestation lands in a documentation-only follow-up once this PR's ui-lab-visual-review.yml run completes."
+      ],
+      "approval": null
+    }
+  ]
+}

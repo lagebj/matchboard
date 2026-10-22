@@ -545,3 +545,158 @@ export function b06EventPlanningPitchAssignments(
   const playerInputs = participants.map((p) => ({ id: p.participantId, firstName: p.displayName, lastName: null }));
   return buildPlanningPitchAssignments(assignmentInputs, playerInputs, null, null);
 }
+
+// ---------------------------------------------------------------------------
+// B07 — Assistant Coach longitudinal match context (historical pattern vs. trivial fact)
+// ---------------------------------------------------------------------------
+
+/**
+ * Three genuinely distinct League matches, same team, same recurring debrief theme recorded
+ * twice before today's own debrief raises it a third time — the real shape ADR-0152's
+ * `recentTeamPatterns` mechanism and `computeRecurringThemePhaseSummaries()` are built to surface
+ * (a theme only counts as recurring once it spans more than one match). Unlike B04's combination
+ * evidence (one canonical event type, two matches), this is deliberately two distinct evidence
+ * categories: the timed canonical goal-against event in each match ("Match data") and the coach's
+ * own debrief note explaining it ("Coach observation") — never collapsed into a single claim that
+ * the goal itself proves the cause; the causal account is always attributed to the coaching
+ * staff's own recorded words, not derived by this fixture or asserted as objective fact.
+ */
+export const B07_PRIOR1_MATCH_ID = "match-gate-b07-prior-1";
+export const B07_PRIOR1_KICKOFF_AT = new Date("2026-09-20T10:00:00.000Z");
+export const B07_PRIOR1_OPPONENT_NAME = "Fjellhug IF";
+export const B07_PRIOR1_GOAL_AGAINST_EVENT_ID = "evt-b07-prior1-goal-against-1";
+export const B07_PRIOR1_DEBRIEF_NOTE =
+  "We dropped too deep after losing a throw-in near our own box — Bærum walked into the space behind our right-back twice before we reset.";
+
+export const B07_PRIOR2_MATCH_ID = "match-gate-b07-prior-2";
+export const B07_PRIOR2_KICKOFF_AT = new Date("2026-10-08T10:00:00.000Z");
+export const B07_PRIOR2_OPPONENT_NAME = "Åssiden FK";
+export const B07_PRIOR2_GOAL_AGAINST_EVENT_ID = "evt-b07-prior2-goal-against-1";
+export const B07_PRIOR2_DEBRIEF_NOTE =
+  "Same pattern again — lost shape at the back after conceding the throw-in on the right side. Second time this has cost us a goal.";
+
+/** The "current" completed match for B07-A (historical pattern). Within ADR-0152's 42-day/
+ * 8-match `recentTeamPatterns` window of both prior matches. */
+export const B07_HISTORICAL_MATCH_ID = "match-gate-b07-historical-pattern";
+export const B07_HISTORICAL_KICKOFF_AT = new Date("2026-10-25T10:00:00.000Z");
+/** Observation/debrief time — after the final whistle, never kickoff itself (same B3-R4 rule
+ * every prior Gate B wave has followed). */
+export const B07_HISTORICAL_REFERENCE_AT = new Date("2026-10-25T11:45:00.000Z");
+export const B07_HISTORICAL_OPPONENT_NAME = "Bærum SK";
+export const B07_HISTORICAL_GOAL_AGAINST_EVENT_ID = "evt-b07h-goal-against-1";
+export const B07_HISTORICAL_DEBRIEF_NOTE =
+  "Third time this is coming up in five weeks — conceded again after a throw-in was lost down the right. Worth dedicated work before next week, not just a one-off.";
+
+export const b07HistoricalMatchIdentity: MatchPresentation = buildMatchPresentation({
+  id: B07_HISTORICAL_MATCH_ID,
+  href: null,
+  teamName: MATCH_B_TEAM_NAME,
+  opponentName: B07_HISTORICAL_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B07_HISTORICAL_KICKOFF_AT,
+  lifecycleStatus: "done",
+  ownGoals: 3,
+  opponentGoals: 2,
+  outcome: "WON",
+});
+
+export const b07HistoricalTimeline: MatchTimelineItem[] = [
+  { id: "evt-b07h-goal-1", kind: "GOAL_FOR", minuteLabel: "14'", playerName: "Noah", assistPlayerName: "Sindre", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: B07_HISTORICAL_GOAL_AGAINST_EVENT_ID, kind: "GOAL_AGAINST", minuteLabel: "23'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-goal-2", kind: "GOAL_FOR", minuteLabel: "38'", playerName: "Kasper", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-goal-against-2", kind: "GOAL_AGAINST", minuteLabel: "66'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-goal-3", kind: "GOAL_FOR", minuteLabel: "74'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-end", kind: "MATCH_END", minuteLabel: "80'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+];
+
+/** The inspectable source chain behind B07-A's primary insight — two distinct prior matches'
+ * debrief notes, this match's own debrief note (a third, independent occurrence), and the three
+ * matches' own timed goal-against events as the deterministic anchor each debrief note is talking
+ * about. Five records, three distinct matches, two distinct source categories. */
+export const b07HistoricalPatternSourceRecords: SourceRecord[] = [
+  {
+    sourceId: `debrief-${B07_PRIOR1_MATCH_ID}`,
+    sourceClass: "SYNTHETIC_LABELED",
+    provenance: "Locked post-match debrief note",
+    scope: `${MATCH_B_TEAM_NAME} vs ${B07_PRIOR1_OPPONENT_NAME}, 20 Sep 2026`,
+    fieldLabel: "Coach debrief note",
+    fieldValue: B07_PRIOR1_DEBRIEF_NOTE,
+    coverage: "COMPLETE",
+  },
+  {
+    sourceId: B07_PRIOR1_GOAL_AGAINST_EVENT_ID,
+    sourceClass: "SYNTHETIC_LABELED",
+    provenance: "Canonical live match event",
+    scope: `${MATCH_B_TEAM_NAME} vs ${B07_PRIOR1_OPPONENT_NAME}, 20 Sep 2026`,
+    fieldLabel: "Goal against",
+    fieldValue: `61' · ${B07_PRIOR1_GOAL_AGAINST_EVENT_ID}`,
+    coverage: "COMPLETE",
+  },
+  {
+    sourceId: `debrief-${B07_PRIOR2_MATCH_ID}`,
+    sourceClass: "SYNTHETIC_LABELED",
+    provenance: "Locked post-match debrief note",
+    scope: `${MATCH_B_TEAM_NAME} vs ${B07_PRIOR2_OPPONENT_NAME}, 8 Oct 2026`,
+    fieldLabel: "Coach debrief note",
+    fieldValue: B07_PRIOR2_DEBRIEF_NOTE,
+    coverage: "COMPLETE",
+  },
+  {
+    sourceId: B07_PRIOR2_GOAL_AGAINST_EVENT_ID,
+    sourceClass: "SYNTHETIC_LABELED",
+    provenance: "Canonical live match event",
+    scope: `${MATCH_B_TEAM_NAME} vs ${B07_PRIOR2_OPPONENT_NAME}, 8 Oct 2026`,
+    fieldLabel: "Goal against",
+    fieldValue: `54' · ${B07_PRIOR2_GOAL_AGAINST_EVENT_ID}`,
+    coverage: "COMPLETE",
+  },
+  {
+    sourceId: B07_HISTORICAL_GOAL_AGAINST_EVENT_ID,
+    sourceClass: "SYNTHETIC_LABELED",
+    provenance: "Canonical live match event",
+    scope: `${MATCH_B_TEAM_NAME} vs ${B07_HISTORICAL_OPPONENT_NAME}, 25 Oct 2026`,
+    fieldLabel: "Goal against",
+    fieldValue: `23' · ${B07_HISTORICAL_GOAL_AGAINST_EVENT_ID}`,
+    coverage: "COMPLETE",
+  },
+  {
+    sourceId: `debrief-${B07_HISTORICAL_MATCH_ID}`,
+    sourceClass: "SYNTHETIC_LABELED",
+    provenance: "This match's own debrief note (recorded today)",
+    scope: `${MATCH_B_TEAM_NAME} vs ${B07_HISTORICAL_OPPONENT_NAME}, 25 Oct 2026`,
+    fieldLabel: "Coach debrief note",
+    fieldValue: B07_HISTORICAL_DEBRIEF_NOTE,
+    coverage: "COMPLETE",
+  },
+];
+
+// --- B07-B: trivial single-match fact (hat-trick), standalone, unrelated chronology ---
+
+export const B07_TRIVIAL_MATCH_ID = "match-gate-b07-trivial-fact";
+export const B07_TRIVIAL_KICKOFF_AT = new Date("2026-10-26T10:00:00.000Z");
+export const B07_TRIVIAL_OPPONENT_NAME = "Spikkestad IL";
+
+export const b07TrivialMatchIdentity: MatchPresentation = buildMatchPresentation({
+  id: B07_TRIVIAL_MATCH_ID,
+  href: null,
+  teamName: MATCH_B_TEAM_NAME,
+  opponentName: B07_TRIVIAL_OPPONENT_NAME,
+  isHome: true,
+  kickoffAt: B07_TRIVIAL_KICKOFF_AT,
+  lifecycleStatus: "done",
+  ownGoals: 4,
+  opponentGoals: 1,
+  outcome: "WON",
+});
+
+/** Noah's hat-trick (3 individually logged goals) — a clear, correctly-reported factual
+ * contribution that B07-B's Assistant Coach layer must never repackage as a longitudinal
+ * "discovery." */
+export const b07TrivialTimeline: MatchTimelineItem[] = [
+  { id: "evt-b07t-goal-1", kind: "GOAL_FOR", minuteLabel: "10'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-goal-2", kind: "GOAL_FOR", minuteLabel: "28'", playerName: "Sindre", assistPlayerName: "Tobias", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-goal-against-1", kind: "GOAL_AGAINST", minuteLabel: "35'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-goal-3", kind: "GOAL_FOR", minuteLabel: "52'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-goal-4", kind: "GOAL_FOR", minuteLabel: "69'", playerName: "Noah", assistPlayerName: "Kasper", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-end", kind: "MATCH_END", minuteLabel: "80'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+];
