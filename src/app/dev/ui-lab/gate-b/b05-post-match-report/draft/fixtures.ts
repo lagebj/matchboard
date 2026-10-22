@@ -27,12 +27,23 @@ import { b05PositionalSegments, b05GoalAttributionEvents } from "../shared/combi
  * duration); every one of the seven existing minute values is now exactly explained, with none
  * changed (see `combination-source-data.ts`'s own doc comment for the full participation model).
  * `minutesTogether` for the displayed Noah+Sindre row corrected 80 -> 83 as a direct consequence.
+ *
+ * fixtureVersion 5 (R10-1) — the R9-1 pass's own "90-minute match" and its substitution/early
+ * departure were themselves unsupported: no NFF rule or match-specific exception justified 90
+ * minutes, and the substitution/departure were INFERRED from minute totals rather than backed by
+ * any real event. Corrected: the real NFF Akershus G11 7v7 format is 2x30 minutes (60 total,
+ * `report-data.ts`'s own `B05_MATCH_FORMAT`); all 7 present players now start and play the full
+ * match (no substitutions, CF — previously vacant — now filled); the canonical goal chronology is
+ * rebuilt with real period-relative `matchSeconds` (production's own documented contract — see
+ * `b05CanonicalLiveEvents`'s doc comment), moving the final goal off the now-out-of-regulation
+ * 61' to 55'. `minutesTogether` for the displayed row corrected 83 -> 60 as a direct consequence
+ * (Noah and Sindre are now both present the entire match, not Noah's old inferred departure time).
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B05",
   fixtureId: "gate-b-w2-b05-draft",
-  fixtureVersion: 4,
-  fixtureSha256: "0af7187d0aeb4fcfbbe9e711c63fe3e3b907db3c3ed236944f499ca5cb0e400f",
+  fixtureVersion: 5,
+  fixtureSha256: "fa3266944a2d1ebe86dfa981a779d71040baeb500998d5cfdfa70eedc8befac3",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B05_DRAFT_REFERENCE_AT.toISOString(),
   viewerTimeZone: "Europe/Oslo",

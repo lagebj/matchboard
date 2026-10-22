@@ -35,6 +35,43 @@ import { MATCH_B_TEAM_NAME, B05_MATCH_ID, B05_REPORT_ID, B05_OPPONENT_NAME } fro
 export const B05_COMPLETED_AT = new Date("2026-10-11T12:05:00.000Z").toISOString();
 export const B05_COMPLETED_BY = "Marte Johansen";
 
+/**
+ * R10-1 — the authoritative match format, established BEFORE any participation/timing value was
+ * chosen (not reverse-engineered from existing numbers). Slemmestad Rød's squad plays in NFF
+ * Akershus's G11 age class, which plays 7-a-side football in 2x30-minute halves (60 minutes
+ * regulation) — see NFF's own published rules:
+ * https://www.fotball.no/kretser/akershus/konkurranse-aktivitet/lagenes-abc/ and
+ * https://www.fotball.no/lov-og-reglement/spilleregler/spilleregler-og-retningslinjer-barnefotball-6-12ar/.
+ * No match-specific exception exists anywhere else in this fixture bundle (a synthetic
+ * `resolvedDurationMinutes: 45` timing-review value is NOT independent evidence of a 90-minute
+ * match — see `BLOCKERS.md`'s R10-1 record for why the earlier R9-1 pass's own 90-minute
+ * assumption was wrong), so the default NFF G11 format applies without modification.
+ */
+export const B05_MATCH_FORMAT = {
+  ageGroup: "G11",
+  squadFormat: "7v7",
+  numberOfPeriods: 2,
+  periodDurationMinutes: 30,
+  breakDurationMinutes: 10,
+  regulationDurationMinutes: 60,
+} as const;
+
+/**
+ * R10-1 — the real production conversion from a human-facing GLOBAL match minute to the
+ * period-relative `{period, matchSeconds}` encoding `LiveMatchEvent` actually stores (see
+ * `src/lib/live-match/period-config.ts`'s own documented contract). Exported so
+ * `b05CanonicalLiveEvents`'s own hand-written `period`/`matchSeconds` values can be independently
+ * cross-checked against their own `minuteLabel` in a test, rather than trusted by construction.
+ */
+export function globalMinuteToPeriodRelative(
+  globalMinute: number,
+  format: { numberOfPeriods: number; periodDurationMinutes: number },
+): { period: number; matchSeconds: number } {
+  const periodIndex = Math.min(Math.floor(globalMinute / format.periodDurationMinutes), format.numberOfPeriods - 1);
+  const periodRelativeMinutes = globalMinute - periodIndex * format.periodDurationMinutes;
+  return { period: periodIndex + 1, matchSeconds: periodRelativeMinutes * 60 };
+}
+
 export const b05AttendanceFacts: MatchAttendanceFact[] = [
   { attendanceStatus: "PRESENT", playerName: "Aksel" },
   { attendanceStatus: "PRESENT", playerName: "Tobias" },
@@ -55,17 +92,35 @@ export const b05AttendanceSummary = summarizeMatchAttendance(b05AttendanceFacts)
  * production linkage (`buildMatchTimelineFromLiveEvents()`, not by array index or proximity).
  * Fixed for both draft and completed — a live event stream does not change when a coach edits
  * their own report afterwards.
+ *
+ * R10-1: `matchSeconds` is PERIOD-RELATIVE in real production (`src/lib/live-match/
+ * period-config.ts`'s own documented contract — each period's clock restarts at 0; this is NOT
+ * global elapsed-since-kickoff), and `period` is `B05_MATCH_FORMAT.numberOfPeriods`'s own 1/2
+ * index. The R9-1-era event list mixed both interpretations inconsistently across different
+ * events (treating `matchSeconds` as a global minute count for the 12'/20'/34' events, but as
+ * period-relative — assuming an unstated 40-minute first half — for the 50'/61' events), and
+ * additionally placed the 34' goal in `period: 1` even though no half this short could contain a
+ * minute-34 event, and the final goal at a global minute (61') that exceeds this match's own real
+ * 60-minute regulation duration entirely. All five events are corrected below: `minuteLabel`
+ * remains the real-world GLOBAL match minute for coach-facing display (exactly as production's
+ * own minute-label resolution produces); `period`/`matchSeconds` are the real, period-relative
+ * machine encoding. The final goal's own global minute moved 61' -> 55' (comfortably inside
+ * regulation); every other event's global minute is unchanged — this is the minimal correction,
+ * not a new chronology.
  */
 export const b05CanonicalLiveEvents: MatchCanonicalLiveEventFact[] = [
-  { id: "live-gb5-goal-1", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-1", correctsEventId: null, minuteLabel: "12'", period: 1, matchSeconds: 720 },
-  { id: "live-gb5-scorer-1", eventType: "SCORER_SET", playerName: "Noah", clientEventId: null, correctsEventId: "client-gb5-goal-1", minuteLabel: null, period: 1, matchSeconds: 720 },
-  { id: "live-gb5-goal-against-1", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-1", correctsEventId: null, minuteLabel: "20'", period: 1, matchSeconds: 1200 },
-  { id: "live-gb5-goal-2", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-2", correctsEventId: null, minuteLabel: "34'", period: 1, matchSeconds: 2040 },
-  { id: "live-gb5-scorer-2", eventType: "SCORER_SET", playerName: "Sindre", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 1, matchSeconds: 2040 },
-  { id: "live-gb5-assist-2", eventType: "ASSIST_SET", playerName: "Vetle", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 1, matchSeconds: 2040 },
-  { id: "live-gb5-goal-against-2", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-2", correctsEventId: null, minuteLabel: "50'", period: 2, matchSeconds: 600 },
-  { id: "live-gb5-goal-3", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-3", correctsEventId: null, minuteLabel: "61'", period: 2, matchSeconds: 1260 },
-  { id: "live-gb5-scorer-3", eventType: "SCORER_SET", playerName: "Kasper", clientEventId: null, correctsEventId: "client-gb5-goal-3", minuteLabel: null, period: 2, matchSeconds: 1260 },
+  { id: "live-gb5-goal-1", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-1", correctsEventId: null, minuteLabel: "12'", period: 1, matchSeconds: 12 * 60 },
+  { id: "live-gb5-scorer-1", eventType: "SCORER_SET", playerName: "Noah", clientEventId: null, correctsEventId: "client-gb5-goal-1", minuteLabel: null, period: 1, matchSeconds: 12 * 60 },
+  { id: "live-gb5-goal-against-1", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-1", correctsEventId: null, minuteLabel: "20'", period: 1, matchSeconds: 20 * 60 },
+  // 34' global = 4' into the second half (34 - B05_MATCH_FORMAT.periodDurationMinutes) — period 2, not period 1.
+  { id: "live-gb5-goal-2", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-2", correctsEventId: null, minuteLabel: "34'", period: 2, matchSeconds: 4 * 60 },
+  { id: "live-gb5-scorer-2", eventType: "SCORER_SET", playerName: "Sindre", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 2, matchSeconds: 4 * 60 },
+  { id: "live-gb5-assist-2", eventType: "ASSIST_SET", playerName: "Vetle", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 2, matchSeconds: 4 * 60 },
+  // 50' global = 20' into the second half.
+  { id: "live-gb5-goal-against-2", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-2", correctsEventId: null, minuteLabel: "50'", period: 2, matchSeconds: 20 * 60 },
+  // 55' global = 25' into the second half — moved from the old, out-of-regulation "61'".
+  { id: "live-gb5-goal-3", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-3", correctsEventId: null, minuteLabel: "55'", period: 2, matchSeconds: 25 * 60 },
+  { id: "live-gb5-scorer-3", eventType: "SCORER_SET", playerName: "Kasper", clientEventId: null, correctsEventId: "client-gb5-goal-3", minuteLabel: null, period: 2, matchSeconds: 25 * 60 },
 ];
 
 export const B05_LIVE_GOALS_RECORDED = b05CanonicalLiveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
@@ -80,7 +135,8 @@ export const B05_LIVE_GOALS_RECORDED = b05CanonicalLiveEvents.filter((e) => e.ev
 export function b05Goals(variant: "draft" | "completed"): MatchGoalFact[] {
   const base: MatchGoalFact[] = [
     { id: "goal-gb5-1", participantKey: "player-gb5-noah", playerName: "Noah", minute: 12, type: "NORMAL" },
-    { id: "goal-gb5-3", participantKey: "player-gb5-kasper", playerName: "Kasper", minute: 61, type: "NORMAL" },
+    // R10-1: 55', not the old out-of-regulation 61' — matches the corrected canonical event.
+    { id: "goal-gb5-3", participantKey: "player-gb5-kasper", playerName: "Kasper", minute: 55, type: "NORMAL" },
   ];
   if (variant === "draft") return base;
   return [...base, { id: "goal-gb5-2", participantKey: "player-gb5-sindre", playerName: "Sindre", minute: 34, type: "NORMAL" }];
@@ -116,29 +172,36 @@ export function b05GoalAttributionGap(variant: "draft" | "completed"): GoalAttri
   return { liveGoalsRecorded: B05_LIVE_GOALS_RECORDED, attributedGoals, hasGap: attributedGoals < B05_LIVE_GOALS_RECORDED };
 }
 
+/** R10-1: `resolvedDurationMinutes` is a PER-PERIOD duration (matches `B05_MATCH_FORMAT
+ * .periodDurationMinutes`, 30 — not the old 2x45-era 42/45) — the real second half resolved to
+ * exactly 30 once confirmed; the draft's own not-yet-reviewed estimate (28) is a plausible
+ * slightly-short running-clock reading before confirmation, still comfortably covering every
+ * period-2 canonical event's own `matchSeconds` (max 25', well under 28'). */
 export function b05TimingReview(variant: "draft" | "completed"): PostMatchReportTimingReviewRow[] {
   return [
     {
       period: "SECOND_HALF",
       periodLabel: "Second half",
-      resolvedDurationMinutes: variant === "draft" ? 42 : 45,
+      resolvedDurationMinutes: variant === "draft" ? 28 : B05_MATCH_FORMAT.periodDurationMinutes,
       needsReview: variant === "draft",
     },
   ];
 }
 
-/** R9-1 — the authoritative participation record. `shared/combination-source-data.ts`'s
- * positional segments are now built to agree with these exact totals (verified directly in
- * `shared/__tests__/combination-evidence.test.ts`'s own participation-consistency suite) — these
- * values are not derived from the segments; the segments are derived to explain these values. */
+/** R10-1: every one of the 7 present players starts and plays the full 60-minute match — the
+ * simplest coherent participation model for this scenario (no substitutions, every real NFF G11
+ * 7v7 formation slot filled by a real present player, including CF — previously vacant). This
+ * replaces the R9-1 pass's own substitution/early-departure model, which was INFERRED from these
+ * numbers rather than backed by any real substitution event — the exact defect R10-1 corrects.
+ * See `combination-source-data.ts`'s own doc comment for the full positional assignment. */
 export const b05MinutesByParticipant = new Map<string, number>([
-  ["player-gb5-aksel", 90],
-  ["player-gb5-tobias", 90],
-  ["player-gb5-sindre", 90],
-  ["player-gb5-noah", 83],
-  ["player-gb5-vetle", 90],
-  ["player-gb5-kasper", 68],
-  ["player-gb5-elias", 22],
+  ["player-gb5-aksel", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-tobias", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-sindre", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-noah", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-vetle", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-kasper", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-elias", B05_MATCH_FORMAT.regulationDurationMinutes],
 ]);
 
 export const b05ObservationCountByParticipant = new Map<string, number>([["player-gb5-elias", 1]]);
@@ -165,6 +228,8 @@ export const b05Reflection = {
   note: "Slow start but a good response after going behind twice.",
 };
 
+/** R10-1: the note no longer says "after coming on" — Elias starts and plays the full match now
+ * (see `b05MinutesByParticipant`'s own doc comment), so that framing is no longer accurate. */
 export const b05FootballObservations = [
   {
     id: "obs-gb5-1",
@@ -172,7 +237,7 @@ export const b05FootballObservations = [
     playerName: "Elias",
     observationCode: "WORK_RATE_EFFECTIVE",
     polarity: "POSITIVE",
-    note: "Energetic every time he was on the ball after coming on.",
+    note: "Energetic every time he was on the ball.",
   },
 ];
 
@@ -201,14 +266,15 @@ export const b05FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCano
  * literal. `CombinationEvidenceRow` is imported as a type only, which is erased at compile time
  * and carries no such risk.
  *
- * R9-1: `minutesTogether` corrected 80 -> 83. The R8-3 version of `combination-source-data.ts`
- * modeled one continuous 0-80' segment contradicting `b05MinutesByParticipant` below (Kasper 68,
- * Elias 22, Noah 83 — none of which fit an 80-minute uniform segment). The corrected source is
- * three real segments over a genuine 90-minute match (see that module's own doc comment); Noah
- * and Sindre share the pitch for 0-83' (Noah's own real departure time) before Noah leaves
- * without replacement, so 83 — not 80 — is their real shared duration. Every goal/assist event
- * (12'/20'/34'/50'/61') falls before either substitution, so goal/contribution counts are
- * unchanged by this correction.
+ * R10-1: `minutesTogether` corrected 83 -> 60. The R9-1 pass's own 83-minute value depended on
+ * an inferred, unsupported early departure for Noah (no corresponding recorded substitution/
+ * withdrawal event existed anywhere in the fixture) inside an invented 90-minute match — both
+ * now corrected (see `combination-source-data.ts`'s own doc comment and `b05MinutesByParticipant`
+ * above). Every one of the 7 present players, including Noah and Sindre, is on the pitch for the
+ * entire real 60-minute match, so 60 is their real, fully-supported shared duration — not an
+ * assumption carried over from the previous revision. Every goal/assist event (12'/20'/34'/50'/
+ * 55' — see `b05CanonicalLiveEvents`'s own R10-1 correction) falls within the match, with both
+ * players present throughout, so goal/contribution counts are unchanged by this correction.
  *
  * `opponentDiversity` is always exactly `1` for a single match, and `confidence` can never reach
  * `ESTABLISHED` from one match alone (`deriveConfidence` requires `matchCount >= 3`, hardcoded to
@@ -227,7 +293,7 @@ export const b05CombinationEvidence: CombinationEvidenceRow[] = [
     subtype: "HORIZONTAL",
     playerIds: ["player-gb5-noah", "player-gb5-sindre"],
     positions: ["LCM", "RCM"],
-    minutesTogether: 83,
+    minutesTogether: B05_MATCH_FORMAT.regulationDurationMinutes,
     goalsForWhilePresent: 3,
     goalsAgainstWhilePresent: 2,
     directGoalContributions: 2,
