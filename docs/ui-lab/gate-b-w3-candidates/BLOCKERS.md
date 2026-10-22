@@ -155,3 +155,17 @@ own fixture, surviving the first B3-Rx pass above — plus one real capture-cove
 Both B5/R2 and B5/R6 changed Event · After's own fixture DATA — `fixtureVersion` bumped 2 -> 3,
 new `fixtureSha256`. The other three B06 candidates are unaffected and keep their own existing
 version.
+
+## Third retrospective remediation (R8-3) — Event · After only
+
+A fourth independent technical review found the B5/R6 combination-evidence derivation test's
+source records (positional segment, goal-attribution events) lived only inside the test file,
+outside this fixture's own hash. Corrected: a new `event/after/combination-source-data.ts` module
+— reusing `b06EventParticipants` (`shared/match-b-fixture.ts`) directly, never a second roster —
+is the single canonical source both `combinationEvidence` (now COMPUTED via the real
+`deriveCombinationsFromSegments()`) and its derivation test import. William (the Guest Player) is
+excluded from the positional segment entirely, so he cannot acquire partnership evidence this way
+either. See `SOURCE_RECONCILIATION.md`.
+
+`fixtureVersion` bumped 3 -> 4 for Event · After only; new `fixtureSha256`. The other three B06
+candidates are unaffected.

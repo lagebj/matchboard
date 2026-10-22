@@ -1,5 +1,14 @@
 # Gate B W2 — Visual vs. Current Production
 
+## Third remediation pass (R8-1) — visual-correction summary
+
+R8-1 corrects the B5/R1 disclosure's own wording: the locked-state message now reads "This
+completed report is missing N goal(s) recorded during Live Reporting. Reopen the report to add
+the missing goal(s)." instead of reusing the editable-state message's "Add the missing scorer...
+before completing this report" (invalid once locked). Still a candidate-only proposed correction
+— the real production `GoalAttributionGapBanner` is unmodified and still shows no locked-state
+disclosure at all. R8-2 and R8-3 change no visual output. See `SOURCE_RECONCILIATION.md`.
+
 ## Second remediation pass (B5/R1, B5/R4, B5/R5) — visual-correction summary
 
 Three of the five B5/Rx findings changed what the candidate visually shows, beyond the first

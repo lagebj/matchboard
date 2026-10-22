@@ -15,7 +15,7 @@ there is no historical approval to preserve here (contrast B05/W2).
 | B06-LEAGUE-BEFORE | CANDIDATE | Confirms shipped baseline |
 | B06-LEAGUE-AFTER | CANDIDATE | Confirms shipped baseline; no longer links to the unrelated B05 candidate (B3-R2); links to the real League Match Details navigation page instead (B3-R5) |
 | B06-EVENT-BEFORE | CANDIDATE | Design proposal — no production route exists |
-| B06-EVENT-AFTER | CANDIDATE | Confirms the real shared `PostMatchReportShell`; page itself is a proposal; football observation reassigned off the Guest Player (B3-R3, B5-R2); combination subtype corrected to VERTICAL (B5-R6); fixtureVersion 3 |
+| B06-EVENT-AFTER | CANDIDATE | Confirms the real shared `PostMatchReportShell`; page itself is a proposal; football observation reassigned off the Guest Player (B3-R3, B5-R2); combination subtype corrected to VERTICAL (B5-R6); combinationEvidence now computed via the real derivation function (R8-3); fixtureVersion 4 |
 
 ## Second retrospective remediation (B5/R2, B5/R6, B5/R7) — Event · After only
 
@@ -27,6 +27,14 @@ its actual positions (B5/R6). A real capture-coverage gap was also found and fix
 B3-R5 navigation pages were never registered for capture). No approval has been recorded for any
 B06 scenario at any point, so nothing is inherited or lost by this pass either. See
 `SOURCE_RECONCILIATION.md`'s own "second remediation pass" section for the full record.
+
+## Third retrospective remediation (R8-3) — Event · After only
+
+A fourth independent technical review found the combination-evidence derivation test's source
+records lived only inside the test file, outside this fixture's own hash. Corrected — see
+`SOURCE_RECONCILIATION.md`'s own "third remediation pass" section. `fixtureVersion` bumped 3 -> 4
+for Event · After only. No approval has been recorded for any B06 scenario at any point, so
+nothing is inherited or lost by this pass either.
 
 ## This wave's own design-audit outcome
 

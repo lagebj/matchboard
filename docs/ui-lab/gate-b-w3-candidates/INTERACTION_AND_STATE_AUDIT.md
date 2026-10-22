@@ -1,5 +1,12 @@
 # B06 — Interaction and state audit
 
+## Third remediation pass — no interaction-model change
+
+R8-3 (Event · After's combination-evidence provenance) changes no interactive behavior — the
+fixture's displayed evidence is now computed via the real derivation function instead of
+hand-written, but every reachable control remains exactly as audited below. See
+`SOURCE_RECONCILIATION.md`'s own "third remediation pass" section.
+
 ## Second remediation pass — no interaction-model change
 
 B5/R2 and B5/R6 (Event · After's own fixture data) and B5/R7 (capture-coverage registration)

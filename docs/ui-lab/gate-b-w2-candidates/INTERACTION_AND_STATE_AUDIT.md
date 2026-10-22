@@ -1,5 +1,16 @@
 # Gate B W2 — Interaction and State Audit
 
+## Third remediation pass (R8-1, R8-2) — the interaction model, corrected further
+
+Two more real gaps, beyond what the second pass fixed: (1) the LOCKED-state disclosure
+(`GoalDiscrepancyDisclosure`) reused the editable-state component's own wording, which told the
+coach to complete an already-completed report — now genuinely state-aware, with locked wording
+that instructs reopening first (R8-1); (2) `addPlayer()` could add ANY string as a "player" (no
+eligibility check, raw id displayed as the name), and `reopen()` could transition a LOCKED report
+to LOCKED again with cleared completion metadata — both now validated by the central reducer at
+runtime, independent of whichever UI control currently gates the call (R8-2). See
+`SOURCE_RECONCILIATION.md`'s own "third remediation pass" section.
+
 ## Second remediation pass (B5/R1, B5/R3) — the interaction model, corrected further
 
 Two real gaps found in the lifecycle simulation described below, beyond what B2-R3/R5 already

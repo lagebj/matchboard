@@ -22,6 +22,30 @@ reconciled (`completed-transition`, matching `completed/fixtures.ts`). See
 for the exact visual-correction scope (a candidate-only disclosure improvement, not a claimed
 production fix — production's own `PostMatchReportPageShell` still hides this banner once locked).
 
+## R8-1 — terminology and lifecycle-state correction (supersedes the B5/R1 fix above)
+
+The B5/R1 fix above was itself incomplete: it kept reusing the real `GoalAttributionGapBanner`'s
+own fixed wording ("Add the missing scorer... before completing this report"), which is wrong on
+two counts. First, the instruction is invalid once the report is already `LOCKED` — there is
+nothing left "before completing" at that point; the coach must reopen the report first. Second,
+"missing scorer attribution" describes an existing Goal row with an unknown scorer, but the real
+`computeGoalAttributionGap()` (`src/lib/reports/report-mutations.ts`) counts report Goal ROWS
+(`db.goal.count()`), never filtered by scorer presence — in this fixture's own scenario the
+discrepancy is a genuinely MISSING report Goal row, not an existing row with an unknown scorer.
+"Goal record(s)" is the terminology that actually matches what is being counted.
+
+Corrected: `shared/goal-discrepancy-disclosure.tsx`'s `GoalDiscrepancyDisclosure` component (no
+longer `GoalAttributionGapBanner`) renders lifecycle-aware wording with dynamic counts:
+
+- Editable: "`{N}` goal`{s}` `{was/were}` recorded during Live Reporting, but this report contains
+  only `{M}` goal record`{s}`. Add the missing goal`{s}` to reconcile the report."
+- Locked: "This completed report is missing `{K}` goal`{s}` recorded during Live Reporting. Reopen
+  the report to add the missing goal`{s}`."
+
+Both are a disclosed, candidate-only proposed correction — production's real
+`GoalAttributionGapBanner` remains byte-for-byte unmodified by this PR (out of scope) and still
+uses its own original wording/visibility rule when rendered in production today.
+
 ## fixtureVersion 2 — what actually changed (remediation)
 
 The goal/timeline/gap model below is **superseded** by a corrected model — see
@@ -104,12 +128,25 @@ draft report whose debrief is still `DRAFT` would be the moment *before* this sc
 function) confirms the fixture's answers are genuinely complete — covered by test, not asserted
 and left unverified.
 
-## Combination evidence — real shape, real filter
+## Combination evidence — real shape, real derivation, real filter (R8-3)
 
-`b05CombinationEvidence` (2 rows: a Noah+Sindre partnership, a Noah+Sindre+Kasper triangle) is
-exactly `CombinationEvidenceRow[]`, filtered by the real, unmodified
-`MatchCombinationEvidencePanel` (family PARTNERSHIP/TRIANGLE, `minutesTogether >= 10`) — both
-rows pass by construction, not because the panel's own filter was loosened.
+`b05CombinationEvidence` (`shared/report-data.ts`) is no longer hand-written. It is COMPUTED by
+calling the real, unmodified `deriveCombinationsFromSegments()` (`src/lib/evidence/
+combination-topology.ts`) against `shared/combination-source-data.ts`'s own canonical positional
+segment (the full present 7-a-side lineup, one continuous 80-minute segment, no substitutions
+modeled) and goal-attribution events (the same real events as `b05CanonicalLiveEvents`,
+re-expressed in the shape the derivation function consumes). That call produces many rows (every
+pairwise partnership, lines, triangles, the full-configuration row) for the whole squad — this
+fixture curates the result down to the single `PARTNERSHIP` row this scenario calls out
+(Noah + Sindre), the same way the real `MatchCombinationEvidencePanel` itself already filters a
+larger derived set down to what it displays (`MIN_MINUTES_TO_SHOW`/`MAX_ROWS_SHOWN`), not an
+invented narrowing. `createdAt` is the one field overridden after derivation (the real function
+stamps non-deterministic wall-clock `new Date()`; this fixture replaces it with the fixed
+`B05_COMPLETED_AT` moment — a real-world fact, not a derivation input).
+
+`shared/__tests__/combination-evidence.test.ts` imports the SAME source records and asserts the
+fixture's own exported row equals the real function's own output field-for-field (except
+`createdAt`) — never a second, hand-maintained synthetic model backing a separate test.
 
 ## Forbidden fields — never present
 

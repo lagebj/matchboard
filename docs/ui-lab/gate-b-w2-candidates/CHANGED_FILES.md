@@ -123,3 +123,46 @@ fixture modules.
 
 No production code is touched by this second pass (contrast the first pass's one B2-R1
 production fix, above).
+
+## Third remediation pass (R8-1, R8-2, R8-3)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/goal-discrepancy-disclosure.tsx` (new)
+  — the lifecycle-aware `GoalDiscrepancyDisclosure` component (R8-1), replacing this candidate's
+  own use of the real `GoalAttributionGapBanner` (left unmodified in production).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/goal-discrepancy-disclosure.test.tsx`
+  (new) — direct component coverage: no-gap cases, editable wording, locked wording, pluralization,
+  dynamic counts.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx` —
+  renders `GoalDiscrepancyDisclosure` instead of `GoalAttributionGapBanner` (R8-1); threads a new
+  `eligiblePlayers` list (derived from `allPlayers`) into the lifecycle hook (R8-2).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts` —
+  `addPlayer()` now validates against an `EligiblePlayer[]` source and resolves the real name
+  from it; `reopen()` now rejects any target outside `{"DRAFT","REPORTED"}` at the runtime
+  validation layer (R8-2).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/use-safe-report-lifecycle.test.tsx`
+  — extended with R8-2's eligibility and reopen-target test suites (11 new tests).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/combination-source-data.ts` (new) — the
+  canonical positional segment and goal-attribution events `b05CombinationEvidence` is computed
+  from (R8-3).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts` — `b05CombinationEvidence`
+  is now COMPUTED by calling the real `deriveCombinationsFromSegments()` against
+  `combination-source-data.ts`'s records, curated to the Noah+Sindre `PARTNERSHIP` row (R8-3).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/combination-evidence.test.ts`
+  — rewritten to import the SAME source records the fixture itself uses, asserting field-for-field
+  equality with the real derivation's own output (R8-3).
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/{draft,completed}/fixtures.ts` — added the
+  combination source records to `rawRecordsForHash`; `fixtureVersion` bumped 2 -> 3; new
+  `fixtureSha256` for both.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/draft/__tests__/page.test.tsx`,
+  `completed/__tests__/page.test.tsx` — updated terminology assertions (`/recorded during Live
+  Reporting/i` replacing `/missing scorer attribution/i`), added R8-1 locked/editable-wording
+  cases and an R8-2 ineligible-player UI-surface check.
+- `scripts/ui-lab-visual-review.mjs` — capture-flow wait conditions updated to the new wording;
+  the locked-with-gap wait now specifically asserts the LOCKED wording ("Reopen the report to
+  add"), not just banner presence.
+- `docs/ui-lab/gate-b-w2-candidates/{BLOCKERS,SOURCE_RECONCILIATION,DATA_TRUTH_AND_FIXTURES,
+  INTERACTION_AND_STATE_AUDIT,VISUAL_VS_CURRENT,REVIEW_RECORD,candidate_manifest}.{md,json}` —
+  R8-1/R8-2/R8-3 remediation sections added.
+
+This pass DOES touch fixture DATA (R8-3) — contrast the second pass, which touched only shared
+component code. No production code is touched.

@@ -21,8 +21,8 @@ than fixed inside this UI Lab PR.
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 2) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
-| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 2) | Same remediation and supersession as B05. |
+| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 3) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
+| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 3) | Same remediation and supersession as B05. |
 
 ## Second remediation pass (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
 
@@ -35,6 +35,17 @@ fragment hrefs; B5/R7 — stale capture evidence). `candidate_manifest.json` sti
 reads `approval: null` for both scenarios — this second pass does not change that, and does not
 inherit fixtureVersion 1's approval either. See `SOURCE_RECONCILIATION.md`'s own "second
 remediation pass" section for the full record and `BLOCKERS.md` for disclosures.
+
+## Third remediation pass (R8-1, R8-2, R8-3)
+
+A fourth independent technical review found three more real defects: the second pass's own
+locked-state disclosure fix reused invalid production wording (R8-1); `addPlayer()`/`reopen()`
+accepted inputs the reducer should have rejected (R8-2); the combination-evidence derivation
+test's source records lived outside the fixture's own hash (R8-3, which is why fixtureVersion is
+now 3 — the only one of these three findings that changed hashed fixture content).
+`candidate_manifest.json` still correctly reads `approval: null` for both scenarios; fixtureVersion
+1's historical approval remains preserved, unmodified, in `priorVersions`. See
+`SOURCE_RECONCILIATION.md`'s own "third remediation pass" section and `BLOCKERS.md`.
 
 ## Historical record — fixtureVersion 1 (preserved, not current)
 

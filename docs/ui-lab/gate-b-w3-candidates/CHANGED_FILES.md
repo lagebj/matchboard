@@ -123,3 +123,21 @@
   B5/Rx remediation sections added.
 
 No production code is touched by this second pass.
+
+## Third remediation pass (R8-3) — Event · After only
+
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/combination-source-data.ts`
+  (new) — the canonical positional segment (reusing `b06EventParticipants` directly) and
+  goal-attribution events `combinationEvidence` is computed from.
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/fixtures.ts` —
+  `combinationEvidence` is now COMPUTED by calling the real `deriveCombinationsFromSegments()`
+  against `combination-source-data.ts`'s records, curated to the Noah+Sindre `PARTNERSHIP` row;
+  added the source records to `rawRecordsForHash`; `fixtureVersion` bumped 3 -> 4; new
+  `fixtureSha256`.
+- `src/app/dev/ui-lab/gate-b/b06-league-event-parity/event/after/__tests__/combination-evidence.test.ts`
+  — rewritten to import the SAME source records the fixture itself uses, including a new check
+  that William (the Guest Player) is never positioned and never acquires partnership evidence.
+- `docs/ui-lab/gate-b-w3-candidates/{BLOCKERS,SOURCE_RECONCILIATION,INTERACTION_AND_STATE_AUDIT,
+  VISUAL_VS_CURRENT,REVIEW_RECORD,candidate_manifest}.{md,json}` — R8-3 remediation sections added.
+
+No production code is touched by this third pass.

@@ -175,3 +175,25 @@ section for the full finding-by-finding record. In brief:
 None of these changed B05's underlying fixture DATA — `fixtureVersion`/`fixtureSha256` for both
 candidates correctly remain unchanged, since every fix is in shared component code, not
 `report-data.ts`'s raw records.
+
+## Third retrospective remediation (R8-1, R8-2, R8-3)
+
+A fourth independent technical review found three more real findings — see
+`SOURCE_RECONCILIATION.md`'s own "third remediation pass" section for the full record. In brief:
+
+- **R8-1**: the B5/R1 disclosure fix reused the real `GoalAttributionGapBanner`'s own wording,
+  which is wrong once `LOCKED` (instructs completing an already-complete report) and mislabels a
+  missing Goal ROW as "missing scorer attribution". Corrected with a new, fully local
+  `GoalDiscrepancyDisclosure` component with lifecycle-aware, dynamically-counted wording; the
+  real production banner itself is untouched.
+- **R8-2**: `addPlayer()` accepted any non-empty string as a player id with no eligibility check;
+  `reopen()` accepted `"LOCKED"` as a target, which could produce an invalid
+  `{status: LOCKED, completedBy: null, completedAt: null}` state. Both now validated at the
+  reducer's own runtime layer.
+- **R8-3**: the combination-evidence derivation test's source records lived only inside the test
+  file, outside the fixture's own hash. Moved into a new, shared `combination-source-data.ts`
+  module that both the fixture (which now COMPUTES `combinationEvidence` via the real
+  `deriveCombinationsFromSegments()`) and the test import identically.
+
+This pass DOES change B05's underlying fixture DATA (R8-3's combination-evidence correction) —
+`fixtureVersion` bumped 2 -> 3 for both B05 candidates; new `fixtureSha256` for both.

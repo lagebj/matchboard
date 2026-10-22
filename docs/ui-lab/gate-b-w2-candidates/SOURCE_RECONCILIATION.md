@@ -1,5 +1,54 @@
 # Gate B W2 — Source Reconciliation
 
+## fixtureVersion 3 — third remediation pass (R8-1, R8-2, R8-3)
+
+A fourth independent technical review found three more real findings, this time spanning both
+the second pass's own component code (R8-1, R8-2) and the underlying combination-evidence
+fixture data's provenance (R8-3):
+
+- **R8-1**: the second pass's own `GoalDiscrepancyDisclosure` fix was INCOMPLETE — it kept
+  reusing the real `GoalAttributionGapBanner`'s fixed wording ("Add the missing scorer... before
+  completing this report"), which is invalid once the report is `LOCKED` (nothing is left
+  "before completing" at that point; the coach must reopen first), and mislabels the discrepancy
+  as "missing scorer attribution" when the real `computeGoalAttributionGap()` counts report Goal
+  ROWS, not scorer presence — in this fixture's own scenario the discrepancy is a genuinely
+  MISSING report Goal row. Corrected: a new local `GoalDiscrepancyDisclosure` component
+  (`shared/goal-discrepancy-disclosure.tsx`) renders lifecycle-aware wording — editable state
+  invites adding the missing goal record; locked state instructs reopening first, never
+  completing again — using "goal record(s)" terminology throughout and dynamic counts (never
+  hardcoded). The real `GoalAttributionGapBanner` itself remains byte-for-byte unmodified; this
+  candidate simply no longer renders it, the same pattern already used for `PostMatchReviewTab`.
+  A disclosed, candidate-only proposed correction — production still shows no locked-state
+  disclosure at all. See `DATA_TRUTH_AND_FIXTURES.md`.
+- **R8-2**: `use-safe-report-lifecycle.ts`'s central validator (from the B5/R3 pass) had two
+  real remaining gaps. `addPlayer()` accepted ANY non-empty string as a valid player id (never
+  checked against an eligible-player source) and used the raw id as the displayed name. `reopen()`
+  accepted the full `"DRAFT" | "REPORTED" | "LOCKED"` status union as a target, so
+  `reopen("LOCKED")` could produce `{status: "LOCKED", completedBy: null, completedAt: null}` — a
+  state that is neither a legitimate completed report nor a legitimate reopened one. Corrected:
+  `addPlayer()` now validates against an `eligiblePlayers` source threaded in from the fixture's
+  own `allPlayers` data (never a second invented roster) and resolves the real name from it;
+  `reopen()` now rejects any target outside `{"DRAFT", "REPORTED"}` at the runtime-validation
+  layer (the public `PostMatchReportActions.reopen` TYPE was already correctly narrow — the gap
+  was the reducer's own internal `as`-cast trusting a wider type than the public contract
+  promises; "TypeScript alone is not sufficient protection").
+- **R8-3**: the B5/R6 combination-evidence derivation tests constructed their own synthetic
+  positional segments and goal-attribution events INLINE, disconnected from the fixture's own
+  `rawRecordsForHash` — the displayed `CombinationEvidenceRow` was hashed, but the records that
+  actually justified it were not, an incomplete provenance chain. Corrected: a new
+  `shared/combination-source-data.ts` module exports the canonical positional segment (a full,
+  realistic 7-a-side lineup, not just the two players of interest) and goal-attribution events;
+  `report-data.ts`'s `b05CombinationEvidence` now CALLS the real `deriveCombinationsFromSegments()`
+  against those exact records and curates down to the Noah+Sindre `PARTNERSHIP` row (matching how
+  the real `MatchCombinationEvidencePanel` itself already filters a larger derived set, not an
+  invented narrowing) — the derivation test now imports the SAME records, never a second model.
+  This also self-corrected a real latent bug: the old hand-written row's `positions` field was
+  `["RCM", "LCM"]`, but the real function sorts lexicographically (`["LCM", "RCM"]`) — the
+  hand-written order was simply wrong. The source records are now included in
+  `rawRecordsForHash`. `fixtureVersion` bumped 2 -> 3 for both B05 candidates (the computed
+  `combinationEvidence` content changed); new `fixtureSha256` for both. See
+  `DATA_TRUTH_AND_FIXTURES.md`.
+
 ## fixtureVersion 2 — second remediation pass (B5/Rx findings)
 
 A further independent technical review found five more real findings in the FIRST

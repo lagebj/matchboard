@@ -1,5 +1,12 @@
 # B06 — Visual vs. current production
 
+## Third retrospective remediation (R8-3) — Event · After only, no visual change
+
+R8-3 changes how `combinationEvidence` is computed (via the real derivation function against
+newly-extracted source records), not what is displayed — the Noah+Sindre VERTICAL partnership row
+renders identically to before. See `SOURCE_RECONCILIATION.md`'s own "third remediation pass"
+section.
+
 ## Second retrospective remediation (B5/R2, B5/R6) — Event · After only
 
 Two more real findings, both in Event · After's own fixture data, surviving the first pass

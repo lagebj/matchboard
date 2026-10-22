@@ -1,5 +1,23 @@
 `CANDIDATE` only.
 
+## fixtureVersion 4 (B06-EVENT-AFTER only) — third remediation pass (R8-3)
+
+A fourth independent technical review found that the B5/R6 combination-evidence derivation test
+constructed its own synthetic positional segment and goal-attribution events INLINE, disconnected
+from the fixture's own `rawRecordsForHash` — the displayed `CombinationEvidenceRow` was hashed,
+but the records that actually justified it were not. Corrected: a new
+`event/after/combination-source-data.ts` module exports the canonical positional segment — reusing
+`b06EventParticipants` (`shared/match-b-fixture.ts`) directly for identity/position, never a
+second roster — and goal-attribution events; `fixtures.ts`'s `combinationEvidence` now CALLS the
+real `deriveCombinationsFromSegments()` against those exact records and curates down to the
+Noah+Sindre `PARTNERSHIP` row, matching how `MatchCombinationEvidencePanel` itself already filters
+a larger derived set. William (the Guest Player, `tacticalPosition: null`) is excluded from the
+positional segment entirely — never assigned a placeholder position — so he can never acquire
+partnership evidence this way either, the same boundary B5/R2 already closes for the standalone
+observation record. The derivation test now imports the SAME source records, never a second model.
+The source records are now included in `rawRecordsForHash`. `fixtureVersion` bumped 3 -> 4; new
+`fixtureSha256`. The other three B06 candidates are unaffected. See `BLOCKERS.md`.
+
 ## fixtureVersion 3 (B06-EVENT-AFTER only) — second remediation pass (B5/Rx findings)
 
 A further independent technical review found two more real findings in Event · After's own

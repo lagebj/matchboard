@@ -1,5 +1,18 @@
 # B06 — Data truth and fixtures
 
+## Third remediation pass (R8-3) — Event · After only
+
+`combinationEvidence` is no longer hand-written. It is COMPUTED by calling the real, unmodified
+`deriveCombinationsFromSegments()` (`src/lib/evidence/combination-topology.ts`) against
+`event/after/combination-source-data.ts`'s own canonical positional segment (reusing
+`b06EventParticipants` directly for identity/position — William, the Guest Player, is excluded
+entirely, never assigned a placeholder position) and goal-attribution events, curated down to the
+Noah+Sindre `PARTNERSHIP` row this scenario calls out. `createdAt` is the one field overridden
+after derivation (the real function's own wall-clock stamp is replaced with the fixed
+`B06_EVENT_AFTER_REFERENCE_AT` moment). `__tests__/combination-evidence.test.ts` imports the SAME
+source records and asserts field-for-field equality with the real derivation. See
+`SOURCE_RECONCILIATION.md`.
+
 ## Retrospective remediation (B3-R3/R4/R7)
 
 - Event · After's one football observation is assigned to Theodor (a real `PLAYER`-type
