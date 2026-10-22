@@ -1,7 +1,7 @@
 import type { FixtureIdentity } from "../../../gate-a/shared/fixture-identity";
 import { b05DraftMatchIdentity, B05_MATCH_ID, B05_OPPONENT_NAME, B05_DRAFT_REFERENCE_AT } from "../../shared/match-b-fixture";
 import { b05AfterData, b05InitialReport, b05DebriefAnswers, b05AllPlayers, b05CombinationEvidence, b05FootballObservations, b05TimingReview, b05CanonicalLiveEvents } from "../shared/report-data";
-import { b05PositionalSegment, b05GoalAttributionEvents } from "../shared/combination-source-data";
+import { b05PositionalSegments, b05GoalAttributionEvents } from "../shared/combination-source-data";
 
 /**
  * B05 "Post-match Report / Draft" (official Gate B register, deferred row — now picked up).
@@ -17,14 +17,22 @@ import { b05PositionalSegment, b05GoalAttributionEvents } from "../shared/combin
  * `report-data.ts`'s own doc comment for why — importing the derivation function itself pulls
  * the server-only `db` client into this client-bundled fixture); verified byte-for-byte against
  * the real function in `shared/__tests__/combination-evidence.test.ts`. Those source records are
- * now also material to this fixture's own hash (`combinationPositionalSegment`/
+ * now also material to this fixture's own hash (`combinationPositionalSegments`/
  * `combinationGoalAttributionEvents` below).
+ *
+ * fixtureVersion 4 (R9-1) — the R8-3 positional segment (one continuous 0-80' block) contradicted
+ * `b05MinutesByParticipant`'s own pre-existing values (Kasper 68, Elias 22, Noah 83) — a fixture
+ * integrity defect, not a production engine defect. Corrected to three real segments over a
+ * genuine 90-minute match (two 45' halves, matching `b05TimingReview`'s own real second-half
+ * duration); every one of the seven existing minute values is now exactly explained, with none
+ * changed (see `combination-source-data.ts`'s own doc comment for the full participation model).
+ * `minutesTogether` for the displayed Noah+Sindre row corrected 80 -> 83 as a direct consequence.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B05",
   fixtureId: "gate-b-w2-b05-draft",
-  fixtureVersion: 3,
-  fixtureSha256: "4f0ae0550546dcd3fb4f7c337b048a747171a89dc8b7e098a632161d228511c7",
+  fixtureVersion: 4,
+  fixtureSha256: "0af7187d0aeb4fcfbbe9e711c63fe3e3b907db3c3ed236944f499ca5cb0e400f",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B05_DRAFT_REFERENCE_AT.toISOString(),
   viewerTimeZone: "Europe/Oslo",
@@ -55,7 +63,7 @@ export const rawRecordsForHash = {
   // (`combination-source-data.ts`), not just the derived row itself. Already plain,
   // JSON-serializable shapes (no `Map`), so no explicit entries-spread is needed the way
   // `playerMinutes` above requires.
-  combinationPositionalSegment: b05PositionalSegment,
+  combinationPositionalSegments: b05PositionalSegments,
   combinationGoalAttributionEvents: b05GoalAttributionEvents,
   footballObservations: b05FootballObservations,
 };

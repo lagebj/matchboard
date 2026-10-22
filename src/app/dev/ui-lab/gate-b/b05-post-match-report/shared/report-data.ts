@@ -127,6 +127,10 @@ export function b05TimingReview(variant: "draft" | "completed"): PostMatchReport
   ];
 }
 
+/** R9-1 — the authoritative participation record. `shared/combination-source-data.ts`'s
+ * positional segments are now built to agree with these exact totals (verified directly in
+ * `shared/__tests__/combination-evidence.test.ts`'s own participation-consistency suite) — these
+ * values are not derived from the segments; the segments are derived to explain these values. */
 export const b05MinutesByParticipant = new Map<string, number>([
   ["player-gb5-aksel", 90],
   ["player-gb5-tobias", 90],
@@ -182,9 +186,9 @@ export const b05ShapeChangeRows: MatchDetailAfterData["shapeChangeRows"] = [];
 export const b05FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCanonicalPositions"] = [];
 
 /**
- * Per-match evidence (B2-R4/R8-3) — this literal is the real, unmodified
+ * Per-match evidence (B2-R4/R8-3/R9-1) — this literal is the real, unmodified
  * `deriveCombinationsFromSegments()`'s own output (field-for-field, except `createdAt`) for
- * `combination-source-data.ts`'s canonical positional segment and goal-attribution events,
+ * `combination-source-data.ts`'s canonical positional segments and goal-attribution events,
  * curated down to the PARTNERSHIP row this scenario calls out (Noah + Sindre). Verified exactly,
  * not approximated: `shared/__tests__/combination-evidence.test.ts` calls the real function
  * against those SAME source records and asserts this literal equals its output byte-for-byte.
@@ -196,6 +200,15 @@ export const b05FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCano
  * failure ("Module not found: Can't resolve 'fs'/'net'/'tls'/...") before this was reverted to a
  * literal. `CombinationEvidenceRow` is imported as a type only, which is erased at compile time
  * and carries no such risk.
+ *
+ * R9-1: `minutesTogether` corrected 80 -> 83. The R8-3 version of `combination-source-data.ts`
+ * modeled one continuous 0-80' segment contradicting `b05MinutesByParticipant` below (Kasper 68,
+ * Elias 22, Noah 83 — none of which fit an 80-minute uniform segment). The corrected source is
+ * three real segments over a genuine 90-minute match (see that module's own doc comment); Noah
+ * and Sindre share the pitch for 0-83' (Noah's own real departure time) before Noah leaves
+ * without replacement, so 83 — not 80 — is their real shared duration. Every goal/assist event
+ * (12'/20'/34'/50'/61') falls before either substitution, so goal/contribution counts are
+ * unchanged by this correction.
  *
  * `opponentDiversity` is always exactly `1` for a single match, and `confidence` can never reach
  * `ESTABLISHED` from one match alone (`deriveConfidence` requires `matchCount >= 3`, hardcoded to
@@ -214,7 +227,7 @@ export const b05CombinationEvidence: CombinationEvidenceRow[] = [
     subtype: "HORIZONTAL",
     playerIds: ["player-gb5-noah", "player-gb5-sindre"],
     positions: ["LCM", "RCM"],
-    minutesTogether: 80,
+    minutesTogether: 83,
     goalsForWhilePresent: 3,
     goalsAgainstWhilePresent: 2,
     directGoalContributions: 2,
