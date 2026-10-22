@@ -21,8 +21,8 @@ than fixed inside this UI Lab PR.
 
 | Scenario | Status | Notes |
 |---|---|---|
-| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 4) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
-| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 4) | Same remediation and supersession as B05. |
+| B05 | `CANDIDATE`, `approval: null` (fixtureVersion 5) | fixtureVersion 1 was `APPROVED_GOLDEN` (historical, preserved in `priorVersions`) — superseded by this remediation; requires fresh review. |
+| B05-COMPLETED | `CANDIDATE`, `approval: null` (fixtureVersion 5) | Same remediation and supersession as B05. |
 
 ## Second remediation pass (B5/R1, B5/R3, B5/R4, B5/R5, B5/R7)
 
@@ -56,6 +56,21 @@ any existing minute value (see `SOURCE_RECONCILIATION.md`'s own "fourth remediat
 section); `fixtureVersion` bumped 3 -> 4 for both scenarios. `candidate_manifest.json` still
 correctly reads `approval: null` for both; fixtureVersion 1's historical approval remains
 preserved, unmodified, in `priorVersions`.
+
+## Fifth remediation pass (R10-1)
+
+A sixth independent technical review found that R9-1's own corrected model introduced new
+unsupported assumptions of its own: an unjustified 90-minute duration, a substitution and an
+early departure both INFERRED from minute totals rather than backed by any real canonical event,
+a permanently vacant CF slot, and canonical event `matchSeconds` values never checked against
+production's own real period-relative contract. Corrected by establishing the real NFF Akershus
+G11 7v7 format (2x30 minutes, 60 total) as authoritative, removing the inferred substitution and
+departure entirely (all 7 present players play the full match, filling all 7 formation slots),
+and rebuilding the goal chronology against the real `matchSeconds` contract (moving the final
+goal's global minute 61' -> 55', now within regulation) — see `SOURCE_RECONCILIATION.md`'s own
+"fifth remediation pass" section; `fixtureVersion` bumped 4 -> 5 for both scenarios.
+`candidate_manifest.json` still correctly reads `approval: null` for both; fixtureVersion 1's
+historical approval remains preserved, unmodified, in `priorVersions`.
 
 ## Historical record — fixtureVersion 1 (preserved, not current)
 
@@ -164,3 +179,27 @@ attempted yet), same as every other un-released Gate A/B wave.
   scenario and project-wide, with no regressions.
 - [ ] Independent technical review of the remediation — not yet performed.
 - [ ] Fresh owner visual approval of fixtureVersion 2 — not yet requested or recorded.
+
+## Technical review checklist — fixtureVersion 5 remediation (R10-1, self-assessed; independent review still needed)
+
+- [x] Match format established against two official NFF/fotball.no references (NFF Akershus G11,
+  7v7, 2x30 minutes) rather than preserved merely because existing fixture values were built
+  around a different duration; no tournament rule or special arrangement invented to keep 90
+  minutes.
+- [x] `matchSeconds`'s real production semantics (period-relative, confirmed directly against
+  `src/lib/live-match/period-config.ts`'s own documented contract) verified by dedicated research
+  before any event's `period`/`matchSeconds` was changed, not assumed.
+- [x] Every canonical event's `period`/`matchSeconds` cross-checked against its own `minuteLabel`
+  via `globalMinuteToPeriodRelative()` in a dedicated test — not trusted by construction.
+- [x] All 7 present players' minutes, the positional segments, and the combination-evidence row
+  now agree exactly (60 minutes each, single segment, `minutesTogether: 60`) — verified by a
+  dedicated participation-consistency suite, including negative tests for a contradictory minute
+  total, an 8-player overflow, and overlapping segments.
+- [x] `npx tsc --noEmit`, `npx eslint`, both Vitest suites (node + components, full `npm test`)
+  pass project-wide with no regressions (581 test files / 6398 tests node-only; 142 test files /
+  870 tests component).
+- [x] `fixtureSha256` independently recomputed from the raw records in both `fixtures.test.ts`
+  files for both candidates (not a copied literal).
+- [x] No production route, data loader, schema, or derivation-engine file modified.
+- [ ] Independent technical review of the R10-1 remediation — not yet performed.
+- [ ] Fresh owner visual approval of fixtureVersion 5 — not yet requested or recorded.

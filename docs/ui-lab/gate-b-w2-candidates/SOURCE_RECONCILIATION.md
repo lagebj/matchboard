@@ -1,5 +1,49 @@
 # Gate B W2 — Source Reconciliation
 
+## fixtureVersion 5 — fifth remediation pass (R10-1)
+
+A sixth independent technical review found that the R9-1 pass's own correction was itself
+unsupported, not just numerically self-consistent:
+
+- **R10-1**: R9-1 assumed a 90-minute, two-45'-half match with no NFF rule or match-specific
+  exception supporting that duration (a synthetic `resolvedDurationMinutes: 45` timing-review
+  value is not independent evidence — it was simply copied from the same unsupported assumption),
+  modeled a Kasper->Elias substitution and a Noah early departure that were both INFERRED from
+  `b05MinutesByParticipant`'s pre-existing aggregate values rather than backed by any real
+  recorded rotation/withdrawal event, left the formation's own CF slot permanently vacant, and
+  its own code comment claimed the team "finishes the match with 6" while the actual final
+  segment array held only 5 — a real discrepancy between documentation and code.
+  **Authoritative match format established before correcting anything**: Slemmestad Rød's squad
+  plays NFF Akershus's G11 age class, which plays 7-a-side football in 2x30-minute halves (60
+  minutes regulation) per NFF's own published rules (`fotball.no/kretser/akershus/
+  konkurranse-aktivitet/lagenes-abc/`, `fotball.no/lov-og-reglement/spilleregler/
+  spilleregler-og-retningslinjer-barnefotball-6-12ar/`). No match-specific exception exists
+  anywhere in this fixture bundle, so this default format applies.
+  **Corrected, simplest coherent model**: all 7 present players start and play the entire real
+  60-minute match — zero substitutions, zero inferred departures, every one of the 7 real
+  formation slots (including the previously-vacant CF) filled by a real present player. The
+  canonical goal chronology is rebuilt using production's own real, independently-verified
+  contract: `matchSeconds` is PERIOD-RELATIVE (resets to 0 each period — confirmed directly
+  against `src/lib/live-match/period-config.ts`'s own documented contract, not assumed), and
+  `period` is the real 1/2 numeric index. The old event list mixed global- and period-relative
+  interpretations inconsistently across different events, placed a 34th-minute goal in period 1
+  (impossible in a 30-minute half), and had a final goal at the 61st minute — past this match's
+  own 60-minute regulation time entirely. Corrected: every event's `period`/`matchSeconds` is now
+  independently verified (in a new test) against a real `globalMinuteToPeriodRelative()`
+  conversion helper applied to its own `minuteLabel`; the final goal's global minute moved
+  61' -> 55' (comfortably inside regulation) — every other event's global minute is unchanged,
+  the minimal correction, not a new chronology. The report Goal row and the capture script's own
+  interaction both already used global minute 34 for the reconciliation goal, which remains
+  valid — no capture-flow minute change was needed there.
+  `minutesTogether` for the displayed Noah+Sindre row corrected 83 -> 60 (both present the entire
+  real match) as a direct, derived consequence, never preserved by assumption. Elias's football
+  observation note no longer says "after coming on" (he starts and plays the full match now).
+
+`fixtureVersion` bumped 4 -> 5 for both B05 candidates (the hashed canonical events/positional
+segments/participation records all changed); new `fixtureSha256` for both. B05 fixtureVersion 1's
+historical approval remains preserved, unmodified, further down the `priorVersions` chain; both
+candidates remain `approval: null`. B06 is unaffected (not the target of R10-1).
+
 ## fixtureVersion 4 — fourth remediation pass (R9-1)
 
 A fifth independent technical review found one remaining real finding, a fixture integrity defect

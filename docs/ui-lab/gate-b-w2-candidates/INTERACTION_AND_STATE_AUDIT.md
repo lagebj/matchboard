@@ -1,5 +1,12 @@
 # Gate B W2 — Interaction and State Audit
 
+## Fifth remediation pass (R10-1) — no interaction-model change
+
+R10-1 corrects the combination-evidence source data's own match-format and chronology
+assumptions (duration, substitutions, `matchSeconds` semantics) — a fixture data correction, not
+an interaction-model change. Every reachable control remains exactly as audited below. See
+`SOURCE_RECONCILIATION.md`'s own "fifth remediation pass" section.
+
 ## Fourth remediation pass (R9-1) — no interaction-model change
 
 R9-1 corrects the combination-evidence source data's own internal consistency (positional

@@ -228,3 +228,49 @@ fails the minute-total check, so this specific defect class cannot silently retu
 changed); new `fixtureSha256` for both. B06 is unaffected and untouched — it is not the target of
 R9-1 and its own single-segment model has no competing minute record elsewhere in its fixture to
 contradict.
+
+## Fifth retrospective remediation (R10-1)
+
+A sixth independent technical review found that R9-1's own "90-minute match, one substitution,
+one unreplaced departure" model was itself unsupported — numerically self-consistent, but
+resting on assumptions nothing in the fixture or in NFF's published rules actually justified:
+
+1. No rule or match-specific exception supports a 90-minute youth match — R9-1's own reasoning
+   ("the timing-review value happens to say 45") used a VALUE THAT PASS ITSELF HAD AUTHORED as
+   if it were independent evidence, which it was not.
+2. The substitution (Kasper off/Elias on at 68') and Noah's departure at 83' were both INFERRED
+   from `b05MinutesByParticipant`'s pre-existing aggregate values — no canonical rotation or
+   withdrawal event backed either one.
+3. The starting formation fielded only 6 players; the CF slot was permanently vacant.
+4. The code's own comment said the team "finishes the match with 6" while the actual final
+   segment array held 5 participants — a real discrepancy between comment and code.
+5. The canonical goal chronology placed a 34th-minute event in period 1 (impossible for any
+   reasonable half length under 34 minutes) and a final goal at the 61st minute, which (once the
+   real 60-minute G11 7v7 format was established) falls outside regulation time entirely.
+6. `matchSeconds` was never verified against its real production contract — confirmed directly
+   this session (`src/lib/live-match/period-config.ts`'s own documented contract): it is
+   PERIOD-RELATIVE (resets to 0 each period), not global elapsed time. The old fixture mixed both
+   interpretations inconsistently across different events.
+
+**Authoritative match format established first**: Slemmestad Rød's squad plays NFF Akershus G11
+— 7-a-side, 2x30-minute halves, 60 minutes regulation (`report-data.ts`'s own `B05_MATCH_FORMAT`,
+citing NFF's own published rules directly). No match-specific exception exists anywhere in this
+fixture, so the default format applies without modification.
+
+**Corrected, simplest coherent model**: all 7 present players start and play the entire real
+60-minute match — zero substitutions, zero inferred departures, every one of the 7 real formation
+slots (including CF) filled. The canonical goal chronology is rebuilt with real period-relative
+`matchSeconds`, independently verified in a new test against a `globalMinuteToPeriodRelative()`
+conversion helper applied to each event's own `minuteLabel` — not trusted by construction. The
+final goal's global minute moved 61' -> 55' (inside regulation); every other event's global
+minute is unchanged. `minutesTogether` for the displayed Noah+Sindre row corrected 83 -> 60 as a
+direct, derived consequence. Elias's football observation note no longer says "after coming on."
+
+New tests: match-format validity (age class/format/duration/period count), on-field-count/
+formation-slot coverage, period/matchSeconds cross-verification against the real conversion
+helper, and negative tests proving a 90-minute segment sequence, an 8-player on-field count, an
+overlapping segment pair, and the original R9-1-shaped minute mismatch are all rejected.
+
+`fixtureVersion` bumped 4 -> 5 for both B05 candidates; new `fixtureSha256` for both. B06 remains
+unaffected — not the target of R10-1. See `SOURCE_RECONCILIATION.md`'s own "fifth remediation
+pass" section for the full record.

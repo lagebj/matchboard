@@ -128,7 +128,7 @@ draft report whose debrief is still `DRAFT` would be the moment *before* this sc
 function) confirms the fixture's answers are genuinely complete — covered by test, not asserted
 and left unverified.
 
-## Combination evidence — real shape, real derivation, real filter, real participation (R8-3, R9-1)
+## Combination evidence — real shape, real derivation, real filter, real participation (R8-3, R9-1, R10-1)
 
 `b05CombinationEvidence` (`shared/report-data.ts`) is a literal, but it is the real, unmodified
 `deriveCombinationsFromSegments()`'s (`src/lib/evidence/combination-topology.ts`) own verified
@@ -145,22 +145,34 @@ down to what it displays (`MIN_MINUTES_TO_SHOW`/`MAX_ROWS_SHOWN`), not an invent
 non-deterministic wall-clock `new Date()`; this fixture replaces it with the fixed
 `B05_COMPLETED_AT` moment — a real-world fact, not a derivation input).
 
-**R9-1 — the positional segments are real participation, not an invented 80-minute block.** This
-match's real duration is 90 minutes (two 45' halves — `b05TimingReview`'s own real second-half
-duration confirms this). Three chronological segments (0-68'/68-83'/83-90') represent: Kasper (CM)
-substituted off at 68' for Elias (into the same CM slot); Noah (RCM) departing at 83' with no
-replacement (team finishes with 6). Every one of `b05MinutesByParticipant`'s seven existing values
-(unchanged by this correction) is exactly explained by this model — see
-`combination-source-data.ts`'s own doc comment for the full reasoning. Noah and Sindre's own
-shared presence is 0-83' (83 minutes, not the old unsupported 80), which is why the displayed
-row's `minutesTogether` is `83`.
+**R10-1 — a real, NFF-supported match format, not an invented duration or an inferred
+substitution.** Slemmestad Rød's squad plays NFF Akershus G11 — 7-a-side, 2x30-minute halves, 60
+minutes regulation (`report-data.ts`'s own `B05_MATCH_FORMAT`, citing NFF's own published rules
+directly; R9-1's own "90 minutes" had no such support — see `BLOCKERS.md`). All 7 present players
+start and play the entire real 60-minute match: zero substitutions, zero inferred departures,
+every one of the 7 real formation slots (including CF, previously vacant) filled by a real
+present player. Noah and Sindre's own shared presence is therefore the full 60 minutes — not the
+R9-1 pass's own inferred 83 — which is why the displayed row's `minutesTogether` is `60`.
+
+The canonical goal chronology (`b05CanonicalLiveEvents`) uses production's own real, verified
+contract: `matchSeconds` is PERIOD-RELATIVE (confirmed directly against
+`src/lib/live-match/period-config.ts`'s own documented contract — it resets to 0 at the start of
+each period, it is never global elapsed time), and `period` is the real 1/2 index. A new
+`globalMinuteToPeriodRelative()` helper (`report-data.ts`) independently cross-checks every
+event's `period`/`matchSeconds` against its own human-facing `minuteLabel` in a dedicated test —
+not trusted by construction. The final goal's global minute moved 61' -> 55' (the old 61' falls
+outside this match's own 60-minute regulation time); every other event's global minute is
+unchanged.
 
 `shared/__tests__/combination-evidence.test.ts` imports the SAME source records and asserts the
 fixture's own exported row equals the real function's own output field-for-field (except
-`createdAt`) — never a second, hand-maintained synthetic model backing a separate test. A
-dedicated participation-consistency suite in that same file verifies the positional segments
-against `b05MinutesByParticipant` directly (not merely that the segments are internally
-self-consistent), including a negative test proving a deliberately contradictory segment fails.
+`createdAt`) — never a second, hand-maintained synthetic model backing a separate test. Dedicated
+suites in that same file verify: the match format itself (age class/format/duration/period
+count/formation-slot coverage); the positional segments against `b05MinutesByParticipant`
+directly (not merely internal self-consistency); and the canonical event chronology against the
+real period-conversion helper — including negative tests proving a 90-minute segment sequence, an
+8-player on-field count, overlapping segments, and the original R9-1-shaped minute mismatch are
+all rejected.
 
 ## Forbidden fields — never present
 

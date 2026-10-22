@@ -188,3 +188,33 @@ component code. No production code is touched.
   candidate_manifest}.{md,json}` — R9-1 remediation sections added.
 
 B06 is untouched — not the target of R9-1. No production code is touched by this pass.
+
+## Fifth remediation pass (R10-1)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts` — added
+  `B05_MATCH_FORMAT` (NFF Akershus G11, 7v7, 2x30 minutes) and the pure
+  `globalMinuteToPeriodRelative()` helper; rewrote `b05CanonicalLiveEvents` with real
+  period-relative `matchSeconds` for all 9 events (period/seconds corrected for the 34', 50', and
+  55' — formerly 61' — goals); `b05Goals()`'s report row for the final goal moved 61' -> 55';
+  `b05TimingReview()`'s `resolvedDurationMinutes` corrected to match the real 30-minute period
+  (28 for the draft in-progress state, 30 for completed); `b05MinutesByParticipant` set uniformly
+  to 60 for all 7 players; `b05CombinationEvidence.minutesTogether` corrected 83 -> 60;
+  `b05FootballObservations`'s Elias note no longer references a substitution that no longer
+  occurred.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/combination-source-data.ts` — rewritten:
+  `b05PositionalSegments` is now a single 0-60' segment with all 7 present players filling all 7
+  real formation slots (CF, previously vacant, now filled); added the explicit empty
+  `b05RotationEvents` declaration documenting no substitutions occurred; added
+  `validateMatchFormat()`.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/{draft,completed}/fixtures.ts` —
+  `fixtureVersion` bumped 4 -> 5; new `fixtureSha256` for both; doc comments extended with the
+  full R10-1 rationale.
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/__tests__/combination-evidence.test.ts`
+  — rewritten with new "match format", "participation consistency", and "canonical event
+  chronology" suites (each with positive and negative cases), replacing the R9-1 suite's
+  three-segment/83-minute assumptions.
+- `docs/ui-lab/gate-b-w2-candidates/{BLOCKERS,SOURCE_RECONCILIATION,DATA_TRUTH_AND_FIXTURES,
+  CHANGED_FILES,VISUAL_VS_CURRENT,INTERACTION_AND_STATE_AUDIT,REVIEW_RECORD,
+  candidate_manifest}.{md,json}` — R10-1 remediation sections added.
+
+B06 is untouched — not the target of R10-1. No production code is touched by this pass.

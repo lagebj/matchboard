@@ -1,5 +1,15 @@
 # Gate B W2 — Visual vs. Current Production
 
+## Fifth remediation pass (R10-1) — one number corrected on the Combinations tab
+
+The completed candidate's Combinations tab shows "60 min this match" for the Noah+Sindre row,
+not the R9-1 pass's own "83 min this match" — the only rendered-text change from R10-1's
+match-format/participation correction (every other displayed field on that row is unchanged, and
+no other tab's rendered text changes: the goal timeline's displayed minute labels remain the same
+real-world minutes, 12'/20'/34'/50'/55', with only the final goal's label itself moving 61' -> 55'
+as a direct consequence of the corrected chronology — see `SOURCE_RECONCILIATION.md`'s own "fifth
+remediation pass" section).
+
 ## Fourth remediation pass (R9-1) — one number corrected on the Combinations tab
 
 The completed candidate's Combinations tab shows "83 min this match" for the Noah+Sindre row,
