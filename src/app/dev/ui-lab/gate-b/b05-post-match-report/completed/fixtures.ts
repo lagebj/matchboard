@@ -1,17 +1,19 @@
 import type { FixtureIdentity } from "../../../gate-a/shared/fixture-identity";
 import { b05CompletedMatchIdentity, B05_MATCH_ID, B05_OPPONENT_NAME, B05_NOW } from "../../shared/match-b-fixture";
 import { b05AfterData, b05InitialReport, b05DebriefAnswers, b05AllPlayers, b05CombinationEvidence, b05FootballObservations, b05TimingReview, b05CanonicalLiveEvents } from "../shared/report-data";
+import { b05PositionalSegment, b05GoalAttributionEvents } from "../shared/combination-source-data";
 
 /**
  * B05 "Post-match Report / Completed" — the same real match as `draft/`, now locked.
- * fixtureVersion 2 — remediated per B2-R2/R3/R4/R5/R6/R7. See `draft/fixtures.ts`'s own doc
- * comment for the historical-approval preservation note (same applies here).
+ * See `draft/fixtures.ts`'s own doc comment for the historical-approval preservation note (same
+ * applies here) and the fixtureVersion 3 (R8-3) remediation note (same real-derivation change
+ * applies to this fixture's own `combinationEvidence` too).
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B05-COMPLETED",
   fixtureId: "gate-b-w2-b05-completed",
-  fixtureVersion: 2,
-  fixtureSha256: "e1f4b269e0660c8435c7a5c8d575cf97f7463489943c662b9a16bc7b3c1c60d4",
+  fixtureVersion: 3,
+  fixtureSha256: "7438fe7c78454fd50ea08b73b1bda2abea6f1f8e7ad9e9e4ef72c454eaad5c75",
   sourceClass: "SYNTHETIC_LABELED",
   // B2-R7: an observation time after `B05_COMPLETED_AT` (12:05), not kickoff — `B05_NOW` is 11
   // days later, a plausible "coach looking back at a completed report" moment.
@@ -37,5 +39,8 @@ export const rawRecordsForHash = {
   debriefAnswers,
   canonicalLiveEvents: b05CanonicalLiveEvents,
   combinationEvidence: b05CombinationEvidence,
+  // R8-3 — the material source records `combinationEvidence` is actually derived from.
+  combinationPositionalSegment: b05PositionalSegment,
+  combinationGoalAttributionEvents: b05GoalAttributionEvents,
   footballObservations: b05FootballObservations,
 };

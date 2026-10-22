@@ -1,20 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { deriveCombinationsFromSegments } from "@/lib/evidence/combination-topology";
-import type { GoalAttributionEvent } from "@/lib/evidence/combination-goal-attribution";
 import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import { combinationEvidence, B06_EVENT_MATCH_ID } from "../fixtures";
+import { b06EventAfterPositionalSegment, b06EventAfterGoalAttributionEvents, toMatchSegments } from "../combination-source-data";
+import { b06EventParticipants } from "../../../../shared/match-b-fixture";
 
 /**
- * B5/R6 — the fixture's combination row must equal what the real, unmodified
- * `deriveCombinationsFromSegments()` derives for this exact match, not a hand-picked value.
- * Noah plays CF (`FormationSlotRoleType.FORWARD` -> line `"ATT"`) and Sindre plays LCM
- * (`MIDFIELDER` -> line `"MID"`) — DIFFERENT lines, so the real derivation must return
- * `VERTICAL`, never `HORIZONTAL` (same line only, e.g. two centre-backs — see
+ * R8-3 remediation — imports the EXACT canonical source records `combinationEvidence`
+ * (fixtures.ts) is itself computed from (`combination-source-data.ts`), rather than defining a
+ * second, disconnected synthetic model inside this test file. B5/R6 — the real
+ * `deriveCombinationsFromSegments()` classifies a CF (line ATT) + LCM (line MID) pair as
+ * VERTICAL, never HORIZONTAL (same line only — see
  * `combination-topology.test.ts`'s own "derives horizontal partnership between two
- * centre-backs"/"derives vertical partnership between defender and midfielder" cases for the
- * precedent this test follows for the rest of the Gate B programme).
+ * centre-backs"/"derives vertical partnership between defender and midfielder" cases).
  */
-describe("B06 Event · After — combination evidence provenance (B5/R6)", () => {
+describe("B06 Event · After — combination evidence provenance (B5/R6, R8-3)", () => {
   const ref: FootballMatchRef = {
     kind: "EVENT_MATCH",
     eventMatchId: B06_EVENT_MATCH_ID,
@@ -22,56 +22,71 @@ describe("B06 Event · After — combination evidence provenance (B5/R6)", () =>
     evidenceLeagueSeasonId: "season-gate-b-06",
   };
 
-  // Noah (CF) and Sindre (LCM) both on pitch for the full 80-minute match.
-  const segments = [
-    {
-      startMs: 0,
-      endMs: 80 * 60_000,
-      playersOnPitch: new Map([
-        ["participant-gb6e-noah", { position: "CF", line: "ATT", lane: "CENTRE" }],
-        ["participant-gb6e-sindre", { position: "LCM", line: "MID", lane: "LEFT" }],
-      ]),
-    },
-  ];
-
-  // Matches the fixture's own `report.goals`/`report.assists` exactly: Noah 12' (scorer),
-  // Sindre 34' (scorer, assisted by Kasper — outside this pair), one goal against at 50',
-  // Kasper 70' (scorer, outside this pair).
-  const goalEvents: GoalAttributionEvent[] = [
-    { matchMs: 12 * 60_000, team: "FOR", scorerPlayerId: "participant-gb6e-noah", assistPlayerId: null, approximateTiming: false },
-    { matchMs: 34 * 60_000, team: "FOR", scorerPlayerId: "participant-gb6e-sindre", assistPlayerId: "participant-gb6e-kasper", approximateTiming: false },
-    { matchMs: 50 * 60_000, team: "AGAINST", scorerPlayerId: null, assistPlayerId: null, approximateTiming: false },
-    { matchMs: 70 * 60_000, team: "FOR", scorerPlayerId: "participant-gb6e-kasper", assistPlayerId: null, approximateTiming: false },
-  ];
-
-  it("the real derivation returns VERTICAL for a CF+LCM pair, and every other field matches the fixture exactly", () => {
-    const rows = deriveCombinationsFromSegments(segments, ref, "org-gate-b", "season-gate-b-06", goalEvents);
-    const derived = rows.find(
-      (r) => r.family === "PARTNERSHIP" && r.playerIds.includes("participant-gb6e-noah") && r.playerIds.includes("participant-gb6e-sindre"),
+  function derivedPartnership() {
+    const rows = deriveCombinationsFromSegments(
+      toMatchSegments(b06EventAfterPositionalSegment),
+      ref,
+      "org-gate-b",
+      "season-gate-b-06",
+      b06EventAfterGoalAttributionEvents,
     );
-    expect(derived).toBeDefined();
-    expect(derived!.subtype).toBe("VERTICAL");
-    expect(derived!.minutesTogether).toBe(80);
-    expect(derived!.goalsForWhilePresent).toBe(3);
-    expect(derived!.goalsAgainstWhilePresent).toBe(1);
-    expect(derived!.directGoalContributions).toBe(2);
-    expect(derived!.directAssistContributions).toBe(0);
-    expect(derived!.opponentDiversity).toBe(1);
+    return rows.find((r) => r.family === "PARTNERSHIP" && r.playerIds.includes("participant-gb6e-noah") && r.playerIds.includes("participant-gb6e-sindre"));
+  }
 
-    const fixtureRow = combinationEvidence.find((r) => r.id === "comb-gb6e-1");
+  it("the fixture's exported row IS the real derivation's own output (same source records, not a hand-copied value)", () => {
+    const derived = derivedPartnership();
+    expect(derived).toBeDefined();
+
+    const fixtureRow = combinationEvidence.find((r) => r.playerIds.includes("participant-gb6e-noah") && r.playerIds.includes("participant-gb6e-sindre"));
     expect(fixtureRow).toBeDefined();
-    expect(fixtureRow!.subtype).toBe(derived!.subtype);
-    expect(fixtureRow!.minutesTogether).toBe(derived!.minutesTogether);
-    expect(fixtureRow!.goalsForWhilePresent).toBe(derived!.goalsForWhilePresent);
-    expect(fixtureRow!.goalsAgainstWhilePresent).toBe(derived!.goalsAgainstWhilePresent);
-    expect(fixtureRow!.directGoalContributions).toBe(derived!.directGoalContributions);
-    expect(fixtureRow!.directAssistContributions).toBe(derived!.directAssistContributions);
-    expect(fixtureRow!.opponentDiversity).toBe(derived!.opponentDiversity);
-    expect(fixtureRow!.confidence).toBe(derived!.confidence);
+    const { createdAt: _derivedCreatedAt, ...derivedWithoutCreatedAt } = derived!;
+    const { createdAt: _fixtureCreatedAt, ...fixtureWithoutCreatedAt } = fixtureRow!;
+    expect(fixtureWithoutCreatedAt).toEqual(derivedWithoutCreatedAt);
+  });
+
+  it("classifies Noah (CF) + Sindre (LCM) as VERTICAL — different lines, matching the production rule", () => {
+    expect(derivedPartnership()!.subtype).toBe("VERTICAL");
+  });
+
+  it("shared minutes equal the interval-derived duration", () => {
+    expect(derivedPartnership()!.minutesTogether).toBe(80);
+  });
+
+  it("goals for/against match the recorded report events (3 FOR, 1 AGAINST) within the segment", () => {
+    const derived = derivedPartnership()!;
+    expect(derived.goalsForWhilePresent).toBe(3);
+    expect(derived.goalsAgainstWhilePresent).toBe(1);
+  });
+
+  it("direct contributions match recorded identities — Noah and Sindre each scored once; Kasper's assist is not fabricated as theirs", () => {
+    const derived = derivedPartnership()!;
+    expect(derived.directGoalContributions).toBe(2);
+    expect(derived.directAssistContributions).toBe(0);
+  });
+
+  it("opponentDiversity is always 1 for per-match evidence", () => {
+    expect(derivedPartnership()!.opponentDiversity).toBe(1);
   });
 
   it("never derives ESTABLISHED confidence from a single match (deriveConfidence requires matchCount >= 3)", () => {
-    const rows = deriveCombinationsFromSegments(segments, ref, "org-gate-b", "season-gate-b-06", goalEvents);
+    const rows = deriveCombinationsFromSegments(
+      toMatchSegments(b06EventAfterPositionalSegment),
+      ref,
+      "org-gate-b",
+      "season-gate-b-06",
+      b06EventAfterGoalAttributionEvents,
+    );
     expect(rows.every((r) => r.confidence !== "ESTABLISHED")).toBe(true);
+  });
+
+  it("William (the Guest Player) is never assigned a pitch position, and so never acquires partnership/combination evidence", () => {
+    const william = b06EventParticipants.find((p) => p.participantType === "GUEST_PLAYER");
+    expect(william).toBeDefined();
+    expect(william!.tacticalPosition).toBeNull();
+    const positionedIds = b06EventAfterPositionalSegment.participants.map((p) => p.participantId);
+    expect(positionedIds).not.toContain(william!.participantId);
+    for (const row of combinationEvidence) {
+      expect(row.playerIds).not.toContain(william!.participantId);
+    }
   });
 });

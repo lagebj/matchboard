@@ -16,8 +16,10 @@ import type {
   PostMatchAvailablePlayer,
   PostMatchReportTimingReviewRow,
 } from "@/lib/reports/post-match-report-view-model";
-import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
+import { deriveCombinationsFromSegments, type CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
+import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
+import { b06EventAfterPositionalSegment, b06EventAfterGoalAttributionEvents, toMatchSegments } from "./combination-source-data";
 
 /**
  * B06 Event · After — completed, report locked (read-only). Reuses the REAL shared
@@ -28,19 +30,23 @@ import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
  * (not a draft/completed toggle like B05) — B06's job is lifecycle/navigation parity across
  * origins, not re-demonstrating the editable-vs-locked distinction B05 already covers.
  *
- * fixtureVersion 3 (B5/R2/B5/R6 remediation) — never approved at any prior version, so no
- * historical-approval preservation is needed here (contrast B05, see candidate_manifest.json).
- * Corrects two verified findings: William (`participant-gb6e-william`, a Guest Player) is no
- * longer the subject of `debriefAnswers.player_observations` (B5/R2); the Noah+Sindre
- * combination row's `subtype` is `VERTICAL`, not `HORIZONTAL` (B5/R6 — CF and LCM are different
- * lines; verified against the real `deriveCombinationsFromSegments()` in
- * `__tests__/combination-evidence.test.ts`).
+ * Never approved at any prior version, so no historical-approval preservation is needed here
+ * (contrast B05, see candidate_manifest.json). fixtureVersion 3 (B5/R2/B5/R6) corrected two
+ * verified findings: William (`participant-gb6e-william`, a Guest Player) is no longer the
+ * subject of `debriefAnswers.player_observations` (B5/R2); the Noah+Sindre combination row's
+ * `subtype` is `VERTICAL`, not `HORIZONTAL` (B5/R6 — CF and LCM are different lines).
+ *
+ * fixtureVersion 4 (R8-3) — `combinationEvidence` is now COMPUTED by calling the real
+ * `deriveCombinationsFromSegments()` directly against `combination-source-data.ts`'s own
+ * canonical positional/goal-attribution records (previously hand-written; verified in
+ * `__tests__/combination-evidence.test.ts` to equal the real function's own output exactly).
+ * Those source records are now also material to this fixture's own hash.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B06-EVENT-AFTER",
   fixtureId: "gate-b-w3-b06-event-after",
-  fixtureVersion: 3,
-  fixtureSha256: "104ff390917ea7bff65cfb324b8197c28e63486855b43b3a50b492fccaed81e0",
+  fixtureVersion: 4,
+  fixtureSha256: "a14895d34fc326092f70dc3719ceffb9db3168b63213d0576b59d547961ce34e",
   sourceClass: "SYNTHETIC_LABELED",
   // B3-R4: after the real completion time, never before kickoff.
   fixedDateTimeUtc: B06_EVENT_AFTER_REFERENCE_AT.toISOString(),
@@ -179,33 +185,44 @@ export const footballObservations = [
  * FORWARD` -> `ROLE_TYPE_TO_LINE.FORWARD` = `"ATT"`) and Sindre plays LCM (`MIDFIELDER` ->
  * `"MID"`) — two DIFFERENT lines, so the real `derivePartnershipSubtype()`
  * (`src/lib/evidence/combination-topology.ts`) returns `VERTICAL`, never `HORIZONTAL` (that
- * requires the SAME line, e.g. two centre-backs). Every field below is independently verified in
- * `__tests__/combination-evidence.test.ts` by calling the real, unmodified
- * `deriveCombinationsFromSegments()` against constructed segments/goal events for this exact
- * match, not hand-derived — this row equals that function's own real output, not a value chosen
- * to look plausible.
+ * requires the SAME line, e.g. two centre-backs).
+ *
+ * R8-3: computed by calling the real, unmodified `deriveCombinationsFromSegments()` directly
+ * against `combination-source-data.ts`'s own canonical positional segment and goal-attribution
+ * events (the SAME records `__tests__/combination-evidence.test.ts` imports and asserts against
+ * — never two different synthetic evidence models). The full present lineup (minus William, the
+ * Guest Player, who is never assigned a position) is positioned for the whole segment, so the
+ * real function also derives lines/triangles/the full-configuration row for the whole squad —
+ * this fixture curates down to just the Noah+Sindre PARTNERSHIP row this scenario calls out,
+ * matching how `MatchCombinationEvidencePanel` itself already filters a larger set down to what
+ * it displays, not an invented narrowing. `createdAt` is the one display-only field overridden
+ * after derivation — the real function stamps `new Date()` (wall-clock, non-deterministic),
+ * replaced here with the fixed `B06_EVENT_AFTER_REFERENCE_AT` moment.
  */
-export const combinationEvidence: CombinationEvidenceRow[] = [
-  {
-    id: "comb-gb6e-1",
-    organisationId: "org-gate-b",
-    matchId: null,
-    eventMatchId: B06_EVENT_MATCH_ID,
-    family: "PARTNERSHIP",
-    subtype: "VERTICAL",
-    playerIds: ["participant-gb6e-noah", "participant-gb6e-sindre"],
-    positions: ["CF", "LCM"],
-    minutesTogether: 80,
-    goalsForWhilePresent: 3,
-    goalsAgainstWhilePresent: 1,
-    directGoalContributions: 2,
-    directAssistContributions: 0,
-    opponentDiversity: 1,
-    confidence: "EMERGING",
-    approximateTiming: false,
-    leagueSeasonId: "season-gate-b-06",
-    createdAt: B06_EVENT_AFTER_REFERENCE_AT,
-  },
-];
+const b06EventCombinationRef: FootballMatchRef = {
+  kind: "EVENT_MATCH",
+  eventMatchId: B06_EVENT_MATCH_ID,
+  eventId: "event-gate-b-06",
+  evidenceLeagueSeasonId: "season-gate-b-06",
+};
 
-export const rawRecordsForHash = { matchIdentity, report, debriefAnswers, footballObservations, combinationEvidence };
+export const combinationEvidence: CombinationEvidenceRow[] = deriveCombinationsFromSegments(
+  toMatchSegments(b06EventAfterPositionalSegment),
+  b06EventCombinationRef,
+  "org-gate-b",
+  "season-gate-b-06",
+  b06EventAfterGoalAttributionEvents,
+)
+  .filter((row) => row.family === "PARTNERSHIP" && row.playerIds.includes("participant-gb6e-noah") && row.playerIds.includes("participant-gb6e-sindre"))
+  .map((row) => ({ ...row, createdAt: B06_EVENT_AFTER_REFERENCE_AT }));
+
+export const rawRecordsForHash = {
+  matchIdentity,
+  report,
+  debriefAnswers,
+  footballObservations,
+  combinationEvidence,
+  // R8-3 — the material source records `combinationEvidence` is actually derived from.
+  combinationPositionalSegment: b06EventAfterPositionalSegment,
+  combinationGoalAttributionEvents: b06EventAfterGoalAttributionEvents,
+};
