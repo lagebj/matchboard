@@ -204,8 +204,11 @@ function completeB05DraftWithUnresolvedGapFlow() {
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Complete report", exact: true }).click();
     await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
-    // The disclosure must still be showing — this state is legally LOCKED but NOT reconciled.
-    await page.getByText(/missing scorer attribution/i).waitFor({ state: "visible", timeout: 10000 });
+    // R8-1 — the disclosure must still be showing, AND it must be the LOCKED-state wording
+    // specifically ("Reopen the report to add..."), never the editable-state wording — this
+    // state is legally LOCKED but NOT reconciled, and the coach must be told to reopen, not to
+    // complete an already-completed report.
+    await page.getByText(/Reopen the report to add/i).waitFor({ state: "visible", timeout: 10000 });
   };
 }
 
@@ -234,12 +237,13 @@ function completeB05DraftReconciledFlow() {
     await scorerSelect.selectOption({ value: "player-gb5-sindre" });
     await page.getByPlaceholder("Min", { exact: true }).fill("34");
     await page.getByRole("button", { name: "Add goal", exact: true }).click();
-    await page.getByText(/missing scorer attribution/i).waitFor({ state: "detached", timeout: 10000 });
+    await page.getByText(/recorded during Live Reporting/i).waitFor({ state: "detached", timeout: 10000 });
 
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Complete report", exact: true }).click();
     await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
-    await page.getByText(/missing scorer attribution/i).waitFor({ state: "detached", timeout: 10000 });
+    // R8-1 required check: a fully reconciled LOCKED report shows no warning at all.
+    await page.getByText(/recorded during Live Reporting/i).waitFor({ state: "detached", timeout: 10000 });
   };
 }
 
