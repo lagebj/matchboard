@@ -9,12 +9,15 @@ import { b05PositionalSegment, b05GoalAttributionEvents } from "../shared/combin
  * — that approval is preserved as historical fact in `candidate_manifest.json`'s `priorVersions`,
  * not overwritten. This version has not been approved and does not inherit that approval.
  *
- * fixtureVersion 3 (R8-3 remediation) — `b05CombinationEvidence` (report-data.ts) is now
- * COMPUTED by calling the real `deriveCombinationsFromSegments()` against
- * `shared/combination-source-data.ts`'s own canonical positional/goal-attribution records
- * (previously hand-written; the positions array's sort order and id format both changed to the
- * real function's own output — see SOURCE_RECONCILIATION.md). Those source records are now also
- * material to this fixture's own hash (`combinationPositionalSegment`/
+ * fixtureVersion 3 (R8-3 remediation) — `b05CombinationEvidence` (report-data.ts) is now the
+ * real `deriveCombinationsFromSegments()`'s own verified output against
+ * `shared/combination-source-data.ts`'s canonical positional/goal-attribution records (previously
+ * hand-written; the positions array's sort order and id format both changed to the real
+ * function's own output — see SOURCE_RECONCILIATION.md). Not computed inline (see
+ * `report-data.ts`'s own doc comment for why — importing the derivation function itself pulls
+ * the server-only `db` client into this client-bundled fixture); verified byte-for-byte against
+ * the real function in `shared/__tests__/combination-evidence.test.ts`. Those source records are
+ * now also material to this fixture's own hash (`combinationPositionalSegment`/
  * `combinationGoalAttributionEvents` below).
  */
 export const identity: FixtureIdentity = {

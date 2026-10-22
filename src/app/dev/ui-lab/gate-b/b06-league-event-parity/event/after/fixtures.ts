@@ -35,11 +35,13 @@ import { b06EventAfterPositionalSegment, b06EventAfterGoalAttributionEvents } fr
  * subject of `debriefAnswers.player_observations` (B5/R2); the Noah+Sindre combination row's
  * `subtype` is `VERTICAL`, not `HORIZONTAL` (B5/R6 — CF and LCM are different lines).
  *
- * fixtureVersion 4 (R8-3) — `combinationEvidence` is now COMPUTED by calling the real
- * `deriveCombinationsFromSegments()` directly against `combination-source-data.ts`'s own
- * canonical positional/goal-attribution records (previously hand-written; verified in
- * `__tests__/combination-evidence.test.ts` to equal the real function's own output exactly).
- * Those source records are now also material to this fixture's own hash.
+ * fixtureVersion 4 (R8-3) — `combinationEvidence` is now the real `deriveCombinationsFromSegments()`'s
+ * own verified output (previously hand-written) against `combination-source-data.ts`'s canonical
+ * positional/goal-attribution records — not computed inline (see `combinationEvidence`'s own doc
+ * comment below for why: that would pull the server-only `db` client into this client-bundled
+ * file). `__tests__/combination-evidence.test.ts` calls the real function directly (Node/Vitest,
+ * never bundled) and asserts this literal equals its output byte-for-byte. Those source records
+ * are now also material to this fixture's own hash.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B06-EVENT-AFTER",
