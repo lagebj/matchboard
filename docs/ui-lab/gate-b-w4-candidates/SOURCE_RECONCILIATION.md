@@ -40,6 +40,22 @@ sources) — not an opaque stub — so the page-level tests still exercise real 
 wiring. The actual page *source* still mounts the real, unmodified production component; only the
 test harness substitutes it, matching exact production precedent.
 
+## W4-R4 — `ui-lab-visual-review.yml`'s 25-minute job timeout had no real margin
+
+This PR's first CI run (https://github.com/lagebj/matchboard/actions/runs/39848281906) was
+cancelled by the job's own `timeout-minutes: 25` at 25m26s, mid-capture, having only reached
+`gate-b-w3-b06-event-detail` — never starting either B07 scenario. Per-step timing
+(`gh api .../jobs/120067320061`) shows the actual cause: `npx playwright install --with-deps
+chromium` alone took 11m05s that run (CI infra variance — package/apt mirror load, not a build or
+install logic the content of this wave touches), leaving the capture step only 13m29s of the
+25-minute budget before being cut off — compare the most recent prior successful capture run
+(39829331691), whose equivalent step took under a minute and whose entire job completed in
+14m22s, well inside 25 minutes. Corrected by raising `timeout-minutes` to 35 in
+`ui-lab-visual-review.yml`, disclosed inline — a CI configuration change, not an app or fixture
+change, and the minimum needed to give the capture step real margin against ordinary install-step
+variance rather than a change tailored to make this wave's own two extra scenarios just barely
+fit.
+
 ## No change required
 
 The brief's own section 7 anticipated needing a narrowly-scoped adapter if the real panel

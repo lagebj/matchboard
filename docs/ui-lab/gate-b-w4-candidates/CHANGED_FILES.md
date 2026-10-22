@@ -21,6 +21,8 @@
   (`gate-b-w4-b07-historical-pattern`, `gate-b-w4-b07-trivial-fact`), explicitly to avoid
   repeating B06's own B5/R7 finding (new pages shipped with zero capture evidence because they
   were never added to this array).
+- `.github/workflows/ui-lab-visual-review.yml` — `timeout-minutes` 25 → 35, after this PR's own
+  first CI run was cancelled mid-capture; see `SOURCE_RECONCILIATION.md` W4-R4.
 
 ## New — W4 documentation set (this directory)
 
