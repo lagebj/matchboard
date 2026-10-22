@@ -1,5 +1,93 @@
 # Gate B W2 — Visual vs. Current Production
 
+## Sixth remediation pass (R11-1, R11-2, R11-3) — Debrief tab text corrected; no other visual change
+
+R11-1 and R11-3 change no rendered output at all: R11-1 adds pure validation functions exercised
+only by tests (no UI control calls them), and R11-3 only adds two keys to `rawRecordsForHash`
+(a hashing input, never displayed).
+
+R11-2's narrative corrections DO change rendered text, but only on the Debrief tab, via the real,
+unmodified `DebriefReadOnly` component (`src/components/post-match/debrief/debrief-read-only.tsx`
+— rendered because this scenario's debrief is already `SUBMITTED`):
+
+- The "Team note" field under Team execution now reads "Strong response after both equalizers —
+  we regained the lead each time, but need to tighten our defensive transitions." instead of the
+  prior revision's "Slow start but good response after going behind twice."
+- The "What changed" field's label changes from "We changed something" to "No meaningful change"
+  (`MATCH_CHANGE_LABELS[answers.match_changes.option]`, a real production label this component has
+  always supported — never an invented string), and its description now reads "Stayed in the same
+  shape throughout and just asked the midfield to press higher after conceding." instead of
+  "Moved to a back three after conceding the second goal."
+- The "Opponent memory" field now reads "Kongsberg kept pushing after falling behind and found a
+  second equalizer with 10 minutes left — we had to respond quickly to regain the lead each time."
+  instead of "Kongsberg sat deeper once behind — harder to break down in the final 15 minutes."
+
+Two other narrative fields that the corrected text parallels — `b05Reflection.note` and
+`b05OpponentObservation.factualSummary` (`report-data.ts`) — are **not rendered anywhere in this
+UI Lab candidate's own page tree**: `post-match-summary-tab.tsx`'s `ReflectionRows` only displays
+the four rating pills (effort/cohesion/positional shape/recovery), never `.note`, and
+`opponentObservation` is not referenced by any component in the post-match-report composition at
+all (`after-match-overview.tsx`, which does render `factualSummary`, belongs to the separate
+match-detail page, not this candidate). Both corrections are real data-integrity fixes, but have
+zero visual effect on this candidate's own captures — confirmed by reading the actual rendering
+components directly, not assumed.
+
+## Fifth remediation pass (R10-1) — one number corrected on the Combinations tab
+
+The completed candidate's Combinations tab shows "60 min this match" for the Noah+Sindre row,
+not the R9-1 pass's own "83 min this match" — the only rendered-text change from R10-1's
+match-format/participation correction (every other displayed field on that row is unchanged, and
+no other tab's rendered text changes: the goal timeline's displayed minute labels remain the same
+real-world minutes, 12'/20'/34'/50'/55', with only the final goal's label itself moving 61' -> 55'
+as a direct consequence of the corrected chronology — see `SOURCE_RECONCILIATION.md`'s own "fifth
+remediation pass" section).
+
+## Fourth remediation pass (R9-1) — one number corrected on the Combinations tab
+
+The completed candidate's Combinations tab shows "83 min this match" for the Noah+Sindre row,
+not the old "80 min this match" — the only rendered-text change from R9-1's participation-model
+correction (every other displayed field on that row is unchanged). See
+`SOURCE_RECONCILIATION.md`'s own "fourth remediation pass" section.
+
+## Third remediation pass (R8-1) — visual-correction summary
+
+R8-1 corrects the B5/R1 disclosure's own wording: the locked-state message now reads "This
+completed report is missing N goal(s) recorded during Live Reporting. Reopen the report to add
+the missing goal(s)." instead of reusing the editable-state message's "Add the missing scorer...
+before completing this report" (invalid once locked). Still a candidate-only proposed correction
+— the real production `GoalAttributionGapBanner` is unmodified and still shows no locked-state
+disclosure at all. R8-2 and R8-3 change no visual output. See `SOURCE_RECONCILIATION.md`.
+
+## Second remediation pass (B5/R1, B5/R4, B5/R5) — visual-correction summary
+
+Three of the five B5/Rx findings changed what the candidate visually shows, beyond the first
+pass below: (1) the goal-attribution-gap banner now stays visible on a LOCKED-but-unresolved
+report — a candidate-only proposed correction, since real production's `PostMatchReportPageShell`
+still hides it the same way (B5/R1); (2) the header's `MatchIdentityCard` now tracks an edited
+Result score live instead of showing the original fixture score (B5/R4); (3) "Back to match"/the
+"Matches" breadcrumb now point at a new real `match-details/` page instead of a fragment, and the
+Review tab shows a plain disclosure instead of a working-looking link to nowhere (B5/R5). See
+`SOURCE_RECONCILIATION.md` for the full finding-by-finding record.
+
+## fixtureVersion 2 — what the remediation changes here
+
+`PARTIALLY_CORRECTED_REFERENCE` as of fixtureVersion 2 (not `CONFIRMS_SHIPPED_BASELINE` for the
+Players tab specifically) — see `candidate_manifest.json`. The shared `PostMatchReportShell`
+core (Result/Goals/Assists/Attendance/Complete/Reopen) is still the exact real, unmodified
+production component. What is **no longer** identical to the currently-shipped page: the real
+`PostMatchPage` wrapper around it is not rendered at all (replaced by
+`shared/safe-post-match-report-shell.tsx` + `shared/use-safe-report-lifecycle.ts`), because it
+offers no seam to prevent real production mutations from this candidate's synthetic match id
+(B2-R5 — see `BLOCKERS.md` for the tracked production-issue follow-up). League-only secondary
+sections (team notes, planned squad, absences, player stats) are now read-only summaries rather
+than reusing their real interactive sub-controls — a disclosed, deliberate narrowing, not a
+claim that production itself is read-only there. The real production banner duplication
+(`PostMatchUnresolvedBanner`/`GoalAttributionGapBanner` rendered twice) is **not** reproduced by
+this corrected candidate — this is a disclosed divergence from the current shipped page, not a
+claim that production has already been fixed to match.
+
+## Original wave (fixtureVersion 1) — superseded where noted above
+
 Per `SOURCE_RECONCILIATION.md`'s framing decision: this wave **confirms** the real, already-shipped
 composition rather than proposing a different one.
 

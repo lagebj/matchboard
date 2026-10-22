@@ -178,6 +178,76 @@ function clickResolvePending() {
 }
 
 /**
+ * B06/W3 remediation (B2-R3/R5) — drives B05 draft's real fixture-local lifecycle instead of the
+ * old whole-fixture-swap control this replaced: confirm the real timing blocker, add the real
+ * missing goal, then click the real "Complete report" button (native confirm() dialog
+ * auto-accepted — this never reaches a production server action, see
+ * shared/use-safe-report-lifecycle.ts). Waits for "Reopen report" to confirm the transition
+ * actually completed before the screenshot fires.
+ */
+// B5/R1 — the real `complete()` gate only blocks on timing review (`getTimingSubmissionBlockers()`
+// parity), never on goal-attribution reconciliation, matching production's own `completeReport()`
+// exactly (see BLOCKERS.md/DATA_TRUTH_AND_FIXTURES.md). That means a report CAN legally reach
+// LOCKED with the goal-attribution gap still open — a real, reachable path, not a hypothetical —
+// and the candidate must disclose it rather than silently let it look reconciled. Two sequential
+// interaction states demonstrate both real outcomes from the one draft page, in order:
+//   1. completeB05DraftWithUnresolvedGapFlow — confirm timing ONLY, then complete. Legal; the
+//      gap banner must still be visible once locked (B5/R1's visual correction).
+//   2. completeB05DraftReconciledFlow — reopen, add the real missing goal (Sindre, 34', via the
+//      actual minute input — B5/R1's capture fix), then complete again. The standard/golden
+//      completed reference path: fully reconciled, matching `completed/fixtures.ts` exactly.
+function completeB05DraftWithUnresolvedGapFlow() {
+  return async function perform(page) {
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await page.getByText("Confirm duration", { exact: true }).waitFor({ state: "detached", timeout: 10000 });
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+    // R8-1 — the disclosure must still be showing, AND it must be the LOCKED-state wording
+    // specifically ("Reopen the report to add..."), never the editable-state wording — this
+    // state is legally LOCKED but NOT reconciled, and the coach must be told to reopen, not to
+    // complete an already-completed report.
+    await page.getByText(/Reopen the report to add/i).waitFor({ state: "visible", timeout: 10000 });
+  };
+}
+
+function completeB05DraftReconciledFlow() {
+  return async function perform(page) {
+    const reopenButton = page.getByRole("button", { name: "Reopen report", exact: true });
+    // This exact click was observed failing twice in real CI, on the `mobile` (hasTouch: true)
+    // viewport only — Playwright's pre-click actionability check reported an ancestor
+    // `<div class="flex flex-col gap-5">` "intercepting pointer events" at the computed click
+    // point, every retry, for the full 30s timeout, even after an explicit scroll/viewport reset.
+    // Desktop (not touch-emulated) performs the identical click, in the identical application
+    // state, successfully every run. The real screenshot from that same failing run's own CI
+    // capture (gate-b-w2-b05-draft-mobile-dark-completed-with-gap-transition.png, downloaded and
+    // inspected directly) shows the button fully visible and unobstructed — nothing in the
+    // rendered page actually covers it. This matches a known Playwright touch-emulation
+    // hit-testing false positive, not a real reachability bug; `force: true` skips that
+    // pointer-interception pre-check while still performing a real click on the real element —
+    // `scrollIntoViewIfNeeded()` beforehand keeps the click honest about the element actually
+    // being on-screen first.
+    await reopenButton.scrollIntoViewIfNeeded();
+    page.once("dialog", (dialog) => dialog.accept());
+    await reopenButton.click({ force: true });
+    await page.getByRole("button", { name: "Complete report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+
+    const scorerSelect = page.locator("select").filter({ has: page.locator('option[value=""]', { hasText: "Select scorer" }) });
+    await scorerSelect.selectOption({ value: "player-gb5-sindre" });
+    await page.getByPlaceholder("Min", { exact: true }).fill("34");
+    await page.getByRole("button", { name: "Add goal", exact: true }).click();
+    await page.getByText(/recorded during Live Reporting/i).waitFor({ state: "detached", timeout: 10000 });
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+    // R8-1 required check: a fully reconciled LOCKED report shows no warning at all.
+    await page.getByText(/recorded during Live Reporting/i).waitFor({ state: "detached", timeout: 10000 });
+  };
+}
+
+/**
  * Gate A W4 (A05/A11) interaction helper: fills the AssistantCoachHypothesisCard's/
  * ProfileChangeReviewCard's text input (where present) before clicking a button whose
  * disabled/enabled state depends on it — a plain `clickByName` alone can't exercise the
@@ -621,16 +691,67 @@ const scenarios = [
     route: "gate-b/b05-post-match-report/draft",
     extraViewports: gbExtraSmokeViewports,
     interactionViewports: ["desktop", "mobile"],
-    // The real "Complete report" button is never clicked here (it would attempt a real server
-    // action with no real match in the database) — this clicks the UI-Lab-local fixture-
-    // simulation control instead, which swaps the page's local props to the completed fixture.
-    // Proves the real DRAFT -> COMPLETED transition and the pinned-`?tab=players` regression
-    // (post-match-report-page-shell.test.tsx's own coverage) with real capture evidence.
-    interactions: [{ id: "completed-transition", perform: clickByName("Continue fixture simulation → Complete report") }],
+    // fixtureVersion 2 (B2-R3/R5/B5-R1 remediation): drives the real fixture-local lifecycle
+    // (confirm timing, click the real "Complete report" button — a native confirm() dialog,
+    // auto-accepted) rather than a whole-fixture-swap button, and never reaches a production
+    // server action (shared/use-safe-report-lifecycle.ts). Two sequential states from the SAME
+    // page load (B5/R1): the real "legally locked but still unresolved" path first, then the
+    // real "reopen, add the missing goal, reconcile" path — proving both real outcomes the
+    // production completion gate actually allows, plus the pinned-`?tab=players` regression
+    // (post-match-report-page-shell.test.tsx's own coverage), with real capture evidence.
+    interactions: [
+      { id: "completed-with-gap-transition", perform: completeB05DraftWithUnresolvedGapFlow() },
+      { id: "completed-transition", perform: completeB05DraftReconciledFlow() },
+    ],
   },
   {
     slug: "gate-b-w2-b05-completed",
     route: "gate-b/b05-post-match-report/completed",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  // B5/R5/B5/R7 — the real navigation destination `breadcrumbHref`/"Back to match" now link to,
+  // registered for capture so it is not a silent coverage gap the way B06's own two nav pages
+  // were (found and fixed in the same pass — see below).
+  {
+    slug: "gate-b-w2-b05-match-details",
+    route: "gate-b/b05-post-match-report/match-details",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  // Gate B W3 candidate (official register B06, "League/Event match comparison") — CANDIDATE,
+  // not approved. Four static read-only compositions, no responsive inspector threshold, so only
+  // the 360/430px smoke widths apply (same as B02-B04/B05) — reuses `gbExtraSmokeViewports`
+  // directly, the same Gate B smoke-width concept every prior Gate B wave has used.
+  {
+    slug: "gate-b-w3-b06-league-before",
+    route: "gate-b/b06-league-event-parity/league/before",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-league-after",
+    route: "gate-b/b06-league-event-parity/league/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-event-before",
+    route: "gate-b/b06-league-event-parity/event/before",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-event-after",
+    route: "gate-b/b06-league-event-parity/event/after",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  // B5/R7 — these two real B3-R5 navigation-origin pages existed since the B06 remediation but
+  // were never registered here, so they had zero real CI capture evidence despite being linked
+  // from every League/Event Before/After page. Found and fixed in this same pass.
+  {
+    slug: "gate-b-w3-b06-league-match-details",
+    route: "gate-b/b06-league-event-parity/league/match-details",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w3-b06-event-detail",
+    route: "gate-b/b06-league-event-parity/event/event-detail",
     extraViewports: gbExtraSmokeViewports,
   },
 ];
@@ -642,6 +763,10 @@ const viewports = [
 const records = [];
 await mkdir(output,{recursive:true});
 const browser = await chromium.launch();
+// B3-R1: set only once every registered scenario's loop iteration completes without throwing —
+// guards the coverage-completeness check below from masking a real mid-run crash with a less
+// useful "missing scenario" error (a crash already fails the run on its own).
+let completedAllScenarios = false;
 try {
   // A04's own route guard for the data-ui-lab-ready/console-error gates below — bounded to A04
   // only, so every W1/baseline scenario's capture behavior is provably unchanged (independent
@@ -742,6 +867,15 @@ try {
           sha256,
         });
         console.log("Captured "+name+" sha256="+sha256);
+        // A `fullPage` screenshot can temporarily resize the viewport to capture content taller
+        // than the configured window and leave scroll position wherever the last captured
+        // segment left it. A SECOND chained interaction (B5/R1's two-step B05 draft flow is the
+        // first Gate B scenario to do this) then clicks against coordinates computed from that
+        // stale geometry, which resolved to the whole-page wrapper div instead of the intended
+        // button on the narrow (`mobile`) viewport in CI. Reassert the real viewport size and
+        // reset scroll before any further interaction runs.
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.evaluate(() => window.scrollTo(0, 0));
       }
 
       // Console/page-error gate (independent review round 1, PR #778, verification gap): bounded
@@ -754,6 +888,7 @@ try {
       }
     } finally { await context.close(); }
   }
+  completedAllScenarios = true;
 } finally {
   await browser.close();
   const sourceCommitSha = resolveCommitSha();
@@ -769,4 +904,21 @@ try {
     approvalStatus:"CANDIDATE",
     captures:records,
   },null,2)+"\n");
+
+  // B3-R1: coverage-completeness verifier. The original B06 capture run was green but silently
+  // produced zero B06 captures (the scenario simply wasn't registered in `scenarios` above) —
+  // this makes that exact class of regression a hard CI failure instead of something only a
+  // manual artifact inspection would ever catch. Only runs when the capture loop itself didn't
+  // already crash (a crash is already a failure on its own, and re-throwing from `finally`
+  // would mask the real error with this one).
+  if (completedAllScenarios) {
+    const capturedSlugs = new Set(records.map((r) => r.scenario));
+    const missing = scenarios.map((s) => s.slug).filter((slug) => !capturedSlugs.has(slug));
+    if (missing.length > 0) {
+      throw new Error(
+        "Capture coverage incomplete — "+missing.length+" registered scenario(s) produced zero captures: "+missing.join(", ")+
+        ". A scenario registered in `scenarios` must always produce at least one capture; see manifest.json for what was actually captured.",
+      );
+    }
+  }
 }

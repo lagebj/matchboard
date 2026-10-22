@@ -7,6 +7,7 @@ import {
   type MatchAttendanceFact,
   type MatchGoalFact,
   type MatchAssistFact,
+  type MatchCanonicalLiveEventFact,
 } from "@/lib/matches/match-detail-view-model";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
 import type { MatchReportDetail } from "@/app/(app)/matches/[matchId]/post-match/actions";
@@ -14,29 +15,69 @@ import type { GoalAttributionGap } from "@/lib/reports/report-mutations";
 import type { PostMatchReportTimingReviewRow } from "@/lib/reports/post-match-report-view-model";
 import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
-import { MATCH_B_TEAM_NAME, B05_MATCH_ID, B05_REPORT_ID, B05_OPPONENT_NAME, B05_NOW } from "../../shared/match-b-fixture";
+import { MATCH_B_TEAM_NAME, B05_MATCH_ID, B05_REPORT_ID, B05_OPPONENT_NAME } from "../../shared/match-b-fixture";
 
 /**
- * B05 "Post-match Report / Draft and completed" (official Gate B register, deferred row):
- * "Finish/report actions versus read-only knowledge." Unlike B01-B04 (four different matches),
- * this is deliberately ONE match's own report moving through its real lifecycle — the register
- * row is specifically about the same report before and after completion, not four unrelated
- * scenarios. `draft/fixtures.ts` and `completed/fixtures.ts` both build their own
- * `MatchDetailAfterData`/`MatchReportDetail` from these shared raw records, differing only in
- * exactly the fields that genuinely differ between the two real lifecycle moments (report status,
- * the second goal's attribution, timing review, completedBy/completedAt) — everything else
- * (score, squad, the other two goals/both assists, the debrief) is identical, because it is the
- * same real match and the same real coach-submitted debrief, not a different one per state.
+ * B06 remediation (B2-R2/B2-R4/B2-R7) — fixtureVersion 2. Supersedes fixtureVersion 1's hand-
+ * written `{liveGoalsRecorded: 3, attributedGoals: 2, hasGap: true}` gap object, which did not
+ * follow production `computeGoalAttributionGap()` (`report-mutations.ts`): `attributedGoals` is
+ * a plain `db.goal.count()` — a row count, never filtered by scorer — so a 3-row report (even
+ * with one row's `playerId: null`) always yields `attributedGoals: 3`, not 2. See
+ * `docs/ui-lab/gate-b-w2-candidates/BLOCKERS.md` for the full history.
  *
- * All real production pure functions (`summarizeMatchAttendance`, `aggregateGoalScorers`,
- * `aggregateAssistProviders`, `buildMatchTimeline`, `buildPlayerInvolvement`) are called here,
- * exactly as Gate B W1's own fixtures call `buildMatchPreparationDisplayItems()` — the rendered
- * numbers are the real functions' own output over these raw facts, never a hand-rolled duplicate
- * of what those functions would compute.
+ * The honest, production-faithful version of this scenario: 3 canonical live `GOAL_FOR` events
+ * genuinely exist (this match WAS live-reported) and the coach's own Goal rows on the report
+ * lag behind that live truth by exactly one row in the draft — not a wrong attribution, a
+ * missing row entirely. `b05CanonicalLiveEvents` is the one true historical record, identical
+ * in both lifecycle states (live events are immutable once recorded); only `b05Goals()` — the
+ * report's own rows — differs by variant.
  */
-
 export const B05_COMPLETED_AT = new Date("2026-10-11T12:05:00.000Z").toISOString();
 export const B05_COMPLETED_BY = "Marte Johansen";
+
+/**
+ * R10-1 — the authoritative match format, established BEFORE any participation/timing value was
+ * chosen (not reverse-engineered from existing numbers). Slemmestad Rød's squad plays in NFF
+ * Akershus's G11 age class, which plays 7-a-side football in 2x30-minute halves (60 minutes
+ * regulation) — see NFF's own published rules:
+ * https://www.fotball.no/kretser/akershus/konkurranse-aktivitet/lagenes-abc/ and
+ * https://www.fotball.no/lov-og-reglement/spilleregler/spilleregler-og-retningslinjer-barnefotball-6-12ar/.
+ * No match-specific exception exists anywhere else in this fixture bundle (a synthetic
+ * `resolvedDurationMinutes: 45` timing-review value is NOT independent evidence of a 90-minute
+ * match — see `BLOCKERS.md`'s R10-1 record for why the earlier R9-1 pass's own 90-minute
+ * assumption was wrong), so the default NFF G11 format applies without modification.
+ */
+/** R11-1: `maxOnFieldPlayers` is the real 7v7 ceiling (the goalkeeper counts toward it) — the
+ * general format-level constraint `combination-source-data.ts`'s `validateOnFieldCount()` checks
+ * against, independent of any one scenario's chosen headcount. A segment with FEWER players than
+ * this ceiling is not itself invalid for a general 7v7 match (a card, injury, or late-arriving
+ * squad are all legitimate situations); B05's own *exact*-seven requirement is a separate,
+ * scenario-specific rule (`validateExactParticipantCount()`), not encoded here. */
+export const B05_MATCH_FORMAT = {
+  ageGroup: "G11",
+  squadFormat: "7v7",
+  maxOnFieldPlayers: 7,
+  numberOfPeriods: 2,
+  periodDurationMinutes: 30,
+  breakDurationMinutes: 10,
+  regulationDurationMinutes: 60,
+} as const;
+
+/**
+ * R10-1 — the real production conversion from a human-facing GLOBAL match minute to the
+ * period-relative `{period, matchSeconds}` encoding `LiveMatchEvent` actually stores (see
+ * `src/lib/live-match/period-config.ts`'s own documented contract). Exported so
+ * `b05CanonicalLiveEvents`'s own hand-written `period`/`matchSeconds` values can be independently
+ * cross-checked against their own `minuteLabel` in a test, rather than trusted by construction.
+ */
+export function globalMinuteToPeriodRelative(
+  globalMinute: number,
+  format: { numberOfPeriods: number; periodDurationMinutes: number },
+): { period: number; matchSeconds: number } {
+  const periodIndex = Math.min(Math.floor(globalMinute / format.periodDurationMinutes), format.numberOfPeriods - 1);
+  const periodRelativeMinutes = globalMinute - periodIndex * format.periodDurationMinutes;
+  return { period: periodIndex + 1, matchSeconds: periodRelativeMinutes * 60 };
+}
 
 export const b05AttendanceFacts: MatchAttendanceFact[] = [
   { attendanceStatus: "PRESENT", playerName: "Aksel" },
@@ -52,75 +93,127 @@ export const b05AttendanceFacts: MatchAttendanceFact[] = [
 export const b05AttendanceSummary = summarizeMatchAttendance(b05AttendanceFacts);
 
 /**
- * The second goal (34') is deliberately unattributed in the draft fixture and attributed to
- * Sindre in the completed one — this is the one fact this file does NOT share between the two
- * states, because it is the actual thing B05's "finish/report actions" contract demonstrates:
- * the coach resolves the real `GoalAttributionGapBanner` gap (ADR-0147 §4, the 2026-09-17
- * incident's own banner) before completing the report, not after.
+ * The one true live record for this match — 3 `GOAL_FOR`, 2 `GOAL_AGAINST` (matching the real
+ * 3-2 final score), with `SCORER_SET`/`ASSIST_SET` correction events pairing scorer/assist names
+ * to their goal via `correctsEventId` -> the goal's own `clientEventId`, exactly the real
+ * production linkage (`buildMatchTimelineFromLiveEvents()`, not by array index or proximity).
+ * Fixed for both draft and completed — a live event stream does not change when a coach edits
+ * their own report afterwards.
+ *
+ * R10-1: `matchSeconds` is PERIOD-RELATIVE in real production (`src/lib/live-match/
+ * period-config.ts`'s own documented contract — each period's clock restarts at 0; this is NOT
+ * global elapsed-since-kickoff), and `period` is `B05_MATCH_FORMAT.numberOfPeriods`'s own 1/2
+ * index. The R9-1-era event list mixed both interpretations inconsistently across different
+ * events (treating `matchSeconds` as a global minute count for the 12'/20'/34' events, but as
+ * period-relative — assuming an unstated 40-minute first half — for the 50'/61' events), and
+ * additionally placed the 34' goal in `period: 1` even though no half this short could contain a
+ * minute-34 event, and the final goal at a global minute (61') that exceeds this match's own real
+ * 60-minute regulation duration entirely. All five events are corrected below: `minuteLabel`
+ * remains the real-world GLOBAL match minute for coach-facing display (exactly as production's
+ * own minute-label resolution produces); `period`/`matchSeconds` are the real, period-relative
+ * machine encoding. The final goal's own global minute moved 61' -> 55' (comfortably inside
+ * regulation); every other event's global minute is unchanged — this is the minimal correction,
+ * not a new chronology.
+ */
+export const b05CanonicalLiveEvents: MatchCanonicalLiveEventFact[] = [
+  { id: "live-gb5-goal-1", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-1", correctsEventId: null, minuteLabel: "12'", period: 1, matchSeconds: 12 * 60 },
+  { id: "live-gb5-scorer-1", eventType: "SCORER_SET", playerName: "Noah", clientEventId: null, correctsEventId: "client-gb5-goal-1", minuteLabel: null, period: 1, matchSeconds: 12 * 60 },
+  { id: "live-gb5-goal-against-1", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-1", correctsEventId: null, minuteLabel: "20'", period: 1, matchSeconds: 20 * 60 },
+  // 34' global = 4' into the second half (34 - B05_MATCH_FORMAT.periodDurationMinutes) — period 2, not period 1.
+  { id: "live-gb5-goal-2", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-2", correctsEventId: null, minuteLabel: "34'", period: 2, matchSeconds: 4 * 60 },
+  { id: "live-gb5-scorer-2", eventType: "SCORER_SET", playerName: "Sindre", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 2, matchSeconds: 4 * 60 },
+  { id: "live-gb5-assist-2", eventType: "ASSIST_SET", playerName: "Vetle", clientEventId: null, correctsEventId: "client-gb5-goal-2", minuteLabel: null, period: 2, matchSeconds: 4 * 60 },
+  // 50' global = 20' into the second half.
+  { id: "live-gb5-goal-against-2", eventType: "GOAL_AGAINST", playerName: null, clientEventId: "client-gb5-goal-against-2", correctsEventId: null, minuteLabel: "50'", period: 2, matchSeconds: 20 * 60 },
+  // 55' global = 25' into the second half — moved from the old, out-of-regulation "61'".
+  { id: "live-gb5-goal-3", eventType: "GOAL_FOR", playerName: null, clientEventId: "client-gb5-goal-3", correctsEventId: null, minuteLabel: "55'", period: 2, matchSeconds: 25 * 60 },
+  { id: "live-gb5-scorer-3", eventType: "SCORER_SET", playerName: "Kasper", clientEventId: null, correctsEventId: "client-gb5-goal-3", minuteLabel: null, period: 2, matchSeconds: 25 * 60 },
+];
+
+export const B05_LIVE_GOALS_RECORDED = b05CanonicalLiveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
+
+/**
+ * The report's OWN Goal rows — genuinely fewer in draft (2, not 3-with-a-null-scorer): the 34'
+ * goal has no report row at all yet, matching production's real `db.goal.count()` semantics
+ * (row count, not scorer-presence count). The final score (`b05InitialReport`'s
+ * `homeGoals`/`awayGoals`) stays 3-2 in both states, independent of how many Goal rows exist —
+ * the official result is never derived from counting report rows.
  */
 export function b05Goals(variant: "draft" | "completed"): MatchGoalFact[] {
-  return [
+  const base: MatchGoalFact[] = [
     { id: "goal-gb5-1", participantKey: "player-gb5-noah", playerName: "Noah", minute: 12, type: "NORMAL" },
-    {
-      id: "goal-gb5-2",
-      participantKey: variant === "completed" ? "player-gb5-sindre" : null,
-      playerName: variant === "completed" ? "Sindre" : null,
-      minute: 34,
-      type: "NORMAL",
-    },
-    { id: "goal-gb5-3", participantKey: "player-gb5-kasper", playerName: "Kasper", minute: 61, type: "NORMAL" },
+    // R10-1: 55', not the old out-of-regulation 61' — matches the corrected canonical event.
+    { id: "goal-gb5-3", participantKey: "player-gb5-kasper", playerName: "Kasper", minute: 55, type: "NORMAL" },
   ];
+  if (variant === "draft") return base;
+  return [...base, { id: "goal-gb5-2", participantKey: "player-gb5-sindre", playerName: "Sindre", minute: 34, type: "NORMAL" }];
 }
 
-export const b05Assists: MatchAssistFact[] = [
-  { id: "assist-gb5-1", participantKey: "player-gb5-sindre", playerName: "Sindre", type: "NORMAL" },
-  { id: "assist-gb5-2", participantKey: "player-gb5-vetle", playerName: "Vetle", type: "NORMAL" },
-];
+/** The 34' goal's assist — does not exist as a report row until the goal itself does. */
+export function b05Assists(variant: "draft" | "completed"): MatchAssistFact[] {
+  if (variant === "draft") return [];
+  return [{ id: "assist-gb5-1", participantKey: "player-gb5-vetle", playerName: "Vetle", type: "NORMAL" }];
+}
 
 export function b05GoalScorers(variant: "draft" | "completed") {
   return aggregateGoalScorers(b05Goals(variant));
 }
 
-export const b05AssistProviders = aggregateAssistProviders(b05Assists);
-
-/** Report-fallback timeline (no canonical live events for this match — a manually-created
- * report, the same real degraded path B03's sparse scenario exercises) — `buildMatchTimeline()`
- * itself decides this via the empty `canonicalLiveEvents` array, not a second branch this fixture
- * invents. */
-export function b05Timeline(variant: "draft" | "completed") {
-  return buildMatchTimeline({ canonicalLiveEvents: [], reportGoals: b05Goals(variant) });
+export function b05AssistProviders(variant: "draft" | "completed") {
+  return aggregateAssistProviders(b05Assists(variant));
 }
 
+/** Sourced from the real canonical live events (never empty here, since this match genuinely
+ * was live-reported) — identical in both lifecycle states, via the same real
+ * `buildMatchTimeline()` "live events are primary whenever any exist" rule. Deliberately NOT
+ * parameterized by variant: the match-day timeline is a historical fact independent of how far
+ * along the coach's own report is. */
+export const b05Timeline = buildMatchTimeline({ canonicalLiveEvents: b05CanonicalLiveEvents, reportGoals: [] });
+
+/** Follows the real `computeGoalAttributionGap()` contract exactly: `liveGoalsRecorded` is the
+ * count of real canonical `GOAL_FOR` events (never confused with report-row count or
+ * known-scorer count); `attributedGoals` is a plain count of report Goal rows (never filtered
+ * by scorer presence); `hasGap` is `attributedGoals < liveGoalsRecorded`. */
 export function b05GoalAttributionGap(variant: "draft" | "completed"): GoalAttributionGap {
-  return variant === "draft"
-    ? { liveGoalsRecorded: 3, attributedGoals: 2, hasGap: true }
-    : { liveGoalsRecorded: 3, attributedGoals: 3, hasGap: false };
+  const attributedGoals = b05Goals(variant).length;
+  return { liveGoalsRecorded: B05_LIVE_GOALS_RECORDED, attributedGoals, hasGap: attributedGoals < B05_LIVE_GOALS_RECORDED };
 }
 
+/** R10-1: `resolvedDurationMinutes` is a PER-PERIOD duration (matches `B05_MATCH_FORMAT
+ * .periodDurationMinutes`, 30 — not the old 2x45-era 42/45) — the real second half resolved to
+ * exactly 30 once confirmed; the draft's own not-yet-reviewed estimate (28) is a plausible
+ * slightly-short running-clock reading before confirmation, still comfortably covering every
+ * period-2 canonical event's own `matchSeconds` (max 25', well under 28'). */
 export function b05TimingReview(variant: "draft" | "completed"): PostMatchReportTimingReviewRow[] {
   return [
     {
       period: "SECOND_HALF",
       periodLabel: "Second half",
-      resolvedDurationMinutes: variant === "draft" ? 42 : 45,
+      resolvedDurationMinutes: variant === "draft" ? 28 : B05_MATCH_FORMAT.periodDurationMinutes,
       needsReview: variant === "draft",
     },
   ];
 }
 
-const b05MinutesByParticipant = new Map<string, number>([
-  ["player-gb5-aksel", 90],
-  ["player-gb5-tobias", 90],
-  ["player-gb5-sindre", 90],
-  ["player-gb5-noah", 83],
-  ["player-gb5-vetle", 90],
-  ["player-gb5-kasper", 68],
-  ["player-gb5-elias", 22],
+/** R10-1: every one of the 7 present players starts and plays the full 60-minute match — the
+ * simplest coherent participation model for this scenario (no substitutions, every real NFF G11
+ * 7v7 formation slot filled by a real present player, including CF — previously vacant). This
+ * replaces the R9-1 pass's own substitution/early-departure model, which was INFERRED from these
+ * numbers rather than backed by any real substitution event — the exact defect R10-1 corrects.
+ * See `combination-source-data.ts`'s own doc comment for the full positional assignment. */
+export const b05MinutesByParticipant = new Map<string, number>([
+  ["player-gb5-aksel", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-tobias", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-sindre", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-noah", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-vetle", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-kasper", B05_MATCH_FORMAT.regulationDurationMinutes],
+  ["player-gb5-elias", B05_MATCH_FORMAT.regulationDurationMinutes],
 ]);
 
-const b05ObservationCountByParticipant = new Map<string, number>([["player-gb5-elias", 1]]);
+export const b05ObservationCountByParticipant = new Map<string, number>([["player-gb5-elias", 1]]);
 
-const b05PresentParticipants = b05AttendanceFacts
+export const b05PresentParticipants = b05AttendanceFacts
   .filter((a) => a.attendanceStatus === "PRESENT")
   .map((a) => ({ participantKey: `player-gb5-${a.playerName.toLowerCase()}`, playerName: a.playerName }));
 
@@ -128,20 +221,27 @@ export function b05PlayerInvolvement(variant: "draft" | "completed") {
   return buildPlayerInvolvement({
     presentParticipants: b05PresentParticipants,
     goals: b05Goals(variant),
-    assists: b05Assists,
+    assists: b05Assists(variant),
     observationCountByParticipant: b05ObservationCountByParticipant,
     minutesByParticipant: b05MinutesByParticipant,
   });
 }
 
+/** R11-2: the note no longer claims Slemmestad went behind — the canonical chronology
+ * (`b05CanonicalLiveEvents`) shows Slemmestad leads after every one of its own goals (12'/34'/55')
+ * and is tied, never behind, after each Kongsberg equalizer (20'/50'). "Going behind twice" was a
+ * factual contradiction, not a subjective framing choice; "after both equalizers" is the accurate
+ * equivalent that preserves the same coaching theme (a strong response under pressure). */
 export const b05Reflection = {
   effort: "STRONG",
   teamCohesion: "OK",
   positionalShape: "NEEDS_ATTENTION",
   recoveryBehavior: "STRONG",
-  note: "Slow start but a good response after going behind twice.",
+  note: "Strong response after both equalizers — we regained the lead each time, but need to tighten our defensive transitions.",
 };
 
+/** R10-1: the note no longer says "after coming on" — Elias starts and plays the full match now
+ * (see `b05MinutesByParticipant`'s own doc comment), so that framing is no longer accurate. */
 export const b05FootballObservations = [
   {
     id: "obs-gb5-1",
@@ -149,83 +249,116 @@ export const b05FootballObservations = [
     playerName: "Elias",
     observationCode: "WORK_RATE_EFFECTIVE",
     polarity: "POSITIVE",
-    note: "Energetic every time he was on the ball after coming on.",
+    note: "Energetic every time he was on the ball.",
   },
 ];
 
+/** R11-2: "trailing by two" was a factual contradiction — the canonical chronology never has
+ * either team two goals apart (max margin is one, at every point in the match). "Falling behind"
+ * is accurate from Kongsberg's own perspective (they trail after every Slemmestad goal); the
+ * corrected summary keeps that and replaces the false "sat deeper... trailing by two" claim with
+ * what the record actually shows: two real equalizers, neither of which became a lead. */
 export const b05OpponentObservation = {
   overallEnvironment: null,
   playingStyleTags: ["High press", "Direct build-up"],
-  factualSummary: "Kongsberg pressed high after falling behind, then sat deeper once trailing by two in the second half.",
+  factualSummary: "Kongsberg pressed high after falling behind and found two equalizers, but we regained the lead both times.",
 };
 
-/** Satisfies `MatchDetailAfterData`'s shared shape — these two fields are Match Details
- * AFTER-tab concepts (`WhatThisMatchAddedPanel`/positional history), not rendered by any
- * Post-Match Report component B05 composes. Always empty here, documented rather than omitted
- * silently. */
 export const b05ShapeChangeRows: MatchDetailAfterData["shapeChangeRows"] = [];
 export const b05FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCanonicalPositions"] = [];
 
+/**
+ * Per-match evidence (B2-R4/R8-3/R9-1) — this literal is the real, unmodified
+ * `deriveCombinationsFromSegments()`'s own output (field-for-field, except `createdAt`) for
+ * `combination-source-data.ts`'s canonical positional segments and goal-attribution events,
+ * curated down to the PARTNERSHIP row this scenario calls out (Noah + Sindre). Verified exactly,
+ * not approximated: `shared/__tests__/combination-evidence.test.ts` calls the real function
+ * against those SAME source records and asserts this literal equals its output byte-for-byte.
+ *
+ * NOT computed inline here (unlike the test) — `combination-topology.ts` imports the server-only
+ * `db` client at module scope; importing any VALUE from that module (not just its types) pulls
+ * `db`/`pg`/Node built-ins into this file's own import graph, which breaks the client bundle for
+ * `draft/page.tsx`/`completed/page.tsx` (both `"use client"`) — confirmed by a real CI `Build`
+ * failure ("Module not found: Can't resolve 'fs'/'net'/'tls'/...") before this was reverted to a
+ * literal. `CombinationEvidenceRow` is imported as a type only, which is erased at compile time
+ * and carries no such risk.
+ *
+ * R10-1: `minutesTogether` corrected 83 -> 60. The R9-1 pass's own 83-minute value depended on
+ * an inferred, unsupported early departure for Noah (no corresponding recorded substitution/
+ * withdrawal event existed anywhere in the fixture) inside an invented 90-minute match — both
+ * now corrected (see `combination-source-data.ts`'s own doc comment and `b05MinutesByParticipant`
+ * above). Every one of the 7 present players, including Noah and Sindre, is on the pitch for the
+ * entire real 60-minute match, so 60 is their real, fully-supported shared duration — not an
+ * assumption carried over from the previous revision. Every goal/assist event (12'/20'/34'/50'/
+ * 55' — see `b05CanonicalLiveEvents`'s own R10-1 correction) falls within the match, with both
+ * players present throughout, so goal/contribution counts are unchanged by this correction.
+ *
+ * `opponentDiversity` is always exactly `1` for a single match, and `confidence` can never reach
+ * `ESTABLISHED` from one match alone (`deriveConfidence` requires `matchCount >= 3`, hardcoded to
+ * `1` on the per-match path — `EMERGING` is the real ceiling) — both are the real derivation's
+ * own output, not asserted separately. `createdAt` is the one field NOT from the derivation — the
+ * real function stamps non-deterministic wall-clock `new Date()`, replaced here with the fixed
+ * `B05_COMPLETED_AT` moment (a real-world fact about this match, not a derivation input).
+ */
 export const b05CombinationEvidence: CombinationEvidenceRow[] = [
   {
-    id: "comb-gb5-1",
+    id: "match-gate-b-05-PARTNERSHIP|HORIZONTAL|player-gb5-noah,player-gb5-sindre|LCM,RCM",
     organisationId: "org-gate-b",
     matchId: B05_MATCH_ID,
     eventMatchId: null,
     family: "PARTNERSHIP",
     subtype: "HORIZONTAL",
     playerIds: ["player-gb5-noah", "player-gb5-sindre"],
-    positions: ["RCM", "LCM"],
-    minutesTogether: 83,
-    goalsForWhilePresent: 2,
-    goalsAgainstWhilePresent: 1,
-    directGoalContributions: 1,
-    directAssistContributions: 1,
-    opponentDiversity: 3,
-    confidence: "ESTABLISHED",
+    positions: ["LCM", "RCM"],
+    minutesTogether: B05_MATCH_FORMAT.regulationDurationMinutes,
+    goalsForWhilePresent: 3,
+    goalsAgainstWhilePresent: 2,
+    directGoalContributions: 2,
+    directAssistContributions: 0,
+    opponentDiversity: 1,
+    confidence: "EMERGING",
     approximateTiming: false,
     leagueSeasonId: "season-gate-b",
-    createdAt: B05_NOW,
-  },
-  {
-    id: "comb-gb5-2",
-    organisationId: "org-gate-b",
-    matchId: B05_MATCH_ID,
-    eventMatchId: null,
-    family: "TRIANGLE",
-    subtype: "ATTACKING",
-    playerIds: ["player-gb5-noah", "player-gb5-sindre", "player-gb5-kasper"],
-    positions: ["RCM", "LCM", "CF"],
-    minutesTogether: 68,
-    goalsForWhilePresent: 2,
-    goalsAgainstWhilePresent: 0,
-    directGoalContributions: 2,
-    directAssistContributions: 1,
-    opponentDiversity: 2,
-    confidence: "EMERGING",
-    approximateTiming: true,
-    leagueSeasonId: "season-gate-b",
-    createdAt: B05_NOW,
+    createdAt: new Date(B05_COMPLETED_AT),
   },
 ];
 
 /** The guided debrief (ADR-0152 §3) is already `SUBMITTED` in both the draft and completed
  * fixtures — the real completion gate (`completeReport()`'s `isDebriefSubmittedForReport` check)
  * requires exactly this before `Complete report` can succeed, so a draft report whose debrief
- * isn't yet submitted would be the moment *before* this scenario, not this one. Identical in both
- * states because it is the same real coach-submitted document either way. */
+ * isn't yet submitted would be the moment *before* this scenario, not this one. A submitted
+ * debrief is necessary but not sufficient, though — `completeReport()` also requires every
+ * timing-review blocker resolved (B2-R3); this fixture models both conditions as genuinely
+ * separate, independently-satisfiable gates. Identical in both states because it is the same
+ * real coach-submitted document either way. */
+/** R11-2: three corrections, all required by contradictions against the canonical record (see
+ * `b05Reflection`/`b05OpponentObservation`'s own doc comments for the same "going behind
+ * twice"/"trailing by two" fixes, applied identically here since this is the same coach's own
+ * submitted document):
+ * - `team_execution.note` — same "going behind twice" contradiction as `b05Reflection.note`,
+ *   corrected identically.
+ * - `match_changes` — the positional source (`combination-source-data.ts`'s single, unchanged
+ *   0-60' segment) records NO formation change; "Moved to a back three" was a fabricated event
+ *   with no canonical backing. Corrected to the schema's own `NO_MEANINGFUL_CHANGE` option (never
+ *   an invented enum value), matching `b05ShapeChangeRows`'s own empty record exactly. The
+ *   description is retained as a clearly qualitative observation (pressing intensity) that does
+ *   NOT claim a positional/formation transition absent from the record.
+ * - `opponent_memory.note` — "sat deeper... harder to break down in the final 15 minutes"
+ *   contradicted Kongsberg's own second equalizer at 50' (inside that exact window); corrected to
+ *   describe what the record actually shows.
+ */
 export const b05DebriefAnswers: DebriefAnswersSection = {
   team_execution: {
     effort: { value: "STRONG" },
     teamCohesion: { value: "OK" },
     positionalShape: { value: "NEEDS_ATTENTION" },
     recoveryBehavior: { value: "STRONG" },
-    note: "Slow start but good response after going behind twice.",
+    note: "Strong response after both equalizers — we regained the lead each time, but need to tighten our defensive transitions.",
   },
   worked: { selected: ["PRESSING"], comment: "Winning the ball back high led directly to the first goal." },
   needs_attention: { selected: ["DEFENSIVE_TRANSITION"], comment: "Conceded twice from turnovers in our own half." },
-  match_changes: { option: "WE_CHANGED", description: "Moved to a back three after conceding the second goal.", period: "Second half" },
-  opponent_memory: { note: "Kongsberg sat deeper once behind — harder to break down in the final 15 minutes." },
+  match_changes: { option: "NO_MEANINGFUL_CHANGE", description: "Stayed in the same shape throughout and just asked the midfield to press higher after conceding." },
+  opponent_memory: { note: "Kongsberg kept pushing after falling behind and found a second equalizer with 10 minutes left — we had to respond quickly to regain the lead each time." },
   player_observations: [{ playerId: "player-gb5-elias", observationCode: "WORK_RATE_EFFECTIVE", direction: "POSITIVE", note: "Energetic every time he was on the ball." }],
   anything_else: {},
 };
@@ -261,6 +394,7 @@ export const b05AllPlayers = B05_ROSTER.map((p) => ({ id: p.id, name: p.name, te
 
 export function b05InitialReport(variant: "draft" | "completed"): MatchReportDetail {
   const goals = b05Goals(variant);
+  const assists = b05Assists(variant);
   return {
     id: B05_REPORT_ID,
     matchId: B05_MATCH_ID,
@@ -276,14 +410,17 @@ export function b05InitialReport(variant: "draft" | "completed"): MatchReportDet
     plannedSelections: B05_ROSTER.map((p) => plannedSelection(p.id, p.name)),
     playerActuals: B05_ROSTER.map((p) => playerActual(p.id, p.name, p.status)),
     absences: [],
-    playerStats: [
-      { id: "stat-gb5-noah", playerId: "player-gb5-noah", playerName: "Noah", goals: 1, assists: 0 },
-      { id: "stat-gb5-sindre", playerId: "player-gb5-sindre", playerName: "Sindre", goals: variant === "completed" ? 1 : 0, assists: 1 },
-      { id: "stat-gb5-kasper", playerId: "player-gb5-kasper", playerName: "Kasper", goals: 1, assists: 0 },
-      { id: "stat-gb5-vetle", playerId: "player-gb5-vetle", playerName: "Vetle", goals: 0, assists: 1 },
-    ],
+    playerStats: goals.map((g) => ({
+      id: `stat-${g.id}`,
+      playerId: g.participantKey as string,
+      playerName: g.playerName ?? "",
+      goals: 1,
+      assists: 0,
+    })).concat(
+      assists.map((a) => ({ id: `stat-${a.id}`, playerId: a.participantKey as string, playerName: a.playerName ?? "", goals: 0, assists: 1 })),
+    ),
     goals: goals.map((g) => ({ id: g.id, playerId: g.participantKey, playerName: g.playerName ?? undefined, minute: g.minute, type: g.type })),
-    assists: b05Assists.map((a) => ({ id: a.id, playerId: a.participantKey as string, playerName: a.playerName ?? "", type: a.type })),
+    assists: assists.map((a) => ({ id: a.id, playerId: a.participantKey as string, playerName: a.playerName ?? "", type: a.type })),
   };
 }
 
@@ -299,14 +436,18 @@ export function b05AfterData(variant: "draft" | "completed"): MatchDetailAfterDa
     attendance: b05AttendanceFacts,
     attendanceSummary: b05AttendanceSummary,
     goalScorers: b05GoalScorers(variant),
-    assistProviders: b05AssistProviders,
-    timeline: b05Timeline(variant),
+    assistProviders: b05AssistProviders(variant),
+    timeline: b05Timeline,
     playerMinutes: b05MinutesByParticipant,
     playerInvolvement: b05PlayerInvolvement(variant),
     reflection: b05Reflection,
     footballObservations: b05FootballObservations,
     opponentObservation: b05OpponentObservation,
-    combinationEvidence: b05CombinationEvidence,
+    // B2-R4: `getMatchDetailAfterData()` only ever loads combination evidence for a LOCKED
+    // report (`report?.status === "LOCKED" ? getMatchCombinationEvidence(matchId) :
+    // Promise.resolve([])`) — a draft report never sees it, regardless of what the UI's
+    // "combinations" tab even exists to show (it isn't in the draft tab set at all).
+    combinationEvidence: variant === "completed" ? b05CombinationEvidence : [],
     goalAttributionGap: b05GoalAttributionGap(variant),
     timingNeedsReviewCount: variant === "draft" ? 1 : 0,
     outOfRangeEventCount: 0,

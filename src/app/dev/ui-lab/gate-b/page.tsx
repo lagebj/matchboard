@@ -15,6 +15,13 @@ const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b04-completed-rich", id: "B04", title: "Completed match, richer evidence" },
   { href: "/dev/ui-lab/gate-b/b05-post-match-report/draft", id: "B05", title: "Post-match report, draft (editable, with a fixture-simulated completion)" },
   { href: "/dev/ui-lab/gate-b/b05-post-match-report/completed", id: "B05-COMPLETED", title: "Post-match report, completed (locked, read-only)" },
+  { href: "/dev/ui-lab/gate-b/b05-post-match-report/match-details", id: "B05-NAV", title: "Post-match report — Match Details (navigation origin, not a comparison candidate)" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/before", id: "B06-LEAGUE-BEFORE", title: "League/Event parity — League, before" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/after", id: "B06-LEAGUE-AFTER", title: "League/Event parity — League, after" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/before", id: "B06-EVENT-BEFORE", title: "League/Event parity — Event, before (design proposal)" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/after", id: "B06-EVENT-AFTER", title: "League/Event parity — Event, after (locked report)" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details", id: "B06-LEAGUE-NAV", title: "League/Event parity — League Match Details (navigation origin, not a comparison candidate)" },
+  { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail", id: "B06-EVENT-NAV", title: "League/Event parity — Event Detail (navigation origin, not a comparison candidate)" },
 ];
 
 export default function GateBIndexPage() {
@@ -25,9 +32,9 @@ export default function GateBIndexPage() {
       </Link>
       <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Gate B — Match Details &amp; Post-Match Report</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        B01-B04 (W1) and B05 (W2). B06 (League/Event parity), B07 (Assistant Coach longitudinal)
-        and B08 (information ownership/transitions) are deferred to later waves, not deleted from
-        scope. Dev-only, synthetic fixtures only.
+        B01-B04 (W1), B05 (W2), and B06 (W3, League/Event parity). B07 (Assistant Coach
+        longitudinal) and B08 (information ownership/transitions) remain deferred, not deleted
+        from scope. Dev-only, synthetic fixtures only.
       </p>
 
       <div className="mt-6">
