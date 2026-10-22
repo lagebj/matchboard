@@ -1,26 +1,25 @@
 {
   "description": "Gate B W2 (B05 draft, B05-COMPLETED, B05 Match Details) UI Lab visual-review evidence. Not an approved golden — requires fresh human approval; does not inherit any prior revision's approval (see priorVersions and candidate_manifest.json).",
-  "sourceCommitSha": "b367c57be01466f3962e49660863d2b68e93b016",
-  "generatedAt": "2026-10-22T07:33:07.501Z",
+  "sourceCommitSha": "91046b786ac2cf7fe48c6acf11f9a45d901410c5",
+  "generatedAt": "2026-10-22T09:42:18.231Z",
   "environment": {
-    "node": "v24.21.0",
+    "node": "v24.22.0",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39739258569",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39755520981",
   "ciArtifact": {
-    "id": 12409930006,
-    "name": "ui-lab-review-39739258569-1",
-    "expiresAt": "2026-10-29T07:33:07Z"
+    "id": 12416144460,
+    "name": "ui-lab-review-39755520981-1",
+    "expiresAt": "2026-10-29T09:42:18Z"
   },
-  "reviewedBranchHeadSha": "4447f9c309a64b6fd802ab912cf2c0d7cb0184a5",
+  "reviewedBranchHeadSha": "742fc01a975b6f0ba1fbba4dcf54944a8d07d408",
   "knownLimitations": [
     "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
     "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "All 38 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39739258569) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+    "All 38 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39755520981) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
     "This file is a filtered, scoped view of the run's full manifest.json (1124 captures total across 56 scenarios) — only the entries listed below are included here.",
-    "This run also verifies a real Build-failure fix: the immediately prior commit (R8-3) imported deriveCombinationsFromSegments() (a value, not just a type) into report-data.ts, which is reachable from 'use client' page.tsx files — combination-topology.ts's own module-scope `import { db } from \"@/lib/db\"` broke the client bundle. Fixed by reverting the fixture's combinationEvidence to a literal (the real function's own verified output, not recomputed inline); the derivation test still calls the real function directly (Node/Vitest, never bundled).",
-    "fixtureVersion 3 — R8-3 changed the hashed combinationEvidence content (now the real derivation's own verified output); R8-1/R8-2 changed only shared component code, not fixture data."
+    "R9-1: this run verifies the corrected B05 participation/combination-evidence model (fixtureVersion 4) — the completed scenario's Combinations tab now shows minutesTogether=83 for the Noah+Sindre row, not the prior revision's unsupported 80. B06 is unaffected and not part of this file."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -500,6 +499,511 @@
     }
   ],
   "priorVersions": [
+    {
+      "note": "Historical fact, preserved unmodified: the real CI capture evidence for the revision immediately before this one, which this revision's own R9-1 participation-evidence fix supersedes.",
+      "attestation": {
+        "description": "Gate B W2 (B05 draft, B05-COMPLETED, B05 Match Details) UI Lab visual-review evidence. Not an approved golden — requires fresh human approval; does not inherit any prior revision's approval (see priorVersions and candidate_manifest.json).",
+        "sourceCommitSha": "b367c57be01466f3962e49660863d2b68e93b016",
+        "generatedAt": "2026-10-22T07:33:07.501Z",
+        "environment": {
+          "node": "v24.21.0",
+          "platform": "linux",
+          "ci": true
+        },
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39739258569",
+        "ciArtifact": {
+          "id": 12409930006,
+          "name": "ui-lab-review-39739258569-1",
+          "expiresAt": "2026-10-29T07:33:07Z"
+        },
+        "reviewedBranchHeadSha": "4447f9c309a64b6fd802ab912cf2c0d7cb0184a5",
+        "knownLimitations": [
+          "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+          "GitHub Actions artifact retention is temporary — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+          "All 38 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39739258569) and every SHA-256 recomputed from the raw bytes — zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+          "This file is a filtered, scoped view of the run's full manifest.json (1124 captures total across 56 scenarios) — only the entries listed below are included here.",
+          "This run also verifies a real Build-failure fix: the immediately prior commit (R8-3) imported deriveCombinationsFromSegments() (a value, not just a type) into report-data.ts, which is reachable from 'use client' page.tsx files — combination-topology.ts's own module-scope `import { db } from \"@/lib/db\"` broke the client bundle. Fixed by reverting the fixture's combinationEvidence to a literal (the real function's own verified output, not recomputed inline); the derivation test still calls the real function directly (Node/Vitest, never bundled).",
+          "fixtureVersion 3 — R8-3 changed the hashed combinationEvidence content (now the real derivation's own verified output); R8-1/R8-2 changed only shared component code, not fixture data."
+        ],
+        "approvalStatus": "CANDIDATE",
+        "captureCountsByScenario": {
+          "gate-b-w2-b05-completed": 10,
+          "gate-b-w2-b05-draft": 18,
+          "gate-b-w2-b05-match-details": 10
+        },
+        "interactionStateCountsByScenario": {
+          "gate-b-w2-b05-completed": {
+            "initial": 10
+          },
+          "gate-b-w2-b05-draft": {
+            "completed-transition": 4,
+            "completed-with-gap-transition": 4,
+            "initial": 10
+          },
+          "gate-b-w2-b05-match-details": {
+            "initial": 10
+          }
+        },
+        "captures": [
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-desktop-dark.png",
+            "sha256": "e0e0dd8b78c892def64954ffb8c401adb9b98d3bb40e9893d56a394e96c8e37a"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-desktop-light.png",
+            "sha256": "8ea361b288a65111628cc4b1deabb15a679f4a1bc7683732278a87b94feac6e1"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-360-dark.png",
+            "sha256": "1f11e3a6a61d980e61299da835f092d91e785b39d01465465dea1460cf97ddb8"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-360-light.png",
+            "sha256": "d853fb3a63b8e0a486669b0ac582e428c316ed1d74bb2cfc97c12208c7b2ba6b"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-430-dark.png",
+            "sha256": "689dc861fba31c1b3500492b410d997d37b2209578176282407eeb35a4a08505"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-gb-430-light.png",
+            "sha256": "6675ff5827725597d4ea0a32e2c4ac3a1db2437fbe0fdf2028bb53c14360737d"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-mobile-dark.png",
+            "sha256": "8698a43479d291cebde34d33e1b7ed7964854dea7a2093fa3ec0718924a69a85"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-mobile-light.png",
+            "sha256": "2c2d66f93bc1e5f7201c3edf5f589dca39c8a26a54f0a56a6d09f45c6a787bac"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-narrow-dark.png",
+            "sha256": "2df6dc6714540afac153825c739485fd1838f9f933c0e8c91cfb7c438b3b8832"
+          },
+          {
+            "scenarioId": "B05-COMPLETED",
+            "scenario": "gate-b-w2-b05-completed",
+            "route": "gate-b/b05-post-match-report/completed",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-completed-narrow-light.png",
+            "sha256": "a4fa867507877011f12ca2bcb888aa0a66967a9e8e7647491c3b800bd182b3f0"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-desktop-dark-completed-transition.png",
+            "sha256": "36a73dd93523a77d0395e5f389865372305042e111c8c437d38cb737919faaac"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "completed-with-gap-transition",
+            "file": "gate-b-w2-b05-draft-desktop-dark-completed-with-gap-transition.png",
+            "sha256": "bc47b1c7221bd57017a67522d9b9baba2e9d8e9646d96ee1a4ec1c5f06e35f2e"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-desktop-dark.png",
+            "sha256": "2619449631104ba96fdfef3dccb2998b5400273bff5b0fac17b3547df9dcffd9"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-desktop-light-completed-transition.png",
+            "sha256": "6b5d5dec09ea1bc54c99cebb7ca19e253ee80633325c61b0f64ac3a9326292e4"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "completed-with-gap-transition",
+            "file": "gate-b-w2-b05-draft-desktop-light-completed-with-gap-transition.png",
+            "sha256": "ebdb91e6b2a37e9707cc526e46628e2ce252d3eafda6ebcb0f8adb59fa67f336"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-desktop-light.png",
+            "sha256": "bb6944fe67b510bf61491311cf475ff8f22b5a997e4f5e3368d263de6c3643dd"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-360-dark.png",
+            "sha256": "4c33ac0854eedc352dc764e2548287dba2094d2b96068d503ed7b63c6fb6bf6e"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-360-light.png",
+            "sha256": "87605edcdc83407e57c08b8c046703b714094eded0dca1afb8b8bedb6d1446fd"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-430-dark.png",
+            "sha256": "031d1ab38e5d6645d458b9773ef7687fbbddaeeeb98b1da2dbb63f2b51104131"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-gb-430-light.png",
+            "sha256": "82c4be3e2ffc5fc7a218b078ab56668e859c7433d8a025c9441b174f374b07f9"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-mobile-dark-completed-transition.png",
+            "sha256": "005448e8992adb5f6f90bc9c53e7260f884d4d7262914ce28ecbd7b59525a0ec"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "completed-with-gap-transition",
+            "file": "gate-b-w2-b05-draft-mobile-dark-completed-with-gap-transition.png",
+            "sha256": "19087d131f04d0c25cb099da27c1b31d5d3713710b627cff7ef83cd619674196"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-mobile-dark.png",
+            "sha256": "1249e7b947148e7f31ae132e08c56819f0b7cf1130aa4a435f2175457cc6a3d6"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "completed-transition",
+            "file": "gate-b-w2-b05-draft-mobile-light-completed-transition.png",
+            "sha256": "9b5f5540c5eb50bec0f54f62da705519f256a4ce79988356c6cbc391c3128bd9"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "completed-with-gap-transition",
+            "file": "gate-b-w2-b05-draft-mobile-light-completed-with-gap-transition.png",
+            "sha256": "66c4d2c79de9c8e3fc95141c55a6716c692c73d8c9578b560c02ea1e2125538d"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-mobile-light.png",
+            "sha256": "5e3b4f6a962e885b64a8b27a3b43bba91459568e529844d32515f368e50c0770"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-narrow-dark.png",
+            "sha256": "7ed05c339a61dd9f227017c4a913859897453c0cfef5acdbe3fa86f549fffdb7"
+          },
+          {
+            "scenarioId": "B05-DRAFT",
+            "scenario": "gate-b-w2-b05-draft",
+            "route": "gate-b/b05-post-match-report/draft",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-draft-narrow-light.png",
+            "sha256": "f86152718a0fb9c8cfe641f2c6427fd7f2c28ebd3ac6d8dec4470f43517fe79a"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-desktop-dark.png",
+            "sha256": "64928282e8d63f2840786cf72db85ea4dca824c47de38696f99812c19cd5bffb"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-desktop-light.png",
+            "sha256": "d85fd4bbfff21c9fb650cf9b100545d79570aba2f7a8cd05262c320bf4fd531e"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-gb-360-dark.png",
+            "sha256": "af19f8c37df4798b84d5e1b3d6a96ee8a10a739dc6d565130b8c302f44c2096b"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-gb-360-light.png",
+            "sha256": "56c4ba28244ec19d2d229db9764ace604a496445dd1099adcccd28e672e8d6e5"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-gb-430-dark.png",
+            "sha256": "4637243638c38f3543726fc356002b98b81330af227110fb28f988cff4118533"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-gb-430-light.png",
+            "sha256": "6aabe4e21bd6a68fe4ac686d2ec8df92d0e1d9210d87e875374c29fd52229deb"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-mobile-dark.png",
+            "sha256": "0abc410f2bedfbd07f17b40b685dacbd833c2903c5f88064cafc28daa5f59f51"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-mobile-light.png",
+            "sha256": "0d3e0988f486615722fbc4b862734ae172b46ba8c636ce273bcdd6a8e50a859d"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-narrow-dark.png",
+            "sha256": "ffd29d3f6cb3b72b6d5d61c6199481ae381727fe9b46b9acce3f604a0dc7ccc6"
+          },
+          {
+            "scenarioId": "B05-MATCH-DETAILS",
+            "scenario": "gate-b-w2-b05-match-details",
+            "route": "gate-b/b05-post-match-report/match-details",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w2-b05-match-details-narrow-light.png",
+            "sha256": "31fdeabc4dbe17b27324217f274a2a9b7a0e844812ab71964af7d7d7015cecfc"
+          }
+        ]
+      }
+    },
     {
       "note": "Historical fact, preserved unmodified: the real CI capture evidence for the revision immediately before this one, which this revision's own fix (R8-1/R8-2/R8-3 remediation, then a real Build-failure fix) supersedes.",
       "attestation": {
