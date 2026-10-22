@@ -215,7 +215,7 @@ describe("B05 combination evidence provenance (B5/R6, R8-3, R9-1, R10-1)", () =>
     it("every canonical event's period/matchSeconds matches globalMinuteToPeriodRelative() applied to its own minuteLabel", () => {
       for (const event of b05CanonicalLiveEvents) {
         if (event.minuteLabel === null) continue; // SCORER_SET/ASSIST_SET mirror their parent goal's timing; checked via correctsEventId below.
-        const globalMinute = Number(event.minuteLabel.replace("'", ""));
+        const globalMinute = Number(event.minuteLabel.replace(/'/g, ""));
         const expected = globalMinuteToPeriodRelative(globalMinute, B05_MATCH_FORMAT);
         expect(event.period).toBe(expected.period);
         expect(event.matchSeconds).toBe(expected.matchSeconds);
@@ -225,7 +225,7 @@ describe("B05 combination evidence provenance (B5/R6, R8-3, R9-1, R10-1)", () =>
     it("every event's global minute falls within real match regulation time (0-60')", () => {
       for (const event of b05CanonicalLiveEvents) {
         if (event.minuteLabel === null) continue;
-        const globalMinute = Number(event.minuteLabel.replace("'", ""));
+        const globalMinute = Number(event.minuteLabel.replace(/'/g, ""));
         expect(globalMinute).toBeGreaterThanOrEqual(0);
         expect(globalMinute).toBeLessThanOrEqual(B05_MATCH_FORMAT.regulationDurationMinutes);
       }
