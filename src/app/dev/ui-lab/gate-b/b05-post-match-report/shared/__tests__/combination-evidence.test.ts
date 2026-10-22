@@ -1,7 +1,19 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { deriveCombinationsFromSegments } from "@/lib/evidence/combination-topology";
 import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
-import { b05CombinationEvidence, b05MinutesByParticipant, b05CanonicalLiveEvents, B05_MATCH_FORMAT, globalMinuteToPeriodRelative } from "../report-data";
+import { debriefAnswersSchema, DEBRIEF_SCHEMA_VERSION } from "@/lib/post-match/debrief/v1";
+import {
+  b05CombinationEvidence,
+  b05MinutesByParticipant,
+  b05CanonicalLiveEvents,
+  B05_MATCH_FORMAT,
+  globalMinuteToPeriodRelative,
+  b05Reflection,
+  b05OpponentObservation,
+  b05DebriefAnswers,
+  b05ShapeChangeRows,
+} from "../report-data";
 import {
   b05PositionalSegments,
   b05RotationEvents,
@@ -10,6 +22,8 @@ import {
   computeMinutesByParticipant,
   validateSegmentSequence,
   validateMatchFormat,
+  validateOnFieldCount,
+  validateExactParticipantCount,
   type PositionalSegmentSource,
 } from "../combination-source-data";
 import { B05_MATCH_ID } from "../../../shared/match-b-fixture";
@@ -185,6 +199,15 @@ describe("B05 combination evidence provenance (B5/R6, R8-3, R9-1, R10-1)", () =>
       expect(completedFixtures.rawRecordsForHash.combinationGoalAttributionEvents).toBe(b05GoalAttributionEvents);
     });
 
+    it("R11-3: draft and completed fixtures hash the SAME match format and rotation-event records", async () => {
+      const draftFixtures = await import("../../draft/fixtures");
+      const completedFixtures = await import("../../completed/fixtures");
+      expect(draftFixtures.rawRecordsForHash.matchFormat).toBe(B05_MATCH_FORMAT);
+      expect(completedFixtures.rawRecordsForHash.matchFormat).toBe(B05_MATCH_FORMAT);
+      expect(draftFixtures.rawRecordsForHash.rotationEvents).toBe(b05RotationEvents);
+      expect(completedFixtures.rawRecordsForHash.rotationEvents).toBe(b05RotationEvents);
+    });
+
     it("NEGATIVE: a deliberately contradictory single-segment sequence fails the minute-total check (the original R9-1 defect shape)", () => {
       const contradictory: PositionalSegmentSource[] = [{ startMs: 0, endMs: 80 * 60_000, participants: b05PositionalSegments[0]!.participants }];
       const derivedMinutes = computeMinutesByParticipant(contradictory);
@@ -192,13 +215,61 @@ describe("B05 combination evidence provenance (B5/R6, R8-3, R9-1, R10-1)", () =>
       expect(mismatches.length).toBeGreaterThan(0);
     });
 
-    it("NEGATIVE: an on-field count exceeding the 7v7 format's ceiling fails structural validation", () => {
+    it("R11-1: the current B05 segment passes both the general 7v7 ceiling and the scenario's exact-seven rule", () => {
+      expect(validateOnFieldCount(b05PositionalSegments, B05_MATCH_FORMAT)).toEqual([]);
+      expect(validateExactParticipantCount(b05PositionalSegments, 7)).toEqual([]);
+    });
+
+    it("R11-1 NEGATIVE: an on-field count exceeding the 7v7 format's ceiling fails format validation (structural validation alone does not catch it)", () => {
       const eighthParticipant = { participantId: "player-gb5-magnus", playerName: "Magnus", position: "LW", line: "ATT", lane: "LEFT" };
       const tooMany: PositionalSegmentSource[] = [{ ...b05PositionalSegments[0]!, participants: [...b05PositionalSegments[0]!.participants, eighthParticipant] }];
       expect(tooMany[0]!.participants.length).toBeGreaterThan(7);
-      // Structurally well-formed (no duplicate ids/positions) but exceeds the declared format —
-      // the format-level check, not the structural one, is what must catch this.
+      // Structurally well-formed (8 distinct ids, 8 distinct positions) — the structural checker
+      // alone must not catch this; the whole point of this test is that it previously didn't.
       expect(validateSegmentSequence(tooMany)).toEqual([]);
+      // The format-aware ceiling check is what actually rejects it.
+      const issues = validateOnFieldCount(tooMany, B05_MATCH_FORMAT);
+      expect(issues.some((i) => i.code === "TOO_MANY_ON_FIELD")).toBe(true);
+    });
+
+    it("R11-1 NEGATIVE: a duplicate player occupying two slots in one segment fails structural validation", () => {
+      const [first, ...rest] = b05PositionalSegments[0]!.participants;
+      const duplicatePlayer: PositionalSegmentSource[] = [
+        { ...b05PositionalSegments[0]!, participants: [first!, { ...first!, position: "CF" }, ...rest.slice(1)] },
+      ];
+      const issues = validateSegmentSequence(duplicatePlayer);
+      expect(issues.some((i) => i.code === "DUPLICATE_OCCUPANCY")).toBe(true);
+    });
+
+    it("R11-1 NEGATIVE: two participants occupying the same tactical position in one segment fails structural validation", () => {
+      const [first, second, ...rest] = b05PositionalSegments[0]!.participants;
+      const duplicatePosition: PositionalSegmentSource[] = [
+        { ...b05PositionalSegments[0]!, participants: [first!, { ...second!, position: first!.position }, ...rest.slice(1)] },
+      ];
+      const issues = validateSegmentSequence(duplicatePosition);
+      expect(issues.some((i) => i.code === "DUPLICATE_POSITION")).toBe(true);
+    });
+
+    it("R11-1: a six-player segment does not, by itself, fail the general 7v7 format ceiling (fewer than max is not an error)", () => {
+      const sixPlayers: PositionalSegmentSource[] = [
+        { ...b05PositionalSegments[0]!, participants: b05PositionalSegments[0]!.participants.slice(0, 6) },
+      ];
+      expect(validateOnFieldCount(sixPlayers, B05_MATCH_FORMAT)).toEqual([]);
+    });
+
+    it("R11-1 NEGATIVE: B05's own no-substitution/no-withdrawal scenario rejects an unexplained six-player segment", () => {
+      const sixPlayers: PositionalSegmentSource[] = [
+        { ...b05PositionalSegments[0]!, participants: b05PositionalSegments[0]!.participants.slice(0, 6) },
+      ];
+      const issues = validateExactParticipantCount(sixPlayers, 7);
+      expect(issues.some((i) => i.code === "UNEXPECTED_ON_FIELD_COUNT")).toBe(true);
+    });
+
+    it("R11-1: the on-field-count validators do not require importing any production database module into the client bundle", () => {
+      const source = readFileSync(new URL("../combination-source-data.ts", import.meta.url), "utf8");
+      expect(source).toContain('import type { MatchSegment, PlayerSlot } from "@/lib/evidence/combination-topology"');
+      expect(source).not.toMatch(/from ["']@\/lib\/db["']/);
+      expect(source).not.toContain("PrismaClient");
     });
 
     it("NEGATIVE: overlapping segments are rejected by structural validation", () => {
@@ -259,6 +330,83 @@ describe("B05 combination evidence provenance (B5/R6, R8-3, R9-1, R10-1)", () =>
       const correct = globalMinuteToPeriodRelative(34, B05_MATCH_FORMAT);
       expect(correct.period).not.toBe(wronglyAssignedPeriod);
       expect(correct.period).toBe(2);
+    });
+  });
+
+  describe("R11-2 — match narrative vs. canonical history", () => {
+    /** The real running score, derived purely from `b05CanonicalLiveEvents` (never hand-copied),
+     * in chronological order. "FOR" is Slemmestad's own goal (home); "AGAINST" is Kongsberg's. */
+    function runningScore() {
+      let home = 0;
+      let away = 0;
+      const progression: Array<{ home: number; away: number }> = [];
+      for (const event of b05CanonicalLiveEvents) {
+        if (event.eventType === "GOAL_FOR") home += 1;
+        else if (event.eventType === "GOAL_AGAINST") away += 1;
+        else continue;
+        progression.push({ home, away });
+      }
+      return progression;
+    }
+
+    it("the canonical score progression is 1-0, 1-1, 2-1, 2-2, 3-2 (final result 3-2)", () => {
+      expect(runningScore()).toEqual([
+        { home: 1, away: 0 },
+        { home: 1, away: 1 },
+        { home: 2, away: 1 },
+        { home: 2, away: 2 },
+        { home: 3, away: 2 },
+      ]);
+    });
+
+    it("Slemmestad (home/FOR) never trails at any point in the canonical chronology", () => {
+      for (const { home, away } of runningScore()) {
+        expect(home).toBeGreaterThanOrEqual(away);
+      }
+    });
+
+    it("neither team leads by two or more goals at any point in the canonical chronology", () => {
+      for (const { home, away } of runningScore()) {
+        expect(Math.abs(home - away)).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it("no shape-change event is claimed when none exists in the positional record", () => {
+      expect(b05ShapeChangeRows).toEqual([]);
+      // A single, unchanged 0-60' positional segment is itself the authoritative record of no
+      // formation change — see combination-source-data.ts's own b05PositionalSegments.
+      expect(b05PositionalSegments).toHaveLength(1);
+    });
+
+    it("the submitted debrief's match_changes field agrees with the positional history (no formation change claimed)", () => {
+      expect(b05DebriefAnswers.match_changes?.option).toBe("NO_MEANINGFUL_CHANGE");
+      expect(b05DebriefAnswers.match_changes?.option).not.toBe("WE_CHANGED");
+    });
+
+    it("NEGATIVE: the narrative contains none of the known contradictory factual statements from the prior revision", () => {
+      const narrativeText = [
+        b05Reflection.note,
+        b05OpponentObservation.factualSummary,
+        b05DebriefAnswers.team_execution.note,
+        b05DebriefAnswers.match_changes?.description,
+        b05DebriefAnswers.opponent_memory.note,
+      ].join(" ");
+      expect(narrativeText).not.toMatch(/back three/i);
+      expect(narrativeText).not.toMatch(/going behind twice/i);
+      expect(narrativeText).not.toMatch(/trailing by two/i);
+      expect(narrativeText).not.toMatch(/leads? by two/i);
+      expect(narrativeText).not.toMatch(/sat deeper/i);
+    });
+
+    it("the submitted debrief remains a valid schema instance (DebriefAnswersSection v1)", () => {
+      expect(() => debriefAnswersSchema.parse({ version: DEBRIEF_SCHEMA_VERSION, answers: b05DebriefAnswers })).not.toThrow();
+    });
+
+    it("draft and completed fixtures submit the SAME debrief document (one real coach-authored submission, not two)", async () => {
+      const draftFixtures = await import("../../draft/fixtures");
+      const completedFixtures = await import("../../completed/fixtures");
+      expect(draftFixtures.debriefAnswers).toBe(b05DebriefAnswers);
+      expect(completedFixtures.debriefAnswers).toBe(b05DebriefAnswers);
     });
   });
 });

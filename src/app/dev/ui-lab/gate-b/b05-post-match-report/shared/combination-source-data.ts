@@ -28,6 +28,10 @@ import { B05_MATCH_FORMAT } from "./report-data";
  * (inferred from a segment, not from any real recorded event), not a fact this correction needs
  * to preserve. `b05FootballObservations`'s Elias note is corrected accordingly (no longer
  * describes him "coming on").
+ *
+ * R11-1 — `validateSegmentSequence()`'s own structural checks never enforced an on-field player
+ * ceiling (an 8-player segment with 8 distinct ids/positions passed it cleanly); the dedicated
+ * `validateOnFieldCount()`/`validateExactParticipantCount()` functions below close that gap.
  */
 export type PositionalParticipant = {
   participantId: string;
@@ -171,4 +175,57 @@ export function validateMatchFormat(
     }];
   }
   return [];
+}
+
+/**
+ * R11-1 — the GENERAL format-level ceiling: no segment may have more players on the pitch than
+ * the declared format's `maxOnFieldPlayers` (the goalkeeper counts toward this limit). This is a
+ * pure maximum check, not a minimum — a segment with FEWER players than the ceiling is not itself
+ * an error here. A card, injury, or late-arriving squad are all legitimate match situations this
+ * function must not reject; `validateExactParticipantCount()` below is the separate,
+ * scenario-specific rule for a fixture (like B05) that has explicitly declared it has none of
+ * those exceptions. `validateSegmentSequence()`'s own structural checks (duplicate occupancy,
+ * duplicate position) do not catch this — an 8-player segment with 8 distinct ids and 8 distinct
+ * positions is structurally well-formed and still violates the format.
+ */
+export function validateOnFieldCount(
+  segments: PositionalSegmentSource[],
+  format: { maxOnFieldPlayers: number },
+): SegmentValidationIssue[] {
+  const issues: SegmentValidationIssue[] = [];
+  for (const segment of segments) {
+    if (segment.participants.length > format.maxOnFieldPlayers) {
+      issues.push({
+        code: "TOO_MANY_ON_FIELD",
+        message: `Segment ${segment.startMs}-${segment.endMs} has ${segment.participants.length} players on the pitch, exceeding the format's maximum of ${format.maxOnFieldPlayers}.`,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * R11-1 — B05-SPECIFIC fixture integrity, NOT a universal football rule: this scenario's own
+ * source model declares exactly 7 eligible present participants, 7 occupied tactical positions,
+ * no substitutions, no withdrawals, and no disciplinary reductions (see this file's own R10-1
+ * doc comment above) — so its sole positional segment must contain EXACTLY `expectedOnFieldCount`
+ * participants, never fewer and never more. A real match that genuinely plays out a
+ * card/injury/late-withdrawal scenario would legitimately have fewer on-field players than its
+ * format's ceiling; this function must only ever be applied to a scenario that has explicitly
+ * declared, like B05, that it has no such exception — never used as a general format rule.
+ */
+export function validateExactParticipantCount(
+  segments: PositionalSegmentSource[],
+  expectedOnFieldCount: number,
+): SegmentValidationIssue[] {
+  const issues: SegmentValidationIssue[] = [];
+  for (const segment of segments) {
+    if (segment.participants.length !== expectedOnFieldCount) {
+      issues.push({
+        code: "UNEXPECTED_ON_FIELD_COUNT",
+        message: `Segment ${segment.startMs}-${segment.endMs} has ${segment.participants.length} players on the pitch; this scenario declares no substitutions/withdrawals, so exactly ${expectedOnFieldCount} is required.`,
+      });
+    }
+  }
+  return issues;
 }

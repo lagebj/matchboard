@@ -1,7 +1,7 @@
 import type { FixtureIdentity } from "../../../gate-a/shared/fixture-identity";
 import { b05DraftMatchIdentity, B05_MATCH_ID, B05_OPPONENT_NAME, B05_DRAFT_REFERENCE_AT } from "../../shared/match-b-fixture";
-import { b05AfterData, b05InitialReport, b05DebriefAnswers, b05AllPlayers, b05CombinationEvidence, b05FootballObservations, b05TimingReview, b05CanonicalLiveEvents } from "../shared/report-data";
-import { b05PositionalSegments, b05GoalAttributionEvents } from "../shared/combination-source-data";
+import { b05AfterData, b05InitialReport, b05DebriefAnswers, b05AllPlayers, b05CombinationEvidence, b05FootballObservations, b05TimingReview, b05CanonicalLiveEvents, B05_MATCH_FORMAT } from "../shared/report-data";
+import { b05PositionalSegments, b05GoalAttributionEvents, b05RotationEvents } from "../shared/combination-source-data";
 
 /**
  * B05 "Post-match Report / Draft" (official Gate B register, deferred row — now picked up).
@@ -38,12 +38,25 @@ import { b05PositionalSegments, b05GoalAttributionEvents } from "../shared/combi
  * `b05CanonicalLiveEvents`'s doc comment), moving the final goal off the now-out-of-regulation
  * 61' to 55'. `minutesTogether` for the displayed row corrected 83 -> 60 as a direct consequence
  * (Noah and Sindre are now both present the entire match, not Noah's old inferred departure time).
+ *
+ * fixtureVersion 6 (R11-1/R11-2/R11-3) — three further findings: (1) `validateSegmentSequence()`
+ * never enforced an on-field player ceiling, so an 8-player segment passed structural validation
+ * cleanly — new `validateOnFieldCount()`/`validateExactParticipantCount()` functions in
+ * `combination-source-data.ts` close that gap, and the test that previously asserted the
+ * 8-player segment PASSED now asserts it is rejected; (2) retained synthetic narrative
+ * (`b05Reflection`, `b05OpponentObservation`, `b05DebriefAnswers`) contradicted the canonical
+ * score progression and positional history — "going behind twice"/"trailing by two" never
+ * happened (Slemmestad never trails; neither team ever leads by two), and "moved to a back
+ * three" claimed a formation change absent from the single, unchanged positional segment —
+ * corrected to agree with the record, with `match_changes.option` now `NO_MEANINGFUL_CHANGE`;
+ * (3) `B05_MATCH_FORMAT` and `b05RotationEvents` were both excluded from `rawRecordsForHash`
+ * despite being authoritative for this scenario — now included below.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "B05",
   fixtureId: "gate-b-w2-b05-draft",
-  fixtureVersion: 5,
-  fixtureSha256: "fa3266944a2d1ebe86dfa981a779d71040baeb500998d5cfdfa70eedc8befac3",
+  fixtureVersion: 6,
+  fixtureSha256: "ad5d0deff378684334d40b58898813aff4b78c6f9e11641899c5580a7d1398bd",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: B05_DRAFT_REFERENCE_AT.toISOString(),
   viewerTimeZone: "Europe/Oslo",
@@ -76,5 +89,10 @@ export const rawRecordsForHash = {
   // `playerMinutes` above requires.
   combinationPositionalSegments: b05PositionalSegments,
   combinationGoalAttributionEvents: b05GoalAttributionEvents,
+  // R11-3: both the declared match format and the (explicitly empty) rotation-event record are
+  // material to this scenario's own provenance — a future change to either must change this
+  // fixture's hash, not silently disappear from it.
+  matchFormat: B05_MATCH_FORMAT,
+  rotationEvents: b05RotationEvents,
   footballObservations: b05FootballObservations,
 };

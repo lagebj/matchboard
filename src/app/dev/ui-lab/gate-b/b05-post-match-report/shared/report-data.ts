@@ -47,9 +47,16 @@ export const B05_COMPLETED_BY = "Marte Johansen";
  * match — see `BLOCKERS.md`'s R10-1 record for why the earlier R9-1 pass's own 90-minute
  * assumption was wrong), so the default NFF G11 format applies without modification.
  */
+/** R11-1: `maxOnFieldPlayers` is the real 7v7 ceiling (the goalkeeper counts toward it) — the
+ * general format-level constraint `combination-source-data.ts`'s `validateOnFieldCount()` checks
+ * against, independent of any one scenario's chosen headcount. A segment with FEWER players than
+ * this ceiling is not itself invalid for a general 7v7 match (a card, injury, or late-arriving
+ * squad are all legitimate situations); B05's own *exact*-seven requirement is a separate,
+ * scenario-specific rule (`validateExactParticipantCount()`), not encoded here. */
 export const B05_MATCH_FORMAT = {
   ageGroup: "G11",
   squadFormat: "7v7",
+  maxOnFieldPlayers: 7,
   numberOfPeriods: 2,
   periodDurationMinutes: 30,
   breakDurationMinutes: 10,
@@ -220,12 +227,17 @@ export function b05PlayerInvolvement(variant: "draft" | "completed") {
   });
 }
 
+/** R11-2: the note no longer claims Slemmestad went behind — the canonical chronology
+ * (`b05CanonicalLiveEvents`) shows Slemmestad leads after every one of its own goals (12'/34'/55')
+ * and is tied, never behind, after each Kongsberg equalizer (20'/50'). "Going behind twice" was a
+ * factual contradiction, not a subjective framing choice; "after both equalizers" is the accurate
+ * equivalent that preserves the same coaching theme (a strong response under pressure). */
 export const b05Reflection = {
   effort: "STRONG",
   teamCohesion: "OK",
   positionalShape: "NEEDS_ATTENTION",
   recoveryBehavior: "STRONG",
-  note: "Slow start but a good response after going behind twice.",
+  note: "Strong response after both equalizers — we regained the lead each time, but need to tighten our defensive transitions.",
 };
 
 /** R10-1: the note no longer says "after coming on" — Elias starts and plays the full match now
@@ -241,10 +253,15 @@ export const b05FootballObservations = [
   },
 ];
 
+/** R11-2: "trailing by two" was a factual contradiction — the canonical chronology never has
+ * either team two goals apart (max margin is one, at every point in the match). "Falling behind"
+ * is accurate from Kongsberg's own perspective (they trail after every Slemmestad goal); the
+ * corrected summary keeps that and replaces the false "sat deeper... trailing by two" claim with
+ * what the record actually shows: two real equalizers, neither of which became a lead. */
 export const b05OpponentObservation = {
   overallEnvironment: null,
   playingStyleTags: ["High press", "Direct build-up"],
-  factualSummary: "Kongsberg pressed high after falling behind, then sat deeper once trailing by two in the second half.",
+  factualSummary: "Kongsberg pressed high after falling behind and found two equalizers, but we regained the lead both times.",
 };
 
 export const b05ShapeChangeRows: MatchDetailAfterData["shapeChangeRows"] = [];
@@ -314,18 +331,34 @@ export const b05CombinationEvidence: CombinationEvidenceRow[] = [
  * timing-review blocker resolved (B2-R3); this fixture models both conditions as genuinely
  * separate, independently-satisfiable gates. Identical in both states because it is the same
  * real coach-submitted document either way. */
+/** R11-2: three corrections, all required by contradictions against the canonical record (see
+ * `b05Reflection`/`b05OpponentObservation`'s own doc comments for the same "going behind
+ * twice"/"trailing by two" fixes, applied identically here since this is the same coach's own
+ * submitted document):
+ * - `team_execution.note` — same "going behind twice" contradiction as `b05Reflection.note`,
+ *   corrected identically.
+ * - `match_changes` — the positional source (`combination-source-data.ts`'s single, unchanged
+ *   0-60' segment) records NO formation change; "Moved to a back three" was a fabricated event
+ *   with no canonical backing. Corrected to the schema's own `NO_MEANINGFUL_CHANGE` option (never
+ *   an invented enum value), matching `b05ShapeChangeRows`'s own empty record exactly. The
+ *   description is retained as a clearly qualitative observation (pressing intensity) that does
+ *   NOT claim a positional/formation transition absent from the record.
+ * - `opponent_memory.note` — "sat deeper... harder to break down in the final 15 minutes"
+ *   contradicted Kongsberg's own second equalizer at 50' (inside that exact window); corrected to
+ *   describe what the record actually shows.
+ */
 export const b05DebriefAnswers: DebriefAnswersSection = {
   team_execution: {
     effort: { value: "STRONG" },
     teamCohesion: { value: "OK" },
     positionalShape: { value: "NEEDS_ATTENTION" },
     recoveryBehavior: { value: "STRONG" },
-    note: "Slow start but good response after going behind twice.",
+    note: "Strong response after both equalizers — we regained the lead each time, but need to tighten our defensive transitions.",
   },
   worked: { selected: ["PRESSING"], comment: "Winning the ball back high led directly to the first goal." },
   needs_attention: { selected: ["DEFENSIVE_TRANSITION"], comment: "Conceded twice from turnovers in our own half." },
-  match_changes: { option: "WE_CHANGED", description: "Moved to a back three after conceding the second goal.", period: "Second half" },
-  opponent_memory: { note: "Kongsberg sat deeper once behind — harder to break down in the final 15 minutes." },
+  match_changes: { option: "NO_MEANINGFUL_CHANGE", description: "Stayed in the same shape throughout and just asked the midfield to press higher after conceding." },
+  opponent_memory: { note: "Kongsberg kept pushing after falling behind and found a second equalizer with 10 minutes left — we had to respond quickly to regain the lead each time." },
   player_observations: [{ playerId: "player-gb5-elias", observationCode: "WORK_RATE_EFFECTIVE", direction: "POSITIVE", note: "Energetic every time he was on the ball." }],
   anything_else: {},
 };
