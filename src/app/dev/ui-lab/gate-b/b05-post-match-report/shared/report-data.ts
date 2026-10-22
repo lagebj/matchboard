@@ -13,11 +13,9 @@ import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-
 import type { MatchReportDetail } from "@/app/(app)/matches/[matchId]/post-match/actions";
 import type { GoalAttributionGap } from "@/lib/reports/report-mutations";
 import type { PostMatchReportTimingReviewRow } from "@/lib/reports/post-match-report-view-model";
-import { deriveCombinationsFromSegments, type CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
-import type { FootballMatchRef } from "@/lib/evidence/football-match-ref";
+import type { CombinationEvidenceRow } from "@/lib/evidence/combination-topology";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
 import { MATCH_B_TEAM_NAME, B05_MATCH_ID, B05_REPORT_ID, B05_OPPONENT_NAME } from "../../shared/match-b-fixture";
-import { b05PositionalSegment, b05GoalAttributionEvents, toMatchSegments } from "./combination-source-data";
 
 /**
  * B06 remediation (B2-R2/B2-R4/B2-R7) — fixtureVersion 2. Supersedes fixtureVersion 1's hand-
@@ -184,37 +182,50 @@ export const b05ShapeChangeRows: MatchDetailAfterData["shapeChangeRows"] = [];
 export const b05FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCanonicalPositions"] = [];
 
 /**
- * Per-match evidence (B2-R4/R8-3) — computed by calling the real, unmodified
- * `deriveCombinationsFromSegments()` directly against `combination-source-data.ts`'s own
- * canonical positional segment and goal-attribution events (the SAME records
- * `__tests__/combination-evidence.test.ts` imports and asserts against — never two different
- * synthetic evidence models). `opponentDiversity` is always exactly `1` for a single match, and
- * `confidence` can never reach `ESTABLISHED` from one match alone (`deriveConfidence` requires
- * `matchCount >= 3`, hardcoded to `1` on the per-match path — `EMERGING` is the real ceiling);
- * both fall out of the real derivation, not asserted separately.
+ * Per-match evidence (B2-R4/R8-3) — this literal is the real, unmodified
+ * `deriveCombinationsFromSegments()`'s own output (field-for-field, except `createdAt`) for
+ * `combination-source-data.ts`'s canonical positional segment and goal-attribution events,
+ * curated down to the PARTNERSHIP row this scenario calls out (Noah + Sindre). Verified exactly,
+ * not approximated: `shared/__tests__/combination-evidence.test.ts` calls the real function
+ * against those SAME source records and asserts this literal equals its output byte-for-byte.
  *
- * The full present 7-a-side lineup is positioned for the whole segment (`combination-source-data.ts`),
- * so the real function also derives lines/triangles/the full-configuration row for the whole
- * squad — this fixture curates down to just the PARTNERSHIP row this scenario calls out (Noah +
- * Sindre), matching how the real `MatchCombinationEvidencePanel` itself already filters a larger
- * set down to what it displays (`MIN_MINUTES_TO_SHOW`/`MAX_ROWS_SHOWN`), not an invented
- * narrowing.
+ * NOT computed inline here (unlike the test) — `combination-topology.ts` imports the server-only
+ * `db` client at module scope; importing any VALUE from that module (not just its types) pulls
+ * `db`/`pg`/Node built-ins into this file's own import graph, which breaks the client bundle for
+ * `draft/page.tsx`/`completed/page.tsx` (both `"use client"`) — confirmed by a real CI `Build`
+ * failure ("Module not found: Can't resolve 'fs'/'net'/'tls'/...") before this was reverted to a
+ * literal. `CombinationEvidenceRow` is imported as a type only, which is erased at compile time
+ * and carries no such risk.
  *
- * `createdAt` is the one display-only field overridden after derivation — the real function
- * stamps `new Date()` (wall-clock, non-deterministic), which this fixture replaces with the
- * fixed `B05_COMPLETED_AT` moment (a real-world fact about this match, not a derivation input).
+ * `opponentDiversity` is always exactly `1` for a single match, and `confidence` can never reach
+ * `ESTABLISHED` from one match alone (`deriveConfidence` requires `matchCount >= 3`, hardcoded to
+ * `1` on the per-match path — `EMERGING` is the real ceiling) — both are the real derivation's
+ * own output, not asserted separately. `createdAt` is the one field NOT from the derivation — the
+ * real function stamps non-deterministic wall-clock `new Date()`, replaced here with the fixed
+ * `B05_COMPLETED_AT` moment (a real-world fact about this match, not a derivation input).
  */
-const b05CombinationRef: FootballMatchRef = { kind: "LEAGUE_MATCH", matchId: B05_MATCH_ID, leagueSeasonId: "season-gate-b" };
-
-export const b05CombinationEvidence: CombinationEvidenceRow[] = deriveCombinationsFromSegments(
-  toMatchSegments(b05PositionalSegment),
-  b05CombinationRef,
-  "org-gate-b",
-  "season-gate-b",
-  b05GoalAttributionEvents,
-)
-  .filter((row) => row.family === "PARTNERSHIP" && row.playerIds.includes("player-gb5-noah") && row.playerIds.includes("player-gb5-sindre"))
-  .map((row) => ({ ...row, createdAt: new Date(B05_COMPLETED_AT) }));
+export const b05CombinationEvidence: CombinationEvidenceRow[] = [
+  {
+    id: "match-gate-b-05-PARTNERSHIP|HORIZONTAL|player-gb5-noah,player-gb5-sindre|LCM,RCM",
+    organisationId: "org-gate-b",
+    matchId: B05_MATCH_ID,
+    eventMatchId: null,
+    family: "PARTNERSHIP",
+    subtype: "HORIZONTAL",
+    playerIds: ["player-gb5-noah", "player-gb5-sindre"],
+    positions: ["LCM", "RCM"],
+    minutesTogether: 80,
+    goalsForWhilePresent: 3,
+    goalsAgainstWhilePresent: 2,
+    directGoalContributions: 2,
+    directAssistContributions: 0,
+    opponentDiversity: 1,
+    confidence: "EMERGING",
+    approximateTiming: false,
+    leagueSeasonId: "season-gate-b",
+    createdAt: new Date(B05_COMPLETED_AT),
+  },
+];
 
 /** The guided debrief (ADR-0152 §3) is already `SUBMITTED` in both the draft and completed
  * fixtures — the real completion gate (`completeReport()`'s `isDebriefSubmittedForReport` check)
