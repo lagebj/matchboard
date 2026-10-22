@@ -21,15 +21,23 @@ already-approved earlier Gate B pages too, not something introduced by this wave
 capture comes from CI's `ui-lab-visual-review.yml` job once this PR is opened and runs, matching
 every prior Gate A/B wave.
 
-## Real CI capture — not yet generated at the time of this commit
+## Real CI capture — now generated and committed
 
-`capture-attestation.json` in this directory is a placeholder (`approvalStatus: "CANDIDATE"`, no
-`captures`) committed alongside the candidate code so the directory's required document set is
-complete from the first commit. The real attestation — downloaded from the CI run, every
-SHA-256 independently recomputed from the raw bytes — is committed in a documentation-only
-follow-up commit after this PR's own `ui-lab-visual-review.yml` run completes, the same
-two-commit pattern B01-B06 already established. Real screenshots have not been generated or
-claimed at the time of this commit; no hash below this point is invented.
+`capture-attestation.json`'s first commit was a placeholder; this is the documentation-only
+follow-up, the same two-commit pattern B01-B06 already established. This PR's first
+`ui-lab-visual-review.yml` run (https://github.com/lagebj/matchboard/actions/runs/39848281906)
+was cancelled mid-capture by the then-25-minute job timeout (see W4-R4 in
+`SOURCE_RECONCILIATION.md`). After raising `timeout-minutes` to 35, the re-run
+(https://github.com/lagebj/matchboard/actions/runs/39852677221, `reviewedBranchHeadSha`
+`49a2b990842938788afaad26c98fa4805e7e90d4`) completed in 24m59s with all 1144 captures across 57
+scenarios, including 20 for B07 (10 per scenario: desktop/mobile/narrow/gb-360/gb-430 × dark/
+light). All 20 B07 screenshots were downloaded via `gh run download` and every SHA-256
+independently recomputed from the raw bytes — zero mismatches against the artifact's own
+self-reported `manifest.json`, no missing files. Both pages were also visually spot-checked
+(desktop light for each scenario, plus mobile dark for B07-A) and render exactly as intended —
+real, unmodified production Touchline components, the recurring-pattern insight and its evidence
+footer on B07-A, the honest "no pattern identified" summary and factually-reported hat-trick on
+B07-B, no layout breakage.
 
 ## Degraded AI state — deliberately deferred, not attempted
 
