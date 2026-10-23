@@ -1,30 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
-import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
-
-// Same precedent as production's own `after-match-overview.test.tsx` and B07-A's page test: the
-// real panel imports a "use server" actions module whose real auth/db dependency chain doesn't
-// resolve in the jsdom component-test environment. `fixtures.test.ts` already proves
-// `clarification`/`suggestions` are empty — the real component's own gate for ever rendering a
-// mutation-wired control.
-vi.mock("@/components/ai/completed-match-advisor-panel", () => ({
-  CompletedMatchAdvisorPanel: ({ viewModel }: { viewModel: Extract<CompletedMatchAdvisorViewModel, { status: "fresh" | "stale" }> }) => (
-    <div data-testid="completed-match-advisor-panel">
-      <span>AI Advisor</span>
-      {viewModel.summary && <p>{viewModel.summary}</p>}
-      {viewModel.insights.map((insight, i) => (
-        <div key={i}>
-          <p>{insight.sectionLabel}</p>
-          <p>{insight.title}</p>
-          <p>{insight.body}</p>
-        </div>
-      ))}
-    </div>
-  ),
-}));
-
 import B07TrivialFactPage from "../page";
+
+// W4-R8 (independent-review remediation): this page no longer mounts `CompletedMatchAdvisorPanel`
+// at all — `advisorViewModel` is the real, production-reachable `null` state, so no mock is
+// needed here (nothing "use server"-wired is imported by this page any more).
 
 function renderPage() {
   return render(
@@ -39,30 +20,30 @@ describe("B07-B trivial-fact page", () => {
     renderPage();
     expect(screen.getAllByText("4-1").length).toBeGreaterThan(0);
     expect(screen.getByText("6 recorded events")).toBeInTheDocument();
-    expect(screen.getByText("Noah — goals")).toBeInTheDocument();
+    expect(screen.getByText("Noah goals")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("the Assistant Coach section shows only the insufficient-evidence summary, no insight list", () => {
+  it("shows no Assistant Coach content of any kind — the real production fallback text instead", () => {
     renderPage();
-    expect(screen.getByText("No historical pattern identified from the available evidence.")).toBeInTheDocument();
+    expect(screen.queryByText("AI Advisor")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No historical pattern identified/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Supported")).not.toBeInTheDocument();
     expect(screen.queryByText("Next focus")).not.toBeInTheDocument();
+    // Copied verbatim from after-match-overview.tsx:208, not invented — see page.tsx's doc comment.
+    expect(screen.getByText("No coaching intent or review recorded for this match.")).toBeInTheDocument();
   });
 
-  it("does not repeat the hat-trick as a longitudinal finding inside the Assistant Coach section", () => {
+  it("does not repeat the hat-trick as a finding — no insight content of any kind renders", () => {
     renderPage();
-    expect(screen.getByTestId("completed-match-advisor-panel").textContent).not.toMatch(/hat-?trick/i);
+    expect(screen.queryByText(/pattern identified/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/recurring/i)).not.toBeInTheDocument();
   });
 
-  it("the hat-trick is reported factually, outside the Assistant Coach section", () => {
+  it("the hat-trick is reported factually", () => {
     renderPage();
     expect(document.body.textContent).toMatch(/hat-?trick/i);
   });
-
-  // The real guarantee (no mutation-wired control is ever reachable) is proven directly against
-  // the fixture data in `fixtures.test.ts`, the real component's own render gate — see B07-A's
-  // page test for the full rationale.
 
   it("never shows a fabricated Player of the Match or player ranking", () => {
     renderPage();

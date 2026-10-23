@@ -1,6 +1,36 @@
 # Gate B W4 — Changed Files (B07)
 
-## New — candidate source
+## Independent-review remediation pass (PR #811, fixtureVersion 1 → 2)
+
+In addition to everything below (the original implementation), this remediation pass modified:
+
+- `src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts` — W4-R5 (chronology/match-format) and
+  W4-R6 (opponent identity) corrections to the B07 section.
+- `.../historical-pattern/fixtures.ts` — W4-R7 causal-framing/coverage-language rewrite;
+  fixtureVersion 2.
+- `.../historical-pattern/page.tsx` — shortened MetricStrip labels; `intentLabel` header pattern
+  matching real `AfterMatchOverview` branching.
+- `.../historical-pattern/__tests__/fixtures.test.ts` — match-format, opponent-identity, and real
+  chronology tests added; weak tautological test replaced.
+- `.../historical-pattern/__tests__/page.test.tsx` — updated for the new insight title text;
+  mock-vs-real-component distinction made explicit.
+- `.../trivial-fact/fixtures.ts` — W4-R8: `advisorViewModel` changed from a hand-constructed,
+  production-unreachable state to the real `null` state; fixtureVersion 2.
+- `.../trivial-fact/page.tsx` — `CompletedMatchAdvisorPanel`/`OrgSlugProvider` removed; real
+  `AfterMatchOverview` null-handling conditional reproduced verbatim.
+- `.../trivial-fact/__tests__/fixtures.test.ts` and `__tests__/page.test.tsx` — rewritten for the
+  `null` advisorViewModel; mock removed from the page test (no longer needed).
+- `scripts/ui-lab-visual-review.mjs` — W4-R9: evidence-inspector open-state interaction added to
+  B07-A's capture registration.
+- `docs/ui-lab/gate-b-w4-candidates/*` — all documents updated with the remediation record;
+  `capture-attestation.json`'s superseded fixtureVersion-1 evidence preserved under
+  `priorVersions`, top-level reset to a placeholder pending a fresh CI run.
+
+No production route, component, data loader, AI capability, or server action was changed by this
+remediation pass either — see `BLOCKERS.md` for the three production dependencies found and
+deliberately not fixed here.
+
+## New — candidate source (original implementation)
 
 - `src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern/fixtures.ts`
 - `src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern/page.tsx`

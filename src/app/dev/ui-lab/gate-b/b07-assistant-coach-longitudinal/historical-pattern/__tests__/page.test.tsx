@@ -4,14 +4,21 @@ import { ThemeProvider } from "@/lib/theme/theme-provider";
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import B07HistoricalPatternPage from "../page";
 
-// Same precedent as production's own `after-match-overview.test.tsx`: the real panel imports a
+// W4-R10 (independent-review remediation): this file tests PAGE COMPOSITION against a faithful
+// mock, not the real `CompletedMatchAdvisorPanel`'s own rendering — that distinction matters, so
+// stating it explicitly rather than leaving it implicit. The real component's own behavior
+// (section ordering, "Show all" gating, evidence-source footer formatting) is covered by that
+// component's own test suite; the real component's *visual* rendering is verified against actual
+// CI browser screenshots (`docs/ui-lab/gate-b-w4-candidates/capture-attestation.json`), not here.
+// What this file DOES legitimately prove: this page wires the real fixture data into whatever
+// component is mounted at that import path, correctly. Mocked because the real panel imports a
 // "use server" actions module whose real auth/db dependency chain doesn't resolve in the jsdom
-// component-test environment. Mocked here with a faithful (not opaque) re-render of the fixture's
-// own viewModel fields, deliberately omitting Clarify/DevelopmentSuggestionCard — the only two
-// call sites in the real component that ever wire a production mutation action — since the
-// fixture-level test (`fixtures.test.ts`) already proves `clarification`/`suggestions` are empty,
-// which is the real component's own gate for rendering those controls at all. `vi.mock` calls are
-// hoisted above imports by vitest, so this runs before `../page` ever imports the real panel.
+// component-test environment — same precedent as production's own `after-match-overview.test.tsx`.
+// Deliberately omits Clarify/DevelopmentSuggestionCard — the only two call sites in the real
+// component that ever wire a production mutation action — since the fixture-level test
+// (`fixtures.test.ts`) already proves `clarification`/`suggestions` are empty, which is the real
+// component's own gate for rendering those controls at all. `vi.mock` calls are hoisted above
+// imports by vitest, so this runs before `../page` ever imports the real panel.
 vi.mock("@/components/ai/completed-match-advisor-panel", () => ({
   CompletedMatchAdvisorPanel: ({ viewModel }: { viewModel: Extract<CompletedMatchAdvisorViewModel, { status: "fresh" | "stale" }> }) => (
     <div data-testid="completed-match-advisor-panel">
@@ -47,7 +54,7 @@ describe("B07-A historical-pattern page", () => {
   it("shows the Assistant Coach summary and the recurring-pattern insight", () => {
     renderPage();
     expect(screen.getByText("AI Advisor")).toBeInTheDocument();
-    expect(screen.getByText(/recurring concern/i)).toBeInTheDocument();
+    expect(screen.getByText(/recurring debrief note/i)).toBeInTheDocument();
     expect(screen.getByText("Supported")).toBeInTheDocument();
     expect(screen.getByText("Next focus")).toBeInTheDocument();
   });

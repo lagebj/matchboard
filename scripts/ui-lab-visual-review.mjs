@@ -760,10 +760,16 @@ const scenarios = [
   // Registered here explicitly so this wave does not repeat B06's own B5/R7 finding (two real
   // navigation pages shipped with zero capture evidence because they were never added to this
   // array).
+  // W4-R9 (independent-review remediation): B07-A's primary interaction — opening the historical
+  // evidence inspector — previously had no capture evidence beyond its default-closed state.
+  // Desktop + mobile only (`interactionViewports`), both themes, matching A04's own
+  // `openSourceInspectorByName` convention exactly rather than inventing a new interaction helper.
   {
     slug: "gate-b-w4-b07-historical-pattern",
     route: "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
     extraViewports: gbExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "evidence-open", perform: openSourceInspectorByName("Inspect historical evidence") }],
   },
   {
     slug: "gate-b-w4-b07-trivial-fact",

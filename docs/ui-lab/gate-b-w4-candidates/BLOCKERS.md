@@ -21,23 +21,20 @@ already-approved earlier Gate B pages too, not something introduced by this wave
 capture comes from CI's `ui-lab-visual-review.yml` job once this PR is opened and runs, matching
 every prior Gate A/B wave.
 
-## Real CI capture — now generated and committed
+## Real CI capture — first pass committed, now superseded by independent-review remediation
 
-`capture-attestation.json`'s first commit was a placeholder; this is the documentation-only
-follow-up, the same two-commit pattern B01-B06 already established. This PR's first
-`ui-lab-visual-review.yml` run (https://github.com/lagebj/matchboard/actions/runs/39848281906)
-was cancelled mid-capture by the then-25-minute job timeout (see W4-R4 in
-`SOURCE_RECONCILIATION.md`). After raising `timeout-minutes` to 35, the re-run
-(https://github.com/lagebj/matchboard/actions/runs/39852677221, `reviewedBranchHeadSha`
-`49a2b990842938788afaad26c98fa4805e7e90d4`) completed in 24m59s with all 1144 captures across 57
-scenarios, including 20 for B07 (10 per scenario: desktop/mobile/narrow/gb-360/gb-430 × dark/
-light). All 20 B07 screenshots were downloaded via `gh run download` and every SHA-256
-independently recomputed from the raw bytes — zero mismatches against the artifact's own
-self-reported `manifest.json`, no missing files. Both pages were also visually spot-checked
-(desktop light for each scenario, plus mobile dark for B07-A) and render exactly as intended —
-real, unmodified production Touchline components, the recurring-pattern insight and its evidence
-footer on B07-A, the honest "no pattern identified" summary and factually-reported hat-trick on
-B07-B, no layout breakage.
+The original PR head's capture run (https://github.com/lagebj/matchboard/actions/runs/39852677221,
+`reviewedBranchHeadSha` `49a2b990842938788afaad26c98fa4805e7e90d4`) completed cleanly (24m59s, all
+1144 captures including 20 for B07, every SHA-256 independently re-verified) and was visually
+spot-checked — that pass is what surfaced the 320px score-wrap/label-truncation finding (see
+`VISUAL_VS_CURRENT.md`) that fed into this remediation. Fixture content changed materially during
+remediation (chronology, opponent identity, causal framing, the B07-B advisor state, and the
+metric labels) — `fixtureVersion` bumped 1 → 2 for both scenarios, so that capture evidence no
+longer matches the current fixtures and cannot be reused. The superseded attestation is preserved
+unmodified under this directory's `capture-attestation.json` `priorVersions[0]` for audit history;
+a fresh CI run against the remediated code is required before this file's top-level content is
+trustworthy again — see `SOURCE_RECONCILIATION.md` for the full remediation record and
+`REVIEW_RECORD.md` for current status.
 
 ## Degraded AI state — deliberately deferred, not attempted
 
@@ -52,6 +49,27 @@ Confirmed during investigation: Event has no completed-match Overview/Advisor co
 all, and `post_match_review`'s own plan/opponent-history/recent-team-patterns sections are
 League-only (tracked separately as issue #696, not introduced by this wave). B07 is built on
 League fixtures only, as a consequence of real production scope, not a choice this wave made.
+
+## Production dependencies found during independent-review remediation — not fixed in this PR
+
+Three real production-component/behavior items were found while remediating B07; none were
+changed here, per the review brief's explicit instruction not to modify production code inside a
+UI Lab candidate PR:
+
+1. **`MatchIdentityCard`/`MetricStrip` narrow-width (320px) layout** — confirmed pre-existing
+   (reproduces identically in already-captured B04 and B06 baselines, not introduced by B07). See
+   `VISUAL_VS_CURRENT.md` for the exact root cause and a proposed minimal fix
+   (`whitespace-nowrap` on the score hero; a narrower-column or tooltip strategy for `MetricStrip`
+   labels).
+2. **"AI Advisor" vs. "Assistant Coach" terminology** — the real `CompletedMatchAdvisorPanel`
+   badge still says "AI Advisor"; production's own sibling components
+   (`AdvisorPanelReviewing`/`AdvisorPanelUnavailable`) already use "Assistant Coach" in their body
+   copy, so this split pre-dates B07. See `CURRENT_STATE_AUDIT.md`'s terminology section.
+3. **Evidence-drilldown production boundary** — production's Advisor pipeline persists
+   `evidenceRefs` (opaque tokens resolved to a category label) but not full inspectable source
+   records; B07-A's `SourceInspector` drilldown is a UI Lab design proposal for what a future
+   production capability could expose, not proof the live model can reconstruct it. See
+   `CURRENT_STATE_AUDIT.md`'s "Production vs. UI Lab boundary" section.
 
 ## `npm run build` not run locally
 

@@ -30,11 +30,12 @@ export default function B07HistoricalPatternPage() {
   const goalsFor = timeline.filter((i) => i.kind === "GOAL_FOR").length;
   const goalsAgainst = timeline.filter((i) => i.kind === "GOAL_AGAINST").length;
   const evidenceInspector = useSourceInspector();
+  const intentLabel: string | null = null;
 
   const factsItems: MetricStripItem[] = [
     { id: "goals", label: "Goals", value: matchIdentity.score ? `${matchIdentity.score.home}-${matchIdentity.score.away}` : "—" },
-    { id: "recorded-events", label: "Recorded events", value: String(timeline.length) },
-    { id: "goals-against", label: "Goals against", value: String(goalsAgainst) },
+    { id: "events", label: "Events", value: String(timeline.length) },
+    { id: "against", label: "Against", value: String(goalsAgainst) },
   ];
 
   return (
@@ -64,7 +65,7 @@ export default function B07HistoricalPatternPage() {
       <MatchFlowPanel timeline={timeline} ownTeamName={matchIdentity.homeTeam} opponentName={matchIdentity.awayTeam} />
 
       <TouchlineWidget>
-        <WidgetHeader eyebrow="Coaching intent review" title="Assistant Coach" />
+        <WidgetHeader eyebrow="Coaching intent review" title={intentLabel ?? "No intent recorded"} />
         <div className="mt-3">
           <OrgSlugProvider orgSlug="uilab-demo-org">
             <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />
@@ -88,8 +89,8 @@ export default function B07HistoricalPatternPage() {
       />
 
       <p className="text-[11px] text-[var(--text-muted)]">
-        {goalsFor} goals for, {goalsAgainst} against this match — recorded in 2 of the last 2 prior
-        completed matches' debriefs plus this one, not every match the team has played.
+        {goalsFor} goals for, {goalsAgainst} against this match — recorded in the two prior matches
+        included in this review plus this one, not necessarily every match the team has played.
       </p>
     </div>
   );

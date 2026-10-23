@@ -560,13 +560,28 @@ export function b06EventPlanningPitchAssignments(
  * own debrief note explaining it ("Coach observation") — never collapsed into a single claim that
  * the goal itself proves the cause; the causal account is always attributed to the coaching
  * staff's own recorded words, not derived by this fixture or asserted as objective fact.
+ *
+ * W4-R5: every match below reuses the real, established `B05_MATCH_FORMAT` (NFF Akershus G11
+ * 7v7, two 30-minute periods, 60 minutes regulation) B05's own fifth/sixth remediation passes
+ * already proved is this exact team's real format — no match-specific exception is declared, so
+ * no event or match-end minute anywhere in this section exceeds
+ * `B05_MATCH_FORMAT.regulationDurationMinutes`. The historical source record that used to cite a
+ * 61' goal against (exceeding regulation) is corrected to 55', the same specific correction B05's
+ * own R10-1 pass already made to an identically out-of-range 61' event.
+ *
+ * W4-R6: each debrief note below names only the opponent that match was actually played against
+ * — `B07_PRIOR1_DEBRIEF_NOTE` previously named Bærum SK (actually the HISTORICAL match's
+ * opponent, not prior1's), corrected to Fjellhug IF. No debrief note asserts that a specific
+ * timed goal event was CAUSED by the lost-throw-in pattern — each note states only what the
+ * coaching staff recorded, and the matching "Match data" source record states only when a goal
+ * was conceded, never claiming the timing alone proves the mechanism.
  */
 export const B07_PRIOR1_MATCH_ID = "match-gate-b07-prior-1";
 export const B07_PRIOR1_KICKOFF_AT = new Date("2026-09-20T10:00:00.000Z");
 export const B07_PRIOR1_OPPONENT_NAME = "Fjellhug IF";
 export const B07_PRIOR1_GOAL_AGAINST_EVENT_ID = "evt-b07-prior1-goal-against-1";
 export const B07_PRIOR1_DEBRIEF_NOTE =
-  "We dropped too deep after losing a throw-in near our own box — Bærum walked into the space behind our right-back twice before we reset.";
+  "We dropped too deep after losing a throw-in near our own box — Fjellhug walked into the space behind our right-back twice before we reset.";
 
 export const B07_PRIOR2_MATCH_ID = "match-gate-b07-prior-2";
 export const B07_PRIOR2_KICKOFF_AT = new Date("2026-10-08T10:00:00.000Z");
@@ -600,13 +615,16 @@ export const b07HistoricalMatchIdentity: MatchPresentation = buildMatchPresentat
   outcome: "WON",
 });
 
+/** W4-R5: rebuilt within `B05_MATCH_FORMAT.regulationDurationMinutes` (60) — the goal-against
+ * events that used to sit at 66'/74'/80' (full-time) now sit at 53'/58'/60', preserving event
+ * order, the 3-2 final score, and the 23' first goal against (already valid, unchanged). */
 export const b07HistoricalTimeline: MatchTimelineItem[] = [
   { id: "evt-b07h-goal-1", kind: "GOAL_FOR", minuteLabel: "14'", playerName: "Noah", assistPlayerName: "Sindre", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
   { id: B07_HISTORICAL_GOAL_AGAINST_EVENT_ID, kind: "GOAL_AGAINST", minuteLabel: "23'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
   { id: "evt-b07h-goal-2", kind: "GOAL_FOR", minuteLabel: "38'", playerName: "Kasper", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
-  { id: "evt-b07h-goal-against-2", kind: "GOAL_AGAINST", minuteLabel: "66'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
-  { id: "evt-b07h-goal-3", kind: "GOAL_FOR", minuteLabel: "74'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
-  { id: "evt-b07h-end", kind: "MATCH_END", minuteLabel: "80'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-goal-against-2", kind: "GOAL_AGAINST", minuteLabel: "53'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-goal-3", kind: "GOAL_FOR", minuteLabel: "58'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07h-end", kind: "MATCH_END", minuteLabel: "60'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
 ];
 
 /** The inspectable source chain behind B07-A's primary insight — two distinct prior matches'
@@ -629,7 +647,9 @@ export const b07HistoricalPatternSourceRecords: SourceRecord[] = [
     provenance: "Canonical live match event",
     scope: `${MATCH_B_TEAM_NAME} vs ${B07_PRIOR1_OPPONENT_NAME}, 20 Sep 2026`,
     fieldLabel: "Goal against",
-    fieldValue: `61' · ${B07_PRIOR1_GOAL_AGAINST_EVENT_ID}`,
+    // W4-R5: 55', not the out-of-regulation 61' — same correction B05's own R10-1 pass made to
+    // an identically invalid 61' event.
+    fieldValue: `55' · ${B07_PRIOR1_GOAL_AGAINST_EVENT_ID}`,
     coverage: "COMPLETE",
   },
   {
@@ -691,12 +711,13 @@ export const b07TrivialMatchIdentity: MatchPresentation = buildMatchPresentation
 
 /** Noah's hat-trick (3 individually logged goals) — a clear, correctly-reported factual
  * contribution that B07-B's Assistant Coach layer must never repackage as a longitudinal
- * "discovery." */
+ * "discovery." W4-R5: rebuilt within `B05_MATCH_FORMAT.regulationDurationMinutes` (60) — the
+ * final goal and full-time, previously 69'/80', now sit at 58'/60'. */
 export const b07TrivialTimeline: MatchTimelineItem[] = [
   { id: "evt-b07t-goal-1", kind: "GOAL_FOR", minuteLabel: "10'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
   { id: "evt-b07t-goal-2", kind: "GOAL_FOR", minuteLabel: "28'", playerName: "Sindre", assistPlayerName: "Tobias", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
   { id: "evt-b07t-goal-against-1", kind: "GOAL_AGAINST", minuteLabel: "35'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
   { id: "evt-b07t-goal-3", kind: "GOAL_FOR", minuteLabel: "52'", playerName: "Noah", assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
-  { id: "evt-b07t-goal-4", kind: "GOAL_FOR", minuteLabel: "69'", playerName: "Noah", assistPlayerName: "Kasper", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
-  { id: "evt-b07t-end", kind: "MATCH_END", minuteLabel: "80'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-goal-4", kind: "GOAL_FOR", minuteLabel: "58'", playerName: "Noah", assistPlayerName: "Kasper", secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
+  { id: "evt-b07t-end", kind: "MATCH_END", minuteLabel: "60'", playerName: null, assistPlayerName: null, secondaryPlayerName: null, sourceIsCanonicalLiveEvent: true },
 ];

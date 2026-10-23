@@ -2,20 +2,21 @@
   "programmeRevision": "0.169.3",
   "baseCommitSha": "68eb32a69d3c73c316819d2865d99c2312d5b0f7",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W4 (B07 Assistant Coach longitudinal match context, historical pattern vs. trivial hat-trick fact). Both scenarios start CANDIDATE, approval null, official_golden_status NOT_READY. See docs/ui-lab/gate-b-w4-candidates/ for the full review record.",
+  "note": "Gate B W4 (B07 Assistant Coach longitudinal match context, historical pattern vs. trivial hat-trick fact). Both scenarios CANDIDATE, approval null, official_golden_status NOT_READY. fixtureVersion 1 was the original implementation (PR #811 initial commits); fixtureVersion 2 is an independent-review remediation (match-format/chronology, opponent-identity, causal-framing, and B07-B's Advisor-state corrections) — see docs/ui-lab/gate-b-w4-candidates/SOURCE_RECONCILIATION.md for the full record.",
   "candidates": [
     {
       "scenarioId": "B07-HISTORICAL-PATTERN",
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w4-b07-historical-pattern",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/ai/completed-match-advisor-panel.tsx",
         "src/lib/ai/presentation/completed-match-advisor.ts",
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/source-inspector.tsx",
         "src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern/page.tsx",
-        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts"
       ],
       "lifecycle": "done",
       "assistantCoachState": "fresh",
@@ -24,11 +25,18 @@
       "dataContractRef": "docs/adr/0152-coach-learning-loop.md; docs/adr/0157-contextual-coach-workspace-convergence.md; docs/adr/0159-visual-authority-gate-and-deliberate-pr-review-deployments.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real, unmodified CompletedMatchAdvisorPanel fed fixture data directly, the same component production's AfterMatchOverview mounts. First Gate B scenario to pair its evidence-source footer with Gate A's A04 SourceInspector. See VISUAL_VS_CURRENT.md and SOURCE_RECONCILIATION.md.",
       "knownGaps": [
-        "W4-R1: this match's own cited goal-against event was missing from the source-record list in the first draft (only the two prior matches' events were included) — corrected before any review ran against it; see SOURCE_RECONCILIATION.md.",
+        "W4-R1: this match's own cited goal-against event was missing from the source-record list in the first draft — corrected before any review ran against it.",
         "W4-R2: the primary insight's confidence hedging was tightened after a dedicated test was written first (TDD) to require it explicitly.",
+        "W4-R4: ui-lab-visual-review.yml's 25-minute job timeout had to be raised to 35 after this PR's first CI run was cancelled mid-capture.",
+        "W4-R5 (independent review, P1): match-format/chronology corrected — timeline minutes previously exceeded this team's real established 60-minute (2x30) regulation; see SOURCE_RECONCILIATION.md.",
+        "W4-R6/R7 (independent review, P1): a debrief note named the wrong match's opponent, and the insight text over-claimed causation and match-coverage completeness — both corrected, both now enforced by dedicated tests.",
+        "W4-R9 (independent review, P2): evidence-inspector open-state capture added (desktop + mobile, both themes).",
+        "320px/360px score-wrap and metric-label truncation — confirmed pre-existing in MatchIdentityCard/MetricStrip (reproduces identically in already-captured B04/B06 baselines), not fixed here per instruction not to change production code in this PR; see VISUAL_VS_CURRENT.md and BLOCKERS.md for the proposed minimal production fix.",
+        "AI Advisor vs. Assistant Coach terminology — real, pre-existing production inconsistency (not introduced by B07), recorded as a production dependency, not fixed here.",
+        "Evidence-drilldown production boundary — the six inspectable SourceRecords are a UI Lab design proposal; production's real Advisor pipeline does not yet persist/expose records at this granularity. See CURRENT_STATE_AUDIT.md.",
         "No Event-origin equivalent — real production constraint (post_match_review's cross-match sections are League-only, issue #696), not a choice this wave made.",
-        "No degraded (reviewing/unavailable) AI state captured for this scenario — deliberate scope decision, not required by the register row; see INTERACTION_AND_STATE_AUDIT.md.",
-        "W4-R4: ui-lab-visual-review.yml's 25-minute job timeout had to be raised to 35 after this PR's first CI run was cancelled mid-capture — see SOURCE_RECONCILIATION.md."
+        "No degraded (reviewing/unavailable) AI state captured for this scenario — deliberate scope decision; see INTERACTION_AND_STATE_AUDIT.md.",
+        "fixtureVersion bumped 1 -> 2 by this remediation; the prior revision's own CI capture evidence is superseded and preserved under capture-attestation.json's priorVersions — a fresh CI run against this revision is required before new capture evidence is trustworthy."
       ],
       "approval": null
     },
@@ -37,21 +45,24 @@
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w4-b07-trivial-fact",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
-        "src/components/ai/completed-match-advisor-panel.tsx",
-        "src/lib/ai/presentation/completed-match-advisor.ts",
+        "src/components/matches/match-detail/after-match-overview.tsx",
         "src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/trivial-fact/page.tsx",
-        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts"
+        "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts"
       ],
       "lifecycle": "done",
-      "assistantCoachState": "fresh",
+      "assistantCoachState": "null",
       "requirementRefs": ["XR-S01", "XR-V02"],
       "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B07",
       "dataContractRef": "docs/adr/0152-coach-learning-loop.md; docs/adr/0157-contextual-coach-workspace-convergence.md; docs/adr/0159-visual-authority-gate-and-deliberate-pr-review-deployments.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real, unmodified CompletedMatchAdvisorPanel fed a fixture whose insights is empty; the real component's own insight-list render gate (not a new empty-state component) is what keeps the hat-trick out of the Advisor section. See VISUAL_VS_CURRENT.md.",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — W4-R8 (independent review, P1): advisorViewModel is now the real, production-reachable `null` state (getCompletedMatchAdvisorViewModel() genuinely returns null when nothing is active to show), not a hand-constructed 'fresh, empty, reassuring' state that getCompletedMatchAdvisorViewModel() can never actually produce. No CompletedMatchAdvisorPanel is mounted; the page reproduces AfterMatchOverview's own real null-handling conditional verbatim, including its literal fallback copy. See SOURCE_RECONCILIATION.md W4-R8 and CURRENT_STATE_AUDIT.md item 6.",
       "knownGaps": [
-        "The insufficient-evidence summary text (\"No historical pattern identified from the available evidence.\") is this fixture's own plausible AI-review content, not literal copy pulled from an existing shipped screen — disclosed in CURRENT_STATE_AUDIT.md item 6."
+        "W4-R5 (independent review, P1): match-format/chronology corrected — timeline minutes previously exceeded 60-minute regulation.",
+        "W4-R8 (independent review, P1): advisorViewModel corrected from a production-unreachable hand-constructed state to the real null state — see baselineAssetRef above.",
+        "The real fallback text (\"No coaching intent or review recorded for this match.\") is copied verbatim from after-match-overview.tsx, disclosed, not independently invented.",
+        "fixtureVersion bumped 1 -> 2 by this remediation; the prior revision's own CI capture evidence is superseded and preserved under capture-attestation.json's priorVersions."
       ],
       "approval": null
     }

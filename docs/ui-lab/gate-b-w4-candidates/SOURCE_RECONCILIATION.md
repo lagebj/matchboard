@@ -62,3 +62,117 @@ The brief's own section 7 anticipated needing a narrowly-scoped adapter if the r
 "cannot be used safely in UI Lab." In practice the real component is safe to mount unchanged —
 see `CURRENT_STATE_AUDIT.md`'s "Correction to the brief's own assumption" note. No adapter
 component was built.
+
+---
+
+## Independent review remediation (PR #811, reviewed commit `edd576b52471559cbe7140c10240c1ad8b0c116f`)
+
+A separate, independent review of the merged candidate found four P1 and several P2 defects.
+Every finding was first independently verified against the real repository (not assumed correct)
+before any fix — see each entry below for what was actually found. `fixtureVersion` bumped 1 → 2
+for both scenarios; both scenarios remain `CANDIDATE`, `approval: null`.
+
+### W4-R5 (P1) — match-format/chronology contradiction, confirmed real
+
+B07's timelines used an 80-minute match structure (events up to 74'/69', a historical source
+record at 61') for the same "Slemmestad Rød" team identity B05's own fifth/sixth remediation
+passes already established plays the real NFF Akershus G11 7v7 format — two 30-minute periods, 60
+minutes regulation (`B05_MATCH_FORMAT`, `b05-post-match-report/shared/report-data.ts:56`). No
+match-specific exception was declared for B07, so this was a real contradiction, not a false
+positive. Corrected: `b07HistoricalTimeline`'s 66'/74'/80' became 53'/58'/60'; the historical
+source record's 61' became 55' (the exact same correction B05's own R10-1 pass made to an
+identically out-of-regulation 61' event); `b07TrivialTimeline`'s 69'/80' became 58'/60'. Event
+order and both final scores (3-2, 4-1) are unchanged. `globalMinuteToPeriodRelative()` itself was
+**not** adopted — it converts a global minute into `MatchCanonicalLiveEventFact`'s
+period/matchSeconds encoding, a field pair `MatchTimelineItem` (what B01/B03/B04/B06/B07 actually
+use) doesn't have; the in-scope fix is simply that no minute exceeds
+`B05_MATCH_FORMAT.regulationDurationMinutes`, now enforced by a dedicated test importing that real
+constant (not a re-declared literal) plus negative-regression tests using the original invalid
+66'/74'/80'/61'/69' values. **Note:** importing `B05_MATCH_FORMAT` directly into
+`shared/match-b-fixture.ts` was attempted first and reverted — `report-data.ts` already imports
+`MATCH_B_TEAM_NAME`/`B05_MATCH_ID`/etc. *from* `match-b-fixture.ts`, so that import would have
+created a real circular module dependency (risking `undefined` values at the module-evaluation
+boundary, not merely a lint warning). The fixture file hardcodes the literal `"60'"` instead, with
+test-file-only imports of `B05_MATCH_FORMAT` for verification (no cycle there, since test files
+aren't imported by either production fixture module).
+
+### W4-R6 (P1) — historical evidence opponent-identity contradiction, confirmed real
+
+`B07_PRIOR1_DEBRIEF_NOTE` named "Bærum" as the opponent that exploited the defensive weakness, but
+`B07_PRIOR1_OPPONENT_NAME` is "Fjellhug IF" — Bærum SK is actually the HISTORICAL (current) match's
+own opponent, a copy-paste error from drafting all three debrief notes together. Corrected to name
+Fjellhug. Audited every other B07 evidence record (match identity, date, event id, goal minute,
+source class, scope, observed behavior) for the same class of error — no further instances found.
+Also corrected: the primary insight's body previously said "Bærum SK exploited it again today
+\[23'\]," asserting the review's own causal link between a specific goal and the lost-throw-in
+mechanism; reworded so the "Match data" record states only when a goal was conceded and the
+"Coach observation" record carries the coaching staff's own explanation — the review never asserts
+the timing alone proves the cause. Also corrected an unsupported completeness claim: "recorded in
+2 of the last 2 prior completed matches' debriefs" (implying these are literally the team's most
+recent matches, which this two-match fixture does not establish) became "the two prior matches
+included in this review" throughout the insight text and page caption.
+
+### W4-R7 (part of R6) — causal-framing and coverage-language test coverage
+
+New tests directly enforce both corrections above: an opponent-identity cross-check (every
+match's own debrief note never names a different match's opponent fragment), a "never claims
+'last N'" check, and a "doesn't assert timing alone proves cause" check — replacing prose-only
+guarantees with assertions that fail if either wording regresses.
+
+### W4-R8 (P1) — B07-B's Advisor state was production-unreachable, confirmed real
+
+Traced `getCompletedMatchAdvisorViewModel()`'s full state transition
+(`completed-match-advisor.ts:149-188`): `buildViewModel()` — the only code path that can produce
+`status: "fresh"`/`"stale"` — runs only when a `SUCCEEDED` review's `insights.length > 0` (line
+174); whenever that gate passes, at least one of `sectionableInsights`/`clarificationInsight`/
+`suggestionInsights` is non-empty by construction (every active insight falls into one of those
+three buckets). So the fixture's previous `{status: "fresh", insights: [], clarification: null,
+suggestions: []}` — all three empty while status is "fresh" — can never be real output. When a
+succeeded review genuinely has zero active insights, the `review.insights.length > 0` gate fails
+and the function falls through to the job-status check (QUEUED/RUNNING → `"reviewing"`, FAILED →
+`"unavailable"`); since there's no pending/failed job for an already-succeeded review, it returns
+`null` — the same `null` production returns for AI-disabled/no-connection/report-not-LOCKED.
+Corrected: `advisorViewModel` is now literally `null`; `page.tsx` no longer imports
+`CompletedMatchAdvisorPanel`/`OrgSlugProvider` at all, and instead reproduces
+`AfterMatchOverview`'s own real conditional branching
+(`after-match-overview.tsx:201-209`) verbatim — `hasAdvisorContent`/`intentLabel` computed the
+same way, falling through to the real, verbatim-copied fallback text "No coaching intent or review
+recorded for this match." This also directly addresses the brief's own instruction not to show
+"synthetic AI-generated reassurance" — the removed `"No historical pattern identified from the
+available evidence."` string was exactly that.
+
+### W4-R9 (P2) — evidence-inspector capture coverage completed
+
+B07-A's primary interaction (opening the historical evidence inspector) had no capture evidence
+beyond the default-closed state. Added `interactions: [{id: "evidence-open", perform:
+openSourceInspectorByName("Inspect historical evidence")}]` with `interactionViewports: ["desktop",
+"mobile"]` to `ui-lab-visual-review.mjs` — reusing A04's own existing capture helper unmodified,
+not a new interaction mechanism, and scoped to exactly the two viewports the brief asked for
+(desktop + mobile), both themes (the capture loop already runs per-theme).
+
+### W4-R10 (P2) — test-quality issues, confirmed and corrected
+
+1. The historical-pattern chronology test compared `identity.fixedDateTimeUtc` (literally
+   `B07_HISTORICAL_REFERENCE_AT`) against a second hardcoded copy of the same ISO string — a
+   tautology that could never fail regardless of whether prior matches actually precede the
+   current one. Replaced with assertions comparing the real imported
+   `B07_PRIOR1_KICKOFF_AT`/`B07_PRIOR2_KICKOFF_AT`/`B07_HISTORICAL_KICKOFF_AT` constants against
+   each other and against `identity.fixedDateTimeUtc`.
+2. Page tests render against a mocked `CompletedMatchAdvisorPanel` (necessary — see W4-R3); added
+   an explicit comment distinguishing what a mocked-component composition test can and cannot
+   prove, and pointing to the real CI browser captures as the actual verification of the real
+   component's rendering, rather than leaving that distinction implicit.
+3. The "carries no clarification or development suggestion" test already asserted the real
+   guarantee (fixture-level, not DOM-level) — kept as-is; the DOM-level "no mutation action
+   reachable" tests removed in the original implementation (for being vacuous against a mock that
+   never defines those controls) remain removed, with the fixture-level test doing the real work,
+   now cross-referenced explicitly in both page test files' comments.
+
+### 320px/360px visual finding (P1) — see `VISUAL_VS_CURRENT.md` and `BLOCKERS.md`
+
+Confirmed real (score wraps to two lines, metric labels truncate illegibly) but traced to two
+shared, unmodified production components (`MatchIdentityCard`, `MetricStrip`) that reproduce the
+identical defect in already-captured B04/B06 baselines — not introduced by B07, not fixed in this
+PR per the review's own instruction not to silently change production code here. B07's own
+`factsItems` labels were shortened (within B07's own scope) to reduce truncation; the component-
+level fix is recorded as a production dependency.
