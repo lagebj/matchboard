@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import { matchPresentationPhase } from "@/lib/matches/match-presentation";
-import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
+import { TeamKitMark, type TeamKitMarkSize } from "@/components/touchline/identity/team-kit-mark";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 
 /**
@@ -23,6 +23,16 @@ import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
  * 03_match_details_before_planned_desktop.png`), which differs from `MatchScoreHeader`'s own
  * pre-match hero (kickoff time) — a disclosed, golden-driven composition, not a change to that
  * shared component or its other call sites.
+ *
+ * Narrow-width correction (found independently of a direct B07 UI Lab candidate review, confirmed
+ * pre-existing since at least B04/B06's own already-captured compact screenshots): below the
+ * `medium` breakpoint (600px, this app's own documented "compact" shell tier,
+ * `globals.css`'s "Adaptive shell breakpoints"), the hero score now has `whitespace-nowrap` +
+ * `shrink-0` (never wraps, never gets compressed below its own content width) and the layout
+ * reclaims room for it three ways, all reverting to the exact pre-existing desktop values at
+ * `medium:`/`sm:` and up: a smaller `gap`, a tighter team-name truncation width, and a smaller
+ * `TeamKitMark` size (an existing, already-supported size variant — not a new one). Desktop
+ * (`sm:`/sizing at `medium:` and up) is byte-identical to the pre-fix markup/classes.
  */
 type Props = {
   presentation: MatchPresentation;
@@ -48,18 +58,33 @@ export function MatchIdentityCard({ presentation: p, ownKitColor = null, size = 
         : [p.kickoffDate, p.kickoffTime].filter(Boolean).join(" · ") || "Scheduled";
 
   const kitSize = size === "lg" ? "lg" : "md";
+  // Below `medium` (600px), an existing smaller size variant — not a new one — so the fixed-pixel
+  // kit mark doesn't force the row past 320-430px's available width.
+  const compactKitSize: TeamKitMarkSize = size === "lg" ? "md" : "sm";
   const heroSize = size === "lg" ? "text-[40px]" : "text-[32px]";
 
   return (
-    <div className={cn("flex items-center justify-center gap-6 sm:gap-10", className)}>
-      <TeamIdentity name={p.homeTeam} accented={p.ownTeamSide === "home"} kitColor={p.ownTeamSide === "home" ? ownKitColor : null} size={kitSize} />
-      <div className="flex flex-col items-center gap-1">
-        <p className={cn("tl-sport font-[650] leading-none text-[var(--foreground)]", heroSize)}>{hero}</p>
+    <div className={cn("flex items-center justify-center gap-3 sm:gap-10", className)}>
+      <TeamIdentity
+        name={p.homeTeam}
+        accented={p.ownTeamSide === "home"}
+        kitColor={p.ownTeamSide === "home" ? ownKitColor : null}
+        size={kitSize}
+        compactSize={compactKitSize}
+      />
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <p className={cn("tl-sport font-[650] leading-none whitespace-nowrap text-[var(--foreground)]", heroSize)}>{hero}</p>
         <p className={cn("text-[13px]", isLive ? "tl-clock text-[var(--tl-c-live)]" : "text-[var(--text-muted)]")}>
           {statusLine}
         </p>
       </div>
-      <TeamIdentity name={p.awayTeam} accented={p.ownTeamSide === "away"} kitColor={p.ownTeamSide === "away" ? ownKitColor : null} size={kitSize} />
+      <TeamIdentity
+        name={p.awayTeam}
+        accented={p.ownTeamSide === "away"}
+        kitColor={p.ownTeamSide === "away" ? ownKitColor : null}
+        size={kitSize}
+        compactSize={compactKitSize}
+      />
     </div>
   );
 }
@@ -69,20 +94,24 @@ function TeamIdentity({
   accented,
   kitColor,
   size,
+  compactSize,
 }: {
   name: string;
   accented: boolean;
   /** Raw `Team.kitColor` id (e.g. `"RED"`) — resolved to a CSS hex here, not by the caller. */
   kitColor: string | null;
   size: "md" | "lg";
+  /** Rendered below `medium` (600px) in place of `size` — see the module doc comment. */
+  compactSize: TeamKitMarkSize;
 }) {
   const resolvedHex = resolveKitColorSwatch(kitColor)?.hex ?? null;
   return (
-    <div className="flex min-w-0 flex-col items-center gap-2 text-center">
-      <TeamKitMark color={resolvedHex} size={size} ariaLabel={`${name} kit`} />
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+      <TeamKitMark color={resolvedHex} size={compactSize} ariaLabel={`${name} kit`} className="medium:hidden" />
+      <TeamKitMark color={resolvedHex} size={size} ariaLabel={`${name} kit`} className="hidden medium:inline-flex" />
       <span
         className={cn(
-          "max-w-[9rem] truncate text-[14px] font-[600] sm:max-w-[12rem]",
+          "max-w-[4.5rem] truncate text-[14px] font-[600] medium:max-w-[9rem] sm:max-w-[12rem]",
           accented ? "text-[var(--accent)]" : "text-[var(--text-soft)]",
         )}
       >
