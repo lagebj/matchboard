@@ -169,13 +169,15 @@ describe("B05 draft page (fixtureVersion 2 — B2-R3/R5/R6 remediation)", () => 
 
   it("B5/R4 — the header's own match identity card tracks an edited result live, not the original fixture score", async () => {
     renderPage();
-    expect(screen.getByText("3 - 2")).toBeInTheDocument();
+    // MatchIdentityCard now renders two always-present compositions (compact + medium+, toggled
+    // by CSS display) — the score text legitimately appears twice.
+    expect(screen.getAllByText("3 - 2").length).toBeGreaterThan(0);
 
     const scoreInputs = screen.getAllByRole("spinbutton");
     fireEvent.change(scoreInputs[0]!, { target: { value: "5" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(screen.getByText("5 - 2")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("5 - 2").length).toBeGreaterThan(0));
     expect(screen.queryByText("3 - 2")).not.toBeInTheDocument();
   });
 

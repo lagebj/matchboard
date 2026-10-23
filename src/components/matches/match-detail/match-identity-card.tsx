@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import { matchPresentationPhase } from "@/lib/matches/match-presentation";
-import { TeamKitMark, type TeamKitMarkSize } from "@/components/touchline/identity/team-kit-mark";
+import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 
 /**
@@ -24,32 +24,34 @@ import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
  * pre-match hero (kickoff time) — a disclosed, golden-driven composition, not a change to that
  * shared component or its other call sites.
  *
- * Narrow-width correction (found independently of a direct B07 UI Lab candidate review, confirmed
- * pre-existing since at least B04/B06's own already-captured compact screenshots): below the
- * `medium` breakpoint (600px, this app's own documented "compact" shell tier,
- * `globals.css`'s "Adaptive shell breakpoints"), the hero score now has `whitespace-nowrap` +
- * `shrink-0` (never wraps, never gets compressed below its own content width) and the layout
- * reclaims room for it four ways, every one of them scoped to strictly below `medium` (600px) and
- * reverting to the exact pre-existing values at `medium:`/`sm:` and up:
- * - A tighter `gap` only below `medium` (`gap-3`); the pre-existing `gap-6` value is preserved,
- *   unchanged, for the entire 600-639px range via an explicit `medium:gap-6` tier (640px's own
- *   `sm:gap-10` is untouched) — a 2-tier `gap-3 sm:gap-10` was tried first and rejected: it would
- *   have silently redefined 600-639px (previously `gap-6`, same as every width below 640) to the
- *   new tighter `gap-3` instead, a real, narrow, undisclosed desktop-adjacent regression this
- *   3-tier version avoids entirely.
- * - A tighter team-name truncation width only below `medium`; `medium:max-w-[9rem]` preserves the
- *   pre-existing 600-639px value exactly, same reasoning.
- * - A smaller `TeamKitMark` size only below `medium` — an existing, already-supported size
- *   variant, not a new one, two instances toggled by CSS display rather than a prop the component
- *   doesn't support making responsive on its own.
- * - `TeamIdentity`'s `flex-1` (letting the two team columns share any leftover row width, so the
- *   `shrink-0` score column is never the one asked to give up space) is itself `medium:flex-none`
- *   — scoped the same way, even though in every real call site today `MatchIdentityCard`'s own
- *   root element is never stretched by its parent (each wraps it in a plain
- *   `flex items-center justify-center` container with no `w-full`/grow on the child), so there is
- *   no leftover width for `flex-1` to redistribute there regardless of the breakpoint. Explicitly
- *   scoping it anyway removes any dependency on that caller-side fact holding forever, rather than
- *   relying on it implicitly.
+ * Narrow-width correction, two parts (found independently of a direct B07 UI Lab candidate
+ * review, confirmed pre-existing since at least B04/B06's own already-captured compact
+ * screenshots):
+ *
+ * 1. (First pass) The score wrapped to two lines below ~430px.
+ * 2. (This pass) The first pass's fix kept the score on one line by truncating team names down to
+ *    a fixed `max-w-[4.5rem]` at compact widths — losing exactly the information that
+ *    distinguishes two same-club teams (e.g. "Slemmestad Rød" → "Slemme…", indistinguishable from
+ *    "Slemmestad Hvit"/"Slemmestad Blå" once truncated). Match identity must never be sacrificed
+ *    for score compactness.
+ *
+ * Below the `medium` breakpoint (600px, this app's own documented "compact" shell tier,
+ * `globals.css`'s "Adaptive shell breakpoints"), this renders a **completely separate
+ * composition** from the `medium:`-and-up one below it — not the same DOM responsively
+ * restyled — specifically so the `medium:`-and-up markup can stay byte-for-byte identical to the
+ * original, pre-fix component (verified pixel-identical against real browser captures at
+ * 600/768/900/1440px). Both are always in the DOM; exactly one is ever visible at a time via
+ * `medium:hidden` / `hidden medium:flex`, same technique already used for the two `TeamKitMark`
+ * size instances below.
+ *
+ * The compact composition is a 2-row grid instead of 1-row flex: row 1 is
+ * `[home kit] [score] [away kit]`, row 2 is `[home name] [status] [away name]`. Team names no
+ * longer share horizontal room with the score at all, so each name column gets roughly half the
+ * card's width — comfortably enough for real Matchboard team names (including same-club pairs
+ * like "Slemmestad Rød"/"Slemmestad Hvit") to render in full, wrapping onto a second line rather
+ * than being cut off if a name genuinely doesn't fit one line at the narrowest supported width. A
+ * `line-clamp-2` is the final fallback for the rare pathologically long name, not a routine
+ * truncation path.
  */
 type Props = {
   presentation: MatchPresentation;
@@ -75,34 +77,46 @@ export function MatchIdentityCard({ presentation: p, ownKitColor = null, size = 
         : [p.kickoffDate, p.kickoffTime].filter(Boolean).join(" · ") || "Scheduled";
 
   const kitSize = size === "lg" ? "lg" : "md";
-  // Below `medium` (600px), an existing smaller size variant — not a new one — so the fixed-pixel
-  // kit mark doesn't force the row past 320-430px's available width.
-  const compactKitSize: TeamKitMarkSize = size === "lg" ? "md" : "sm";
   const heroSize = size === "lg" ? "text-[40px]" : "text-[32px]";
+  const homeHex = resolveKitColorSwatch(p.ownTeamSide === "home" ? ownKitColor : null)?.hex ?? null;
+  const awayHex = resolveKitColorSwatch(p.ownTeamSide === "away" ? ownKitColor : null)?.hex ?? null;
+  const homeAccented = p.ownTeamSide === "home";
+  const awayAccented = p.ownTeamSide === "away";
+  const statusClassName = cn("text-[13px]", isLive ? "tl-clock text-[var(--tl-c-live)]" : "text-[var(--text-muted)]");
 
   return (
-    <div className={cn("flex items-center justify-center gap-3 medium:gap-6 sm:gap-10", className)}>
-      <TeamIdentity
-        name={p.homeTeam}
-        accented={p.ownTeamSide === "home"}
-        kitColor={p.ownTeamSide === "home" ? ownKitColor : null}
-        size={kitSize}
-        compactSize={compactKitSize}
-      />
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <p className={cn("tl-sport font-[650] leading-none whitespace-nowrap text-[var(--foreground)]", heroSize)}>{hero}</p>
-        <p className={cn("text-[13px]", isLive ? "tl-clock text-[var(--tl-c-live)]" : "text-[var(--text-muted)]")}>
-          {statusLine}
+    <>
+      {/* Compact (<600px): see the module doc comment. */}
+      <div
+        className={cn(
+          "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5 medium:hidden",
+          className,
+        )}
+      >
+        <TeamKitMark color={homeHex} size="sm" ariaLabel={`${p.homeTeam} kit`} className="justify-self-center" />
+        <p className={cn("tl-sport whitespace-nowrap text-center font-[650] leading-none text-[var(--foreground)]", heroSize)}>
+          {hero}
+        </p>
+        <TeamKitMark color={awayHex} size="sm" ariaLabel={`${p.awayTeam} kit`} className="justify-self-center" />
+        <p className={cn("line-clamp-2 text-center text-[13px] font-[600] leading-tight", homeAccented ? "text-[var(--accent)]" : "text-[var(--text-soft)]")}>
+          {p.homeTeam}
+        </p>
+        <p className={cn(statusClassName, "text-center text-[11px]")}>{statusLine}</p>
+        <p className={cn("line-clamp-2 text-center text-[13px] font-[600] leading-tight", awayAccented ? "text-[var(--accent)]" : "text-[var(--text-soft)]")}>
+          {p.awayTeam}
         </p>
       </div>
-      <TeamIdentity
-        name={p.awayTeam}
-        accented={p.ownTeamSide === "away"}
-        kitColor={p.ownTeamSide === "away" ? ownKitColor : null}
-        size={kitSize}
-        compactSize={compactKitSize}
-      />
-    </div>
+
+      {/* medium+ (600px and up): the original, unmodified single-row composition. */}
+      <div className={cn("hidden items-center justify-center gap-6 medium:flex sm:gap-10", className)}>
+        <TeamIdentity name={p.homeTeam} accented={homeAccented} kitColor={p.ownTeamSide === "home" ? ownKitColor : null} size={kitSize} />
+        <div className="flex flex-col items-center gap-1">
+          <p className={cn("tl-sport font-[650] leading-none text-[var(--foreground)]", heroSize)}>{hero}</p>
+          <p className={statusClassName}>{statusLine}</p>
+        </div>
+        <TeamIdentity name={p.awayTeam} accented={awayAccented} kitColor={p.ownTeamSide === "away" ? ownKitColor : null} size={kitSize} />
+      </div>
+    </>
   );
 }
 
@@ -111,24 +125,20 @@ function TeamIdentity({
   accented,
   kitColor,
   size,
-  compactSize,
 }: {
   name: string;
   accented: boolean;
   /** Raw `Team.kitColor` id (e.g. `"RED"`) — resolved to a CSS hex here, not by the caller. */
   kitColor: string | null;
   size: "md" | "lg";
-  /** Rendered below `medium` (600px) in place of `size` — see the module doc comment. */
-  compactSize: TeamKitMarkSize;
 }) {
   const resolvedHex = resolveKitColorSwatch(kitColor)?.hex ?? null;
   return (
-    <div className="flex min-w-0 flex-1 medium:flex-none flex-col items-center gap-2 text-center">
-      <TeamKitMark color={resolvedHex} size={compactSize} ariaLabel={`${name} kit`} className="medium:hidden" />
-      <TeamKitMark color={resolvedHex} size={size} ariaLabel={`${name} kit`} className="hidden medium:inline-flex" />
+    <div className="flex min-w-0 flex-col items-center gap-2 text-center">
+      <TeamKitMark color={resolvedHex} size={size} ariaLabel={`${name} kit`} />
       <span
         className={cn(
-          "max-w-[4.5rem] truncate text-[14px] font-[600] medium:max-w-[9rem] sm:max-w-[12rem]",
+          "max-w-[9rem] truncate text-[14px] font-[600] sm:max-w-[12rem]",
           accented ? "text-[var(--accent)]" : "text-[var(--text-soft)]",
         )}
       >

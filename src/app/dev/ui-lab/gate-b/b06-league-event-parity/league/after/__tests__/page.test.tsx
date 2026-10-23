@@ -14,7 +14,9 @@ function renderPage() {
 describe("B06 League · After page", () => {
   it("shows the final score and the same match identity as League · Before", () => {
     renderPage();
-    expect(screen.getByText("3 - 1")).toBeInTheDocument();
+    // MatchIdentityCard now renders two always-present compositions (compact + medium+, toggled
+    // by CSS display) — the score text legitimately appears twice.
+    expect(screen.getAllByText("3 - 1").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Slemmestad Rød/).length).toBeGreaterThan(0);
   });
 
