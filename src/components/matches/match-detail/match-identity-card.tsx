@@ -29,10 +29,27 @@ import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
  * `medium` breakpoint (600px, this app's own documented "compact" shell tier,
  * `globals.css`'s "Adaptive shell breakpoints"), the hero score now has `whitespace-nowrap` +
  * `shrink-0` (never wraps, never gets compressed below its own content width) and the layout
- * reclaims room for it three ways, all reverting to the exact pre-existing desktop values at
- * `medium:`/`sm:` and up: a smaller `gap`, a tighter team-name truncation width, and a smaller
- * `TeamKitMark` size (an existing, already-supported size variant — not a new one). Desktop
- * (`sm:`/sizing at `medium:` and up) is byte-identical to the pre-fix markup/classes.
+ * reclaims room for it four ways, every one of them scoped to strictly below `medium` (600px) and
+ * reverting to the exact pre-existing values at `medium:`/`sm:` and up:
+ * - A tighter `gap` only below `medium` (`gap-3`); the pre-existing `gap-6` value is preserved,
+ *   unchanged, for the entire 600-639px range via an explicit `medium:gap-6` tier (640px's own
+ *   `sm:gap-10` is untouched) — a 2-tier `gap-3 sm:gap-10` was tried first and rejected: it would
+ *   have silently redefined 600-639px (previously `gap-6`, same as every width below 640) to the
+ *   new tighter `gap-3` instead, a real, narrow, undisclosed desktop-adjacent regression this
+ *   3-tier version avoids entirely.
+ * - A tighter team-name truncation width only below `medium`; `medium:max-w-[9rem]` preserves the
+ *   pre-existing 600-639px value exactly, same reasoning.
+ * - A smaller `TeamKitMark` size only below `medium` — an existing, already-supported size
+ *   variant, not a new one, two instances toggled by CSS display rather than a prop the component
+ *   doesn't support making responsive on its own.
+ * - `TeamIdentity`'s `flex-1` (letting the two team columns share any leftover row width, so the
+ *   `shrink-0` score column is never the one asked to give up space) is itself `medium:flex-none`
+ *   — scoped the same way, even though in every real call site today `MatchIdentityCard`'s own
+ *   root element is never stretched by its parent (each wraps it in a plain
+ *   `flex items-center justify-center` container with no `w-full`/grow on the child), so there is
+ *   no leftover width for `flex-1` to redistribute there regardless of the breakpoint. Explicitly
+ *   scoping it anyway removes any dependency on that caller-side fact holding forever, rather than
+ *   relying on it implicitly.
  */
 type Props = {
   presentation: MatchPresentation;
@@ -64,7 +81,7 @@ export function MatchIdentityCard({ presentation: p, ownKitColor = null, size = 
   const heroSize = size === "lg" ? "text-[40px]" : "text-[32px]";
 
   return (
-    <div className={cn("flex items-center justify-center gap-3 sm:gap-10", className)}>
+    <div className={cn("flex items-center justify-center gap-3 medium:gap-6 sm:gap-10", className)}>
       <TeamIdentity
         name={p.homeTeam}
         accented={p.ownTeamSide === "home"}
@@ -106,7 +123,7 @@ function TeamIdentity({
 }) {
   const resolvedHex = resolveKitColorSwatch(kitColor)?.hex ?? null;
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+    <div className="flex min-w-0 flex-1 medium:flex-none flex-col items-center gap-2 text-center">
       <TeamKitMark color={resolvedHex} size={compactSize} ariaLabel={`${name} kit`} className="medium:hidden" />
       <TeamKitMark color={resolvedHex} size={size} ariaLabel={`${name} kit`} className="hidden medium:inline-flex" />
       <span
