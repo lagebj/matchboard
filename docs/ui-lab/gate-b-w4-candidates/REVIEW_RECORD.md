@@ -19,8 +19,14 @@ The 320px/360px layout defect and the "AI Advisor"/"Assistant Coach" terminology
 confirmed as real, **pre-existing production-component behavior** (not introduced by B07) and are
 recorded as production dependencies in `BLOCKERS.md`, not fixed inside this PR.
 
+Real CI capture evidence for the remediated fixtureVersion 2 is committed
+(`capture-attestation.json`, run https://github.com/lagebj/matchboard/actions/runs/39913284775,
+`reviewedBranchHeadSha` `8be701d122e442e63d3a0ae5b0beb440f4b8ef45`, 24 B07 captures including the
+new evidence-inspector-open interaction state, every SHA-256 independently re-verified, several
+captures visually spot-checked). All CI checks pass except the owner-gated Visual Authority Gate,
+which is designed to show "fail" until `/visual-approve` is posted.
+
 No `/visual-review deploy`, `/visual-approve`, or `/visual-reject` has been posted on this PR. No
 promotion to `APPROVED_GOLDEN` has been attempted. This file will be updated, in a
-documentation-only follow-up commit, once the owner reviews the real CI capture (fresh evidence
-against the remediated fixtureVersion 2 code, still pending as of this remediation commit) and the
-gate resolves — the same process every prior Gate B wave has followed.
+documentation-only follow-up commit, once the owner reviews the real CI capture and the gate
+resolves — the same process every prior Gate B wave has followed.

@@ -36,7 +36,7 @@
         "Evidence-drilldown production boundary — the six inspectable SourceRecords are a UI Lab design proposal; production's real Advisor pipeline does not yet persist/expose records at this granularity. See CURRENT_STATE_AUDIT.md.",
         "No Event-origin equivalent — real production constraint (post_match_review's cross-match sections are League-only, issue #696), not a choice this wave made.",
         "No degraded (reviewing/unavailable) AI state captured for this scenario — deliberate scope decision; see INTERACTION_AND_STATE_AUDIT.md.",
-        "fixtureVersion bumped 1 -> 2 by this remediation; the prior revision's own CI capture evidence is superseded and preserved under capture-attestation.json's priorVersions — a fresh CI run against this revision is required before new capture evidence is trustworthy."
+        "fixtureVersion bumped 1 -> 2 by this remediation; the prior revision's own CI capture evidence is superseded and preserved under capture-attestation.json's priorVersions. Real fixtureVersion-2 CI capture evidence is now committed (run 39913284775, 24 B07 captures, independently re-verified)."
       ],
       "approval": null
     },
@@ -62,7 +62,7 @@
         "W4-R5 (independent review, P1): match-format/chronology corrected — timeline minutes previously exceeded 60-minute regulation.",
         "W4-R8 (independent review, P1): advisorViewModel corrected from a production-unreachable hand-constructed state to the real null state — see baselineAssetRef above.",
         "The real fallback text (\"No coaching intent or review recorded for this match.\") is copied verbatim from after-match-overview.tsx, disclosed, not independently invented.",
-        "fixtureVersion bumped 1 -> 2 by this remediation; the prior revision's own CI capture evidence is superseded and preserved under capture-attestation.json's priorVersions."
+        "fixtureVersion bumped 1 -> 2 by this remediation; the prior revision's own CI capture evidence is superseded and preserved under capture-attestation.json's priorVersions. Real fixtureVersion-2 CI capture evidence is now committed (run 39913284775, 24 B07 captures, independently re-verified)."
       ],
       "approval": null
     }
