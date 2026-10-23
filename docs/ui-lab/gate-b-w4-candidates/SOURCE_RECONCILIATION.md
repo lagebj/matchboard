@@ -186,4 +186,68 @@ shared, unmodified production components (`MatchIdentityCard`, `MetricStrip`) th
 identical defect in already-captured B04/B06 baselines — not introduced by B07, not fixed in this
 PR per the review's own instruction not to silently change production code here. B07's own
 `factsItems` labels were shortened (within B07's own scope) to reduce truncation; the component-
-level fix is recorded as a production dependency.
+level fix is recorded as a production dependency. **Superseded by W4-R12 below.**
+
+---
+
+## Close-out remediation (B07 ready for owner visual approval)
+
+### W4-R12 (P1) — `MatchIdentityCard` fix: completed, verified, and merged into this PR
+
+The production fix for the above finding was prepared on its own branch
+(`fix/match-identity-card-narrow-score-wrap`), as intended, in two commits:
+
+1. **`abfa8d9967cb64344fc86229c00dda657e5822f6`** — the initial fix: `whitespace-nowrap` +
+   `shrink-0` on the score column; a tighter row gap (`gap-3 sm:gap-10`, was `gap-6 sm:gap-10`); a
+   tighter team-name truncation width below `medium`; the existing smaller `TeamKitMark` size
+   variant below `medium` (two instances toggled by CSS display). 10 new jsdom tests covering
+   scheduled/live/cancelled/completed states, home/away orientation, long names, two-digit scores,
+   and the `lg` size variant.
+2. **`cd7f9b59565913760693214d8d80805de5e3559e`** — a follow-up independent review caught two real
+   issues in commit 1: `TeamIdentity`'s new `flex-1` was unconditional (not breakpoint-scoped) —
+   harmless in every real call site today (none stretch `MatchIdentityCard`'s own root element),
+   but scoped explicitly to `flex-1 medium:flex-none` anyway rather than relying on that caller-side
+   fact implicitly; and the 2-tier `gap-3 sm:gap-10` would have silently redefined the untouched
+   600-639px range (previously `gap-6` the whole way to 640px, same as below 600px) down to the new
+   tighter `gap-3` — corrected to a 3-tier `gap-3 medium:gap-6 sm:gap-10` that preserves the
+   original `gap-6` value, unchanged, for exactly 600-639px.
+
+**Real-browser verification** (not jsdom): two `ui-lab-visual-review.yml` `workflow_dispatch` runs
+directly on the fix branch (no PR needed for this) —
+[39951319072](https://github.com/lagebj/matchboard/actions/runs/39951319072) (commit 1) and
+[40014393376](https://github.com/lagebj/matchboard/actions/runs/40014393376) (commit 2, final).
+Both completed successfully; `sourceCommitSha` confirmed to match the exact branch-tip commit each
+time (no PR synthetic-merge involved, since `workflow_dispatch` runs directly against the pushed
+branch). 92 B01/B04/B06 captures (320/360/390/430/600/768/900/1440px, both themes) independently
+hash-recomputed each run, zero mismatches.
+
+**Pixel-level regression proof** (`PIL.ImageChops.difference`, not visual inspection alone):
+compared the final run's B04 screenshots against the true pre-fix baseline (this PR's very first
+capture run, before any `MatchIdentityCard` change existed):
+- 1440px (desktop, both themes), 768px, 900px, and 600px: **zero-pixel diff, `bbox=None`** —
+  byte-for-byte identical to the pre-fix rendering. This is the rigorous answer to the "does
+  `flex-1`/the gap change alter desktop or the 600-639px range" question: it does not, confirmed
+  by direct measurement, not just reasoning about flexbox semantics.
+- 320/360/390/430px: genuinely differ from the pre-fix baseline (the wrap is fixed) — and are
+  pixel-identical between commit 1's own capture and commit 2's capture, confirming the
+  `flex-1`/gap refinement changed nothing below 600px, only corrected the 600-639px boundary.
+
+**Integration — the dependency cycle and its resolution:** opening the fix as its own PR was
+blocked by a real cycle, not a preference — confirmed via
+`gh api repos/lagebj/matchboard/rules/branches/main`, which shows "Visual Authority Gate" as a hard
+`required_status_checks` entry (a repository ruleset, not classic branch protection, which is why
+the legacy `branches/main/protection` endpoint reports "not protected"): PR #811 cannot merge until
+the owner resolves that gate; `AGENTS.md` forbids opening a second PR while #811 is open; B07's own
+captures can't reflect the fix until it's on `main`. Resolved by merging the fix directly into this
+PR's own branch (`git merge --no-ff fix/match-identity-card-narrow-score-wrap`) — fully visible in
+the one PR the owner already reviews, nothing merged to `main` without the owner's own action
+either way. `fixtureVersion` was **not** bumped — no B07 fixture content changed, only a shared
+production component's CSS.
+
+### Why `MetricStrip` was not also changed
+
+B07's own `factsItems` label shortening (from the prior remediation pass) already resolved the
+truncation-readability problem within B07's own scope. No further `MetricStrip` production change
+was found to be necessary — the brief's own instruction was explicit not to touch it "merely
+because it was involved in the original finding," only if an actual readability defect remained,
+and none did after the label change.

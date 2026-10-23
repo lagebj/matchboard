@@ -31,10 +31,15 @@ spot-checked — that pass is what surfaced the 320px score-wrap/label-truncatio
 remediation (chronology, opponent identity, causal framing, the B07-B advisor state, and the
 metric labels) — `fixtureVersion` bumped 1 → 2 for both scenarios, so that capture evidence no
 longer matches the current fixtures and cannot be reused. The superseded attestation is preserved
-unmodified under this directory's `capture-attestation.json` `priorVersions[0]` for audit history;
-a fresh CI run against the remediated code is required before this file's top-level content is
-trustworthy again — see `SOURCE_RECONCILIATION.md` for the full remediation record and
-`REVIEW_RECORD.md` for current status.
+unmodified under this directory's `capture-attestation.json` `priorVersions[0]` for audit history.
+
+That remediation's own fresh capture run (https://github.com/lagebj/matchboard/actions/runs/39913284775,
+committed in `capture-attestation.json`) is now **itself superseded** by the close-out pass: the
+`MatchIdentityCard` fix (see "MatchIdentityCard narrow-width fix" above) is merged into this PR's
+branch after that capture ran, so B07's own committed screenshots still show the unfixed layout. A
+further fresh CI run against this merged state, captured and committed the same two-commit way, is
+required before `capture-attestation.json`'s top-level content is trustworthy again — see
+`SOURCE_RECONCILIATION.md`'s W4-R12 entry and `REVIEW_RECORD.md` for current status.
 
 ## Degraded AI state — deliberately deferred, not attempted
 
@@ -50,22 +55,38 @@ all, and `post_match_review`'s own plan/opponent-history/recent-team-patterns se
 League-only (tracked separately as issue #696, not introduced by this wave). B07 is built on
 League fixtures only, as a consequence of real production scope, not a choice this wave made.
 
-## Production dependencies found during independent-review remediation — not fixed in this PR
+## `MatchIdentityCard` narrow-width fix — merged into this PR directly (close-out remediation)
 
-Three real production-component/behavior items were found while remediating B07; none were
-changed here, per the review brief's explicit instruction not to modify production code inside a
-UI Lab candidate PR:
+Originally found and documented (not fixed) during the prior remediation pass as a pre-existing
+production dependency, confirmed to reproduce identically in already-captured B04/B06 baselines.
+A fix was prepared on its own branch (`fix/match-identity-card-narrow-score-wrap`), as a
+narrowly-scoped maintenance change, consistent with this repository's production/UI-Lab
+review-boundary convention — **but it could not be opened as its own PR**: `AGENTS.md` requires
+PRs to be worked strictly sequentially, and PR #811 was (and remains) open. PR #811 in turn cannot
+merge until the owner resolves the Visual Authority Gate — confirmed, not assumed, to be a hard
+required status check via `gh api repos/lagebj/matchboard/rules/branches/main`. This is a genuine
+dependency cycle: B07's own captures can't reflect the fixed layout until the fix is on `main`;
+the fix can't become its own PR while #811 is open; #811 can't merge until the owner approves B07.
 
-1. **`MatchIdentityCard`/`MetricStrip` narrow-width (320px) layout** — confirmed pre-existing
-   (reproduces identically in already-captured B04 and B06 baselines, not introduced by B07). See
-   `VISUAL_VS_CURRENT.md` for the exact root cause and a proposed minimal fix
-   (`whitespace-nowrap` on the score hero; a narrower-column or tooltip strategy for `MetricStrip`
-   labels).
-2. **"AI Advisor" vs. "Assistant Coach" terminology** — the real `CompletedMatchAdvisorPanel`
+**Resolution:** the fully independently-verified fix (two commits,
+`abfa8d9967cb64344fc86229c00dda657e5822f6` and `cd7f9b59565913760693214d8d80805de5e3559e`) was
+merged directly into this PR's own branch via `git merge --no-ff`, rather than left undone or
+worked around with something that would compromise the approval model. Nothing merges to `main`
+without the owner's own action either way — the fix is simply now part of what the owner reviews
+in this one PR, instead of invisible to it. See `VISUAL_VS_CURRENT.md` for the root cause and the
+real-browser verification evidence (pixel-diffed against the true pre-fix baseline, not only
+visually inspected).
+
+## Other production dependencies found during independent-review remediation — not fixed in this PR
+
+Two real production-component/behavior items were found while remediating B07; neither was
+changed here:
+
+1. **"AI Advisor" vs. "Assistant Coach" terminology** — the real `CompletedMatchAdvisorPanel`
    badge still says "AI Advisor"; production's own sibling components
    (`AdvisorPanelReviewing`/`AdvisorPanelUnavailable`) already use "Assistant Coach" in their body
    copy, so this split pre-dates B07. See `CURRENT_STATE_AUDIT.md`'s terminology section.
-3. **Evidence-drilldown production boundary** — production's Advisor pipeline persists
+2. **Evidence-drilldown production boundary** — production's Advisor pipeline persists
    `evidenceRefs` (opaque tokens resolved to a category label) but not full inspectable source
    records; B07-A's `SourceInspector` drilldown is a UI Lab design proposal for what a future
    production capability could expose, not proof the live model can reconstruct it. See

@@ -53,15 +53,35 @@ and identical label truncation ("Recorded e…"). Neither prior wave's `BLOCKERS
 shared component) shortened — "Recorded events" → "Events", "Goals against" → "Against", "Noah —
 goals" → "Noah goals" — short enough to no longer truncate in a 3-column 320px grid.
 
-**What B07 did NOT fix, and why:** the score vertical-wrap and the `truncate` CSS itself are
-`MatchIdentityCard`/`MetricStrip` behavior, reused unmodified by B04/B06 as well as B07. Patching
-it locally (a UI-Lab-only wrapper/override) would make B07 diverge from how these components
-actually render in production and in every other Gate B candidate — the opposite of what a real
-production-component reference is for. Recorded as a production dependency, not fixed here (see
-`BLOCKERS.md`).
+**Update (close-out remediation): `MatchIdentityCard`'s score wrap is now fixed and merged into
+this PR.** `MetricStrip`'s `truncate` behavior was NOT changed (B07's own shortened labels already
+resolved the readability problem within B07's own scope — no further production change was found
+to be needed there; see `BLOCKERS.md`'s "Verify MetricStrip readability" history).
 
-**Proposed minimal production fix** (for a future, separate production PR, not attempted here):
-add `whitespace-nowrap` to `MatchIdentityCard`'s hero `<p>` (and/or reduce `heroSize`/gap at a
-narrow breakpoint); give `MetricStrip`'s narrow grid either 2 columns instead of 3, or a
-`title={item.label}` tooltip/accessible-full-text fallback alongside the visual truncation so the
-full label is never only available via overflow.
+The `MatchIdentityCard` fix was prepared on its own branch
+(`fix/match-identity-card-narrow-score-wrap`) as intended — a narrowly-scoped production
+correction, not a UI-Lab-only patch, so B07 keeps rendering the real, unmodified component exactly
+as every other Match Details surface does. It could not be opened as its own PR (this
+repository's sequential-PR governance forbids a second open PR while #811 is open, and #811 can't
+merge until the owner resolves the Visual Authority Gate — a real dependency cycle, not a
+preference). Resolution: merged directly into this PR's own branch — see `BLOCKERS.md` for the
+full reasoning — so the fix is fully visible in the one PR the owner reviews, rather than invisible
+to it or left undone.
+
+**What changed, scoped entirely to below the app's own `medium` (600px) breakpoint:**
+`whitespace-nowrap` + `shrink-0` on the score column (never wraps, never compressed below content
+width); a tighter row gap; a tighter team-name truncation width; the existing smaller `TeamKitMark`
+size variant in place of the regular one (two instances toggled by CSS display, not a new size).
+A first draft also added `flex-1` to the team-identity columns unconditionally and used a 2-tier
+gap (`gap-3 sm:gap-10`) that would have silently redefined the untouched 600-639px range (not
+flagged until an independent review caught it) — corrected to `flex-1 medium:flex-none` and a
+3-tier `gap-3 medium:gap-6 sm:gap-10` that preserves the original `gap-6` value exactly for
+600-639px.
+
+**Real-browser verification** (two `workflow_dispatch` runs on the fix branch, not jsdom):
+320/360/390/430/600/768/900/1440px, both themes, B04/B01/B06. Desktop (1440px), 768px, 900px, and
+600px screenshots are **byte-for-byte pixel-identical** to the true pre-fix baseline (`ImageChops`
+diff, zero bounding box) — rigorous proof of zero regression, not just visual inspection. 320-430px
+screenshots genuinely differ from the pre-fix baseline (the wrap is fixed) and are pixel-identical
+between the first draft and the final refined version (confirming the refinement changed only the
+600-639px boundary, nothing below it).

@@ -1,332 +1,19 @@
 {
-  "description": "Gate B W4 (B07 Assistant Coach longitudinal context) UI Lab visual-review evidence, fixtureVersion 2 (independent-review remediation). Not an approved golden -- requires human approval.",
-  "sourceCommitSha": "fc72d8bf39eda0a7cc370062fc2d4430b39df532",
-  "generatedAt": "2026-10-23T06:57:23.399Z",
-  "environment": {
-    "node": "v24.21.0",
-    "platform": "linux",
-    "ci": true
-  },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39913284775",
-  "ciArtifact": {
-    "id": 12484168377,
-    "name": "ui-lab-review-39913284775-1",
-    "expiresAt": "2026-10-30T06:57:23Z"
-  },
-  "reviewedBranchHeadSha": "8be701d122e442e63d3a0ae5b0beb440f4b8ef45",
+  "description": "Gate B W4 (B07 Assistant Coach longitudinal context) UI Lab visual-review evidence. PLACEHOLDER for the close-out revision (MatchIdentityCard narrow-width fix merged into this PR) -- no CI capture run has occurred yet against this merged state. Not an approved golden. This file will be replaced wholesale, in a documentation-only follow-up commit, once this revision's ui-lab-visual-review.yml run completes.",
+  "sourceCommitSha": null,
+  "generatedAt": null,
+  "environment": null,
+  "ciWorkflowRun": null,
+  "ciArtifact": null,
+  "reviewedBranchHeadSha": null,
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit -- same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
-    "GitHub Actions artifact retention is temporary -- a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "All 24 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39913284775) and every SHA-256 recomputed from the raw bytes -- zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
-    "This file is a filtered, scoped view of the run's full manifest.json (1149 captures total across 57 scenarios) -- only the 24 B07 entries are included here.",
-    "This run reflects the independent-review remediation (fixtureVersion 1 -> 2): corrected chronology/match-format, opponent identity, causal framing, and the B07-B advisor-state fix -- see SOURCE_RECONCILIATION.md W4-R5 through W4-R11.",
-    "4 new captures beyond the original 20: B07-A's evidence-inspector open state (desktop + mobile, both themes) -- W4-R9.",
-    "Visually spot-checked (not only hash-verified): B07-A desktop-light, B07-A narrow-light (320px), B07-A desktop-dark-evidence-open, B07-B desktop-light. Confirmed: B07-A's score/timeline/evidence-source footer/evidence inspector all render correctly with the corrected 60-minute chronology and corrected opponent names (Fjellhug IF, not Baerum SK, in the prior1 debrief note); B07-B shows no Assistant Coach content at all, only the real 'No coaching intent or review recorded for this match.' fallback; the 320px score-wrap defect is still present and still pre-existing/unfixed in this revision, exactly as disclosed in VISUAL_VS_CURRENT.md and BLOCKERS.md (not silently fixed, not silently ignored); MetricStrip labels ('Events', 'Against', 'Noah goals') no longer truncate at 320px."
+    "This is a placeholder for the close-out (MatchIdentityCard fix merged) revision -- not real capture evidence for the current merged state.",
+    "No screenshot hash below this point exists or is claimed for this revision. See BLOCKERS.md."
   ],
   "approvalStatus": "CANDIDATE",
-  "captureCountsByScenario": {
-    "gate-b-w4-b07-historical-pattern": 14,
-    "gate-b-w4-b07-trivial-fact": 10
-  },
-  "interactionStateCountsByScenario": {
-    "gate-b-w4-b07-historical-pattern": {
-      "initial": 10,
-      "evidence-open": 4
-    },
-    "gate-b-w4-b07-trivial-fact": {
-      "initial": 10
-    }
-  },
-  "captures": [
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-desktop-dark.png",
-      "sha256": "50f465dd26d9646e186038c321dc768eefea47baa5d44106f2e9b0e91af34ea7"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "dark",
-      "interactionState": "evidence-open",
-      "file": "gate-b-w4-b07-historical-pattern-desktop-dark-evidence-open.png",
-      "sha256": "eb2b9bb1fd3a42eeb5c6e196e6124d706fe8147fed2da313e6b018f6d6003bd7"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-desktop-light.png",
-      "sha256": "b44f336c1132d45c4ea1def99d4b8e793dbf7f6034beab18bdd18f04908ade15"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "light",
-      "interactionState": "evidence-open",
-      "file": "gate-b-w4-b07-historical-pattern-desktop-light-evidence-open.png",
-      "sha256": "a8e10a109f166470f0fa31cc3d058c27a8a1caa2684db1a66755a431ec3673c6"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-mobile-dark.png",
-      "sha256": "0f74338b039d1578024877d31f136ffcdd4457a54d6632ba63e981712c27d293"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "dark",
-      "interactionState": "evidence-open",
-      "file": "gate-b-w4-b07-historical-pattern-mobile-dark-evidence-open.png",
-      "sha256": "1412c46229c6ad7d3a84cb8c3266b14e1327d7f4cc887cce348b072dd5c62c67"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-mobile-light.png",
-      "sha256": "e745ebadca68f8ff7eeba62ae18923e6b841df1d890167c389fc6a3fa38889b2"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "light",
-      "interactionState": "evidence-open",
-      "file": "gate-b-w4-b07-historical-pattern-mobile-light-evidence-open.png",
-      "sha256": "300ffcf068b5c0a26195e740b296f71d21f0041fb0896bc888a5b17a7863a704"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "narrow",
-      "viewportWidth": 320,
-      "viewportHeight": 720,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-narrow-dark.png",
-      "sha256": "3c57e89847787d3f12113e8ce1a6aa7d9cb0aaa8188bcc573346a97a5db9ff31"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "narrow",
-      "viewportWidth": 320,
-      "viewportHeight": 720,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-narrow-light.png",
-      "sha256": "097ef1d1d173dfd763c14c04cb24ca34dc98eff685a5c0a1364c620d6bcec1ac"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "gb-360",
-      "viewportWidth": 360,
-      "viewportHeight": 800,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-gb-360-dark.png",
-      "sha256": "5de83167ad05de3a8292603860f73e9968e5a57f32d6f816c7a8f0ca0b2c401e"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "gb-360",
-      "viewportWidth": 360,
-      "viewportHeight": 800,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-gb-360-light.png",
-      "sha256": "8a7453c5e7b650689a1342deebd898f4c460d708300257d7aed5a59bfe2c895d"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "gb-430",
-      "viewportWidth": 430,
-      "viewportHeight": 900,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-gb-430-dark.png",
-      "sha256": "e6097271c81f252e20c13ef1e1f2c5ab85c0978dfd0705deefb301720601b74e"
-    },
-    {
-      "scenarioId": "B07-HISTORICAL-PATTERN",
-      "scenario": "gate-b-w4-b07-historical-pattern",
-      "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
-      "viewport": "gb-430",
-      "viewportWidth": 430,
-      "viewportHeight": 900,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-historical-pattern-gb-430-light.png",
-      "sha256": "13d8e7ab953750111c16fd5d1021173ad97d0c9d97cbef843b84060c9ba883c7"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-desktop-dark.png",
-      "sha256": "ce0abbec138f77868a2afbc144fe37f4b2eb0cb3dfb7a86e0e9163e57a681366"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "desktop",
-      "viewportWidth": 1440,
-      "viewportHeight": 900,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-desktop-light.png",
-      "sha256": "1bbb167472365f44a449679108b4f8b4e169644c39004a22d8eba6b3cf7dc25d"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-mobile-dark.png",
-      "sha256": "a971138d2adb1c07be553200075ca02876855e05e17b94e9a12e11499f94d9e5"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "mobile",
-      "viewportWidth": 390,
-      "viewportHeight": 844,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-mobile-light.png",
-      "sha256": "16312cdf9334eba96dd1b346ae7c52b346c09bdde16ff2270f23dc30b9280cca"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "narrow",
-      "viewportWidth": 320,
-      "viewportHeight": 720,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-narrow-dark.png",
-      "sha256": "b6b4457499cfa574221ee1fcb1da7c13793f787853892df1d9358616ceac4c3b"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "narrow",
-      "viewportWidth": 320,
-      "viewportHeight": 720,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-narrow-light.png",
-      "sha256": "402d14de1516e7220efab13aee3d377a285a576162eb87fc3d218af8a66ece61"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "gb-360",
-      "viewportWidth": 360,
-      "viewportHeight": 800,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-gb-360-dark.png",
-      "sha256": "e01ad9f6f652df972fe09437190fac11966de4b526c629b8045d068721e4acec"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "gb-360",
-      "viewportWidth": 360,
-      "viewportHeight": 800,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-gb-360-light.png",
-      "sha256": "b691b9f18bd81406ab19e351cac50df92e3c8954421d113e5efa5d1f1fa99177"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "gb-430",
-      "viewportWidth": 430,
-      "viewportHeight": 900,
-      "theme": "dark",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-gb-430-dark.png",
-      "sha256": "8a7afe176786a68304b1d3873d9b63cee801d269a622999f0bda604b203ac60c"
-    },
-    {
-      "scenarioId": "B07-TRIVIAL-FACT",
-      "scenario": "gate-b-w4-b07-trivial-fact",
-      "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
-      "viewport": "gb-430",
-      "viewportWidth": 430,
-      "viewportHeight": 900,
-      "theme": "light",
-      "interactionState": "initial",
-      "file": "gate-b-w4-b07-trivial-fact-gb-430-light.png",
-      "sha256": "40d24d031d3533ef2c1f5e7929bd79a57efb2f3c3cbd725dc3560a6d46ade009"
-    }
-  ],
+  "captureCountsByScenario": {},
+  "interactionStateCountsByScenario": {},
+  "captures": [],
   "priorVersions": [
     {
       "note": "Historical fact, preserved unmodified: the real CI capture evidence for fixtureVersion 1 (the original PR #811 implementation), superseded by the independent-review remediation (fixtureVersion 2) -- chronology, opponent-identity, causal-framing, and B07-B advisor-state corrections changed hashed fixture content. Never approved, so nothing is inherited from it.",
@@ -607,6 +294,624 @@
             "interactionState": "initial",
             "file": "gate-b-w4-b07-trivial-fact-gb-430-light.png",
             "sha256": "becb485901c278bd838143d93502bc27ea7cefeebf04d36455d64de72ed829b8"
+          }
+        ]
+      }
+    },
+    {
+      "note": "Historical fact, preserved unmodified: the real CI capture evidence for the fixtureVersion 2 (first independent-review remediation) revision, BEFORE the close-out MatchIdentityCard narrow-width fix was merged into this PR. Superseded because the score-wrap defect visible in these screenshots is fixed in the current revision -- not because fixture content changed (fixtureVersion stayed 2; this was a shared production component fix, not a fixture change). Never approved, so nothing is inherited from it.",
+      "attestation": {
+        "description": "Gate B W4 (B07 Assistant Coach longitudinal context) UI Lab visual-review evidence, fixtureVersion 2 (independent-review remediation). Not an approved golden -- requires human approval.",
+        "sourceCommitSha": "fc72d8bf39eda0a7cc370062fc2d4430b39df532",
+        "generatedAt": "2026-10-23T06:57:23.399Z",
+        "environment": {
+          "node": "v24.21.0",
+          "platform": "linux",
+          "ci": true
+        },
+        "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39913284775",
+        "ciArtifact": {
+          "id": 12484168377,
+          "name": "ui-lab-review-39913284775-1",
+          "expiresAt": "2026-10-30T06:57:23Z"
+        },
+        "reviewedBranchHeadSha": "8be701d122e442e63d3a0ae5b0beb440f4b8ef45",
+        "knownLimitations": [
+          "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit -- same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+          "GitHub Actions artifact retention is temporary -- a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+          "All 24 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39913284775) and every SHA-256 recomputed from the raw bytes -- zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+          "This file is a filtered, scoped view of the run's full manifest.json (1149 captures total across 57 scenarios) -- only the 24 B07 entries are included here.",
+          "This run reflects the independent-review remediation (fixtureVersion 1 -> 2): corrected chronology/match-format, opponent identity, causal framing, and the B07-B advisor-state fix -- see SOURCE_RECONCILIATION.md W4-R5 through W4-R11.",
+          "4 new captures beyond the original 20: B07-A's evidence-inspector open state (desktop + mobile, both themes) -- W4-R9.",
+          "Visually spot-checked (not only hash-verified): B07-A desktop-light, B07-A narrow-light (320px), B07-A desktop-dark-evidence-open, B07-B desktop-light. Confirmed: B07-A's score/timeline/evidence-source footer/evidence inspector all render correctly with the corrected 60-minute chronology and corrected opponent names (Fjellhug IF, not Baerum SK, in the prior1 debrief note); B07-B shows no Assistant Coach content at all, only the real 'No coaching intent or review recorded for this match.' fallback; the 320px score-wrap defect is still present and still pre-existing/unfixed in this revision, exactly as disclosed in VISUAL_VS_CURRENT.md and BLOCKERS.md (not silently fixed, not silently ignored); MetricStrip labels ('Events', 'Against', 'Noah goals') no longer truncate at 320px."
+        ],
+        "approvalStatus": "CANDIDATE",
+        "captureCountsByScenario": {
+          "gate-b-w4-b07-historical-pattern": 14,
+          "gate-b-w4-b07-trivial-fact": 10
+        },
+        "interactionStateCountsByScenario": {
+          "gate-b-w4-b07-historical-pattern": {
+            "initial": 10,
+            "evidence-open": 4
+          },
+          "gate-b-w4-b07-trivial-fact": {
+            "initial": 10
+          }
+        },
+        "captures": [
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-desktop-dark.png",
+            "sha256": "50f465dd26d9646e186038c321dc768eefea47baa5d44106f2e9b0e91af34ea7"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w4-b07-historical-pattern-desktop-dark-evidence-open.png",
+            "sha256": "eb2b9bb1fd3a42eeb5c6e196e6124d706fe8147fed2da313e6b018f6d6003bd7"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-desktop-light.png",
+            "sha256": "b44f336c1132d45c4ea1def99d4b8e793dbf7f6034beab18bdd18f04908ade15"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w4-b07-historical-pattern-desktop-light-evidence-open.png",
+            "sha256": "a8e10a109f166470f0fa31cc3d058c27a8a1caa2684db1a66755a431ec3673c6"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-mobile-dark.png",
+            "sha256": "0f74338b039d1578024877d31f136ffcdd4457a54d6632ba63e981712c27d293"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w4-b07-historical-pattern-mobile-dark-evidence-open.png",
+            "sha256": "1412c46229c6ad7d3a84cb8c3266b14e1327d7f4cc887cce348b072dd5c62c67"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-mobile-light.png",
+            "sha256": "e745ebadca68f8ff7eeba62ae18923e6b841df1d890167c389fc6a3fa38889b2"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "evidence-open",
+            "file": "gate-b-w4-b07-historical-pattern-mobile-light-evidence-open.png",
+            "sha256": "300ffcf068b5c0a26195e740b296f71d21f0041fb0896bc888a5b17a7863a704"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-narrow-dark.png",
+            "sha256": "3c57e89847787d3f12113e8ce1a6aa7d9cb0aaa8188bcc573346a97a5db9ff31"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-narrow-light.png",
+            "sha256": "097ef1d1d173dfd763c14c04cb24ca34dc98eff685a5c0a1364c620d6bcec1ac"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-gb-360-dark.png",
+            "sha256": "5de83167ad05de3a8292603860f73e9968e5a57f32d6f816c7a8f0ca0b2c401e"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-gb-360-light.png",
+            "sha256": "8a7453c5e7b650689a1342deebd898f4c460d708300257d7aed5a59bfe2c895d"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-gb-430-dark.png",
+            "sha256": "e6097271c81f252e20c13ef1e1f2c5ab85c0978dfd0705deefb301720601b74e"
+          },
+          {
+            "scenarioId": "B07-HISTORICAL-PATTERN",
+            "scenario": "gate-b-w4-b07-historical-pattern",
+            "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-historical-pattern-gb-430-light.png",
+            "sha256": "13d8e7ab953750111c16fd5d1021173ad97d0c9d97cbef843b84060c9ba883c7"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-desktop-dark.png",
+            "sha256": "ce0abbec138f77868a2afbc144fe37f4b2eb0cb3dfb7a86e0e9163e57a681366"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "desktop",
+            "viewportWidth": 1440,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-desktop-light.png",
+            "sha256": "1bbb167472365f44a449679108b4f8b4e169644c39004a22d8eba6b3cf7dc25d"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-mobile-dark.png",
+            "sha256": "a971138d2adb1c07be553200075ca02876855e05e17b94e9a12e11499f94d9e5"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "mobile",
+            "viewportWidth": 390,
+            "viewportHeight": 844,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-mobile-light.png",
+            "sha256": "16312cdf9334eba96dd1b346ae7c52b346c09bdde16ff2270f23dc30b9280cca"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-narrow-dark.png",
+            "sha256": "b6b4457499cfa574221ee1fcb1da7c13793f787853892df1d9358616ceac4c3b"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "narrow",
+            "viewportWidth": 320,
+            "viewportHeight": 720,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-narrow-light.png",
+            "sha256": "402d14de1516e7220efab13aee3d377a285a576162eb87fc3d218af8a66ece61"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-gb-360-dark.png",
+            "sha256": "e01ad9f6f652df972fe09437190fac11966de4b526c629b8045d068721e4acec"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "gb-360",
+            "viewportWidth": 360,
+            "viewportHeight": 800,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-gb-360-light.png",
+            "sha256": "b691b9f18bd81406ab19e351cac50df92e3c8954421d113e5efa5d1f1fa99177"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "dark",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-gb-430-dark.png",
+            "sha256": "8a7afe176786a68304b1d3873d9b63cee801d269a622999f0bda604b203ac60c"
+          },
+          {
+            "scenarioId": "B07-TRIVIAL-FACT",
+            "scenario": "gate-b-w4-b07-trivial-fact",
+            "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+            "viewport": "gb-430",
+            "viewportWidth": 430,
+            "viewportHeight": 900,
+            "theme": "light",
+            "interactionState": "initial",
+            "file": "gate-b-w4-b07-trivial-fact-gb-430-light.png",
+            "sha256": "40d24d031d3533ef2c1f5e7929bd79a57efb2f3c3cbd725dc3560a6d46ade009"
+          }
+        ],
+        "priorVersions": [
+          {
+            "note": "Historical fact, preserved unmodified: the real CI capture evidence for fixtureVersion 1 (the original PR #811 implementation), superseded by the independent-review remediation (fixtureVersion 2) -- chronology, opponent-identity, causal-framing, and B07-B advisor-state corrections changed hashed fixture content. Never approved, so nothing is inherited from it.",
+            "attestation": {
+              "description": "Gate B W4 (B07 Assistant Coach longitudinal context) UI Lab visual-review evidence. Not an approved golden \u2014 requires human approval.",
+              "sourceCommitSha": "c746720e7ed82c7e42e96352d44e208f5d09be5e",
+              "generatedAt": "2026-10-22T21:18:05.696Z",
+              "environment": {
+                "node": "v24.21.0",
+                "platform": "linux",
+                "ci": true
+              },
+              "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/39852677221",
+              "ciArtifact": {
+                "id": 12459059795,
+                "name": "ui-lab-review-39852677221-1",
+                "expiresAt": "2026-10-29T21:18:06Z"
+              },
+              "reviewedBranchHeadSha": "49a2b990842938788afaad26c98fa4805e7e90d4",
+              "knownLimitations": [
+                "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit \u2014 same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at capture time.",
+                "GitHub Actions artifact retention is temporary \u2014 a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+                "All 20 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (39852677221) and every SHA-256 recomputed from the raw bytes \u2014 zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+                "This file is a filtered, scoped view of the run's full manifest.json (1144 captures total across 57 scenarios) \u2014 only the 20 B07 entries are included here.",
+                "This run only became possible after W4-R4 (ui-lab-visual-review.yml timeout-minutes 25 -> 35) \u2014 the first attempt on this PR was cancelled mid-capture by the prior, tighter budget; see SOURCE_RECONCILIATION.md.",
+                "No interactionState beyond \"initial\" was captured for either scenario \u2014 a deliberate scope decision (both pages are fully static; B07-A's evidence inspector open/closed state is a secondary interaction, same convention B04's own evidence inspector capture already established of capturing only the default-closed state)."
+              ],
+              "approvalStatus": "CANDIDATE",
+              "captureCountsByScenario": {
+                "gate-b-w4-b07-historical-pattern": 10,
+                "gate-b-w4-b07-trivial-fact": 10
+              },
+              "interactionStateCountsByScenario": {
+                "gate-b-w4-b07-historical-pattern": {
+                  "initial": 10
+                },
+                "gate-b-w4-b07-trivial-fact": {
+                  "initial": 10
+                }
+              },
+              "captures": [
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "desktop",
+                  "viewportWidth": 1440,
+                  "viewportHeight": 900,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-desktop-dark.png",
+                  "sha256": "7fa77e9d3cedcb7c3ebcffda68790f9fc1b1ba403e7e61730387badf601da685"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "desktop",
+                  "viewportWidth": 1440,
+                  "viewportHeight": 900,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-desktop-light.png",
+                  "sha256": "016140d2318db2d7232986554c4a30324a58994f0a4a8a18b06193d8c4d3726a"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "mobile",
+                  "viewportWidth": 390,
+                  "viewportHeight": 844,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-mobile-dark.png",
+                  "sha256": "5d5352afedd2df758ee50912ec9d24578a600040d5b82a2eab5e23cfd0744c11"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "mobile",
+                  "viewportWidth": 390,
+                  "viewportHeight": 844,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-mobile-light.png",
+                  "sha256": "55d1db86034b267cdf42cb444bfc3f726b9e4003b7e788e3dc82481fd09257fa"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "narrow",
+                  "viewportWidth": 320,
+                  "viewportHeight": 720,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-narrow-dark.png",
+                  "sha256": "d057fa2d26482bc679887cd35f1d6c125f166424b37e9c546a4761529f1c452a"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "narrow",
+                  "viewportWidth": 320,
+                  "viewportHeight": 720,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-narrow-light.png",
+                  "sha256": "36ba0f64de422cb277efc2171ae8f455a48f5801a9ece9519dd6df17630b8b63"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "gb-360",
+                  "viewportWidth": 360,
+                  "viewportHeight": 800,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-gb-360-dark.png",
+                  "sha256": "cefcc353492786b1a2958e6f7460773b6ecee5d0a10a41a28e7f822db16e8e2b"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "gb-360",
+                  "viewportWidth": 360,
+                  "viewportHeight": 800,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-gb-360-light.png",
+                  "sha256": "e35b50d128ab08ccb6a39bbe2276a1c97719805e0cf79258b3f943f91827172d"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "gb-430",
+                  "viewportWidth": 430,
+                  "viewportHeight": 900,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-gb-430-dark.png",
+                  "sha256": "7e11f1cf0773c16e54023204e935c9a376d78fa81bfbe9ccc02f00cbfac4dfdd"
+                },
+                {
+                  "scenarioId": "B07-HISTORICAL-PATTERN",
+                  "scenario": "gate-b-w4-b07-historical-pattern",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+                  "viewport": "gb-430",
+                  "viewportWidth": 430,
+                  "viewportHeight": 900,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-historical-pattern-gb-430-light.png",
+                  "sha256": "19adc238f2bd3369916ed0c70b2630e5ae250b7b874b730135d70a8c4f4b6279"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "desktop",
+                  "viewportWidth": 1440,
+                  "viewportHeight": 900,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-desktop-dark.png",
+                  "sha256": "4a9097acfa8ae82c96263bc30f9bc8a19f0b366eed0145ae61def5c62b290fda"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "desktop",
+                  "viewportWidth": 1440,
+                  "viewportHeight": 900,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-desktop-light.png",
+                  "sha256": "f0171a36e99b88b0dc762f6f698c750f8a84dc0d525b75cf99d5c6e12a4e2604"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "mobile",
+                  "viewportWidth": 390,
+                  "viewportHeight": 844,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-mobile-dark.png",
+                  "sha256": "2376498168b42b00239bf17aaae34ca3dc9af4a637cdbfbcb3f316993082f950"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "mobile",
+                  "viewportWidth": 390,
+                  "viewportHeight": 844,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-mobile-light.png",
+                  "sha256": "73ede2d1401613e6c910ac54cac44bea635f77b951bd6cd7009b99191a613fd8"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "narrow",
+                  "viewportWidth": 320,
+                  "viewportHeight": 720,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-narrow-dark.png",
+                  "sha256": "31e3c1e318160321720a4ad435d2506f6456fbda29887558a8a8a76fd97154eb"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "narrow",
+                  "viewportWidth": 320,
+                  "viewportHeight": 720,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-narrow-light.png",
+                  "sha256": "0bc16bebb7d012c151dd1e879bd062c09d59029f274435de9eb3ab8985068950"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "gb-360",
+                  "viewportWidth": 360,
+                  "viewportHeight": 800,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-gb-360-dark.png",
+                  "sha256": "ea61c86f66f04858a9232238e7ee06bd9f1c762b46ee4f1dfd422352f79b5775"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "gb-360",
+                  "viewportWidth": 360,
+                  "viewportHeight": 800,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-gb-360-light.png",
+                  "sha256": "57b0e5ab3e94e049324395d2766e6e8d832efb8bb7e8b09b315c6aa0bee9da9b"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "gb-430",
+                  "viewportWidth": 430,
+                  "viewportHeight": 900,
+                  "theme": "dark",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-gb-430-dark.png",
+                  "sha256": "4edd2f771ae77f3308931c639cc172e65d39f7a196118a74e0ef3d3b61e94833"
+                },
+                {
+                  "scenarioId": "B07-TRIVIAL-FACT",
+                  "scenario": "gate-b-w4-b07-trivial-fact",
+                  "route": "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+                  "viewport": "gb-430",
+                  "viewportWidth": 430,
+                  "viewportHeight": 900,
+                  "theme": "light",
+                  "interactionState": "initial",
+                  "file": "gate-b-w4-b07-trivial-fact-gb-430-light.png",
+                  "sha256": "becb485901c278bd838143d93502bc27ea7cefeebf04d36455d64de72ed829b8"
+                }
+              ]
+            }
           }
         ]
       }

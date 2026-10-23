@@ -16,7 +16,8 @@
         "src/app/dev/ui-lab/gate-a/a04-evidence-grammar/shared/source-inspector.tsx",
         "src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern/page.tsx",
         "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
-        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts"
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts",
+        "src/components/matches/match-detail/match-identity-card.tsx"
       ],
       "lifecycle": "done",
       "assistantCoachState": "fresh",
@@ -31,7 +32,7 @@
         "W4-R5 (independent review, P1): match-format/chronology corrected — timeline minutes previously exceeded this team's real established 60-minute (2x30) regulation; see SOURCE_RECONCILIATION.md.",
         "W4-R6/R7 (independent review, P1): a debrief note named the wrong match's opponent, and the insight text over-claimed causation and match-coverage completeness — both corrected, both now enforced by dedicated tests.",
         "W4-R9 (independent review, P2): evidence-inspector open-state capture added (desktop + mobile, both themes).",
-        "320px/360px score-wrap and metric-label truncation — confirmed pre-existing in MatchIdentityCard/MetricStrip (reproduces identically in already-captured B04/B06 baselines), not fixed here per instruction not to change production code in this PR; see VISUAL_VS_CURRENT.md and BLOCKERS.md for the proposed minimal production fix.",
+        "320px/360px MatchIdentityCard score-wrap — confirmed pre-existing (reproduces in already-captured B04/B06 baselines), fixed and merged directly into this PR (close-out remediation) after the separate maintenance-PR path was blocked by a real sequential-PR dependency cycle; real-browser-verified, pixel-identical to the pre-fix baseline at 600px and up. See VISUAL_VS_CURRENT.md and BLOCKERS.md.",
         "AI Advisor vs. Assistant Coach terminology — real, pre-existing production inconsistency (not introduced by B07), recorded as a production dependency, not fixed here.",
         "Evidence-drilldown production boundary — the six inspectable SourceRecords are a UI Lab design proposal; production's real Advisor pipeline does not yet persist/expose records at this granularity. See CURRENT_STATE_AUDIT.md.",
         "No Event-origin equivalent — real production constraint (post_match_review's cross-match sections are League-only, issue #696), not a choice this wave made.",
@@ -50,7 +51,8 @@
         "src/components/matches/match-detail/after-match-overview.tsx",
         "src/app/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/trivial-fact/page.tsx",
         "src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts",
-        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts"
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/report-data.ts",
+        "src/components/matches/match-detail/match-identity-card.tsx"
       ],
       "lifecycle": "done",
       "assistantCoachState": "null",

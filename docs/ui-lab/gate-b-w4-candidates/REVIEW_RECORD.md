@@ -19,12 +19,27 @@ The 320px/360px layout defect and the "AI Advisor"/"Assistant Coach" terminology
 confirmed as real, **pre-existing production-component behavior** (not introduced by B07) and are
 recorded as production dependencies in `BLOCKERS.md`, not fixed inside this PR.
 
-Real CI capture evidence for the remediated fixtureVersion 2 is committed
+Real CI capture evidence for the remediated fixtureVersion 2 was committed
 (`capture-attestation.json`, run https://github.com/lagebj/matchboard/actions/runs/39913284775,
 `reviewedBranchHeadSha` `8be701d122e442e63d3a0ae5b0beb440f4b8ef45`, 24 B07 captures including the
 new evidence-inspector-open interaction state, every SHA-256 independently re-verified, several
-captures visually spot-checked). All CI checks pass except the owner-gated Visual Authority Gate,
-which is designed to show "fail" until `/visual-approve` is posted.
+captures visually spot-checked) — now itself superseded by the close-out pass below (W4-R12).
+
+## Close-out remediation — `MatchIdentityCard` fix merged into this PR
+
+A follow-up review flagged one remaining material acceptance problem: the shared
+`MatchIdentityCard` component wraps the score at narrow widths (confirmed in the above capture run,
+originally recorded only as a documented production dependency). The fix (two commits,
+real-browser-verified via `workflow_dispatch`, pixel-diffed against the pre-fix baseline at
+600/768/900/1440px with zero difference) is now merged directly into this PR's own branch — see
+`SOURCE_RECONCILIATION.md`'s W4-R12 entry for the full record, including why it couldn't be opened
+as its own PR (a confirmed, real dependency cycle in this repository's sequential-PR + Visual
+Authority Gate governance, not a preference) and why merging it here instead doesn't compromise the
+approval model (nothing reaches `main` without the owner's own action regardless). `fixtureVersion`
+remains 2 for both scenarios — no fixture content changed, only a shared production component.
+
+A fresh CI capture run against this merged state is required before B07's own capture evidence
+reflects the fixed layout — see `BLOCKERS.md` for current status at the time of this commit.
 
 No `/visual-review deploy`, `/visual-approve`, or `/visual-reject` has been posted on this PR. No
 promotion to `APPROVED_GOLDEN` has been attempted. This file will be updated, in a
