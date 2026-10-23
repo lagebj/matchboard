@@ -33,13 +33,16 @@ metric labels) — `fixtureVersion` bumped 1 → 2 for both scenarios, so that c
 longer matches the current fixtures and cannot be reused. The superseded attestation is preserved
 unmodified under this directory's `capture-attestation.json` `priorVersions[0]` for audit history.
 
-That remediation's own fresh capture run (https://github.com/lagebj/matchboard/actions/runs/39913284775,
-committed in `capture-attestation.json`) is now **itself superseded** by the close-out pass: the
-`MatchIdentityCard` fix (see "MatchIdentityCard narrow-width fix" above) is merged into this PR's
-branch after that capture ran, so B07's own committed screenshots still show the unfixed layout. A
-further fresh CI run against this merged state, captured and committed the same two-commit way, is
-required before `capture-attestation.json`'s top-level content is trustworthy again — see
-`SOURCE_RECONCILIATION.md`'s W4-R12 entry and `REVIEW_RECORD.md` for current status.
+That remediation's own fresh capture run (https://github.com/lagebj/matchboard/actions/runs/39913284775)
+was itself superseded by the close-out pass: the `MatchIdentityCard` fix (see
+"MatchIdentityCard narrow-width fix" above) is merged into this PR's branch after that capture ran.
+A further fresh CI run against the merged state is **now committed** —
+https://github.com/lagebj/matchboard/actions/runs/40018140449, `reviewedBranchHeadSha`
+`4d535ddb548fa869057a366db23b5549ee592d88`, 24 B07 captures, every SHA-256 independently
+re-verified, several visually inspected directly. Both superseded attestations (fixtureVersion 1,
+and fixtureVersion 2 pre-fix) remain preserved under `capture-attestation.json`'s `priorVersions`
+for audit history — see `SOURCE_RECONCILIATION.md`'s W4-R12 entry and `REVIEW_RECORD.md` for
+current status.
 
 ## Degraded AI state — deliberately deferred, not attempted
 
