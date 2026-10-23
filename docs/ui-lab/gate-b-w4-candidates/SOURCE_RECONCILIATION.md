@@ -168,6 +168,17 @@ not a new interaction mechanism, and scoped to exactly the two viewports the bri
    never defines those controls) remain removed, with the fixture-level test doing the real work,
    now cross-referenced explicitly in both page test files' comments.
 
+### W4-R11 — CodeQL: incomplete string escaping in the new match-format tests
+
+This remediation's own first CI run surfaced 3 new high-severity CodeQL alerts (`js/incomplete-
+sanitization`), all `minuteLabel?.replace("'", "")` — a single-argument `.replace()` only replaces
+the FIRST occurrence of `'`. Every `minuteLabel` here only ever has one trailing apostrophe (e.g.
+`"58'"`), so this was functionally correct for this fixture's own data, but CodeQL can't know that
+from static analysis, and B05's own R10-1 pass hit and fixed the identical pattern in its own new
+test file. Corrected the same way, reusing the exact established fix
+(`b05-post-match-report/shared/__tests__/combination-evidence.test.ts:289`): `.replace(/'/g, "")`,
+a global regex, in all three occurrences across both new test files.
+
 ### 320px/360px visual finding (P1) — see `VISUAL_VS_CURRENT.md` and `BLOCKERS.md`
 
 Confirmed real (score wraps to two lines, metric labels truncate illegibly) but traced to two

@@ -29,7 +29,7 @@ describe("B07-B trivial-fact fixture", () => {
   describe("match-format validity (W4-R5)", () => {
     it("every timeline event's global minute is within regulation (60 minutes, B05_MATCH_FORMAT)", () => {
       for (const item of timeline) {
-        const minute = Number(item.minuteLabel?.replace("'", ""));
+        const minute = Number(item.minuteLabel?.replace(/'/g, ""));
         expect(minute).not.toBeNaN();
         expect(minute).toBeLessThanOrEqual(B05_MATCH_FORMAT.regulationDurationMinutes);
       }

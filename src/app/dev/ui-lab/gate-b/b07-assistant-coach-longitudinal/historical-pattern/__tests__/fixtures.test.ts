@@ -41,7 +41,7 @@ describe("B07-A historical-pattern fixture", () => {
   describe("match-format validity (W4-R5)", () => {
     it("every timeline event's global minute is within regulation (60 minutes, B05_MATCH_FORMAT)", () => {
       for (const item of timeline) {
-        const minute = Number(item.minuteLabel?.replace("'", ""));
+        const minute = Number(item.minuteLabel?.replace(/'/g, ""));
         expect(minute).not.toBeNaN();
         expect(minute).toBeLessThanOrEqual(B05_MATCH_FORMAT.regulationDurationMinutes);
         expect(minute).toBeGreaterThanOrEqual(0);
@@ -54,7 +54,7 @@ describe("B07-A historical-pattern fixture", () => {
     });
 
     it("events remain in chronological order after the W4-R5 correction", () => {
-      const minutes = timeline.map((i) => Number(i.minuteLabel?.replace("'", "")));
+      const minutes = timeline.map((i) => Number(i.minuteLabel?.replace(/'/g, "")));
       for (let i = 1; i < minutes.length; i++) {
         expect(minutes[i]!).toBeGreaterThanOrEqual(minutes[i - 1]!);
       }
