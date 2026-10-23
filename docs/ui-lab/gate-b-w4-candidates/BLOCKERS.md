@@ -34,15 +34,17 @@ longer matches the current fixtures and cannot be reused. The superseded attesta
 unmodified under this directory's `capture-attestation.json` `priorVersions[0]` for audit history.
 
 That remediation's own fresh capture run (https://github.com/lagebj/matchboard/actions/runs/39913284775)
-was itself superseded by the close-out pass: the `MatchIdentityCard` fix (see
-"MatchIdentityCard narrow-width fix" above) is merged into this PR's branch after that capture ran.
-A further fresh CI run against the merged state is **now committed** —
-https://github.com/lagebj/matchboard/actions/runs/40018140449, `reviewedBranchHeadSha`
-`4d535ddb548fa869057a366db23b5549ee592d88`, 24 B07 captures, every SHA-256 independently
-re-verified, several visually inspected directly. Both superseded attestations (fixtureVersion 1,
-and fixtureVersion 2 pre-fix) remain preserved under `capture-attestation.json`'s `priorVersions`
-for audit history — see `SOURCE_RECONCILIATION.md`'s W4-R12 entry and `REVIEW_RECORD.md` for
-current status.
+was superseded by the first `MatchIdentityCard` fix's own capture
+(https://github.com/lagebj/matchboard/actions/runs/40018140449), which was in turn superseded by
+the team-identity-preservation fix (the first fix truncated names down to `max-w-[4.5rem]`, losing
+same-club distinguishing suffixes — see "MatchIdentityCard narrow-width fix" above). The **current,
+final** CI run is committed — https://github.com/lagebj/matchboard/actions/runs/40023252963,
+`reviewedBranchHeadSha` `c608554383bde1abc5c8774d0966387b89090953`, 24 B07 captures, every SHA-256
+independently re-verified, several visually inspected directly (full team names render in every
+case, score stays on one line, no overlap or clipping). All three superseded attestations
+(fixtureVersion 1; fixtureVersion 2 pre-fix; fixtureVersion 2 first identity-fix attempt) remain
+preserved under `capture-attestation.json`'s `priorVersions` for audit history — see
+`SOURCE_RECONCILIATION.md`'s W4-R12/W4-R13 entries and `REVIEW_RECORD.md` for current status.
 
 ## Degraded AI state — deliberately deferred, not attempted
 
@@ -76,9 +78,21 @@ the fix can't become its own PR while #811 is open; #811 can't merge until the o
 merged directly into this PR's own branch via `git merge --no-ff`, rather than left undone or
 worked around with something that would compromise the approval model. Nothing merges to `main`
 without the owner's own action either way — the fix is simply now part of what the owner reviews
-in this one PR, instead of invisible to it. See `VISUAL_VS_CURRENT.md` for the root cause and the
-real-browser verification evidence (pixel-diffed against the true pre-fix baseline, not only
-visually inspected).
+in this one PR, instead of invisible to it.
+
+**Follow-up finding (second remediation within this same PR): team-identity readability
+regression.** That first fix kept the score on one line by truncating compact team names to a
+fixed `max-w-[4.5rem]` — which discards exactly the information distinguishing two same-club
+teams (e.g. "Slemmestad Rød" → "Slemme…", indistinguishable from "Slemmestad Hvit"/"Slemmestad
+Blå" once truncated). Corrected with commit `c608554383bde1abc5c8774d0966387b89090953`: the
+compact composition is now a 2-row grid (score+kits in row 1, full-width team names in row 2)
+instead of a 1-row flex competing for space with the score — team names render in full, wrapping
+onto a second line rather than truncating, with a `line-clamp-2` as the final fallback for
+genuinely extreme names. The medium+ composition is a fully separate, always-present markup block,
+restored to the exact original pre-any-fix classes. See `VISUAL_VS_CURRENT.md` for the full root
+cause, design rationale, and real-browser verification evidence (pixel-diffed against the true
+pre-fix baseline; same-club-suffix pairs visually inspected via a temporary scratch-branch
+capture, never committed to any real branch).
 
 ## Other production dependencies found during independent-review remediation — not fixed in this PR
 

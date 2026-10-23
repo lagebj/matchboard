@@ -251,3 +251,23 @@ truncation-readability problem within B07's own scope. No further `MetricStrip` 
 was found to be necessary — the brief's own instruction was explicit not to touch it "merely
 because it was involved in the original finding," only if an actual readability defect remained,
 and none did after the label change.
+
+### W4-R13 (P1) — `MatchIdentityCard`: team-identity truncation regression, found and corrected
+
+A follow-up independent review confirmed a real defect in W4-R12's own fix: keeping the score on
+one line relied on truncating compact team names to a fixed `max-w-[4.5rem]`, which discards
+exactly the information distinguishing two same-club teams ("Slemmestad Rød" → "Slemme…",
+indistinguishable from "Slemmestad Hvit"/"Slemmestad Blå"). Match identity must never be
+sacrificed for score compactness.
+
+Corrected with commit `c608554383bde1abc5c8774d0966387b89090953`: `MatchIdentityCard`'s compact
+composition is rebuilt as a 2-row CSS grid — `[home kit] [score] [away kit]` / `[home name]
+[status] [away name]` — so team names no longer share horizontal room with the score at all. Full
+design rationale, the three options considered, and real-browser verification (including a
+temporary, never-merged scratch-branch capture of the exact same-club-suffix case the review
+asked for) are in `VISUAL_VS_CURRENT.md`'s "Second remediation" section. 10 jsdom tests
+rewritten/added, including a negative-regression test asserting the removed `truncate`/
+`max-w-[4.5rem]` classes never reappear on the compact names, and explicit same-club-pair
+assertions. Two downstream UI Lab page tests (B05 draft, B06 League-After) updated from
+`getByText` to `getAllByText`, since the score legitimately renders twice now (one per
+composition). `fixtureVersion` unchanged at 2 — no B07 fixture content changed.

@@ -38,12 +38,23 @@ Authority Gate governance, not a preference) and why merging it here instead doe
 approval model (nothing reaches `main` without the owner's own action regardless). `fixtureVersion`
 remains 2 for both scenarios — no fixture content changed, only a shared production component.
 
-Real CI capture evidence for this merged state is committed: run
-https://github.com/lagebj/matchboard/actions/runs/40018140449, `reviewedBranchHeadSha`
-`4d535ddb548fa869057a366db23b5549ee592d88`, 24 B07 captures, every SHA-256 independently
-re-verified, several visually inspected directly (score on one line at every narrow width, no
-overlap or clipping, evidence inspector correctly shows the corrected opponent name and minute,
-desktop composition unchanged). All CI checks pass except the owner-gated Visual Authority Gate.
+## Second close-out remediation — team-identity truncation regression corrected
+
+A follow-up independent review found the `MatchIdentityCard` fix above kept the score on one line
+by truncating compact team names — discarding the suffix that distinguishes same-club teams (e.g.
+"Slemmestad Rød" vs "Slemmestad Hvit"). Corrected (commit
+`c608554383bde1abc5c8774d0966387b89090953`): the compact composition is now a 2-row grid with team
+names in their own full-width row, wrapping onto a second line rather than truncating. See
+`SOURCE_RECONCILIATION.md`'s W4-R13 entry and `VISUAL_VS_CURRENT.md` for the full design rationale
+and verification (including same-club-suffix pairs, confirmed via a temporary scratch-branch
+capture never merged into any real branch).
+
+Real CI capture evidence for this final state is committed: run
+https://github.com/lagebj/matchboard/actions/runs/40023252963, `reviewedBranchHeadSha`
+`c608554383bde1abc5c8774d0966387b89090953`, 24 B07 captures, every SHA-256 independently
+re-verified, several visually inspected directly (full team names render at every narrow width,
+score on one line, no overlap or clipping, desktop composition pixel-identical to the true
+original). All CI checks pass except the owner-gated Visual Authority Gate.
 
 No `/visual-review deploy`, `/visual-approve`, or `/visual-reject` has been posted on this PR. No
 promotion to `APPROVED_GOLDEN` has been attempted. This file will be updated, in a

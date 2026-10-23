@@ -85,3 +85,65 @@ diff, zero bounding box) — rigorous proof of zero regression, not just visual 
 screenshots genuinely differ from the pre-fix baseline (the wrap is fixed) and are pixel-identical
 between the first draft and the final refined version (confirming the refinement changed only the
 600-639px boundary, nothing below it).
+
+## Second remediation: team-identity readability regression (within this same PR)
+
+A follow-up independent review found a real problem with the fix above: keeping the score on one
+line relied on truncating compact team names to a fixed `max-w-[4.5rem]` — which, for Matchboard's
+real naming convention (same club, different suffix — "Slemmestad Rød"/"Slemmestad Hvit"/
+"Slemmestad Blå"), silently discards the ONE piece of information that distinguishes the two
+teams. `"Slemme…"` could be either team. This is unacceptable regardless of how well the score
+itself renders.
+
+**Design options considered** (ranked, per the review's own decision rule — correct match identity
+first, compactness last):
+
+1. **Allow names to wrap** (2 lines) instead of truncating — preserves full information, but a
+   fixed ~72px column still crowds a line like "Slemmestad" (10 characters) against the score's
+   own horizontal demand in the same row.
+2. **Restructure to a 2-row composition** — decouple team names from the score's row entirely, so
+   names get their own full-width row with no competition. Chosen.
+3. **Controlled truncation as a last resort only** — kept only as a `line-clamp-2` safety net for
+   genuinely extreme names, not a routine path.
+
+**What changed** (commit `c608554383bde1abc5c8774d0966387b89090953`): `MatchIdentityCard` now
+renders two **completely independent, always-present compositions**, exactly one visible at a time
+via `medium:hidden` / `hidden medium:flex` (the same technique the first pass already used for the
+two `TeamKitMark` size instances) — not the same DOM responsively restyled:
+
+- **Compact (&lt;600px):** a `grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]`, two rows —
+  row 1 is `[home kit] [score] [away kit]`, row 2 is `[home name] [status] [away name]`. The score
+  column (`auto`) always gets exactly the width it needs; the two name columns
+  (`minmax(0,1fr)`) share whatever's left, independently of the score, since they're no longer in
+  the same row. No `truncate`, no fixed `max-w` — names wrap onto a second line if they don't fit
+  one, with `line-clamp-2` as the only remaining bound.
+- **medium+ (600px and up):** reverted to the **exact original, pre-any-fix** markup and classes,
+  byte-for-byte — `TeamIdentity` no longer carries any compact-specific props at all. This was a
+  deliberate engineering choice to de-risk the "desktop stays unchanged" guarantee: rather than
+  trying to prove a single shared/responsive structure produces identical desktop pixels to the
+  original (which a grid-vs-flex structural change would make much harder to reason about with
+  confidence), the medium+ branch is literally the untouched original JSX.
+
+**Real-browser verification:**
+
+- A fresh `workflow_dispatch` run (https://github.com/lagebj/matchboard/actions/runs/40023252963)
+  at the full matrix (320/360/390/430/600/768/900/1440px, both themes) — B01/B04/B06 (sharing the
+  component) plus both B07 scenarios, all genuinely with the fixed layout. All 24 B07 captures
+  independently re-hashed, zero mismatches.
+- **Desktop pixel-diff:** this run's B07-A/B07-B desktop screenshots are byte-for-byte identical
+  (`ImageChops`, zero bounding box) to the *previous* fix's own desktop captures — which were
+  already proven pixel-identical to the true original pre-any-fix baseline. Transitively: this
+  second remediation changed nothing at 600px and up, confirmed by direct pixel measurement, not
+  only by reasoning about the markup.
+- **Same-club-suffix verification** (explicitly required — "Slemmestad Rød" vs "Slemmestad Hvit"/
+  "Slemmestad Blå"): no existing B01-B07 fixture pairs two same-club teams, and B07's own fixture
+  content is out of scope to change for this maintenance fix. Verified instead on a temporary,
+  uncommitted scratch branch (`scratch/same-club-verify`, one fixture field — B01's opponent
+  name — edited locally, pushed only long enough to run one `workflow_dispatch` capture,
+  **deleted from origin immediately after inspection**, never opened as a PR, never merged, never
+  part of any real branch's history). Both full names rendered correctly at every tested width,
+  wrapped onto two lines where needed, clearly distinguishable, no overlap with the score — see
+  `BLOCKERS.md` for the exact disclosure.
+- Visually inspected directly (not only hash-verified): B07-A narrow-light (320px), B07-B
+  gb-360-dark (360px), B07-A mobile-dark-evidence-open, B01-after narrow-dark (2-digit-adjacent
+  score "2 - 1" with two same-club names, from the scratch verification), B04 narrow-light.
