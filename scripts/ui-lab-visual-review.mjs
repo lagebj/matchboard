@@ -754,6 +754,28 @@ const scenarios = [
     route: "gate-b/b06-league-event-parity/event/event-detail",
     extraViewports: gbExtraSmokeViewports,
   },
+  // Gate B W4 candidate (official register B07, "Assistant Coach longitudinal match context") —
+  // CANDIDATE, not approved. Two contrasting static read-only compositions (meaningful historical
+  // pattern vs. trivial hat-trick fact), same smoke-width convention as every prior Gate B wave.
+  // Registered here explicitly so this wave does not repeat B06's own B5/R7 finding (two real
+  // navigation pages shipped with zero capture evidence because they were never added to this
+  // array).
+  // W4-R9 (independent-review remediation): B07-A's primary interaction — opening the historical
+  // evidence inspector — previously had no capture evidence beyond its default-closed state.
+  // Desktop + mobile only (`interactionViewports`), both themes, matching A04's own
+  // `openSourceInspectorByName` convention exactly rather than inventing a new interaction helper.
+  {
+    slug: "gate-b-w4-b07-historical-pattern",
+    route: "gate-b/b07-assistant-coach-longitudinal/historical-pattern",
+    extraViewports: gbExtraSmokeViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "evidence-open", perform: openSourceInspectorByName("Inspect historical evidence") }],
+  },
+  {
+    slug: "gate-b-w4-b07-trivial-fact",
+    route: "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
+    extraViewports: gbExtraSmokeViewports,
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
