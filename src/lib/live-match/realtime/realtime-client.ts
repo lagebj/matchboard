@@ -130,21 +130,42 @@ export class RealtimeMatchClient {
     this.setState(this.reconnectAttempt > 0 ? "reconnecting" : "connecting");
     logDebug("connect: %s (attempt %d, url=%s)", label, this.reconnectAttempt, this.options.url);
 
+    // `reconnectNow()` (LiveMatchClient's forced online-recovery path) can call `connect()`
+    // again while a previous socket from an earlier call is still connecting/open — e.g. the
+    // app's own "online" handler racing a still-in-flight reconnect from a prior backoff tick,
+    // or a test nudging reconnect repeatedly (e2e/live-reporting.spec.ts's offline/online test,
+    // via `waitForEventsToSync`'s synthetic "online" dispatches). Without this, the previous
+    // socket is simply abandoned, still wired to this shared instance's listeners: its *later*
+    // close/error event calls `handleSocketClosed()`/`setState("error")` unconditionally,
+    // clobbering `this.socket`/`this.state` out from under whatever *newer* socket this call
+    // just established — even after that newer socket has already connected and authenticated
+    // successfully. Each listener below closes over its own `socket` and no-ops once `this.socket`
+    // has moved on to a newer one, so a stale socket's events can never corrupt newer state.
+    if (this.socket) {
+      const stale = this.socket;
+      this.socket = null;
+      stale.close(1000, "superseded by reconnect");
+    }
+
     const createSocket = this.options.createSocket ?? defaultCreateSocket;
     const socket = createSocket(this.options.url);
     this.socket = socket;
 
     socket.addEventListener("open", () => {
+      if (this.socket !== socket) return; // superseded by a later connect() call
       logDebug("socket opened, authenticating");
-      void this.authenticate();
+      void this.authenticate(socket);
     });
     socket.addEventListener("message", (event) => {
+      if (this.socket !== socket) return;
       this.handleRawMessage((event as { data?: unknown }).data);
     });
     socket.addEventListener("close", () => {
+      if (this.socket !== socket) return;
       this.handleSocketClosed();
     });
     socket.addEventListener("error", () => {
+      if (this.socket !== socket) return;
       logError("socket error event");
       this.setState("error");
     });
@@ -194,18 +215,26 @@ export class RealtimeMatchClient {
     });
   }
 
-  private async authenticate(): Promise<void> {
+  // `socket` identifies which `connect()` call this authenticate attempt belongs to — each
+  // `await` below is a point where a *later* connect() (another forced reconnect superseding
+  // this one) could have already replaced `this.socket`. Bailing out on staleness here keeps a
+  // slow/late-resolving ticket fetch or RPC from this attempt from ever mutating state that now
+  // belongs to a newer socket (see connect()'s own comment for the full race this guards).
+  private async authenticate(socket: WebSocketLike): Promise<void> {
     this.setState("authenticating");
     try {
       logDebug("authenticate: fetching ticket");
       const ticket = await this.options.getTicket();
+      if (this.socket !== socket) return;
       logDebug("authenticate: ticket obtained, calling authenticate RPC (clientId=%s)", this.options.clientId);
       await this.call("authenticate", { ticket, clientId: this.options.clientId });
+      if (this.socket !== socket) return;
       this.reconnectAttempt = 0;
       logDebug("authenticate: success, connected");
       this.setState("connected");
       this.startKeepalive();
     } catch (error) {
+      if (this.socket !== socket) return;
       const errorInfo = error instanceof Error ? error.message : typeof error === "object" && error !== null && "code" in error ? String((error as { code: string }).code) : String(error);
       logError("authenticate: failed — %s", errorInfo);
       this.setState("error");
