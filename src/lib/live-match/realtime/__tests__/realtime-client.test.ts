@@ -148,6 +148,51 @@ describe("RealtimeMatchClient — connection lifecycle", () => {
 
     expect(getTicket).toHaveBeenCalledTimes(2);
   });
+
+  // Regression test for a race confirmed live via e2e/live-reporting.spec.ts's offline/online
+  // test: a forced reconnect (LiveMatchClient's "online" handler calling reconnectNow(), or a
+  // test nudging it repeatedly via waitForEventsToSync) can call connect() again while an
+  // earlier socket from a previous connect() call is still around. Before this fix, that earlier
+  // socket's listeners stayed wired to the shared client instance — its own eventual close/error
+  // event called handleSocketClosed()/setState("error") unconditionally, clobbering whatever
+  // newer socket had since connected and authenticated successfully, so the client could appear
+  // permanently stuck reconnecting even once the network had genuinely recovered.
+  it("ignores a stale (superseded) socket's late close event once a newer connect() has taken over", async () => {
+    const { client, sockets } = buildClient();
+
+    // First connect — left mid-handshake, never opens.
+    void client.connect();
+    await Promise.resolve();
+    const firstSocket = sockets[sockets.length - 1];
+
+    // A forced reconnect supersedes it (connect() proactively closes the stale socket, but a
+    // real browser can still deliver that socket's close event asynchronously later — simulated
+    // below independently of that proactive close).
+    await client.connect();
+    const secondSocket = sockets[sockets.length - 1];
+    expect(secondSocket).not.toBe(firstSocket);
+
+    secondSocket.simulateOpen();
+    await Promise.resolve();
+    await Promise.resolve();
+    const authCall = secondSocket.lastSent() as { id: string; method: string };
+    secondSocket.simulateMessage({
+      protocol: PROTOCOL_VERSION,
+      kind: "result",
+      id: authCall.id,
+      ok: true,
+      result: { authenticated: true, connectionId: "conn-2" },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(client.connectionState).toBe("connected");
+
+    // The superseded first socket's close event arrives late — must not corrupt the connected
+    // state the second socket already established.
+    firstSocket.emit("close", {});
+
+    expect(client.connectionState).toBe("connected");
+  });
 });
 
 describe("RealtimeMatchClient — call()", () => {
