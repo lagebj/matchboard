@@ -170,6 +170,13 @@ test.describe("standalone launch & start_url", () => {
     // (it must not compete with coach decisions). ADR-0157 slice C8 then retired the More hub;
     // the card's discovery home is Settings ("App installation" section). This test follows
     // that move rather than asserting a location the card no longer occupies.
+    //
+    // Settings has no bare, org-less route — every real entry point (UserNav gear, the old
+    // /more redirect) lands on the org-scoped page, and there is no root-level shim for it the
+    // way there is for retired routes like /insights/* or /formations (see
+    // src/lib/auth/redirect-to-org.ts). `/settings` alone 404s. Uses the same seeded org slug
+    // every other e2e spec in this repo already navigates with (e.g. authz-failure.spec.ts,
+    // round-mutation.spec.ts).
     const ctx = await browser.newContext({
       storageState: "e2e/.auth/coach.json",
       viewport: { width: 412, height: 915 },
@@ -179,7 +186,7 @@ test.describe("standalone launch & start_url", () => {
         "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
     });
     const page = await ctx.newPage();
-    await page.goto("/settings");
+    await page.goto("/o/test-club-a/settings");
 
     const card = page.getByText("Install Matchboard", { exact: true });
     await expect(card).toBeVisible();
