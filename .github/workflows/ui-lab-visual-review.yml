@@ -25,7 +25,13 @@ jobs:
   capture:
     name: Capture fixture-backed UI Lab views
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # W4/B07: bumped 25 -> 35. The prior budget had little margin even before this wave's two new
+    # scenarios — a run on this PR's own branch was cancelled at the 25-minute mark with
+    # `npx playwright install --with-deps chromium` alone having taken 11m05s (CI infra
+    # variance, not caused by this wave's change), leaving the actual capture step only 13m29s
+    # before the overall job timeout cut it off mid-run. The capture step itself, not install
+    # variance, should be what a timeout here is budgeting for.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

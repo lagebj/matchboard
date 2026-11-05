@@ -10,6 +10,16 @@ import { test, expect } from "@playwright/test";
 // approval") — it is a pixel baseline for catching future regressions in this composition, not a
 // re-assertion of the conceptual golden mock. Do not regenerate it against the conceptual golden.
 //
+// Refreshed 2026-10-26: the prior baseline (committed 2026-09-15, PR #588) had drifted out from
+// under ~6 weeks of unrelated already-merged main changes (the Touchline nav/header redesign —
+// top-right avatar replacing the bottom-left one, the "More" overflow nav item removed — plus
+// additional UI Lab state tabs added by later work), causing PR #811's acceptance runs
+// (40073053266, 40090606091) to fail on a diff this PR's own changes had no part in. Replaced
+// with the `today-primary-actual.png` CI captured from run 40090606091 — i.e. the current,
+// already-live-on-main implementation at the moment of refresh — not a new design. Per the rule
+// above, this is still not the conceptual golden; it is the next "first human-approved
+// implementation screenshot" baseline going forward.
+//
 // `/dev/ui-lab/**` 404s in production (src/app/dev/ui-lab/layout.tsx) — this spec only has value,
 // and only runs, against non-production targets (local dev / the Test slot).
 test.skip(

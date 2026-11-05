@@ -22,6 +22,8 @@ const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/after", id: "B06-EVENT-AFTER", title: "League/Event parity — Event, after (locked report)" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/league/match-details", id: "B06-LEAGUE-NAV", title: "League/Event parity — League Match Details (navigation origin, not a comparison candidate)" },
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail", id: "B06-EVENT-NAV", title: "League/Event parity — Event Detail (navigation origin, not a comparison candidate)" },
+  { href: "/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern", id: "B07-HISTORICAL-PATTERN", title: "Assistant Coach longitudinal context — meaningful historical pattern" },
+  { href: "/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/trivial-fact", id: "B07-TRIVIAL-FACT", title: "Assistant Coach longitudinal context — trivial hat-trick fact (contrast)" },
 ];
 
 export default function GateBIndexPage() {
@@ -32,9 +34,9 @@ export default function GateBIndexPage() {
       </Link>
       <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Gate B — Match Details &amp; Post-Match Report</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        B01-B04 (W1), B05 (W2), and B06 (W3, League/Event parity). B07 (Assistant Coach
-        longitudinal) and B08 (information ownership/transitions) remain deferred, not deleted
-        from scope. Dev-only, synthetic fixtures only.
+        B01-B04 (W1), B05 (W2), B06 (W3, League/Event parity), and B07 (W4, Assistant Coach
+        longitudinal context). B08 (information ownership/transitions) remains deferred, not
+        deleted from scope. Dev-only, synthetic fixtures only.
       </p>
 
       <div className="mt-6">

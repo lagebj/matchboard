@@ -278,6 +278,65 @@ describe("MatchSessionObject — persistence outbox (SPEC.md §21, Stage 6)", ()
     expect((broadcast as { params: { persistenceStatus: string } }).params.persistenceStatus).toBe("failed_terminal");
   });
 
+  // Regression test for a bug confirmed live via e2e/live-reporting.spec.ts's offline/online
+  // test: a client resending an already-terminally-rejected clientEventId (e.g. LiveMatchClient
+  // retrying after a reconnect) hit the "duplicate" decision branch, which used to report
+  // "pending" for any existing status other than exactly "persisted" — silently masking
+  // failed_terminal (and failed_exhausted) as still-converging. The client's own outbox
+  // reconciliation (reconcileOutboxWithServer) then treated the "unresolved" command as
+  // retryable and kept resending it forever, since an event that already failed terminally can
+  // never actually reach "persisted". A duplicate resend must report the event's real current
+  // status, not paper over it.
+  it("a duplicate resend of an already-failed_terminal clientEventId reports failed_terminal again, not pending", async () => {
+    const { instance, ctx, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockRejectedValueOnce(new TestPersistEventError("Session not active", 422));
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+    const first = ws.sent.find((m) => (m as { id?: string }).id === "rec-1") as { result: { persistenceStatus: string } };
+    expect(first.result.persistenceStatus).toBe("failed_terminal");
+
+    // The client never regenerates clientEventId on retry (live-match-client.tsx) — this is
+    // the same clientEventId, resent after a reconnect, exactly like syncPendingCommands would.
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-2", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+    const second = ws.sent.find((m) => (m as { id?: string }).id === "rec-2") as { result: { persistenceStatus: string } };
+    expect(second.result.persistenceStatus).toBe("failed_terminal");
+
+    // persistEvent must not be attempted a second time for an already-resolved clientEventId —
+    // the duplicate branch resolves purely from stored state.
+    expect(mockPersistEvent).toHaveBeenCalledTimes(1);
+
+    const stored = (await ctx.storage.get("event:evt-1")) as { persistenceStatus: string };
+    expect(stored.persistenceStatus).toBe("failed_terminal");
+  });
+
+  it("a duplicate resend of an already-persisted clientEventId still reports persisted", async () => {
+    const { instance, ws } = await setUpConnectedObject("match-1");
+    await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });
+
+    mockPersistEvent.mockResolvedValueOnce({ id: "canonical-1", clientEventId: "evt-1", eventType: "GOAL_FOR", createdAt: new Date().toISOString(), sequence: 1 });
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-1", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+    const first = ws.sent.find((m) => (m as { id?: string }).id === "rec-1") as { result: { persistenceStatus: string } };
+    expect(first.result.persistenceStatus).toBe("persisted");
+
+    await instance.webSocketMessage(
+      ws as unknown as WebSocket,
+      rpc("rec-2", "recordEvent", { clientEventId: "evt-1", baseVersion: 0, event: { eventType: "GOAL_FOR" } }),
+    );
+    const second = ws.sent.find((m) => (m as { id?: string }).id === "rec-2") as { result: { persistenceStatus: string } };
+    expect(second.result.persistenceStatus).toBe("persisted");
+    expect(mockPersistEvent).toHaveBeenCalledTimes(1);
+  });
+
   it("alarm() retries every due pending event, persists the ones that succeed, and re-arms for the rest", async () => {
     const { instance, ctx, ws } = await setUpConnectedObject("match-1");
     await authenticate(instance, ws, { matchId: "match-1", sessionId: "session-1", organisationId: "org-1", userId: "user-1" });

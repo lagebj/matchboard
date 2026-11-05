@@ -471,9 +471,28 @@ export class MatchSessionObject extends DurableObject<Env> {
           clientEventId,
           sequence: decision.existing.version,
         });
+        // Pass the event's actual terminal status through — collapsing it into "pending" (the
+        // pre-fix behavior) silently misreported an already-`failed_terminal` event as still
+        // converging on every later duplicate resend. Confirmed live via
+        // e2e/live-reporting.spec.ts's offline/online test: the client's own outbox
+        // reconciliation (reconcileOutboxWithServer, live-match-client.tsx) treats an
+        // unresolved command absent from the server's canonical event list as retryable and
+        // resets it back to LOCAL_PENDING — which a falsely-"pending" duplicate response then
+        // re-triggers forever, since the event can never actually reach "persisted" (its one
+        // real persistence attempt already failed terminally).
+        //
+        // `failed_exhausted` deliberately still collapses to "pending" here, unlike
+        // failed_terminal — `RecordEventResult.persistenceStatus` (realtime-messages.ts) has no
+        // `"failed_exhausted"` member by design: that status is operator-significant and
+        // reconnect-recoverable (this object's own alarm sweep, or a later duplicate resend
+        // like this one, can still succeed), so it is only ever surfaced via the asynchronous
+        // `eventPersistenceChanged` broadcast, never as a direct recordEvent result.
         const result: RecordEventResult = {
           version: decision.existing.version,
-          persistenceStatus: decision.existing.persistenceStatus === "persisted" ? "persisted" : "pending",
+          persistenceStatus:
+            decision.existing.persistenceStatus === "persisted" || decision.existing.persistenceStatus === "failed_terminal"
+              ? decision.existing.persistenceStatus
+              : "pending",
         };
         return rpcOk(call.id, result);
       }
