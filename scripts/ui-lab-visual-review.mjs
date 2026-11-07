@@ -90,6 +90,39 @@ const gbExtraSmokeViewports = [
   { name: "gb-430", width: 430, height: 900 },
 ];
 
+// Gate B W5 (B08 information ownership) — same 360/430px smoke rationale as every prior Gate B
+// wave, plus 600/768/900px for AFTER and the two Report compositions specifically: these are the
+// three transition-sensitive/layout-dense B08 pages (tab rail + multi-widget Overview, or the
+// shared report shell's own tab rail), the same squeeze range Gate A's A01/A04 rounds already
+// proved matters between the mobile and desktop tab-rail thresholds. BEFORE/LIVE stay on the
+// standard `gbExtraSmokeViewports` smoke set only — neither has a tab rail or a comparably dense
+// layout at those intermediate widths.
+const b08ExtraViewports = [
+  { name: "gb-360", width: 360, height: 800 },
+  { name: "gb-430", width: 430, height: 900 },
+  { name: "b08-600", width: 600, height: 900 },
+  { name: "b08-768", width: 768, height: 1000 },
+  { name: "b08-900", width: 900, height: 1000 },
+];
+
+// B08-REPORT-DRAFT's one real fixture-local completion flow: resolve the genuine incomplete-data
+// condition (the second half's unconfirmed running-clock duration — `fixture-history.ts`'s own
+// `b08TimingReview("draft")`) via the real shared `SafePostMatchReportShell`'s own "Confirm
+// duration" control, then complete the report. Same real component, same real button names as
+// B05's own `completeB05DraftWithUnresolvedGapFlow`/`completeB05DraftReconciledFlow` — B08 has no
+// goal-attribution gap (see `fixture-history.ts`'s doc comment), so completion succeeds cleanly
+// once timing is confirmed, unlike B05's own deliberately-messier two-interaction chain.
+function completeB08DraftFlow() {
+  return async function perform(page) {
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await page.getByText("Confirm duration", { exact: true }).waitFor({ state: "detached", timeout: 10000 });
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await page.getByRole("button", { name: "Reopen report", exact: true }).waitFor({ state: "visible", timeout: 10000 });
+  };
+}
+
 // Gate A W5 finding: A07 and A10 both reuse A01's `max-w-[920px] ... flex-row` two-column
 // inspector-beside-content layout, and (A07 still; A10 fixed in this PR) reused A01's pre-round-4
 // `medium:flex-row` (600px) engagement — the same threshold used to decide inspector-vs-sheet at
@@ -775,6 +808,43 @@ const scenarios = [
     slug: "gate-b-w4-b07-trivial-fact",
     route: "gate-b/b07-assistant-coach-longitudinal/trivial-fact",
     extraViewports: gbExtraSmokeViewports,
+  },
+  // Gate B W5 candidate (official register B08, "Match Details, Information Ownership and
+  // Transitions") — CANDIDATE, not approved. One real match identity across five lifecycle
+  // snapshots (BEFORE/LIVE/AFTER/REPORT-DRAFT/REPORT-COMPLETED) — see
+  // docs/ui-lab/gate-b-w5-candidates/ for the full review record. Registered here from the first
+  // commit so this wave does not repeat B06's own B5/R7 finding (real pages shipped with zero
+  // capture evidence because they were never added to this array).
+  {
+    slug: "gate-b-w5-b08-before",
+    route: "gate-b/b08-information-ownership/before",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w5-b08-live",
+    route: "gate-b/b08-information-ownership/live",
+    extraViewports: gbExtraSmokeViewports,
+  },
+  {
+    slug: "gate-b-w5-b08-after",
+    route: "gate-b/b08-information-ownership/after",
+    extraViewports: b08ExtraViewports,
+  },
+  // Interaction: resolves the fixture's one genuine incomplete-data condition (unconfirmed
+  // second-half timing) and completes the report, ending LOCKED — desktop + mobile only, matching
+  // B07's own `openSourceInspectorByName` convention for a single demonstrative interaction rather
+  // than every viewport.
+  {
+    slug: "gate-b-w5-b08-report-draft",
+    route: "gate-b/b08-information-ownership/report-draft",
+    extraViewports: b08ExtraViewports,
+    interactionViewports: ["desktop", "mobile"],
+    interactions: [{ id: "resolved-completion-transition", perform: completeB08DraftFlow() }],
+  },
+  {
+    slug: "gate-b-w5-b08-report-completed",
+    route: "gate-b/b08-information-ownership/report-completed",
+    extraViewports: b08ExtraViewports,
   },
 ];
 const viewports = [

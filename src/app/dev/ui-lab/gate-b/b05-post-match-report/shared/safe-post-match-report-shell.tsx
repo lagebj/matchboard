@@ -58,6 +58,7 @@ export function SafePostMatchReportShell({
   allPlayers,
   footballObservations,
   combinationEvidence,
+  backHref = "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
 }: {
   matchId: string;
   title: string;
@@ -77,6 +78,10 @@ export function SafePostMatchReportShell({
   allPlayers: Array<{ id: string; name: string; teamName: string }>;
   footballObservations: Array<{ id: string; playerId: string; playerName: string; observationCode: string; polarity: string; note: string }>;
   combinationEvidence: CombinationEvidenceRow[];
+  /** B08 (Gate B W5) — the "back to match" destination is this report's OWN match, which may not
+   * be B05's. Defaults to B05's own Match Details stand-in so every existing B05 call site keeps
+   * its exact prior behavior unchanged; B08 passes its own `/after` route. */
+  backHref?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -210,7 +215,7 @@ export function SafePostMatchReportShell({
           `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`), not a fragment and
           not another match's identity. */}
       <Link
-        href="/dev/ui-lab/gate-b/b05-post-match-report/match-details"
+        href={backHref}
         className="inline-flex w-fit items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
       >
         &lsaquo; Back to match
@@ -218,7 +223,7 @@ export function SafePostMatchReportShell({
 
       <PostMatchReportHeader
         breadcrumbLabel="Matches"
-        breadcrumbHref="/dev/ui-lab/gate-b/b05-post-match-report/match-details"
+        breadcrumbHref={backHref}
         title={title}
         surfaceState={surfaceState}
         completedByLabel={state.completedBy ? `Completed by ${state.completedBy}` : null}

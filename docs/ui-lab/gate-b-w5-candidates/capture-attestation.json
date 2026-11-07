@@ -1,0 +1,18 @@
+{
+  "description": "Gate B W5 (B08 information ownership and lifecycle transitions) UI Lab visual-review evidence. PLACEHOLDER — no CI capture run has occurred yet for this branch. Not an approved golden. This file will be replaced wholesale, in a documentation-only follow-up commit, with the real downloaded-and-rehashed attestation once this PR's ui-lab-visual-review.yml run completes — the same two-commit pattern every prior Gate A/B wave has used.",
+  "sourceCommitSha": null,
+  "generatedAt": null,
+  "environment": null,
+  "ciWorkflowRun": null,
+  "ciArtifact": null,
+  "reviewedBranchHeadSha": null,
+  "knownLimitations": [
+    "This is a placeholder, committed alongside the candidate source so the W5 document set is complete from the first commit — not real capture evidence.",
+    "No screenshot hash below this point exists or is claimed. See BLOCKERS.md and REVIEW_RECORD.md.",
+    "Local next dev + Playwright cannot hydrate pages in this devcontainer (a known, pre-existing environment constraint, not introduced by this wave) — real capture evidence can only come from this PR's own CI run."
+  ],
+  "approvalStatus": "CANDIDATE",
+  "captureCountsByScenario": {},
+  "interactionStateCountsByScenario": {},
+  "captures": []
+}
