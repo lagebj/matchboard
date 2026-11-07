@@ -119,7 +119,8 @@ current status.
 - LIVE's "Finish reporting" does not auto-navigate to AFTER (that redirect is owned by the
   production adapters B08-LIVE deliberately bypasses) — see
   `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s own "Known gap" entry.
-- `capture-attestation.json` is a real placeholder pending this PR's own first CI run of the "UI Lab
-  Visual Review" workflow — the same two-commit pattern (placeholder now, real attestation in a
-  documentation-only follow-up commit once CI produces it) every prior Gate A/B wave has used. Not
-  fabricated locally.
+- RESOLVED: `capture-attestation.json`'s placeholder has been replaced with the real attestation
+  from this PR's own "Capture fixture-backed UI Lab views" CI run (workflow run 42412296463, commit
+  4a28a6f) — 72 real screenshots, all independently re-hashed and verified against the artifact's
+  own manifest.json with zero mismatches, the same two-commit pattern every prior Gate A/B wave has
+  used. Still gated on the owner's own Visual Authority review before any approval.

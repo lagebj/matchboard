@@ -37,10 +37,19 @@ wave's own navigation contract tracks is correctly wired and tested.
 - B05/B06/B07 regression check: 84 existing tests re-run unchanged, all still passing (confirms the
   one shared-component change — `safe-post-match-report-shell.tsx`'s new optional `backHref` prop —
   is non-breaking).
-- Real browser capture evidence is pending this PR's own CI run (`capture-attestation.json` is a
-  real placeholder, the same two-commit pattern every prior wave uses — see `BLOCKERS.md`).
+- Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
+  (workflow run 42412296463) produced 72 real screenshots across all 5 scenarios (8 viewport/theme
+  combinations each, plus 4 interaction-state captures for REPORT-DRAFT's completion transition).
+  All 72 were downloaded via `gh run download` and every SHA-256 independently recomputed from the
+  raw bytes — zero mismatches against the artifact's own manifest.json. `capture-attestation.json`
+  now holds this real, verified evidence (replacing the earlier placeholder, the same two-commit
+  pattern every prior wave uses). Six key screenshots (one per lifecycle state, plus the
+  report-draft completion-transition interaction) were also visually inspected directly in this
+  session — all render correctly with real production components mounted; see
+  `capture-attestation.json`'s own `knownLimitations` for exactly which.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
-promotion to `APPROVED_GOLDEN` has been attempted. `REVIEW_RECORD.md` will be updated, in a
-documentation-only follow-up commit, once the owner reviews the real CI capture, matching every
-prior Gate B wave's own process.
+promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`
+remain `CANDIDATE`/`NOT_READY` pending the owner's own Visual Authority review (ADR-0159).
+
+**Disposition: `READY_FOR_INDEPENDENT_REVIEW`.**

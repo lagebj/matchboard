@@ -5,10 +5,10 @@ Review" GitHub Actions workflow (`scripts/ui-lab-visual-review.mjs`, 5 new scena
 registered this wave — `candidate_manifest.json`/`capture-attestation.json`), **not from this local
 session**. Local `next dev` + Playwright cannot hydrate pages in this devcontainer (a known,
 pre-existing environment constraint: the HMR WebSocket upgrade fails/retries forever, reproducing
-even on untouched pages — not something this wave introduced). `capture-attestation.json` is
-committed here as the same real placeholder every prior Gate B wave uses before its own first CI
-run, and will be replaced wholesale, in a documentation-only follow-up commit, once this PR's CI
-produces real captures (see `BLOCKERS.md`).
+even on untouched pages — not something this wave introduced). `capture-attestation.json` now holds
+the real attestation from that CI run (workflow run 42412296463) — 72 screenshots, all independently
+re-hashed from the downloaded artifact with zero mismatches against its own manifest.json, replacing
+the earlier placeholder in a documentation-only follow-up commit (see `BLOCKERS.md`).
 
 ## The one intentional visual difference from live production — do not mistake for a capture bug
 
@@ -31,7 +31,7 @@ page. Any other visual difference a reviewer notices against live production is 
 fixture-data difference (this is a synthetic match, not a real one) or a defect to report, not an
 intended design change.
 
-## Capture matrix as registered (pending real CI numbers)
+## Capture matrix as registered — matches the 72 real captures produced
 
 | Scenario | Standard viewports × themes | Extra widths | Interaction states |
 |---|---|---|---|
