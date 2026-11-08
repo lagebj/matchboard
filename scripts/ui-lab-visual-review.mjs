@@ -17,6 +17,19 @@ function resolveCommitSha() {
     return "unknown";
   }
 }
+
+// B08 W5 remediation (independent review, P1-4): measures the REAL rendered layout — a page that
+// overflows its own requested viewport horizontally (the whole document growing wider than the
+// window, as opposed to a deliberately scrollable element WITHIN it) is a layout defect, not a
+// capture artifact. `document.documentElement.scrollWidth` is the authoritative measure Chromium
+// itself uses for "does this page have horizontal overflow"; a >1px tolerance absorbs sub-pixel
+// rounding, never a real multi-pixel-or-more overflow.
+async function measureHorizontalOverflow(page) {
+  return page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+  }));
+}
 /**
  * A04's `source-open`-family interactions (Gate A W2): clicks the NAMED "Inspect..." control on
  * the page (independent review round 1, PR #778, finding R3 — several A04 scenes now have more
@@ -917,6 +930,17 @@ try {
       }
       await page.evaluate(()=>document.fonts.ready);
       await page.addStyleTag({content:"nextjs-portal,#__next-build-watcher,[data-nextjs-dev-tools-button],[data-nextjs-toast]{display:none!important}"});
+      // P1-4 overflow gate — same fail-for-Gate-B/warn-elsewhere discipline as the console-error
+      // gate below, checked BEFORE the initial screenshot so a real defect is caught even if the
+      // screenshot itself would otherwise look plausible at a glance.
+      {
+        const { scrollWidth, innerWidth } = await measureHorizontalOverflow(page);
+        if (scrollWidth > innerWidth + 1) {
+          const message = scenario.slug+" "+viewport.name+"/"+theme+" (initial): horizontal overflow — document.scrollWidth="+scrollWidth+" > window.innerWidth="+innerWidth;
+          if (isGateBRoute(scenario.route)) throw new Error(message);
+          console.warn("WARNING (non-Gate-B scenario, not failing the run): "+message);
+        }
+      }
       const initialName=scenario.slug+"-"+viewport.name+"-"+theme+".png";
       const initialPath = path.join(output,initialName);
       await page.screenshot({path:initialPath,fullPage:true,animations:"disabled",caret:"hide"});
@@ -942,6 +966,14 @@ try {
           throw new Error(
             scenario.slug+" interaction '"+interaction.id+"' navigated away from "+urlBefore+" to "+page.url()+" — context-local actions must not navigate.",
           );
+        }
+        {
+          const { scrollWidth, innerWidth } = await measureHorizontalOverflow(page);
+          if (scrollWidth > innerWidth + 1) {
+            const message = scenario.slug+" "+viewport.name+"/"+theme+" ("+interaction.id+"): horizontal overflow — document.scrollWidth="+scrollWidth+" > window.innerWidth="+innerWidth;
+            if (isGateBRoute(scenario.route)) throw new Error(message);
+            console.warn("WARNING (non-Gate-B scenario, not failing the run): "+message);
+          }
         }
         const name=scenario.slug+"-"+viewport.name+"-"+theme+"-"+interaction.id+".png";
         const filePath = path.join(output,name);
