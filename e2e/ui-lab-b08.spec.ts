@@ -175,6 +175,11 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
 
   // Journey E (independent review, section 10): reference-mode isolation.
   test("Journey E — a fresh context sees the unchanged reference fixture; starting and then resetting a journey restores it", async ({ page }) => {
+    // This journey makes more full page navigations than A/B (two heavy AFTER-shaped loads, a
+    // LIVE round-trip, a reset-triggered reload, then a third AFTER load) — CI's own default 30s
+    // test budget was observed to run out mid-navigation (the reference "2 - 1" was still correctly
+    // present once the page finished hydrating; only the test's own clock, not the app, was at fault).
+    test.setTimeout(60_000);
     await page.goto(`${BASE}/after`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("report incomplete");
     await expect(page.getByText("2 - 1").first()).toBeAttached();
