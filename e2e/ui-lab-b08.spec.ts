@@ -205,10 +205,16 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     await expect(page.getByTestId("live-score-them")).toHaveText("1");
     await expect(page.getByText("2 : 1").first()).toBeAttached();
 
-    // Locate the just-recorded, unattributed goal in Recent Events ("Goal — us" with no player
-    // name — the seed's own 10' goal is attributed to Vetle, so its row reads
-    // "Goal — us — Vetle" instead, distinct text) and use its real Undo control.
-    const goalLabel = page.getByText("Goal — us", { exact: true });
+    // Locate the just-recorded, unattributed goal in Recent Events. Its OWN label text
+    // ("Goal — us") is NOT unique — the seed's own 10' goal is also unattributed on this exact
+    // display (LiveMatchClient's own Recent Events reads `event.playerId` directly off the GOAL_FOR
+    // row itself, not via the separate SCORER_SET correction `b08-projection.ts`'s derivations use
+    // — the seed's 10' goal's own `playerId` is null; only its paired SCORER_SET fact carries
+    // "Vetle", as its own separate row). Disambiguate by recency instead: `mergedEvents` sorts
+    // most-recent-first by `wallClockTime`, the seed's own events all carry `wallClockTime: null`
+    // (sorts last), and this fresh recording gets a real `new Date()` stamp — `.first()` is
+    // therefore reliably THIS goal, not the seed's.
+    const goalLabel = page.getByText("Goal — us", { exact: true }).first();
     await expect(goalLabel).toBeVisible({ timeout: 15_000 });
     const goalRow = goalLabel.locator("..").locator("..");
     await goalRow.getByRole("button", { name: "Undo" }).click();
