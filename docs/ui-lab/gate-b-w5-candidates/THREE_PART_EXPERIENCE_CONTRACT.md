@@ -22,20 +22,28 @@ this information? What can I do next?
   reconciliation, and the read-only follower panel makes the reporter-vs-follower distinction
   explicit.
 - **What can I do next?** Record events as the reporter (fixture-local only, cannot reach real
-  persistence); return to the match via the breadcrumb. (Finishing reporting does not
-  auto-navigate to AFTER in this candidate — disclosed in `TRANSITION_AND_NAVIGATION_CONTRACT.md`.)
+  persistence — and a genuinely recorded event now really does carry through to the Report, W5
+  remediation P1-6); return to the match via the breadcrumb; or finish reporting, which really does
+  navigate straight to REPORT-DRAFT (the real production `handleEndSession()`/`reportUrl()`
+  behavior, confirmed working — see `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s own "RESOLVED"
+  section; the report workspace, not a second AFTER view, is the correct destination).
 
 ## AFTER
 
-- **Where am I?** The match has been played (2-1, final); Match Details' AFTER composition, report
-  still incomplete.
+- **Where am I?** The match has been played (2-1, final); Match Details' AFTER composition — either
+  "report still incomplete" or "report completed," depending on the real report status (an explicit
+  `?report=` variant switch, W5 remediation P1-5 — the SAME composition represents both states, per
+  ADR-0147, never a third lifecycle surface).
 - **What is this information?** Overview is curated (bounded match-story preview, Key figures
   rollup, coaching-intent review, Assistant Coach hypothesis clearly labelled as interpretation);
   Events and Stats are their own factual, full-detail owners one tab away; the lightened
   report-status widget tells the coach *that* something needs attention without repeating facts the
   After-match tab already owns in full.
-- **What can I do next?** Continue the report (real link to REPORT-DRAFT); inspect the full
-  chronology or stats via their own tabs. No report-editing control is reachable from here.
+- **What can I do next?** When incomplete: continue the report (real link to REPORT-DRAFT). When
+  completed: view the finalized report (real link to REPORT-COMPLETED). Either way: inspect the
+  full chronology or stats via their own tabs. No report-editing control is reachable from here —
+  every visible report link, including the reused `MatchAfterMatchPanel`'s own secondary one, now
+  resolves inside the UI Lab (W5 remediation P2-8).
 
 ## REPORT-DRAFT
 
@@ -44,7 +52,9 @@ this information? What can I do next?
   integrity warning (the second half's unconfirmed timing) that is not decorative — it is the actual
   condition blocking completion.
 - **What can I do next?** Resolve the timing review, then complete the report (a real fixture-local
-  action that locks the report); or return to the match (AFTER), preserving context.
+  action that locks the report, in place, no navigation); or return to the match (AFTER), preserving
+  context — and once completed in place, "return to match" correctly routes to AFTER's own completed
+  variant, not the stale incomplete one (W5 remediation P1-5).
 
 ## REPORT-COMPLETED
 

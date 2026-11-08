@@ -1,14 +1,23 @@
 # Gate B W5 — Visual vs. Current Production (B08)
 
+**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** The capture evidence
+referenced lower in this document (workflow run 42412296463) predates the remediation's fixes
+(clock, timestamp units, mobile overflow, navigation) — it is the BEFORE-remediation reference, not
+current evidence. A fresh capture run from the remediation's own final commit is required before
+this document's own screenshot references are considered current; see `capture-attestation.json`'s
+`generatedAt`/`ciWorkflowRun` for whichever run is actually attested at any given moment, and
+`REVIEW_RECORD.md` for the disposition this reflects.
+
 Real browser screenshot evidence for B08 comes from this PR's own CI run of the "UI Lab Visual
-Review" GitHub Actions workflow (`scripts/ui-lab-visual-review.mjs`, 5 new scenario entries
-registered this wave — `candidate_manifest.json`/`capture-attestation.json`), **not from this local
-session**. Local `next dev` + Playwright cannot hydrate pages in this devcontainer (a known,
-pre-existing environment constraint: the HMR WebSocket upgrade fails/retries forever, reproducing
-even on untouched pages — not something this wave introduced). `capture-attestation.json` now holds
-the real attestation from that CI run (workflow run 42412296463) — 72 screenshots, all independently
-re-hashed from the downloaded artifact with zero mismatches against its own manifest.json, replacing
-the earlier placeholder in a documentation-only follow-up commit (see `BLOCKERS.md`).
+Review" GitHub Actions workflow (`scripts/ui-lab-visual-review.mjs`, 5 scenario entries registered
+this wave — `candidate_manifest.json`/`capture-attestation.json`), **not from this local session**.
+Local `next dev` + Playwright cannot hydrate pages in this devcontainer (a known, pre-existing
+environment constraint: the HMR WebSocket upgrade fails/retries forever, reproducing even on
+untouched pages — not something this wave introduced). The W5 remediation adds a real
+`document.scrollWidth` overflow gate directly in the capture script (fails the run for any Gate B
+scenario that overflows its viewport) and a separate, real-browser Playwright suite
+(`e2e/ui-lab-b08.spec.ts`, 50 tests) running against the same local server in the same CI job — see
+`INTERACTION_AND_STATE_AUDIT.md`.
 
 ## The one intentional visual difference from live production — do not mistake for a capture bug
 
@@ -49,7 +58,11 @@ Per spec §16's own guidance, the `?tab=review`-becomes-invalid-after-lock behav
 `?tab=players` behavior are **not** registered as separate browser-capture scenarios — both are
 already proven at the component-test level against the real resolver/reducer functions
 (`INTERACTION_AND_STATE_AUDIT.md`), and mechanically adding a capture for an already-proven
-equivalent is explicitly discouraged by the brief.
+equivalent is explicitly discouraged by the brief. The same principle applies to AFTER's new
+`?report=completed` variant (W5 remediation, P1-5): its rendering is already both component-tested
+(`after/__tests__/page.test.tsx`'s own describe block) and proven end-to-end in a real browser
+(`e2e/ui-lab-b08.spec.ts`), so it is not separately registered as a sixth capture scenario — not an
+oversight.
 
 ## Capture success is not visual approval
 

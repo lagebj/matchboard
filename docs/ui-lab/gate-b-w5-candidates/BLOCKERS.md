@@ -1,8 +1,50 @@
 # Gate B W5 — Blockers / Open Questions (B08)
 
-Status: implementation complete (all 9 spec steps). All items below are resolved or disclosed as
-permanent, deliberate scope boundaries — none block the PR; see `REVIEW_RECORD.md` for the real
-current status.
+Status: implementation complete (all 9 original spec steps), PLUS a full remediation pass against
+an independent review of the merged PR (2026-11-08) — see the new section immediately below. All
+items are resolved or disclosed as permanent, deliberate scope boundaries; none block the PR — see
+`REVIEW_RECORD.md` for the real current status.
+
+## Remediation (independent review of PR #822, 2026-11-08)
+
+The independent review found real defects the original implementation's own tests did not catch
+(clock-math/unit bugs a unit test compared only against itself, a navigation contradiction, a
+layout overflow, and insufficient end-to-end proof of LIVE-to-report continuity). All are now
+FIXED, not merely disclosed:
+
+1. **FIXED — LIVE clock showed ~45:00 instead of the real 15:00** (and a spurious over-duration
+   warning). `elapsedBeforeStartMs` was double-counting the completed first half on top of the
+   second half's own elapsed time. See `DATA_TRUTH_AND_FIXTURES.md`.
+2. **FIXED — live-event timestamps rendered as ~0:00.** `matchSeconds` is real milliseconds despite
+   its legacy name; the fixture's own conversion function stored seconds. See
+   `DATA_TRUTH_AND_FIXTURES.md`.
+3. **FIXED — mobile horizontal page overflow** (up to 527px rendered at a requested 320px).
+   `TabRail`'s pill variant had no width cap/overflow handling. See `SOURCE_RECONCILIATION.md`'s
+   own TabRail section.
+4. **FIXED — a completed report returning to Match Details still said "incomplete."**
+   REPORT-COMPLETED's back-links now carry `?report=completed`; AFTER reads it. See
+   `TRANSITION_AND_NAVIGATION_CONTRACT.md`.
+5. **FIXED — LIVE-to-report continuity was not real.** A recorded live event previously had no
+   effect on the subsequent Report (five matching static snapshots, not genuine dependency). A real,
+   bounded, sessionStorage-backed journey (`shared/b08-journey.ts`) now carries it through. See
+   `TRANSITION_AND_NAVIGATION_CONTRACT.md` and `DATA_TRUTH_AND_FIXTURES.md`.
+6. **FIXED — the `MatchAfterMatchPanel` secondary report link** resolved to a production-shaped URL
+   outside the UI Lab. Now an additive `reportHrefOverride` prop. See item 3 below (superseded) and
+   `TRANSITION_AND_NAVIGATION_CONTRACT.md`.
+7. **FIXED — the reporter/follower score could silently disagree.** The follower summary is now
+   derived from the same event ledger as the reporter. See `SOURCE_RECONCILIATION.md`.
+8. **CORRECTED (documentation only, no code change needed) — "LIVE Finish reporting does not
+   auto-navigate to AFTER."** This file's own prior claim (item 4 below) was stale/incorrect:
+   `handleEndSession()` already navigates via `actions.reportUrl()`, and B08's fixture already
+   supplies both a `reportId` and a working `reportUrl()`. See
+   `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "RESOLVED" section.
+9. **ADDED — real browser (Playwright) coverage**, since unit/component tests alone were correctly
+   judged insufficient proof for navigation/continuity/layout claims. See
+   `e2e/ui-lab-b08.spec.ts` and `INTERACTION_AND_STATE_AUDIT.md`.
+
+The sections below are the ORIGINAL implementation's own blockers/decisions record, left in place
+for history; superseded claims are marked inline rather than deleted, so the record stays honest
+about what changed and why.
 
 ## Resolved during this audit (recorded here so Step 4 doesn't re-derive them)
 
@@ -32,14 +74,15 @@ current status.
    directly-asserting test in `INTERACTION_AND_STATE_AUDIT.md`.
 2. **RESOLVED — the §3 correction is visibly demonstrated, not just documented**, with an on-page
    disclosure callout noting the intentional difference from current production (`VISUAL_VS_CURRENT.md`).
-3. **RESOLVED — a new, real gap found while building `after/page.tsx`:** the reused, unmodified
-   `MatchAfterMatchPanel` renders its own secondary "Continue report"/"View full report" link via
-   the real `orgUrl()` helper, which resolves to a production-shaped `/o/.../matches/.../post-match`
-   URL rather than this candidate's own `/report-draft` route. The page-level **primary** "Continue
-   report" CTA (the one this wave's own transition contract tracks) is correctly wired to
-   `/report-draft` and covered by a test. Fixing the secondary link would require threading a new
-   prop into a shared production component, beyond this wave's scope — disclosed in
-   `TRANSITION_AND_NAVIGATION_CONTRACT.md`, not silently patched.
+3. **SUPERSEDED — now FIXED, not just disclosed (see "Remediation" section above, item 6).** A new,
+   real gap found while building `after/page.tsx`: the reused, unmodified `MatchAfterMatchPanel`
+   rendered its own secondary "Continue report"/"View full report" link via the real `orgUrl()`
+   helper, which resolved to a production-shaped `/o/.../matches/.../post-match` URL rather than
+   this candidate's own `/report-draft` route. The original entry below is left for history; the
+   independent review correctly rejected "threading a new prop... beyond this wave's scope" as an
+   acceptable outcome for a visibly broken link — `MatchAfterMatchPanel` now has an additive,
+   backward-compatible `reportHrefOverride` prop, and every visible report link on B08-AFTER
+   resolves inside the UI Lab.
 4. **RESOLVED — LIVE scenario's production-component mounting risk.** Decision: **mount the real
    `LiveMatchClient`** (`src/components/live-match/live-match-client.tsx`), not a hand-built
    imitation. Verified by reading the full component: it has zero server-only imports and zero
@@ -115,10 +158,18 @@ current status.
   placeholders on B08-AFTER, the same discipline B05's own "Review" tab uses.
 - `FollowLiveClient` is not mounted on B08-LIVE (performs a real realtime-ticket fetch/Durable
   Object connection on mount) — the reporter-vs-follower distinction is demonstrated with a
-  read-only summary panel built from the real `MatchScoreHeader` instead.
-- LIVE's "Finish reporting" does not auto-navigate to AFTER (that redirect is owned by the
-  production adapters B08-LIVE deliberately bypasses) — see
-  `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s own "Known gap" entry.
+  read-only summary panel built from the real `MatchScoreHeader` instead (now derived from the same
+  live event ledger as the reporter — see the "Remediation" section's item 7).
+- **Disclosed, out of this wave's scope**: B05's own `globalMinuteToPeriodRelative()`
+  (`b05-post-match-report/shared/report-data.ts`) carries the identical `matchSeconds`-as-seconds
+  bug B08's own copy was found and fixed for (remediation item 2). It stays dormant/invisible in
+  B05 because B05 never mounts the real `LiveMatchClient`/`formatElapsedMs` consumer that would
+  surface it. Not fixed here — B05 is out of this wave's scope (independent review's own hard
+  boundary: "Do not rebuild B01-B07") — but disclosed so it isn't mistaken for unknown.
+- **CORRECTED (was stale/incorrect, not a real gap):** this line previously claimed LIVE's "Finish
+  reporting" does not auto-navigate anywhere. That was wrong — `handleEndSession()` already
+  navigates via `actions.reportUrl()` once `endSession()` returns a `reportId`, and B08's fixture
+  already supplies both. See `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "RESOLVED" section.
 - RESOLVED: `capture-attestation.json`'s placeholder has been replaced with the real attestation
   from this PR's own "Capture fixture-backed UI Lab views" CI run (workflow run 42412296463, commit
   4a28a6f) — 72 real screenshots, all independently re-hashed and verified against the artifact's

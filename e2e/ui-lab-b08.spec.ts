@@ -16,12 +16,18 @@ import { test, expect } from "@playwright/test";
 const BASE = "/dev/ui-lab/gate-b/b08-information-ownership";
 
 test.describe("B08 — navigation and lifecycle-state continuity", () => {
-  test("BEFORE's primary action opens LIVE with the same match identity", async ({ page }) => {
+  test("BEFORE's primary action opens LIVE with the same match identity, and real browser Back returns to BEFORE", async ({ page }) => {
     await page.goto(`${BASE}/before`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Before match");
+    // A real <Link> navigation (unlike an in-page tab switch, which uses router.replace and
+    // deliberately does not push history) — genuinely exercises the browser's own history stack.
     await page.getByRole("link", { name: "Start live reporting" }).click();
     await expect(page).toHaveURL(new RegExp(`${BASE}/live$`));
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Live");
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`${BASE}/before$`));
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Before match");
   });
 
   test("LIVE's own back link returns to BEFORE", async ({ page }) => {
@@ -33,7 +39,7 @@ test.describe("B08 — navigation and lifecycle-state continuity", () => {
   test("a direct visit to AFTER (no journey) shows the reference snapshot: report incomplete, 2-1", async ({ page }) => {
     await page.goto(`${BASE}/after`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("report incomplete");
-    await expect(page.getByText("Needs work")).toBeVisible();
+    await expect(page.getByText("Needs work", { exact: true })).toBeVisible();
   });
 
   test("AFTER's primary action opens REPORT-DRAFT", async ({ page }) => {
@@ -59,8 +65,8 @@ test.describe("B08 — navigation and lifecycle-state continuity", () => {
     await page.getByRole("link", { name: "‹ Back to match" }).click();
     await expect(page).toHaveURL(new RegExp(`${BASE}/after\\?report=completed`));
     await expect(page.getByRole("heading", { level: 1 })).toContainText("report completed");
-    await expect(page.getByText("Completed")).toBeVisible();
-    await expect(page.getByText("Needs work")).toHaveCount(0);
+    await expect(page.getByText("Completed", { exact: true })).toBeVisible();
+    await expect(page.getByText("Needs work", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "View report" })).toHaveAttribute("href", new RegExp(`${BASE}/report-completed$`));
   });
 
@@ -78,16 +84,15 @@ test.describe("B08 — navigation and lifecycle-state continuity", () => {
     await expect(page.getByText(/Plan integrity review/)).toHaveCount(0);
   });
 
-  test("reload and browser back preserve state correctly on REPORT-DRAFT", async ({ page }) => {
+  test("reload preserves the selected tab on REPORT-DRAFT (a direct URL visit)", async ({ page }) => {
     // The report's own tab rail renders plain buttons wired to router.replace() (no per-tab
-    // href) — selecting a tab is a client-side URL change, not a Link navigation.
-    await page.goto(`${BASE}/report-draft?tab=players`);
-    await page.getByRole("button", { name: "Timeline" }).click();
-    await expect(page).toHaveURL(/tab=timeline/);
+    // href, and replace() deliberately does not push a new history entry — selecting a tab is
+    // not something browser Back is expected to undo in this app). Reload is tested directly
+    // against a URL carrying the tab, rather than via a click, for exactly that reason.
+    await page.goto(`${BASE}/report-draft?tab=timeline`);
+    await expect(page.getByRole("button", { name: "Timeline" })).toHaveAttribute("aria-current", "page");
     await page.reload();
     await expect(page.getByRole("button", { name: "Timeline" })).toHaveAttribute("aria-current", "page");
-    await page.goBack();
-    await expect(page).toHaveURL(/tab=players/);
   });
 });
 

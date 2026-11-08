@@ -3,9 +3,9 @@
 | Scenario | Status | Notes |
 |---|---|---|
 | B08-BEFORE | `CANDIDATE`, `approval: null` | Planned/ready composition, real live-entry CTA into B08-LIVE. |
-| B08-LIVE | `CANDIDATE`, `approval: null` | Real, unmodified `LiveMatchClient` mounted with fixture-local actions; production League/Event adapters and realtime coordinator intentionally not mounted (disclosed). |
-| B08-AFTER | `CANDIDATE`, `approval: null` | Applies the one real ownership correction found by this wave's own audit (§3, report-status widget). |
-| B08-REPORT-DRAFT | `CANDIDATE`, `approval: null` | Real `SafePostMatchReportShell`/`useSafeReportLifecycle`, B08's own fixture; genuine timing-review completion blocker. |
+| B08-LIVE | `CANDIDATE`, `approval: null` | Real, unmodified `LiveMatchClient` mounted with fixture-local actions; production League/Event adapters and realtime coordinator intentionally not mounted (disclosed). Follower summary now derived from the same event ledger as the reporter (P2-9). |
+| B08-AFTER | `CANDIDATE`, `approval: null` | Applies the one real ownership correction found by this wave's own audit (§3, report-status widget); now renders both draft and completed variants via `?report=` (P1-5). |
+| B08-REPORT-DRAFT | `CANDIDATE`, `approval: null` | Real `SafePostMatchReportShell`/`useSafeReportLifecycle`, B08's own fixture; genuine timing-review completion blocker; now journey-aware (P1-6). |
 | B08-REPORT-COMPLETED | `CANDIDATE`, `approval: null` | Same real shell, seeded `LOCKED`; Combinations tab with independently-verified evidence. |
 
 All five: `official_golden_status: NOT_READY` (`candidate_manifest.json`). This is the final Gate B
@@ -22,31 +22,67 @@ to a status pill + link), with the correction both directly tested and visibly d
 (`VISUAL_VS_CURRENT.md`) so a reviewer doesn't mistake it for a capture bug. Every other
 information-ownership pair audited (8 of 9) was already correct and is reproduced unchanged.
 
-One genuine secondary gap was found and disclosed, not fixed: the reused `MatchAfterMatchPanel`'s
-own secondary report-status link resolves to a production-shaped URL outside the UI Lab
-(`TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "Known gap"). The page-level primary transition this
-wave's own navigation contract tracks is correctly wired and tested.
+## Remediation (independent review of PR #822, 2026-11-08)
+
+An independent review of the merged candidate found seven real defects that directly contradicted
+B08's own stated purpose — truthful information and continuity between lifecycle workspaces — plus
+judged unit/component tests insufficient proof for navigation, continuity, and layout claims. All
+were fixed (not merely disclosed), and real browser (Playwright) coverage was added:
+
+1. **LIVE clock showed ~45:00 instead of 15:00** (plus a false over-duration warning) — a
+   double-counted `elapsedBeforeStartMs`. Fixed; verified with deterministic fake timers against the
+   real `getElapsedMs()`/`formatElapsedMs()` functions.
+2. **Live-event timestamps rendered as ~0:00** — `matchSeconds` is milliseconds, not seconds
+   (confirmed against `LiveMatchClient`'s own doc comment and renderer). Fixed; literal
+   production-contract values now asserted, not a self-comparison.
+3. **Mobile horizontal page overflow** (up to 527px at a requested 320px) — `TabRail`'s pill variant
+   had no width cap. Fixed additively; verified against all four real production call sites plus
+   every Gate A/B wave (102 files, 645 tests), and with a real document.scrollWidth gate added to
+   the capture script itself plus a 40-test Playwright width matrix.
+4. **A completed report returning to Match Details still said "incomplete."** Fixed with an
+   explicit `?report=completed` variant switch, verified end-to-end in a real browser.
+5. **LIVE-to-report continuity was not real** — a recorded live event had no effect on the
+   subsequent Report. Fixed with a real, bounded, sessionStorage-backed journey
+   (`shared/b08-journey.ts`); verified in a real browser that finishing without recording the 48'
+   winner shows a real 1-1 on REPORT-DRAFT, and recording it first (via the exact real "Goal for
+   us" → "Skip" sequence `e2e/live-reporting.spec.ts` already proves safe in production) shows a
+   real 2-1.
+6. **`MatchAfterMatchPanel`'s secondary report link resolved outside the UI Lab.** Fixed with an
+   additive `reportHrefOverride` prop (default preserves the exact prior production behavior).
+7. **The reporter/follower score could silently disagree.** Fixed — the follower is now derived
+   from the same event ledger as the reporter; proven with a real click against the real mounted
+   `LiveMatchClient`.
+
+One documentation claim was also corrected (not a code defect): "LIVE's Finish reporting does not
+auto-navigate" was stale/wrong — `handleEndSession()` already navigates via the fixture's own
+`reportUrl()`.
+
+Full detail, file-by-file: `BLOCKERS.md`'s "Remediation" section,
+`TRANSITION_AND_NAVIGATION_CONTRACT.md`, `DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`.
 
 ## Verification performed
 
-- 46 fixture-level tests (`shared/__tests__`) + 51 component tests (6 files) — all passing,
-  verified with the project's real component-test config (`--config vitest.config.components.ts`;
-  a bare `vitest run` is known to silently skip `.tsx` tests in this repo).
+- Component tests: `npx vitest run --config vitest.config.components.ts
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 66+ tests, all passing**
+  (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
+- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, 50 tests — navigation, lifecycle-state
+  continuity (including the full LIVE-to-report journey), and a 5-scenario × 8-width (320-1440px)
+  overflow matrix. Runs in CI only (this devcontainer's known `next dev` + Playwright HMR WebSocket
+  blocker) — see this PR's own "Capture fixture-backed UI Lab views" CI run for real results.
 - `npx tsc --noEmit -p .` — zero errors.
-- `eslint` — zero errors (one pre-existing-style lint fix applied during test authoring).
-- B05/B06/B07 regression check: 84 existing tests re-run unchanged, all still passing (confirms the
-  one shared-component change — `safe-post-match-report-shell.tsx`'s new optional `backHref` prop —
-  is non-breaking).
+- `eslint`/`docs:check`/`terminology:check`/`architecture:check`/`deadcode:check` — zero errors on
+  every changed file (repo-wide `eslint .` shows the same 3 pre-existing, unrelated warnings in an
+  untouched file, confirmed unrelated).
+- B05/B06/B07 + every TabRail consumer regression check: 645 existing tests re-run unchanged, all
+  still passing (confirms the shared-component changes — `safe-post-match-report-shell.tsx`'s
+  `backHref`/`backHrefForStatus`/`onStatusChange`, `match-after-match-panel.tsx`'s
+  `reportHrefOverride`, `tab-rail.tsx`'s overflow containment — are all non-breaking).
 - Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
-  (workflow run 42412296463) produced 72 real screenshots across all 5 scenarios (8 viewport/theme
-  combinations each, plus 4 interaction-state captures for REPORT-DRAFT's completion transition).
-  All 72 were downloaded via `gh run download` and every SHA-256 independently recomputed from the
-  raw bytes — zero mismatches against the artifact's own manifest.json. `capture-attestation.json`
-  now holds this real, verified evidence (replacing the earlier placeholder, the same two-commit
-  pattern every prior wave uses). Six key screenshots (one per lifecycle state, plus the
-  report-draft completion-transition interaction) were also visually inspected directly in this
-  session — all render correctly with real production components mounted; see
-  `capture-attestation.json`'s own `knownLimitations` for exactly which.
+  produced real screenshots across all 5 scenarios, downloaded via `gh run download` and every
+  SHA-256 independently recomputed from the raw bytes against the artifact's own manifest.json.
+  `capture-attestation.json` holds this real, verified evidence — see that file's own
+  `knownLimitations` for exactly what was additionally visually inspected, and `generatedAt`/
+  `ciWorkflowRun` for the exact re-capture run this remediation's own fixes are reflected in.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`

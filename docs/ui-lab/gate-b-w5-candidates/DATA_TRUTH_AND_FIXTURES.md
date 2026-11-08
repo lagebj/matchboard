@@ -20,7 +20,7 @@ as a separate claim to trust; see the referenced test file for the authoritative
 ## Canonical event record (`fixture-history.ts`)
 
 Final result: **2-1** (home win). Three real goal events, in period-relative time
-(`globalMinuteToPeriodRelative()`, the same real `period-config.ts` contract B05 uses):
+(`globalMinuteToPeriodRelative()`):
 
 - 10' — Vetle scores, unassisted (1-0).
 - 22' — Vollen equalizes (1-1).
@@ -28,6 +28,31 @@ Final result: **2-1** (home win). Three real goal events, in period-relative tim
 
 Slemmestad never trails and never leads by more than one goal at any point — asserted directly,
 not assumed (`shared/__tests__/fixture-history.test.ts`).
+
+### FIXED (W5 remediation, independent review P1-3) — `matchSeconds` unit correction
+
+`globalMinuteToPeriodRelative()` previously multiplied by 60 (producing real seconds). The field is
+actually **milliseconds** despite its legacy name — confirmed directly against
+`live-match-client.tsx`'s own `formatElapsedMs(event.matchSeconds)` renderer and doc comment ("...is
+milliseconds since period start (legacy name — ADR-0133 H3)"). The prior value made every live event
+render at roughly 0:00 in B08-LIVE's own Recent Events list once the real `LiveMatchClient` was
+mounted. Fixed to multiply by 1000; `periodRelativeToGlobalMinute()` (the inverse) added alongside
+it for the journey-derivation code (see below). Literal production-contract values (not a
+self-comparison against the same function) are now asserted directly in
+`shared/__tests__/fixture.test.ts` and `fixture-history.test.ts`. B05's identically-shaped helper
+carries the same latent bug but is out of this wave's scope — it never mounts the real
+`LiveMatchClient`, so the bug stays dormant there (see `BLOCKERS.md`).
+
+### FIXED (P1-2) — the LIVE clock's `elapsedBeforeStartMs`
+
+`safe-transition-controller.ts`'s fixture-local `getPreMatchPackage()` set the second-half clock's
+`elapsedBeforeStartMs` to the full first-half duration (30'), double-counting it on top of a
+`startedAt` already 15' in the past — per `match-clock.ts`'s real `getElapsedMs()` contract
+(`elapsedBeforeStartMs + (now - startedAt)`, reset to 0 on every real `advancePeriod()`), this
+produced a false ~45:00 reading and a spurious over-duration warning instead of the real 15:00.
+Fixed to `elapsedBeforeStartMs: 0`. Verified with deterministic fake timers (`vi.setSystemTime`) in
+`shared/__tests__/safe-transition-controller.test.ts`, fed through the REAL production
+`getElapsedMs()`/`formatElapsedMs()` functions, not a reimplementation.
 
 ## The one genuine incomplete-data condition
 
@@ -60,13 +85,41 @@ verified byte-for-byte (except the non-deterministic `createdAt` stamp) against 
 own output for the same input, in `shared/__tests__/combination-evidence.test.ts` — mirroring B05's
 own `combination-evidence.test.ts` exactly.
 
+## Event persistence scope (W5 remediation, P1-6) — `shared/b08-journey.ts`
+
+A real, versioned, B08-namespaced `sessionStorage` blob (key `b08-live-journey-v1`) — never a
+general-purpose event-sourcing system. Scope and lifetime:
+
+- **Tab/session-scoped**: `sessionStorage` never crosses browser tabs, never reaches a server,
+  never survives closing the tab. Cleared automatically by the browser; also clearable on demand
+  via the scenario navigator's own "Reset journey" dev control.
+- **Reference-snapshot mode is the default**: every CI/Playwright capture gets a brand-new browser
+  context (`scripts/ui-lab-visual-review.mjs` calls `browser.newContext()` fresh per scenario/
+  viewport/theme), so `loadB08Journey()` returns `null` and every page renders the unchanged
+  canonical fixture — the pre-remediation behavior, provably unaffected.
+- **Interactive-journey mode** only activates once a real browser session records an event on
+  B08-LIVE; an **unfinished** journey (the coach never clicked "Finish live reporting") is never
+  read by REPORT-DRAFT — `loadFinishedB08JourneyEvents()` returns `null` until `markB08JourneyFinished()`
+  has actually run.
+- **Deterministic replay**: `wallClockTime`/`clientEventId` are revived/normalized on load to match
+  `LiveEventSummary`'s real type (`Date | null` / `string | null`) — `JSON.stringify` silently drops
+  `undefined` keys and turns `Date` into an ISO string; both were real round-trip bugs found and
+  fixed while testing this module (`shared/__tests__/safe-transition-controller.test.ts`).
+- **Isolation**: a clearly synthetic `matchId` (`b08-fixture-live-match`, distinct from
+  `B08_MATCH_ID`) keeps the fixture's own real-but-harmless browser-local IndexedDB outbox
+  (`live-local-store.ts`) and service-worker registration from ever colliding with a real match's
+  local rows on the same device (`BLOCKERS.md` item #3).
+
 ## Test coverage summary
 
-| File | Tests | What it proves |
-|---|---|---|
-| `shared/__tests__/fixture.test.ts` | part of 46 | Stable identity, chronological ordering of the five observation instants, format consistency. |
-| `shared/__tests__/fixture-history.test.ts` | part of 46 | Score-to-goal-event consistency, DRAFT/COMPLETED data parity, the timing-review gap's shape. |
-| `shared/__tests__/combination-evidence.test.ts` | part of 46 | The hand-written combination-evidence literal matches the real derivation function's output. |
+| File | What it proves |
+|---|---|
+| `shared/__tests__/fixture.test.ts` | Stable identity, chronological ordering, format consistency, literal ms-unit contract values, clock period-relative round-trips. |
+| `shared/__tests__/fixture-history.test.ts` | Score-to-goal-event consistency, DRAFT/COMPLETED data parity, the timing-review gap's shape, literal matchSeconds values against the real production contract. |
+| `shared/__tests__/combination-evidence.test.ts` | The hand-written combination-evidence literal matches the real derivation function's output. |
+| `shared/__tests__/ownership-map.test.ts` | The ownership map's content matches the audited matrix (also its deadcode:check consumer). |
+| `shared/__tests__/safe-transition-controller.test.ts` | The LIVE clock fix (fed through the real `getElapsedMs()`/`formatElapsedMs()`), and the journey store's real persistence/restore/reset behavior. |
 
-Full run: `npx vitest run src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/__tests__` →
-**3 files, 46 tests, all passing** (re-verified in this session).
+Full run: `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-b/b08-information-ownership/`
+→ **7 files, 66+ tests, all passing** (re-verified in this session; component-test config required —
+a bare `vitest run` silently skips `.tsx` tests in this repo).

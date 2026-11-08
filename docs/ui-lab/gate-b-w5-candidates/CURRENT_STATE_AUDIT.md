@@ -5,6 +5,13 @@ path below was read directly before any fixture or component decision was made. 
 implementation Steps 1 only (current-state mapping); the ownership classification itself is in
 `INFORMATION_OWNERSHIP_MATRIX.md` (Step 2).
 
+**Note (W5 remediation, independent review, 2026-11-08):** this audit's own description of
+production's current behavior remains accurate — the remediation only added optional,
+backward-compatible props to three shared production components (`SafePostMatchReportShell`'s
+`backHrefForStatus`/`onStatusChange`, `MatchAfterMatchPanel`'s `reportHrefOverride`, `TabRail`'s
+overflow containment), none of which change any existing production call site's behavior. See
+`CHANGED_FILES.md`'s own "Remediation" sections for the full file-by-file list.
+
 ## 1. The two independent lifecycle surfaces (ADR-0147, unchanged by this wave)
 
 - **Match Details** (`src/app/(app)/.../matches/[matchId]/page.tsx` → `MatchDetailShell`,

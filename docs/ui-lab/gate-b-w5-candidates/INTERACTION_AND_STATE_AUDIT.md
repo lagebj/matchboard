@@ -1,9 +1,13 @@
 # Gate B W5 — Interaction and State Audit (B08)
 
-51 component tests across 6 files (`npx vitest run --config vitest.config.components.ts
-src/app/dev/ui-lab/gate-b/b08-information-ownership` → **6 files, 51 tests, all passing**, plus the
-46 fixture-level tests in `DATA_TRUTH_AND_FIXTURES.md`), organized by the task brief's own test
-sections.
+**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** Component/unit-level
+coverage below, PLUS real Chromium browser coverage in `e2e/ui-lab-b08.spec.ts` (50 tests — the
+independent review's own section 11 explicitly treats unit tests as insufficient proof for
+navigation/continuity/layout claims; see that file and `TRANSITION_AND_NAVIGATION_CONTRACT.md`).
+
+Component tests: `npx vitest run --config vitest.config.components.ts
+src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 66+ tests, all passing**
+(component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
 
 ## B. Information ownership
 
@@ -60,11 +64,35 @@ sections.
   action), and its current-stage indicator is asserted exposed to assistive tech, not color-only.
 - BEFORE: scenario-navigator current-stage marking is explicitly asserted exposed to assistive tech.
 
-## Known test-writing findings (disclosed here, cross-referenced in `BLOCKERS.md`)
+## F. Remediation-specific coverage (W5, independent review)
 
-- `after/page.tsx`'s reused `MatchAfterMatchPanel` has its own secondary report-status link that
-  resolves outside the UI Lab (see `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "Known gap"). Not
-  fixed; the page-level primary CTA is correctly tested and wired.
-- No regression: the existing B05/B06/B07 test suites (84 tests) were re-run after the one shared
-  shell change (`safe-post-match-report-shell.tsx`'s new optional `backHref` prop) — all 84 still
-  pass.
+- **P1-2/P1-3 (clock/timestamp units)**: `shared/__tests__/safe-transition-controller.test.ts`
+  feeds the fixture's clock output through the REAL `getElapsedMs()`/`formatElapsedMs()`
+  (`match-clock.ts`), using `vi.setSystemTime` for deterministic replay — asserts exactly 15:00
+  elapsed (not 45:00) and no false over-duration warning. `fixture.test.ts`/`fixture-history.test.ts`
+  assert literal millisecond values independent of the conversion function itself.
+- **P1-4 (mobile overflow)**: `src/components/ui/__tests__/tab-rail.test.tsx` asserts the
+  containment classes are present (structural proof); real pixel/scroll-width proof is
+  `scripts/ui-lab-visual-review.mjs`'s own new overflow gate (fails for any Gate B scenario) plus
+  `e2e/ui-lab-b08.spec.ts`'s 40-test width matrix (5 scenarios × 8 widths, 320-1440px).
+- **P1-5 (completed-report state on return)**: `after/__tests__/page.test.tsx`'s
+  `?report=completed` describe block (5 tests) and `report-completed/__tests__/page.test.tsx`
+  assert the back-links/heading/status/primary-CTA all reflect the real locked state; `report-draft/
+  __tests__/page.test.tsx` asserts BOTH back-links switch to `?report=completed` once the report is
+  completed in place. Verified end-to-end in a real browser in `e2e/ui-lab-b08.spec.ts`.
+- **P1-6 (LIVE-to-report continuity)**: `safe-transition-controller.test.ts` asserts real
+  sessionStorage persistence (recordEvent survives beyond this component's own React state, a
+  second hook instance restores exactly where the first left off, an unfinished journey is not
+  readable, reset works). `report-draft/__tests__/page.test.tsx`'s journey describe block asserts a
+  seeded finished journey changes the rendered score/goals (1-1 vs the fixed 2-1) and an unfinished
+  one is ignored. `live/__tests__/page.test.tsx`'s P2-9 block proves a real `fireEvent.click` on
+  "Goal for us" updates the follower score. All of this is additionally proven end-to-end with real
+  browser navigation in `e2e/ui-lab-b08.spec.ts`.
+- **P2-8 (secondary report link)**: `after/__tests__/page.test.tsx` asserts `MatchAfterMatchPanel`'s
+  own "Continue report"/"View full report" link resolves to this candidate's own route in both the
+  draft and completed variants — no production-shaped URL remains reachable.
+- No regression: the existing B05/B06/B07 test suites (84 tests), plus every other TabRail consumer
+  across Match Details/Report/Team/Event and all Gate A/B waves (102 files, 645 tests total), were
+  re-run after the shared-component changes (`safe-post-match-report-shell.tsx`'s `backHref`/
+  `backHrefForStatus`/`onStatusChange`, `match-after-match-panel.tsx`'s `reportHrefOverride`,
+  `tab-rail.tsx`'s overflow containment) — all still pass.

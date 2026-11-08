@@ -2,14 +2,14 @@
   "programmeRevision": "0.169.3",
   "baseCommitSha": "dc772b2aa6c2c2460315055ca6c20a4f3c1965ca",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b08-information-ownership/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W5 (B08, Information Ownership and Lifecycle Transitions) — the final Gate B candidate wave. One canonical match identity across five lifecycle states. All five CANDIDATE, approval null, official_golden_status NOT_READY. fixtureVersion 1 for all five scenarios. See docs/ui-lab/gate-b-w5-candidates/ for the full review record.",
+  "note": "Gate B W5 (B08, Information Ownership and Lifecycle Transitions) — the final Gate B candidate wave. One canonical match identity across five lifecycle states. All five CANDIDATE, approval null, official_golden_status NOT_READY. fixtureVersion 2 for all five scenarios (bumped from 1 by the 2026-11-08 remediation's matchSeconds unit correction to the shared canonical fixture — a real fixture-content change per every scenario's own shared fixture.ts/fixture-history.ts module, not a CSS-only change). See docs/ui-lab/gate-b-w5-candidates/ for the full review record, and REVIEW_RECORD.md's own 'Remediation' section for the independent-review fixes this version bump reflects.",
   "candidates": [
     {
       "scenarioId": "B08-BEFORE",
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-before",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/before/page.tsx",
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/fixture.ts",
@@ -32,7 +32,7 @@
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-live",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/live/page.tsx",
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/safe-transition-controller.ts",
@@ -45,8 +45,7 @@
       "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
       "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — the real, unmodified LiveMatchClient is mounted directly (zero server-only imports, zero hardcoded network calls; every side effect reached only via its injected actions prop), fed a fixture-local LiveMatchActions implementation in place of both production adapters. See BLOCKERS.md item #4 and SOURCE_RECONCILIATION.md.",
       "knownGaps": [
-        "FollowLiveClient not mounted (real realtime-ticket fetch/Durable Object connection on mount) — a read-only summary panel built from the real MatchScoreHeader stands in instead.",
-        "\"Finish reporting\" does not auto-navigate to AFTER — that redirect is owned by the production adapters this page deliberately bypasses. See TRANSITION_AND_NAVIGATION_CONTRACT.md."
+        "FollowLiveClient not mounted (real realtime-ticket fetch/Durable Object connection on mount) — a read-only summary panel built from the real MatchScoreHeader stands in instead, now derived from the same live event ledger as the reporter (2026-11-08 remediation, P2-9)."
       ],
       "approval": null
     },
@@ -55,7 +54,7 @@
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-after",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/after/page.tsx",
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/fixture-history.ts",
@@ -69,10 +68,9 @@
       "requirementRefs": ["XR-I02"],
       "experienceContractRef": "docs/ui-lab/gate-b-w1-candidates/SCENARIO_REGISTER.md row B08",
       "dataContractRef": "docs/adr/0147-match-details-and-post-match-report-lifecycle-surfaces.md; docs/adr/0157-contextual-coach-workspace-convergence.md",
-      "baselineAssetRef": "Real Match Details AFTER tab rail and panels, fed this wave's own fixture via the real get-match-detail-after-data.ts-shaped read model. ONE deliberate correction applied relative to current production: the Overview report-status widget is lightened to a status pill + link, per this wave's own verified ownership-duplication finding. See INFORMATION_OWNERSHIP_MATRIX.md §3 and VISUAL_VS_CURRENT.md.",
+      "baselineAssetRef": "Real Match Details AFTER tab rail and panels, fed this wave's own fixture via the real get-match-detail-after-data.ts-shaped read model. ONE deliberate correction applied relative to current production: the Overview report-status widget is lightened to a status pill + link, per this wave's own verified ownership-duplication finding. See INFORMATION_OWNERSHIP_MATRIX.md §3 and VISUAL_VS_CURRENT.md. Renders both real AFTER states (draft/completed) via an explicit ?report= query param (2026-11-08 remediation, P1-5) — one composition, not a second page.",
       "knownGaps": [
-        "PlanVsRealityPanel and MatchTacticsPanel not mounted (self-fetch against real DB/matchId, not fixture-injectable) — disclosed placeholders on their own tabs, same discipline as B05's Review tab.",
-        "MatchAfterMatchPanel's own secondary report-status link resolves to a production-shaped URL outside the UI Lab — disclosed, not fixed. See TRANSITION_AND_NAVIGATION_CONTRACT.md."
+        "PlanVsRealityPanel and MatchTacticsPanel not mounted (self-fetch against real DB/matchId, not fixture-injectable) — disclosed placeholders on their own tabs, same discipline as B05's Review tab."
       ],
       "approval": null
     },
@@ -81,7 +79,7 @@
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-report-draft",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/report-draft/page.tsx",
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx",
@@ -100,7 +98,7 @@
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-report-completed",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/report-completed/page.tsx",
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx",

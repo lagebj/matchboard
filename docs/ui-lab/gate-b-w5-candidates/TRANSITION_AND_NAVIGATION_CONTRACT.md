@@ -1,28 +1,46 @@
 # Gate B W5 — Transition and Navigation Contract (B08)
 
-The full lifecycle transition table from the task brief, each row stated against the real
-implementation and the test that verifies it.
+**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** The full lifecycle
+transition table from the task brief, each row stated against the real implementation and the test
+that verifies it. Two rows previously marked "disclosed gap" are now fixed — see the changelog at
+the bottom.
 
 | From | Action | Destination | Implemented | Verified by |
 |---|---|---|---|---|
-| BEFORE | Open Live Reporting | LIVE reporter workspace | Real `Link` → `/live`, reproducing `match-detail-shell.tsx`'s own shell-level CTA (not `BeforeMatchOverview`, which only receives a boolean — `BLOCKERS.md` item #3's BEFORE note) | `before/__tests__/page.test.tsx` |
-| LIVE | Return to match | Same match context | Real `Link` back to `/before` | `live/__tests__/page.test.tsx` |
-| LIVE | Finish reporting | AFTER or report-entry flow | Disclosed scope limit — see "Known gap" below | — |
-| AFTER | Continue report | REPORT-DRAFT | Real `Link` → `/report-draft` (page-level primary CTA) | `after/__tests__/page.test.tsx` |
-| REPORT-DRAFT | Return to match | Same match, preserving context | Real `Link` → `/after` via `SafePostMatchReportShell`'s `backHref` prop | `report-draft/__tests__/page.test.tsx` |
-| REPORT-DRAFT | Complete report | REPORT-COMPLETED state | Real fixture-local `useSafeReportLifecycle.complete()`, gated on the timing-review blocker actually resolving first | `report-draft/__tests__/page.test.tsx`; capture interaction `resolved-completion-transition` |
-| REPORT-COMPLETED | Back to match | Historical AFTER view | Real `Link` → `/after` (B08-AFTER itself already **is** the historical view once a report exists — no separate "historical" route was built; see note below) | `report-completed/__tests__/page.test.tsx` |
+| BEFORE | Open Live Reporting | LIVE reporter workspace | Real `Link` → `/live`, reproducing `match-detail-shell.tsx`'s own shell-level CTA | `before/__tests__/page.test.tsx`, `e2e/ui-lab-b08.spec.ts` |
+| LIVE | Return to match | Same match context | Real `Link` back to `/before` | `live/__tests__/page.test.tsx`, `e2e/ui-lab-b08.spec.ts` |
+| LIVE | Finish reporting | REPORT-DRAFT | **FIXED (P2-7):** the real `LiveMatchClient.handleEndSession()` already navigates via `actions.reportUrl()` once `endSession()` returns a `reportId` — B08's fixture supplies both. "Finish live reporting" → confirm → real `window.location.href` navigation to `/report-draft`. The prior "known gap" claim here was stale documentation, not a real limitation; corrected. | `e2e/ui-lab-b08.spec.ts` ("LIVE-to-report continuity" suite) |
+| AFTER | Continue report | REPORT-DRAFT | Real `Link` → `/report-draft` (page-level primary CTA) | `after/__tests__/page.test.tsx`, `e2e/ui-lab-b08.spec.ts` |
+| REPORT-DRAFT | Return to match | Same match, preserving context (and the CURRENT status — see P1-5 below) | Real `Link` → `/after` (draft) or `/after?report=completed` (once locked in place) — reactive via `SafePostMatchReportShell`'s `backHrefForStatus`/`onStatusChange` props | `report-draft/__tests__/page.test.tsx`, `e2e/ui-lab-b08.spec.ts` |
+| REPORT-DRAFT | Complete report | REPORT-COMPLETED state | Real fixture-local `useSafeReportLifecycle.complete()`, gated on the timing-review blocker actually resolving first | `report-draft/__tests__/page.test.tsx`; capture interaction `resolved-completion-transition`; `e2e/ui-lab-b08.spec.ts` |
+| REPORT-COMPLETED | Back to match | AFTER, showing the COMPLETED state | **FIXED (P1-5):** real `Link` → `/after?report=completed` — AFTER reads the explicit `?report=` variant switch and renders `b08AfterData("completed")` instead of its own default draft/incomplete variant. Previously this linked to plain `/after`, which always showed "report incomplete" even immediately after locking the report — a real, now-fixed contradiction. | `report-completed/__tests__/page.test.tsx`, `after/__tests__/page.test.tsx`, `e2e/ui-lab-b08.spec.ts` |
 | REPORT-COMPLETED | Reopen, where allowed | Explicit editable report state | Real `useSafeReportLifecycle` "Reopen report" control, same gating B05 already demonstrates | Covered by the shared shell's own existing B05 tests (unchanged logic, reused verbatim) |
 
-## Why REPORT-COMPLETED routes back to `/after`, not a second "historical" page
+## P1-6 — LIVE-to-report continuity (new, real)
+
+A real, sessionStorage-backed journey (`shared/b08-journey.ts`) distinguishes two modes without an
+explicit flag: a direct visit to any B08 route (every CI/Playwright capture gets a fresh browser
+context — `scripts/ui-lab-visual-review.mjs` creates and closes a new `browser.newContext()` per
+scenario/viewport/theme) always reads an empty/absent journey and renders the unchanged canonical
+reference fixture. A real interactive session that records an event on LIVE and clicks "Finish live
+reporting" persists it; REPORT-DRAFT derives its own goals/assists/score from what was ACTUALLY
+recorded (`b08GoalsAndAssistsFromJourney()`) instead of always showing the fixed canonical report.
+An unfinished journey is never read by REPORT-DRAFT (no half-recorded session leaks in).
+
+Verified for real in `e2e/ui-lab-b08.spec.ts`: finishing LIVE without recording the 48' winner
+leaves REPORT-DRAFT showing a real 1-1 (not the fixed canonical 2-1); recording it live first
+(`"Goal for us"` → `"Skip"`, the exact real production pattern `e2e/live-reporting.spec.ts` already
+proves against the authenticated flow) carries it through as a real 2-1.
+
+## Why REPORT-COMPLETED routes back to `/after` (with `?report=completed`), not a second "historical" page
 
 The task brief distinguishes "back to the appropriate report-entry flow" (AFTER) from "back to the
 historical Overview" only because production itself treats both `report_incomplete` and `done` as
 AFTER-eligible lifecycle statuses rendering the same `AfterMatchOverview` composition
-(`CURRENT_STATE_AUDIT.md` §1). B08-AFTER's own candidate is built around the `"draft"` fixture
-variant; a genuinely separate "B08-AFTER-historical" page would be a second, disconnected
-interpretation of the same match purely to satisfy a naming distinction the real component
-hierarchy does not have. Documented here as a deliberate choice, not an oversight.
+(`CURRENT_STATE_AUDIT.md` §1). B08-AFTER's candidate now represents BOTH real AFTER states (draft
+and completed) through the same composition, switched by the explicit `?report=` query param — one
+Match Details surface, not a second, disconnected interpretation of the same match. ADR-0147's "one
+Match Details composition per lifecycle state" is preserved; no third composition was introduced.
 
 ## Origin preservation
 
@@ -44,38 +62,40 @@ hierarchy does not have. Documented here as a deliberate choice, not an oversigh
   reimplemented.
 - `?tab=review` is a real DRAFT-only tab; COMPLETED replaces it with `combinations`. Production's
   real `resolvePostMatchReportTab()` already falls back to each surface's own default for an unknown
-  or cross-surface tab key (`CURRENT_STATE_AUDIT.md` §2) — B08 reuses this real fallback via the
-  same shared shell rather than reimplementing tab resolution. This exact fallback behavior is
-  already covered by the shared shell's own existing B05 test suite (same component, same
-  resolver); a dedicated `?tab=review`-after-lock **browser capture** was deliberately not added as
-  a sixth B08 capture scenario (see `VISUAL_VS_CURRENT.md`) because the spec's own guidance (§16)
-  says not to mechanically expand capture coverage once equivalent behavior is already proven — here
-  it is proven at the component-test level against the real resolver function, not re-derived.
+  or cross-surface tab key (`CURRENT_STATE_AUDIT.md` §2) — now also verified directly in a real
+  browser: `e2e/ui-lab-b08.spec.ts`'s "an invalid report tab falls back to the real default without
+  showing stale content, once locked" test visits `/report-completed?tab=review` and asserts the
+  stale Review content never renders.
 - Pinned-tab-survives-completion (`?tab=players` remaining selected after completion): the same real
   guarantee B05's own `post-match-report-page-shell.test.tsx` already covers for the shared
-  component B08 reuses unchanged.
+  component B08 reuses unchanged; also exercised for real in `e2e/ui-lab-b08.spec.ts`'s reload/
+  browser-Back test.
+- Reload and browser Back on REPORT-DRAFT: verified for real in a browser (`e2e/ui-lab-b08.spec.ts`)
+  — select a different tab, reload, confirm the selection survives; browser Back returns to the
+  prior tab's URL.
 
-## Known gap — LIVE "Finish reporting" does not auto-navigate to AFTER
+## RESOLVED — LIVE "Finish reporting" navigation (previously documented as a gap)
 
-The real `LiveMatchClient` component itself has no "navigate to AFTER on session end" behavior —
-that redirect is owned by the production adapters (`league-live-match-client.tsx`/
-`event-live-match-client.tsx`), which B08-LIVE deliberately bypasses (mounting `LiveMatchClient`
-directly with fixture-local actions, per `BLOCKERS.md` item #3's resolved decision). Calling the
-fixture-local `endSession()` action therefore ends the session locally but does not itself route the
-coach to `/after`; B08-LIVE's own breadcrumb link back to `/before` remains the real, working return
-path, but a true "Finish reporting → AFTER" **transition action** (as opposed to a manual breadcrumb
-click) was not built, since reproducing it correctly would mean reimplementing one of the two real
-production adapters' own post-session routing logic — out of this wave's scope (spec §12/§19).
-Recorded here as a disclosed gap, not fabricated as working.
+**This section previously claimed `LiveMatchClient` has no "navigate on session end" behavior and
+that a true Finish → Report transition was not built.** That was incorrect, stale documentation —
+confirmed by reading `handleEndSession()` directly: it calls `actions.endSession(sessionId)`, and if
+`result.data?.reportId && actions.reportUrl` it navigates via `window.location.href =
+actions.reportUrl(result.data.reportId)`. B08's fixture-local `endSession()` already returns a
+`reportId`, and `reportUrl()` already returns `/report-draft` — the transition was already
+functionally correct; only this document's own claim about it was wrong. Corrected above and
+verified for real in `e2e/ui-lab-b08.spec.ts`.
 
-## Known gap — disclosed, not fixed
+## RESOLVED — the `MatchAfterMatchPanel` secondary link (previously disclosed, not fixed)
 
-`after/page.tsx`'s reused, unmodified `MatchAfterMatchPanel` component renders its own secondary
-"Continue report"/"View full report" link via the real `orgUrl()` helper, which resolves to a
-production-shaped `/o/.../matches/.../post-match` URL — not this candidate's own `/report-draft`
-route. The **page-level primary** "Continue report" CTA (the one actually driving the AFTER →
-REPORT-DRAFT transition this contract tracks) is correctly wired to `/report-draft`; this is a
-second, secondary link inside a reused real production component whose target simply doesn't
-resolve inside the UI Lab. Fixing it would mean threading a new prop into a shared production
-component beyond this wave's scope (see `BLOCKERS.md`) — recorded as a verified production
-dependency, not silently patched.
+**Previously:** `after/page.tsx`'s reused `MatchAfterMatchPanel` rendered its own secondary
+"Continue report"/"View full report" link via the real `orgUrl()` helper, resolving to a
+production-shaped `/o/.../matches/.../post-match` URL that doesn't exist inside the UI Lab.
+
+**Now:** `MatchAfterMatchPanel` takes a new, optional, backward-compatible `reportHrefOverride`
+prop (same pattern as `SafePostMatchReportShell`'s pre-existing `backHref`) — defaults to the exact
+prior `orgUrl(...)` behavior for every production call site (verified: only
+`match-detail-shell.tsx` calls it in production, and it does not pass this prop). B08-AFTER passes
+its own fixture-local `/report-draft` or `/report-completed` route depending on the current
+`?report=` variant. Every visible report link on B08-AFTER now resolves inside the UI Lab — no
+production-shaped fixture links remain reachable. Verified in `after/__tests__/page.test.tsx` and
+`e2e/ui-lab-b08.spec.ts`.
