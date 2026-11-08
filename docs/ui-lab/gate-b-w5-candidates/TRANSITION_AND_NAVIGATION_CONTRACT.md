@@ -1,11 +1,14 @@
 # Gate B W5 — Transition and Navigation Contract (B08)
 
-**Updated for the W5 SECOND remediation (independent review, 2026-11-08, "lifecycle data
-consistency").** The full lifecycle transition table from the task brief, each row stated against
+**Updated for the W5 THIRD remediation (independent review, 2026-11-08, "final data-integrity
+remediation").** The full lifecycle transition table from the task brief, each row stated against
 the real implementation and the test that verifies it. Several rows previously marked "disclosed
-gap" are now fixed — see the changelogs at the bottom. The single biggest change this pass: AFTER
+gap" are now fixed — see the changelogs at the bottom. The second pass's biggest change: AFTER
 and REPORT-COMPLETED now participate in the SAME persisted-report priority cascade REPORT-DRAFT
-already used after the first remediation — see "The shared data-consistency cascade" below.
+already used after the first remediation — see "The shared data-consistency cascade" below. This
+third pass's biggest change: that cascade's own tier 1 (a persisted report) now resolves its real
+chronology by an explicit `historyOrigin`, not by inferring it from an event array's own emptiness
+— see "History provenance" below, and Journey C (a real browser Undo) is no longer a disclosed gap.
 
 | From | Action | Destination | Implemented | Verified by |
 |---|---|---|---|---|
@@ -31,7 +34,10 @@ the SAME three-tier priority cascade, in order:
    edited/completed this exact report in an earlier visit on REPORT-DRAFT. Resume/display it
    EXACTLY — authoritative over everything else, including AFTER's own `?report=` URL param (a URL
    can select a presentation state but cannot override the real stored lifecycle — see the
-   independent review's own explicit requirement).
+   independent review's own explicit requirement). Its own real chronology is resolved by
+   `historyOrigin`, not re-derived from the raw event array (see "History provenance" below) — a
+   direct edit of the reference report keeps the real canonical chronology; a LIVE-seeded report
+   keeps what was actually recorded.
 2. **A finished LIVE journey with no reconciliation yet** (`loadFinishedB08JourneyEvents()`) —
    seed from what was ACTUALLY recorded, reversal-aware
    (`shared/b08-projection.ts`'s `computeEffectiveLiveEvents()`/`deriveGoalsAndAssists()`/
@@ -51,8 +57,28 @@ exact real production pattern `e2e/live-reporting.spec.ts` already proves agains
 flow) carries a real 2-1 through the identical chain. Journey E proves the reference fixture stays
 genuinely isolated: a fresh context always sees the unchanged 2-1 reference on AFTER/REPORT-COMPLETED
 directly, and using the real "Reset journey" dev control after an interactive journey restores it.
+Journey D (third remediation) proves the SAME consistency holds for a direct, reference-mode edit
+(no LIVE journey at all) — the real 10'/22'/48' chronology stays intact through REPORT-DRAFT's own
+Timeline tab, AFTER's Events/Stats tabs, and REPORT-COMPLETED's Timeline tab, not just its score.
 
-### Reversal and duplicate-event semantics (new)
+### History provenance (`historyOrigin`, third remediation)
+
+Tier 1 above (a persisted report) previously derived its chronology from whatever raw event array
+happened to be in storage — but a reference-mode edit (REPORT-DRAFT without ever visiting LIVE)
+legitimately has NO such array; `saveB08JourneyReport()` wrote `events: []`, and AFTER/REPORT-
+COMPLETED then derived an EMPTY timeline from it, discarding the real canonical chronology entirely.
+`b08-journey.ts` v3 adds `historyOrigin` (`"REFERENCE"` | `"LIVE_JOURNEY"`), set once by whichever
+write happens first and never silently changed by a later report edit;
+`shared/b08-projection.ts`'s `resolveB08EffectiveHistory()` is the one place every page now resolves
+the real chronology/goal-count/team-note by it — `"REFERENCE"` (or no journey at all) always returns
+the unchanged canonical history, `"LIVE_JOURNEY"` returns what was actually recorded. LIVE's own
+`initialLiveEvents()` had the identical blind spot in reverse (a reference-origin report's `events:
+[]` looked exactly like a resumed, empty LIVE session) and is fixed the same way. Proven directly,
+with literal expected values, in `b08-projection.test.ts`'s own `resolveB08EffectiveHistory`
+describe block and `report-draft/__tests__/page.test.tsx`'s new describe block, and end-to-end in a
+real browser by Journey D above.
+
+### Reversal and duplicate-event semantics
 
 `computeEffectiveLiveEvents()` mirrors the REAL production algorithm (`get-match-detail-after-data.ts`)
 exactly: a reversed `GOAL_FOR`/`GOAL_AGAINST` event is excluded from every downstream derivation —
@@ -60,10 +86,29 @@ score, goals/assists, timeline — matching the reporter's own real `LiveMatchCl
 even after a real "Undo." Proven with literal expected values (not a self-comparison) in
 `shared/__tests__/b08-projection.test.ts`, including a dedicated negative test confirming the two
 real correction-reference namespaces (`EVENT_REVERSED` → target's own `id`; `SCORER_SET`/
-`ASSIST_SET` → the goal's `clientEventId`) are genuinely distinct, not interchangeable. **Not**
-separately proven as a browser test (Journey C) — see `BLOCKERS.md` for the disclosed reason
-(a real, investigated timing risk in `LiveMatchClient`'s own event-reconciliation display, not a
-B08 defect) and why the deterministic unit proof is the stronger evidence here.
+`ASSIST_SET` → the goal's `clientEventId`) are genuinely distinct, not interchangeable.
+
+**Now also proven as a real browser test (Journey C, third remediation)** — the second remediation's
+own disclosed reason for not testing this (a real timing risk: `LiveMatchClient.handleUndo()` can
+target a Recent Events row still on the local overlay, whose own `id` is a `clientEventId`, not yet
+the real stored id) is closed, not merely avoided: `recordEvent()` in `safe-transition-controller.ts`
+now normalizes an `EVENT_REVERSED`'s `correctsEventId` to the real target id even when submitted
+against a `clientEventId`, proven directly in `safe-transition-controller.test.tsx`. Journey C
+records a goal, Undoes it through the real mounted `LiveMatchClient`'s own Recent Events panel, and
+verifies reporter/follower agreement before and after, plus downstream non-resurfacing through
+REPORT-DRAFT/AFTER/REPORT-COMPLETED/reload.
+
+### Idempotent event recording (`recordEvent()`, third remediation)
+
+`recordEvent()` previously always generated a fresh id and appended a new row, with no check against
+an already-accepted `clientEventId` — a genuine retry (reconnect, reload mid-send, a resent command)
+would have silently double-counted a goal/correction/reversal. Fixed to mirror production's own real
+contract exactly (confirmed against `LiveMatchClient`'s own `reconcileOutboxWithServer()` doc
+comment: "a resend is dedup-safe server-side by clientEventId") — an identical retry is a no-op
+(returns the already-accepted real id), a conflicting one (same `clientEventId`, different content)
+is rejected outright, never silently appended or silently overwritten. Proven with the full required
+matrix (new goal, identical retry, reload+retry, conflicting retry, two distinct goals, reversal
+retry, scorer-correction retry, distinct assist) in `safe-transition-controller.test.tsx`.
 
 ## Why REPORT-COMPLETED routes back to `/after` (with `?report=completed`), not a second "historical" page
 

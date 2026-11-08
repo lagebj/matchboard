@@ -1,6 +1,7 @@
 # Gate B W5 — Source Reconciliation (B08)
 
-**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** What each B08 page
+**Updated for the W5 THIRD remediation (independent PR #822 review, 2026-11-08, "final
+data-integrity remediation").** What each B08 page
 reuses from real production source, verbatim, vs. what is fixture-substituted — by page, so a
 reviewer can tell production fidelity from UI-Lab-only composition at a glance.
 
@@ -47,6 +48,16 @@ already-undone event via the new `markReversedEvents()` (same reversed-id algori
 filtering) — real production computes this server-side; this fixture has no server, so it
 computes it the same way for its own Recent Events display.
 
+**FIXED (W5 THIRD remediation — "final data-integrity remediation"):** `recordEvent()` is now
+idempotent by `clientEventId` (a genuine retry is a no-op or a rejected conflict, never a silent
+duplicate row), and normalizes an `EVENT_REVERSED`'s `correctsEventId` to the real target id even
+when submitted against a not-yet-confirmed Recent Events row — closing the one real timing risk
+that previously made a browser-level Undo test unsafe. `initialLiveEvents()` now also checks
+`historyOrigin === "LIVE_JOURNEY"` before resuming a stored event array, so opening LIVE after
+editing the reference report directly (no LIVE session at all) correctly restores the canonical
+cutoff seed instead of an empty, misread "resumed session." Verified with a real browser Undo in
+`e2e/ui-lab-b08.spec.ts`'s Journey C, no longer a disclosed gap (see `BLOCKERS.md`).
+
 ## B08-AFTER
 
 Real, unmodified: `MatchIdentityCard`, `MatchTimelineList`, `MatchFlowPanel`,
@@ -77,6 +88,18 @@ and the embedded Assistant Coach panel switches to the real, already-production-
 `{status: "unavailable"}` state (via `AdvisorPanelUnavailable`) instead of showing the fixed
 reference match's own insight.
 
+**FIXED (W5 THIRD remediation):** that same priority cascade's own tier-1 branch (a persisted
+report) previously derived its chronology from a raw event array that a REFERENCE-origin edit (no
+LIVE journey at all) had no correct way to populate — the timeline, goal count and team note all
+silently went empty the moment a coach edited the reference report directly, even though this page
+correctly kept showing AFTER data at all. Now resolved through `shared/b08-projection.ts`'s
+`resolveB08EffectiveHistory(historyOrigin, journeyEvents)`, which returns the real canonical
+chronology for a `"REFERENCE"` origin (or no journey) and the real recorded one for
+`"LIVE_JOURNEY"` — never a third, empty guess. The narrative-withholding flag (`isInteractiveJourney`)
+is likewise now `historyOrigin === "LIVE_JOURNEY"` (gated on real usable data existing at all), not
+mere journey presence — a reference-origin edit keeps its own real reflection/observations/
+combination evidence/Assistant Coach insight, since they genuinely describe this same match.
+
 ## B08-REPORT-DRAFT / B08-REPORT-COMPLETED
 
 Real, unmodified: `SafePostMatchReportShell` and `useSafeReportLifecycle` — the exact same B05
@@ -104,6 +127,20 @@ when it exists (showing the coach's own real completed record, not the fixed ref
 journey's own report was never actually locked, the real shared shell renders it honestly as its
 own DRAFT-editable surface instead of fabricating a completed state (`surfaceState = status ===
 "LOCKED" ? "COMPLETED" : "DRAFT"` already does this correctly; no special-casing was added).
+
+**FIXED (W5 THIRD remediation):** both pages were still passing the fixed reference
+`debriefAnswers`/`footballObservations`/`combinationEvidence` literals to `SafePostMatchReportShell`
+UNCONDITIONALLY — `staticAfterData`'s own already-correct empty/null narrative fields never reached
+these three separate props at all, so an interactive journey's Reflection tab still showed the
+reference match's own real debrief/observations regardless of what actually happened. Both pages now
+choose between the real reference content and the real empty-state equivalents
+(`EMPTY_DEBRIEF_ANSWERS.answers` with `debriefStatus="DRAFT"`, `[]`) by the SAME
+`historyOrigin`-derived flag the rest of the cascade uses. Separately, the shared shell itself still
+hardcoded B05's own `b05MinutesByParticipant`/`b05ObservationCountByParticipant` maps, a literal
+`"report-gate-b-05"` report id, a literal `"debrief-gate-b-05"` debrief id, and a B05-specific team
+note, for EVERY caller including B08 — fixed with five new optional props, all defaulting to B05's
+exact existing values (B05 unaffected), with B08 passing its own real `B08_REPORT_ID`/
+`B08_DEBRIEF_ID`/participant-minutes/team-note instead.
 
 ## What was never built
 

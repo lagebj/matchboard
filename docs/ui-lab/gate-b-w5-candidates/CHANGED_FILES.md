@@ -162,6 +162,59 @@ is preserved above them for history.
   disclosed reason; Journey D (duplicate/correction) is satisfied at the projection level per the
   review's own framing, by `b08-projection.test.ts`.
 
+## Third remediation — modified candidate source (final data-integrity remediation, 2026-11-08)
+
+- `shared/b08-journey.ts` — bumped to a v3 `sessionStorage` key; added `B08HistoryOrigin`
+  (`"REFERENCE"` | `"LIVE_JOURNEY"`) and `loadB08HistoryOrigin()`; `saveB08JourneyReport()` now
+  takes an `origin` parameter (seeds it only on the very first write, never overrides an
+  already-stored one); `loadFinishedB08JourneyEvents()` additionally gates on
+  `historyOrigin === "LIVE_JOURNEY"`.
+- `shared/b08-projection.ts` — new `resolveB08EffectiveHistory()` (the single place every page
+  resolves the real chronology/goal-count/team-note for a persisted or about-to-be-seeded report,
+  by `historyOrigin`); `deriveB08AfterDataFromReport()`'s signature changed from a raw
+  `effectiveEvents` array to this resolved `B08EffectiveHistory` object.
+- `shared/fixture-history.ts` — added `B08_TEAM_NOTE` (deduplicating the previously inline-repeated
+  literal, now also reusable by the projection for a `"REFERENCE"`-origin persisted report).
+- `shared/fixture.ts` — added `B08_DEBRIEF_ID`.
+- `shared/safe-transition-controller.ts` — `initialLiveEvents()` now gates on
+  `historyOrigin === "LIVE_JOURNEY"` (defect #1); `recordEvent()` is now idempotent by
+  `clientEventId` (defect #3) and normalizes an `EVENT_REVERSED`'s `correctsEventId` from a
+  not-yet-confirmed `clientEventId` to the real target id (defect #5).
+- `report-draft/page.tsx`, `report-completed/page.tsx`, `after/page.tsx` — all three now load
+  `historyOrigin`, resolve `resolveB08EffectiveHistory()`, and choose
+  `debriefAnswers`/`debriefStatus`/`footballObservations`/`combinationEvidence`/
+  `observationCountByParticipant`/`teamNote` by the SAME `isInteractiveJourney` flag (defect #2);
+  `report-draft`/`report-completed` also pass `reportId`/`debriefId`/`minutesByParticipant` (defect
+  #4); `saveB08JourneyReport()` calls now pass the real `origin`.
+
+## Third remediation — modified shared production component (additive only)
+
+- `src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx` — added
+  five optional props (`debriefStatus`, `reportId`, `debriefId`, `minutesByParticipant`,
+  `observationCountByParticipant`, `teamNote`), all defaulting to B05's exact existing hardcoded
+  values (every B05 call site unaffected); `LeagueOnlyExtras` now takes `teamNote` as a prop instead
+  of a hardcoded string.
+
+## Third remediation — new/modified tests
+
+- Modified: `shared/__tests__/b08-projection.test.ts` — renamed the misleading "duplicate delivery
+  counts once" test (it never actually proved that); added a new `resolveB08EffectiveHistory`
+  describe block (4 tests) proving defect #1's fix directly.
+- Modified: `shared/__tests__/safe-transition-controller.test.tsx` — added an "idempotent event
+  recording" describe block (8 tests: new goal, identical retry, reload+retry, conflicting retry,
+  two distinct goals, reversal retry, scorer-correction retry, distinct assist) plus one test
+  proving the `EVENT_REVERSED`/`clientEventId` normalization (defect #5).
+- Modified: `report-draft/__tests__/page.test.tsx` — v3 schema migration for the existing
+  journey-seeding tests; added a new describe block (2 tests) proving a reference-origin edit
+  preserves chronology/score/narrative, and that a LIVE_JOURNEY-origin seed shows no reference-only
+  narrative.
+- Modified: `e2e/ui-lab-b08.spec.ts` — added Journey C (a recorded goal followed by a real browser
+  Undo through the actual mounted `LiveMatchClient`, verifying reporter/follower agreement and
+  downstream non-resurfacing — the second remediation's own disclosed gap, now closed) and Journey D
+  (a direct reference-report edit, no LIVE journey at all, proving defect #1's fix end-to-end in a
+  real browser, including AFTER's Events/Stats tabs and REPORT-COMPLETED's Timeline tab, not only
+  the score header).
+
 ## Not touched
 
 B01-B07 candidate source and documentation (`gate-b-w1/w2/w3/w4-candidates/`, `b01`-`b07` route

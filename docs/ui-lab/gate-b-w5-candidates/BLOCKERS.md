@@ -1,9 +1,72 @@
 # Gate B W5 — Blockers / Open Questions (B08)
 
-Status: implementation complete (all 9 original spec steps), PLUS TWO remediation passes against
-independent reviews of the merged PR (2026-11-08) — see the two "Remediation" sections below. All
+Status: implementation complete (all 9 original spec steps), PLUS THREE remediation passes against
+independent reviews of the merged PR (2026-11-08) — see the three "Remediation" sections below. All
 items are resolved or disclosed as permanent, deliberate scope boundaries; none block the PR — see
 `REVIEW_RECORD.md` for the real current status.
+
+## Third remediation ("final data-integrity remediation", independent review, 2026-11-08)
+
+The second remediation's shared projection fixed cross-page consistency, but four real defects
+remained, plus an explicit requirement to finally verify LIVE's own Undo through a real browser
+interaction (the second remediation had deliberately declined to, citing a timing risk — now
+closed at the fixture's own write boundary, see item 5 below).
+
+1. **FIXED — editing the reference report directly could discard the match's canonical event
+   history.** `saveB08JourneyReport()` on a reference-mode edit (no LIVE journey at all) used to
+   write `events: []` with no record of why — AFTER then derived an EMPTY timeline from it. Fixed
+   with `historyOrigin` (`b08-journey.ts` v3: `"REFERENCE"` vs `"LIVE_JOURNEY"`) and a single
+   resolver, `shared/b08-projection.ts`'s `resolveB08EffectiveHistory()`, that every page now calls
+   instead of deriving from a raw, ambiguous event array. `safe-transition-controller.ts`'s own
+   `initialLiveEvents()` had the identical blind spot in reverse (opening LIVE after a reference
+   edit looked like a resumed, empty LIVE session) — fixed the same way.
+2. **FIXED — reference-only debrief/observation/combination content could appear in interactive
+   reports.** `report-draft/page.tsx` and `report-completed/page.tsx` were passing the fixed
+   `b08DebriefAnswers`/`b08FootballObservations`/`b08CombinationEvidence` literals to
+   `SafePostMatchReportShell` UNCONDITIONALLY — `staticAfterData`'s own already-correct null/empty
+   narrative fields never reached these three props at all. Fixed: both pages now choose between
+   the real reference content and the real empty-state equivalents (`EMPTY_DEBRIEF_ANSWERS.answers`
+   with `debriefStatus="DRAFT"`, `[]`) based on the SAME `historyOrigin`-derived
+   `isInteractiveJourney` flag the rest of the cascade uses — never inferred from mere journey
+   existence (a reference-origin edit keeps its own real narrative; see the next item for why that
+   distinction matters).
+3. **FIXED — fixture-local live-event recording was not idempotent.** `recordEvent()` in
+   `safe-transition-controller.ts` always generated a fresh id and appended a new row, with no check
+   against an already-accepted `clientEventId` — a genuine retry (reconnect, reload mid-send, a
+   resent command) would have silently double-counted a goal/correction/reversal. Fixed by mirroring
+   production's own real contract exactly (`clientEventId`-keyed dedup, confirmed against
+   `LiveMatchClient`'s own `reconcileOutboxWithServer()` doc comment: "a resend is dedup-safe
+   server-side by clientEventId") — an identical retry is a no-op, a conflicting one is rejected,
+   never silently appended or overwritten. The previous projection-level "duplicate delivery" test
+   was renamed to stop implying this was already proven elsewhere; the real claim is now proven
+   directly against the write boundary in `safe-transition-controller.test.tsx`.
+4. **FIXED — the shared report shell still contained B05-specific data when used by B08.**
+   `SafePostMatchReportShell` hardcoded B05's own `b05MinutesByParticipant`/
+   `b05ObservationCountByParticipant` maps, a literal `"report-gate-b-05"` report id, a literal
+   `"debrief-gate-b-05"` debrief id, and a B05-specific "Follow up on positional shape..." team note
+   — unconditionally, for every caller. Fixed with five new optional props
+   (`reportId`/`debriefId`/`minutesByParticipant`/`observationCountByParticipant`/`teamNote`), all
+   defaulting to B05's exact existing values (every B05 call site is byte-for-byte unaffected); B08
+   now passes its own real equivalents.
+5. **FIXED — LIVE Undo is now verified through a real browser interaction (Journey C).** The second
+   remediation declined to test this, having found a real timing characteristic in
+   `LiveMatchClient`'s own event-reconciliation display: `handleUndo(eventId)` can be invoked against
+   a Recent Events row still on the local overlay (not yet reconciled into `recentEvents`), whose own
+   `id` is its `clientEventId`, not the eventual real stored id — and `EVENT_REVERSED.correctsEventId`
+   is in the REAL-id namespace. Investigating further this pass found this is closable, not merely
+   avoidable: `recordEvent()` now normalizes an `EVENT_REVERSED`'s `correctsEventId` to the real
+   target id even when submitted against a `clientEventId` (the same write-boundary normalization a
+   real server would need to perform), proven directly in `safe-transition-controller.test.tsx`. With
+   that fixed, Journey C (`e2e/ui-lab-b08.spec.ts`) records a goal, Undoes it through the real mounted
+   `LiveMatchClient`'s own Recent Events panel, and verifies reporter/follower agreement and downstream
+   non-resurfacing through REPORT-DRAFT/AFTER/REPORT-COMPLETED/reload — no longer a disclosed gap.
+
+Journey D (a direct reference-report edit, end-to-end through REPORT-DRAFT/AFTER/REPORT-COMPLETED)
+was also added to `e2e/ui-lab-b08.spec.ts`, proving defect #1's fix in a real browser, not only at
+the unit level.
+
+Full detail: `DATA_TRUTH_AND_FIXTURES.md`, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
+`SOURCE_RECONCILIATION.md`, `INTERACTION_AND_STATE_AUDIT.md`, `CHANGED_FILES.md`.
 
 ## Second remediation ("lifecycle data consistency", independent review, 2026-11-08)
 

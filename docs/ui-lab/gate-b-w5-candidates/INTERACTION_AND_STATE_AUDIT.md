@@ -1,12 +1,13 @@
 # Gate B W5 — Interaction and State Audit (B08)
 
-**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** Component/unit-level
-coverage below, PLUS real Chromium browser coverage in `e2e/ui-lab-b08.spec.ts` (50 tests — the
-independent review's own section 11 explicitly treats unit tests as insufficient proof for
-navigation/continuity/layout claims; see that file and `TRANSITION_AND_NAVIGATION_CONTRACT.md`).
+**Updated for the W5 THIRD remediation (independent PR #822 review, 2026-11-08, "final
+data-integrity remediation").** Component/unit-level coverage below, PLUS real Chromium browser
+coverage in `e2e/ui-lab-b08.spec.ts` (53 tests — the independent review's own section 11 explicitly
+treats unit tests as insufficient proof for navigation/continuity/layout claims; see that file and
+`TRANSITION_AND_NAVIGATION_CONTRACT.md`).
 
 Component tests: `npx vitest run --config vitest.config.components.ts
-src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 66+ tests, all passing**
+src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 82 tests, all passing**
 (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
 
 ## B. Information ownership
@@ -132,8 +133,50 @@ src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 66+ tests, a
   goal → 1-1 persists through REPORT-DRAFT → completion → AFTER → REPORT-COMPLETED → reload), Journey
   B (same chain for a recorded 2-1), Journey E (a fresh context sees the unchanged 2-1 reference
   directly; starting and finishing an interactive 1-1 journey then using "Reset journey" restores the
-  2-1 reference). Journey C (goal reversal, browser-level) and Journey D (duplicate/correction,
-  browser-level) were deliberately not added — see `BLOCKERS.md` for the disclosed reasoning; both
-  claims are proven deterministically instead by `b08-projection.test.ts` above.
+  2-1 reference). Journey C (a real browser Undo) and Journey D (a direct reference-report edit) were
+  deliberately NOT added in this second pass — see `BLOCKERS.md` for the disclosed reasoning at the
+  time; both are now added in the third remediation pass, see section H below.
 - No regression: the first remediation's full existing suite (above) was re-run unchanged after this
   pass's changes and still passes.
+
+## H. Third remediation-specific coverage (W5, "final data-integrity remediation", 2026-11-08)
+
+- **History provenance (defect #1)**: `shared/__tests__/b08-projection.test.ts`'s
+  `resolveB08EffectiveHistory` describe block (4 tests, literal expected values) — a `"REFERENCE"`
+  origin (or no journey at all) always resolves the real canonical chronology/goal-count/team-note,
+  never an empty derivation; a `"LIVE_JOURNEY"` origin with a real ledger resolves exactly what was
+  recorded. `report-draft/__tests__/page.test.tsx`'s new describe block proves the same at the page
+  level: editing the reference report directly (Confirm duration) and reloading preserves the real
+  10'/22'/48' chronology, the 2-1 score, and the real narrative (not an interactive-looking
+  derivation); a LIVE_JOURNEY-origin seed correctly shows NO reference-only narrative.
+- **Narrative provenance in the shared report shell (defect #2)**: both `report-draft`/
+  `report-completed` pages now choose `debriefAnswers`/`debriefStatus`/`footballObservations`/
+  `combinationEvidence`/`observationCountByParticipant` by the same `isInteractiveJourney` flag
+  `after/page.tsx` already used — proven by the report-draft describe block above (the LIVE_JOURNEY
+  seed test specifically asserts the reference debrief's own text is absent).
+- **Idempotent event recording (defect #3)**: `shared/__tests__/safe-transition-controller.test.tsx`'s
+  "idempotent event recording" describe block (8 tests) — new goal accepted once; an identical retry
+  (same `clientEventId`) is a no-op returning the SAME real id; a second hook instance (reload) retry
+  is also a no-op; a conflicting retry (same `clientEventId`, different content) is rejected with the
+  first event untouched; two distinct goals both accept; a retried identical reversal applies once;
+  a retried scorer correction applies once; a distinct assist is a normal, separate append.
+- **Shared-shell B05-specific internals (defect #4)**: `safe-post-match-report-shell.tsx`'s own
+  existing B05 test suite (unchanged) re-verifies the five new optional props all default to B05's
+  exact existing values; B08's own `report-draft`/`report-completed` tests implicitly exercise the
+  B08-specific values (B08 player names/ids already asserted present throughout the existing suite).
+- **LIVE Undo real-browser verification (defect #5)**: `safe-transition-controller.test.tsx`'s own
+  dedicated test proves the `EVENT_REVERSED`/`clientEventId` normalization directly (an Undo recorded
+  against a not-yet-confirmed row's `clientEventId` is still correctly resolved to the real target
+  id). `e2e/ui-lab-b08.spec.ts`'s new Journey C exercises the full real-browser path: record a goal,
+  Undo it through the real mounted `LiveMatchClient`'s own Recent Events panel, verify reporter and
+  follower scores agree before and after, verify the "reversed" marker and the Undo control's own
+  removal (with an explicit, documented wait spanning the real 5-second `fetchEvents()` poll
+  interval — not an arbitrary sleep), then verify the reversed goal never resurfaces through
+  REPORT-DRAFT, AFTER, REPORT-COMPLETED, or a reload.
+- **Journey D (a direct reference-report edit, no LIVE journey at all)**: proves defect #1's fix
+  end-to-end in a real browser — the real chronology survives on REPORT-DRAFT's own Timeline tab,
+  AFTER's Events and Stats tabs (not only its Overview score), and REPORT-COMPLETED's Timeline tab,
+  across a completion and a reload; the real Assistant Coach insight (narrative) stays present,
+  proving it is not incorrectly withheld for a reference-origin edit.
+- No regression: the first and second remediation passes' full existing suites (sections A-G above)
+  were re-run unchanged after this pass's changes and still pass.

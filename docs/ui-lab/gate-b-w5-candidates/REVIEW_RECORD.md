@@ -90,61 +90,79 @@ cascade" section. Specifically:
    (including every CI capture); a skip-first-render guard was added to
    `safe-post-match-report-shell.tsx`. A separate, already-landed test-isolation bug (jsdom's shared
    `sessionStorage` leaking between tests in one file) was also found and fixed.
-6. **Disclosed, not attempted — Journey C (goal reversal) as a browser test.** A real, investigated
-   timing characteristic in `LiveMatchClient`'s own event-reconciliation display
-   (`getRecentEvents()`/`overlayPendingCommands()`) makes a reliable "click Undo on a just-recorded
-   event" Playwright test genuinely risky without local verification (blocked by this devcontainer's
-   documented HMR limitation). The identical claim is instead proven deterministically in
-   `b08-projection.test.ts` — see `BLOCKERS.md` for the full reasoning. Journey D (duplicate/
-   correction) is explicitly scoped by the review itself to "the fixture projection level" and is
-   satisfied by the same test file.
+6. **Disclosed at the time, since closed — Journey C (goal reversal) as a browser test.** A real,
+   investigated timing characteristic in `LiveMatchClient`'s own event-reconciliation display
+   (`getRecentEvents()`/`overlayPendingCommands()`) made a reliable "click Undo on a just-recorded
+   event" Playwright test genuinely risky at the time. Journey D (duplicate/correction) was
+   explicitly scoped by the review itself to "the fixture projection level" and was satisfied by
+   `b08-projection.test.ts`. **Both are addressed in the third remediation below** — Journey C's own
+   timing risk is now closed at the write boundary, not merely avoided.
 
 Full detail: `BLOCKERS.md`'s "Second remediation" section, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
 `DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`, `CHANGED_FILES.md`.
 
-## Verification performed (updated for the second remediation)
+## Third remediation (independent review of PR #822, 2026-11-08, "final data-integrity remediation")
+
+The second remediation's shared projection fixed cross-page consistency, but four real defects
+remained, plus an explicit requirement to finally verify LIVE's own Undo through a real browser
+interaction:
+
+1. **Editing the reference report directly could discard the match's canonical event history.**
+   `saveB08JourneyReport()` on a reference-mode edit (no LIVE journey at all) wrote `events: []` with
+   no record of why — AFTER then derived an EMPTY timeline from it. Fixed with `historyOrigin`
+   (`b08-journey.ts` v3) and a single resolver, `resolveB08EffectiveHistory()`, that every page now
+   calls instead of deriving from a raw, ambiguous event array; `initialLiveEvents()` had the
+   identical blind spot in reverse, fixed the same way.
+2. **Reference-only debrief/observation/combination content could appear in interactive reports.**
+   REPORT-DRAFT/REPORT-COMPLETED were passing the fixed reference literals to
+   `SafePostMatchReportShell` unconditionally, bypassing `staticAfterData`'s own already-correct
+   empty narrative. Fixed: both pages now choose by the same `historyOrigin`-derived flag the rest
+   of the cascade uses.
+3. **Fixture-local live-event recording was not idempotent.** `recordEvent()` always generated a
+   fresh id and appended a new row, with no check against an already-accepted `clientEventId` — a
+   genuine retry would have silently double-counted an event. Fixed to mirror production's own real
+   "dedup-safe server-side by clientEventId" contract exactly.
+4. **The shared report shell still contained B05-specific data when used by B08.** Hardcoded
+   `b05MinutesByParticipant`/`b05ObservationCountByParticipant` maps, a literal
+   `"report-gate-b-05"` report id, a literal `"debrief-gate-b-05"` debrief id, and a B05-specific
+   team note — all unconditional, for every caller. Fixed with five new optional props, all
+   defaulting to B05's exact existing values (B05 unaffected); B08 passes its own real equivalents.
+5. **LIVE Undo is now verified through a real browser interaction (Journey C).** Closing it required
+   finding and fixing a real, previously-only-investigated risk: `recordEvent()` now normalizes an
+   `EVENT_REVERSED`'s `correctsEventId` to the real target id even when submitted against a
+   not-yet-confirmed Recent Events row's `clientEventId` — the same normalization a real server would
+   need to perform. Journey D (a direct reference-report edit) was also added, proving defect #1's
+   fix end-to-end in a real browser.
+
+Full detail: `BLOCKERS.md`'s "Third remediation" section, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
+`DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`, `INTERACTION_AND_STATE_AUDIT.md`,
+`CHANGED_FILES.md`.
+
+## Verification performed (updated for the third remediation)
 
 - Component tests: `npx vitest run --config vitest.config.components.ts
-  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 71 tests, all passing**
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 82 tests, all passing**
   (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
 - Fixture/projection unit tests (default vitest config, `.ts`-only files): `npx vitest run
-  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **5 files, 62 tests, all passing**,
-  including the new `shared/__tests__/b08-projection.test.ts` (11 tests, the required
-  projection-integrity matrix: reference, LIVE-cutoff, finished-no-goal, scorer-skipped,
-  scorer-assigned, reversal with a correct-namespace assertion, a wrong-namespace negative test,
-  duplicate-event, completed-report 1-1/2-1, timeline chronology).
-- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, now **51 tests** (added Journeys A, B,
-  E on top of the first remediation's 50) — navigation, lifecycle-state continuity across three full
-  LIVE-to-report journeys, reference-mode isolation/reset, and the 5-scenario × 8-width (320-1440px)
-  overflow matrix. **51/51 passed** in this PR's own CI run (workflow run 42509495683, 1.0m).
-  Getting there took two real, disclosed fix-and-rerun cycles this pass: workflow runs 42506093494
-  and 42507560895 each caught one genuine bug in the new Journey E test itself (not the underlying
-  product code) — clicking "Reset journey" from the wrong page, then an insufficient per-test
-  timeout for Journey E's own longer navigation chain — both fixed and re-verified green; see the
-  commit history and `BLOCKERS.md`. Not runnable in this session's own devcontainer (the
-  already-documented local `next dev` + Playwright HMR WebSocket blocker).
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **5 files, 66 tests, all passing**,
+  including `b08-projection.test.ts`'s new `resolveB08EffectiveHistory` describe block (4 tests,
+  defect #1) and `safe-transition-controller.test.tsx`'s new idempotence matrix (8 tests, defect #3)
+  plus the `EVENT_REVERSED`/`clientEventId` normalization proof (defect #5).
+- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, now **53 tests** (added Journeys C and
+  D on top of the second remediation's 51) — Journey C records a goal and Undoes it through the real
+  mounted `LiveMatchClient`, verifying reporter/follower agreement and downstream non-resurfacing;
+  Journey D edits the reference report directly (no LIVE journey) and verifies the real chronology
+  survives across REPORT-DRAFT/AFTER (including its Events/Stats tabs)/REPORT-COMPLETED/reload. Not
+  runnable in this session's own devcontainer (the already-documented local `next dev` + Playwright
+  HMR WebSocket blocker) — real CI results pending this pass's own push (see Governance below once
+  filled in).
 - `npx tsc --noEmit -p .` — zero errors.
 - `eslint`/`docs:check`/`terminology:check`/`architecture:check`/`deadcode:check` — zero errors on
-  every changed file (repo-wide `eslint .` shows the same 3 pre-existing, unrelated warnings in an
-  untouched file, confirmed unrelated).
-- B05/B06/B07 + every TabRail consumer regression check, plus the full first-remediation suite: all
-  re-run unchanged after this pass's changes, all still passing (confirms the shared-component
-  change this pass made — `safe-post-match-report-shell.tsx`'s new `onStateChange` prop plus its
-  skip-first-render guard — is non-breaking).
-- Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
-  (workflow run 42509495683, the POST-SECOND-remediation run) produced 72 real screenshots across
-  all 5 scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from
-  the raw bytes against the artifact's own manifest.json — zero mismatches, zero missing files.
-  `capture-attestation.json` holds this real, verified evidence (superseding the first remediation's
-  attestation from workflow run 42473958417). The `sourceCommitSha` in the artifact's own manifest
-  (`1c80e04a`) was independently confirmed, via `git fetch origin pull/822/merge`, to be GitHub's own
-  synthetic merge of this PR's actual branch-tip commit (`d62575b2`, recorded as
-  `reviewedBranchHeadSha`) into `main` — the same precedent as every prior wave, not a mismatch.
-  This pass's own fixes change only what an INTERACTIVE journey shows; every capture runs in a fresh
-  browser context with no journey, so no visual difference from the first remediation's own
-  already-inspected reference-mode screenshots was expected or found — see
-  `capture-attestation.json`'s own `knownLimitations` for the complete reasoning and what was/wasn't
-  re-inspected visually this pass.
+  every changed file.
+- Full repo-wide regression: `npx vitest run --config vitest.config.components.ts` (152 files, 981
+  tests) and `npx vitest run` (588 files, 6526 tests) — both all passing, confirming the shared
+  shell's five new optional props (all B05-defaulted) are non-breaking across every consumer, not
+  only B08's own.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`
