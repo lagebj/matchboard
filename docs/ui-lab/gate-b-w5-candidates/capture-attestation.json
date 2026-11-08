@@ -1,27 +1,27 @@
 {
-  "description": "Gate B W5 (B08 information ownership and lifecycle transitions) UI Lab visual-review evidence.",
-  "sourceCommitSha": "20eedd4154e991bd07dd0395e3e4a891d9752dbf",
-  "generatedAt": "2026-11-07T20:58:53.823Z",
+  "description": "Gate B W5 (B08 information ownership and lifecycle transitions) UI Lab visual-review evidence \u2014 POST-REMEDIATION (independent PR #822 review fixes: LIVE clock, event-timestamp units, mobile overflow, navigation/continuity). Supersedes the pre-remediation attestation from workflow run 42412296463.",
+  "sourceCommitSha": "09f8381dbe1c9be32831d1d149ed6f3c2cdbbd10",
+  "generatedAt": "2026-11-08T11:17:37.203Z",
   "environment": {
     "node": "v24.22.2",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/42412296463",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/42473958417",
   "ciArtifact": {
-    "id": 13590761743,
-    "name": "ui-lab-review-42412296463-1",
-    "expiresAt": "2026-11-14T20:58:54Z"
+    "id": 13615260926,
+    "name": "ui-lab-review-42473958417-1",
+    "expiresAt": "2026-11-15T11:17:37Z"
   },
-  "reviewedBranchHeadSha": "4a28a6f800e63f32129a678ccc4575350796400d",
+  "reviewedBranchHeadSha": "d81c38007b75e52f25dd3449f51089983072afe3",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit -- same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit at this CI run.",
-    "GitHub Actions artifact retention is temporary (expires 2026-11-14) -- a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "All 72 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (42412296463) and every SHA-256 recomputed from the raw bytes -- zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
-    "This file is a filtered, scoped view of the run's full manifest.json (1220 total captures across every registered Gate A/B scenario) -- only the 72 B08 entries are included here.",
-    "This is the FIRST capture run for B08 -- there is no prior-fix/close-out revision history yet, unlike B07's own attestation.",
-    "Visually spot-checked directly in this session (not only hash-verified): B08-BEFORE desktop-dark, B08-LIVE desktop-dark, B08-AFTER desktop-light, B08-REPORT-DRAFT desktop-light (both initial and the resolved-completion-transition interaction state), B08-REPORT-COMPLETED desktop-dark. All five render correctly: real production components mounted (planning pitch, live reporter controls, AfterMatchOverview-equivalent panels, SafePostMatchReportShell), the AFTER candidate's lightened report-status widget renders with its on-page disclosure note visible, and the report-draft -> completed transition correctly updates the status badge (REPORTED -> LOCKED), removes edit controls, and replaces 'Complete report' with 'Reopen report' in place, with no stale content left over.",
-    "Remaining 66 of 72 captures (all other viewport/theme/scenario combinations) were hash-verified but not individually visually inspected in this session -- left for the owner's own Visual Authority review, per ADR-0159 (no coding agent posts /visual-approve)."
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit -- same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit (d81c3800) at this CI run.",
+    "GitHub Actions artifact retention is temporary (expires 2026-11-15) -- a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+    "All 72 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (42473958417) and every SHA-256 recomputed from the raw bytes -- zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+    "This is the SECOND capture run for B08 -- the first (workflow run 42412296463, commit 4a28a6f) predates the independent review's remediation fixes and is now superseded; its own evidence remains historically valid as a BEFORE-remediation reference only, not current evidence.",
+    "This same CI run also executed 50 real Chromium Playwright tests (e2e/ui-lab-b08.spec.ts, project `ui-lab-b08`) -- navigation, LIVE-to-report lifecycle continuity, and the full 5-scenario x 8-width (320-1440px) horizontal-overflow matrix -- all 50 passed. Not screenshot evidence, but real-browser behavioral proof from the same run these captures came from.",
+    "Visually spot-checked directly in this session (not only hash-verified): B08-LIVE desktop-dark (clock now reads the real 15:00 in the second half, not the pre-remediation false 45:00, and shows no spurious over-duration warning), B08-AFTER narrow-dark (320px, zero horizontal page overflow), B08-REPORT-DRAFT narrow-light (320px, tab rail scrolls within its own bounds rather than widening the page), B08-REPORT-COMPLETED narrow-dark (320px, same). All four confirm the remediation's real fixes are reflected in this capture run.",
+    "Remaining 68 of 72 captures (all other viewport/theme/scenario/interaction combinations) were hash-verified but not individually visually inspected in this session -- left for the owner's own Visual Authority review, per ADR-0159 (no coding agent posts /visual-approve)."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -60,7 +60,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-narrow-dark.png",
-      "sha256": "2d4d602420aa74d6773a17010cc4ad1318351b14380e665b55dba65a78fd553e"
+      "sha256": "9c7217c3c813f4b1b86d21443762c46f52587afdcd2d1dce67c7a03466e94a97"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -72,7 +72,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-narrow-light.png",
-      "sha256": "8a35714a5b50add103c28dcb648d7b57cfb283a02b9ac8fd6bf1a0116c0bc791"
+      "sha256": "8d85c8df37ae3f28b599ea70051175b876b84e7e083b3886ecbbbd740ceef94e"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -84,7 +84,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-gb-360-dark.png",
-      "sha256": "736451a6eba04c9bfe909fb2458e55c568e148e3d990b6f7f46abbc8cecd2a60"
+      "sha256": "df77e6b4188d039dc1a2a477260629009a891330cb271fa51a434f63749a7038"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -96,7 +96,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-gb-360-light.png",
-      "sha256": "e71038f14951800813d11f07b67b3e9472f6be82b47185ee64989713c4136427"
+      "sha256": "acc01cf3082cd38e4d7414fd2aea3b85ad4f5448e7af7be18caaa3b8b094c1d9"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -108,7 +108,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-mobile-dark.png",
-      "sha256": "2f9f1ba58295a99de0668a4bf853a3b3b012e024241b863a8c2099da42933902"
+      "sha256": "9e8d5a3f76ba26a7e05321b0cebccf2f8f0279a01ab9bf965e85fe8c27a03e2c"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -120,7 +120,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-mobile-light.png",
-      "sha256": "fd4ba3a0c461f0afc62b2ef5a2ab9cf390b4a72f6d59e4d234168fb24e60cbae"
+      "sha256": "396ecfec72bfdc1621e966ac04545af659b99465f387f2896fe6d0ea3d0531b2"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -132,7 +132,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-gb-430-dark.png",
-      "sha256": "ce12b08469457a6a54937a001a2360be6dff9be6bea294b44da83e6e351a7e6d"
+      "sha256": "3931e8ea40bf3cd7a0a71427cfc80dced3bbe5686e09e016cc8b12d887010f70"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -144,7 +144,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-gb-430-light.png",
-      "sha256": "1b0a7ba0c15a4d1e68204c4cc089983ebb09322c5562c60fda3f136521c09011"
+      "sha256": "ea64f65cf70ca261d70f4d8d1361ab3a5f7287f809b6b942f6011d2c5e99c154"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -156,7 +156,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-b08-600-dark.png",
-      "sha256": "d557e544381f4a5003d1d4cc3e9bb7d708ee923e8e0ca7c4bb732b5cb9c7674e"
+      "sha256": "0ae667ba3ba289b71842be6e4795900bd4e602e9cae3e2cbe9a9d84f5b616b1a"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -168,7 +168,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-b08-600-light.png",
-      "sha256": "0e3d4a5868b69466bb2a58f3452650abba34b5af3ad1bf000d10edbe6256d0dc"
+      "sha256": "058ec109fd148e18c2b523d5656ab041d80dbd05a350b205e3973d46f5bf687b"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -180,7 +180,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-b08-768-dark.png",
-      "sha256": "8643c0133af4832c04b2d4d9c2e06403d34dd0ae53c86f9079be408d11baad49"
+      "sha256": "c05b1a2c09bd9cebe2d933da9ba6ed94bfaec0f9150774e5b5d315b82d41a414"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -192,7 +192,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-b08-768-light.png",
-      "sha256": "c6ba3dbdbe0b99363290598662ea1a684a7f37216ea3f93672075384352c204e"
+      "sha256": "0083c216e7edd171bc79806e54386b3073c419ba756e7f8463e8d16c153c8ec7"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -204,7 +204,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-b08-900-dark.png",
-      "sha256": "6bda98cc744ded80931e7f2c0192c5c861c9f7af6b5632c3efee66b4a4732dd1"
+      "sha256": "cd0ea0b2bf2494b1553f94192a8d78845e06a6301d9c7bfad46b637c20fe4163"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -216,7 +216,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-b08-900-light.png",
-      "sha256": "aca1f3d3bd5a1e6c0473486345791e5dfa5357175a9844a00f5b2bc29278a7a4"
+      "sha256": "5db905d61e5121746fee03e0bfba5b0f74eb4d98b94901a13ea6ca4cabfece66"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -228,7 +228,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-desktop-dark.png",
-      "sha256": "604dfade65268caa9e360bd3266b3c1bbf86dd49f2d2fcf081f947f45ecd8235"
+      "sha256": "7f352a4b1732d06f41302b640115d34cfb08b7ddb2fd8dbccab2fc453d5a077e"
     },
     {
       "scenarioId": "B08-AFTER",
@@ -240,7 +240,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-after-desktop-light.png",
-      "sha256": "67b28bb127dc29feb776290f4ff40c958429d65caba064b1fcb8fc48832843cc"
+      "sha256": "60d35c0c36965f60a98d7554984b2f38822e51c79c8e76066c35ca2a5e8e9585"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -252,7 +252,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-narrow-dark.png",
-      "sha256": "ad269b1a2636f24af7eaa5c981d18112c74f78553db9c51687229f937e4d03b6"
+      "sha256": "e86515bc92fb46d8bc2a79c2645b1968eb0589533687e1eb579286d12db8a5fe"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -264,7 +264,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-narrow-light.png",
-      "sha256": "2060c472ee6f593966fbf9067f82fb7bc9cf16197f5467be776075dcbb3fde1f"
+      "sha256": "29d3e26d3fc381d90dfe1e921dd657728ff3c7754b9da42aca288864ec557bb4"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -276,7 +276,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-gb-360-dark.png",
-      "sha256": "5c8b34ad4b67b8189cd74d1d732a511053cc4ed615afc91f5cd0cb5cda5e41bc"
+      "sha256": "8137b45de6138ca69ef088da9380e9edf0f9be2c08c3061a5ea3cbbfd99d4b06"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -288,7 +288,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-gb-360-light.png",
-      "sha256": "0532483a9aa15c5a0a0cec919adda53485bcad7d10f9ba4385140a0aa80ed7b4"
+      "sha256": "0dd9f929bd7068b759cf49684b884f1dffc8b1424360b8f82ff064e9e70b4747"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -300,7 +300,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-mobile-dark.png",
-      "sha256": "9364658c177967032f871ee78af566ba5946b82295eb117e59d488e72deb7484"
+      "sha256": "b4238954ea73fb35493700c968bf9af393f012f91b219e014644ede86b1d8b8c"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -312,7 +312,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-mobile-light.png",
-      "sha256": "0764b0a301d290ee523e80f0cd229cf05885c7cbf13082157ab28ad03a3877a2"
+      "sha256": "7d34aecef2180cb17cbe7c73bca1f6bc11382699e9c86bf0889721a66df3eff7"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -324,7 +324,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-gb-430-dark.png",
-      "sha256": "5a14c533505b61edb27c554f4bc9dd437596861ef0fe11c7f7df680c8dc944b7"
+      "sha256": "7c8ab3c3f7b7a6b27cee33c92ea7f2f7f6b5eca37a2a61fec7b91dad89c8df57"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -336,7 +336,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-gb-430-light.png",
-      "sha256": "972731d47ddad759cb2594701b80a38f67026e5e6b721c5d3437ea66058c1831"
+      "sha256": "297ffb237e99cf55297be84703747cc085325fb3195151ec5ae98098afc9a928"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -348,7 +348,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-desktop-dark.png",
-      "sha256": "792829591c8cd6801c4a136d51bdf11d989f3c856dc161e0f65c8aa9934e0932"
+      "sha256": "041154c757a4f06389791adc6f2198589e4c0995923bfb9089194ae243334e03"
     },
     {
       "scenarioId": "B08-BEFORE",
@@ -360,7 +360,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-before-desktop-light.png",
-      "sha256": "74ec999dc5aa438306380f08f92cda2a915cd41408dcfd012c2c7120ed93220d"
+      "sha256": "8ce76f913c2d9c2fe2dbb51c73db83762b944d0e2bd7fb240f5274f7cc87accd"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -372,7 +372,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-narrow-dark.png",
-      "sha256": "cf942cd08ed849146b2a9caa6e34bb773c222ad6ba44bc562fbe5accc831181f"
+      "sha256": "649fa9f425dd1e5dcacfd4cdc1021b2707292fc82ebfa0c1901263b55ef2ffaf"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -384,7 +384,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-narrow-light.png",
-      "sha256": "a33a6fde58616db23621aea1659007f2dd1bd1fb9050ae9614ad23d5baf0bebd"
+      "sha256": "06f312aacc5bdae97a8c748cec6ffc888ffa955f6933b2ad261f4ca1eae6cf83"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -396,7 +396,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-gb-360-dark.png",
-      "sha256": "817c9f73e715e373e242d9b845bfeec2f0a18ae227fe47c10610e38711d3fd22"
+      "sha256": "35130021979af1812a87a04bd46c78f63ada77e6308bca4d7ecf036464710a6d"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -408,7 +408,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-gb-360-light.png",
-      "sha256": "457961ffbdab321015de0f2b9edc5ce3fdaf9bc49375ab1fc29624fe80bc5106"
+      "sha256": "bb184922495e6b9fb81c6cc09c26db33b1b5da20c61722e55394a30555aa1fab"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -420,7 +420,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-mobile-dark.png",
-      "sha256": "e34acf92570cb81676a62a229e31e0944990954734be744c54ee884501721cfd"
+      "sha256": "30b10c46dedcb1e02fdcb811369e8746fda4252ab63fb4fcc1802c05461efc04"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -432,7 +432,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-mobile-light.png",
-      "sha256": "8e0f452fd20d4b9db700b377f13c49cae1f6403948cb14679f216c59ba77b038"
+      "sha256": "bfc63971dbb19b0858c712f10606ef0ec170f1c227048b13d5c380ffa4ada46a"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -444,7 +444,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-gb-430-dark.png",
-      "sha256": "5255cb0dbe75ea1f03918a488c652ef1b456b264841162d091ec2b667517cd80"
+      "sha256": "34bf37068f4bd3e80c59a137a7d63b268f128790f2886872047647a7cc3794d4"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -456,7 +456,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-gb-430-light.png",
-      "sha256": "060927c03a3aad77cbae1e58e4030bd03c1d7b2fc62564fc0c3f432fe3d6de8a"
+      "sha256": "86ff78cb7f058ba88a5b387b492e8dd40ee1996de6edec503fc6f503d8b390a7"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -468,7 +468,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-desktop-dark.png",
-      "sha256": "852ca99a99680ef45e76a60406b20af18c699f5dbfe06ec3d8ccd73ca73413ba"
+      "sha256": "3bc34a84b168a2c30198e911df633c686ff8c124c4e222e3c076cf6c45917156"
     },
     {
       "scenarioId": "B08-LIVE",
@@ -480,7 +480,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-desktop-light.png",
-      "sha256": "08cd240ec1e6b980647d5b1155e8563f8e33cd2c92ee5a8adb8591a5f37ad95c"
+      "sha256": "3115a5a0e37764066c7ee10f0b39861988ade58c5bd28da53493862c3f00c789"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -492,7 +492,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-narrow-dark.png",
-      "sha256": "45b9f3c6945c81b4598d31d35dcfce2ecba299b0e8a63d95c77ae6478d1ed2b2"
+      "sha256": "65b138b4f4e41e2712881e0c7ecdf0a7aa63c8fc2fa603c349d893fa6e43a5bc"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -504,7 +504,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-narrow-light.png",
-      "sha256": "d551b360af6ab47fb5c95cbc4f7e23caed0177ee59f7ddcb9e8d94b53f5f53fc"
+      "sha256": "f441847cf77653e0243a6648a2c94421360c7d44ae777c978be2b437c748223b"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -516,7 +516,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-gb-360-dark.png",
-      "sha256": "c630ba6049b9b3f9cb83570f144f7f9708f02b06eb4f3d3c80c23b0524336a8c"
+      "sha256": "a2b21182418acdc206ea6661d2469faa3af6650a9c56ce6e03cb193baf474791"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -528,7 +528,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-gb-360-light.png",
-      "sha256": "4aa298afa14c5cd23e636cc1c2be8d84ced05509bc2c8e64be6c99b4a12f2e58"
+      "sha256": "705c6535a34e2ef751dd5591b025dc6689a798d1c7bfabf04076a161491f2668"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -540,7 +540,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-mobile-dark.png",
-      "sha256": "6bec9e41b6acbedd8440895a98ca1ab7a40e29a4835d52b2ac0453c537ba17d0"
+      "sha256": "b0dcd575819d96d7984e2f122d24303c40e5433a79f6ff0004987dcee356de60"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -552,7 +552,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-mobile-light.png",
-      "sha256": "85f5cb70f56f485e270c3a607e0c5fdcf69b539a3f7e81ff90ba1ab6e88e7850"
+      "sha256": "b66415570540891c1f8f2564feb52cbea2addfdf849cbd6797645435ae8e18db"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -564,7 +564,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-gb-430-dark.png",
-      "sha256": "0c786b9971cb77cc0631c865093763d37428d19402a95d7e7a96061b62b04b1f"
+      "sha256": "6e771538da1ce89dcd451433ab20c82d4220c60be62ef9671b6df0bd4b941621"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -576,7 +576,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-gb-430-light.png",
-      "sha256": "21929be975c1f5dccdf396737128b863a07843325b867e51afb538ff11c5ddcf"
+      "sha256": "c4e03acf0cbf3614866ee5d2c26e38211019f32d7ba74e3be2482e644b714950"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -588,7 +588,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-b08-600-dark.png",
-      "sha256": "4dd1b1d800d0cc96757b46ec8735406cd8ae2a4e11b4a35736c52f00f261dafa"
+      "sha256": "ca5bd37ca2282b353510e8e3e58a76efba6a9b3cff7d7fa92e8d035274df4168"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -600,7 +600,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-b08-600-light.png",
-      "sha256": "2469f170fc5f88b615d0f92850ca87d622799373af618a71fdb8edd2aa87d0f9"
+      "sha256": "8a0ce604eb2afe7d5810b3c53d1a735e34f6faa7bfdaa5bcf1c6ff098feb5173"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -612,7 +612,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-b08-768-dark.png",
-      "sha256": "0d9b6df1f174b945c8cbd5c3d8daccc80d6ca6d6b84b4deed121e309a5a52508"
+      "sha256": "c17e0a41706252d0d8aac09d6b10cd684b5004eb429fd1916a0cf716ab7c1583"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -624,7 +624,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-b08-768-light.png",
-      "sha256": "41435dfad69f5ca2422af420fb97dc282e584445605e70dcf7f94bdb3e9322aa"
+      "sha256": "7ef847052e02e102cecf8127ec165c3d2d7eb3ee42ce797193f437600c376e82"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -636,7 +636,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-b08-900-dark.png",
-      "sha256": "e91ea0b7461cce84e16e671b191454104f803e13062c7731e7459f6f867e2102"
+      "sha256": "860ef7629b3e22b74724601a99773c779b1b813f697e195dd748747bbb6dea5d"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -648,7 +648,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-b08-900-light.png",
-      "sha256": "7c0c3d56b4405e183e217c16cd1977eb10fd8f7caeb859334dbddbaf74a9eba3"
+      "sha256": "b8b0672effaec73983c8e087de9a4432569b8bd6473c2d9578513bfa6b7070d8"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -660,7 +660,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-desktop-dark.png",
-      "sha256": "4cab2a9bba3ac71888d292d7cbeb9998d912a45ba6bad4b9b4b6c1964e0a6822"
+      "sha256": "78c2080557b0211a6dbdabdeb770bddbf5510c8a04ab525302a4c3859b3f4424"
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
@@ -672,7 +672,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-completed-desktop-light.png",
-      "sha256": "063c3d27d08eec5b2fd2e0c2ed2ea4a2933003cccb8bea2490f11eb87dda1a64"
+      "sha256": "04f62b176fb78b90b406a5401079a2ee638c92e9b5f9ce8fe0de7656bbe095dc"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -684,7 +684,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-narrow-dark.png",
-      "sha256": "3867f2b661688b733dbb898030c931786bb57644d8a25e61f23e8f78dc9737b0"
+      "sha256": "c19a084e2e90e560d28fac71c0362caf7142ab5691cb42379b7d2c7d59925542"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -696,7 +696,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-narrow-light.png",
-      "sha256": "6eb0b666c7f1578ab4227bd735d0a3dbab92625242bc4d3e181c4bb6b59215b1"
+      "sha256": "eb4de2d1f35a6aceab024ec3956dfbf8203459d4407be3d33b84dc26b64c2db2"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -708,7 +708,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-gb-360-dark.png",
-      "sha256": "6e7a1328afe7ed2a1ea553a92789d8e9bb09f65764c09207a03b8c892d797060"
+      "sha256": "45cec8e9181bf561c76761cadc12d8f450ef79d91fc862e11cb351b24e182475"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -720,7 +720,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-gb-360-light.png",
-      "sha256": "b4ed6bf696c87b1c7a34cf257b96aed96ae38a7ac55e3c303ed912c6c9593a28"
+      "sha256": "8828296e2050a43ebf44a5eeb10b2472c58fdd321c2c93607d2fa4d0c385f1b5"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -732,7 +732,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-mobile-dark.png",
-      "sha256": "e50ccd3e8914a0724a84f82a3b01f1fa549148a33778cdc517a9f1bab23210cf"
+      "sha256": "9a53883352bd43bece75b1cb533fb6c02f5ce1f6c4ccc1278cd6629bf650d916"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -744,7 +744,7 @@
       "theme": "dark",
       "interactionState": "resolved-completion-transition",
       "file": "gate-b-w5-b08-report-draft-mobile-dark-resolved-completion-transition.png",
-      "sha256": "2912bf8434cfe1c31f3ec2dd3c1bb10319c7b5bd0f48a596ed8b5347b5fbd211"
+      "sha256": "10b3590aeb8481a2145d83cd97a8a39b9cb953596e318b59b023cfe38151491c"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -756,7 +756,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-mobile-light.png",
-      "sha256": "b9608b21d96e3988642f69e32b0b427c8ce01cab4a63a22d57c63ae894b37b61"
+      "sha256": "6c515e3e856176aeebe9d59f7caceb983f64bc8f159366e2d5e059e278e92253"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -768,7 +768,7 @@
       "theme": "light",
       "interactionState": "resolved-completion-transition",
       "file": "gate-b-w5-b08-report-draft-mobile-light-resolved-completion-transition.png",
-      "sha256": "1259aa8c7286c4969965365ae54194bccf51a1a3d7a5ae94cd90264808296386"
+      "sha256": "5a09f9a1914a35b9e194096705b8cfef06ba4a07b81686b7a42f11d6a95ae96e"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -780,7 +780,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-gb-430-dark.png",
-      "sha256": "02980f4a92e0b52e064b3f4938a77e458d889ab751dad1ea07a7056c9899c257"
+      "sha256": "8d5b3da832603540be5c85f7938f49039bea62ae39fcacafd5b6763c36126d52"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -792,7 +792,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-gb-430-light.png",
-      "sha256": "6bd063d2aa5a0dc6bf5e82c24e481a580ab7b6972c25a7611643bca17e35e893"
+      "sha256": "bc795b585fd709d6d5274ff6e9a6c5e477c85b2e076b8080e9875bd4ce99a894"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -804,7 +804,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-b08-600-dark.png",
-      "sha256": "38bdfb7137a57d8c75e7b10b8aa8c55fdaf820f03ecd0d5f027aaf96cdec64e4"
+      "sha256": "2ae8f7d8f3777f9958246907f0b0052d279b3079f982c3581c4fa568dd2991b0"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -816,7 +816,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-b08-600-light.png",
-      "sha256": "ffb26891c02f9226cafd6167cb1b8ce54afde0ad3ed2d493ca33e0f86233c86f"
+      "sha256": "e7f2fa64c2d0ea3701b15889a53d715dc6f41bbe571c04a302d72e6b0bc315e7"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -828,7 +828,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-b08-768-dark.png",
-      "sha256": "361eb599a82fa9c62855cdba4e31c0393c4ddbceae9514fbda4ec2aa99782cc5"
+      "sha256": "d45ab4cccc8fb3dfc376050e5d00f3bf7b5735957773d378970272a842b68727"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -840,7 +840,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-b08-768-light.png",
-      "sha256": "0563aca8fc77cb2372cf659a5c7704a31aaa9e600cd35baee159f8ae77d1c661"
+      "sha256": "90089a94d0e5a5c0b815f6da3430683102c05d6509bed94cbd0b3d0982aa15d9"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -852,7 +852,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-b08-900-dark.png",
-      "sha256": "6684d0bb15057d35a3a7bc58a651cecf7aed2de78dff57743859ea296ff6ffb7"
+      "sha256": "2f2f2ceb7b53459429c1edb318a6d0e0a71822ab685b361a8cd8dc2c90433bc1"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -864,7 +864,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-b08-900-light.png",
-      "sha256": "d0b518b2a2464602d569e316379690d281f818b91bd0948a6721f8fb36b2c216"
+      "sha256": "2f60ecd8d2b0cedf4fcd34c39b24236e355f9d007c718a1a679d509c98fdb290"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -876,7 +876,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-desktop-dark.png",
-      "sha256": "6f65d2728e9a4d3ea88b65b5e5410233d60b5144845947f95121c9388fa31219"
+      "sha256": "48c96d7c67f62b61c00312143f4fd4d5490109351bfd16bdc74ecdc47329f72e"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -888,7 +888,7 @@
       "theme": "dark",
       "interactionState": "resolved-completion-transition",
       "file": "gate-b-w5-b08-report-draft-desktop-dark-resolved-completion-transition.png",
-      "sha256": "2791ae87fba065ae4685be11b74a37826ccd02643c92089ad10f6f55dcc0cf91"
+      "sha256": "a5573f413b1ffbb7daf6d8e63737f52b6446faa76b4ed8be3f193a57f59088aa"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -900,7 +900,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-report-draft-desktop-light.png",
-      "sha256": "5a988fd132f30ad58f6e5bd0054475b138f093c6b022ee6de6afdc87c0a95242"
+      "sha256": "bc8baaabb3f05db3e3dd9c13015b046445374f508681219a1d39ce41c38f7e0f"
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
@@ -912,7 +912,7 @@
       "theme": "light",
       "interactionState": "resolved-completion-transition",
       "file": "gate-b-w5-b08-report-draft-desktop-light-resolved-completion-transition.png",
-      "sha256": "4c90ace7ea1c5b9e125ede37ed10958424b5907c2fbf8c6bb19ad4643fd1fe31"
+      "sha256": "5775a012ee766b58729233182f9fc68d06406ea1816574cd9d3a3f349b3ecf98"
     }
   ]
 }

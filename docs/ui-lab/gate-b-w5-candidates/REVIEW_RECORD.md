@@ -67,8 +67,11 @@ Full detail, file-by-file: `BLOCKERS.md`'s "Remediation" section,
   (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
 - Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, 50 tests — navigation, lifecycle-state
   continuity (including the full LIVE-to-report journey), and a 5-scenario × 8-width (320-1440px)
-  overflow matrix. Runs in CI only (this devcontainer's known `next dev` + Playwright HMR WebSocket
-  blocker) — see this PR's own "Capture fixture-backed UI Lab views" CI run for real results.
+  overflow matrix. **50/50 passed** in this PR's own CI run (workflow run 42473958417, 28.4s) — the
+  first run (workflow run 42472630228) caught 4 real bugs in the spec itself (not the underlying
+  fixes — see the commit history), all corrected and re-verified green. Not runnable in this
+  session's own devcontainer (the already-documented local `next dev` + Playwright HMR WebSocket
+  blocker).
 - `npx tsc --noEmit -p .` — zero errors.
 - `eslint`/`docs:check`/`terminology:check`/`architecture:check`/`deadcode:check` — zero errors on
   every changed file (repo-wide `eslint .` shows the same 3 pre-existing, unrelated warnings in an
@@ -78,11 +81,15 @@ Full detail, file-by-file: `BLOCKERS.md`'s "Remediation" section,
   `backHref`/`backHrefForStatus`/`onStatusChange`, `match-after-match-panel.tsx`'s
   `reportHrefOverride`, `tab-rail.tsx`'s overflow containment — are all non-breaking).
 - Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
-  produced real screenshots across all 5 scenarios, downloaded via `gh run download` and every
-  SHA-256 independently recomputed from the raw bytes against the artifact's own manifest.json.
-  `capture-attestation.json` holds this real, verified evidence — see that file's own
-  `knownLimitations` for exactly what was additionally visually inspected, and `generatedAt`/
-  `ciWorkflowRun` for the exact re-capture run this remediation's own fixes are reflected in.
+  (workflow run 42473958417, the POST-remediation run) produced 72 real screenshots across all 5
+  scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from the
+  raw bytes against the artifact's own manifest.json — zero mismatches. `capture-attestation.json`
+  holds this real, verified, post-remediation evidence (superseding the earlier pre-remediation
+  attestation from workflow run 42412296463). Four key screenshots were also visually inspected
+  directly in this session, confirming the remediation's own fixes: B08-LIVE's clock now reads a
+  real 15:00 (not the pre-remediation false 45:00), and B08-AFTER/-REPORT-DRAFT/-REPORT-COMPLETED
+  all render with zero horizontal overflow at 320px — see `capture-attestation.json`'s own
+  `knownLimitations` for the complete list.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`

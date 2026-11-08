@@ -39,8 +39,15 @@ FIXED, not merely disclosed:
    supplies both a `reportId` and a working `reportUrl()`. See
    `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "RESOLVED" section.
 9. **ADDED — real browser (Playwright) coverage**, since unit/component tests alone were correctly
-   judged insufficient proof for navigation/continuity/layout claims. See
-   `e2e/ui-lab-b08.spec.ts` and `INTERACTION_AND_STATE_AUDIT.md`.
+   judged insufficient proof for navigation/continuity/layout claims. 50/50 tests passed in this
+   PR's own CI (workflow run 42473958417) — the full 5×8 overflow matrix, the real LIVE-to-report
+   journey (via `window.location.href` navigation and real sessionStorage persistence), and
+   navigation/back-link correctness. See `e2e/ui-lab-b08.spec.ts` and
+   `INTERACTION_AND_STATE_AUDIT.md`.
+10. **RESOLVED — real post-remediation capture + attestation.** The capture run accompanying this
+    remediation (workflow run 42473958417, commit d81c3800) produced 72 real screenshots, all
+    independently re-hashed with zero mismatches, replacing the pre-remediation attestation. See
+    `capture-attestation.json`.
 
 The sections below are the ORIGINAL implementation's own blockers/decisions record, left in place
 for history; superseded claims are marked inline rather than deleted, so the record stays honest

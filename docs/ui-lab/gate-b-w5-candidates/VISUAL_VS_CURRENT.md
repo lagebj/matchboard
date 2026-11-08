@@ -1,12 +1,12 @@
 # Gate B W5 — Visual vs. Current Production (B08)
 
-**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** The capture evidence
-referenced lower in this document (workflow run 42412296463) predates the remediation's fixes
-(clock, timestamp units, mobile overflow, navigation) — it is the BEFORE-remediation reference, not
-current evidence. A fresh capture run from the remediation's own final commit is required before
-this document's own screenshot references are considered current; see `capture-attestation.json`'s
-`generatedAt`/`ciWorkflowRun` for whichever run is actually attested at any given moment, and
-`REVIEW_RECORD.md` for the disposition this reflects.
+**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** A fresh, POST-
+remediation capture run (workflow run 42473958417, commit d81c3800) now backs
+`capture-attestation.json` — 72 real screenshots, all independently re-hashed with zero mismatches,
+superseding the earlier pre-remediation run (workflow run 42412296463). Visually confirmed in this
+session: B08-LIVE's clock now reads a real 15:00 (not the pre-remediation false 45:00); B08-AFTER/
+-REPORT-DRAFT/-REPORT-COMPLETED all render with zero horizontal overflow at 320px. The same CI run
+also executed the full 50-test Playwright suite (`e2e/ui-lab-b08.spec.ts`), all passing.
 
 Real browser screenshot evidence for B08 comes from this PR's own CI run of the "UI Lab Visual
 Review" GitHub Actions workflow (`scripts/ui-lab-visual-review.mjs`, 5 scenario entries registered
