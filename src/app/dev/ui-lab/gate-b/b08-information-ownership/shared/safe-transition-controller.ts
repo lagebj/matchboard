@@ -180,10 +180,21 @@ export function useB08LiveFixtureActions(matchId: string) {
         positionChange: null,
       },
     ];
+    // Fourth remediation (independent review, 2026-11-08, "final source-of-truth remediation",
+    // defect #2): the write boundary itself — not just the UI — rejects a LIVE recording that
+    // would flip an already-REFERENCE-origin persisted report's own history out from under it.
+    // Checked HERE (persist first, then commit to React state) so a rejected event is never
+    // reflected in `events`/`eventsRef` even transiently — `LiveMatchClient`'s own real optimistic
+    // score update reads `eventsRef.current`/`localCommands` independently and is unaffected by
+    // this fixture's own state, matching the real contract: a rejected event must never look
+    // accepted. Surfaced via the real `conflict` field (not `error`) so `attemptSend` routes it to
+    // `NEEDS_REVIEW` — a genuine, non-silently-retried condition only a coach decision (or, here,
+    // the real "Reset journey" control) can resolve, never `LOCAL_PENDING`'s endless silent retry.
+    const writeResult = saveB08JourneyEvents(next);
+    if (!writeResult.accepted) {
+      return { success: false, conflict: { code: "HISTORY_ORIGIN_MISMATCH", message: writeResult.reason } };
+    }
     setEvents(next);
-    // P1-6: persisted immediately (not only held in this component's own React state), so a
-    // navigation away from B08-LIVE — not just a re-render — carries the recorded event forward.
-    saveB08JourneyEvents(next);
     return { success: true, data: { id } };
   }, []);
 
@@ -197,7 +208,18 @@ export function useB08LiveFixtureActions(matchId: string) {
         // P1-6: marks this journey "finished" — the Report candidate only reads a FINISHED
         // journey's events, so a half-recorded, abandoned LIVE session (never finished) cannot
         // leak a partial event list into the Report as though it were the final record.
-        markB08JourneyFinished(eventsRef.current);
+        //
+        // Fourth remediation (defect #2): rejected the same way `recordEvent` is — "finishing" a
+        // session while a REFERENCE-origin report is already persisted would ALSO retain that
+        // report under a newly-flipped LIVE_JOURNEY origin, even with no new event ever recorded.
+        // `LiveMatchActions.endSession`'s own real contract has no `conflict` field (only
+        // `recordEvent` does), so this uses the real `error` path instead — `LiveMatchClient`'s own
+        // unmodified `handleEndSession()` already surfaces `result.error` via its visible `setError`
+        // state on a non-success result, never silently drops it.
+        const writeResult = markB08JourneyFinished(eventsRef.current);
+        if (!writeResult.accepted) {
+          return { success: false, error: writeResult.reason };
+        }
         return { success: true, data: { reportId: "report-gate-b-08", reportStatus: "REPORTED" } };
       },
       heartbeat: async () => {},

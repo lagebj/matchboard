@@ -47,9 +47,30 @@ import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
  * increment — a stale-version blob is simply never read, the safest possible migration for a
  * client-only, tab-scoped, dev-fixture store (no partial-read risk, no crash, just starts fresh —
  * the same "reference snapshot" default as a brand-new session).
+ *
+ * FOURTH remediation (2026-11-08, "final source-of-truth remediation", defect #2): `historyOrigin`
+ * was introduced to DISTINGUISH the two histories, but `saveB08JourneyEvents()`/
+ * `markB08JourneyFinished()` still unconditionally wrote `historyOrigin: "LIVE_JOURNEY"` even when
+ * a `"REFERENCE"`-origin report was ALREADY persisted — a coach who edited the reference report
+ * directly, then went to LIVE and recorded a real event, would silently flip the origin while
+ * RETAINING the old reference-derived report, leaving the event ledger and the report grounded in
+ * two different match histories. Both write functions now REJECT (return
+ * `{accepted: false, reason}`) rather than perform this transition — the only valid way to start a
+ * genuinely new LIVE journey after a reference-origin edit is the existing, explicit "Reset
+ * journey" control (`resetB08Journey()`), never an implicit side effect of recording an event.
  */
 
 const STORAGE_KEY = "b08-live-journey-v3";
+
+/** The outcome of a write that could conflict with an already-established `historyOrigin`. Mirrors
+ * the shape callers already use to report LIVE action results (`{success, error}`/`{success,
+ * conflict}` in `LiveMatchActions`), so `safe-transition-controller.ts` can translate a rejection
+ * directly into the real fixture adapter's own existing result shapes without inventing a third
+ * one. */
+export type B08JourneyWriteResult = { accepted: true } | { accepted: false; reason: string };
+
+const REFERENCE_ORIGIN_CONFLICT_REASON =
+  'A reference report has already been edited for this match (historyOrigin "REFERENCE"). Recording or finishing a LIVE session now would leave the event ledger and the persisted report grounded in two different match histories. Use "Reset journey" first to start a genuinely new LIVE session.';
 
 /** Which match history a persisted report is actually grounded in — see the V3 module doc above.
  * Set once, by whichever write happens first (a reference-mode report edit, or a real LIVE
@@ -170,17 +191,30 @@ export function loadFinishedB08JourneyEvents(): LiveEventSummary[] | null {
   return state.events;
 }
 
-/** Called only from a real LIVE recording action (`recordEvent`/`endSession` on B08-LIVE) — always
- * establishes/reconfirms `"LIVE_JOURNEY"` as the origin, since real live-event recording is
- * unambiguous: whatever the coach does here from now on is the real, authoritative journey. */
-export function saveB08JourneyEvents(events: LiveEventSummary[]): void {
+/** Called only from a real LIVE recording action (`recordEvent` on B08-LIVE) — establishes
+ * `"LIVE_JOURNEY"` as the origin on a fresh journey, or reconfirms it on an already-LIVE_JOURNEY
+ * one. REJECTS (does not write anything) if a `"REFERENCE"`-origin report is already persisted —
+ * see the V3/fourth-remediation module doc above; the caller must report this as a failed
+ * recording, never a successful one. */
+export function saveB08JourneyEvents(events: LiveEventSummary[]): B08JourneyWriteResult {
   const current = readStorage();
+  if (current?.historyOrigin === "REFERENCE") {
+    return { accepted: false, reason: REFERENCE_ORIGIN_CONFLICT_REASON };
+  }
   writeStorage({ version: 3, historyOrigin: "LIVE_JOURNEY", events, finished: current?.finished ?? false, report: current?.report ?? null });
+  return { accepted: true };
 }
 
-export function markB08JourneyFinished(events: LiveEventSummary[]): void {
+/** Same rejection rule as `saveB08JourneyEvents()` above — "finishing" a LIVE session while a
+ * REFERENCE-origin report is already persisted would ALSO flip the origin while retaining that
+ * report, even if no new event was ever recorded in this session. */
+export function markB08JourneyFinished(events: LiveEventSummary[]): B08JourneyWriteResult {
   const current = readStorage();
+  if (current?.historyOrigin === "REFERENCE") {
+    return { accepted: false, reason: REFERENCE_ORIGIN_CONFLICT_REASON };
+  }
   writeStorage({ version: 3, historyOrigin: "LIVE_JOURNEY", events, finished: true, report: current?.report ?? null });
+  return { accepted: true };
 }
 
 /** The reconciled report state, or `null` if the coach hasn't started reconciling yet (no

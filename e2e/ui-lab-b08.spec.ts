@@ -308,6 +308,13 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     // text on this page) — it must still be the real, fresh insight, not the `AdvisorPanelUnavailable`
     // state an interactive journey correctly shows instead.
     await expect(page.getByText(/Vollen's equalizer at 22' followed directly from a lost high turnover/)).toBeVisible();
+    // Fourth remediation (defect #1): AFTER's own "Team reflection" widget must say "Recorded" —
+    // a direct completion of the SAME reference report must never show "Not recorded" here while
+    // REPORT-COMPLETED's own Reflection tab (checked below) correctly shows the real, already-
+    // submitted debrief. Scoped to the "Team reflection" widget specifically ("Recorded" alone is
+    // not a unique string on this page — the sibling "Notes" widget uses the same title text).
+    const teamReflectionWidget = page.locator("p", { hasText: "Team reflection" }).locator("..");
+    await expect(teamReflectionWidget.getByRole("heading", { level: 3 })).toHaveText("Recorded");
 
     await page.getByRole("link", { name: "View report" }).click();
     await page.waitForURL(new RegExp(`${BASE}/report-completed`));
@@ -319,6 +326,62 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     await expect(page.getByText("10'").first()).toBeAttached();
     await expect(page.getByText("22'").first()).toBeAttached();
     await expect(page.getByText("48'").first()).toBeAttached();
+
+    // AFTER and the completed report agree about reflection: the same real, submitted debrief
+    // content is visible here too — the exact contradiction defect #1 fixed.
+    await page.goto(`${BASE}/report-completed?tab=reflection`);
+    await expect(page.getByText(/Winning the ball back high led directly to our second goal/)).toBeVisible();
+  });
+
+  // Journey F (independent review, fourth remediation "final source-of-truth remediation",
+  // section 3): a direct reference-report edit establishes a REFERENCE-origin persisted report;
+  // attempting a LIVE recording afterward must be REJECTED at the fixture's own write boundary
+  // (not merely hidden in the UI) so the event ledger and the report can never belong to two
+  // different histories. An explicit Reset journey is the only valid recovery.
+  test("Journey F — editing the reference report then attempting a LIVE recording is rejected; Reset journey allows a valid new LIVE journey", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto(`${BASE}/report-draft`);
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await expect(page.getByText("Confirm duration", { exact: true })).toHaveCount(0);
+
+    // Attempt a real LIVE recording while a REFERENCE-origin report is already persisted.
+    await page.goto(`${BASE}/live`);
+    await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("1 : 1").first()).toBeAttached();
+    await page.getByRole("button", { name: "Goal for us" }).click();
+    await page.getByRole("button", { name: "Skip" }).click();
+
+    // Rejected at the write boundary — proven immediately via the follower panel (B08's own
+    // read-only summary), which derives its score from the SAME `events` state `recordEvent()`
+    // only updates on a successful write: it never moves off "1 : 1", even though the reporter's
+    // own optimistic display bumps regardless (a real, pre-existing, unrelated production
+    // behavior — `LiveMatchClient` does not roll back its own optimistic increment on a soft
+    // conflict; not something this remediation changes). A real, visible "Needs review" indicator
+    // also appears — the real production conflict-resolution mechanism, not an invented B08
+    // banner, confirming the coach is actually told something went wrong.
+    await expect(page.getByText("1 : 1").first()).toBeAttached();
+    await expect(page.getByRole("button", { name: /Needs review/ })).toBeVisible({ timeout: 8_000 });
+
+    // The reference report itself is completely untouched by the rejected attempt.
+    await page.goto(`${BASE}/report-draft`);
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    // Reset journey clears the conflict; a genuinely new LIVE journey now works end-to-end.
+    await page.goto(`${BASE}/live`);
+    await page.getByRole("button", { name: "Reset journey" }).click();
+    await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("1 : 1").first()).toBeAttached();
+
+    await page.getByRole("button", { name: "Goal for us" }).click();
+    await page.getByRole("button", { name: "Skip" }).click();
+    await expect(page.getByText("2 : 1").first()).toBeAttached();
+
+    await page.getByRole("button", { name: "Finish live reporting" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
+    await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
   });
 
   // Journey E (independent review, section 10): reference-mode isolation.

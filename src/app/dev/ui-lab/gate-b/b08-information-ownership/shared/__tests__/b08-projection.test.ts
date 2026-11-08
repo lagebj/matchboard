@@ -9,7 +9,7 @@ import {
   deriveB08IdentityFromReport,
   resolveB08EffectiveHistory,
 } from "../b08-projection";
-import { b08CanonicalLiveEvents } from "../fixture-history";
+import { b08CanonicalLiveEvents, b08Reflection } from "../fixture-history";
 import type { B08PersistedReportState } from "../b08-journey";
 
 /**
@@ -231,6 +231,26 @@ describe("resolveB08EffectiveHistory — history provenance (third remediation)"
     expect(history.effectiveEvents).toHaveLength(0);
   });
 
+  it("REFERENCE origin (fourth remediation, defect #1): the real canonical reflection/observations/evidence, never null/empty", () => {
+    const history = resolveB08EffectiveHistory("REFERENCE", null);
+    expect(history.reflection).not.toBeNull();
+    expect(history.reflection?.note?.length).toBeGreaterThan(0);
+    expect(history.footballObservations.length).toBeGreaterThan(0);
+    expect(history.opponentObservation).not.toBeNull();
+    expect(history.combinationEvidence.length).toBeGreaterThan(0);
+  });
+
+  it("LIVE_JOURNEY origin (fourth remediation, defect #1): no reference-only narrative to inherit — null/empty, same as before", () => {
+    const events = [event({ id: "g1", eventType: "GOAL_FOR" })];
+    const history = resolveB08EffectiveHistory("LIVE_JOURNEY", events);
+    expect(history.reflection).toBeNull();
+    expect(history.footballObservations).toEqual([]);
+    expect(history.opponentObservation).toBeNull();
+    expect(history.combinationEvidence).toEqual([]);
+    expect(history.shapeChangeRows).toEqual([]);
+    expect(history.firstTimeCanonicalPositions).toEqual([]);
+  });
+
   it("no journey at all (a direct visit): the identical canonical chronology as REFERENCE — never a third, empty guess", () => {
     const history = resolveB08EffectiveHistory(null, null);
     expect(history).toEqual(resolveB08EffectiveHistory("REFERENCE", null));
@@ -251,5 +271,87 @@ describe("resolveB08EffectiveHistory — history provenance (third remediation)"
   it("LIVE_JOURNEY origin with no events array (defensive — should not happen in practice) falls back to the canonical chronology, same as REFERENCE", () => {
     const history = resolveB08EffectiveHistory("LIVE_JOURNEY", null);
     expect(history).toEqual(resolveB08EffectiveHistory("REFERENCE", null));
+  });
+});
+
+/**
+ * Fourth remediation (independent review, 2026-11-08, "final source-of-truth remediation",
+ * defect #1): a REFERENCE-origin persisted report must keep its real reflection/observations/
+ * evidence — previously `deriveB08AfterDataFromReport()` returned these fields empty/null
+ * UNCONDITIONALLY for every persisted report, so a reference-origin edit (no LIVE journey at all)
+ * made AFTER report "reflection not recorded" for a match whose real debrief was already
+ * submitted. `combinationEvidence` is additionally gated on `report.status === "LOCKED"` (matching
+ * `b08AfterData()`'s own existing, real "a draft never sees it" rule) — proven separately here, not
+ * by `resolveB08EffectiveHistory()` alone, since that resolver has no report-status input.
+ */
+describe("deriveB08AfterDataFromReport — narrative provenance and combination-evidence lifecycle (fourth remediation)", () => {
+  function reportWith(overrides: Partial<B08PersistedReportState>): B08PersistedReportState {
+    return {
+      status: "REPORTED",
+      ourScore: 2,
+      opponentScore: 1,
+      goals: [],
+      assists: [],
+      players: [],
+      timingReview: [],
+      outOfRangeEventCount: 0,
+      completedBy: null,
+      completedAt: null,
+      nextLocalId: 0,
+      ...overrides,
+    };
+  }
+
+  it("REFERENCE origin, DRAFT (REPORTED) status: real reflection/observations present, combination evidence withheld (draft never sees it)", () => {
+    const history = resolveB08EffectiveHistory("REFERENCE", null);
+    const data = deriveB08AfterDataFromReport(reportWith({ status: "REPORTED" }), history);
+    expect(data.reflection).toEqual(b08Reflection);
+    expect(data.footballObservations.length).toBeGreaterThan(0);
+    expect(data.opponentObservation).not.toBeNull();
+    expect(data.combinationEvidence).toEqual([]);
+  });
+
+  it("REFERENCE origin, LOCKED status: real reflection/observations present, AND the real combination evidence now included", () => {
+    const history = resolveB08EffectiveHistory("REFERENCE", null);
+    const data = deriveB08AfterDataFromReport(reportWith({ status: "LOCKED", completedBy: "Kristin Haug", completedAt: "2026-11-08T09:00:00.000Z" }), history);
+    expect(data.reflection).toEqual(b08Reflection);
+    expect(data.combinationEvidence.length).toBeGreaterThan(0);
+  });
+
+  it("completing a reference-origin report does not change its reflection/observations — AFTER and the completed report agree", () => {
+    const history = resolveB08EffectiveHistory("REFERENCE", null);
+    const draft = deriveB08AfterDataFromReport(reportWith({ status: "REPORTED" }), history);
+    const completed = deriveB08AfterDataFromReport(reportWith({ status: "LOCKED", completedBy: "Kristin Haug", completedAt: "2026-11-08T09:00:00.000Z" }), history);
+    expect(completed.reflection).toEqual(draft.reflection);
+    expect(completed.footballObservations).toEqual(draft.footballObservations);
+    expect(completed.opponentObservation).toEqual(draft.opponentObservation);
+  });
+
+  it("LIVE_JOURNEY origin, even LOCKED: no reference-only narrative or evidence is ever copied in", () => {
+    const events = [event({ id: "g1", eventType: "GOAL_FOR" })];
+    const history = resolveB08EffectiveHistory("LIVE_JOURNEY", events);
+    const data = deriveB08AfterDataFromReport(reportWith({ status: "LOCKED", ourScore: 1, opponentScore: 1 }), history);
+    expect(data.reflection).toBeNull();
+    expect(data.footballObservations).toEqual([]);
+    expect(data.opponentObservation).toBeNull();
+    expect(data.combinationEvidence).toEqual([]);
+  });
+
+  it("the narrative projection never overwrites the reconciled report's own score, goals or completion metadata", () => {
+    const history = resolveB08EffectiveHistory("REFERENCE", null);
+    const report = reportWith({
+      status: "LOCKED",
+      ourScore: 3,
+      opponentScore: 0,
+      goals: [{ id: "g1", playerId: "player-gb8-vetle", playerName: "Vetle", minute: 10 }],
+      completedBy: "A Coach",
+      completedAt: "2026-11-09T00:00:00.000Z",
+    });
+    const data = deriveB08AfterDataFromReport(report, history);
+    expect(data.homeGoals).toBe(3);
+    expect(data.awayGoals).toBe(0);
+    expect(data.completedBy).toBe("A Coach");
+    expect(data.completedAt).toBe("2026-11-09T00:00:00.000Z");
+    expect(data.reportStatus).toBe("LOCKED");
   });
 });

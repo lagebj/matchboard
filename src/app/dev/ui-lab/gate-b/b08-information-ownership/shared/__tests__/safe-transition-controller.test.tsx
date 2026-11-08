@@ -3,7 +3,14 @@ import { renderHook, act } from "@testing-library/react";
 import { getElapsedMs, formatElapsedMs } from "@/lib/live-match/match-clock";
 import { B08_MATCH_FORMAT } from "../fixture";
 import { useB08LiveFixtureActions } from "../safe-transition-controller";
-import { loadB08Journey, loadFinishedB08JourneyEvents, resetB08Journey } from "../b08-journey";
+import {
+  loadB08Journey,
+  loadB08HistoryOrigin,
+  loadFinishedB08JourneyEvents,
+  resetB08Journey,
+  saveB08JourneyReport,
+  type B08PersistedReportState,
+} from "../b08-journey";
 
 const FIXED_NOW = new Date("2026-11-07T12:00:00.000Z");
 
@@ -315,5 +322,76 @@ describe("useB08LiveFixtureActions — idempotent event recording", () => {
     expect(goals).toHaveLength(goalsBefore + 1);
     const assist = result.current.events.find((e) => e.eventType === "ASSIST_SET");
     expect(assist?.playerId).toBe("player-gb8-sindre");
+  });
+});
+
+/**
+ * Fourth remediation (independent review, 2026-11-08, "final source-of-truth remediation",
+ * defect #2) — the LIVE action adapter's own handling of a write-boundary rejection: a REJECTED
+ * event must not look accepted to `LiveMatchClient` (no `data`, `success: false`), must not
+ * update this hook's own `events`/`eventsRef` state, and must use the real `conflict`/`error`
+ * fields so the reporter UI surfaces it rather than silently retrying forever.
+ */
+describe("useB08LiveFixtureActions — history-origin write-boundary protection", () => {
+  function referenceReport(): B08PersistedReportState {
+    return {
+      status: "REPORTED",
+      ourScore: 2,
+      opponentScore: 1,
+      goals: [],
+      assists: [],
+      players: [],
+      timingReview: [],
+      outOfRangeEventCount: 0,
+      completedBy: null,
+      completedAt: null,
+      nextLocalId: 0,
+    };
+  }
+
+  beforeEach(() => resetB08Journey());
+  afterEach(() => resetB08Journey());
+
+  it("recordEvent() rejects when a REFERENCE-origin report is already persisted — reports conflict, not success, and never mutates events", async () => {
+    saveB08JourneyReport(referenceReport(), "REFERENCE");
+    const { result } = renderHook(() => useB08LiveFixtureActions("b08-origin-test"));
+    const before = result.current.events;
+
+    const response = await act(async () =>
+      result.current.actions.recordEvent({ matchId: "b08-origin-test", sessionId: "b08-fixture-session", clientEventId: "goal-x", eventType: "GOAL_FOR", period: "SECOND_HALF", matchSeconds: 900_000 }),
+    );
+
+    expect(response.success).toBe(false);
+    expect(response.data).toBeUndefined();
+    expect(response.conflict).toBeTruthy();
+    // This hook's own React state is untouched — the rejected event never appears accepted.
+    expect(result.current.events).toEqual(before);
+    // The write boundary itself rejected it too — not just this hook's own in-memory guard.
+    expect(loadB08HistoryOrigin()).toBe("REFERENCE");
+  });
+
+  it("endSession() rejects when a REFERENCE-origin report is already persisted, even with no prior recordEvent call in this session", async () => {
+    saveB08JourneyReport(referenceReport(), "REFERENCE");
+    const { result } = renderHook(() => useB08LiveFixtureActions("b08-origin-test"));
+
+    const response = await act(async () => result.current.actions.endSession("b08-fixture-session"));
+
+    expect(response.success).toBe(false);
+    expect(response.error).toBeTruthy();
+    expect(loadFinishedB08JourneyEvents()).toBeNull();
+    expect(loadB08HistoryOrigin()).toBe("REFERENCE");
+  });
+
+  it("after Reset journey, recordEvent() succeeds again and establishes a real LIVE_JOURNEY", async () => {
+    saveB08JourneyReport(referenceReport(), "REFERENCE");
+    resetB08Journey();
+
+    const { result } = renderHook(() => useB08LiveFixtureActions("b08-origin-test"));
+    const response = await act(async () =>
+      result.current.actions.recordEvent({ matchId: "b08-origin-test", sessionId: "b08-fixture-session", clientEventId: "goal-x", eventType: "GOAL_FOR", period: "SECOND_HALF", matchSeconds: 900_000 }),
+    );
+
+    expect(response.success).toBe(true);
+    expect(loadB08HistoryOrigin()).toBe("LIVE_JOURNEY");
   });
 });

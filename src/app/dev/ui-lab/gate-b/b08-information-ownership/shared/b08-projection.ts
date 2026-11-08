@@ -13,7 +13,17 @@ import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-
 import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
 import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/match-presentation";
 import { B08_MATCH_FORMAT, B08_MATCH_ID, B08_OPPONENT_NAME, B08_KICKOFF_AT, periodRelativeToGlobalMinute, b08Squad } from "./fixture";
-import { b08Timeline, B08_LIVE_GOALS_RECORDED, B08_TEAM_NOTE } from "./fixture-history";
+import {
+  b08Timeline,
+  B08_LIVE_GOALS_RECORDED,
+  B08_TEAM_NOTE,
+  b08Reflection,
+  b08FootballObservations,
+  b08OpponentObservation,
+  b08CombinationEvidence,
+  b08ShapeChangeRows,
+  b08FirstTimeCanonicalPositions,
+} from "./fixture-history";
 import { MATCH_B_TEAM_NAME } from "../../shared/match-b-fixture";
 import type { B08PersistedReportState, B08HistoryOrigin } from "./b08-journey";
 
@@ -162,6 +172,23 @@ export interface B08EffectiveHistory {
    * match); `""` for `"LIVE_JOURNEY"` — authored narrative about a different, interactive result
    * must never be attached to it (same provenance rule as reflection/observations below). */
   teamNote: string;
+  /** Fourth remediation (2026-11-08, "final source-of-truth remediation", defect #1): the real
+   * canonical narrative/evidence for a `"REFERENCE"` origin — these facts genuinely describe THIS
+   * match regardless of which report fields the coach has since edited (score, attendance, timing)
+   * — vs. empty/null for `"LIVE_JOURNEY"`, which has no such narrative to inherit. Previously,
+   * `deriveB08AfterDataFromReport()` returned these fields empty/null UNCONDITIONALLY for every
+   * persisted report, including a REFERENCE-origin one — so AFTER could report "reflection not
+   * recorded" for the same match whose REPORT-DRAFT Reflection tab correctly showed the real,
+   * already-submitted debrief. `combinationEvidence` here is the full REFERENCE-origin evidence
+   * regardless of report status — `deriveB08AfterDataFromReport()` itself applies the real
+   * LOCKED-only availability gate (matching `b08AfterData()`'s own existing "draft never sees it"
+   * precedent), not this resolver. */
+  reflection: MatchDetailAfterData["reflection"];
+  footballObservations: MatchDetailAfterData["footballObservations"];
+  opponentObservation: MatchDetailAfterData["opponentObservation"];
+  combinationEvidence: MatchDetailAfterData["combinationEvidence"];
+  shapeChangeRows: MatchDetailAfterData["shapeChangeRows"];
+  firstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCanonicalPositions"];
 }
 
 /**
@@ -186,9 +213,26 @@ export function resolveB08EffectiveHistory(
       liveGoalsRecorded: effectiveEvents.filter((e) => e.eventType === "GOAL_FOR").length,
       effectiveEvents,
       teamNote: "",
+      reflection: null,
+      footballObservations: [],
+      opponentObservation: null,
+      combinationEvidence: [],
+      shapeChangeRows: [],
+      firstTimeCanonicalPositions: [],
     };
   }
-  return { timeline: b08Timeline, liveGoalsRecorded: B08_LIVE_GOALS_RECORDED, effectiveEvents: [], teamNote: B08_TEAM_NOTE };
+  return {
+    timeline: b08Timeline,
+    liveGoalsRecorded: B08_LIVE_GOALS_RECORDED,
+    effectiveEvents: [],
+    teamNote: B08_TEAM_NOTE,
+    reflection: b08Reflection,
+    footballObservations: b08FootballObservations,
+    opponentObservation: b08OpponentObservation,
+    combinationEvidence: b08CombinationEvidence,
+    shapeChangeRows: b08ShapeChangeRows,
+    firstTimeCanonicalPositions: b08FirstTimeCanonicalPositions,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -204,20 +248,24 @@ const B08_MINUTES_BY_PARTICIPANT = new Map<string, number>(
  * AFTER/REPORT-DRAFT/REPORT-COMPLETED all already consume in reference mode, so no page needs a
  * second rendering path, only a different data source.
  *
- * Narrative/evidence fields that were authored specifically for the 2-1 REFERENCE match
- * (`reflection`, `footballObservations`, `opponentObservation`, `combinationEvidence`,
- * `shapeChangeRows`, `firstTimeCanonicalPositions`) are deliberately empty/null here — per the
- * review's own explicit guidance ("mark reference-only observations as unavailable in the
- * interactive journey... do not fabricate observations to make the page appear complete"). Every
- * field left populated below is purely factual/computed from the report's own reconciled rows or
- * the resolved effective history — never narrative.
+ * Narrative/evidence fields (`reflection`, `footballObservations`, `opponentObservation`,
+ * `combinationEvidence`, `shapeChangeRows`, `firstTimeCanonicalPositions`) come from `history`
+ * (`resolveB08EffectiveHistory()`'s own output) — empty/null for a `"LIVE_JOURNEY"` origin (per the
+ * review's own explicit guidance, "mark reference-only observations as unavailable in the
+ * interactive journey... do not fabricate observations to make the page appear complete"), but the
+ * REAL canonical values for a `"REFERENCE"` origin: this report is still grounded in the same real
+ * match, so its real reflection/observations/evidence remain true regardless of which report
+ * fields (score, attendance, timing) the coach has since edited. `combinationEvidence` is further
+ * gated here on `report.status === "LOCKED"` — matching `b08AfterData()`'s own existing, real
+ * "a draft report never sees combination evidence" rule (`getMatchDetailAfterData()` only loads it
+ * for a LOCKED report) — never exposed in DRAFT merely because the canonical fixture has it.
  *
- * `history` is `resolveB08EffectiveHistory()`'s own output — third remediation ("final
- * data-integrity remediation"): previously took a raw `effectiveEvents` array that a
- * REFERENCE-origin caller had no correct way to populate (it has no LIVE event ledger at all),
- * so every reference-mode edit silently derived an EMPTY timeline. Routing through the resolved
- * history here means a reference-origin report keeps its own real 10'/22'/48' chronology, and a
- * LIVE_JOURNEY-origin report keeps exactly what was actually recorded — never a third guess.
+ * `history` is also how this function gets the real chronology/goal-count/team-note — third
+ * remediation ("final data-integrity remediation"): previously took a raw `effectiveEvents` array
+ * that a REFERENCE-origin caller had no correct way to populate (it has no LIVE event ledger at
+ * all), so every reference-mode edit silently derived an EMPTY timeline. Routing through the
+ * resolved history here means a reference-origin report keeps its own real 10'/22'/48' chronology,
+ * and a LIVE_JOURNEY-origin report keeps exactly what was actually recorded — never a third guess.
  */
 export function deriveB08AfterDataFromReport(report: B08PersistedReportState, history: B08EffectiveHistory): MatchDetailAfterData {
   const attendanceFacts: MatchAttendanceFact[] = report.players.map((p) => ({ attendanceStatus: p.attendanceStatus, playerName: p.playerName }));
@@ -254,10 +302,10 @@ export function deriveB08AfterDataFromReport(report: B08PersistedReportState, hi
       observationCountByParticipant: new Map(),
       minutesByParticipant: B08_MINUTES_BY_PARTICIPANT,
     }),
-    reflection: null,
-    footballObservations: [],
-    opponentObservation: null,
-    combinationEvidence: [],
+    reflection: history.reflection,
+    footballObservations: history.footballObservations,
+    opponentObservation: history.opponentObservation,
+    combinationEvidence: report.status === "LOCKED" ? history.combinationEvidence : [],
     goalAttributionGap: {
       liveGoalsRecorded,
       attributedGoals: report.goals.length,
@@ -265,8 +313,8 @@ export function deriveB08AfterDataFromReport(report: B08PersistedReportState, hi
     },
     timingNeedsReviewCount,
     outOfRangeEventCount: report.outOfRangeEventCount,
-    shapeChangeRows: [],
-    firstTimeCanonicalPositions: [],
+    shapeChangeRows: history.shapeChangeRows,
+    firstTimeCanonicalPositions: history.firstTimeCanonicalPositions,
   };
 }
 
