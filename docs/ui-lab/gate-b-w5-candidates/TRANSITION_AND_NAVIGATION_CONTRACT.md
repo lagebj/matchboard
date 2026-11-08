@@ -1,9 +1,11 @@
 # Gate B W5 — Transition and Navigation Contract (B08)
 
-**Updated for the W5 remediation (independent PR #822 review, 2026-11-08).** The full lifecycle
-transition table from the task brief, each row stated against the real implementation and the test
-that verifies it. Two rows previously marked "disclosed gap" are now fixed — see the changelog at
-the bottom.
+**Updated for the W5 SECOND remediation (independent review, 2026-11-08, "lifecycle data
+consistency").** The full lifecycle transition table from the task brief, each row stated against
+the real implementation and the test that verifies it. Several rows previously marked "disclosed
+gap" are now fixed — see the changelogs at the bottom. The single biggest change this pass: AFTER
+and REPORT-COMPLETED now participate in the SAME persisted-report priority cascade REPORT-DRAFT
+already used after the first remediation — see "The shared data-consistency cascade" below.
 
 | From | Action | Destination | Implemented | Verified by |
 |---|---|---|---|---|
@@ -16,21 +18,52 @@ the bottom.
 | REPORT-COMPLETED | Back to match | AFTER, showing the COMPLETED state | **FIXED (P1-5):** real `Link` → `/after?report=completed` — AFTER reads the explicit `?report=` variant switch and renders `b08AfterData("completed")` instead of its own default draft/incomplete variant. Previously this linked to plain `/after`, which always showed "report incomplete" even immediately after locking the report — a real, now-fixed contradiction. | `report-completed/__tests__/page.test.tsx`, `after/__tests__/page.test.tsx`, `e2e/ui-lab-b08.spec.ts` |
 | REPORT-COMPLETED | Reopen, where allowed | Explicit editable report state | Real `useSafeReportLifecycle` "Reopen report" control, same gating B05 already demonstrates | Covered by the shared shell's own existing B05 tests (unchanged logic, reused verbatim) |
 
-## P1-6 — LIVE-to-report continuity (new, real)
+## The shared data-consistency cascade (W5 second remediation)
 
-A real, sessionStorage-backed journey (`shared/b08-journey.ts`) distinguishes two modes without an
-explicit flag: a direct visit to any B08 route (every CI/Playwright capture gets a fresh browser
-context — `scripts/ui-lab-visual-review.mjs` creates and closes a new `browser.newContext()` per
-scenario/viewport/theme) always reads an empty/absent journey and renders the unchanged canonical
-reference fixture. A real interactive session that records an event on LIVE and clicks "Finish live
-reporting" persists it; REPORT-DRAFT derives its own goals/assists/score from what was ACTUALLY
-recorded (`b08GoalsAndAssistsFromJourney()`) instead of always showing the fixed canonical report.
-An unfinished journey is never read by REPORT-DRAFT (no half-recorded session leaks in).
+The first remediation pass (P1-6) made REPORT-DRAFT journey-aware but left AFTER and
+REPORT-COMPLETED reading the static reference fixture regardless — so a coach could finish LIVE
+with a 1-1 result, see 1-1 on the draft report, and then see the fixed 2-1 reference narrative on
+AFTER. The independent review's own words: "B08 currently maintains two competing interpretations
+of the match." Fixed: AFTER, REPORT-DRAFT and REPORT-COMPLETED now all resolve their own data from
+the SAME three-tier priority cascade, in order:
 
-Verified for real in `e2e/ui-lab-b08.spec.ts`: finishing LIVE without recording the 48' winner
-leaves REPORT-DRAFT showing a real 1-1 (not the fixed canonical 2-1); recording it live first
-(`"Goal for us"` → `"Skip"`, the exact real production pattern `e2e/live-reporting.spec.ts` already
-proves against the authenticated flow) carries it through as a real 2-1.
+1. **A persisted, reconciled report** (`loadB08JourneyReport()`) — the coach already
+   edited/completed this exact report in an earlier visit on REPORT-DRAFT. Resume/display it
+   EXACTLY — authoritative over everything else, including AFTER's own `?report=` URL param (a URL
+   can select a presentation state but cannot override the real stored lifecycle — see the
+   independent review's own explicit requirement).
+2. **A finished LIVE journey with no reconciliation yet** (`loadFinishedB08JourneyEvents()`) —
+   seed from what was ACTUALLY recorded, reversal-aware
+   (`shared/b08-projection.ts`'s `computeEffectiveLiveEvents()`/`deriveGoalsAndAssists()`/
+   `deriveEffectiveScore()` — a reversed goal correctly seeds nothing).
+3. **No journey at all** (every direct visit, including every CI/Playwright capture) — the
+   unchanged canonical reference fixture, exactly as before either remediation pass. AFTER's own
+   `?report=` URL switch behaves exactly as the first remediation pass left it, ONLY in this tier.
+
+Real edits on REPORT-DRAFT (`onStateChange`) persist back into the same slot, so AFTER and
+REPORT-COMPLETED read the identical reconciled record the next time they're opened — one
+authoritative projection, not three independently-plausible pages.
+
+Verified end-to-end in a real browser (`e2e/ui-lab-b08.spec.ts`, Journeys A/B): finishing LIVE
+without recording the 48' winner shows a real 1-1 continuously through REPORT-DRAFT → completion →
+AFTER → REPORT-COMPLETED → a page reload; recording it live first (`"Goal for us"` → `"Skip"`, the
+exact real production pattern `e2e/live-reporting.spec.ts` already proves against the authenticated
+flow) carries a real 2-1 through the identical chain. Journey E proves the reference fixture stays
+genuinely isolated: a fresh context always sees the unchanged 2-1 reference on AFTER/REPORT-COMPLETED
+directly, and using the real "Reset journey" dev control after an interactive journey restores it.
+
+### Reversal and duplicate-event semantics (new)
+
+`computeEffectiveLiveEvents()` mirrors the REAL production algorithm (`get-match-detail-after-data.ts`)
+exactly: a reversed `GOAL_FOR`/`GOAL_AGAINST` event is excluded from every downstream derivation —
+score, goals/assists, timeline — matching the reporter's own real `LiveMatchClient` score exactly
+even after a real "Undo." Proven with literal expected values (not a self-comparison) in
+`shared/__tests__/b08-projection.test.ts`, including a dedicated negative test confirming the two
+real correction-reference namespaces (`EVENT_REVERSED` → target's own `id`; `SCORER_SET`/
+`ASSIST_SET` → the goal's `clientEventId`) are genuinely distinct, not interchangeable. **Not**
+separately proven as a browser test (Journey C) — see `BLOCKERS.md` for the disclosed reason
+(a real, investigated timing risk in `LiveMatchClient`'s own event-reconciliation display, not a
+B08 defect) and why the deterministic unit proof is the stronger evidence here.
 
 ## Why REPORT-COMPLETED routes back to `/after` (with `?report=completed`), not a second "historical" page
 

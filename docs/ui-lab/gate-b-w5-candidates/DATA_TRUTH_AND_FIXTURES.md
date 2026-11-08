@@ -1,9 +1,13 @@
 # Gate B W5 — Data Truth and Fixtures (B08)
 
-One canonical match history (`src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/
-fixture.ts` + `fixture-history.ts`) feeds all five lifecycle candidates — never a second
-interpretation of the same match. Every number below is asserted by a real test, not restated here
-as a separate claim to trust; see the referenced test file for the authoritative check.
+**Updated for the W5 SECOND remediation (independent review, 2026-11-08, "lifecycle data
+consistency").** One canonical match history (`src/app/dev/ui-lab/gate-b/b08-information-ownership/
+shared/fixture.ts` + `fixture-history.ts`) feeds all five lifecycle candidates in REFERENCE mode —
+never a second interpretation of the same match. In INTERACTIVE mode (a real recorded LIVE journey
+and/or a reconciled report), all five candidates instead read the ONE shared projection
+(`shared/b08-projection.ts` + `shared/b08-journey.ts` v2) — see "The shared projection" section
+below. Every number in this document is asserted by a real test, not restated here as a separate
+claim to trust; see the referenced test file for the authoritative check.
 
 ## Identity (`fixture.ts`)
 
@@ -85,14 +89,15 @@ verified byte-for-byte (except the non-deterministic `createdAt` stamp) against 
 own output for the same input, in `shared/__tests__/combination-evidence.test.ts` — mirroring B05's
 own `combination-evidence.test.ts` exactly.
 
-## Event persistence scope (W5 remediation, P1-6) — `shared/b08-journey.ts`
+## Event persistence scope — `shared/b08-journey.ts` (v2)
 
-A real, versioned, B08-namespaced `sessionStorage` blob (key `b08-live-journey-v1`) — never a
+A real, versioned, B08-namespaced `sessionStorage` blob (key `b08-live-journey-v2`) — never a
 general-purpose event-sourcing system. Scope and lifetime:
 
 - **Tab/session-scoped**: `sessionStorage` never crosses browser tabs, never reaches a server,
   never survives closing the tab. Cleared automatically by the browser; also clearable on demand
-  via the scenario navigator's own "Reset journey" dev control.
+  via the scenario navigator's own "Reset journey" dev control (clears BOTH the LIVE ledger and
+  the reconciled report in one call).
 - **Reference-snapshot mode is the default**: every CI/Playwright capture gets a brand-new browser
   context (`scripts/ui-lab-visual-review.mjs` calls `browser.newContext()` fresh per scenario/
   viewport/theme), so `loadB08Journey()` returns `null` and every page renders the unchanged
@@ -101,14 +106,56 @@ general-purpose event-sourcing system. Scope and lifetime:
   B08-LIVE; an **unfinished** journey (the coach never clicked "Finish live reporting") is never
   read by REPORT-DRAFT — `loadFinishedB08JourneyEvents()` returns `null` until `markB08JourneyFinished()`
   has actually run.
+- **Second remediation (2026-11-08): the reconciled REPORT is now ALSO persisted**, not just the
+  raw LIVE ledger — `B08PersistedReportState`, written via `SafePostMatchReportShell`'s new
+  `onStateChange` callback (a skip-first-render guard prevents a bare mount from echoing the
+  initial state back out as a fake "edit" — see `SOURCE_RECONCILIATION.md`). AFTER, REPORT-DRAFT
+  and REPORT-COMPLETED all read this SAME persisted report when it exists, in that priority order
+  ahead of a raw-events-only seed, ahead of the reference fixture — see "The shared projection"
+  below.
+- **Storage key bumped `-v1` → `-v2`** as the explicit version increment: a v1 blob (from the
+  first remediation pass) is simply never read — the safest migration for a client-only,
+  tab-scoped, dev-fixture store (no partial-read risk, no crash, starts fresh).
 - **Deterministic replay**: `wallClockTime`/`clientEventId` are revived/normalized on load to match
   `LiveEventSummary`'s real type (`Date | null` / `string | null`) — `JSON.stringify` silently drops
   `undefined` keys and turns `Date` into an ISO string; both were real round-trip bugs found and
-  fixed while testing this module (`shared/__tests__/safe-transition-controller.test.ts`).
+  fixed while testing this module.
 - **Isolation**: a clearly synthetic `matchId` (`b08-fixture-live-match`, distinct from
   `B08_MATCH_ID`) keeps the fixture's own real-but-harmless browser-local IndexedDB outbox
   (`live-local-store.ts`) and service-worker registration from ever colliding with a real match's
   local rows on the same device (`BLOCKERS.md` item #3).
+
+## The shared projection — `shared/b08-projection.ts`
+
+"One authoritative event ledger, multiple read models" (the review's own framing): every
+interactive-mode derivation across LIVE's follower, REPORT-DRAFT, REPORT-COMPLETED and AFTER starts
+from `computeEffectiveLiveEvents()`'s own output, never a second, independently-filtered pass.
+
+- **`computeEffectiveLiveEvents()`** mirrors the REAL production reversal-filtering algorithm
+  exactly — confirmed by reading `get-match-detail-after-data.ts` directly (two real Prisma
+  queries: one for relevant event types, one for `EVENT_REVERSED` rows, then an in-memory filter),
+  not reimplemented from guesswork. A reversed event — and the `EVENT_REVERSED` marker itself —
+  never appears in the effective set. `EVENT_REVERSED.correctsEventId` references the target's own
+  `id` (confirmed against `LiveMatchClient.handleUndo()`), a DIFFERENT reference namespace than
+  `SCORER_SET`/`ASSIST_SET.correctsEventId`, which references the goal's own `clientEventId` — the
+  two are never conflated (a dedicated negative test proves reversing via the wrong namespace
+  reverses nothing).
+- **`deriveEffectiveScore()`/`deriveGoalsAndAssists()`/`deriveEffectiveTimeline()`** all operate on
+  the effective set — an unattributed goal (scorer skipped) stays genuinely unattributed, a
+  reversed goal contributes nothing, a real `buildMatchTimeline()` (never a second chronology
+  builder) produces the chronology.
+- **`deriveB08AfterDataFromReport()`/`deriveB08IdentityFromReport()`** build the real
+  `MatchDetailAfterData`/`MatchPresentation` shapes every page already consumes — from a persisted
+  report, not a second rendering path. Narrative/evidence fields authored for the FIXED 2-1
+  reference match (reflection, football observations, opponent observation, combination evidence)
+  are deliberately empty/null here, and the Assistant Coach panel switches to its own real
+  `{status: "unavailable"}` state — per the review's own explicit guidance, "mark reference-only
+  observations as unavailable in the interactive journey," never fabricated against a different
+  history.
+- **`markReversedEvents()`** is the one exception to "filter, don't mark": LIVE's own Recent Events
+  panel must keep SHOWING a reversed event (with its real `isReversed` badge, Undo control
+  correctly hidden) rather than removing it — production computes this server-side; B08's fixture
+  has no server, so `getRecentEvents()` computes it the same way, without filtering.
 
 ## Test coverage summary
 
@@ -118,8 +165,14 @@ general-purpose event-sourcing system. Scope and lifetime:
 | `shared/__tests__/fixture-history.test.ts` | Score-to-goal-event consistency, DRAFT/COMPLETED data parity, the timing-review gap's shape, literal matchSeconds values against the real production contract. |
 | `shared/__tests__/combination-evidence.test.ts` | The hand-written combination-evidence literal matches the real derivation function's output. |
 | `shared/__tests__/ownership-map.test.ts` | The ownership map's content matches the audited matrix (also its deadcode:check consumer). |
-| `shared/__tests__/safe-transition-controller.test.ts` | The LIVE clock fix (fed through the real `getElapsedMs()`/`formatElapsedMs()`), and the journey store's real persistence/restore/reset behavior. |
+| `shared/__tests__/safe-transition-controller.test.ts` | The LIVE clock fix (fed through the real `getElapsedMs()`/`formatElapsedMs()`), and the journey store's real persistence/restore/reset behavior, including a second hook instance resuming a prior session exactly. |
+| `shared/__tests__/b08-projection.test.ts` | The full required test matrix (reference/1-1/2-1/unattributed/reversed/duplicate), literal expected values, the reversal-namespace distinction, and that reference-only narrative never leaks into an interactive projection. |
 
 Full run: `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-b/b08-information-ownership/`
-→ **7 files, 66+ tests, all passing** (re-verified in this session; component-test config required —
-a bare `vitest run` silently skips `.tsx` tests in this repo).
+→ **7 files, 71 component tests, all passing**, plus `npx vitest run
+src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/__tests__/` → **5 files, 62 fixture/
+projection tests, all passing** (component-test config required for the `.tsx` files — a bare
+`vitest run` silently skips them in this repo). Real browser coverage: `e2e/ui-lab-b08.spec.ts`,
+51 tests including Journeys A/B/E (full LIVE→REPORT-DRAFT→AFTER→REPORT-COMPLETED consistency for
+both a 1-1 and a 2-1 interactive journey, plus reference-mode isolation) — see
+`TRANSITION_AND_NAVIGATION_CONTRACT.md`.

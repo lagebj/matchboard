@@ -190,11 +190,12 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
     await expect(page.getByText("1 - 1").first()).toBeAttached();
 
-    // The dev-only "Reset journey" control clears the whole B08 journey (LIVE ledger + any
-    // reconciled report) via window.location.reload() on the SAME /live URL — not a URL change
-    // `waitForURL` could detect, so wait for the real post-reload DOM instead (the "Finish live
-    // reporting" button only appears once LiveMatchClient has freshly mounted and finished its
-    // own async pre-match load).
+    // The dev-only "Reset journey" control (rendered on every B08 page via the shared
+    // B08TransitionNav) clears the whole journey (LIVE ledger + any reconciled report) and then
+    // reloads whatever page it was clicked on — it does not itself navigate to /live. Go there
+    // first so the reload lands back on LIVE's own fresh pre-match state; wait for the real
+    // post-reload DOM rather than `waitForURL` since the URL does not change.
+    await page.goto(`${BASE}/live`);
     await page.getByRole("button", { name: "Reset journey" }).click();
     await expect(page.getByRole("button", { name: "Finish live reporting" })).toBeVisible({ timeout: 15_000 });
 

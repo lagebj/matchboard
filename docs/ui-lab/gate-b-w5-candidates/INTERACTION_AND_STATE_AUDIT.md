@@ -96,3 +96,44 @@ src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 66+ tests, a
   re-run after the shared-component changes (`safe-post-match-report-shell.tsx`'s `backHref`/
   `backHrefForStatus`/`onStatusChange`, `match-after-match-panel.tsx`'s `reportHrefOverride`,
   `tab-rail.tsx`'s overflow containment) — all still pass.
+
+## G. Second remediation-specific coverage (W5, "lifecycle data consistency", 2026-11-08)
+
+- **Shared projection integrity**: `shared/__tests__/b08-projection.test.ts` (11 tests, literal
+  expected values throughout) — reference 2-1, LIVE cutoff 1-1, finished-without-goal 1-1,
+  scorer-skipped unattributed goal, scorer-assigned attributed goal, reversal back to 1-1 (with an
+  explicit assertion that the correct `EVENT_REVERSED`→target-`id` namespace is used, plus a
+  dedicated negative test proving a `SCORER_SET`/`ASSIST_SET`-namespaced `correctsEventId` does
+  **not** reverse anything), a duplicate-delivery case (the same event object appearing twice changes
+  nothing), and completed-report AFTER-data derivation for both 1-1 and 2-1, including timeline
+  chronology.
+- **Report mutation/completion persistence**: `report-draft/__tests__/page.test.tsx` asserts
+  `onStateChange` round-trips through `saveB08JourneyReport()`/`loadB08JourneyReport()` and that a
+  reload resumes the exact persisted state (not the seed). A dedicated test asserts the shell's own
+  mount does NOT fire `onStateChange` (the skip-first-render-guard regression this pass caught and
+  fixed) — visiting the page with no prior edit leaves no persisted report behind.
+- **REPORT-COMPLETED honesty**: `report-completed/__tests__/page.test.tsx` asserts a persisted report
+  that was never actually locked renders as the real shell's own DRAFT-editable surface, not a
+  fabricated COMPLETED state.
+- **AFTER authority over its own `?report=` param**: `after/__tests__/page.test.tsx` asserts that
+  once a persisted report exists, the `?report=` URL value is ignored and the persisted
+  state's own status determines the rendered variant; only with no persisted report at all does the
+  URL switch the reference variant, exactly as before this pass.
+- **Narrative non-leakage**: `after/__tests__/page.test.tsx` asserts reflection/observations/
+  combination-evidence render as their existing "Not recorded"/empty null-state UI (not the fixed
+  reference match's own content) whenever an interactive journey is active, and that the Assistant
+  Coach panel renders the real `AdvisorPanelUnavailable` state instead of the reference insight.
+- **Test-isolation fix**: `report-draft/__tests__/page.test.tsx`, `report-completed/__tests__/
+  page.test.tsx`, and `after/__tests__/page.test.tsx` each gained a file-level
+  `beforeEach(() => window.sessionStorage.clear())` — jsdom shares one `sessionStorage` across every
+  test in a file, and several tests that genuinely complete a report were leaking that state into
+  later, unrelated "reference mode" tests before this fix.
+- **Browser journeys (real, Chromium, `e2e/ui-lab-b08.spec.ts`)**: Journey A (finish LIVE without a
+  goal → 1-1 persists through REPORT-DRAFT → completion → AFTER → REPORT-COMPLETED → reload), Journey
+  B (same chain for a recorded 2-1), Journey E (a fresh context sees the unchanged 2-1 reference
+  directly; starting and finishing an interactive 1-1 journey then using "Reset journey" restores the
+  2-1 reference). Journey C (goal reversal, browser-level) and Journey D (duplicate/correction,
+  browser-level) were deliberately not added — see `BLOCKERS.md` for the disclosed reasoning; both
+  claims are proven deterministically instead by `b08-projection.test.ts` above.
+- No regression: the first remediation's full existing suite (above) was re-run unchanged after this
+  pass's changes and still passes.

@@ -2,7 +2,7 @@
   "programmeRevision": "0.169.3",
   "baseCommitSha": "dc772b2aa6c2c2460315055ca6c20a4f3c1965ca",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-b/b08-information-ownership/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate B W5 (B08, Information Ownership and Lifecycle Transitions) — the final Gate B candidate wave. One canonical match identity across five lifecycle states. All five CANDIDATE, approval null, official_golden_status NOT_READY. fixtureVersion 2 for all five scenarios (bumped from 1 by the 2026-11-08 remediation's matchSeconds unit correction to the shared canonical fixture — a real fixture-content change per every scenario's own shared fixture.ts/fixture-history.ts module, not a CSS-only change). See docs/ui-lab/gate-b-w5-candidates/ for the full review record, and REVIEW_RECORD.md's own 'Remediation' section for the independent-review fixes this version bump reflects.",
+  "note": "Gate B W5 (B08, Information Ownership and Lifecycle Transitions) — the final Gate B candidate wave. One canonical match identity across five lifecycle states. All five CANDIDATE, approval null, official_golden_status NOT_READY. fixtureVersion 2 for all five scenarios (bumped from 1 by the first 2026-11-08 remediation's matchSeconds unit correction to the shared canonical fixture — a real fixture-content change per every scenario's own shared fixture.ts/fixture-history.ts module, not a CSS-only change). A SECOND 2026-11-08 remediation ('lifecycle data consistency') introduced a shared fixture-local projection (shared/b08-projection.ts) that AFTER/LIVE/REPORT-DRAFT/REPORT-COMPLETED all now read from, plus a v2 journey-persistence schema (shared/b08-journey.ts) — no further fixtureVersion bump, since the canonical reference fixture's own content was not changed again, only how interactive-journey data is derived and persisted. See docs/ui-lab/gate-b-w5-candidates/ for the full review record, and REVIEW_RECORD.md's own two 'Remediation' sections for the independent-review fixes these passes reflect.",
   "candidates": [
     {
       "scenarioId": "B08-BEFORE",
@@ -36,6 +36,7 @@
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/live/page.tsx",
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/safe-transition-controller.ts",
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/b08-projection.ts",
         "src/components/live-match/live-match-client.tsx",
         "src/components/touchline/widget/match-score-header.tsx"
       ],
@@ -58,6 +59,7 @@
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/after/page.tsx",
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/fixture-history.ts",
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/b08-projection.ts",
         "src/components/matches/match-detail/match-events-panel.tsx",
         "src/components/matches/match-detail/match-stats-panel.tsx",
         "src/components/matches/match-detail/match-after-match-panel.tsx",
@@ -83,7 +85,9 @@
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/report-draft/page.tsx",
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx",
-        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts"
+        "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/use-safe-report-lifecycle.ts",
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/b08-projection.ts",
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/b08-journey.ts"
       ],
       "lifecycle": "done",
       "requirementRefs": ["XR-I02"],
@@ -102,7 +106,9 @@
       "componentOwners": [
         "src/app/dev/ui-lab/gate-b/b08-information-ownership/report-completed/page.tsx",
         "src/app/dev/ui-lab/gate-b/b05-post-match-report/shared/safe-post-match-report-shell.tsx",
-        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/fixture-history.ts"
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/fixture-history.ts",
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/b08-projection.ts",
+        "src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/b08-journey.ts"
       ],
       "lifecycle": "done",
       "requirementRefs": ["XR-I02"],

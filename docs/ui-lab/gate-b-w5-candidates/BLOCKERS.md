@@ -1,9 +1,55 @@
 # Gate B W5 — Blockers / Open Questions (B08)
 
-Status: implementation complete (all 9 original spec steps), PLUS a full remediation pass against
-an independent review of the merged PR (2026-11-08) — see the new section immediately below. All
+Status: implementation complete (all 9 original spec steps), PLUS TWO remediation passes against
+independent reviews of the merged PR (2026-11-08) — see the two "Remediation" sections below. All
 items are resolved or disclosed as permanent, deliberate scope boundaries; none block the PR — see
 `REVIEW_RECORD.md` for the real current status.
+
+## Second remediation ("lifecycle data consistency", independent review, 2026-11-08)
+
+The first remediation pass fixed the clock/overflow/navigation defects below but left a real,
+deeper one: AFTER and REPORT-COMPLETED still read the static reference fixture while REPORT-DRAFT
+only partially read the interactive journey — a coach could finish LIVE with one result and see a
+DIFFERENT one in Match Details. Fixed with one shared projection (`shared/b08-projection.ts`) and
+an extended journey store (`shared/b08-journey.ts` v2, now also persisting the reconciled report) —
+full detail in `DATA_TRUTH_AND_FIXTURES.md`'s "The shared projection" section and
+`TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "The shared data-consistency cascade" section. Summary:
+
+1. **FIXED — AFTER/REPORT-COMPLETED disagreed with REPORT-DRAFT about the same interactive
+   match.** All three now read the same three-tier priority cascade (persisted report >
+   journey-derived seed > reference fixture).
+2. **FIXED — goal reversal (`Undo`) was not applied anywhere in B08's own derivations.**
+   `computeEffectiveLiveEvents()` mirrors the real production reversal-filtering algorithm exactly.
+3. **FIXED — reference-only narrative (reflection, observations, combination evidence, the
+   Assistant Coach insight) could have leaked into an interactive projection claiming a different
+   match history.** `deriveB08AfterDataFromReport()` returns these fields empty/null in interactive
+   mode; the Assistant Coach panel uses the real `{status: "unavailable"}` state instead.
+4. **FIXED — a real test-isolation bug found while re-verifying:** `onStateChange`'s own mount-time
+   fire would have silently started a persisted journey on a bare page visit; a skip-first-render
+   guard was added. A SEPARATE, already-landed bug (jsdom's shared `sessionStorage` leaking between
+   tests in the same file) was also found and fixed in the test suite itself.
+5. **DISCLOSED, not attempted as a browser test — Journey C (goal reversal end-to-end in a real
+   browser).** Investigating `LiveMatchClient`'s own event-reconciliation timing
+   (`getRecentEvents()` is only re-fetched during specific reconciliation moments — e.g. right
+   before "Finish live reporting" — not after every action) surfaced a real risk: a newly-recorded
+   event can be transiently absent from the "Recent events" panel before the next reconcile, since
+   `overlayPendingCommands()` excludes any command once its status reaches `PERSISTED` (which B08's
+   own synchronous fixture `recordEvent` reaches almost immediately). Clicking that event's own
+   "Undo" button in a Playwright test would therefore race a real, pre-existing production display
+   characteristic I cannot verify without running Playwright locally (this devcontainer's
+   documented HMR blocker). The exact same claim — a goal followed by a reversal returns to the
+   original score and excludes the reversed goal from the report — is instead proven
+   deterministically, with literal expected values, in
+   `shared/__tests__/b08-projection.test.ts` — stronger evidence than a timing-sensitive browser
+   click would be, and explicitly permitted by the review's own "where an interaction is better
+   verified through assertions than screenshots, retain the assertion and document the
+   corresponding test." A genuine, bounded fidelity improvement was made alongside this
+   investigation regardless of whether C ships as a browser test: `getRecentEvents()` now marks
+   `isReversed` on an already-undone event (`markReversedEvents()`), matching what real production
+   computes server-side.
+6. **Journey D ("duplicate and correction behavior") is explicitly scoped by the review itself to
+   "the fixture projection level,"** not a browser requirement — satisfied by the projection unit
+   tests' own duplicate-delivery case.
 
 ## Remediation (independent review of PR #822, 2026-11-08)
 

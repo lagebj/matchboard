@@ -60,6 +60,48 @@ auto-navigate" was stale/wrong — `handleEndSession()` already navigates via th
 Full detail, file-by-file: `BLOCKERS.md`'s "Remediation" section,
 `TRANSITION_AND_NAVIGATION_CONTRACT.md`, `DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`.
 
+## Second remediation (independent review of PR #822, 2026-11-08, "lifecycle data consistency")
+
+The first remediation pass made REPORT-DRAFT journey-aware but left AFTER and REPORT-COMPLETED
+reading the static reference fixture regardless — a coach could finish LIVE with one result and see
+a DIFFERENT one in Match Details, and the review's own words put it plainly: "B08 currently
+maintains two competing interpretations of the match." Fixed with one shared, fixture-local
+projection (`shared/b08-projection.ts`) that AFTER, REPORT-DRAFT and REPORT-COMPLETED now all read
+from, via a three-tier priority cascade (persisted report → finished-journey seed → reference
+fixture) — full detail in `TRANSITION_AND_NAVIGATION_CONTRACT.md`'s "shared data-consistency
+cascade" section. Specifically:
+
+1. **One shared projection, not three independently-plausible pages.** `b08-projection.ts` derives
+   score, goals/assists, and the real `MatchDetailAfterData`/`MatchPresentation` shapes from a single
+   source, reused by all three downstream workspaces.
+2. **Goal reversal (`Undo`) now applies correctly everywhere**, mirroring production's own
+   `EVENT_REVERSED` filtering algorithm exactly (`computeEffectiveLiveEvents`) — proven with literal
+   expected values, including a negative test confirming the two real correction-reference
+   namespaces are genuinely distinct.
+3. **Reference-only narrative content can no longer leak into an interactive journey's different
+   match history** — reflection, football observations, opponent observation, and combination
+   evidence come back empty/null in interactive mode; the Assistant Coach panel uses the real,
+   already-production-modeled `{status: "unavailable"}` state instead of fabricating an insight
+   against the wrong match.
+4. **AFTER no longer lets its own `?report=` URL override a real, persisted report** — the URL only
+   selects a presentation state in the no-journey (pure reference) tier.
+5. **A real bug was caught and fixed during this pass, before it reached anyone:** a mount-time
+   `onStateChange` fire would have silently started a persisted journey on a bare page visit
+   (including every CI capture); a skip-first-render guard was added to
+   `safe-post-match-report-shell.tsx`. A separate, already-landed test-isolation bug (jsdom's shared
+   `sessionStorage` leaking between tests in one file) was also found and fixed.
+6. **Disclosed, not attempted — Journey C (goal reversal) as a browser test.** A real, investigated
+   timing characteristic in `LiveMatchClient`'s own event-reconciliation display
+   (`getRecentEvents()`/`overlayPendingCommands()`) makes a reliable "click Undo on a just-recorded
+   event" Playwright test genuinely risky without local verification (blocked by this devcontainer's
+   documented HMR limitation). The identical claim is instead proven deterministically in
+   `b08-projection.test.ts` — see `BLOCKERS.md` for the full reasoning. Journey D (duplicate/
+   correction) is explicitly scoped by the review itself to "the fixture projection level" and is
+   satisfied by the same test file.
+
+Full detail: `BLOCKERS.md`'s "Second remediation" section, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
+`DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`, `CHANGED_FILES.md`.
+
 ## Verification performed
 
 - Component tests: `npx vitest run --config vitest.config.components.ts

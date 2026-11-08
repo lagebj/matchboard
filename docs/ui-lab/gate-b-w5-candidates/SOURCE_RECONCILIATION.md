@@ -38,6 +38,15 @@ subsequent Report — see `DATA_TRUTH_AND_FIXTURES.md`'s own "Event persistence 
 its exact lifetime/isolation guarantees. It is explicitly NOT a general-purpose event-sourcing
 system, reuses the existing pure derivation functions, and never reaches a server.
 
+**FIXED (W5 SECOND remediation):** the follower's own score (and every other interactive-mode
+derivation) now goes through `shared/b08-projection.ts`'s reversal-aware
+`computeEffectiveLiveEvents()`/`deriveEffectiveScore()` first — a real "Undo" on the reporter
+correctly decrements the follower's score too, matching `LiveMatchClient`'s own real
+`goalsFor`/`goalsAgainst` state exactly. `getRecentEvents()` also now marks `isReversed` on an
+already-undone event via the new `markReversedEvents()` (same reversed-id algorithm, without
+filtering) — real production computes this server-side; this fixture has no server, so it
+computes it the same way for its own Recent Events display.
+
 ## B08-AFTER
 
 Real, unmodified: `MatchIdentityCard`, `MatchTimelineList`, `MatchFlowPanel`,
@@ -57,6 +66,17 @@ query param (W5 remediation, P1-5) — one Match Details composition, not a seco
 production-shaped `orgUrl()` path — default preserves the exact prior behavior for every production
 call site.
 
+**FIXED (W5 SECOND remediation):** AFTER no longer trusts the `?report=` URL param when a real,
+persisted interactive report exists — it reads `shared/b08-journey.ts`'s `loadB08JourneyReport()`
+first (authoritative), falls back to a reversal-aware seed from a finished-but-unreconciled LIVE
+journey second, and only falls back to the URL-switched reference fixture when no journey exists
+at all. `deriveB08AfterDataFromReport()` builds the real `MatchDetailAfterData` shape from the
+persisted report — reflection, football observations, opponent observation and combination
+evidence come back empty/null in interactive mode (never fabricated against a different history),
+and the embedded Assistant Coach panel switches to the real, already-production-modeled
+`{status: "unavailable"}` state (via `AdvisorPanelUnavailable`) instead of showing the fixed
+reference match's own insight.
+
 ## B08-REPORT-DRAFT / B08-REPORT-COMPLETED
 
 Real, unmodified: `SafePostMatchReportShell` and `useSafeReportLifecycle` — the exact same B05
@@ -72,6 +92,18 @@ REPORT-DRAFT additionally reads `shared/b08-journey.ts`'s own `loadFinishedB08Jo
 remediation, P1-6): if a finished LIVE journey exists in this browser session, goals/assists/score
 are derived from what was ACTUALLY recorded there instead of the fixed canonical report. No journey
 (every direct visit, including every CI/Playwright capture) is unaffected.
+
+**FIXED (W5 SECOND remediation):** a fourth, new prop — `onStateChange` — lets REPORT-DRAFT persist
+the coach's own full reconciliation (not just `status`) back into the journey store on every real
+change, so a reload or a navigation to AFTER/REPORT-COMPLETED never loses it. A skip-first-render
+guard inside the shell prevents a bare mount from echoing `initialLocalState` straight back out
+through `onStateChange` as though it were a real edit — without it, merely VISITING REPORT-DRAFT
+(including a CI capture) would have silently started a persisted "interactive journey," breaking
+reference-mode isolation for every other page. REPORT-COMPLETED now reads the SAME persisted report
+when it exists (showing the coach's own real completed record, not the fixed reference) — if that
+journey's own report was never actually locked, the real shared shell renders it honestly as its
+own DRAFT-editable surface instead of fabricating a completed state (`surfaceState = status ===
+"LOCKED" ? "COMPLETED" : "DRAFT"` already does this correctly; no special-casing was added).
 
 ## What was never built
 

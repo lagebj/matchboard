@@ -30,10 +30,15 @@ this information? What can I do next?
 
 ## AFTER
 
-- **Where am I?** The match has been played (2-1, final); Match Details' AFTER composition — either
-  "report still incomplete" or "report completed," depending on the real report status (an explicit
-  `?report=` variant switch, W5 remediation P1-5 — the SAME composition represents both states, per
-  ADR-0147, never a third lifecycle surface).
+- **Where am I?** The match has been played — final score as ACTUALLY recorded (2-1 reference by
+  default; whatever the coach's own interactive LIVE session reconciled, if one exists — the shared
+  projection cascade, W5 second remediation, makes this page always agree with REPORT-DRAFT/
+  REPORT-COMPLETED about the same match, never a second, different history); Match Details' AFTER
+  composition — either "report still incomplete" or "report completed," depending on the real,
+  persisted report status, not an unconditioned URL switch (the `?report=` param only selects the
+  presentation when no persisted report exists at all — W5 remediation P1-5, tightened by the second
+  remediation pass — the SAME composition represents both states, per ADR-0147, never a third
+  lifecycle surface).
 - **What is this information?** Overview is curated (bounded match-story preview, Key figures
   rollup, coaching-intent review, Assistant Coach hypothesis clearly labelled as interpretation);
   Events and Stats are their own factual, full-detail owners one tab away; the lightened
@@ -67,7 +72,9 @@ this information? What can I do next?
   editability.
 
 Across all five states, the one invariant that makes the sequence coherent rather than five
-unrelated screens: the same match identity, the same canonical event record, and a tab/report
-status that is never misrepresented — verified directly by the fixture-consistency tests
-(`DATA_TRUTH_AND_FIXTURES.md`) and the lifecycle/navigation tests
-(`INTERACTION_AND_STATE_AUDIT.md`).
+unrelated screens: the same match identity, the same canonical event record — resolved through one
+shared fixture-local projection (`shared/b08-projection.ts`) so AFTER, REPORT-DRAFT and
+REPORT-COMPLETED can never disagree about which match actually happened — and a tab/report status
+that is never misrepresented — verified directly by the fixture-consistency tests
+(`DATA_TRUTH_AND_FIXTURES.md`), the shared-projection tests (`b08-projection.test.ts`), and the
+lifecycle/navigation tests (`INTERACTION_AND_STATE_AUDIT.md`).
