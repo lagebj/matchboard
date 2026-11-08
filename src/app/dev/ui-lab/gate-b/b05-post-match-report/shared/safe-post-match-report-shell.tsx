@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { TabRail } from "@/components/ui/tab-rail";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -61,6 +61,7 @@ export function SafePostMatchReportShell({
   backHref = "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
   backHrefForStatus,
   onStatusChange,
+  onStateChange,
 }: {
   matchId: string;
   title: string;
@@ -96,6 +97,13 @@ export function SafePostMatchReportShell({
    * shell (e.g. to keep its own page-level breadcrumb in sync too) without lifting the whole
    * reducer. Optional, defaults to a no-op — no existing call site is affected. */
   onStatusChange?: (status: SafeReportLocalState["status"]) => void;
+  /** B08 W5 second remediation (independent review, 2026-11-08, "lifecycle data consistency"):
+   * fires with the FULL current state on every change (goal/assist/attendance edits, timing
+   * resolution, completion) — not just `status`. Lets a caller persist the reconciled report
+   * beyond this component's own React state (e.g. B08's own sessionStorage-backed journey, so a
+   * reload or a navigation to a different route never loses reconciliation work). Optional,
+   * defaults to a no-op — no existing call site is affected. */
+  onStateChange?: (state: SafeReportLocalState) => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -109,6 +117,21 @@ export function SafePostMatchReportShell({
   useEffect(() => {
     onStatusChange?.(state.status);
   }, [state.status]);
+
+  // B08 W5 second remediation: `useEffect` fires on the INITIAL render too, not only on a real
+  // change — without this guard, merely mounting this shell (e.g. a bare direct visit, or a
+  // CI/Playwright capture) would echo `initialLocalState` straight back out through
+  // `onStateChange` as though the coach had made a real edit, silently starting a persisted
+  // "interactive journey" a caller like B08 never actually asked for. Skip the first fire;
+  // every REAL state transition after that (a genuine reducer action) still reports normally.
+  const skippedFirstStateChange = useRef(false);
+  useEffect(() => {
+    if (!skippedFirstStateChange.current) {
+      skippedFirstStateChange.current = true;
+      return;
+    }
+    onStateChange?.(state);
+  }, [state]);
 
   const surfaceState = state.status === "LOCKED" ? "COMPLETED" : "DRAFT";
   const isDraft = surfaceState === "DRAFT";

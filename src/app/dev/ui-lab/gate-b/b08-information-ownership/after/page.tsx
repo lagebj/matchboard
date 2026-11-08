@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppearanceControl, TouchlineButton, TouchlinePlanningPitch } from "@/components/touchline";
 import { TabRail } from "@/components/ui/tab-rail";
 import { Surface } from "@/components/ui/surface";
@@ -19,6 +19,7 @@ import { WidgetHeader } from "@/components/touchline/widget/widget-header";
 import { MetricStrip, type MetricStripItem } from "@/components/touchline/widget/metric-strip";
 import { StatusPill } from "@/components/ui/status-pill";
 import { CompletedMatchAdvisorPanel } from "@/components/ai/completed-match-advisor-panel";
+import { AdvisorPanelUnavailable } from "@/components/ai/advisor-panel";
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
 import { getMatchDetailTabs, resolveMatchDetailTab, type MatchDetailTabKey } from "@/lib/matches/match-detail-tabs";
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
@@ -33,7 +34,9 @@ import {
   B08_COACHING_INTENT_CATEGORY,
   B08_COACHING_INTENT_NOTE,
 } from "../shared/fixture";
-import { b08AfterData } from "../shared/fixture-history";
+import { b08AfterData, b08InitialReport, b08TimingReview } from "../shared/fixture-history";
+import { loadFinishedB08JourneyEvents, loadB08JourneyReport, type B08PersistedReportState } from "../shared/b08-journey";
+import { computeEffectiveLiveEvents, deriveGoalsAndAssists, deriveEffectiveScore, deriveB08AfterDataFromReport, deriveB08IdentityFromReport } from "../shared/b08-projection";
 
 /**
  * B08 — AFTER (played, report incomplete).
@@ -60,18 +63,73 @@ import { b08AfterData } from "../shared/fixture-history";
  * it is the same Match Details composition for BOTH "played, report incomplete" and "played,
  * report completed" (ADR-0147: one composition, not a third lifecycle surface). An explicit
  * `?report=completed` query param — set only by REPORT-COMPLETED's own "back to match" link —
- * switches the fixture variant this page reads. It cannot drift from the report's own canonical
- * state: both read the exact same `b08AfterData`/`b08AfterIdentity("completed")` functions
- * REPORT-COMPLETED itself seeds from. The default (no param) remains the draft/incomplete
- * reference snapshot, unchanged, so every existing direct link/capture is unaffected.
+ * switches the fixture variant this page reads, in REFERENCE mode only (see below).
+ *
+ * W5 second remediation (independent review, 2026-11-08, "lifecycle data consistency") — THREE
+ * data sources, in priority order, mirroring REPORT-DRAFT's/REPORT-COMPLETED's own identical
+ * cascade (`shared/b08-projection.ts`) so all three pages can never disagree about the same match:
+ *
+ * 1. A PERSISTED, reconciled report (`loadB08JourneyReport()`) — the real, authoritative stored
+ *    lifecycle. The `?report=` URL param is deliberately IGNORED here: "the URL may select a
+ *    presentation state, but it cannot override the authoritative stored lifecycle" — a journey
+ *    that hasn't been locked yet must not be shown as completed just because the URL says so.
+ * 2. A finished LIVE journey with no report reconciliation yet — the same reversal-aware seed
+ *    REPORT-DRAFT itself derives, so AFTER agrees with what REPORT-DRAFT would show if opened.
+ * 3. No journey at all (every direct visit, including every CI/Playwright capture) — the
+ *    `?report=` URL switch behaves exactly as before this pass (reference snapshot only).
+ *
+ * Narrative/evidence content authored for the fixed 2-1 reference match (reflection, football
+ * observations, opponent observation, combination evidence, the Assistant Coach insight) is never
+ * reproduced for an interactive journey/report (source 1 or 2) — `deriveB08AfterDataFromReport()`
+ * already returns those fields empty/null, and the Assistant Coach panel below switches to its
+ * own real `{status: "unavailable"}` state instead of fabricating a conclusion. Purely factual/
+ * computed content (result, timeline, goals, assists, attendance) remains fully populated — see
+ * `INFORMATION_OWNERSHIP_MATRIX.md`'s own provenance rule.
  */
 export default function B08AfterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reportVariant = searchParams.get("report") === "completed" ? "completed" : "draft";
-  const isCompleted = reportVariant === "completed";
-  const data = b08AfterData(reportVariant);
-  const presentation = b08AfterIdentity(reportVariant);
+
+  const [persistedReport] = useState(() => loadB08JourneyReport());
+  const [journeyEvents] = useState(() => loadFinishedB08JourneyEvents());
+  const hasJourney = persistedReport !== null || journeyEvents !== null;
+  const effectiveEvents = journeyEvents ? computeEffectiveLiveEvents(journeyEvents) : [];
+
+  let isCompleted: boolean;
+  let data: ReturnType<typeof b08AfterData>;
+  let presentation: ReturnType<typeof b08AfterIdentity>;
+
+  if (persistedReport) {
+    isCompleted = persistedReport.status === "LOCKED";
+    data = deriveB08AfterDataFromReport(persistedReport, effectiveEvents);
+    presentation = deriveB08IdentityFromReport(persistedReport, isCompleted ? "done" : "report_incomplete");
+  } else if (journeyEvents) {
+    const { goals, assists } = deriveGoalsAndAssists(effectiveEvents);
+    const { ourGoals, opponentGoals } = deriveEffectiveScore(effectiveEvents);
+    const referenceInitialReport = b08InitialReport("draft");
+    const seeded: B08PersistedReportState = {
+      status: "REPORTED",
+      ourScore: ourGoals,
+      opponentScore: opponentGoals,
+      goals: goals.map((g) => ({ id: g.id, playerId: g.participantKey, playerName: g.playerName, minute: g.minute })),
+      assists: assists.map((a) => ({ id: a.id, playerId: a.participantKey!, playerName: a.playerName })),
+      players: referenceInitialReport.playerActuals.map((p) => ({ id: p.id, playerId: p.playerId, playerName: p.playerName, attendanceStatus: p.attendanceStatus, meta: p.coreTeamName })),
+      timingReview: b08TimingReview("draft"),
+      outOfRangeEventCount: b08AfterData("draft").outOfRangeEventCount,
+      completedBy: null,
+      completedAt: null,
+      nextLocalId: 0,
+    };
+    isCompleted = false;
+    data = deriveB08AfterDataFromReport(seeded, effectiveEvents);
+    presentation = deriveB08IdentityFromReport(seeded, "report_incomplete");
+  } else {
+    const reportVariant = searchParams.get("report") === "completed" ? "completed" : "draft";
+    isCompleted = reportVariant === "completed";
+    data = b08AfterData(reportVariant);
+    presentation = b08AfterIdentity(reportVariant);
+  }
+
   const tabs = getMatchDetailTabs("AFTER");
   const requestedTab = searchParams.get("tab");
   const activeTab = resolveMatchDetailTab("AFTER", requestedTab);
@@ -105,20 +163,28 @@ export default function B08AfterPage() {
   // (a football observation + the team reflection note), never a repackaging of the final score
   // as a "discovery." `clarification: null`/`suggestions: []` keeps every mutation-wired control
   // on the real `CompletedMatchAdvisorPanel` structurally unreachable, matching B07's precedent.
-  const advisorViewModel: CompletedMatchAdvisorViewModel = {
-    status: "fresh",
-    summary: "Defensive transition after losing the ball high is the one repeated theme from this match.",
-    insights: [
-      {
-        sectionLabel: "Next focus",
-        title: "Tighten defensive transition",
-        body: "Vollen's equalizer at 22' followed directly from a lost high turnover — the coach's own post-match reflection names the same pattern.",
-        evidenceSources: ["Match data", "Coach observation"],
-      },
-    ],
-    clarification: null,
-    suggestions: [],
-  };
+  //
+  // W5 second remediation: this specific insight text ("Vollen's equalizer... the coach's own
+  // post-match reflection names the same pattern") is authored for the fixed 2-1 REFERENCE match
+  // and would misrepresent an interactive journey that ended differently. In interactive mode
+  // (`hasJourney`), use the real, already-production-modeled `{status: "unavailable"}` state
+  // instead of fabricating a conclusion — never a second, invented "no insight" UI.
+  const advisorViewModel: CompletedMatchAdvisorViewModel | null = hasJourney
+    ? { status: "unavailable" }
+    : {
+        status: "fresh",
+        summary: "Defensive transition after losing the ball high is the one repeated theme from this match.",
+        insights: [
+          {
+            sectionLabel: "Next focus",
+            title: "Tighten defensive transition",
+            body: "Vollen's equalizer at 22' followed directly from a lost high turnover — the coach's own post-match reflection names the same pattern.",
+            evidenceSources: ["Match data", "Coach observation"],
+          },
+        ],
+        clarification: null,
+        suggestions: [],
+      };
 
   return (
     <OrgSlugProvider orgSlug="uilab-demo-org">
@@ -145,6 +211,16 @@ export default function B08AfterPage() {
 
         <B08TransitionNav current="after" />
         <AppearanceControl />
+
+        {hasJourney && (
+          <div className="rounded-lg border border-dashed border-[var(--accent)]/50 bg-[var(--accent)]/5 px-3 py-2 text-[12px] text-[var(--text-muted)]">
+            <span className="font-[650] text-[var(--foreground)]">Reflecting your interactive journey:</span> result, events, goals
+            and report status below come from what you actually recorded/reconciled in this browser session. Reflection, football
+            observations, opponent observation, combination evidence and the Assistant Coach insight were authored specifically
+            for the fixed reference match and are not reproduced here — genuinely unavailable for this interactive journey, not
+            hidden by mistake.
+          </div>
+        )}
 
         <TabRail items={tabs} activeKey={activeTab} variant="pill" ariaLabel="Match Details sections" onSelect={selectTab} />
 
@@ -220,7 +296,11 @@ export default function B08AfterPage() {
               <WidgetHeader eyebrow="Coaching intent review" title={intentLabel} />
               <p className="mt-1 text-[13px] text-[var(--text-soft)]">{B08_COACHING_INTENT_NOTE}</p>
               <div className="mt-3">
-                <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />
+                {advisorViewModel?.status === "fresh" || advisorViewModel?.status === "stale" ? (
+                  <CompletedMatchAdvisorPanel viewModel={advisorViewModel} />
+                ) : (
+                  <AdvisorPanelUnavailable />
+                )}
               </div>
             </TouchlineWidget>
 

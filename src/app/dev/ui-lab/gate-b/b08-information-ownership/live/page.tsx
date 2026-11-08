@@ -27,6 +27,13 @@
  * frozen score. Recording a goal in the reporter panel below updates this follower panel's own
  * score on the very next render; it can no longer silently disagree with what the reporter
  * actually recorded (the "Preferred: Shared fixture projection" option the review itself names).
+ *
+ * W5 second remediation (lifecycle data consistency, 2026-11-08): the score is now computed via
+ * `shared/b08-projection.ts`'s `computeEffectiveLiveEvents()` + `deriveEffectiveScore()`, the same
+ * reversal-aware derivation every other B08 workspace uses — a reversed goal (the real LIVE
+ * reporter's own "Undo" control, which emits an `EVENT_REVERSED` event) now correctly stops
+ * counting here too, matching the reporter's own real `goalsFor`/`goalsAgainst` React state
+ * exactly instead of silently disagreeing with it.
  */
 
 import Link from "next/link";
@@ -38,12 +45,14 @@ import { B08TransitionNav } from "../shared/transition-nav";
 import { B08_MATCH_FORMAT, B08_OPPONENT_NAME, B08_MATCH_ID, B08_KICKOFF_AT } from "../shared/fixture";
 import { MATCH_B_TEAM_NAME } from "../../shared/match-b-fixture";
 import { useB08LiveFixtureActions } from "../shared/safe-transition-controller";
+import { computeEffectiveLiveEvents, deriveEffectiveScore } from "../shared/b08-projection";
 
 const B08_LIVE_FIXTURE_MATCH_ID = "b08-fixture-live-match";
 
 export default function B08LivePage() {
   const { actions, events } = useB08LiveFixtureActions(B08_LIVE_FIXTURE_MATCH_ID);
   const periodConfig = buildPeriodConfigFromFormat(B08_MATCH_FORMAT);
+  const effectiveScore = deriveEffectiveScore(computeEffectiveLiveEvents(events));
 
   const followerPresentation = buildMatchPresentation({
     id: B08_MATCH_ID,
@@ -53,8 +62,8 @@ export default function B08LivePage() {
     isHome: true,
     kickoffAt: B08_KICKOFF_AT,
     lifecycleStatus: "live",
-    ownGoals: events.filter((e) => e.eventType === "GOAL_FOR").length,
-    opponentGoals: events.filter((e) => e.eventType === "GOAL_AGAINST").length,
+    ownGoals: effectiveScore.ourGoals,
+    opponentGoals: effectiveScore.opponentGoals,
     liveClockLabel: "Live",
   });
 
