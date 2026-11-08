@@ -55,9 +55,29 @@ describe("B08 shared fixture identity", () => {
   });
 
   it("every canonical period-relative conversion round-trips through the real production contract", () => {
-    expect(globalMinuteToPeriodRelative(10, B08_MATCH_FORMAT)).toEqual({ period: 1, matchSeconds: 10 * 60 });
-    expect(globalMinuteToPeriodRelative(22, B08_MATCH_FORMAT)).toEqual({ period: 1, matchSeconds: 22 * 60 });
-    expect(globalMinuteToPeriodRelative(48, B08_MATCH_FORMAT)).toEqual({ period: 2, matchSeconds: 18 * 60 });
+    // B08 W5 remediation (independent review, P1-3): `matchSeconds` is real MILLISECONDS despite
+    // its legacy name — literal expected values below are production-contract values, not a
+    // self-consistency check against this same function (a conversion function can be
+    // consistently wrong against itself). Confirmed directly against
+    // `src/components/live-match/live-match-client.tsx`'s own
+    // `formatElapsedMs(event.matchSeconds)` renderer and doc comment.
+    expect(globalMinuteToPeriodRelative(10, B08_MATCH_FORMAT)).toEqual({ period: 1, matchSeconds: 10 * 60 * 1000 });
+    expect(globalMinuteToPeriodRelative(22, B08_MATCH_FORMAT)).toEqual({ period: 1, matchSeconds: 22 * 60 * 1000 });
+    expect(globalMinuteToPeriodRelative(48, B08_MATCH_FORMAT)).toEqual({ period: 2, matchSeconds: 18 * 60 * 1000 });
+  });
+
+  it("matches formatElapsedMs's real minute:second rendering at each canonical goal instant", () => {
+    // formatElapsedMs(elapsedMs) = floor(elapsedMs/1000) seconds -> "m:ss" (match-clock.ts).
+    // A correct ms-denominated matchSeconds must format back to the real human-facing minute.
+    const formatElapsedMs = (elapsedMs: number) => {
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    };
+    expect(formatElapsedMs(globalMinuteToPeriodRelative(10, B08_MATCH_FORMAT).matchSeconds)).toBe("10:00");
+    expect(formatElapsedMs(globalMinuteToPeriodRelative(22, B08_MATCH_FORMAT).matchSeconds)).toBe("22:00");
+    expect(formatElapsedMs(globalMinuteToPeriodRelative(48, B08_MATCH_FORMAT).matchSeconds)).toBe("18:00");
   });
 
   it("one stable match/report identity across all three MatchPresentation snapshots", () => {

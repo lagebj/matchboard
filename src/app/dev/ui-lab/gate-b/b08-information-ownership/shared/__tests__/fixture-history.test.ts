@@ -31,6 +31,16 @@ describe("B08 canonical event chronology", () => {
     }
   });
 
+  it("matchSeconds literal values match the real production millisecond contract (not a self-check)", () => {
+    // B08 W5 remediation (independent review, P1-3): literal expected values, independent of
+    // globalMinuteToPeriodRelative() itself, so a consistently-wrong conversion function cannot
+    // mask itself. 10' -> 600_000ms, 22' -> 1_320_000ms, 48' (18' into the 2nd half) -> 1_080_000ms.
+    const byId = new Map(b08CanonicalLiveEvents.map((e) => [e.id, e]));
+    expect(byId.get("live-gb8-goal-1")).toMatchObject({ period: 1, matchSeconds: 600_000 });
+    expect(byId.get("live-gb8-goal-against-1")).toMatchObject({ period: 1, matchSeconds: 1_320_000 });
+    expect(byId.get("live-gb8-goal-2")).toMatchObject({ period: 2, matchSeconds: 1_080_000 });
+  });
+
   it("every event's global minute falls within real match regulation time (0-60')", () => {
     for (const event of b08CanonicalLiveEvents) {
       if (event.minuteLabel === null) continue;
@@ -102,11 +112,13 @@ describe("B08's genuine incomplete-data condition — unconfirmed second-half ti
   });
 
   it("the draft's own unconfirmed reading still comfortably covers every real period-2 event (max 18')", () => {
+    // matchSeconds is real milliseconds (fixture.ts's globalMinuteToPeriodRelative doc comment) —
+    // convert draftMinutes to ms, not seconds, to compare like-for-like.
     const draftMinutes = b08TimingReview("draft")[0]!.resolvedDurationMinutes;
-    const maxPeriodTwoMatchSeconds = Math.max(
+    const maxPeriodTwoMatchMs = Math.max(
       ...b08CanonicalLiveEvents.filter((e) => e.period === 2 && e.matchSeconds !== null).map((e) => e.matchSeconds!),
     );
-    expect(draftMinutes * 60).toBeGreaterThan(maxPeriodTwoMatchSeconds);
+    expect(draftMinutes * 60_000).toBeGreaterThan(maxPeriodTwoMatchMs);
   });
 
   it("AFTER's own timingNeedsReviewCount reflects this exact condition (1 in draft, 0 once resolved)", () => {

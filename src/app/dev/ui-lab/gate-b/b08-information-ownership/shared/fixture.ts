@@ -55,11 +55,23 @@ export const B08_MATCH_FORMAT = {
 
 /**
  * The real production conversion from a human-facing GLOBAL match minute to the period-relative
- * `{period, matchSeconds}` encoding `LiveMatchEvent` actually stores (`src/lib/live-match/
- * period-config.ts`'s own documented contract). Deliberately re-declared here rather than
- * imported from `b05-post-match-report/shared/report-data.ts` — each Gate B wave's own fixture
- * module stays self-contained rather than cross-importing another wave's scenario directory (the
- * same discipline Gate A's W3 shared fixture documents for `FixtureIdentity`).
+ * `{period, matchSeconds}` encoding `LiveMatchEvent` actually stores. Despite its legacy name,
+ * `matchSeconds` is MILLISECONDS since period start — confirmed directly against
+ * `src/components/live-match/live-match-client.tsx`'s own comment ("event.matchSeconds is
+ * milliseconds since period start (legacy name — ADR-0133 H3)") and its real
+ * `formatElapsedMs(event.matchSeconds)` renderer, and against `src/lib/live-match/match-clock.ts`'s
+ * `getElapsedMs()`/`formatElapsedMs()` pair, which the same component uses for its own running
+ * clock. B08 W5 remediation (independent review): this function previously multiplied by 60
+ * (seconds), which rendered every live event at roughly 0:00 in `LiveMatchClient`'s own Recent
+ * Events list once the real component was mounted — B05's own identically-named-but-dormant
+ * helper (`b05-post-match-report/shared/report-data.ts`) carries the same latent bug, never
+ * surfaced there because B05 never mounts the real `LiveMatchClient`/`formatElapsedMs` consumer
+ * (tracked separately, out of this wave's scope — see BLOCKERS.md).
+ *
+ * Deliberately re-declared here rather than imported from `b05-post-match-report/shared/
+ * report-data.ts` — each Gate B wave's own fixture module stays self-contained rather than
+ * cross-importing another wave's scenario directory (the same discipline Gate A's W3 shared
+ * fixture documents for `FixtureIdentity`).
  */
 export function globalMinuteToPeriodRelative(
   globalMinute: number,
@@ -67,7 +79,7 @@ export function globalMinuteToPeriodRelative(
 ): { period: number; matchSeconds: number } {
   const periodIndex = Math.min(Math.floor(globalMinute / format.periodDurationMinutes), format.numberOfPeriods - 1);
   const periodRelativeMinutes = globalMinute - periodIndex * format.periodDurationMinutes;
-  return { period: periodIndex + 1, matchSeconds: periodRelativeMinutes * 60 };
+  return { period: periodIndex + 1, matchSeconds: periodRelativeMinutes * 60 * 1000 };
 }
 
 /** POSITIONAL_DISCIPLINE (`src/lib/coaching/types.ts`) — the real stored coaching-intent category

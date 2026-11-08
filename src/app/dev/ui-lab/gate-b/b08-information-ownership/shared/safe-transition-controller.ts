@@ -25,9 +25,11 @@ export const B08_LIVE_SERIALIZED_FORMAT: SerializedMatchFormat = {
 /** Numeric `period` (1/2, as `MatchCanonicalLiveEventFact` stores it) back to the global
  * match-minute the fixture's own event list was authored against (`fixture-history.ts`'s own
  * 10'/22'/48' minute labels) — used only to decide which events are already "recorded" at the
- * LIVE snapshot instant, mirroring `B08_LIVE_NOW`'s own documented in-progress moment. */
+ * LIVE snapshot instant, mirroring `B08_LIVE_NOW`'s own documented in-progress moment.
+ * `matchSeconds` is real milliseconds (see `fixture.ts`'s `globalMinuteToPeriodRelative()` doc
+ * comment) — divide by 60_000, not 60, to recover minutes. */
 function toGlobalMinute(period: number | null, matchSeconds: number | null): number {
-  return ((period ?? 1) - 1) * B08_MATCH_FORMAT.periodDurationMinutes + (matchSeconds ?? 0) / 60;
+  return ((period ?? 1) - 1) * B08_MATCH_FORMAT.periodDurationMinutes + (matchSeconds ?? 0) / 60_000;
 }
 
 function periodNumberToKey(period: number | null): MatchPeriod {
@@ -119,20 +121,37 @@ export function useB08LiveFixtureActions(matchId: string) {
       heartbeat: async () => {},
       recordEvent,
       getRecentEvents: async () => ({ success: true, data: eventsRef.current }),
-      getPreMatchPackage: async () => ({
-        success: true,
-        data: {
-          squad: toSquadPlayers(),
-          activeSession: {
-            id: B08_LIVE_SESSION_ID,
-            coachId: "coach-gate-b-08",
-            startedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-            format: B08_LIVE_SERIALIZED_FORMAT,
-            clock: { period: "SECOND_HALF", running: true, startedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), elapsedBeforeStartMs: 30 * 60 * 1000 },
-            lastClockTransitionAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      getPreMatchPackage: async () => {
+        const now = Date.now();
+        // B08 W5 remediation (independent review, finding P1-2): `getElapsedMs()`
+        // (`src/lib/live-match/match-clock.ts`) computes `elapsedBeforeStartMs + (now -
+        // startedAt)` — `elapsedBeforeStartMs` is time accumulated *within the current period*
+        // before the clock's current unbroken run, not the duration of any earlier period. The
+        // second half has been running continuously since kickoff + 40' real time (30' first
+        // half + 10' break) with no pause, so its own elapsedBeforeStartMs is 0 — the previous
+        // `30 * 60 * 1000` here double-counted the completed first half on top of the real 15'
+        // already elapsed in the second, producing a false ~45:00 reading and a spurious
+        // over-duration warning against the real 30'-period format.
+        const secondHalfElapsedMs = (B08_LIVE_CUTOFF_GLOBAL_MINUTE - B08_MATCH_FORMAT.periodDurationMinutes) * 60_000;
+        const secondHalfStartedAt = new Date(now - secondHalfElapsedMs).toISOString();
+        const realWorldSessionStartMs =
+          (B08_MATCH_FORMAT.periodDurationMinutes + B08_MATCH_FORMAT.breakDurationMinutes + (B08_LIVE_CUTOFF_GLOBAL_MINUTE - B08_MATCH_FORMAT.periodDurationMinutes)) *
+          60_000;
+        return {
+          success: true,
+          data: {
+            squad: toSquadPlayers(),
+            activeSession: {
+              id: B08_LIVE_SESSION_ID,
+              coachId: "coach-gate-b-08",
+              startedAt: new Date(now - realWorldSessionStartMs).toISOString(),
+              format: B08_LIVE_SERIALIZED_FORMAT,
+              clock: { period: "SECOND_HALF", running: true, startedAt: secondHalfStartedAt, elapsedBeforeStartMs: 0 },
+              lastClockTransitionAt: secondHalfStartedAt,
+            },
           },
-        },
-      }),
+        };
+      },
       reportUrl: () => `/dev/ui-lab/gate-b/b08-information-ownership/report-draft`,
       // No `persistClock`/`onLiveUpdate`/`reconnectRealtime`/`onPersistenceChanged` — all
       // optional, and genuinely absent here: this fixture never reaches a realtime coordinator
