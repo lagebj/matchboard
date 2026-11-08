@@ -188,10 +188,13 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     await page.goto(`${BASE}/live`);
     await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
-    // Starting snapshot: 1-1 (the match's own real 48' winner has not happened yet).
+    // Starting snapshot: 1-1 (the match's own real 48' winner has not happened yet). The follower
+    // panel (B08's own read-only summary, built from the real `MatchScoreHeader`) renders its own
+    // score as "home : away" (a colon, per that component's own real `hero` string) — a DIFFERENT
+    // format from `MatchIdentityCard`'s "home - away" used on AFTER/REPORT, not a typo.
     await expect(page.getByTestId("live-score-us")).toHaveText("1");
     await expect(page.getByTestId("live-score-them")).toHaveText("1");
-    await expect(page.getByText("1 - 1").first()).toBeAttached();
+    await expect(page.getByText("1 : 1").first()).toBeAttached();
 
     await page.getByRole("button", { name: "Goal for us" }).click();
     await page.getByRole("button", { name: "Skip" }).click();
@@ -200,7 +203,7 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     // ledger (P2-9), never a second, independently-frozen score.
     await expect(page.getByTestId("live-score-us")).toHaveText("2");
     await expect(page.getByTestId("live-score-them")).toHaveText("1");
-    await expect(page.getByText("2 - 1").first()).toBeAttached();
+    await expect(page.getByText("2 : 1").first()).toBeAttached();
 
     // Locate the just-recorded, unattributed goal in Recent Events ("Goal — us" with no player
     // name — the seed's own 10' goal is attributed to Vetle, so its row reads
@@ -214,7 +217,7 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     // and B08's follower panel re-deriving from the same `events` React state on its next render).
     await expect(page.getByTestId("live-score-us")).toHaveText("1");
     await expect(page.getByTestId("live-score-them")).toHaveText("1");
-    await expect(page.getByText("1 - 1").first()).toBeAttached();
+    await expect(page.getByText("1 : 1").first()).toBeAttached();
     // The "reversed" marker and the Undo control's own removal are NOT part of that optimistic
     // update — both depend on `isReversed` being computed from a `getRecentEvents()` refresh,
     // which real production only re-polls every 5s (`fetchEvents`'s own `setInterval(fetchEvents,
