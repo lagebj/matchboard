@@ -6,6 +6,7 @@ import type { LiveEventSummary, LiveMatchEventType, MatchPeriod } from "@/lib/li
 import { B08_MATCH_FORMAT, b08Squad, B08_LINEUP_STARTER_SLOTS, periodRelativeToGlobalMinute } from "./fixture";
 import { b08CanonicalLiveEvents } from "./fixture-history";
 import { loadB08Journey, saveB08JourneyEvents, markB08JourneyFinished } from "./b08-journey";
+import { markReversedEvents } from "./b08-projection";
 
 /**
  * B08-LIVE's own fixture-local `LiveMatchActions` — the one piece of real client state B08 needs
@@ -138,7 +139,11 @@ export function useB08LiveFixtureActions(matchId: string) {
       },
       heartbeat: async () => {},
       recordEvent,
-      getRecentEvents: async () => ({ success: true, data: eventsRef.current }),
+      // W5 second remediation: marks `isReversed` on an already-undone event (real production
+      // computes this server-side; this fixture has no server) so the reporter's own "Undo"
+      // button correctly disappears and its "reversed" badge correctly shows — see
+      // `markReversedEvents()`'s own doc comment.
+      getRecentEvents: async () => ({ success: true, data: markReversedEvents(eventsRef.current) }),
       getPreMatchPackage: async () => {
         const now = Date.now();
         // B08 W5 remediation (independent review, finding P1-2): `getElapsedMs()`

@@ -53,6 +53,23 @@ export function computeEffectiveLiveEvents(rawEvents: readonly LiveEventSummary[
   return rawEvents.filter((e) => e.eventType !== "EVENT_REVERSED" && !reversedIds.has(e.id));
 }
 
+/** Companion to `computeEffectiveLiveEvents()` for the REPORTER's own live event list
+ * (`LiveMatchClient`'s "Recent events" panel), which must keep showing a reversed event (with its
+ * own real `isReversed` badge and its "Undo" control correctly hidden — `LIVE_EVENT_TYPES_THAT_
+ * ARE_CORRECTABLE` display logic already gates on `!event.isReversed`) rather than silently
+ * removing it, unlike the AFTER/Report-facing effective set above. In REAL production this flag
+ * is computed server-side; B08's own fixture-local `getRecentEvents()` has no server, so it must
+ * compute it itself from the same reversed-id set, or the reporter's own "Undo" button would stay
+ * clickable on an already-reversed event (harmless numerically — `handleUndo`'s own
+ * `Math.max(0, ...)` floor prevents a negative score — but not a faithful reproduction of the real
+ * reporter UI). */
+export function markReversedEvents(rawEvents: readonly LiveEventSummary[]): LiveEventSummary[] {
+  const reversedIds = new Set(
+    rawEvents.filter((e) => e.eventType === "EVENT_REVERSED" && e.correctsEventId != null).map((e) => e.correctsEventId as string),
+  );
+  return rawEvents.map((e) => (reversedIds.has(e.id) ? { ...e, isReversed: true } : e));
+}
+
 /** Effective own/opponent goal counts — `GOAL_FOR`/`GOAL_AGAINST` events remaining after reversal
  * filtering. The single function every score display (LIVE follower, LIVE reporter's own
  * `goalsFor`/`goalsAgainst` React state is the real `LiveMatchClient`'s own concern and already

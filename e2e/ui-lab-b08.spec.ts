@@ -96,8 +96,9 @@ test.describe("B08 — navigation and lifecycle-state continuity", () => {
   });
 });
 
-test.describe("B08 — LIVE-to-report continuity (P1-6): a real recorded live event reaches the report, an un-recorded one genuinely does not", () => {
-  test("finishing LIVE without recording the 48' winner leaves REPORT-DRAFT showing a real 1-1 — not the fixed canonical 2-1", async ({ page }) => {
+test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second remediation 'lifecycle data consistency'): the SAME effective match appears consistently across LIVE, REPORT-DRAFT, AFTER and REPORT-COMPLETED — never a different history in a different workspace", () => {
+  // Journey A (independent review, section 10): match finishes 1-1.
+  test("Journey A — finishing LIVE without recording the 48' winner: a real 1-1 all the way through REPORT-DRAFT, completion, AFTER, REPORT-COMPLETED and a reload", async ({ page }) => {
     await page.goto(`${BASE}/live`);
     await expect(page.getByRole("button", { name: "Finish live reporting" })).toBeVisible({ timeout: 15_000 });
 
@@ -111,9 +112,33 @@ test.describe("B08 — LIVE-to-report continuity (P1-6): a real recorded live ev
     await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
     await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
     await expect(page.getByText("1 - 1").first()).toBeAttached();
+    // No 48' winner recorded in this journey — its own minute label must not appear anywhere
+    // (the fixed reference match's own goal list would otherwise show "10'" AND "48'").
+    await expect(page.getByText("48'")).toHaveCount(0);
+
+    // Resolve the one real blocker, then complete the report in place (native confirm() dialog —
+    // same real pattern scripts/ui-lab-visual-review.mjs's own completeB08DraftFlow() proves).
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await expect(page.getByText("Confirm duration", { exact: true })).toHaveCount(0);
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Reopen report", exact: true })).toBeVisible();
+
+    await page.getByRole("link", { name: "‹ Back to match" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/after\\?report=completed`));
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("report completed");
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+
+    await page.getByRole("link", { name: "View report" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-completed`));
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+
+    await page.reload();
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
   });
 
-  test("recording the 48' winner live (scorer skipped) before finishing carries it through to REPORT-DRAFT as a real 2-1", async ({ page }) => {
+  // Journey B (independent review, section 10): a new goal is recorded live (scorer skipped).
+  test("Journey B — recording the 48' winner live (scorer skipped) before finishing: a real 2-1 all the way through REPORT-DRAFT, completion, AFTER, REPORT-COMPLETED and a reload", async ({ page }) => {
     await page.goto(`${BASE}/live`);
     await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
 
@@ -128,6 +153,53 @@ test.describe("B08 — LIVE-to-report continuity (P1-6): a real recorded live ev
 
     await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
     await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await expect(page.getByText("Confirm duration", { exact: true })).toHaveCount(0);
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Reopen report", exact: true })).toBeVisible();
+
+    await page.getByRole("link", { name: "‹ Back to match" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/after\\?report=completed`));
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    await page.getByRole("link", { name: "View report" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-completed`));
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    await page.reload();
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+  });
+
+  // Journey E (independent review, section 10): reference-mode isolation.
+  test("Journey E — a fresh context sees the unchanged reference fixture; starting and then resetting a journey restores it", async ({ page }) => {
+    await page.goto(`${BASE}/after`);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("report incomplete");
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    await page.goto(`${BASE}/report-completed`);
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    // Start and finish an interactive journey that changes the result.
+    await page.goto(`${BASE}/live`);
+    await expect(page.getByRole("button", { name: "Finish live reporting" })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Finish live reporting" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+
+    // The dev-only "Reset journey" control clears the whole B08 journey (LIVE ledger + any
+    // reconciled report) via window.location.reload() on the SAME /live URL — not a URL change
+    // `waitForURL` could detect, so wait for the real post-reload DOM instead (the "Finish live
+    // reporting" button only appears once LiveMatchClient has freshly mounted and finished its
+    // own async pre-match load).
+    await page.getByRole("button", { name: "Reset journey" }).click();
+    await expect(page.getByRole("button", { name: "Finish live reporting" })).toBeVisible({ timeout: 15_000 });
+
+    await page.goto(`${BASE}/after`);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("report incomplete");
     await expect(page.getByText("2 - 1").first()).toBeAttached();
   });
 });
