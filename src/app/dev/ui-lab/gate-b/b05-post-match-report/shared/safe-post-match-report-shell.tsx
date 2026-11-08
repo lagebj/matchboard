@@ -59,6 +59,8 @@ export function SafePostMatchReportShell({
   footballObservations,
   combinationEvidence,
   backHref = "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
+  backHrefForStatus,
+  onStatusChange,
 }: {
   matchId: string;
   title: string;
@@ -82,6 +84,18 @@ export function SafePostMatchReportShell({
    * be B05's. Defaults to B05's own Match Details stand-in so every existing B05 call site keeps
    * its exact prior behavior unchanged; B08 passes its own `/after` route. */
   backHref?: string;
+  /** B08 W5 remediation (independent review, P1-5/P1-6): when the coach completes the report IN
+   * PLACE on this page (status flips REPORTED -> LOCKED via the real `complete()` action, no
+   * navigation), the static `backHref` above would send them back to Match Details' draft/
+   * incomplete variant even though the report they just left is now locked. This optional
+   * callback, given the CURRENT live `state.status`, lets a caller return a different back
+   * destination once locked. Defaults to always returning the static `backHref`, so every
+   * existing call site (including every other B08 page) keeps its exact prior behavior. */
+  backHrefForStatus?: (status: SafeReportLocalState["status"]) => string;
+  /** B08 W5 remediation (P1-6): lets a caller observe the live `state.status` from outside this
+   * shell (e.g. to keep its own page-level breadcrumb in sync too) without lifting the whole
+   * reducer. Optional, defaults to a no-op — no existing call site is affected. */
+  onStatusChange?: (status: SafeReportLocalState["status"]) => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,6 +104,11 @@ export function SafePostMatchReportShell({
   // inventing a second roster.
   const eligiblePlayers = useMemo(() => allPlayers.map((p) => ({ id: p.id, name: p.name })), [allPlayers]);
   const { state, actions } = useSafeReportLifecycle(initialLocalState, initialCompletedBy, completionTimestamp, eligiblePlayers);
+  const liveBackHref = backHrefForStatus ? backHrefForStatus(state.status) : backHref;
+
+  useEffect(() => {
+    onStatusChange?.(state.status);
+  }, [state.status]);
 
   const surfaceState = state.status === "LOCKED" ? "COMPLETED" : "DRAFT";
   const isDraft = surfaceState === "DRAFT";
@@ -215,7 +234,7 @@ export function SafePostMatchReportShell({
           `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`), not a fragment and
           not another match's identity. */}
       <Link
-        href={backHref}
+        href={liveBackHref}
         className="inline-flex w-fit items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
       >
         &lsaquo; Back to match
@@ -223,7 +242,7 @@ export function SafePostMatchReportShell({
 
       <PostMatchReportHeader
         breadcrumbLabel="Matches"
-        breadcrumbHref={backHref}
+        breadcrumbHref={liveBackHref}
         title={title}
         surfaceState={surfaceState}
         completedByLabel={state.completedBy ? `Completed by ${state.completedBy}` : null}

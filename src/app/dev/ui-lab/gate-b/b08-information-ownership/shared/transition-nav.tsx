@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { resetB08Journey } from "./b08-journey";
 
 export type B08StageKey = "before" | "live" | "after" | "report-draft" | "report-completed";
 
@@ -43,6 +46,20 @@ export function B08TransitionNav({ current }: { current: B08StageKey }) {
           </Link>
         );
       })}
+      {/* P1-6 (reproducible captures/tests): clears the sessionStorage-backed interactive LIVE
+          journey so the next visit to BEFORE/LIVE starts from the canonical reference snapshot
+          again — a developer convenience, never a production action. Reloads the current page so
+          its own already-rendered fixture data (read once at mount) reflects the reset immediately. */}
+      <button
+        type="button"
+        onClick={() => {
+          resetB08Journey();
+          window.location.reload();
+        }}
+        className="ml-auto rounded-md border border-dashed border-[var(--border-soft)] px-2 py-0.5 text-[11px] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+      >
+        Reset journey
+      </button>
     </nav>
   );
 }

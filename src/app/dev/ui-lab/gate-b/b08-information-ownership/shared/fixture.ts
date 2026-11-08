@@ -82,6 +82,18 @@ export function globalMinuteToPeriodRelative(
   return { period: periodIndex + 1, matchSeconds: periodRelativeMinutes * 60 * 1000 };
 }
 
+/** The true inverse of `globalMinuteToPeriodRelative()` above — period (1-indexed) + real
+ * milliseconds since that period's start, back to a human-facing global match minute. Used by
+ * the B08-LIVE interactive journey (shared/b08-journey.ts) to label a goal recorded live with a
+ * real minute, the same way `fixture-history.ts`'s own canonical events carry a `minuteLabel`. */
+export function periodRelativeToGlobalMinute(
+  period: number | null,
+  matchSecondsMs: number | null,
+  format: { periodDurationMinutes: number },
+): number {
+  return ((period ?? 1) - 1) * format.periodDurationMinutes + (matchSecondsMs ?? 0) / 60_000;
+}
+
 /** POSITIONAL_DISCIPLINE (`src/lib/coaching/types.ts`) — the real stored coaching-intent category
  * for this match, read by `AfterMatchOverview`'s "Coaching intent review" widget as a Class 1
  * (Fact) item (ADR-0157 C1). Themed to match this fixture's own reflection/debrief narrative

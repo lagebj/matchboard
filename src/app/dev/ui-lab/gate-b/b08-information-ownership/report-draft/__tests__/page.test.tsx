@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -99,6 +99,27 @@ describe("B08 Report · Draft page", () => {
       "href",
       "/dev/ui-lab/gate-b/b08-information-ownership/after",
     );
+    expect(screen.getByRole("link", { name: "← Back to match (After)" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b08-information-ownership/after",
+    );
+  });
+
+  it("P1-5/P1-6 remediation: completing the report IN PLACE switches BOTH back-to-match links to AFTER's completed variant (?report=completed) — neither stays pointed at the stale draft/incomplete state", async () => {
+    renderPage("players");
+    fireEvent.click(screen.getByRole("button", { name: "Confirm duration" }));
+    await waitFor(() => expect(screen.queryByText("Confirm duration")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Complete report" }));
+    await screen.findByText("Reopen report");
+
+    expect(screen.getByRole("link", { name: "‹ Back to match" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b08-information-ownership/after?report=completed",
+    );
+    expect(screen.getByRole("link", { name: "← Back to match (After)" })).toHaveAttribute(
+      "href",
+      "/dev/ui-lab/gate-b/b08-information-ownership/after?report=completed",
+    );
   });
 
   it("never imports the real production post-match server action module (structural guarantee)", () => {
@@ -119,5 +140,62 @@ describe("B08 Report · Draft page", () => {
     for (const a of Array.from(container.querySelectorAll("a"))) {
       expect(a.getAttribute("href")).not.toBe("#");
     }
+  });
+
+  describe("P1-6: a finished B08-LIVE journey changes what this page actually shows", () => {
+    const JOURNEY_KEY = "b08-live-journey-v1";
+
+    beforeEach(() => {
+      window.sessionStorage.clear();
+    });
+    afterEach(() => {
+      window.sessionStorage.clear();
+    });
+
+    it("with no journey (every direct visit / CI capture), the reference snapshot (both canonical goals, 2-1) is unchanged", () => {
+      renderPage("players");
+      expect(screen.getAllByText("2 - 1").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Noah").length).toBeGreaterThan(0);
+    });
+
+    it("a journey that recorded only the FIRST goal (never the 48' winner) shows a real 1-1, not the fixed 2-1 — genuine dependency on what was actually recorded live", () => {
+      window.sessionStorage.setItem(
+        JOURNEY_KEY,
+        JSON.stringify({
+          version: 1,
+          finished: true,
+          events: [
+            { id: "e1", clientEventId: "c1", eventType: "GOAL_FOR", period: "FIRST_HALF", matchSeconds: 600_000, wallClockTime: null, playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
+            { id: "e2", clientEventId: null, eventType: "SCORER_SET", period: "FIRST_HALF", matchSeconds: null, wallClockTime: null, playerId: "player-gb8-vetle", secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: "c1", positionChange: null },
+            { id: "e3", clientEventId: "c2", eventType: "GOAL_AGAINST", period: "FIRST_HALF", matchSeconds: 1_320_000, wallClockTime: null, playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
+          ],
+        }),
+      );
+      renderPage("players");
+      // A real 1-1, not the fixed canonical 2-1 — the 48' winner was never recorded in this
+      // journey, so the own-goal count derived from the ledger is 1, not 2. (Noah, its real
+      // scorer, is still a listed, present squad member — attendance is unaffected by the goal
+      // journey — so this test checks the SCORE, the strongest unambiguous proof, rather than
+      // his name's presence/absence on the page.)
+      expect(screen.getAllByText("1 - 1").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Vetle").length).toBeGreaterThan(0);
+      expect(screen.getByText(/Reflecting your LIVE session/)).toBeInTheDocument();
+    });
+
+    it("an UNFINISHED journey (finished: false) is ignored — the reference snapshot still renders, not a half-recorded session", () => {
+      window.sessionStorage.setItem(
+        JOURNEY_KEY,
+        JSON.stringify({
+          version: 1,
+          finished: false,
+          events: [
+            { id: "e1", clientEventId: "c1", eventType: "GOAL_FOR", period: "FIRST_HALF", matchSeconds: 600_000, wallClockTime: null, playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
+          ],
+        }),
+      );
+      renderPage("players");
+      expect(screen.getAllByText("2 - 1").length).toBeGreaterThan(0);
+      expect(screen.queryByText(/Reflecting your LIVE session/)).not.toBeInTheDocument();
+    });
   });
 });

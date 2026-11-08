@@ -3,8 +3,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { LiveMatchActions, SquadPlayer, SerializedMatchFormat } from "@/components/live-match/live-match-client";
 import type { LiveEventSummary, LiveMatchEventType, MatchPeriod } from "@/lib/live-match/live-match-types";
-import { B08_MATCH_FORMAT, b08Squad, B08_LINEUP_STARTER_SLOTS } from "./fixture";
+import { B08_MATCH_FORMAT, b08Squad, B08_LINEUP_STARTER_SLOTS, periodRelativeToGlobalMinute } from "./fixture";
 import { b08CanonicalLiveEvents } from "./fixture-history";
+import { loadB08Journey, saveB08JourneyEvents, markB08JourneyFinished } from "./b08-journey";
 
 /**
  * B08-LIVE's own fixture-local `LiveMatchActions` — the one piece of real client state B08 needs
@@ -25,11 +26,9 @@ export const B08_LIVE_SERIALIZED_FORMAT: SerializedMatchFormat = {
 /** Numeric `period` (1/2, as `MatchCanonicalLiveEventFact` stores it) back to the global
  * match-minute the fixture's own event list was authored against (`fixture-history.ts`'s own
  * 10'/22'/48' minute labels) — used only to decide which events are already "recorded" at the
- * LIVE snapshot instant, mirroring `B08_LIVE_NOW`'s own documented in-progress moment.
- * `matchSeconds` is real milliseconds (see `fixture.ts`'s `globalMinuteToPeriodRelative()` doc
- * comment) — divide by 60_000, not 60, to recover minutes. */
+ * LIVE snapshot instant, mirroring `B08_LIVE_NOW`'s own documented in-progress moment. */
 function toGlobalMinute(period: number | null, matchSeconds: number | null): number {
-  return ((period ?? 1) - 1) * B08_MATCH_FORMAT.periodDurationMinutes + (matchSeconds ?? 0) / 60_000;
+  return periodRelativeToGlobalMinute(period, matchSeconds, B08_MATCH_FORMAT);
 }
 
 function periodNumberToKey(period: number | null): MatchPeriod {
@@ -84,18 +83,27 @@ function generateFixtureEventId(): string {
   return `b08-live-event-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** B08 W5 remediation (P1-6) — a fresh interactive journey always starts from the canonical
+ * cutoff seed; a journey already in progress (a reload of B08-LIVE itself, mid-session) restores
+ * exactly where the coach left off, never the canonical seed again. Reference-snapshot captures
+ * (a brand-new browser context, per `scripts/ui-lab-visual-review.mjs`) always see `null` here and
+ * fall back to the unchanged canonical seed. */
+function initialLiveEvents(): LiveEventSummary[] {
+  return loadB08Journey()?.events ?? B08_LIVE_INITIAL_EVENTS;
+}
+
 export function useB08LiveFixtureActions(matchId: string) {
-  const [events, setEvents] = useState<LiveEventSummary[]>(B08_LIVE_INITIAL_EVENTS);
+  const [events, setEvents] = useState<LiveEventSummary[]>(initialLiveEvents);
   const eventsRef = useRef(events);
   eventsRef.current = events;
 
   const recordEvent = useCallback<LiveMatchActions["recordEvent"]>(async (input) => {
     const id = generateFixtureEventId();
-    setEvents((prev) => [
-      ...prev,
+    const next: LiveEventSummary[] = [
+      ...eventsRef.current,
       {
         id,
-        clientEventId: input.clientEventId,
+        clientEventId: input.clientEventId ?? null,
         eventType: input.eventType as LiveMatchEventType,
         period: (input.period as MatchPeriod) ?? "SECOND_HALF",
         matchSeconds: input.matchSeconds ?? null,
@@ -107,7 +115,11 @@ export function useB08LiveFixtureActions(matchId: string) {
         correctsEventId: input.correctsEventId ?? null,
         positionChange: null,
       },
-    ]);
+    ];
+    setEvents(next);
+    // P1-6: persisted immediately (not only held in this component's own React state), so a
+    // navigation away from B08-LIVE — not just a re-render — carries the recorded event forward.
+    saveB08JourneyEvents(next);
     return { success: true, data: { id } };
   }, []);
 
@@ -117,7 +129,13 @@ export function useB08LiveFixtureActions(matchId: string) {
         success: true,
         data: { id: B08_LIVE_SESSION_ID, startedAt: new Date().toISOString(), format: B08_LIVE_SERIALIZED_FORMAT },
       }),
-      endSession: async () => ({ success: true, data: { reportId: "report-gate-b-08", reportStatus: "REPORTED" } }),
+      endSession: async () => {
+        // P1-6: marks this journey "finished" — the Report candidate only reads a FINISHED
+        // journey's events, so a half-recorded, abandoned LIVE session (never finished) cannot
+        // leak a partial event list into the Report as though it were the final record.
+        markB08JourneyFinished(eventsRef.current);
+        return { success: true, data: { reportId: "report-gate-b-08", reportStatus: "REPORTED" } };
+      },
       heartbeat: async () => {},
       recordEvent,
       getRecentEvents: async () => ({ success: true, data: eventsRef.current }),

@@ -19,24 +19,44 @@
  * it performs its own real realtime-ticket fetch and Durable Object connection on mount, which is
  * not safely fixture-injectable without a second stubbing layer this wave doesn't need. The
  * reporter-vs-follower distinction below is instead demonstrated with a small read-only summary
- * panel built from the same real presentational primitives (`MatchScoreHeader`), fed static
- * fixture data — not a second live-reporting engine.
+ * panel built from the same real presentational primitives (`MatchScoreHeader`).
+ *
+ * B08 W5 remediation (independent review, P2-9): this follower summary is now derived from the
+ * SAME event ledger the reporter's own `LiveMatchClient` reads/writes (`useB08LiveFixtureActions`'
+ * own `events`), via the real `buildMatchPresentation()` — not a second, static, independently
+ * frozen score. Recording a goal in the reporter panel below updates this follower panel's own
+ * score on the very next render; it can no longer silently disagree with what the reporter
+ * actually recorded (the "Preferred: Shared fixture projection" option the review itself names).
  */
 
 import Link from "next/link";
 import { AppearanceControl, MatchScoreHeader } from "@/components/touchline";
 import { LiveMatchClient } from "@/components/live-match/live-match-client";
 import { buildPeriodConfigFromFormat } from "@/lib/live-match/period-config";
+import { buildMatchPresentation } from "@/lib/matches/match-presentation";
 import { B08TransitionNav } from "../shared/transition-nav";
-import { B08_MATCH_FORMAT, B08_OPPONENT_NAME, b08LiveIdentity } from "../shared/fixture";
+import { B08_MATCH_FORMAT, B08_OPPONENT_NAME, B08_MATCH_ID, B08_KICKOFF_AT } from "../shared/fixture";
 import { MATCH_B_TEAM_NAME } from "../../shared/match-b-fixture";
 import { useB08LiveFixtureActions } from "../shared/safe-transition-controller";
 
 const B08_LIVE_FIXTURE_MATCH_ID = "b08-fixture-live-match";
 
 export default function B08LivePage() {
-  const { actions } = useB08LiveFixtureActions(B08_LIVE_FIXTURE_MATCH_ID);
+  const { actions, events } = useB08LiveFixtureActions(B08_LIVE_FIXTURE_MATCH_ID);
   const periodConfig = buildPeriodConfigFromFormat(B08_MATCH_FORMAT);
+
+  const followerPresentation = buildMatchPresentation({
+    id: B08_MATCH_ID,
+    href: null,
+    teamName: MATCH_B_TEAM_NAME,
+    opponentName: B08_OPPONENT_NAME,
+    isHome: true,
+    kickoffAt: B08_KICKOFF_AT,
+    lifecycleStatus: "live",
+    ownGoals: events.filter((e) => e.eventType === "GOAL_FOR").length,
+    opponentGoals: events.filter((e) => e.eventType === "GOAL_AGAINST").length,
+    liveClockLabel: "Live",
+  });
 
   return (
     <div className="touchline mx-auto flex max-w-[720px] flex-col gap-4 px-4 py-8" data-ui-lab-ready="true">
@@ -69,7 +89,7 @@ export default function B08LivePage() {
       <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/20 px-3 py-2.5">
         <p className="text-[11px] font-[650] uppercase tracking-[0.1em] text-[var(--text-muted)]">Read-only follower view (summary)</p>
         <div className="mt-2">
-          <MatchScoreHeader presentation={b08LiveIdentity} framed />
+          <MatchScoreHeader presentation={followerPresentation} framed />
         </div>
         <p className="mt-2 text-[12px] text-[var(--text-muted)]">
           A follower sees the same score/clock as the reporter, with no recording controls. The real{" "}

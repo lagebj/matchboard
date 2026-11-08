@@ -16,8 +16,19 @@ import type { PostMatchReportTimingReviewRow } from "@/lib/reports/post-match-re
 import type { CombinationEvidenceRow, MatchSegment, PlayerSlot } from "@/lib/evidence/combination-topology";
 import type { GoalAttributionEvent } from "@/lib/evidence/combination-goal-attribution";
 import type { DebriefAnswersSection } from "@/lib/post-match/debrief/v1";
+import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
 import { MATCH_B_TEAM_NAME, type MatchBSquadMember } from "../../shared/match-b-fixture";
-import { B08_MATCH_FORMAT, B08_MATCH_ID, B08_REPORT_ID, B08_OPPONENT_NAME, B08_COMPLETED_AT, B08_COMPLETED_BY, globalMinuteToPeriodRelative, b08Squad } from "./fixture";
+import {
+  B08_MATCH_FORMAT,
+  B08_MATCH_ID,
+  B08_REPORT_ID,
+  B08_OPPONENT_NAME,
+  B08_COMPLETED_AT,
+  B08_COMPLETED_BY,
+  globalMinuteToPeriodRelative,
+  periodRelativeToGlobalMinute,
+  b08Squad,
+} from "./fixture";
 
 /**
  * B08's one canonical match history — every one of the five lifecycle candidates (BEFORE/LIVE/
@@ -95,6 +106,34 @@ export function b08Goals(_variant: "draft" | "completed"): MatchGoalFact[] {
 
 export function b08Assists(_variant: "draft" | "completed"): MatchAssistFact[] {
   return [{ id: "assist-gb8-1", participantKey: "player-gb8-sindre", playerName: "Sindre", type: "NORMAL" }];
+}
+
+/**
+ * B08 W5 remediation (independent review, P1-6) — real continuity for the interactive LIVE
+ * journey: derives goals/assists from what was ACTUALLY recorded in a finished B08-LIVE session
+ * (`shared/b08-journey.ts`'s `loadFinishedB08JourneyEvents()`), not always the fixed canonical
+ * list regardless of what the coach did. Mirrors the real `LiveMatchClient` goal-recording flow
+ * exactly (`handleGoalFor`/`handleScorerSelect`/`handleAssistSelect`): a `GOAL_FOR` event paired,
+ * via `correctsEventId === clientEventId`, with its own `SCORER_SET`/`ASSIST_SET` corrections — if
+ * the coach never recorded the 48' winner live, it is genuinely absent here, not silently restored
+ * from the canonical list. `b08Goals("draft")` above remains the REFERENCE SNAPSHOT default (used
+ * whenever no finished journey exists) and is never read by this function.
+ */
+export function b08GoalsAndAssistsFromJourney(events: LiveEventSummary[]): { goals: MatchGoalFact[]; assists: MatchAssistFact[] } {
+  const playerName = (playerId: string | null): string | null => (playerId ? (b08Squad.find((m) => m.playerId === playerId)?.displayName ?? null) : null);
+  const goals: MatchGoalFact[] = [];
+  const assists: MatchAssistFact[] = [];
+  for (const goalEvent of events.filter((e) => e.eventType === "GOAL_FOR")) {
+    const scorerEvent = events.find((e) => e.eventType === "SCORER_SET" && e.correctsEventId !== null && e.correctsEventId === goalEvent.clientEventId);
+    const assistEvent = events.find((e) => e.eventType === "ASSIST_SET" && e.correctsEventId !== null && e.correctsEventId === goalEvent.clientEventId);
+    const period = goalEvent.period === "SECOND_HALF" ? 2 : 1;
+    const minute = Math.round(periodRelativeToGlobalMinute(period, goalEvent.matchSeconds, B08_MATCH_FORMAT));
+    goals.push({ id: goalEvent.id, participantKey: scorerEvent?.playerId ?? null, playerName: playerName(scorerEvent?.playerId ?? null), minute, type: "NORMAL" });
+    if (assistEvent?.playerId) {
+      assists.push({ id: `${goalEvent.id}-assist`, participantKey: assistEvent.playerId, playerName: playerName(assistEvent.playerId), type: "NORMAL" });
+    }
+  }
+  return { goals, assists };
 }
 
 export function b08GoalScorers(variant: "draft" | "completed") {

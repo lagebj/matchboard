@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
@@ -90,5 +90,33 @@ describe("B08 Live page", () => {
     for (const a of Array.from(container.querySelectorAll("a"))) {
       expect(a.getAttribute("href")).not.toBe("#");
     }
+  });
+
+  describe("P2-9: the read-only follower summary is derived from the same event ledger as the reporter — never a second, independently frozen score", () => {
+    beforeEach(() => {
+      window.sessionStorage.clear();
+    });
+    afterEach(() => {
+      window.sessionStorage.clear();
+    });
+
+    it("starts in agreement with the reporter's own seeded score (1-1 at the B08 LIVE cutoff instant)", async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByText("Loading match data...")).not.toBeInTheDocument());
+      const follower = screen.getByText(/Read-only follower view/).closest("div")!.parentElement!;
+      expect(within(follower).getByText("1")).toBeInTheDocument();
+    });
+
+    it("recording a goal in the real reporter panel updates the follower's own score on the next render — they can no longer disagree", async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByText("Loading match data...")).not.toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "Goal for us" }));
+
+      await waitFor(() => {
+        const follower = screen.getByText(/Read-only follower view/).closest("div")!.parentElement!;
+        // 1-1 (seeded) -> 2-1 after one more own goal is recorded.
+        expect(within(follower).getByText("2")).toBeInTheDocument();
+      });
+    });
   });
 });
