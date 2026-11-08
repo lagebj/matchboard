@@ -3,19 +3,24 @@
 **Updated for the W5 SECOND remediation (independent review, 2026-11-08, "lifecycle data
 consistency").** This pass's fixes (the shared projection, reversal semantics, report persistence,
 narrative-contradiction removal, the AFTER URL-override fix) change what an INTERACTIVE journey
-shows — they do not change the five pages' own default, no-journey appearance. Every CI capture runs
-in a fresh browser context with no `sessionStorage` journey, so each page resolves to the exact same
-reference-fixture tier of the shared cascade as before this pass; no visual regression to the
-registered capture matrix is expected, and the first remediation's own capture evidence below
-remains the valid record for that matrix pending this PR's current re-run (see `BLOCKERS.md`/
-`REVIEW_RECORD.md` for this pass's own CI status at time of writing).
+shows — they do not change the five pages' own default, no-journey appearance. Confirmed, not just
+predicted: a fresh, POST-second-remediation capture run (workflow run 42509495683, the PR's own
+synthetic merge commit `1c80e04a` over branch-tip `d62575b2`) produced 72 real screenshots, all
+independently re-hashed from the raw bytes with zero mismatches and zero missing files, superseding
+the first remediation's own attestation (workflow run 42473958417). As expected, no visual
+regression was found — every CI capture runs in a fresh browser context with no `sessionStorage`
+journey, so each page resolved to the exact same reference-fixture tier of the shared cascade as
+before this pass. The same CI run also executed the full, now-51-test Playwright suite
+(`e2e/ui-lab-b08.spec.ts` — Journeys A/B/E were added this pass), all 51 passing.
 
-A fresh, POST-first-remediation capture run (workflow run 42473958417, commit d81c3800) backs
-`capture-attestation.json` — 72 real screenshots, all independently re-hashed with zero mismatches,
-superseding the earlier pre-remediation run (workflow run 42412296463). Visually confirmed in that
-session: B08-LIVE's clock reads a real 15:00 (not the pre-remediation false 45:00); B08-AFTER/
--REPORT-DRAFT/-REPORT-COMPLETED all render with zero horizontal overflow at 320px. The same CI run
-also executed the full 50-test Playwright suite (`e2e/ui-lab-b08.spec.ts`), all passing.
+A fresh, POST-first-remediation capture run (workflow run 42473958417, commit d81c3800) backs the
+prior attestation generation — 72 real screenshots, all independently re-hashed with zero
+mismatches, superseding the earlier pre-remediation run (workflow run 42412296463). Visually
+confirmed in that session: B08-LIVE's clock reads a real 15:00 (not the pre-remediation false
+45:00); B08-AFTER/-REPORT-DRAFT/-REPORT-COMPLETED all render with zero horizontal overflow at 320px.
+That same visual record remains valid for this pass's own (expected-identical) reference-mode
+screenshots — see `capture-attestation.json`'s own `knownLimitations` for exactly what was and
+wasn't re-inspected visually this pass.
 
 Real browser screenshot evidence for B08 comes from this PR's own CI run of the "UI Lab Visual
 Review" GitHub Actions workflow (`scripts/ui-lab-visual-review.mjs`, 5 scenario entries registered

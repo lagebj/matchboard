@@ -102,36 +102,49 @@ cascade" section. Specifically:
 Full detail: `BLOCKERS.md`'s "Second remediation" section, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
 `DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`, `CHANGED_FILES.md`.
 
-## Verification performed
+## Verification performed (updated for the second remediation)
 
 - Component tests: `npx vitest run --config vitest.config.components.ts
-  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 66+ tests, all passing**
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 71 tests, all passing**
   (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
-- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, 50 tests — navigation, lifecycle-state
-  continuity (including the full LIVE-to-report journey), and a 5-scenario × 8-width (320-1440px)
-  overflow matrix. **50/50 passed** in this PR's own CI run (workflow run 42473958417, 28.4s) — the
-  first run (workflow run 42472630228) caught 4 real bugs in the spec itself (not the underlying
-  fixes — see the commit history), all corrected and re-verified green. Not runnable in this
-  session's own devcontainer (the already-documented local `next dev` + Playwright HMR WebSocket
-  blocker).
+- Fixture/projection unit tests (default vitest config, `.ts`-only files): `npx vitest run
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **5 files, 62 tests, all passing**,
+  including the new `shared/__tests__/b08-projection.test.ts` (11 tests, the required
+  projection-integrity matrix: reference, LIVE-cutoff, finished-no-goal, scorer-skipped,
+  scorer-assigned, reversal with a correct-namespace assertion, a wrong-namespace negative test,
+  duplicate-event, completed-report 1-1/2-1, timeline chronology).
+- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, now **51 tests** (added Journeys A, B,
+  E on top of the first remediation's 50) — navigation, lifecycle-state continuity across three full
+  LIVE-to-report journeys, reference-mode isolation/reset, and the 5-scenario × 8-width (320-1440px)
+  overflow matrix. **51/51 passed** in this PR's own CI run (workflow run 42509495683, 1.0m).
+  Getting there took two real, disclosed fix-and-rerun cycles this pass: workflow runs 42506093494
+  and 42507560895 each caught one genuine bug in the new Journey E test itself (not the underlying
+  product code) — clicking "Reset journey" from the wrong page, then an insufficient per-test
+  timeout for Journey E's own longer navigation chain — both fixed and re-verified green; see the
+  commit history and `BLOCKERS.md`. Not runnable in this session's own devcontainer (the
+  already-documented local `next dev` + Playwright HMR WebSocket blocker).
 - `npx tsc --noEmit -p .` — zero errors.
 - `eslint`/`docs:check`/`terminology:check`/`architecture:check`/`deadcode:check` — zero errors on
   every changed file (repo-wide `eslint .` shows the same 3 pre-existing, unrelated warnings in an
   untouched file, confirmed unrelated).
-- B05/B06/B07 + every TabRail consumer regression check: 645 existing tests re-run unchanged, all
-  still passing (confirms the shared-component changes — `safe-post-match-report-shell.tsx`'s
-  `backHref`/`backHrefForStatus`/`onStatusChange`, `match-after-match-panel.tsx`'s
-  `reportHrefOverride`, `tab-rail.tsx`'s overflow containment — are all non-breaking).
+- B05/B06/B07 + every TabRail consumer regression check, plus the full first-remediation suite: all
+  re-run unchanged after this pass's changes, all still passing (confirms the shared-component
+  change this pass made — `safe-post-match-report-shell.tsx`'s new `onStateChange` prop plus its
+  skip-first-render guard — is non-breaking).
 - Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
-  (workflow run 42473958417, the POST-remediation run) produced 72 real screenshots across all 5
-  scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from the
-  raw bytes against the artifact's own manifest.json — zero mismatches. `capture-attestation.json`
-  holds this real, verified, post-remediation evidence (superseding the earlier pre-remediation
-  attestation from workflow run 42412296463). Four key screenshots were also visually inspected
-  directly in this session, confirming the remediation's own fixes: B08-LIVE's clock now reads a
-  real 15:00 (not the pre-remediation false 45:00), and B08-AFTER/-REPORT-DRAFT/-REPORT-COMPLETED
-  all render with zero horizontal overflow at 320px — see `capture-attestation.json`'s own
-  `knownLimitations` for the complete list.
+  (workflow run 42509495683, the POST-SECOND-remediation run) produced 72 real screenshots across
+  all 5 scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from
+  the raw bytes against the artifact's own manifest.json — zero mismatches, zero missing files.
+  `capture-attestation.json` holds this real, verified evidence (superseding the first remediation's
+  attestation from workflow run 42473958417). The `sourceCommitSha` in the artifact's own manifest
+  (`1c80e04a`) was independently confirmed, via `git fetch origin pull/822/merge`, to be GitHub's own
+  synthetic merge of this PR's actual branch-tip commit (`d62575b2`, recorded as
+  `reviewedBranchHeadSha`) into `main` — the same precedent as every prior wave, not a mismatch.
+  This pass's own fixes change only what an INTERACTIVE journey shows; every capture runs in a fresh
+  browser context with no journey, so no visual difference from the first remediation's own
+  already-inspected reference-mode screenshots was expected or found — see
+  `capture-attestation.json`'s own `knownLimitations` for the complete reasoning and what was/wasn't
+  re-inspected visually this pass.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`

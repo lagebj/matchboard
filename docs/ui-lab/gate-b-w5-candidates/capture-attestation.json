@@ -1,27 +1,27 @@
 {
-  "description": "Gate B W5 (B08 information ownership and lifecycle transitions) UI Lab visual-review evidence \u2014 POST-REMEDIATION (independent PR #822 review fixes: LIVE clock, event-timestamp units, mobile overflow, navigation/continuity). Supersedes the pre-remediation attestation from workflow run 42412296463.",
-  "sourceCommitSha": "09f8381dbe1c9be32831d1d149ed6f3c2cdbbd10",
-  "generatedAt": "2026-11-08T11:17:37.203Z",
+  "description": "Gate B W5 (B08 information ownership and lifecycle transitions) UI Lab visual-review evidence \u2014 POST-SECOND-REMEDIATION (independent review, 2026-11-08, \"lifecycle data consistency\": shared fixture projection, reversal/duplicate semantics, report-mutation persistence, narrative non-leakage, AFTER URL-override fix). Supersedes the first-remediation attestation from workflow run 42473958417.",
+  "sourceCommitSha": "1c80e04aaba00a1132fcf33fa89eb45935a39a20",
+  "generatedAt": "2026-11-08T18:35:32.190Z",
   "environment": {
     "node": "v24.22.2",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/42473958417",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/42509495683",
   "ciArtifact": {
-    "id": 13615260926,
-    "name": "ui-lab-review-42473958417-1",
-    "expiresAt": "2026-11-15T11:17:37Z"
+    "id": 13628519166,
+    "name": "ui-lab-review-42509495683-1",
+    "expiresAt": "2026-11-15T18:35:00Z"
   },
-  "reviewedBranchHeadSha": "d81c38007b75e52f25dd3449f51089983072afe3",
+  "reviewedBranchHeadSha": "d62575b2c1faa11a795d70cd29340bb21fbc7aaf",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit -- same precedent as every prior wave. reviewedBranchHeadSha is this PR's actual branch-tip commit (d81c3800) at this CI run.",
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit -- same precedent as every prior wave. Verified directly: git fetch origin pull/822/merge resolves to a commit whose parents are main (dc772b2a) and this PR's own branch-tip (d62575b2, reviewedBranchHeadSha above).",
     "GitHub Actions artifact retention is temporary (expires 2026-11-15) -- a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "All 72 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (42473958417) and every SHA-256 recomputed from the raw bytes -- zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
-    "This is the SECOND capture run for B08 -- the first (workflow run 42412296463, commit 4a28a6f) predates the independent review's remediation fixes and is now superseded; its own evidence remains historically valid as a BEFORE-remediation reference only, not current evidence.",
-    "This same CI run also executed 50 real Chromium Playwright tests (e2e/ui-lab-b08.spec.ts, project `ui-lab-b08`) -- navigation, LIVE-to-report lifecycle continuity, and the full 5-scenario x 8-width (320-1440px) horizontal-overflow matrix -- all 50 passed. Not screenshot evidence, but real-browser behavioral proof from the same run these captures came from.",
-    "Visually spot-checked directly in this session (not only hash-verified): B08-LIVE desktop-dark (clock now reads the real 15:00 in the second half, not the pre-remediation false 45:00, and shows no spurious over-duration warning), B08-AFTER narrow-dark (320px, zero horizontal page overflow), B08-REPORT-DRAFT narrow-light (320px, tab rail scrolls within its own bounds rather than widening the page), B08-REPORT-COMPLETED narrow-dark (320px, same). All four confirm the remediation's real fixes are reflected in this capture run.",
-    "Remaining 68 of 72 captures (all other viewport/theme/scenario/interaction combinations) were hash-verified but not individually visually inspected in this session -- left for the owner's own Visual Authority review, per ADR-0159 (no coding agent posts /visual-approve)."
+    "All 72 hashes recorded below were independently re-verified in this session: all files were downloaded via `gh run download` from this exact workflow run (42509495683) and every SHA-256 recomputed from the raw bytes -- zero mismatches against the artifact's own self-reported manifest.json, and no missing files.",
+    "This is the THIRD capture run for B08. The first (workflow run 42412296463) predates the independent review entirely. The second (workflow run 42473958417, commit d81c3800) reflects the FIRST remediation (clock/timestamp/overflow/navigation fixes) and is now superseded by this one, which reflects the SECOND remediation (\"lifecycle data consistency\": the shared fixture projection). Each earlier run's own evidence remains historically valid only as a record of that pass, not current evidence.",
+    "This second remediation pass changes what an INTERACTIVE journey shows (reversal-aware scores, persisted report state, non-leaking narrative) -- it does not change any of these five pages' own default, no-journey appearance. Every CI capture runs in a fresh browser context with no sessionStorage journey, so this run's 72 screenshots are expected to be visually identical to the prior (first-remediation) run's own reference-mode captures; the hash-reverification above confirms the pages still render correctly post-change, not that the second remediation introduced a new visual design.",
+    "This same CI run also executed 51 real Chromium Playwright tests (e2e/ui-lab-b08.spec.ts, project `ui-lab-b08`) -- navigation, LIVE-to-report lifecycle continuity across 3 full journeys (A: 1-1 finish, B: 2-1 recorded goal, E: reference-mode isolation and reset), and the full 5-scenario x 8-width (320-1440px) horizontal-overflow matrix -- all 51 passed. One real test bug was found and fixed during this pass's own CI iteration (Journey E clicked \"Reset journey\" on the wrong page, then needed a longer per-test timeout for its own longer navigation chain) -- both fixes are in this PR's own commit history, not silently reverted. Not screenshot evidence, but real-browser behavioral proof from the same run these captures came from.",
+    "Not re-inspected visually in this session beyond the hash re-verification above, since the second remediation does not change any reference-mode screenshot's expected appearance (see above) -- the first remediation's own visual spot-check (B08-LIVE clock, B08-AFTER/-REPORT-DRAFT/-REPORT-COMPLETED zero overflow at 320px) remains the valid visual record for these exact pixels. Left for the owner's own Visual Authority review, per ADR-0159 (no coding agent posts /visual-approve)."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -468,7 +468,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-b-w5-b08-live-desktop-dark.png",
-      "sha256": "3bc34a84b168a2c30198e911df633c686ff8c124c4e222e3c076cf6c45917156"
+      "sha256": "b5056361a96306b4d502ecc198c4c8401368c3de1736eda2b192657ec2097660"
     },
     {
       "scenarioId": "B08-LIVE",
