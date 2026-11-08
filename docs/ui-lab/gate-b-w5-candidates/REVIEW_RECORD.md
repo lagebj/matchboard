@@ -152,10 +152,17 @@ Full detail: `BLOCKERS.md`'s "Third remediation" section, `TRANSITION_AND_NAVIGA
   D on top of the second remediation's 51) — Journey C records a goal and Undoes it through the real
   mounted `LiveMatchClient`, verifying reporter/follower agreement and downstream non-resurfacing;
   Journey D edits the reference report directly (no LIVE journey) and verifies the real chronology
-  survives across REPORT-DRAFT/AFTER (including its Events/Stats tabs)/REPORT-COMPLETED/reload. Not
-  runnable in this session's own devcontainer (the already-documented local `next dev` + Playwright
-  HMR WebSocket blocker) — real CI results pending this pass's own push (see Governance below once
-  filled in).
+  survives across REPORT-DRAFT/AFTER (including its Events/Stats tabs)/REPORT-COMPLETED/reload.
+  **53/53 passed** in this PR's own CI run (workflow run 42525103572, 2.0m). Getting there took
+  three real, disclosed fix-and-rerun cycles this pass (workflow runs 42520115677, 42521584617,
+  42523466866) — each caught one genuine bug in the new Journey C test itself (not the underlying
+  product code): the LIVE follower panel's own score text uses `MatchScoreHeader`'s real colon
+  format ("1 : 1"), not `MatchIdentityCard`'s hyphen format ("1 - 1") used elsewhere; the
+  just-recorded goal's own Recent Events row needed to be disambiguated from the seed's own
+  identically-unattributed 10' goal by its known, fixed elapsed-time label ("10:00"), not by DOM
+  order (which the local-overlay-vs-reconciled timing makes unreliable) — both fixed and
+  re-verified green; see the commit history and `BLOCKERS.md`. Not runnable in this session's own
+  devcontainer (the already-documented local `next dev` + Playwright HMR WebSocket blocker).
 - `npx tsc --noEmit -p .` — zero errors.
 - `eslint`/`docs:check`/`terminology:check`/`architecture:check`/`deadcode:check` — zero errors on
   every changed file.
@@ -163,6 +170,18 @@ Full detail: `BLOCKERS.md`'s "Third remediation" section, `TRANSITION_AND_NAVIGA
   tests) and `npx vitest run` (588 files, 6526 tests) — both all passing, confirming the shared
   shell's five new optional props (all B05-defaulted) are non-breaking across every consumer, not
   only B08's own.
+- Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
+  (workflow run 42525103572, the POST-THIRD-remediation run) produced 72 real screenshots across all
+  5 scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from the
+  raw bytes against the artifact's own manifest.json — zero mismatches, zero missing files.
+  `capture-attestation.json` holds this real, verified evidence (superseding the second remediation's
+  attestation from workflow run 42509495683). The manifest's own `sourceCommitSha` (`7ee923ca`) was
+  independently confirmed, via `git fetch origin pull/822/merge`, to be GitHub's own synthetic merge
+  of this PR's actual branch-tip commit (`399b86d7`, recorded as `reviewedBranchHeadSha`) into
+  `main`. This pass's own fixes change history-origin provenance, idempotent event recording, and
+  narrative provenance — none of which affect any of these five pages' own default, no-journey,
+  no-edit appearance; no visual difference from the second remediation's own already-inspected
+  reference-mode screenshots was expected or found.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`
