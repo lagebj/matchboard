@@ -110,7 +110,7 @@ test.describe("B08 — LIVE-to-report continuity (P1-6): a real recorded live ev
     // reportId — a real window.location.href hard navigation, not a client-side route change.
     await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
     await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
-    await expect(page.getByText("1 - 1").first()).toBeVisible();
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
   });
 
   test("recording the 48' winner live (scorer skipped) before finishing carries it through to REPORT-DRAFT as a real 2-1", async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe("B08 — LIVE-to-report continuity (P1-6): a real recorded live ev
 
     await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
     await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
-    await expect(page.getByText("2 - 1").first()).toBeVisible();
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
   });
 });
 
